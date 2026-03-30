@@ -13,26 +13,23 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.postsaimanager.feature.chat.ChatScreen
+import com.postsaimanager.feature.documents.DocumentDetailScreen
 import com.postsaimanager.feature.documents.DocumentsScreen
 import com.postsaimanager.feature.home.HomeScreen
 import com.postsaimanager.feature.profiles.ProfilesScreen
+import com.postsaimanager.feature.scanner.ScannerScreen
 import com.postsaimanager.feature.settings.SettingsScreen
+import androidx.navigation.NavGraph.Companion.findStartDestination
 
-/**
- * Root composable for the app.
- * Manages bottom navigation and the main NavHost.
- */
 @Composable
 fun PamApp() {
     val navController = rememberNavController()
@@ -40,7 +37,6 @@ fun PamApp() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Show bottom bar only for top-level destinations
     val topLevelRoutes = TopLevelDestination.entries.map { it.route }
     val shouldShowBottomBar = currentRoute in topLevelRoutes
 
@@ -72,24 +68,71 @@ fun PamApp() {
             startDestination = TopLevelDestination.HOME.route,
             modifier = Modifier.padding(innerPadding),
         ) {
+            // ── Top-level destinations ──
             composable(TopLevelDestination.HOME.route) {
                 HomeScreen(
-                    onDocumentClick = { /* TODO: nav to detail */ },
-                    onScanClick = { /* TODO: nav to scanner */ },
+                    onDocumentClick = { id ->
+                        navController.navigate("document/$id")
+                    },
+                    onScanClick = {
+                        navController.navigate("scanner")
+                    },
                 )
             }
             composable(TopLevelDestination.DOCUMENTS.route) {
                 DocumentsScreen(
-                    onDocumentClick = { /* TODO: nav to detail */ },
+                    onDocumentClick = { id ->
+                        navController.navigate("document/$id")
+                    },
                 )
             }
             composable(TopLevelDestination.PROFILES.route) {
                 ProfilesScreen(
-                    onProfileClick = { /* TODO: nav to profile detail */ },
+                    onProfileClick = { /* TODO: profile detail */ },
                 )
             }
             composable(TopLevelDestination.SETTINGS.route) {
                 SettingsScreen()
+            }
+
+            // ── Detail destinations ──
+            composable(
+                route = "document/{documentId}",
+                arguments = listOf(navArgument("documentId") { type = NavType.StringType }),
+            ) {
+                DocumentDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onChatClick = { docId ->
+                        navController.navigate("chat?documentId=$docId")
+                    },
+                )
+            }
+
+            composable("scanner") {
+                ScannerScreen(
+                    onScanComplete = { documentId ->
+                        navController.navigate("document/$documentId") {
+                            popUpTo("scanner") { inclusive = true }
+                        }
+                    },
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                route = "chat?documentId={documentId}",
+                arguments = listOf(
+                    navArgument("documentId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
+            ) {
+                ChatScreen(
+                    documentId = it.arguments?.getString("documentId"),
+                    onNavigateBack = { navController.popBackStack() },
+                )
             }
         }
     }

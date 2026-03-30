@@ -63,12 +63,21 @@ interface DocumentDao {
     @Query("SELECT * FROM document_pages WHERE documentId = :docId ORDER BY pageNumber")
     suspend fun getPages(docId: String): List<DocumentPageEntity>
 
+    @Query("SELECT * FROM document_pages WHERE documentId = :docId ORDER BY pageNumber")
+    fun observePages(docId: String): Flow<List<DocumentPageEntity>>
+
+    @Query("SELECT * FROM documents WHERE id = :id")
+    fun observeById(id: String): Flow<DocumentEntity?>
+
     // ── Extracted Data ──
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExtractedData(data: List<ExtractedDataEntity>)
 
     @Query("SELECT * FROM extracted_data WHERE documentId = :docId")
     suspend fun getExtractedData(docId: String): List<ExtractedDataEntity>
+
+    @Query("SELECT * FROM extracted_data WHERE documentId = :docId")
+    fun observeExtractedData(docId: String): Flow<List<ExtractedDataEntity>>
 
     @Query("UPDATE extracted_data SET isConfirmed = 1 WHERE id = :id")
     suspend fun confirmExtraction(id: String)

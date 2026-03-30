@@ -31,6 +31,7 @@ enum class ExtractedFieldType {
     SUBJECT,
     DEADLINE,
     TAG_SUGGESTION,
+    OTHER,
 }
 
 /**

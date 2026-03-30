@@ -10,6 +10,7 @@ import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.ExtractedData
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -119,4 +120,29 @@ class DocumentRepositoryImpl @Inject constructor(
                 PamResult.Error(PamError.DatabaseError(cause = e))
             }
         }
+
+    override suspend fun confirmExtractedField(fieldId: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentDao.confirmExtraction(fieldId)
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override fun observeDocument(id: String): Flow<Document?> =
+        documentDao.observeById(id)
+            .map { entity -> entity?.let(mapper::toDomain) }
+            .flowOn(ioDispatcher)
+
+    override fun observePages(documentId: String): Flow<List<DocumentPage>> =
+        documentDao.observePages(documentId)
+            .map { entities -> entities.map(mapper::pageToDomain) }
+            .flowOn(ioDispatcher)
+
+    override fun observeExtractedData(documentId: String): Flow<List<ExtractedData>> =
+        documentDao.observeExtractedData(documentId)
+            .map { entities -> entities.map(mapper::extractedDataToDomain) }
+            .flowOn(ioDispatcher)
 }

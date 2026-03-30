@@ -32,6 +32,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:model"))
     implementation(project(":core:domain"))
+    implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
 
     // Hilt
@@ -45,6 +46,9 @@ dependencies {
 
     // Navigation
     implementation(libs.navigation.compose)
+
+    // Image loading
+    implementation(libs.coil.compose)
 
     // Coroutines
     implementation(libs.coroutines.core)

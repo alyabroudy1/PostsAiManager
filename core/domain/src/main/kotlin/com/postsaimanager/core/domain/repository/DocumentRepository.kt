@@ -4,6 +4,8 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.TimelineEvent
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -22,4 +24,10 @@ interface DocumentRepository {
     suspend fun deleteDocument(id: String): PamResult<Unit>
     suspend fun toggleFavorite(id: String): PamResult<Unit>
     suspend fun updateDocumentStatus(id: String, status: DocumentStatus): PamResult<Unit>
+    suspend fun confirmExtractedField(fieldId: String): PamResult<Unit>
+
+    // Reactive queries for detail screen
+    fun observeDocument(id: String): Flow<Document?>
+    fun observePages(documentId: String): Flow<List<DocumentPage>>
+    fun observeExtractedData(documentId: String): Flow<List<ExtractedData>>
 }

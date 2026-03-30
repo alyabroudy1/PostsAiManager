@@ -1,35 +1,49 @@
 package com.postsaimanager.core.domain.document
 
-import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.domain.repository.TimelineRepository
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
+import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.TimelineEvent
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 /**
- * Use case for retrieving document detail with pages.
+ * Use case for observing document detail reactively.
+ * Combines document, pages, extracted data, and timeline into a single Flow.
  */
 class GetDocumentDetailUseCase @Inject constructor(
     private val documentRepository: DocumentRepository,
+    private val timelineRepository: TimelineRepository,
 ) {
-    suspend operator fun invoke(documentId: String): PamResult<DocumentDetail> {
-        val docResult = documentRepository.getDocumentById(documentId)
-        if (docResult is PamResult.Error) return docResult
-
-        val document = (docResult as PamResult.Success).data
-        val pagesResult = documentRepository.getDocumentPages(documentId)
-        if (pagesResult is PamResult.Error) return pagesResult
-
-        val pages = (pagesResult as PamResult.Success).data
-        return PamResult.Success(DocumentDetail(document, pages))
+    operator fun invoke(documentId: String): Flow<DocumentDetailUiState> {
+        return combine(
+            documentRepository.observeDocument(documentId).filterNotNull(),
+            documentRepository.observePages(documentId),
+            documentRepository.observeExtractedData(documentId),
+            timelineRepository.observeEvents(documentId),
+        ) { document, pages, extractedData, timeline ->
+            DocumentDetailUiState.Success(
+                document = document,
+                pages = pages,
+                extractedData = extractedData,
+                timeline = timeline,
+            )
+        }
     }
 }
 
-/**
- * Combined document with its pages.
- */
-data class DocumentDetail(
-    val document: Document,
-    val pages: List<DocumentPage>,
-)
+sealed interface DocumentDetailUiState {
+    data object Loading : DocumentDetailUiState
+    data class Success(
+        val document: Document,
+        val pages: List<DocumentPage>,
+        val extractedData: List<ExtractedData>,
+        val timeline: List<TimelineEvent>,
+    ) : DocumentDetailUiState
+    data class Error(val message: String) : DocumentDetailUiState
+}

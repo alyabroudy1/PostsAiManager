@@ -10,5 +10,6 @@ import kotlinx.coroutines.flow.Flow
  */
 interface TimelineRepository {
     fun getTimelineForDocument(documentId: String): Flow<List<TimelineEvent>>
+    fun observeEvents(documentId: String): Flow<List<TimelineEvent>> = getTimelineForDocument(documentId)
     suspend fun recordEvent(event: TimelineEvent): PamResult<Unit>
 }

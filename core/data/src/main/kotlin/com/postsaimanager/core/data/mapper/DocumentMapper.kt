@@ -2,10 +2,13 @@ package com.postsaimanager.core.data.mapper
 
 import com.postsaimanager.core.data.database.entity.DocumentEntity
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
+import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.DocumentType
+import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.SourceType
 import javax.inject.Inject
 
@@ -65,5 +68,16 @@ class DocumentMapper @Inject constructor() {
         ocrConfidence = domain.ocrConfidence,
         width = domain.width,
         height = domain.height,
+    )
+
+    fun extractedDataToDomain(entity: ExtractedDataEntity): ExtractedData = ExtractedData(
+        id = entity.id,
+        documentId = entity.documentId,
+        fieldName = entity.fieldName,
+        fieldValue = entity.fieldValue,
+        fieldType = runCatching { ExtractedFieldType.valueOf(entity.fieldType) }.getOrDefault(ExtractedFieldType.OTHER),
+        confidence = entity.confidence,
+        pageNumber = entity.pageNumber,
+        isConfirmed = entity.isConfirmed,
     )
 }
