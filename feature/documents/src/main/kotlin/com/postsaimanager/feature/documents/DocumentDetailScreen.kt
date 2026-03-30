@@ -96,6 +96,7 @@ fun DocumentDetailScreen(
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val processingState by viewModel.processingProgress.collectAsStateWithLifecycle()
     val profileSuggestions by viewModel.profileSuggestions.collectAsStateWithLifecycle()
+    val editingProfileSuggestion by viewModel.editingProfileSuggestion.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -130,13 +131,32 @@ fun DocumentDetailScreen(
                     onUpdateField = viewModel::updateField,
                     onDeleteField = viewModel::deleteField,
                     onLinkProfile = viewModel::linkSuggestionToProfile,
-                    onCreateProfile = viewModel::createProfileFromSuggestion,
+                    onCreateProfile = viewModel::openProfileCreation,
                     onDismissSuggestion = viewModel::dismissSuggestion,
                     onChatClick = { onChatClick(state.document.id) },
                     onToggleFavorite = viewModel::toggleFavorite,
+                    onSharePdf = { viewModel.generatePdf() },
                 )
             }
         }
+    }
+
+    // Profile creation sheet
+    editingProfileSuggestion?.let { suggestion ->
+        ProfileEditSheet(
+            initialData = ProfileFormData(
+                name = suggestion.extractedName ?: "",
+                organization = suggestion.extractedOrganization ?: "",
+                phone = suggestion.extractedPhone ?: "",
+                email = suggestion.extractedEmail ?: "",
+                street = suggestion.extractedAddress ?: "",
+                type = if (suggestion.extractedOrganization != null) com.postsaimanager.core.model.ProfileType.AUTHORITY
+                    else com.postsaimanager.core.model.ProfileType.PERSON,
+            ),
+            isEditing = false,
+            onSave = { formData -> viewModel.saveProfileFromForm(formData, suggestion) },
+            onDismiss = { viewModel.dismissProfileCreation() },
+        )
     }
 }
 
@@ -155,6 +175,7 @@ private fun DocumentDetailContent(
     onLinkProfile: (ProfileSuggestion) -> Unit,
     onCreateProfile: (ProfileSuggestion) -> Unit,
     onDismissSuggestion: (ProfileSuggestion) -> Unit,
+    onSharePdf: () -> File?,
     onChatClick: () -> Unit,
     onToggleFavorite: () -> Unit,
 ) {
@@ -216,7 +237,7 @@ private fun DocumentDetailContent(
         }
 
         when (selectedTab) {
-            DetailTab.PAGES -> PagesTab(state.pages)
+            DetailTab.PAGES -> PagesTab(state.pages, onSharePdf)
             DetailTab.EXTRACTED -> ExtractedTemplateTab(
                 data = state.extractedData,
                 language = state.document.language,
@@ -249,7 +270,7 @@ private fun ProcessingBanner(state: ProcessingState.Running) {
 // ═══════════════════════════════════════════════════════════
 
 @Composable
-private fun PagesTab(pages: List<DocumentPage>) {
+private fun PagesTab(pages: List<DocumentPage>, onSharePdf: () -> File?) {
     if (pages.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No pages scanned yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -284,12 +305,12 @@ private fun PagesTab(pages: List<DocumentPage>) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                 ) {
-                    // Share
+                    // Share as PDF
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        FilledTonalIconButton(onClick = { sharePageImage(context, page) }) {
-                            Icon(PamIcons.Send, contentDescription = "Share", modifier = Modifier.size(20.dp))
+                        FilledTonalIconButton(onClick = { sharePdf(context, onSharePdf) }) {
+                            Icon(PamIcons.Pdf, contentDescription = "Share PDF", modifier = Modifier.size(20.dp))
                         }
-                        Text("Share", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Share PDF", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     // Open / Download
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -343,17 +364,18 @@ private fun getFileUri(context: Context, path: String): Uri? {
     } catch (_: Exception) { null }
 }
 
-private fun sharePageImage(context: Context, page: DocumentPage) {
-    val uri = getFileUri(context, page.imagePath)
-    if (uri != null) {
+private fun sharePdf(context: Context, generatePdf: () -> File?) {
+    val pdfFile = generatePdf()
+    if (pdfFile != null && pdfFile.exists()) {
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", pdfFile)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "image/*"
+            type = "application/pdf"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(shareIntent, "Share page ${page.pageNumber}"))
+        context.startActivity(Intent.createChooser(shareIntent, "Share document as PDF"))
     } else {
-        Toast.makeText(context, "Unable to share: file not found", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Failed to generate PDF", Toast.LENGTH_SHORT).show()
     }
 }
 
