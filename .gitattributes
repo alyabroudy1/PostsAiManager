@@ -1,0 +1,2 @@
+app/src/main/assets/*.onnx filter=lfs diff=lfs merge=lfs -text
+app/src/main/assets/*.ort filter=lfs diff=lfs merge=lfs -text

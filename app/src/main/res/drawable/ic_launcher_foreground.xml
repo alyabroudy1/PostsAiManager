@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Envelope shape -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,38h48c2.2,0 4,1.8 4,4v24c0,2.2 -1.8,4 -4,4H30c-2.2,0 -4,-1.8 -4,-4V42C26,39.8 27.8,38 30,38z"/>
+    <path
+        android:fillColor="#DBEAFE"
+        android:pathData="M26,42l28,18l28,-18"/>
+    <!-- AI sparkle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M72,48l2,4l4,2l-4,2l-2,4l-2,-4l-4,-2l4,-2z"/>
+</vector>
