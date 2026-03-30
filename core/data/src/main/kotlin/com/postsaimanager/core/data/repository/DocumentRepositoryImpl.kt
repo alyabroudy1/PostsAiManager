@@ -131,6 +131,47 @@ class DocumentRepositoryImpl @Inject constructor(
             }
         }
 
+    override suspend fun addExtractedField(field: ExtractedData): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentDao.insertSingleExtractedData(
+                    com.postsaimanager.core.data.database.entity.ExtractedDataEntity(
+                        id = field.id,
+                        documentId = field.documentId,
+                        fieldName = field.fieldName,
+                        fieldValue = field.fieldValue,
+                        fieldType = field.fieldType.name,
+                        confidence = field.confidence,
+                        pageNumber = field.pageNumber,
+                        isConfirmed = field.isConfirmed,
+                    )
+                )
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun updateExtractedField(fieldId: String, name: String, value: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentDao.updateExtractedField(fieldId, name, value)
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun deleteExtractedField(fieldId: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentDao.deleteExtractedField(fieldId)
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
     override fun observeDocument(id: String): Flow<Document?> =
         documentDao.observeById(id)
             .map { entity -> entity?.let(mapper::toDomain) }

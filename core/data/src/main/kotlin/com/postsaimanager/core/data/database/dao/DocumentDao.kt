@@ -81,4 +81,16 @@ interface DocumentDao {
 
     @Query("UPDATE extracted_data SET isConfirmed = 1 WHERE id = :id")
     suspend fun confirmExtraction(id: String)
+
+    @Query("DELETE FROM extracted_data WHERE documentId = :docId")
+    suspend fun deleteExtractedData(docId: String)
+
+    @Query("UPDATE extracted_data SET fieldValue = :value, fieldName = :name WHERE id = :id")
+    suspend fun updateExtractedField(id: String, name: String, value: String)
+
+    @Query("DELETE FROM extracted_data WHERE id = :id")
+    suspend fun deleteExtractedField(id: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSingleExtractedData(data: ExtractedDataEntity)
 }

@@ -3,11 +3,14 @@ package com.postsaimanager.feature.documents
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.data.repository.DocumentProcessingPipeline
 import com.postsaimanager.core.data.repository.ProcessingState
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.ExtractedFieldType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,7 +29,7 @@ class DocumentDetailViewModel @Inject constructor(
     private val processingPipeline: DocumentProcessingPipeline,
 ) : ViewModel() {
 
-    private val documentId: String = checkNotNull(savedStateHandle["documentId"])
+    val documentId: String = checkNotNull(savedStateHandle["documentId"])
 
     private val _selectedTab = MutableStateFlow(DetailTab.PAGES)
     val selectedTab: StateFlow<DetailTab> = _selectedTab.asStateFlow()
@@ -64,6 +67,33 @@ class DocumentDetailViewModel @Inject constructor(
     fun confirmField(fieldId: String) {
         viewModelScope.launch {
             documentRepository.confirmExtractedField(fieldId)
+        }
+    }
+
+    fun addField(name: String, value: String, type: ExtractedFieldType) {
+        viewModelScope.launch {
+            val field = ExtractedData(
+                id = UuidGenerator.generate(),
+                documentId = documentId,
+                fieldName = name,
+                fieldValue = value,
+                fieldType = type,
+                confidence = 1.0f, // Manual entry = 100% confidence
+                isConfirmed = true, // User-added = auto-confirmed
+            )
+            documentRepository.addExtractedField(field)
+        }
+    }
+
+    fun updateField(fieldId: String, name: String, value: String) {
+        viewModelScope.launch {
+            documentRepository.updateExtractedField(fieldId, name, value)
+        }
+    }
+
+    fun deleteField(fieldId: String) {
+        viewModelScope.launch {
+            documentRepository.deleteExtractedField(fieldId)
         }
     }
 

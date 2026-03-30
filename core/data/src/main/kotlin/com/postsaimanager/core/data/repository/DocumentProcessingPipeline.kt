@@ -99,20 +99,22 @@ class DocumentProcessingPipeline @Inject constructor(
                     )
                 )
 
-                // Step 4: Entity extraction
+                // Step 4: Entity extraction (with built-in language detection)
                 _processingState.value = ProcessingState.Running(
-                    documentId, "Extracting entities...", 0.7f
+                    documentId, "Analyzing document structure...", 0.7f
                 )
 
                 val combinedText = ocrResults.joinToString("\n\n") { it.fullText }
-                val detectedLanguage = ocrResults.firstOrNull()?.detectedLanguage
 
-                val extraction = entityExtractor.extract(documentId, combinedText, detectedLanguage)
+                val extraction = entityExtractor.extract(documentId, combinedText, null)
 
-                // Step 5: Save extracted data
+                // Step 5: Save extracted data (clear old data first for retry support)
                 _processingState.value = ProcessingState.Running(
-                    documentId, "Saving results...", 0.9f
+                    documentId, "Saving ${extraction.fields.size} fields...", 0.9f
                 )
+
+                // Clear previous extraction on retry
+                documentDao.deleteExtractedData(documentId)
 
                 documentDao.insertExtractedData(
                     extraction.fields.map { field ->
@@ -129,14 +131,15 @@ class DocumentProcessingPipeline @Inject constructor(
                     }
                 )
 
-                // Update document type and language if detected
+                // Update document with detected type, language, and subject
                 val doc = documentDao.getById(documentId)
                 if (doc != null) {
                     documentDao.update(
                         doc.copy(
                             documentType = extraction.documentType?.name ?: doc.documentType,
-                            language = detectedLanguage ?: doc.language,
-                            title = extraction.subject ?: doc.title,
+                            language = extraction.language ?: doc.language,
+                            title = if (extraction.subject != null && doc.title.startsWith("Scan"))
+                                extraction.subject!! else doc.title,
                         )
                     )
                 }

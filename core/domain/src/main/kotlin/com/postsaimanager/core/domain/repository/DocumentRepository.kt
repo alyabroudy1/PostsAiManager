@@ -25,6 +25,9 @@ interface DocumentRepository {
     suspend fun toggleFavorite(id: String): PamResult<Unit>
     suspend fun updateDocumentStatus(id: String, status: DocumentStatus): PamResult<Unit>
     suspend fun confirmExtractedField(fieldId: String): PamResult<Unit>
+    suspend fun addExtractedField(field: ExtractedData): PamResult<Unit>
+    suspend fun updateExtractedField(fieldId: String, name: String, value: String): PamResult<Unit>
+    suspend fun deleteExtractedField(fieldId: String): PamResult<Unit>
 
     // Reactive queries for detail screen
     fun observeDocument(id: String): Flow<Document?>
