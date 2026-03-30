@@ -5,7 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.data.repository.DocumentProcessingPipeline
+import com.postsaimanager.core.data.repository.MatchType
 import com.postsaimanager.core.data.repository.ProcessingState
+import com.postsaimanager.core.data.repository.ProfileMatcher
+import com.postsaimanager.core.data.repository.ProfileSuggestion
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
@@ -27,6 +30,7 @@ class DocumentDetailViewModel @Inject constructor(
     getDocumentDetailUseCase: GetDocumentDetailUseCase,
     private val documentRepository: DocumentRepository,
     private val processingPipeline: DocumentProcessingPipeline,
+    private val profileMatcher: ProfileMatcher,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
@@ -36,6 +40,9 @@ class DocumentDetailViewModel @Inject constructor(
 
     private val _processingProgress = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     val processingProgress: StateFlow<ProcessingState> = _processingProgress.asStateFlow()
+
+    private val _profileSuggestions = MutableStateFlow<List<ProfileSuggestion>>(emptyList())
+    val profileSuggestions: StateFlow<List<ProfileSuggestion>> = _profileSuggestions.asStateFlow()
 
     val uiState: StateFlow<DocumentDetailUiState> =
         getDocumentDetailUseCase(documentId)
@@ -50,6 +57,35 @@ class DocumentDetailViewModel @Inject constructor(
         viewModelScope.launch {
             processingPipeline.processingState.collect { state ->
                 _processingProgress.value = state
+                // After processing completes, run profile matching
+                if (state is ProcessingState.Completed) {
+                    runProfileMatching()
+                }
+            }
+        }
+        // Also run matching on first load if already extracted
+        viewModelScope.launch {
+            uiState.collect { state ->
+                if (state is DocumentDetailUiState.Success && state.extractedData.isNotEmpty() && _profileSuggestions.value.isEmpty()) {
+                    runProfileMatching()
+                }
+            }
+        }
+    }
+
+    private suspend fun runProfileMatching() {
+        val state = uiState.value
+        if (state is DocumentDetailUiState.Success) {
+            val suggestions = profileMatcher.matchProfiles(documentId, state.extractedData)
+            _profileSuggestions.value = suggestions
+
+            // Auto-link exact matches
+            suggestions.filter { it.matchType == MatchType.EXACT_MATCH && !it.isAutoLinked }.forEach { suggestion ->
+                profileMatcher.linkExistingProfile(suggestion)
+                // Mark as auto-linked
+                _profileSuggestions.value = _profileSuggestions.value.map {
+                    if (it === suggestion) it.copy(isAutoLinked = true) else it
+                }
             }
         }
     }
@@ -60,47 +96,69 @@ class DocumentDetailViewModel @Inject constructor(
 
     fun startProcessing() {
         viewModelScope.launch {
+            _profileSuggestions.value = emptyList()
             processingPipeline.processDocument(documentId)
         }
     }
 
     fun confirmField(fieldId: String) {
-        viewModelScope.launch {
-            documentRepository.confirmExtractedField(fieldId)
-        }
+        viewModelScope.launch { documentRepository.confirmExtractedField(fieldId) }
     }
 
     fun addField(name: String, value: String, type: ExtractedFieldType) {
         viewModelScope.launch {
-            val field = ExtractedData(
-                id = UuidGenerator.generate(),
-                documentId = documentId,
-                fieldName = name,
-                fieldValue = value,
-                fieldType = type,
-                confidence = 1.0f, // Manual entry = 100% confidence
-                isConfirmed = true, // User-added = auto-confirmed
+            documentRepository.addExtractedField(
+                ExtractedData(
+                    id = UuidGenerator.generate(),
+                    documentId = documentId,
+                    fieldName = name,
+                    fieldValue = value,
+                    fieldType = type,
+                    confidence = 1.0f,
+                    isConfirmed = true,
+                )
             )
-            documentRepository.addExtractedField(field)
         }
     }
 
     fun updateField(fieldId: String, name: String, value: String) {
-        viewModelScope.launch {
-            documentRepository.updateExtractedField(fieldId, name, value)
-        }
+        viewModelScope.launch { documentRepository.updateExtractedField(fieldId, name, value) }
     }
 
     fun deleteField(fieldId: String) {
+        viewModelScope.launch { documentRepository.deleteExtractedField(fieldId) }
+    }
+
+    fun linkSuggestionToProfile(suggestion: ProfileSuggestion) {
         viewModelScope.launch {
-            documentRepository.deleteExtractedField(fieldId)
+            profileMatcher.linkExistingProfile(suggestion)
+            _profileSuggestions.value = _profileSuggestions.value.map {
+                if (it.role == suggestion.role && it.existingProfile?.id == suggestion.existingProfile?.id) {
+                    it.copy(isAutoLinked = true)
+                } else it
+            }
         }
     }
 
-    fun toggleFavorite() {
+    fun createProfileFromSuggestion(suggestion: ProfileSuggestion) {
         viewModelScope.launch {
-            documentRepository.toggleFavorite(documentId)
+            val result = profileMatcher.createAndLinkProfile(suggestion)
+            if (result is com.postsaimanager.core.common.result.PamResult.Success) {
+                _profileSuggestions.value = _profileSuggestions.value.map {
+                    if (it.role == suggestion.role && it.matchType == MatchType.NEW_PROFILE) {
+                        it.copy(isAutoLinked = true, existingProfile = result.data)
+                    } else it
+                }
+            }
         }
+    }
+
+    fun dismissSuggestion(suggestion: ProfileSuggestion) {
+        _profileSuggestions.value = _profileSuggestions.value.filter { it !== suggestion }
+    }
+
+    fun toggleFavorite() {
+        viewModelScope.launch { documentRepository.toggleFavorite(documentId) }
     }
 
     fun deleteDocument(onDeleted: () -> Unit) {
