@@ -33,26 +33,3 @@ data class Tag(
     val name: String,
     val color: String? = null,
 )
-
-/**
- * User preferences for app configuration.
- */
-@Serializable
-data class UserPreferences(
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val language: AppLanguage = AppLanguage.GERMAN,
-    val defaultAiModelId: String? = null,
-    val useGpu: Boolean = true,
-    val temperature: Float = 0.7f,
-    val maxTokens: Int = 2048,
-)
-
-@Serializable
-enum class ThemeMode { LIGHT, DARK, SYSTEM }
-
-@Serializable
-enum class AppLanguage(val code: String, val displayName: String) {
-    GERMAN("de", "Deutsch"),
-    ARABIC("ar", "العربية"),
-    ENGLISH("en", "English"),
-}

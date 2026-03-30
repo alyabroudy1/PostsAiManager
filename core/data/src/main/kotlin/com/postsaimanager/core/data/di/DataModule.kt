@@ -3,9 +3,11 @@ package com.postsaimanager.core.data.di
 import com.postsaimanager.core.data.repository.DocumentRepositoryImpl
 import com.postsaimanager.core.data.repository.ProfileRepositoryImpl
 import com.postsaimanager.core.data.repository.TimelineRepositoryImpl
+import com.postsaimanager.core.data.repository.UserPreferencesRepositoryImpl
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
+import com.postsaimanager.core.domain.repository.UserPreferencesRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -27,4 +29,8 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindTimelineRepository(impl: TimelineRepositoryImpl): TimelineRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindUserPreferencesRepository(impl: UserPreferencesRepositoryImpl): UserPreferencesRepository
 }
