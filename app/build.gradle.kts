@@ -67,6 +67,7 @@ dependencies {
     implementation(project(":feature:chat"))
     implementation(project(":feature:profiles"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:parser"))
 
     // Compose
     implementation(platform(libs.compose.bom))

@@ -59,4 +59,7 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.mockk)
     testImplementation(libs.coroutines.test)
+
+    // ONNX Runtime for local Kokoro TTS and Syntax Inference
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.24.3")
 }

@@ -28,6 +28,7 @@ import com.postsaimanager.feature.home.HomeScreen
 import com.postsaimanager.feature.profiles.ProfilesScreen
 import com.postsaimanager.feature.scanner.ScannerScreen
 import com.postsaimanager.feature.settings.SettingsScreen
+import com.postsaimanager.feature.parser.ParserScreen
 import androidx.navigation.NavGraph.Companion.findStartDestination
 
 @Composable
@@ -93,6 +94,9 @@ fun PamApp() {
             }
             composable(TopLevelDestination.SETTINGS.route) {
                 SettingsScreen()
+            }
+            composable(TopLevelDestination.PARSER.route) {
+                ParserScreen()
             }
 
             // ── Detail destinations ──
