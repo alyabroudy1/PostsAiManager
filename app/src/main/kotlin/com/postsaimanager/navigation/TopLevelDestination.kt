@@ -36,4 +36,10 @@ enum class TopLevelDestination(
         label = "Settings",
         route = "settings",
     ),
+    PARSER(
+        selectedIcon = PamIcons.AiModel,
+        unselectedIcon = PamIcons.AiModel, // Assuming no outlined variant exists
+        label = "Parser",
+        route = "parser",
+    ),
 }
