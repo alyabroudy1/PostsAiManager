@@ -49,6 +49,10 @@ android {
         }
     }
 
+    buildFeatures {
+        aidl = true
+    }
+
     packaging {
         jniLibs {
             // Required for 16 KB page-size devices (Android 15+).
@@ -91,6 +95,7 @@ dependencies {
     // Instrumented spike tests (JUnit4 — the instrumentation runner is JUnit4-based,
     // independent of the JUnit 5 platform used for unit tests).
     androidTestImplementation(project(":core:testing"))
+    androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
 }

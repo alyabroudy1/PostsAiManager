@@ -1,6 +1,6 @@
 package com.postsaimanager.core.ai.local.di
 
-import com.postsaimanager.core.ai.local.LocalAiEngine
+import com.postsaimanager.core.ai.local.RemoteAiEngine
 import com.postsaimanager.core.domain.ai.AiEngine
 import dagger.Binds
 import dagger.Module
@@ -21,5 +21,5 @@ abstract class LocalAiModule {
 
     @Binds
     @Singleton
-    abstract fun bindAiEngine(impl: LocalAiEngine): AiEngine
+    abstract fun bindAiEngine(impl: RemoteAiEngine): AiEngine
 }
