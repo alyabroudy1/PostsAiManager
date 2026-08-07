@@ -127,8 +127,11 @@ class RetrieveChunksUseCase @Inject constructor(
     private fun rankByKeyword(query: String, corpus: List<StoredChunk>): List<StoredChunk> {
         val terms = query.lowercase()
             .split(Regex("[^\\p{L}\\p{N}/.-]+"))
-            .filter { it.length >= MIN_TERM_LENGTH }
+            .filter { it.length >= MIN_TERM_LENGTH && it !in STOPWORDS }
             .toSet()
+        // Every term was noise — "wann muss ich das machen?" carries no keyword signal at
+        // all. Returning nothing lets the semantic half answer alone, which is the half
+        // that can. Ranking by stopword hits would actively mislead fusion.
         if (terms.isEmpty()) return emptyList()
 
         return corpus
@@ -173,10 +176,61 @@ class RetrieveChunksUseCase @Inject constructor(
          */
         const val RRF_K = 60f
 
-        /** Below this, cosine similarity is noise rather than weak relevance. */
-        const val MIN_SEMANTIC_SIMILARITY = 0.25f
+        /**
+         * Below this, cosine similarity is noise rather than weak relevance.
+         *
+         * Measured, not guessed — see `SimilarityCalibrationTest`. Asking five questions of
+         * a real German letter, the correct paragraph scored **0.13 – 0.30** while
+         * unrelated paragraphs sat at **−0.04 – 0.04**. The gap is wide but the absolute
+         * numbers are low, because a short question compared against a whole paragraph is a
+         * different distribution from the sentence-pair scores (~0.42) this constant was
+         * originally taken from: mean pooling over several hundred tokens dilutes the
+         * vector.
+         *
+         * At 0.25 this discarded four of the five correct answers and semantic search
+         * contributed nothing — retrieval silently degraded to keyword matching while
+         * still reporting `semanticSearchUsed = true`.
+         *
+         * Being slightly generous costs little: fusion ranks by position, so an extra weak
+         * candidate lands at the bottom rather than displacing a strong one. The job here
+         * is only to keep noise out of the ranked list.
+         */
+        const val MIN_SEMANTIC_SIMILARITY = 0.10f
 
         /** One- and two-character tokens match everything and rank nothing. */
         const val MIN_TERM_LENGTH = 3
+
+        /**
+         * Function words, excluded from keyword ranking.
+         *
+         * Length alone is not enough of a filter for German: "die", "der", "und", "bis",
+         * "ich", "muss" all clear three characters and appear in nearly every paragraph of
+         * a formal letter. Counting them made the keyword half rank by *how much ordinary
+         * German a passage contained* — on a real letter it put the appeal-rights paragraph
+         * above the deadline paragraph for the question "bis wann muss ich die Papiere
+         * abgeben?", purely on "die", "bis" and "muss".
+         *
+         * Deliberately only function words. Domain vocabulary that happens to be common
+         * here — "bescheid", "antrag", "frist" — stays in, because it is exactly what
+         * distinguishes one letter from another.
+         */
+        val STOPWORDS: Set<String> = setOf(
+            // German articles, pronouns, prepositions, conjunctions
+            "der", "die", "das", "den", "dem", "des", "ein", "eine", "einen", "einem",
+            "einer", "eines", "und", "oder", "aber", "auch", "nicht", "nur", "noch",
+            "schon", "sehr", "wenn", "dann", "als", "wie", "was", "wer", "wem", "wen",
+            "wo", "wann", "warum", "bis", "von", "vom", "für", "mit", "aus", "bei",
+            "nach", "vor", "über", "unter", "zum", "zur", "auf", "ist", "sind", "war",
+            "waren", "wird", "werden", "wurde", "wurden", "hat", "hatte", "haben",
+            "kann", "können", "muss", "müssen", "soll", "sollen", "darf", "dürfen",
+            "ich", "sie", "wir", "ihr", "ihre", "ihren", "ihrem", "ihnen", "mein",
+            "meine", "meinen", "sich", "dass", "diese", "dieser", "diesem", "diesen",
+            "man", "hier", "dort", "damit", "durch", "gegen", "ohne", "um",
+            // English, for questions asked in English about German documents
+            "the", "and", "for", "with", "from", "that", "this", "these", "those",
+            "have", "has", "had", "can", "could", "should", "would", "will", "does",
+            "did", "was", "were", "are", "you", "your", "what", "when", "where", "why",
+            "how", "who", "whom", "not", "but", "all", "any", "get",
+        )
     }
 }

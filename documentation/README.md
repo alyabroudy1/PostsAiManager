@@ -46,7 +46,9 @@ ordered the way they are.
 | **Semantic retrieval works** | related **0.423** vs unrelated **0.060** on German with no shared words | 2026-08-07 |
 | **Cross-lingual retrieval** | DE↔EN **0.798** vs unrelated **−0.012** — ask in English about a German letter | 2026-08-07 |
 | Batch embedding | 8 texts in **97 ms** (12 ms each) after batch-max padding — was 1554 ms | 2026-08-07 |
-| Embedding device tests | **7 / 7 passing** on real hardware | 2026-08-07 |
+| Embedding device tests | **12 / 12 passing** on real hardware | 2026-08-07 |
+| Paragraph ranking accuracy | **4 / 5** questions rank the right paragraph first | 2026-08-07 |
+| Question-vs-paragraph scores | correct **0.13 – 0.30**, unrelated **−0.04 – 0.04** | 2026-08-07 |
 
 ## Project at a glance
 

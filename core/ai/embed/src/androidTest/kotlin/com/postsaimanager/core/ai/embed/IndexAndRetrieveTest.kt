@@ -52,15 +52,31 @@ class IndexAndRetrieveTest {
 
         Sehr geehrte Frau Mustermann,
 
-        Ihr Widerspruch vom 12.01.2026 gegen unseren Bescheid wurde geprüft. Nach
-        eingehender Prüfung der Sachlage können wir Ihrem Anliegen leider nicht
-        entsprechen. Der Widerspruch wird daher zurückgewiesen.
+        Ihr Widerspruch vom 12.01.2026 gegen unseren Bescheid vom 03.12.2025 wurde
+        geprüft. Nach eingehender Prüfung der von Ihnen vorgetragenen Gründe und der
+        beigefügten Nachweise können wir Ihrem Anliegen leider nicht entsprechen. Der
+        Widerspruch wird daher als unbegründet zurückgewiesen. Die Entscheidung stützt
+        sich auf die uns vorliegenden Einkommensnachweise des Vorjahres.
 
-        Bitte reichen Sie die noch fehlenden Unterlagen bis zum 31.01.2026 bei uns
-        ein. Andernfalls müssen wir die Leistungen vorläufig einstellen.
+        Gegen diesen Widerspruchsbescheid können Sie innerhalb eines Monats nach
+        Bekanntgabe Klage beim Sozialgericht Berlin erheben. Die Klage ist schriftlich
+        oder zur Niederschrift des Urkundsbeamten der Geschäftsstelle zu erheben. Eine
+        Rechtsberatung durch unsere Mitarbeiter ist aus rechtlichen Gründen nicht
+        zulässig.
 
-        Für Rückfragen steht Ihnen Herr Schmidt unter der Rufnummer 030 12345678
-        zur Verfügung.
+        Bitte reichen Sie die noch fehlenden Unterlagen bis zum 31.01.2026 bei uns ein.
+        Andernfalls müssen wir die laufenden Leistungen vorläufig einstellen, bis die
+        Angaben vollständig vorliegen. Maßgeblich ist der Eingang bei der zuständigen
+        Stelle, nicht das Datum des Poststempels.
+
+        Ihre monatliche Regelleistung beträgt ab dem 01.02.2026 voraussichtlich 563,00
+        Euro. Die Anpassung erfolgt automatisch, ein gesonderter Antrag ist hierfür
+        nicht erforderlich. Über Änderungen Ihrer Einkommensverhältnisse sind wir
+        unverzüglich zu unterrichten.
+
+        Für Rückfragen steht Ihnen Herr Schmidt unter der Rufnummer 030 12345678 zur
+        Verfügung. Unsere Sprechzeiten sind montags bis donnerstags von 8 bis 16 Uhr
+        sowie freitags von 8 bis 12 Uhr.
 
         Mit freundlichen Grüßen
     """.trimIndent()
@@ -102,23 +118,40 @@ class IndexAndRetrieveTest {
 
         Log.i(tag, "index chunks=${summary.chunkCount} embedded=${summary.embedded}")
 
+        // The letter has to actually split, or "the right passage won" is vacuous —
+        // a single chunk contains every answer and wins by default.
+        assertTrue(
+            "letter did not split; the assertion below would prove nothing",
+            summary.chunkCount >= 3,
+        )
+
         // "Frist" and "abgeben" appear nowhere in the letter, which says "reichen Sie ...
-        // bis zum ... ein". Keyword search cannot answer this; only meaning can.
-        val result = retrieve("Bis wann muss ich die Papiere abgeben?")
+        // bis zum ... ein". The deadline paragraph has to beat four other paragraphs,
+        // one of which is also about a date and a deadline (the one-month appeal window).
+        val result = retrieve("Bis wann muss ich die fehlenden Papiere abgeben?")
 
         assertTrue("semantic search did not run", result.semanticSearchUsed)
         assertTrue("nothing retrieved", result.chunks.isNotEmpty())
 
-        val best = result.chunks.first()
-        Log.i(
-            tag,
-            "retrieve top score=${best.score} semantic=${best.matchedSemantically} " +
-                "text=${best.chunk.text.take(80).replace('\n', ' ')}",
-        )
+        result.chunks.take(3).forEachIndexed { rank, hit ->
+            Log.i(
+                tag,
+                "retrieve #$rank score=${hit.score} semantic=${hit.matchedSemantically} " +
+                    "keyword=${hit.matchedByKeyword} " +
+                    "text=${hit.chunk.text.take(70).lines().joinToString(" ")}",
+            )
+        }
 
+        val best = result.chunks.first()
         assertTrue(
             "the top passage does not contain the deadline: ${best.chunk.text}",
             best.chunk.text.contains("31.01.2026"),
+        )
+        // The claim under test. Without this the test passes on a keyword match against
+        // German stopwords, which is exactly what embeddings were added to fix.
+        assertTrue(
+            "the deadline passage was not found semantically, only by keyword",
+            best.matchedSemantically,
         )
     }
 

@@ -247,9 +247,17 @@ class OnnxEmbeddingService @Inject constructor(
         const val TOKEN_TYPE_IDS = "token_type_ids"
 
         /**
-         * Chunks target ~1200 characters, comfortably inside this. Shorter sequences are
-         * markedly faster — cost is quadratic in length for attention — so this is a cap,
-         * not a target.
+         * The encoder's window. Anything longer is **truncated silently** — the tokenizer
+         * drops the tail and the resulting vector represents only the beginning of the
+         * text, with nothing to indicate it happened.
+         *
+         * `TextChunker.DEFAULT_TARGET_CHARS` is sized to stay under this (~700 characters
+         * ≈ 230 tokens of German). The two constants are a pair: raising one without the
+         * other either wastes the window or quietly loses the end of every long passage.
+         *
+         * Sequences shorter than this cost markedly less — attention is quadratic in
+         * length, and batches are padded only to their own longest member — so this is a
+         * cap, not a target.
          */
         const val MAX_SEQUENCE_LENGTH = 256
 

@@ -108,10 +108,21 @@ object TextChunker {
     }
 
     /**
-     * ~1200 characters is roughly 300–400 tokens of German — small enough that several fit
-     * a 4 k context alongside the question, large enough to carry a whole paragraph.
+     * ~700 characters is roughly 230 tokens of German — large enough to carry a whole
+     * paragraph, small enough that several fit a 4 k context alongside the question.
+     *
+     * **The upper bound is not a matter of taste.** A chunk longer than the embedding
+     * encoder's window is truncated when it is embedded, and nothing reports it: the
+     * stored text keeps its tail, so keyword search still finds it, while its vector
+     * represents only the beginning. The passage then fails to match questions about its
+     * own second half, and looks merely irrelevant rather than broken.
+     *
+     * The encoder currently accepts 256 tokens, and German runs about three characters per
+     * token, leaving ~768. This sits under that with room for the tokenizer being less
+     * generous than the estimate on compound words. Raising it means raising the encoder's
+     * window first — attention cost is quadratic in length, so that is not free.
      */
-    const val DEFAULT_TARGET_CHARS = 1200
-    const val DEFAULT_OVERLAP_CHARS = 150
+    const val DEFAULT_TARGET_CHARS = 700
+    const val DEFAULT_OVERLAP_CHARS = 120
     private const val MIN_CHUNK_CHARS = 40
 }
