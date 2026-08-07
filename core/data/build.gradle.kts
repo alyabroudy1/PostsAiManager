@@ -14,6 +14,18 @@ android {
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    sourceSets {
+        // MigrationTestHelper reads the exported schemas from assets.
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+
+    packaging {
+        resources {
+            excludes += setOf("META-INF/LICENSE.md", "META-INF/LICENSE-notice.md")
+        }
     }
 
     compileOptions {
@@ -74,4 +86,11 @@ dependencies {
 
     // Testing
     testImplementation(libs.room.testing)
+
+    // Instrumented migration tests (JUnit4 — the instrumentation runner is JUnit4-based,
+    // independent of the JUnit 5 platform the convention plugin sets up for unit tests).
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }

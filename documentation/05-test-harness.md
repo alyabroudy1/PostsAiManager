@@ -74,6 +74,27 @@ model asked to *follow twelve numbered steps and report* is reliable.
 | Free storage | 209 GB |
 | Package | `com.postsaimanager.debug` |
 
+### 4.0 Unattended runs — invoke the wrapper by its literal path
+
+Permission rules match the **literal command string**. Aliasing the wrapper defeats them:
+
+```bash
+A="./scripts/dev-adb.sh"
+$A shell input tap 100 200      # ← starts with "$A"; the rule never matches, so it prompts
+./scripts/dev-adb.sh shell input tap 100 200   # ← matches Bash(./scripts/dev-adb.sh *)
+```
+
+Earlier case files used the `$A` alias and prompted on every step, which defeated the point
+of routing everything through one guarded wrapper. **Runner prompts must spell the path out
+in full, every time.** Verbosity is the price of an unattended run.
+
+The rest of the harness vocabulary (`sleep`, `grep`, `cat`, `mkdir -p`, …) is allowlisted in
+`.claude/settings.json`.
+
+> Claude Code loads `.claude/settings.json` at session start and only watches directories
+> that already contained one. If the file was created mid-session, **restart** before
+> expecting it to take effect.
+
 ### 4.1 Windows / Git Bash gotchas
 
 These will bite on every run if not handled:
@@ -153,6 +174,14 @@ looking for it. That was a **defective test, not a defective app**, and exactly 
 mistake the "never improvise" rule is designed to surface rather than paper over.
 
 Assertions on off-screen content must scroll explicitly.
+
+**Rule: assert before you scroll.** Both scroll bugs so far were written blind —
+T001 failed by not scrolling to `"Version"` at the bottom of Settings; T002 failed by
+scrolling twice past `"AI models"` near the top. Neither was an app defect.
+
+When writing a case, check a dump of the screen first and record what is actually visible.
+A scroll step should exist only when a dump proves the target is off-screen — and the case
+should say which dump justified it, so the next person can re-check when the layout moves.
 
 Dump idiom:
 

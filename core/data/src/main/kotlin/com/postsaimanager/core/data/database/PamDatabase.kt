@@ -4,6 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.postsaimanager.core.data.database.dao.ConversationDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
+import com.postsaimanager.core.data.database.dao.DocumentChunkDao
 import com.postsaimanager.core.data.database.dao.MessageDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
 import com.postsaimanager.core.data.database.dao.TimelineDao
@@ -23,8 +24,9 @@ import com.postsaimanager.core.data.database.entity.*
         MessageEntity::class,
         DocumentRelationEntity::class,
         ReminderEntity::class,
+        DocumentChunkEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class PamDatabase : RoomDatabase() {
@@ -33,6 +35,7 @@ abstract class PamDatabase : RoomDatabase() {
     abstract fun timelineDao(): TimelineDao
     abstract fun conversationDao(): ConversationDao
     abstract fun messageDao(): MessageDao
+    abstract fun documentChunkDao(): DocumentChunkDao
 
     companion object {
         const val DATABASE_NAME = "pam_database"

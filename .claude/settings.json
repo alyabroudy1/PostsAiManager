@@ -5,13 +5,38 @@
       "Bash(./scripts/dev-adb.sh *)",
       "Bash(bash scripts/dev-adb.sh *)",
       "Bash(./gradlew *)",
+
+      "Bash(sleep *)",
+      "Bash(mkdir -p *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(cut *)",
+      "Bash(tr *)",
+      "Bash(grep *)",
+      "Bash(egrep *)",
+      "Bash(awk *)",
+      "Bash(find *)",
+      "Bash(unzip -l *)",
+      "Bash(sha256sum *)",
+      "Bash(stat *)",
+      "Bash(echo *)",
+      "Bash(printf *)",
+      "Bash(for *)",
+      "Bash(while *)",
+      "Bash(if *)",
+      "Bash(test *)",
+
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",
-      "Bash(ls *)",
-      "Bash(wc *)",
-      "Bash(unzip -l *)",
-      "Bash(mkdir -p *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+
       "Read",
       "Glob",
       "Grep"
@@ -21,8 +46,11 @@
       "Bash(* uninstall *)",
       "Bash(* disable-verity *)",
       "Bash(* master-clear *)",
+      "Bash(rm -rf /*)",
+      "Bash(sed -i *)",
       "Bash(git push *)",
-      "Bash(git reset --hard *)"
+      "Bash(git reset --hard *)",
+      "Bash(git clean *)"
     ]
   }
 }

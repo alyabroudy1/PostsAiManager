@@ -35,8 +35,8 @@ that capability is read from `ActivityManager.MemoryInfo` rather than `MemTotal`
 | 4 | `ASSERT_NO_CRASH` | — |
 | 5 | `TAP_TEXT "Settings"` | — |
 | 6 | `WAIT 1500` | — |
-| 7 | `SCROLL_DOWN` ×2 | reach the AI section |
-| 8 | `ASSERT_TEXT "AI models"` | new Settings row present |
+| 7 | `ASSERT_TEXT "AI models"` | **no scrolling** — the AI section is third in Settings, above the fold. Verified against `dump-step05` on a Galaxy S23 Ultra. |
+| 8 | `ASSERT_TEXT "AI"` | section header |
 | 9 | `TAP_TEXT "AI models"` | — |
 | 10 | `WAIT 2500` | — |
 | 11 | `ASSERT_NO_CRASH` | screen composed without error |
@@ -66,3 +66,9 @@ it would mean an unverified model was accepted.
 
 **Do not improvise.** If an element is not found, dump, screenshot, report `FAIL` on that
 step, and stop.
+
+**Revision note.** The first run of this case scrolled twice before looking for
+`"AI models"` and scrolled straight past it — the AI section sits third in Settings, so it
+is on screen immediately. The mirror image of T001, which failed by *not* scrolling to
+reach `"Version"` at the bottom. Both were defective tests, not defective app behaviour;
+both were caught because the runner refuses to go hunting for a missing element.

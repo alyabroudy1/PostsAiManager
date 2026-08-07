@@ -1,11 +1,13 @@
 package com.postsaimanager.core.data.di
 
 import com.postsaimanager.core.data.repository.ConversationRepositoryImpl
+import com.postsaimanager.core.data.repository.DocumentChunkRepositoryImpl
 import com.postsaimanager.core.data.repository.DocumentRepositoryImpl
 import com.postsaimanager.core.data.repository.ProfileRepositoryImpl
 import com.postsaimanager.core.data.repository.TimelineRepositoryImpl
 import com.postsaimanager.core.data.repository.UserPreferencesRepositoryImpl
 import com.postsaimanager.core.domain.repository.ConversationRepository
+import com.postsaimanager.core.domain.repository.DocumentChunkRepository
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
@@ -39,4 +41,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindConversationRepository(impl: ConversationRepositoryImpl): ConversationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDocumentChunkRepository(
+        impl: DocumentChunkRepositoryImpl,
+    ): DocumentChunkRepository
 }

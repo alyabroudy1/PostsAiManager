@@ -266,3 +266,62 @@ data class ReminderEntity(
     val isCompleted: Boolean = false,
     val createdAt: Long,
 )
+
+/**
+ * A slice of a document's OCR text with its embedding, for semantic retrieval.
+ *
+ * Chunked rather than whole-document because a 4–8 k context cannot hold a multi-page
+ * letter, and because retrieval is more precise over passages than over whole files.
+ *
+ * [embedding] is a float32 vector serialised little-endian. Stored as a BLOB rather than
+ * in a vector database: a few hundred documents at ~5 chunks each is under a megabyte of
+ * floats, and brute-force cosine over that is sub-millisecond. A vector store would be
+ * infrastructure without a problem to solve.
+ */
+@Entity(
+    tableName = "document_chunks",
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("documentId")],
+)
+data class DocumentChunkEntity(
+    @PrimaryKey val id: String,
+    val documentId: String,
+    val ordinal: Int,
+    val text: String,
+    val embedding: ByteArray?,
+    /** Which model produced [embedding]; vectors from different models are incomparable. */
+    val embeddingModelId: String?,
+    val createdAt: Long,
+) {
+    // ByteArray uses identity equality, so a data class would compare embeddings by
+    // reference and silently report equal rows as different.
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is DocumentChunkEntity) return false
+        return id == other.id &&
+            documentId == other.documentId &&
+            ordinal == other.ordinal &&
+            text == other.text &&
+            embeddingModelId == other.embeddingModelId &&
+            createdAt == other.createdAt &&
+            (embedding?.contentEquals(other.embedding) ?: (other.embedding == null))
+    }
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + documentId.hashCode()
+        result = 31 * result + ordinal
+        result = 31 * result + text.hashCode()
+        result = 31 * result + (embedding?.contentHashCode() ?: 0)
+        result = 31 * result + (embeddingModelId?.hashCode() ?: 0)
+        result = 31 * result + createdAt.hashCode()
+        return result
+    }
+}
