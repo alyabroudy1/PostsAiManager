@@ -472,7 +472,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` cut
 ### 7.7 Embeddings & RAG
 
 - [x] **7.7.1** `EmbeddingService` in `:core:ai:embed` over ONNX Runtime.
-- [~] **7.7.2** Ship or download a multilingual embedding model — *model chosen and
+- [x] **7.7.2** Download the multilingual embedding model — *pinned by revision + SHA-256
+      (`EmbeddingModelRelease`), resumable foreground download, install card on the AI
+      models screen. Verified on device: card renders, pin verified against the live URL.*
+- [~] **7.7.2-detail** Model chosen and
       proven on device (`distiluse-base-multilingual-cased-v2`, 768 dims, 41 ms);
       `EmbeddingModelFiles` fixes where it lives. Download UI still to come.*
       *Chosen over the `multilingual-e5-small` / `bge-m3` class because it ships a

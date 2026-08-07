@@ -8,6 +8,8 @@ import com.postsaimanager.core.ai.catalog.ModelCatalogRepository
 import com.postsaimanager.core.ai.catalog.gguf.ModelImporter
 import com.postsaimanager.core.ai.catalog.ModelCatalogState
 import com.postsaimanager.core.ai.catalog.download.ModelDownloadStatus
+import com.postsaimanager.core.ai.embed.install.EmbeddingModelManager
+import com.postsaimanager.core.ai.embed.install.InstallStatus
 import com.postsaimanager.core.model.AiModelDescriptor
 import com.postsaimanager.core.model.DeviceCapability
 import com.postsaimanager.core.model.ModelFit
@@ -45,6 +47,7 @@ data class FitMessage(
 class ModelsViewModel @Inject constructor(
     private val repository: ModelCatalogRepository,
     private val importer: ModelImporter,
+    private val embeddingModel: EmbeddingModelManager,
 ) : ViewModel() {
 
     private val _message = MutableStateFlow<String?>(null)
@@ -66,6 +69,43 @@ class ModelsViewModel @Inject constructor(
                 started = SharingStarted.WhileSubscribed(5_000),
                 initialValue = ModelsUiState.Loading,
             )
+
+    /**
+     * The embedding model, which is not part of the chat catalog.
+     *
+     * Kept as its own stream rather than folded into [uiState]: it is a different kind of
+     * thing — one fixed asset that enables a feature, not a model the user chooses between
+     * — and its progress updates far more often than the catalog changes.
+     */
+    val embeddingStatus: StateFlow<InstallStatus> =
+        embeddingModel.status.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = if (embeddingModel.isInstalled()) {
+                // Avoids a flash of "not installed" on an install that is already done,
+                // which reads as the model having been lost.
+                InstallStatus.Installed
+            } else {
+                InstallStatus.NotStarted
+            },
+        )
+
+    val embeddingDownloadBytes: Long get() = embeddingModel.downloadBytes
+
+    fun installEmbeddingModel(allowMetered: Boolean = false) {
+        embeddingModel.install(allowMetered)
+    }
+
+    fun cancelEmbeddingInstall() {
+        embeddingModel.cancel()
+    }
+
+    fun uninstallEmbeddingModel() {
+        viewModelScope.launch {
+            embeddingModel.uninstall()
+            _message.value = "Search by meaning turned off. Documents are still searchable by word."
+        }
+    }
 
     fun downloadStatus(descriptorId: String) = repository.downloadStatus(descriptorId)
 

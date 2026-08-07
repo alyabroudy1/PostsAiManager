@@ -40,6 +40,11 @@ dependencies {
     // consumer appears. See documentation/02-architecture.md §2.3.
     implementation(project(":core:ai:catalog"))
 
+    // Same exception, same reason: the embedding model's install card IS this subsystem's
+    // UI. It is not a document concept, so there is no domain port that would be anything
+    // other than a pass-through.
+    implementation(project(":core:ai:embed"))
+
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)

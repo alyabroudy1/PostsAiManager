@@ -38,6 +38,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.ai.catalog.CatalogEntry
 import com.postsaimanager.core.ai.catalog.download.ModelDownloadStatus
+import com.postsaimanager.core.ai.embed.install.InstallStatus
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.model.DeviceCapability
@@ -97,6 +98,19 @@ fun ModelsScreen(
 
                 if (state.usingBundledCatalog) {
                     item { OfflineCatalogNotice() }
+                }
+
+                item { SectionHeader("Document search") }
+                item {
+                    val embeddingStatus by viewModel.embeddingStatus
+                        .collectAsStateWithLifecycle()
+                    EmbeddingModelCard(
+                        status = embeddingStatus,
+                        downloadBytes = viewModel.embeddingDownloadBytes,
+                        onInstall = { viewModel.installEmbeddingModel(allowMetered = it) },
+                        onCancel = { viewModel.cancelEmbeddingInstall() },
+                        onRemove = { viewModel.uninstallEmbeddingModel() },
+                    )
                 }
 
                 if (state.installed.isNotEmpty()) {
@@ -304,4 +318,126 @@ private fun AvailableCard(entry: CatalogEntry, viewModel: ModelsViewModel) {
 private fun Long.gb(): String = when {
     this >= 1_073_741_824L -> "%.1f GB".format(this / 1_073_741_824.0)
     else -> "%.0f MB".format(this / 1_048_576.0)
+}
+
+/**
+ * The embedding model — one fixed asset, not a choice.
+ *
+ * Presented apart from the chat catalog because the decision is different in kind. The
+ * chat cards ask "which assistant?"; this one asks "do you want search to understand
+ * meaning?", and the answer is yes or no. So it is described by what it does rather than by
+ * what it is: nobody installs `distiluse-base-multilingual-cased-v2`, they install the
+ * ability to find a letter without remembering its wording.
+ *
+ * Declining is a legitimate choice with a real consequence, so the card states the
+ * consequence — search still works, by word — rather than pressing.
+ */
+@Composable
+private fun EmbeddingModelCard(
+    status: InstallStatus,
+    downloadBytes: Long,
+    onInstall: (Boolean) -> Unit,
+    onCancel: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    Card {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Search by meaning", style = MaterialTheme.typography.titleMedium)
+                if (status is InstallStatus.Installed) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("On") },
+                        colors = AssistChipDefaults.assistChipColors(),
+                    )
+                }
+            }
+
+            Text(
+                "Find a letter by what it was about, not the words it used. Ask " +
+                    "\"when is my deadline?\" and get the paragraph that answers it — even " +
+                    "in a different language.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            when (status) {
+                is InstallStatus.NotStarted -> {
+                    Text(
+                        "${downloadBytes.gb()} download · runs entirely on your device",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Without it, search still finds documents by word.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { onInstall(false) }) { Text("Download on Wi-Fi") }
+                        // The default waits for unmetered, because a quarter-gigabyte on
+                        // mobile data is not a cost to incur on the user's behalf.
+                        TextButton(onClick = { onInstall(true) }) { Text("Use mobile data") }
+                    }
+                }
+
+                is InstallStatus.Waiting -> {
+                    Text(
+                        "Waiting for Wi-Fi. The download will start on its own.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = onCancel) { Text("Cancel") }
+                }
+
+                is InstallStatus.Running -> {
+                    // Indeterminate until the first progress arrives; a bar pinned at 0%
+                    // looks stalled.
+                    if (status.totalBytes > 0) {
+                        LinearProgressIndicator(
+                            progress = { status.fraction },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            "${(status.fraction * 100).toInt()}% · " +
+                                "${status.bytesDownloaded.gb()} of ${status.totalBytes.gb()}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    Text(
+                        "You can leave this screen — it continues in the background.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = onCancel) { Text("Cancel") }
+                }
+
+                is InstallStatus.Installed -> {
+                    Text(
+                        "Ready. New documents are indexed as you scan them.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedButton(onClick = onRemove) {
+                        Text("Remove (${downloadBytes.gb()})")
+                    }
+                }
+
+                is InstallStatus.Failed -> {
+                    Text(
+                        "The download did not finish. Retrying continues from where it " +
+                            "stopped rather than starting over.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Button(onClick = { onInstall(false) }) { Text("Try again") }
+                }
+            }
+        }
+    }
 }
