@@ -84,7 +84,7 @@ ordered the way they are.
 | **On-device LLM** | ✅ **Runtime proven on device** (llama.cpp b10299, 173 tok/s, GBNF works). `LocalAiEngine` wrapper next. |
 | **Model management** | ✅ **Complete** — catalog, device fit, signed manifest, Hugging Face source, resumable download, management UI, GGUF import |
 | **Tool / agent layer** | **Not started** |
-| **RAG / semantic search** | **Not started** |
+| **RAG / semantic search** | ✅ **Working on device** — ONNX encoder, hybrid RRF retrieval, indexed on scan. Thresholds calibrated from measurement (4/5 paragraph ranking). Model delivery to a real install is the remaining gap |
 | **Escalation & consent gate** | **Not started** |
 | **Chat** | **Mocked — canned strings after `delay(1500)`** |
 | **Tests** | ✅ **75 passing** across 5 modules; all 17 test-capable. Still no Room or instrumented tests |
@@ -100,7 +100,7 @@ See [01-findings-report.md](01-findings-report.md) for the evidence behind each 
 | Priority | On-device first; cloud after 1.0 |
 | Local runtime | **llama.cpp + GGUF** — ✅ **confirmed by spike**: 173 tok/s, GBNF verified |
 | ABI | arm64-v8a (+ x86_64 for debug) |
-| Embeddings | ONNX Runtime, **retargeted** from the cut parser to RAG |
+| Embeddings | ONNX Runtime, **retargeted** from the cut parser to RAG — `distiluse-base-multilingual-cased-v2`, 768 dims, chosen for shipping a WordPiece vocab |
 | Vector store | None — `BLOB` + brute-force cosine |
 | Online consent | Per-query: warn → preview → edit → approve. **No "always allow."** |
 | Remote tool calls | **Proposal only** — executed locally after user confirmation, results never returned |
