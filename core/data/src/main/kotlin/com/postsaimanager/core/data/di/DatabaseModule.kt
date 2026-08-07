@@ -3,7 +3,9 @@ package com.postsaimanager.core.data.di
 import android.content.Context
 import androidx.room.Room
 import com.postsaimanager.core.data.database.PamDatabase
+import com.postsaimanager.core.data.database.dao.ConversationDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
+import com.postsaimanager.core.data.database.dao.MessageDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
 import com.postsaimanager.core.data.database.dao.TimelineDao
 import dagger.Module
@@ -37,4 +39,10 @@ object DatabaseModule {
 
     @Provides
     fun provideTimelineDao(database: PamDatabase): TimelineDao = database.timelineDao()
+
+    @Provides
+    fun provideConversationDao(database: PamDatabase): ConversationDao = database.conversationDao()
+
+    @Provides
+    fun provideMessageDao(database: PamDatabase): MessageDao = database.messageDao()
 }

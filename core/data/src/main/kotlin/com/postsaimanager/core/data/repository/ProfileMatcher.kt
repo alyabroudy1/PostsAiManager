@@ -84,13 +84,27 @@ class ProfileMatcher @Inject constructor(
         // Search existing profiles
         val similar = profileRepository.findSimilarProfiles(searchName, organization).getOrNull() ?: emptyList()
 
-        if (similar.isNotEmpty()) {
-            val bestMatch = similar.first()
-            val confidence = calculateMatchConfidence(bestMatch, name, organization, email)
+        // Score EVERY candidate and take the highest. Previously `similar.first()` was
+        // taken before any scoring, so the "best match" was whatever order Room happened
+        // to return — a perfect match further down the list was silently ignored.
+        val best = similar
+            .map { it to calculateMatchConfidence(it, name, organization, email) }
+            .maxByOrNull { it.second }
+
+        // A candidate is only worth showing if it actually resembles the extracted party.
+        // The old code branched on `similar.isNotEmpty()`, so a 0-confidence row was
+        // presented as a POSSIBLE_MATCH and the user was asked to confirm a link between
+        // two entirely unrelated organisations.
+        if (best != null && best.second >= MIN_SUGGESTION_CONFIDENCE) {
+            val (bestMatch, confidence) = best
 
             return ProfileSuggestion(
                 role = role,
-                matchType = if (confidence >= 0.95f) MatchType.EXACT_MATCH else MatchType.POSSIBLE_MATCH,
+                matchType = if (confidence >= EXACT_MATCH_CONFIDENCE) {
+                    MatchType.EXACT_MATCH
+                } else {
+                    MatchType.POSSIBLE_MATCH
+                },
                 existingProfile = bestMatch,
                 confidence = confidence,
                 extractedName = name,
@@ -131,12 +145,11 @@ class ProfileMatcher @Inject constructor(
         // Organization exact match is strongest signal
         if (organization != null && profile.organization != null) {
             checks++
-            val orgMatch = organization.lowercase().trim() == profile.organization!!.lowercase().trim()
-            val orgContains = profile.organization!!.lowercase().contains(organization.lowercase()) ||
-                organization.lowercase().contains(profile.organization!!.lowercase())
+            val a = organization.lowercase().trim()
+            val b = profile.organization!!.lowercase().trim()
             score += when {
-                orgMatch -> 1.0f
-                orgContains -> 0.8f
+                a == b -> 1.0f
+                substringOverlap(a, b) -> 0.8f
                 else -> 0f
             }
         }
@@ -144,12 +157,11 @@ class ProfileMatcher @Inject constructor(
         // Name match
         if (name != null) {
             checks++
-            val nameMatch = name.lowercase().trim() == profile.name.lowercase().trim()
-            val nameContains = profile.name.lowercase().contains(name.lowercase()) ||
-                name.lowercase().contains(profile.name.lowercase())
+            val a = name.lowercase().trim()
+            val b = profile.name.lowercase().trim()
             score += when {
-                nameMatch -> 1.0f
-                nameContains -> 0.7f
+                a == b -> 1.0f
+                substringOverlap(a, b) -> 0.7f
                 else -> 0f
             }
         }
@@ -161,6 +173,41 @@ class ProfileMatcher @Inject constructor(
         }
 
         return if (checks > 0) score / checks else 0f
+    }
+
+    /**
+     * Substring containment, guarded against matches that carry no identifying signal.
+     *
+     * A bare legal form — "AG", "GmbH", "e.V." — appears in a large share of German
+     * organisation names, so matching on it alone scored 0.8 against most of the
+     * database. A plain length floor was the first attempt and was too blunt: it also
+     * rejected legitimately short personal names such as "Max". Excluding the legal
+     * forms explicitly is the targeted fix; the length floor stays only as a backstop
+     * against one- and two-character fragments.
+     */
+    private fun substringOverlap(a: String, b: String): Boolean {
+        val shorter = if (a.length <= b.length) a else b
+        if (shorter.length < MIN_SUBSTRING_MATCH_LENGTH) return false
+        if (shorter.trim().trimEnd('.') in NON_IDENTIFYING_TOKENS) return false
+        return a.contains(b) || b.contains(a)
+    }
+
+    companion object {
+        /** At or above this, the match is strong enough to offer auto-linking. */
+        const val EXACT_MATCH_CONFIDENCE = 0.95f
+
+        /** Below this, a candidate is not worth showing at all — suggest a new profile. */
+        const val MIN_SUGGESTION_CONFIDENCE = 0.5f
+
+        /** Shortest string that may participate in substring matching. */
+        const val MIN_SUBSTRING_MATCH_LENGTH = 3
+
+        /** Legal forms and generic words that identify nobody on their own. */
+        val NON_IDENTIFYING_TOKENS = setOf(
+            "ag", "gmbh", "mbh", "kg", "ohg", "gbr", "ug", "se", "e.v", "ev",
+            "ltd", "inc", "llc", "plc", "co", "corp", "sa", "nv", "bv",
+            "gmbh & co", "und", "and", "der", "die", "das", "the",
+        )
     }
 
     /**
@@ -196,15 +243,22 @@ class ProfileMatcher @Inject constructor(
             com.postsaimanager.core.common.result.PamError.FileNotFound("No profile to link")
         )
 
-        // Update profile with new contact info if missing
-        val updated = profile.copy(
+        // Backfill only the contact details the profile is missing; never clobber
+        // values the user already has.
+        //
+        // `modifiedAt` is deliberately NOT set here. It used to be part of this copy(),
+        // which made `enriched != profile` always true — the guard was dead code and
+        // every link issued a database write, leaving modifiedAt meaningless as a
+        // "last actually changed" signal.
+        val enriched = profile.copy(
             phone = profile.phone ?: suggestion.extractedPhone,
             email = profile.email ?: suggestion.extractedEmail,
             street = profile.street ?: suggestion.extractedAddress,
-            modifiedAt = System.currentTimeMillis(),
         )
-        if (updated != profile) {
-            profileRepository.updateProfile(updated)
+        if (enriched != profile) {
+            profileRepository.updateProfile(
+                enriched.copy(modifiedAt = System.currentTimeMillis()),
+            )
         }
 
         return profileRepository.linkProfileToDocument(profile.id, suggestion.documentId, suggestion.role)

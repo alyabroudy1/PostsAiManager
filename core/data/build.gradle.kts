@@ -1,4 +1,5 @@
 plugins {
+    id("pam.test-conventions")
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
@@ -72,11 +73,5 @@ dependencies {
     implementation(libs.work.runtime.ktx)
 
     // Testing
-    testImplementation(libs.junit5.api)
-    testRuntimeOnly(libs.junit5.engine)
-    testImplementation(libs.truth)
-    testImplementation(libs.mockk)
-    testImplementation(libs.coroutines.test)
-    testImplementation(libs.turbine)
     testImplementation(libs.room.testing)
 }

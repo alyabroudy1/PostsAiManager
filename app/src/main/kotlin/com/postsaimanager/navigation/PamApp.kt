@@ -27,8 +27,8 @@ import com.postsaimanager.feature.documents.DocumentsScreen
 import com.postsaimanager.feature.home.HomeScreen
 import com.postsaimanager.feature.profiles.ProfilesScreen
 import com.postsaimanager.feature.scanner.ScannerScreen
+import com.postsaimanager.feature.models.ModelsScreen
 import com.postsaimanager.feature.settings.SettingsScreen
-import com.postsaimanager.feature.parser.ParserScreen
 import androidx.navigation.NavGraph.Companion.findStartDestination
 
 @Composable
@@ -93,10 +93,13 @@ fun PamApp() {
                 )
             }
             composable(TopLevelDestination.SETTINGS.route) {
-                SettingsScreen()
+                SettingsScreen(
+                    onManageModelsClick = { navController.navigate("models") },
+                )
             }
-            composable(TopLevelDestination.PARSER.route) {
-                ParserScreen()
+
+            composable("models") {
+                ModelsScreen(onNavigateBack = { navController.popBackStack() })
             }
 
             // ── Detail destinations ──

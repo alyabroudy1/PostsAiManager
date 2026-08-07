@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/dev-adb.sh *)",
+      "Bash(bash scripts/dev-adb.sh *)",
+      "Bash(./gradlew *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(ls *)",
+      "Bash(wc *)",
+      "Bash(unzip -l *)",
+      "Bash(mkdir -p *)",
+      "Read",
+      "Glob",
+      "Grep"
+    ],
+    "deny": [
+      "Bash(adb *)",
+      "Bash(* uninstall *)",
+      "Bash(* disable-verity *)",
+      "Bash(* master-clear *)",
+      "Bash(git push *)",
+      "Bash(git reset --hard *)"
+    ]
+  }
+}

@@ -41,6 +41,7 @@ import com.postsaimanager.core.model.AppTheme
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
+    onManageModelsClick: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
@@ -74,6 +75,17 @@ fun SettingsScreen(
                     else -> "English"
                 },
                 onClick = { showLanguageDialog = true },
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // ── AI ──
+            SettingsSectionHeader("AI")
+            SettingsClickItem(
+                icon = PamIcons.AiModel,
+                title = "AI models",
+                subtitle = "Download and manage on-device models",
+                onClick = onManageModelsClick,
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

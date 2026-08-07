@@ -1,4 +1,5 @@
 plugins {
+    id("pam.test-conventions")
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -19,12 +20,23 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // ONNX Runtime ships native libs for 4 ABIs. Without a filter every install
+        // carries all of them (~160 MB of lib/, ~120 MB of it unusable on any given
+        // device). Release ships arm64-v8a only — 32-bit cannot host an LLM, and x86
+        // has no modern device. Debug adds x86_64 for the emulator.
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
+            ndk {
+                abiFilters += listOf("x86_64")
+            }
         }
         release {
             isMinifyEnabled = true
@@ -57,7 +69,10 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
-    implementation(project(":core:ai"))
+    implementation(project(":core:ai:core"))
+    implementation(project(":core:ai:catalog"))
+    implementation(project(":core:ai:local"))
+    implementation(project(":core:config"))
     implementation(project(":core:designsystem"))
 
     // Feature modules
@@ -67,7 +82,7 @@ dependencies {
     implementation(project(":feature:chat"))
     implementation(project(":feature:profiles"))
     implementation(project(":feature:settings"))
-    implementation(project(":feature:parser"))
+    implementation(project(":feature:models"))
 
     // Compose
     implementation(platform(libs.compose.bom))
@@ -86,6 +101,8 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
+    implementation(libs.hilt.work)
+    implementation(libs.work.runtime.ktx)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 

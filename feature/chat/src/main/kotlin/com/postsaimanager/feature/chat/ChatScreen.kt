@@ -27,6 +27,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.TextButton
+import com.postsaimanager.core.domain.usecase.ChatErrorAction
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -61,8 +65,9 @@ fun ChatScreen(
     var inputText by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    // Auto-scroll to bottom on new messages
-    LaunchedEffect(uiState.messages.size) {
+    // Follow both new messages and streaming tokens, so the reply stays in view as it
+    // is written rather than scrolling off.
+    LaunchedEffect(uiState.messages.size, uiState.streamingText) {
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
         }
@@ -166,10 +171,33 @@ fun ChatScreen(
                     ChatBubble(message = message)
                 }
 
-                if (uiState.isProcessing) {
+                // Stream the reply into a live bubble. Only fall back to the typing
+                // indicator before the first token arrives — once text is flowing, a
+                // spinner alongside it just reads as "still stuck".
+                if (uiState.streamingText.isNotEmpty()) {
                     item {
-                        TypingIndicator()
+                        ChatBubble(
+                            message = ChatMessage(
+                                text = uiState.streamingText,
+                                isUser = false,
+                            ),
+                        )
                     }
+                } else if (uiState.isProcessing) {
+                    item {
+                        uiState.statusText?.let { status ->
+                            Text(
+                                text = status,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            )
+                        } ?: TypingIndicator()
+                    }
+                }
+
+                uiState.error?.let { error ->
+                    item { ChatErrorCard(error = error, onDismiss = viewModel::dismissError) }
                 }
             }
         }
@@ -302,6 +330,45 @@ private fun TypingIndicator() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+
+/**
+ * A failure the user can act on.
+ *
+ * Chat's most common error by far is "no model installed", which is entirely fixable — so
+ * it offers the fix rather than merely reporting the problem.
+ */
+@Composable
+private fun ChatErrorCard(
+    error: ChatError,
+    onDismiss: () -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = error.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            if (error.action == ChatErrorAction.INSTALL_MODEL) {
+                Text(
+                    text = "Settings → AI models",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+            TextButton(onClick = onDismiss) { Text("Dismiss") }
         }
     }
 }
