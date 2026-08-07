@@ -35,11 +35,15 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:model"))
     implementation(project(":core:domain"))
+    implementation(project(":core:download"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
 
     implementation(libs.coroutines.core)
+    implementation(libs.work.runtime.ktx)
     implementation(libs.core.ktx)
 
     // ONNX Runtime — retained from the cut Arabic parser and retargeted at embeddings.
@@ -47,6 +51,8 @@ dependencies {
     implementation(libs.onnxruntime.android)
 
     androidTestImplementation(project(":core:testing"))
+    androidTestImplementation(libs.ktor.client.core)
+    androidTestImplementation(libs.ktor.client.android)
     androidTestImplementation(libs.coroutines.test)
     androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

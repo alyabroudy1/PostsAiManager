@@ -33,7 +33,7 @@ ordered the way they are.
 | Build | `assembleDebug` **BUILD SUCCESSFUL** | 2026-08-07 |
 | Debug APK — before | 300.4 MB (4 ABIs, 173.8 MB assets) | 2026-08-07 |
 | Debug APK — after | **110.2 MB** — parser cut + `abiFilters` → **−190.2 MB (−63%)** | 2026-08-07 |
-| Unit tests | **107 passing, 0 failing** across 7 modules | 2026-08-07 |
+| Unit tests | **380 passing, 0 failing** | 2026-08-07 |
 | Test capability | 18 / 18 modules via `pam.test-conventions` | 2026-08-07 |
 | Defects found by tests | 7 fixed, 2 pinned open | 2026-08-07 |
 | Test device | Samsung SM-S918B, Android 16 (API 36), arm64-v8a | 2026-08-07 |
@@ -46,7 +46,7 @@ ordered the way they are.
 | **Semantic retrieval works** | related **0.423** vs unrelated **0.060** on German with no shared words | 2026-08-07 |
 | **Cross-lingual retrieval** | DE↔EN **0.798** vs unrelated **−0.012** — ask in English about a German letter | 2026-08-07 |
 | Batch embedding | 8 texts in **97 ms** (12 ms each) after batch-max padding — was 1554 ms | 2026-08-07 |
-| Embedding device tests | **12 / 12 passing** on real hardware | 2026-08-07 |
+| Embedding device tests | **15 / 15 passing** on real hardware | 2026-08-07 |
 | Paragraph ranking accuracy | **4 / 5** questions rank the right paragraph first | 2026-08-07 |
 | Question-vs-paragraph scores | correct **0.13 – 0.30**, unrelated **−0.04 – 0.04** | 2026-08-07 |
 

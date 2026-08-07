@@ -73,6 +73,7 @@ dependencies {
     implementation(project(":core:ai:catalog"))
     implementation(project(":core:ai:local"))
     implementation(project(":core:ai:embed"))
+    implementation(project(":core:download"))
     implementation(project(":core:config"))
     implementation(project(":core:designsystem"))
 

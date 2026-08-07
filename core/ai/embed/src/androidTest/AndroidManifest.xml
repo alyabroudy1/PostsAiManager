@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      The test APK gets its own manifest; it does not inherit the library's. Without this
+      EmbeddingModelInstallTest cannot reach Hugging Face, and the failure arrives as a
+      generic socket error that reads exactly like being offline.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+</manifest>

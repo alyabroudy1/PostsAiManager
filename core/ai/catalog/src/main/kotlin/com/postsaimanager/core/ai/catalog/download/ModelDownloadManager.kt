@@ -1,6 +1,7 @@
 package com.postsaimanager.core.ai.catalog.download
 
 import android.content.Context
+import com.postsaimanager.core.download.ModelDownloadWorker
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType

@@ -1,4 +1,4 @@
-package com.postsaimanager.core.ai.catalog.download
+package com.postsaimanager.core.download
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.DisplayName

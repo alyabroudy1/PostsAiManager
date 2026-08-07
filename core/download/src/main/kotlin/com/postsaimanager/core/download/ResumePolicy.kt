@@ -1,4 +1,4 @@
-package com.postsaimanager.core.ai.catalog.download
+package com.postsaimanager.core.download
 
 /**
  * Decides how to continue a partially-downloaded file.

@@ -1,4 +1,4 @@
-package com.postsaimanager.core.ai.catalog.download
+package com.postsaimanager.core.download
 
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult

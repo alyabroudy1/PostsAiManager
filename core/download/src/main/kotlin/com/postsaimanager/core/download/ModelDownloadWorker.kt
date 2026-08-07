@@ -1,4 +1,4 @@
-package com.postsaimanager.core.ai.catalog.download
+package com.postsaimanager.core.download
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

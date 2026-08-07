@@ -1,8 +1,8 @@
-package com.postsaimanager.core.ai.catalog.di
+package com.postsaimanager.core.download.di
 
-import com.postsaimanager.core.ai.catalog.download.ModelDownloader
 import com.postsaimanager.core.common.dispatcher.Dispatcher
 import com.postsaimanager.core.common.dispatcher.PamDispatcher
+import com.postsaimanager.core.download.ModelDownloader
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -21,7 +21,7 @@ annotation class DownloadHttpClient
 
 @Module
 @InstallIn(SingletonComponent::class)
-object CatalogModule {
+object DownloadModule {
 
     /**
      * HTTP client tuned for multi-gigabyte transfers.
