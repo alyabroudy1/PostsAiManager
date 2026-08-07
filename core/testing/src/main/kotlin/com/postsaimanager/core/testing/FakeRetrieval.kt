@@ -51,8 +51,7 @@ class FakeDocumentChunkRepository : DocumentChunkRepository {
         chunks += items
     }
 
-    override suspend fun getAllEmbedded(): List<StoredChunk> =
-        chunks.filter { it.embedding != null }
+    override suspend fun getAll(): List<StoredChunk> = chunks.toList()
 
     override suspend fun getForDocument(documentId: String): List<StoredChunk> =
         chunks.filter { it.documentId == documentId }
@@ -63,6 +62,9 @@ class FakeDocumentChunkRepository : DocumentChunkRepository {
     }
 
     override suspend fun unindexedDocumentIds(): List<String> = emptyList()
+
+    override suspend fun documentIdsMissingEmbeddings(): List<String> =
+        chunks.filter { it.embedding == null }.map { it.documentId }.distinct()
 
     override suspend fun documentIdsNeedingReindex(currentModelId: String): List<String> =
         chunks.filter { it.embeddingModelId != currentModelId }.map { it.documentId }.distinct()

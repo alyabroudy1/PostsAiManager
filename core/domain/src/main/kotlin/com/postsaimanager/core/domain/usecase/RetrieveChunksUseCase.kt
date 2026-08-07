@@ -64,7 +64,7 @@ class RetrieveChunksUseCase @Inject constructor(
         val corpus = if (documentId != null) {
             chunkRepository.getForDocument(documentId)
         } else {
-            chunkRepository.getAllEmbedded()
+            chunkRepository.getAll()
         }
         if (corpus.isEmpty()) return Result(emptyList(), false)
 

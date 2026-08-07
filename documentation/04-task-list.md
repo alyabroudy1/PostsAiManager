@@ -471,18 +471,25 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` cut
 
 ### 7.7 Embeddings & RAG
 
-- [ ] **7.7.1** `EmbeddingService` in `:core:ai:embed` over ONNX Runtime.
-- [ ] **7.7.2** Ship or download a multilingual embedding model
-      (`multilingual-e5-small` / `bge-m3` class) — German + Arabic + English.
-- [ ] **7.7.3** `DocumentChunk` entity: text, ordinal, embedding `BLOB`, model id.
-- [ ] **7.7.4** Chunking strategy for OCR text (overlap, page boundaries).
-- [ ] **7.7.5** Embed on document processing; backfill existing documents.
-- [ ] **7.7.6** Brute-force cosine retrieval. *No vector DB — 200 docs ≈ 400 KB of floats,
+- [x] **7.7.1** `EmbeddingService` in `:core:ai:embed` over ONNX Runtime.
+- [~] **7.7.2** Ship or download a multilingual embedding model — *model chosen and
+      proven on device (`distiluse-base-multilingual-cased-v2`, 768 dims, 41 ms);
+      `EmbeddingModelFiles` fixes where it lives. Download UI still to come.*
+      *Chosen over the `multilingual-e5-small` / `bge-m3` class because it ships a
+      WordPiece `vocab.txt`; those need SentencePiece, which would have meant writing a
+      second tokenizer before anything could be measured.*
+- [x] **7.7.3** `DocumentChunk` entity: text, ordinal, embedding `BLOB`, model id.
+- [x] **7.7.4** Chunking strategy for OCR text (overlap, page boundaries).
+- [x] **7.7.5** Embed on document processing — `IndexDocumentUseCase`, called by
+      `DocumentProcessingPipeline` after extraction.
+- [ ] **7.7.5b** Backfill existing documents. *`documentIdsMissingEmbeddings()` and
+      `documentIdsNeedingReindex()` expose the backlog; nothing consumes them yet.*
+- [x] **7.7.6** Brute-force cosine retrieval. *No vector DB — 200 docs ≈ 400 KB of floats,
       sub-millisecond.*
-- [ ] **7.7.7** **Hybrid ranking** — merge with Room keyword search. *Reference numbers,
+- [x] **7.7.7** **Hybrid ranking** — merge with Room keyword search. *Reference numbers,
       IBANs and dates are what embeddings are worst at.*
 - [ ] **7.7.8** Re-embed on model change; handle mixed-model corpora.
-- [ ] **7.7.9** Degrade to keyword-only if the embedding model is missing — **and say so in
+- [x] **7.7.9** Degrade to keyword-only if the embedding model is missing — **and say so in
       the UI**.
 
 ### 7.8 Custom model import

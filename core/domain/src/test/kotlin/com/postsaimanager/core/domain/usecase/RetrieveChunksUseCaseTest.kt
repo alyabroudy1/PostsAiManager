@@ -197,6 +197,53 @@ class RetrieveChunksUseCaseTest {
         }
 
         @Test
+        @DisplayName("text that was never embedded is still searchable by keyword")
+        fun `searches chunks that have no vector at all`() = runTest {
+            embedder.isReady = false
+            // What a device with no embedding model installed actually stores: chunks
+            // with text and no vector. The earlier degradation tests all seeded embedded
+            // chunks, so they passed while the corpus query filtered on `embedding IS NOT
+            // NULL` — meaning keyword search really returned nothing on the one
+            // configuration the degradation path exists for.
+            repo.seed(
+                testChunk(
+                    "c1",
+                    text = "Aktenzeichen BG 1234/5678",
+                    embedding = null,
+                    embeddingModelId = null,
+                ),
+            )
+
+            val result = useCase("BG 1234/5678")
+
+            assertThat(result.chunks).isNotEmpty()
+            assertThat(result.chunks.first().matchedByKeyword).isTrue()
+        }
+
+        @Test
+        @DisplayName("un-embedded chunks do not pollute semantic results")
+        fun `keeps vectorless chunks out of the semantic half`() = runTest {
+            repo.seed(
+                testChunk("c1", text = "Widerspruch abgelehnt", embedding = appealTopic),
+                // Contains the term, so keyword search reaches it — which is the point.
+                // It must arrive marked as a keyword match only.
+                testChunk(
+                    "c2",
+                    text = "Widerspruch ohne Vektor",
+                    embedding = null,
+                    embeddingModelId = null,
+                ),
+            )
+
+            val result = useCase("Widerspruch")
+
+            assertThat(result.semanticSearchUsed).isTrue()
+            val vectorless = result.chunks.single { it.chunk.id == "c2" }
+            assertThat(vectorless.matchedByKeyword).isTrue()
+            assertThat(vectorless.matchedSemantically).isFalse()
+        }
+
+        @Test
         fun `an empty corpus returns nothing`() = runTest {
             assertThat(useCase("anything").chunks).isEmpty()
         }

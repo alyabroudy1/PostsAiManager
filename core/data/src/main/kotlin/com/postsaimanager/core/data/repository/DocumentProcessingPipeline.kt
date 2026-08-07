@@ -1,5 +1,6 @@
 package com.postsaimanager.core.data.repository
 
+import android.util.Log
 import com.postsaimanager.core.common.dispatcher.Dispatcher
 import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.common.result.PamError
@@ -11,6 +12,7 @@ import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
+import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractionResult
 import com.postsaimanager.core.model.TimelineEvent
@@ -31,12 +33,14 @@ import javax.inject.Singleton
  * 4. Run entity extraction on combined text
  * 5. Save extracted data
  * 6. Update document status to EXTRACTED
- * 7. Log timeline events
+ * 7. Index the text for search — chunk, embed, store
+ * 8. Log timeline events
  */
 @Singleton
 class DocumentProcessingPipeline @Inject constructor(
     private val ocrService: OcrService,
     private val entityExtractor: EntityExtractor,
+    private val indexDocument: IndexDocumentUseCase,
     private val documentDao: DocumentDao,
     private val timelineRepository: TimelineRepository,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
@@ -159,6 +163,32 @@ class DocumentProcessingPipeline @Inject constructor(
                     )
                 )
 
+                // Step 7: Make it searchable.
+                //
+                // Deliberately after the document is already marked EXTRACTED and its
+                // timeline written. Indexing is an enhancement to a document that is
+                // otherwise complete, so a failure here must cost the user nothing —
+                // the scan, the OCR text and the extracted fields all stand without it.
+                // IndexDocumentUseCase degrades internally too: with no embedding model
+                // installed it stores the chunks as text, and keyword search still finds
+                // them.
+                _processingState.value = ProcessingState.Running(
+                    documentId, "Indexing for search...", 0.95f
+                )
+                when (val indexed = indexDocument(documentId, combinedText)) {
+                    is PamResult.Success -> Log.i(
+                        TAG,
+                        "indexed $documentId chunks=${indexed.data.chunkCount} " +
+                            "embedded=${indexed.data.embedded}",
+                    )
+                    // Swallowed on purpose — see above. Search will be missing this
+                    // document until it is re-processed.
+                    is PamResult.Error -> Log.w(
+                        TAG,
+                        "indexing failed for $documentId: ${indexed.error.userMessage}",
+                    )
+                }
+
                 _processingState.value = ProcessingState.Completed(documentId)
                 PamResult.Success(extraction)
             } catch (e: Exception) {
@@ -167,6 +197,8 @@ class DocumentProcessingPipeline @Inject constructor(
             }
         }
 }
+
+private const val TAG = "DocProcessing"
 
 sealed interface ProcessingState {
     data object Idle : ProcessingState

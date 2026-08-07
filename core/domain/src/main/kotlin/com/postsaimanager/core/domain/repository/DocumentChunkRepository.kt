@@ -35,8 +35,13 @@ data class StoredChunk(
 
 interface DocumentChunkRepository {
 
-    /** Every chunk carrying an embedding — the corpus retrieval scores against. */
-    suspend fun getAllEmbedded(): List<StoredChunk>
+    /**
+     * Every chunk — the corpus retrieval scores against.
+     *
+     * Includes chunks with no embedding on purpose: keyword search must still reach text
+     * that was indexed while no embedding model was installed.
+     */
+    suspend fun getAll(): List<StoredChunk>
 
     suspend fun getForDocument(documentId: String): List<StoredChunk>
 
@@ -45,6 +50,9 @@ interface DocumentChunkRepository {
 
     /** Documents with no chunks yet — the indexing backlog. */
     suspend fun unindexedDocumentIds(): List<String>
+
+    /** Documents chunked but not embedded — indexed before a model was available. */
+    suspend fun documentIdsMissingEmbeddings(): List<String>
 
     /** Documents embedded by a different model; their vectors are not comparable. */
     suspend fun documentIdsNeedingReindex(currentModelId: String): List<String>

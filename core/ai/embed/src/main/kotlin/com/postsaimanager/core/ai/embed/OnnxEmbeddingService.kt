@@ -144,7 +144,7 @@ class OnnxEmbeddingService @Inject constructor(
 
                 if (currentSession == null || currentTokenizer == null || env == null) {
                     return@withContext PamResult.Error(
-                        PamError.ModelNotLoaded("No embedding model is loaded."),
+                        PamError.ModelNotLoaded("embedding model"),
                     )
                 }
                 if (texts.isEmpty()) return@withContext PamResult.Success(emptyList())

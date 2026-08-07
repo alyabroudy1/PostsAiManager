@@ -26,8 +26,8 @@ class DocumentChunkRepositoryImpl @Inject constructor(
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : DocumentChunkRepository {
 
-    override suspend fun getAllEmbedded(): List<StoredChunk> = withContext(ioDispatcher) {
-        chunkDao.getAllEmbedded().map(::toDomain)
+    override suspend fun getAll(): List<StoredChunk> = withContext(ioDispatcher) {
+        chunkDao.getAll().map(::toDomain)
     }
 
     override suspend fun getForDocument(documentId: String): List<StoredChunk> =
@@ -43,6 +43,9 @@ class DocumentChunkRepositoryImpl @Inject constructor(
 
     override suspend fun unindexedDocumentIds(): List<String> =
         withContext(ioDispatcher) { chunkDao.getUnindexedDocumentIds() }
+
+    override suspend fun documentIdsMissingEmbeddings(): List<String> =
+        withContext(ioDispatcher) { chunkDao.getDocumentIdsMissingEmbeddings() }
 
     override suspend fun documentIdsNeedingReindex(currentModelId: String): List<String> =
         withContext(ioDispatcher) {
