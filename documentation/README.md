@@ -42,6 +42,11 @@ ordered the way they are.
 | **llama.cpp on device** | **173 tok/s** (Qwen 0.5B Q4_0), 297 ms load, ≈5.8 MB libs | 2026-08-07 |
 | **GBNF grammar constraint** | ✅ **works** — valid tool-call JSON from a 0.5B model | 2026-08-07 |
 | Native crash blast radius | ⚠️ kills the whole process — process isolation justified | 2026-08-07 |
+| **ONNX embeddings on device** | **41 ms** per text, 768 dims, 400 ms load (distiluse-multilingual-v2 fp16) | 2026-08-07 |
+| **Semantic retrieval works** | related **0.423** vs unrelated **0.060** on German with no shared words | 2026-08-07 |
+| **Cross-lingual retrieval** | DE↔EN **0.798** vs unrelated **−0.012** — ask in English about a German letter | 2026-08-07 |
+| Batch embedding | 8 texts in **97 ms** (12 ms each) after batch-max padding — was 1554 ms | 2026-08-07 |
+| Embedding device tests | **7 / 7 passing** on real hardware | 2026-08-07 |
 
 ## Project at a glance
 
