@@ -1,0 +1,245 @@
+package com.postsaimanager.core.domain.usecase
+
+import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.model.EntityKind
+import com.postsaimanager.core.model.EntityRole
+import com.postsaimanager.core.model.FactKind
+import com.postsaimanager.core.model.OcrBlock
+import com.postsaimanager.core.model.TextBounds
+import com.postsaimanager.core.testing.FakeAiEngine
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+/**
+ * Tests for [AiExtractionUseCase].
+ *
+ * The model is faked, so these are about everything *around* generation: that the page is
+ * described with its layout, that the grammar is actually attached, that a truncated or
+ * nonsensical answer degrades instead of crashing, and that a schema-valid but senseless
+ * result is cleaned up before it reaches storage.
+ *
+ * Whether the real model reads a real letter correctly is a device test — no fake can
+ * answer it.
+ */
+class AiExtractionUseCaseTest {
+
+    private val engine = FakeAiEngine()
+    private val extract = AiExtractionUseCase(engine)
+
+    private fun block(text: String, left: Float, top: Float) = OcrBlock(
+        text = text,
+        bounds = TextBounds(left, top, left + 0.3f, top + 0.05f),
+        confidence = 0.9f,
+    )
+
+    private val page = listOf(
+        block("Jobcenter Berlin Mitte", 0.08f, 0.04f),
+        block("Frau\nAylin Mustermann", 0.08f, 0.20f),
+        block("Aktenzeichen: BG 1234/5678", 0.60f, 0.20f),
+        block("Ihre Ehefrau Layla ist ebenfalls betroffen.", 0.08f, 0.55f),
+    )
+
+    private val goodAnswer = """
+        {"language":"de","documentType":"Widerspruchsbescheid","subject":"Widerspruch",
+         "entities":[
+           {"name":"Jobcenter Berlin Mitte","kind":"AUTHORITY","role":"SENDER","relation":"","confidence":0.95},
+           {"name":"Aylin Mustermann","kind":"PERSON","role":"RECIPIENT","relation":"","confidence":0.9},
+           {"name":"Layla","kind":"PERSON","role":"MENTIONED","relation":"spouse of the recipient","confidence":0.6}
+         ],
+         "facts":[
+           {"label":"Aktenzeichen","value":"BG 1234/5678","kind":"REFERENCE","confidence":0.92},
+           {"label":"Frist","value":"31.01.2026","kind":"DEADLINE","confidence":0.85}
+         ]}
+    """.trimIndent()
+
+    @Nested
+    @DisplayName("What the model is asked")
+    inner class Request {
+
+        @Test
+        @DisplayName("the page is described with positions, not as flat text")
+        fun `sends layout`() = runTest {
+            engine.response = goodAnswer
+            extract(page)
+
+            val userMessage = engine.lastMessages.last().content
+            // Position is the whole reason one prompt can work across sender formats.
+            assertThat(userMessage).contains("address block")
+            assertThat(userMessage).contains("reference block")
+            assertThat(userMessage).contains("BG 1234/5678")
+        }
+
+        @Test
+        fun `attaches the grammar`() = runTest {
+            engine.response = goodAnswer
+            extract(page)
+
+            // Without this the model may answer in prose, and the whole class of parsing
+            // bugs this design avoids comes back.
+            val grammar = engine.lastRequest?.grammar
+            assertThat(grammar).isNotNull()
+            assertThat(grammar).contains("SENDER_CONTACT")
+            assertThat(grammar).contains("DEADLINE")
+        }
+
+        @Test
+        @DisplayName("temperature is near zero — reading, not writing")
+        fun `is near deterministic`() = runTest {
+            engine.response = goodAnswer
+            extract(page)
+
+            // Two runs over one document must not disagree, or the merge would flag
+            // sampling noise as the document having changed.
+            assertThat(engine.lastRequest!!.temperature).isLessThan(0.3f)
+        }
+
+        @Test
+        fun `a long page is truncated to fit the context`() = runTest {
+            engine.response = goodAnswer
+            val huge = List(400) { block("Ein sehr langer Absatz mit viel Inhalt $it", 0.08f, 0.5f) }
+
+            extract(huge, contextTokens = 2048)
+
+            // Overflowing the window does not error, it silently drops the *start* of the
+            // prompt — including the instructions — so the budget has to be respected here.
+            assertThat(engine.lastMessages.last().content.length).isLessThan(2048 * 3)
+        }
+    }
+
+    @Nested
+    @DisplayName("Reading the answer")
+    inner class Parsing {
+
+        @Test
+        fun `entities carry kind, role and relation`() = runTest {
+            engine.response = goodAnswer
+
+            val result = (extract(page) as PamResult.Success).data
+
+            assertThat(result.language).isEqualTo("de")
+            assertThat(result.entities).hasSize(3)
+
+            val sender = result.sender!!
+            assertThat(sender.name).isEqualTo("Jobcenter Berlin Mitte")
+            assertThat(sender.kind).isEqualTo(EntityKind.AUTHORITY)
+
+            val layla = result.entities.single { it.name == "Layla" }
+            assertThat(layla.role).isEqualTo(EntityRole.MENTIONED)
+            assertThat(layla.relation).contains("spouse")
+        }
+
+        @Test
+        fun `facts distinguish a deadline from the letter date`() = runTest {
+            engine.response = goodAnswer
+
+            val result = (extract(page) as PamResult.Success).data
+
+            // Only a DEADLINE should ever become a reminder; the letter's own date must not.
+            assertThat(result.deadline?.value).isEqualTo("31.01.2026")
+            assertThat(result.facts.single { it.kind == FactKind.REFERENCE }.value)
+                .isEqualTo("BG 1234/5678")
+        }
+
+        @Test
+        @DisplayName("confidence decides linking, and is exposed for it")
+        fun `splits confident from needing review`() = runTest {
+            engine.response = goodAnswer
+
+            val result = (extract(page) as PamResult.Success).data
+
+            // Layla at 0.6 is proposed, not silently turned into a profile.
+            assertThat(result.confident().map { it.name })
+                .containsExactly("Jobcenter Berlin Mitte", "Aylin Mustermann")
+            assertThat(result.needingReview().map { it.name }).containsExactly("Layla")
+        }
+    }
+
+    @Nested
+    @DisplayName("When the answer is unusable")
+    inner class Degradation {
+
+        @Test
+        fun `truncated json is an error, not a crash`() = runTest {
+            // The grammar prevents malformed output but not output cut off at the token
+            // limit, which is valid-so-far and not valid JSON.
+            engine.response = """{"language":"de","entities":[{"name":"Jobcen"""
+
+            assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
+        }
+
+        @Test
+        fun `an empty answer is an error`() = runTest {
+            engine.response = "   "
+            assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
+        }
+
+        @Test
+        fun `a dead engine reports rather than throwing`() = runTest {
+            engine.failWith = IllegalStateException("native crash")
+            assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
+        }
+
+        @Test
+        fun `no model loaded is reported, not attempted`() = runTest {
+            engine.isReady = false
+            assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
+        }
+
+        @Test
+        fun `an empty page needs no model at all`() = runTest {
+            engine.isReady = false
+            val result = extract(emptyList())
+
+            // Nothing to read is not a failure, and must not require an engine.
+            assertThat((result as PamResult.Success).data.entities).isEmpty()
+        }
+    }
+
+    @Nested
+    @DisplayName("Cleaning up what the grammar cannot prevent")
+    inner class Sanitising {
+
+        @Test
+        @DisplayName("a nameless entity is dropped, however confident")
+        fun `drops blank names`() = runTest {
+            engine.response = """
+                {"language":"de","documentType":"","subject":"","entities":[
+                  {"name":"  ","kind":"PERSON","role":"SENDER","relation":"","confidence":0.99}
+                ],"facts":[]}
+            """.trimIndent()
+
+            // A grammar constrains shape, not sense. Storing this would create a nameless
+            // profile.
+            assertThat((extract(page) as PamResult.Success).data.entities).isEmpty()
+        }
+
+        @Test
+        fun `the same entity named twice in one role is one entity`() = runTest {
+            engine.response = """
+                {"language":"de","documentType":"","subject":"","entities":[
+                  {"name":"Jobcenter Berlin","kind":"AUTHORITY","role":"SENDER","relation":"","confidence":0.9},
+                  {"name":"jobcenter berlin","kind":"AUTHORITY","role":"SENDER","relation":"","confidence":0.8}
+                ],"facts":[]}
+            """.trimIndent()
+
+            // Otherwise a letter that names its sender in the header and the footer creates
+            // the profile twice.
+            assertThat((extract(page) as PamResult.Success).data.entities).hasSize(1)
+        }
+
+        @Test
+        fun `out of range confidence is clamped`() = runTest {
+            engine.response = """
+                {"language":"de","documentType":"","subject":"","entities":[
+                  {"name":"Jobcenter","kind":"AUTHORITY","role":"SENDER","relation":"","confidence":9.0}
+                ],"facts":[]}
+            """.trimIndent()
+
+            assertThat((extract(page) as PamResult.Success).data.entities.single().confidence)
+                .isAtMost(1f)
+        }
+    }
+}

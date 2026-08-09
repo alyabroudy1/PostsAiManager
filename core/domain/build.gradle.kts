@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -25,6 +26,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.kotlinx.serialization.json)
     api(project(":core:common"))
     api(project(":core:model"))
 

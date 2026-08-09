@@ -489,9 +489,13 @@ useful on its own.*
       JSON (schema v4). *ML Kit was already returning boxes and the pipeline discarded them.*
 - [x] **7.14.8** `DocumentLayout` — band-based reading order that keeps side-by-side columns
       whole, DIN 5008 zone classification, and a zone-labelled serialisation for the model.
-- [ ] **7.14.9** `AiEntityExtractor` — grammar-constrained JSON from the local model.
-- [ ] **7.14.10** Entity identification: type (authority / company / person) **and** role in
-      this document (sender / recipient / mentioned / contact-of).
+- [x] **7.14.9** `AiExtractionUseCase` — grammar-constrained JSON from the local model,
+      given the layout description rather than flat text.
+- [x] **7.14.10** Entity identification: kind (authority / company / person) **and** role in
+      this document (sender / recipient / sender-contact / mentioned), plus `relation` for
+      how a mentioned person connects to the recipient.
+- [ ] **7.14.9b** Wire into `DocumentProcessingPipeline`, with the regex extractor as the
+      fallback when no model is installed.
 - [ ] **7.14.11** Profile creation and linking. *High confidence links silently, low
       confidence proposes — an auto-created profile from a half-read name is clutter the
       user has to undo.*
