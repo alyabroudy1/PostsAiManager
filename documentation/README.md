@@ -20,6 +20,7 @@ Living documentation for the PostsAiManager Android application.
 | [03-implementation-plan.md](03-implementation-plan.md) | Phased roadmap to 1.0 and beyond. | When scope changes |
 | [04-task-list.md](04-task-list.md) | **Stepwise checklist.** The single source of truth for progress. | Every completed task |
 | [05-test-harness.md](05-test-harness.md) | Agent-driven device testing via adb — protocol, safety, command vocabulary. | When a new case class is added |
+| [07-document-pipeline.md](07-document-pipeline.md) | **Ingest to indexed.** Stages, fingerprints, edit provenance and the reprocessing merge, PDF handling. | When the pipeline changes |
 | [06-llama-spike.md](06-llama-spike.md) | The llama.cpp spike: what is blocked, what is wired, the four questions to answer. | When the spike runs |
 | [testing/cases/](testing/cases/) | Executable test cases. | Per feature |
 
@@ -36,6 +37,7 @@ ordered the way they are.
 | Unit tests | **380 passing, 0 failing** | 2026-08-07 |
 | Test capability | 18 / 18 modules via `pam.test-conventions` | 2026-08-07 |
 | Defects found by tests | 7 fixed, 2 pinned open | 2026-08-07 |
+| ⚠️ Reprocessing data loss | **Open** — `DELETE FROM extracted_data` erases user edits; no provenance column exists. See [07](07-document-pipeline.md) | 2026-08-09 |
 | Test device | Samsung SM-S918B, Android 16 (API 36), arm64-v8a | 2026-08-07 |
 | Device RAM | 11.3 GB total — **2.5 GB available** | 2026-08-07 |
 | Smoke test T001 | **PASS**, 20/20 steps, zero crashes | 2026-08-07 |
