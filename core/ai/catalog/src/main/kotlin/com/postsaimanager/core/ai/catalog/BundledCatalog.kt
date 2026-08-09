@@ -14,114 +14,133 @@ import com.postsaimanager.core.model.AiModelDescriptor
  * The consequence was that **nothing could be installed at all**: `TrustedKeys` ships empty,
  * so every remote manifest is refused, so the app fell back to a catalog whose every entry
  * reported `NotInstallable`. A model manager that cannot install a model is not a
- * conservative default, it is a broken feature — and the on-device assistant this app
- * exists to be cannot run without one.
+ * conservative default, it is a broken feature.
  *
  * The revocation argument holds for a catalog that **grows and changes after release**, and
  * the manifest remains exactly that: it can add models, correct these, and override any
- * entry here. What it does not hold for is a small curated set fixed at build time. These
- * four change only when the app is rebuilt, which is the same release gate a manifest
- * correction would go through anyway.
+ * entry here. It does not hold for a small curated set fixed at build time, which changes
+ * only when the app is rebuilt — the same release gate a manifest correction would pass.
  *
- * For that set, pinning is the *stronger* guarantee, not the weaker one:
+ * For that set, pinning is the *stronger* guarantee: [AiModelDescriptor.sha256] is verified
+ * before the file is moved into place, and each URL names an **immutable revision** rather
+ * than a branch, so the bytes cannot change under the hash. Every hash below is the Hugging
+ * Face LFS `oid` — which is the SHA-256 of the file — read from the API rather than
+ * transcribed, and every URL was checked to return 200.
  *
- *  - [AiModelDescriptor.sha256] is verified before the file is moved into place, so a
- *    compromised CDN, a wrong mirror or a truncated transfer all fail closed.
- *  - Each URL names an **immutable revision**, never a branch, so the bytes behind it
- *    cannot change under the hash.
- *  - Every hash below is the Hugging Face LFS `oid`, which *is* the SHA-256 of the file,
- *    read from the API rather than transcribed.
+ * ### Why these five
  *
- * Same reasoning as `EmbeddingModelRelease`, and deliberately consistent with it.
+ * Current generation only: **Gemma 4** (July 2026) and **Qwen 3.5**. The Gemma entries are
+ * Google's own **QAT** builds — quantisation-aware training, so the 4-bit weights were
+ * learned rather than rounded afterwards, which shows most on exactly the small models a
+ * phone can run.
  *
- * ### Why these four
- *
- * They span the device range rather than showing off. The 0.5B exists so a low-memory phone
- * has something that runs at all — it was measured at 173 tok/s on the test device — and the
- * 4B exists so a capable one is not held back. All four are ungated: no Hugging Face token,
- * no licence click-through, nothing between the user and a working assistant.
+ * They span the device range rather than showing off. Reading a German letter accurately is
+ * the job, and a device that can only hold 0.8B should still be able to do a worse version
+ * of it rather than nothing. All five are ungated: no Hugging Face token, no licence
+ * click-through, nothing between the user and a working assistant.
  */
 object BundledCatalog {
 
     private const val MB = 1024L * 1024L
     private const val GB = 1024L * MB
 
-    private const val QWEN_05B_REV = "9217f5db79a29953eb74d5343926648285ec7e67"
-    private const val QWEN_15B_REV = "91cad51170dc346986eccefdc2dd33a9da36ead9"
-    private const val GEMMA3_1B_REV = "f0b45be0aac41bd6a100a4b5734cad5f67255bfb"
-    private const val GEMMA3_4B_REV = "5a3566e716d80f709ed7b79817eaf7733d2a1fce"
+    private const val QWEN35_08B_REV = "6ab461498e2023f6e3c1baea90a8f0fe38ab64d0"
+    private const val QWEN35_2B_REV = "f6d5376be1edb4d416d56da11e5397a961aca8ae"
+    private const val QWEN35_4B_REV = "e87f176479d0855a907a41277aca2f8ee7a09523"
+    private const val GEMMA4_E2B_REV = "675cff42a74c774d6cb76f76d8eacb49b48c9b93"
+    private const val GEMMA4_E4B_REV = "4b4a2c1d584be7264f87aac328a1bc739ce81b6c"
 
     val models: List<AiModelDescriptor> = listOf(
         AiModelDescriptor(
-            id = "qwen2.5-0.5b-instruct-q4_k_m",
-            name = "Qwen2.5 0.5B Instruct",
+            id = "qwen3.5-0.8b-q4_k_m",
+            name = "Qwen3.5 0.8B",
             family = "Qwen",
-            parameterCount = "0.5B",
+            parameterCount = "0.8B",
             quantization = "Q4_K_M",
-            sizeBytes = 491_400_032L,
+            sizeBytes = 532_517_120L,
             minAvailableRamBytes = 1 * GB,
             contextTokens = 32768,
             license = "Apache-2.0",
-            downloadUrl = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/" +
-                "$QWEN_05B_REV/qwen2.5-0.5b-instruct-q4_k_m.gguf",
-            sha256 = "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db",
+            downloadUrl = "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/" +
+                "$QWEN35_08B_REV/Qwen3.5-0.8B-Q4_K_M.gguf",
+            sha256 = "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
             supportsTools = true,
-            description = "Smallest usable assistant. Runs on low-memory devices — measured " +
-                "at 173 tokens/second on the test phone — but is the weakest at reading a " +
-                "letter and filling in fields accurately.",
+            description = "Smallest usable assistant. Fits a low-memory phone; expect it to " +
+                "miss details a larger model catches when reading a letter.",
         ),
         AiModelDescriptor(
-            id = "gemma-3-1b-it-q4_k_m",
-            name = "Gemma 3 1B Instruct",
-            family = "Gemma",
-            parameterCount = "1B",
-            quantization = "Q4_K_M",
-            sizeBytes = 806_058_272L,
-            minAvailableRamBytes = 1500 * MB,
-            contextTokens = 32768,
-            license = "Gemma Terms of Use",
-            downloadUrl = "https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/" +
-                "$GEMMA3_1B_REV/gemma-3-1b-it-Q4_K_M.gguf",
-            sha256 = "8270790f3ab69fdfe860b7b64008d9a19986d8df7e407bb018184caa08798ebd",
-            // No native tool-calling template; grammar-constrained decoding covers it, which
-            // is the mechanism the tool layer was designed around anyway.
-            supportsTools = false,
-            description = "Strong multilingual quality for its size, including German. " +
-                "A good middle choice when the 1.5B does not fit.",
-        ),
-        AiModelDescriptor(
-            id = "qwen2.5-1.5b-instruct-q4_k_m",
-            name = "Qwen2.5 1.5B Instruct",
+            id = "qwen3.5-2b-q4_k_m",
+            name = "Qwen3.5 2B",
             family = "Qwen",
-            parameterCount = "1.5B",
+            parameterCount = "2B",
             quantization = "Q4_K_M",
-            sizeBytes = 1_117_320_736L,
+            sizeBytes = 1_280_835_840L,
             minAvailableRamBytes = 2 * GB,
             contextTokens = 32768,
             license = "Apache-2.0",
-            downloadUrl = "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/" +
-                "$QWEN_15B_REV/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-            sha256 = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+            downloadUrl = "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/" +
+                "$QWEN35_2B_REV/Qwen3.5-2B-Q4_K_M.gguf",
+            sha256 = "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
             supportsTools = true,
-            description = "The default. Handles summarising a letter and filling structured " +
-                "fields reliably, and fits a mid-range phone.",
+            description = "The default. Reads a letter and fills structured fields reliably " +
+                "while still fitting a mid-range phone.",
         ),
         AiModelDescriptor(
-            id = "gemma-3-4b-it-q4_k_m",
-            name = "Gemma 3 4B Instruct",
-            family = "Gemma",
+            id = "qwen3.5-4b-q4_k_m",
+            name = "Qwen3.5 4B",
+            family = "Qwen",
             parameterCount = "4B",
             quantization = "Q4_K_M",
-            sizeBytes = 2_489_894_016L,
+            sizeBytes = 2_740_937_888L,
             minAvailableRamBytes = 4 * GB,
-            contextTokens = 131072,
+            contextTokens = 32768,
+            license = "Apache-2.0",
+            downloadUrl = "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/" +
+                "$QWEN35_4B_REV/Qwen3.5-4B-Q4_K_M.gguf",
+            sha256 = "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+            supportsTools = true,
+            description = "Noticeably better at multi-step reasoning and at picking the " +
+                "right entity out of a crowded page.",
+        ),
+        AiModelDescriptor(
+            id = "gemma-4-e2b-it-qat-q4_0",
+            name = "Gemma 4 E2B",
+            family = "Gemma",
+            parameterCount = "E2B",
+            quantization = "Q4_0 (QAT)",
+            sizeBytes = 3_349_516_256L,
+            // The E-series is a nested architecture: the file is far larger than the
+            // "effective" parameter count suggests, and the whole of it is loaded.
+            minAvailableRamBytes = 5 * GB,
+            contextTokens = 32768,
             license = "Gemma Terms of Use",
-            downloadUrl = "https://huggingface.co/unsloth/gemma-3-4b-it-GGUF/resolve/" +
-                "$GEMMA3_4B_REV/gemma-3-4b-it-Q4_K_M.gguf",
-            sha256 = "04a43a22e8d2003deda5acc262f68ec1005fa76c735a9962a8c77042a74a7d19",
+            downloadUrl = "https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/" +
+                "resolve/$GEMMA4_E2B_REV/gemma-4-E2B_q4_0-it.gguf",
+            sha256 = "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
+            // No native tool-calling template; grammar-constrained decoding covers it, which
+            // is what the tool layer was designed around anyway.
             supportsTools = false,
-            description = "Best understanding of a document's meaning, and the most reliable " +
-                "at identifying people and organisations. Needs a capable device.",
+            description = "Google's own quantisation-aware build — the 4-bit weights were " +
+                "trained, not rounded afterwards. Strong multilingual reading, including " +
+                "German.",
+        ),
+        AiModelDescriptor(
+            id = "gemma-4-e4b-it-qat-q4_0",
+            name = "Gemma 4 E4B",
+            family = "Gemma",
+            parameterCount = "E4B",
+            quantization = "Q4_0 (QAT)",
+            sizeBytes = 5_154_941_280L,
+            minAvailableRamBytes = 7 * GB,
+            contextTokens = 32768,
+            license = "Gemma Terms of Use",
+            downloadUrl = "https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/" +
+                "resolve/$GEMMA4_E4B_REV/gemma-4-E4B_q4_0-it.gguf",
+            sha256 = "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
+            supportsTools = false,
+            description = "The best understanding of a document available on-device, and the " +
+                "most reliable at identifying people and organisations. Needs a high-end " +
+                "phone with memory to spare.",
         ),
     )
 }

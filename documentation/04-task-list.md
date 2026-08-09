@@ -483,8 +483,10 @@ useful on its own.*
       path writing raw SQL and leaving `source = MACHINE`, so reprocessing overwrote it.*
 - [x] **7.14.5** Review surfacing in the detail screen — distinct states, conflict spelled
       out, count above the fields.
-- [x] **7.14.6** Chat models installable — 4 pinned by revision + SHA-256, ungated, URLs
-      verified. *Every catalog entry was previously `NotInstallable`.*
+- [x] **7.14.6** Chat models installable — 5 pinned by revision + SHA-256, ungated, URLs
+      verified. *Every catalog entry was previously `NotInstallable`.* Verified end to end:
+      a 1.1 GB model downloaded through the app at its exact pinned size.
+- [x] **7.14.6b** Current-generation catalog — Gemma 4 (Google QAT) and Qwen 3.5.
 - [x] **7.14.7** **OCR layout capture** — normalised bounding box per block, persisted as
       JSON (schema v4). *ML Kit was already returning boxes and the pipeline discarded them.*
 - [x] **7.14.8** `DocumentLayout` — band-based reading order that keeps side-by-side columns

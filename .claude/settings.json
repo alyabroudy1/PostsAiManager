@@ -5,7 +5,6 @@
       "Bash(./scripts/dev-adb.sh *)",
       "Bash(bash scripts/dev-adb.sh *)",
       "Bash(./gradlew *)",
-
       "Bash(sleep *)",
       "Bash(mkdir -p *)",
       "Bash(ls *)",
@@ -30,16 +29,41 @@
       "Bash(while *)",
       "Bash(if *)",
       "Bash(test *)",
-
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",
       "Bash(git show *)",
       "Bash(git branch *)",
-
       "Read",
       "Glob",
-      "Grep"
+      "Grep",
+      "Write",
+      "Edit",
+      "NotebookEdit",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(py *)",
+      "Bash(sed -n *)",
+      "Bash(curl *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git mv *)",
+      "Bash(git rm --cached *)",
+      "Bash(git restore *)",
+      "Bash(git stash *)",
+      "Bash(rm -f *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(touch *)",
+      "Bash(diff *)",
+      "Bash(basename *)",
+      "Bash(dirname *)",
+      "Bash(xargs *)",
+      "Bash(cd *)",
+      "Bash(pwd)",
+      "Bash(true)",
+      "Bash(:)",
+      "Agent"
     ],
     "deny": [
       "Bash(adb *)",
@@ -50,7 +74,11 @@
       "Bash(sed -i *)",
       "Bash(git push *)",
       "Bash(git reset --hard *)",
-      "Bash(git clean *)"
-    ]
+      "Bash(git clean *)",
+      "Bash(rm -rf *)",
+      "Bash(curl * -X POST *)",
+      "Bash(* --dangerously-* *)"
+    ],
+    "defaultMode": "acceptEdits"
   }
 }
