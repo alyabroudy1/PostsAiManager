@@ -42,6 +42,26 @@
         </provider>
 
 
+        <!--
+          WorkManager's own manifest declares SystemForegroundService with NO
+          foregroundServiceType, so the merged manifest carries 0x0. A worker that calls
+          setForeground with FOREGROUND_SERVICE_TYPE_DATA_SYNC is then rejected by the
+          system:
+
+            IllegalArgumentException: foregroundServiceType 0x00000001 is not a subset of
+            foregroundServiceType attribute 0x00000000 in service element of manifest file
+
+          It is a hard crash, not a degraded download, and it takes the app down the moment
+          any long transfer starts. Declaring the type here merges it onto WorkManager's
+          service element. Must stay in step with the type passed to ForegroundInfo by
+          ModelDownloadWorker and EmbeddingModelInstallWorker, and with the
+          FOREGROUND_SERVICE_DATA_SYNC permission above — all three have to agree.
+        -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
         <!-- WorkManager is configured on demand via PostsAiManagerApp (Configuration.Provider)
              so workers are built through Hilt. The default initializer must be removed. -->
         <provider

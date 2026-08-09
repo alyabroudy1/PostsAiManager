@@ -1,7 +1,5 @@
 package com.postsaimanager.core.download
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -82,7 +80,7 @@ class ModelDownloadWorker @AssistedInject constructor(
         foregroundInfo(inputData.getString(KEY_MODEL_NAME) ?: "model", progress = null)
 
     private fun foregroundInfo(modelName: String, progress: Int?): ForegroundInfo {
-        ensureChannel()
+        DownloadNotifications.ensureChannel(applicationContext)
 
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setContentTitle("Downloading $modelName")
@@ -109,30 +107,11 @@ class ModelDownloadWorker @AssistedInject constructor(
         }
     }
 
-    private fun ensureChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val manager = applicationContext
-            .getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
-
-        manager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID,
-                "Model downloads",
-                // LOW: an ongoing transfer should be visible, not intrusive.
-                NotificationManager.IMPORTANCE_LOW,
-            ).apply {
-                description = "Progress for AI models downloading in the background."
-                setShowBadge(false)
-            },
-        )
-    }
-
     private fun errorData(message: String): Data = workDataOf(KEY_ERROR to message)
 
     companion object {
-        const val CHANNEL_ID = "model_downloads"
+        /** Delegates so the id can never be used without its channel existing. */
+        const val CHANNEL_ID = DownloadNotifications.CHANNEL_ID
         const val NOTIFICATION_ID = 4711
 
         const val KEY_URL = "url"

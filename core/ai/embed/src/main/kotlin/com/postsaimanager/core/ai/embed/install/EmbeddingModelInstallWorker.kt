@@ -16,6 +16,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.download.DownloadNotifications
 import com.postsaimanager.core.download.ModelDownloadWorker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -63,9 +64,14 @@ class EmbeddingModelInstallWorker @AssistedInject constructor(
     override suspend fun getForegroundInfo(): ForegroundInfo = foregroundInfo(progress = null)
 
     private fun foregroundInfo(progress: Int?): ForegroundInfo {
+        // Must happen before the notification is built. Posting to a channel that does not
+        // exist is an invalid notification, and a foreground service that posts one is
+        // killed rather than merely ignored.
+        DownloadNotifications.ensureChannel(applicationContext)
+
         val notification = NotificationCompat.Builder(
             applicationContext,
-            ModelDownloadWorker.CHANNEL_ID,
+            DownloadNotifications.CHANNEL_ID,
         )
             .setContentTitle("Preparing document search")
             // Says what the user gets, not what the app is doing. "Downloading

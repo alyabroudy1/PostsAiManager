@@ -47,6 +47,8 @@ ordered the way they are.
 | **Cross-lingual retrieval** | DE↔EN **0.798** vs unrelated **−0.012** — ask in English about a German letter | 2026-08-07 |
 | Batch embedding | 8 texts in **97 ms** (12 ms each) after batch-max padding — was 1554 ms | 2026-08-07 |
 | Embedding device tests | **15 / 15 passing** on real hardware | 2026-08-07 |
+| **Model download end to end** | ✅ 258 MB fetched, hashes verified, both files in place | 2026-08-09 |
+| Foreground download crash | ⚠️ Found on device: WorkManager's service declares no `foregroundServiceType` — **would have crashed every chat-model download too** | 2026-08-09 |
 | Paragraph ranking accuracy | **4 / 5** questions rank the right paragraph first | 2026-08-07 |
 | Question-vs-paragraph scores | correct **0.13 – 0.30**, unrelated **−0.04 – 0.04** | 2026-08-07 |
 
