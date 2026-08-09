@@ -108,7 +108,11 @@ data class DocumentProfileLinkEntity(
             onDelete = ForeignKey.CASCADE,
         ),
     ],
-    indices = [Index("documentId")],
+    // Unique on the slot, not just indexed on the document. A field is identified by
+    // (documentId, fieldName) so re-extraction can be matched against what is stored;
+    // without the constraint a merge bug would quietly produce duplicate slots and the
+    // next merge would pick between them arbitrarily.
+    indices = [Index(value = ["documentId", "fieldName"], unique = true)],
 )
 data class ExtractedDataEntity(
     @PrimaryKey val id: String,
@@ -119,6 +123,44 @@ data class ExtractedDataEntity(
     val confidence: Float,
     val pageNumber: Int?,
     val isConfirmed: Boolean = false,
+    /** `MACHINE` or `USER`; see `ValueSource`. */
+    val source: String = "MACHINE",
+    val machineValue: String? = null,
+    val machineConfidence: Float? = null,
+    val deletedByUser: Boolean = false,
+    val hasUnreviewedMachineChange: Boolean = false,
+    val engineVersion: String? = null,
+    val updatedAt: Long = 0L,
+)
+
+/**
+ * Append-only history for a field slot.
+ *
+ * Deliberately not indexed by a foreign key to `extracted_data`: rows there are keyed by a
+ * regenerated id and a slot can outlive any particular row. The document is the owning
+ * entity, so the cascade hangs off that.
+ */
+@Entity(
+    tableName = "field_revisions",
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index(value = ["documentId", "fieldName", "createdAt"])],
+)
+data class FieldRevisionEntity(
+    @PrimaryKey val id: String,
+    val documentId: String,
+    val fieldName: String,
+    val value: String,
+    val source: String,
+    val confidence: Float?,
+    val engineVersion: String?,
+    val createdAt: Long,
 )
 
 @Entity(

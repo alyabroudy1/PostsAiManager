@@ -3,11 +3,14 @@ package com.postsaimanager.core.data.mapper
 import com.postsaimanager.core.data.database.entity.DocumentEntity
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
+import com.postsaimanager.core.data.database.entity.FieldRevisionEntity
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.DocumentType
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.FieldRevision
+import com.postsaimanager.core.model.ValueSource
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.SourceType
 import javax.inject.Inject
@@ -79,5 +82,54 @@ class DocumentMapper @Inject constructor() {
         confidence = entity.confidence,
         pageNumber = entity.pageNumber,
         isConfirmed = entity.isConfirmed,
+        source = runCatching { ValueSource.valueOf(entity.source) }
+            .getOrDefault(ValueSource.MACHINE),
+        machineValue = entity.machineValue,
+        machineConfidence = entity.machineConfidence,
+        deletedByUser = entity.deletedByUser,
+        hasUnreviewedMachineChange = entity.hasUnreviewedMachineChange,
+        engineVersion = entity.engineVersion,
+        updatedAt = entity.updatedAt,
+    )
+
+    fun extractedDataToEntity(domain: ExtractedData): ExtractedDataEntity = ExtractedDataEntity(
+        id = domain.id,
+        documentId = domain.documentId,
+        fieldName = domain.fieldName,
+        fieldValue = domain.fieldValue,
+        fieldType = domain.fieldType.name,
+        confidence = domain.confidence,
+        pageNumber = domain.pageNumber,
+        isConfirmed = domain.isConfirmed,
+        source = domain.source.name,
+        machineValue = domain.machineValue,
+        machineConfidence = domain.machineConfidence,
+        deletedByUser = domain.deletedByUser,
+        hasUnreviewedMachineChange = domain.hasUnreviewedMachineChange,
+        engineVersion = domain.engineVersion,
+        updatedAt = domain.updatedAt,
+    )
+
+    fun revisionToEntity(domain: FieldRevision) = FieldRevisionEntity(
+        id = domain.id,
+        documentId = domain.documentId,
+        fieldName = domain.fieldName,
+        value = domain.value,
+        source = domain.source.name,
+        confidence = domain.confidence,
+        engineVersion = domain.engineVersion,
+        createdAt = domain.createdAt,
+    )
+
+    fun revisionToDomain(entity: FieldRevisionEntity) = FieldRevision(
+        id = entity.id,
+        documentId = entity.documentId,
+        fieldName = entity.fieldName,
+        value = entity.value,
+        source = runCatching { ValueSource.valueOf(entity.source) }
+            .getOrDefault(ValueSource.MACHINE),
+        confidence = entity.confidence,
+        engineVersion = entity.engineVersion,
+        createdAt = entity.createdAt,
     )
 }

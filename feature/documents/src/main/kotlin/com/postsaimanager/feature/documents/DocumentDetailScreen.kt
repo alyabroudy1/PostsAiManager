@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -80,6 +81,7 @@ import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.ValueSource
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.TimelineEvent
 import java.io.File
@@ -488,6 +490,10 @@ private fun ExtractedTemplateTab(
                 }
 
                 // ── Extracted Data Sections ──
+                // Above the fields, so what needs attention is seen before the scroll
+                // rather than found during it.
+                item { ReviewSummary(data) }
+
                 if (senderFields.isNotEmpty()) {
                     item { SectionHeader("📤 Sender") }
                     items(senderFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
@@ -790,33 +796,119 @@ private fun SectionHeader(title: String) {
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
+/**
+ * One extracted field.
+ *
+ * Three states are visually distinct, because they mean different things to the person
+ * reading them:
+ *
+ *  - **Needs review** — the extractor was unsure, or now disagrees with the value here.
+ *    Outlined in the error colour: it is the only state that is asking for something.
+ *  - **Yours / confirmed** — you wrote or accepted this. The machine will not change it.
+ *  - **Machine, confident** — plain. Most fields, and they should recede.
+ */
 @Composable
 private fun FieldCard(field: ExtractedData, onConfirm: (String) -> Unit, onEdit: (ExtractedData) -> Unit, onDelete: (String) -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
+    val isUsers = field.source == ValueSource.USER
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = if (field.isConfirmed) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow),
+        border = if (field.needsReview) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+        } else {
+            null
+        },
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                field.needsReview -> MaterialTheme.colorScheme.errorContainer
+                isUsers || field.isConfirmed -> MaterialTheme.colorScheme.secondaryContainer
+                else -> MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        ),
     ) {
-        Row(modifier = Modifier.padding(12.dp).clickable { onEdit(field) }, verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(field.fieldName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(field.fieldValue, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                Spacer(modifier = Modifier.height(2.dp))
-                Text("${(field.confidence * 100).toInt()}% confidence", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Box {
-                IconButton(onClick = { showMenu = true }) { Icon(PamIcons.More, contentDescription = "More", modifier = Modifier.size(20.dp)) }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text("Edit") }, onClick = { showMenu = false; onEdit(field) }, leadingIcon = { Icon(PamIcons.Edit, null, Modifier.size(18.dp)) })
-                    if (!field.isConfirmed) {
-                        DropdownMenuItem(text = { Text("Confirm") }, onClick = { showMenu = false; onConfirm(field.id) }, leadingIcon = { Icon(PamIcons.Favorite, null, Modifier.size(18.dp)) })
+        Column(modifier = Modifier.padding(12.dp).clickable { onEdit(field) }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(field.fieldName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(field.fieldValue, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        // Confidence is the extractor's opinion of its own reading. Once a
+                        // person has set the value it says nothing, so it is not shown.
+                        if (isUsers) "You set this" else "${(field.confidence * 100).toInt()}% confidence",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Box {
+                    IconButton(onClick = { showMenu = true }) { Icon(PamIcons.More, contentDescription = "More", modifier = Modifier.size(20.dp)) }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(text = { Text("Edit") }, onClick = { showMenu = false; onEdit(field) }, leadingIcon = { Icon(PamIcons.Edit, null, Modifier.size(18.dp)) })
+                        if (!field.isConfirmed) {
+                            DropdownMenuItem(text = { Text("Confirm") }, onClick = { showMenu = false; onConfirm(field.id) }, leadingIcon = { Icon(PamIcons.Favorite, null, Modifier.size(18.dp)) })
+                        }
+                        DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; onDelete(field.id) },
+                            leadingIcon = { Icon(PamIcons.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) })
                     }
-                    DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; onDelete(field.id) },
-                        leadingIcon = { Icon(PamIcons.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) })
                 }
             }
+
+            // The disagreement, spelled out. "This changed" would not be enough for anyone
+            // to decide anything — the previous reading is what makes it actionable.
+            if (field.hasUnreviewedMachineChange && field.machineValue != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "The document now reads \"${field.machineValue}\" here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { onConfirm(field.id) }) { Text("Keep mine") }
+                    TextButton(onClick = { onEdit(field) }) { Text("Review") }
+                }
+            } else if (field.needsReview) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "Low confidence — worth checking.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * A count of what wants attention, above the fields.
+ *
+ * Without it, a low-confidence field is only found by scrolling and noticing a colour —
+ * fine for three fields, useless for a document with twenty.
+ */
+@Composable
+private fun ReviewSummary(fields: List<ExtractedData>) {
+    val needing = fields.count { it.needsReview }
+    if (needing == 0) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(
+                if (needing == 1) "1 field is worth checking" else "$needing fields are worth checking",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "The extractor was unsure, or the document now reads differently. " +
+                    "Your corrections are kept when a document is processed again.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
         }
     }
 }

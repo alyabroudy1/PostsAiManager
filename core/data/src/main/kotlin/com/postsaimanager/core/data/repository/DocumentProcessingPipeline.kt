@@ -8,11 +8,13 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.result.getOrNull
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.data.database.dao.DocumentDao
+import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
+import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractionResult
 import com.postsaimanager.core.model.TimelineEvent
@@ -41,6 +43,9 @@ class DocumentProcessingPipeline @Inject constructor(
     private val ocrService: OcrService,
     private val entityExtractor: EntityExtractor,
     private val indexDocument: IndexDocumentUseCase,
+    private val mergeExtraction: MergeExtractionUseCase,
+    private val fieldRevisionDao: FieldRevisionDao,
+    private val documentMapper: DocumentMapper,
     private val documentDao: DocumentDao,
     private val timelineRepository: TimelineRepository,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
@@ -112,28 +117,53 @@ class DocumentProcessingPipeline @Inject constructor(
 
                 val extraction = entityExtractor.extract(documentId, combinedText, null)
 
-                // Step 5: Save extracted data (clear old data first for retry support)
+                // Step 5: Merge the extraction into what is already stored.
+                //
+                // Merge, not replace. This step used to run
+                // `DELETE FROM extracted_data` and re-insert, which destroyed every value
+                // a user had corrected or added — silently, with no way to tell a machine
+                // guess from a person's decision. MergeExtractionUseCase keeps user values,
+                // honours deletions, and flags the cases where extraction now disagrees
+                // instead of picking a winner.
                 _processingState.value = ProcessingState.Running(
                     documentId, "Saving ${extraction.fields.size} fields...", 0.9f
                 )
 
-                // Clear previous extraction on retry
-                documentDao.deleteExtractedData(documentId)
+                val stored = documentDao.getExtractedData(documentId)
+                    .map(documentMapper::extractedDataToDomain)
+                val now = System.currentTimeMillis()
 
-                documentDao.insertExtractedData(
-                    extraction.fields.map { field ->
-                        ExtractedDataEntity(
-                            id = field.id,
-                            documentId = field.documentId,
-                            fieldName = field.fieldName,
-                            fieldValue = field.fieldValue,
-                            fieldType = field.fieldType.name,
-                            confidence = field.confidence,
-                            pageNumber = field.pageNumber,
-                            isConfirmed = false,
-                        )
-                    }
+                val merged = mergeExtraction(
+                    existing = stored,
+                    extracted = extraction.fields,
+                    engineVersion = EXTRACTOR_VERSION,
+                    now = now,
+                    newId = { UuidGenerator.generate() },
                 )
+
+                merged.idsToDelete.forEach { documentDao.deleteExtractedField(it) }
+                documentDao.insertExtractedData(
+                    merged.toPersist.map(documentMapper::extractedDataToEntity),
+                )
+                fieldRevisionDao.insertAll(
+                    merged.revisions.map(documentMapper::revisionToEntity),
+                )
+
+                if (merged.newlyFlagged.isNotEmpty()) {
+                    // Worth a timeline entry: the document says something different from
+                    // what the user recorded, and they may never open the field itself.
+                    timelineRepository.recordEvent(
+                        TimelineEvent(
+                            id = UuidGenerator.generate(),
+                            documentId = documentId,
+                            eventType = TimelineEventType.ENTITIES_EXTRACTED,
+                            title = "${merged.newlyFlagged.size} field(s) need your review",
+                            description = "A new reading differs from your version: " +
+                                merged.newlyFlagged.joinToString(", "),
+                            createdAt = now,
+                        )
+                    )
+                }
 
                 // Update document with detected type, language, and subject
                 val doc = documentDao.getById(documentId)
@@ -199,6 +229,14 @@ class DocumentProcessingPipeline @Inject constructor(
 }
 
 private const val TAG = "DocProcessing"
+
+/**
+ * Identifies the extractor that produced a value.
+ *
+ * Part of the Understand stage's fingerprint: bump it when extraction logic changes, and
+ * every document re-derives its machine values on next run without re-reading a single page.
+ */
+private const val EXTRACTOR_VERSION = "entity-extractor-1"
 
 sealed interface ProcessingState {
     data object Idle : ProcessingState

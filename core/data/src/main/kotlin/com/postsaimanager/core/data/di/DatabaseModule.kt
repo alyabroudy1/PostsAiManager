@@ -7,6 +7,7 @@ import com.postsaimanager.core.data.database.PamMigrations
 import com.postsaimanager.core.data.database.dao.ConversationDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.data.database.dao.DocumentChunkDao
+import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.database.dao.MessageDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
 import com.postsaimanager.core.data.database.dao.TimelineDao
@@ -54,4 +55,8 @@ object DatabaseModule {
     @Provides
     fun provideDocumentChunkDao(database: PamDatabase): DocumentChunkDao =
         database.documentChunkDao()
+
+    @Provides
+    fun provideFieldRevisionDao(database: PamDatabase): FieldRevisionDao =
+        database.fieldRevisionDao()
 }
