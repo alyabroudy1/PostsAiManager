@@ -222,7 +222,10 @@ class MergeExtractionUseCase @Inject constructor() {
         val updated = field.copy(
             fieldValue = machine,
             confidence = field.machineConfidence ?: field.confidence,
-            source = ValueSource.MACHINE,
+            // USER, even though the machine wrote the text: the user adopted it. Leaving it
+            // MACHINE would let the next run overwrite a value they just chose, and the
+            // same conflict would reappear.
+            source = ValueSource.USER,
             hasUnreviewedMachineChange = false,
             // Accepting is an act of review, so the value is confirmed even though the
             // machine authored it.

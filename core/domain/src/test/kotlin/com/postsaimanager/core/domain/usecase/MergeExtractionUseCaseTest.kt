@@ -304,6 +304,9 @@ class MergeExtractionUseCaseTest {
             assertThat(updated.fieldValue).isEqualTo("A. Mustermann")
             assertThat(updated.hasUnreviewedMachineChange).isFalse()
             assertThat(updated.isConfirmed).isTrue()
+            // Adopted, so protected. Otherwise the next run overwrites the value the user
+            // just chose and raises the identical conflict again.
+            assertThat(updated.source).isEqualTo(ValueSource.USER)
             // Recorded as the user's act, because accepting is a decision they made.
             assertThat(revision?.source).isEqualTo(ValueSource.USER)
         }
