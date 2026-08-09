@@ -51,6 +51,7 @@ ordered the way they are.
 | Batch embedding | 8 texts in **97 ms** (12 ms each) after batch-max padding — was 1554 ms | 2026-08-07 |
 | Embedding device tests | **15 / 15 passing** on real hardware | 2026-08-07 |
 | **Chat models installable** | 4 pinned by revision + SHA-256, all ungated, URLs verified 200 | 2026-08-09 |
+| **OCR keeps layout** | Normalised box per block, persisted; schema v4 migrated on device, 3 documents / 12 fields intact | 2026-08-09 |
 | **Model download end to end** | ✅ 258 MB fetched, hashes verified, both files in place | 2026-08-09 |
 | Foreground download crash | ⚠️ Found on device: WorkManager's service declares no `foregroundServiceType` — **would have crashed every chat-model download too** | 2026-08-09 |
 | Paragraph ranking accuracy | **4 / 5** questions rank the right paragraph first | 2026-08-07 |

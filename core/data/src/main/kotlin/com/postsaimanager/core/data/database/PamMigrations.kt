@@ -128,5 +128,23 @@ object PamMigrations {
         }
     }
 
-    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+    /**
+     * Keeps where each OCR block was on the page (Phase 7.14.7).
+     *
+     * ML Kit returns a bounding box per block and the pipeline discarded it, flattening a
+     * laid-out page into one string. A German letter puts the recipient left and the
+     * reference block right, on the same lines; read as a single run of text they
+     * interleave, which is how a sender organisation came to be recorded as
+     * "563,00 Euro. Die Anpassung erfolgt automatisch".
+     *
+     * Nullable, and left null for pages scanned before this: their text is still there, and
+     * re-processing the document repopulates the layout.
+     */
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `document_pages` ADD COLUMN `ocrBlocks` TEXT")
+        }
+    }
+
+    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 }

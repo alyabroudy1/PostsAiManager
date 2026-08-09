@@ -485,12 +485,10 @@ useful on its own.*
       out, count above the fields.
 - [x] **7.14.6** Chat models installable — 4 pinned by revision + SHA-256, ungated, URLs
       verified. *Every catalog entry was previously `NotInstallable`.*
-- [ ] **7.14.7** **OCR layout capture** — keep each block's position, not just its text.
-      *German letters put the reference block right, the address left, the subject centre;
-      a flattened string loses all of it. Already produced "Sender Organization = 563,00
-      Euro. Die Anpassung..."*
-- [ ] **7.14.8** `DocumentLayout` — reading order that respects columns, zone
-      classification, and a layout-aware serialisation for the model.
+- [x] **7.14.7** **OCR layout capture** — normalised bounding box per block, persisted as
+      JSON (schema v4). *ML Kit was already returning boxes and the pipeline discarded them.*
+- [x] **7.14.8** `DocumentLayout` — band-based reading order that keeps side-by-side columns
+      whole, DIN 5008 zone classification, and a zone-labelled serialisation for the model.
 - [ ] **7.14.9** `AiEntityExtractor` — grammar-constrained JSON from the local model.
 - [ ] **7.14.10** Entity identification: type (authority / company / person) **and** role in
       this document (sender / recipient / mentioned / contact-of).

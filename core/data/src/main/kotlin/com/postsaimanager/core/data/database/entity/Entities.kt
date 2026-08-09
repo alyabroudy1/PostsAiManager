@@ -42,6 +42,14 @@ data class DocumentPageEntity(
     val processedPath: String?,
     val ocrText: String?,
     val ocrConfidence: Float?,
+    /**
+     * Positioned OCR blocks, JSON-encoded.
+     *
+     * Kept so extraction can re-run without re-reading the page — the expensive stage — and
+     * so a later, layout-aware extractor can use pages that were scanned before it existed.
+     * Text alone cannot be re-derived into positions.
+     */
+    val ocrBlocks: String? = null,
     val width: Int,
     val height: Int,
 )

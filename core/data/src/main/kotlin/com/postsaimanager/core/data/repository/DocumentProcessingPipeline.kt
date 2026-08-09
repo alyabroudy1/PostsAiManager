@@ -88,6 +88,16 @@ class DocumentProcessingPipeline @Inject constructor(
                                 page.copy(
                                     ocrText = ocrResult.fullText,
                                     ocrConfidence = ocrResult.confidence,
+                                    // Positions kept, so a layout-aware extractor can use
+                                    // this page later without re-reading the image.
+                                    ocrBlocks = runCatching {
+                                        blockJson.encodeToString(
+                                            kotlinx.serialization.builtins.ListSerializer(
+                                                com.postsaimanager.core.model.OcrBlock.serializer(),
+                                            ),
+                                            ocrResult.blocks,
+                                        )
+                                    }.getOrNull(),
                                 )
                             )
                         )
@@ -227,6 +237,9 @@ class DocumentProcessingPipeline @Inject constructor(
             }
         }
 }
+
+/** Lenient: a stored layout that cannot be parsed must not fail a document. */
+private val blockJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
 
 private const val TAG = "DocProcessing"
 
