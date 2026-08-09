@@ -55,7 +55,10 @@ ordered the way they are.
 | Catalog generation | **Gemma 4** (Jul 2026, Google QAT builds) + **Qwen 3.5** | 2026-08-09 |
 | 🔴 Prompt >512 tokens | **Fixed** — `n_batch=512` with a single-batch prompt aborted the inference process. Would have killed grounded chat too | 2026-08-09 |
 | Context window | Capped at **4096** — 8192 aborted on the reference phone with more memory free than 4096 succeeded with | 2026-08-09 |
-| AI extraction on device | Runs, **107 s** per letter (Qwen3.5 2B). Gets the recipient right where regex read a salutation; misses the sender role and several facts | 2026-08-09 |
+| **Best on-device extractor** | **Gemma 4 E2B** — sender, recipient, contact, both references, deadline and amount all correct on a real letter | 2026-08-09 |
+| Extraction speed | Gemma 4 E2B **247 s**, Qwen3.5 2B **164 s** per letter — background work, not interactive | 2026-08-09 |
+| Qwen3.5 + grammar | ⚠️ Reasoning model — emits `<think>`; forcing straight-to-JSON fights its training and it misses the deadline entirely | 2026-08-09 |
+| Confidence from models | ⚠️ **Still flat** — both report 0.9 for everything despite explicit banding in the prompt | 2026-08-09 |
 | **OCR keeps layout** | Normalised box per block, persisted; schema v4 migrated on device, 3 documents / 12 fields intact | 2026-08-09 |
 | **Model download end to end** | ✅ 258 MB fetched, hashes verified, both files in place | 2026-08-09 |
 | Foreground download crash | ⚠️ Found on device: WorkManager's service declares no `foregroundServiceType` — **would have crashed every chat-model download too** | 2026-08-09 |

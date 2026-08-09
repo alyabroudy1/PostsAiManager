@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
+import com.postsaimanager.core.domain.ai.AiChatMessage
+import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
 import com.postsaimanager.core.model.OcrBlock
@@ -61,9 +63,20 @@ class ExtractionModelTest {
         assumeTrue("No model at ${modelFile.path}", modelFile.exists())
         val engine = loaded()
         try {
+            // Through the chat template, not a raw string. Gemma emits end-of-turn
+            // immediately when handed a bare prompt, generating nothing at all — which
+            // looks like a broken model and is really a missing template.
+            val prompt = engine.formatPrompt(
+                listOf(
+                    AiChatMessage(
+                        AiChatRole.USER,
+                        "Antworte auf Deutsch mit einem Satz: Was ist ein Widerspruch?",
+                    ),
+                ),
+            )
             val out = engine.generate(
                 AiRequest(
-                    prompt = "Antworte auf Deutsch mit einem Satz: Was ist ein Widerspruch?",
+                    prompt = prompt,
                     maxTokens = 48,
                     temperature = 0.1f,
                     grammar = null,

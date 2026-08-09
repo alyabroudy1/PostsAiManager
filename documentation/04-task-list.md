@@ -500,7 +500,19 @@ useful on its own.*
       fallback when no model is installed, is too large, or returns something unusable.
       Model output maps to the **same canonical field slots** the patterns use, so switching
       does not strand a user's corrections.
-- [ ] **7.14.9c** Verify on device against a real letter and compare with the regex result.
+- [x] **7.14.9c** Verified on device against a real letter, compared with regex and across
+      two models. **Gemma 4 E2B** reads sender, recipient, contact, both references, the
+      deadline and the amount correctly; regex got the recipient and sender wrong; Qwen3.5
+      2B finds no sender and misses the deadline.
+- [ ] **7.14.9d** Make Gemma 4 E2B the recommended extractor and let the extractor model be
+      chosen separately from the chat model.
+- [ ] **7.14.9e** Confidence is still flat at 0.9 from both models despite explicit banding
+      in the prompt. Until it varies, the low-confidence review queue cannot work — consider
+      deriving it from agreement between two reads, or from token logprobs.
+- [ ] **7.14.9f** Reasoning models need a grammar that permits a thinking block before the
+      JSON. Qwen3.5 emits `<think>`; forcing it straight into JSON fights its training.
+- [ ] **7.14.9g** Drop duplicate facts that differ only by label ("Regelleistung Betrag" vs
+      "Regelleistung voraussichtlich").
 - [ ] **7.14.11** Profile creation and linking. *High confidence links silently, low
       confidence proposes — an auto-created profile from a half-read name is clutter the
       user has to undo.*
