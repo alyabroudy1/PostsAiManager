@@ -37,7 +37,8 @@ ordered the way they are.
 | Unit tests | **380 passing, 0 failing** | 2026-08-07 |
 | Test capability | 18 / 18 modules via `pam.test-conventions` | 2026-08-07 |
 | Defects found by tests | 7 fixed, 2 pinned open | 2026-08-07 |
-| ⚠️ Reprocessing data loss | **Open** — `DELETE FROM extracted_data` erases user edits; no provenance column exists. See [07](07-document-pipeline.md) | 2026-08-09 |
+| ✅ Reprocessing data loss | **Fixed** — provenance + merge + revision history, schema v3, migrated on-device with no loss | 2026-08-09 |
+| ⚠️ Extractor quality | **Open** — regex extraction read a salutation as a name and a sentence fragment as an organisation, both at a hardcoded 0.80. Confidence is a per-field-type constant, not a measurement | 2026-08-09 |
 | Test device | Samsung SM-S918B, Android 16 (API 36), arm64-v8a | 2026-08-07 |
 | Device RAM | 11.3 GB total — **2.5 GB available** | 2026-08-07 |
 | Smoke test T001 | **PASS**, 20/20 steps, zero crashes | 2026-08-07 |
@@ -49,6 +50,7 @@ ordered the way they are.
 | **Cross-lingual retrieval** | DE↔EN **0.798** vs unrelated **−0.012** — ask in English about a German letter | 2026-08-07 |
 | Batch embedding | 8 texts in **97 ms** (12 ms each) after batch-max padding — was 1554 ms | 2026-08-07 |
 | Embedding device tests | **15 / 15 passing** on real hardware | 2026-08-07 |
+| **Chat models installable** | 4 pinned by revision + SHA-256, all ungated, URLs verified 200 | 2026-08-09 |
 | **Model download end to end** | ✅ 258 MB fetched, hashes verified, both files in place | 2026-08-09 |
 | Foreground download crash | ⚠️ Found on device: WorkManager's service declares no `foregroundServiceType` — **would have crashed every chat-model download too** | 2026-08-09 |
 | Paragraph ranking accuracy | **4 / 5** questions rank the right paragraph first | 2026-08-07 |
@@ -86,11 +88,12 @@ ordered the way they are.
 | Test infrastructure | ✅ `build-logic` convention plugin, `:core:testing` fakes + fixtures, 75 tests |
 | Error handling | ⚠️ Systemic gaps — empty catches, raw debug strings, no logging abstraction, **ViewModels discard write failures** |
 | **On-device LLM** | ✅ **Runtime proven on device** (llama.cpp b10299, 173 tok/s, GBNF works). `LocalAiEngine` wrapper next. |
-| **Model management** | ✅ **Complete** — catalog, device fit, signed manifest, Hugging Face source, resumable download, management UI, GGUF import |
+| **Model management** | ✅ **Complete and now usable** — 4 chat models pinned and installable; previously every catalog entry was `NotInstallable`, so no model could be downloaded at all |
 | **Tool / agent layer** | **Not started** |
 | **RAG / semantic search** | ✅ **Working on device** — ONNX encoder, hybrid RRF retrieval, indexed on scan. Thresholds calibrated from measurement (4/5 paragraph ranking). Model delivery to a real install is the remaining gap |
 | **Escalation & consent gate** | **Not started** |
-| **Chat** | **Mocked — canned strings after `delay(1500)`** |
+| **Chat** | Wired to the local engine; needs a model installed |
+| **Entity understanding** | **Next** — AI reads the document, identifies people and organisations, creates or links profiles. See [08](08-entity-understanding.md) |
 | **Tests** | ✅ **75 passing** across 5 modules; all 17 test-capable. Still no Room or instrumented tests |
 | **Localization** | **`stringResource` used zero times** |
 | `feature:parser` (Arabic) | ✅ Removed — archived at git tag `archive/arabic-parser` |
@@ -110,7 +113,7 @@ See [01-findings-report.md](01-findings-report.md) for the evidence behind each 
 | Remote tool calls | **Proposal only** — executed locally after user confirmation, results never returned |
 | Tool protocols | Four tiers, best available. **GBNF is the answer for models without tool calling.** |
 | Plugin mechanism | Declarative descriptors + one OpenAI-compatible adapter |
-| Config delivery | Signed remote manifest (**ECDSA P-256** — Ed25519 needs API 33, minSdk is 26) + bundled fallback |
+| Config delivery | Signed remote manifest (**ECDSA P-256** — Ed25519 needs API 33, minSdk is 26) for anything that changes after release; a small curated set pinned by revision + SHA-256 in the APK so the app works before any manifest exists |
 | 1.0 provider count | **Zero** |
 | First provider | Groq (Phase 12) |
 

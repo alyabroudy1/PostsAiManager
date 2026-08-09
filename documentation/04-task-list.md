@@ -469,6 +469,40 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` cut
       restarting a stale partial.
 - [ ] **7.6.9** Device test: kill the app mid-download, relaunch, confirm resume from offset. *Needs a real signed manifest (7.4.6) or a test fixture URL.*
 
+### 7.14 Document understanding (entities, profiles, layout)
+
+*Replaces regex extraction with a model that reads the document. Ordered so each step is
+useful on its own.*
+
+- [x] **7.14.1** Provenance on extracted values — `source`, `machineValue`, tombstones,
+      disagreement flag. Schema v3, migrated on device with no loss.
+- [x] **7.14.2** `MergeExtractionUseCase` — user values survive re-extraction; deletions
+      stick; conflicts surface instead of resolving themselves.
+- [x] **7.14.3** `field_revisions` — append-only history behind every value.
+- [x] **7.14.4** Route every user edit through the merge. *A device test caught the edit
+      path writing raw SQL and leaving `source = MACHINE`, so reprocessing overwrote it.*
+- [x] **7.14.5** Review surfacing in the detail screen — distinct states, conflict spelled
+      out, count above the fields.
+- [x] **7.14.6** Chat models installable — 4 pinned by revision + SHA-256, ungated, URLs
+      verified. *Every catalog entry was previously `NotInstallable`.*
+- [ ] **7.14.7** **OCR layout capture** — keep each block's position, not just its text.
+      *German letters put the reference block right, the address left, the subject centre;
+      a flattened string loses all of it. Already produced "Sender Organization = 563,00
+      Euro. Die Anpassung..."*
+- [ ] **7.14.8** `DocumentLayout` — reading order that respects columns, zone
+      classification, and a layout-aware serialisation for the model.
+- [ ] **7.14.9** `AiEntityExtractor` — grammar-constrained JSON from the local model.
+- [ ] **7.14.10** Entity identification: type (authority / company / person) **and** role in
+      this document (sender / recipient / mentioned / contact-of).
+- [ ] **7.14.11** Profile creation and linking. *High confidence links silently, low
+      confidence proposes — an auto-created profile from a half-read name is clutter the
+      user has to undo.*
+- [ ] **7.14.12** Contact persons belong to their organisation's profile, not standalone.
+- [ ] **7.14.13** "Me" is never given a profile — the recipient is recognised, not created.
+- [ ] **7.14.14** Real per-field confidence from the model, replacing the per-field-type
+      constants. *Unblocks the low-confidence review queue, which cannot fire today.*
+- [ ] **7.14.15** Dual-run AI against regex extraction on real letters and measure.
+
 ### 7.7 Embeddings & RAG
 
 - [x] **7.7.1** `EmbeddingService` in `:core:ai:embed` over ONNX Runtime.

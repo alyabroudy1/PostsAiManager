@@ -612,3 +612,22 @@ gate, honest wording.
    Phase 7.5 ships.
 4. **Default model** shipped in the catalog for first-run? A ~1–2 B model gets users to a
    working assistant fastest; a 3–4 B one is meaningfully better at tool use.
+
+
+## Phase 7.14 — Document understanding
+
+The regex extractor is the ceiling on everything above it. On a clean German letter it read
+the salutation "Frau" as the receiver's name and a sentence fragment as the sender
+organisation, both reported at a hardcoded 0.80 — confidence is a constant per field kind,
+not a measurement, so nothing downstream can tell a good value from a bad one.
+
+Position matters as much as the model. ML Kit returns a bounding box per text block and the
+pipeline discarded it, flattening a two-dimensional page into one string. German business
+letters are laid out, not written linearly: the reference block sits right, the address
+left, the subject centred. Reading them as a single run of text is why unrelated lines end
+up in the same field.
+
+The order is deliberate. Provenance first, because it makes swapping extractors safe — model
+output is `MACHINE`, so a hallucinated field can be deleted and stays deleted, and no user
+correction is ever overwritten. Then a model to run. Then layout, so it has something
+structured to read. Then entities, profiles and links.
