@@ -17,7 +17,7 @@ import org.junit.runner.RunWith
 import java.io.File
 
 /**
- * Why the inference process died reading a document, and whether the model can read one.
+ * How a given model actually reads a real German letter.
  *
  * Driving the app UI could not answer either question: the process aborts natively, the app
  * degrades to pattern matching, and by the time anyone looks the logcat ring has rolled
@@ -31,9 +31,20 @@ import java.io.File
  * ```
  */
 @RunWith(AndroidJUnit4::class)
-class Qwen35GrammarTest {
+class ExtractionModelTest {
 
-    private val modelFile = File("/data/local/tmp/qwen35-2b.gguf")
+    /**
+     * Whichever model is staged for comparison.
+     *
+     * A fixed path rather than a per-model constant, so swapping models is a file copy
+     * instead of a code change — the point of these runs is to compare models on identical
+     * input, and an edit between runs is one more thing that could differ.
+     *
+     * ```
+     * adb push gemma4-e2b.gguf /data/local/tmp/extract-model.gguf
+     * ```
+     */
+    private val modelFile = File("/data/local/tmp/extract-model.gguf")
     private val tag = "pam_spike"
 
     private suspend fun loaded(): LocalAiEngine {
@@ -41,7 +52,7 @@ class Qwen35GrammarTest {
         // The window the device provider now caps to, so this reproduces what the app does.
         val result = engine.load(modelFile.absolutePath, contextTokens = 4096)
         check(result is PamResult.Success) { "load failed: $result" }
-        Log.i(tag, "q35 loaded: ${result.data}")
+        Log.i(tag, "model loaded: ${result.data}")
         return engine
     }
 
@@ -59,7 +70,7 @@ class Qwen35GrammarTest {
                 ),
             ).toList().joinToString("")
 
-            Log.i(tag, "q35 nogrammar len=${out.length} text=${out.take(160)}")
+            Log.i(tag, "model nogrammar len=${out.length} text=${out.take(160)}")
             // Survives here means the model and runtime are fine and the grammar is the
             // suspect; aborts here means the grammar is exonerated.
             assert(out.isNotEmpty()) { "empty generation" }
@@ -83,7 +94,7 @@ class Qwen35GrammarTest {
                 ),
             ).toList().joinToString("")
 
-            Log.i(tag, "q35 trivialgrammar out=${out.take(60)}")
+            Log.i(tag, "model trivialgrammar out=${out.take(60)}")
             assert(out.isNotEmpty()) { "empty generation" }
         } finally {
             engine.unload()
@@ -114,24 +125,24 @@ class Qwen35GrammarTest {
                     val understanding = result.data
                     Log.i(
                         tag,
-                        "q35 read ms=$elapsed lang=${understanding.language} " +
+                        "model read ms=$elapsed lang=${understanding.language} " +
                             "subject=${understanding.subject}",
                     )
                     understanding.entities.forEach {
                         Log.i(
                             tag,
-                            "q35 entity ${it.role} ${it.kind} name='${it.name}' " +
+                            "model entity ${it.role} ${it.kind} name='${it.name}' " +
                                 "rel='${it.relation}' conf=${it.confidence}",
                         )
                     }
                     understanding.facts.forEach {
                         Log.i(
                             tag,
-                            "q35 fact ${it.kind} '${it.label}'='${it.value}' conf=${it.confidence}",
+                            "model fact ${it.kind} '${it.label}'='${it.value}' conf=${it.confidence}",
                         )
                     }
                 }
-                is PamResult.Error -> Log.w(tag, "q35 read failed: ${result.error.userMessage}")
+                is PamResult.Error -> Log.w(tag, "model read failed: ${result.error.userMessage}")
             }
 
             assert(result is PamResult.Success) { "extraction failed: $result" }

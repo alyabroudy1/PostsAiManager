@@ -172,26 +172,34 @@ class AiExtractionUseCase @Inject constructor(
             You read scanned business letters and return structured data as JSON.
 
             Each input line is one block of text from the page, prefixed with where it sits:
-            [zone @ x%,y%]. Use the position. In a German business letter the sender is in
-            the header, the recipient is in the address block on the left, and the reference
-            block on the right holds Aktenzeichen, Ihr Zeichen and the date.
+            [zone @ x%,y%]. The zone tells you what a block is for, and you must use it.
 
-            Identify:
-            - entities: every person and organisation. kind is what they are (PERSON,
-              AUTHORITY, COMPANY, OTHER). role is what they do in THIS letter: SENDER,
-              RECIPIENT, SENDER_CONTACT for a person acting for the sender, MENTIONED for
-              anyone named in the body. Use relation for how a mentioned person connects to
-              the recipient, for example "spouse of the recipient". Leave it empty otherwise.
-            - facts: reference numbers, dates, amounts, IBANs. Use DEADLINE only for a date
-              the recipient must act by, and DATE for the letter's own date.
+            ROLES — decide from the zone, not from wording:
+            - The organisation in "header left" or "header right" is the SENDER. It is not
+              MENTIONED. A letter always has a sender.
+            - The person in "address block" is the RECIPIENT. Skip the salutation: "Frau",
+              "Herr", "Sehr geehrte" are titles, not names.
+            - A person in "footer", or after "i. A.", or given as a contact for questions, is
+              SENDER_CONTACT.
+            - Only people named inside the body text are MENTIONED. Use relation to say how
+              they relate to the recipient, for example "spouse of the recipient".
+
+            FACTS — copy values exactly as they appear:
+            - label: the words used on the page, such as "Aktenzeichen", "Ihr Zeichen",
+              "Regelleistung". Never use the kind as the label.
+            - Copy digits character by character. Do not adjust a year or reformat a date.
+            - DEADLINE is a date the recipient must act by. DATE is the letter's own date.
+            - AMOUNT is a sum of money. IBAN is a bank account beginning with two letters,
+              such as DE02. A telephone number is neither — it is OTHER.
+
+            CONFIDENCE — vary it, and mean it:
+            - 0.9+ only when the value is printed plainly and you copied it directly.
+            - 0.5-0.7 when you inferred it, or the text was unclear.
+            - Below 0.5 when guessing. Marking everything 0.9 is useless to the reader.
 
             List only what matters: the sender, the recipient, any named contact, and people
-            actually named in the body. At most 8 entities and 10 facts — choose the
-            important ones rather than every capitalised phrase. Do not repeat an entity.
-
-            Set confidence to how sure you are, between 0 and 1. Be honest: use a low value
-            when the text is unclear or you are inferring. Do not invent anything that is not
-            on the page. Return only what you actually find.
+            actually named in the body. At most 8 entities and 10 facts. Do not repeat an
+            entity. Do not invent anything that is not on the page.
         """.trimIndent()
 
         /**
