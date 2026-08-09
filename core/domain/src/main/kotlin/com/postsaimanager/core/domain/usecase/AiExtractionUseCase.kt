@@ -1,6 +1,5 @@
 package com.postsaimanager.core.domain.usecase
 
-import android.util.Log
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiChatMessage
@@ -118,12 +117,19 @@ class AiExtractionUseCase @Inject constructor(
             val parsed = json.decodeFromString(DocumentUnderstanding.serializer(), text)
             PamResult.Success(sanitise(parsed))
         } catch (e: Exception) {
-            // The answer itself, not just the parser's complaint. Whether the model produced
-            // sense that was cut off or nonsense that parsed is the whole diagnosis, and
-            // without this it is invisible.
-            Log.w(TAG, "unparseable answer (${text.length} chars): ${text.take(400)}")
+            // Carries a slice of the answer, not just the parser's complaint. Whether the
+            // model produced sense that was cut off or nonsense that parsed is the whole
+            // diagnosis, and without it the failure is invisible at the call site.
+            //
+            // In the message rather than a log line: this is `:core:domain`, and reaching
+            // for android.util.Log here would make a pure layer untestable off-device —
+            // Log throws "not mocked" under JVM unit tests, which is how this arrived.
             PamResult.Error(
-                PamError.InferenceError("Could not read the model's answer: ${e.message}", e),
+                PamError.InferenceError(
+                    "Could not read the model's answer: ${e.message}. " +
+                        "Answer began: ${text.take(200)}",
+                    e,
+                ),
             )
         }
     }
@@ -156,7 +162,6 @@ class AiExtractionUseCase @Inject constructor(
         ((contextTokens - MAX_TOKENS - SYSTEM_PROMPT_TOKENS).coerceAtLeast(512)) * CHARS_PER_TOKEN
 
     companion object {
-        private const val TAG = "AiExtraction"
         private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
         private const val CHARS_PER_TOKEN = 3
