@@ -189,7 +189,73 @@ Stated plainly:
 The same rules apply to OCR text: `document_pages` gains `textSource`, and a page whose text
 a user edited is not re-read unless they explicitly ask.
 
-### 4.3 Where the flag goes
+### 4.3 The history
+
+`machineValue` alone records only the last thing the extractor said. That is enough to
+*decide* a merge, and not enough to *explain* one. The question a user will actually ask is
+not "which value wins" but "what happened here" — what did it read originally, what did I
+change it to, when, and what has it said since.
+
+So every value ever held by a slot is appended to `extracted_data_revisions`:
+
+| Column | |
+|---|---|
+| `documentId`, `fieldName` | the slot |
+| `value` | what it was set to |
+| `source` | `MACHINE` or `USER` |
+| `confidence` | for machine revisions |
+| `engineVersion` | which extractor, for machine revisions |
+| `createdAt` | when |
+
+Append-only. `extracted_data` holds the current effective state for fast reads; the
+revision log is the authority on how it got there. `machineValue` on the row is a cache of
+the latest `MACHINE` revision, kept because the merge consults it for every field on every
+run.
+
+#### Worked example
+
+Extraction reads a letter and gets the receiver wrong at low confidence. The user fixes it.
+Later the pages are re-cropped and a newer extractor runs.
+
+| # | Event | `value` | `source` | conf | Row after |
+|---|---|---|---|---|---|
+| 1 | first extraction | `Frau Aylin Mustermann` | MACHINE | 0.42 | value = machine, `source = MACHINE` |
+| 2 | user corrects it | `Aylin Mustermann` | USER | — | value = user, `source = USER`, `machineValue` still #1 |
+| 3 | re-extraction, v2 engine | `A. Mustermann` | MACHINE | 0.81 | **value unchanged**, `machineValue` = #3, flagged |
+
+At step 3 the user's value stands despite the machine being roughly twice as confident.
+Confidence measures how sure the extractor is about its own reading; it says nothing about
+whether a person has already looked at that field and decided. Letting 0.81 beat a human
+correction would mean the app argues more forcefully the more wrong it is.
+
+What the flag can now say, because the history exists:
+
+> The document now reads **A. Mustermann** here.
+> You changed this from *Frau Aylin Mustermann* on 9 August.
+> [Keep mine] [Use the new reading] [See history]
+
+Without the log, the same flag can only say "this changed", which is not enough for anyone
+to decide anything.
+
+#### What the history is worth beyond one field
+
+- **Reverting.** "Put it back to what the scan said" is a lookup, not a re-run.
+- **Trust.** This app's premise is that the assistant works on private documents. Being able
+  to see exactly which values a machine authored and which a person did is part of that
+  premise, not a debugging feature.
+- **A signal about the extractor.** A slot corrected by the user on document after document
+  from the same sender is the extractor being reliably wrong in a specific way. That is
+  worth surfacing before it is worth automating — and the log is where it would be read
+  from. Deliberately not built yet.
+
+#### Confidence drives attention, not authority
+
+Low confidence is exactly where corrections come from, so it should route the user's eye:
+fields below a threshold are collected into a short "worth checking" list on the document
+rather than left to be noticed. But once a person has touched a field, its confidence stops
+mattering for merging — `source` decides, and confidence only ever informs what to show.
+
+### 4.4 Where the flag goes
 
 `hasUnreviewedMachineChange` is not a dialog. It is a marker on the field in the detail
 screen — "the document now reads *28.02.2026* here" — with accept and dismiss. Reprocessing
@@ -303,6 +369,8 @@ Database v2 → v3, additive:
 - `extracted_data` + `source`, `machineValue`, `machineConfidence`, `deletedByUser`,
   `hasUnreviewedMachineChange`, `engineVersion`, `updatedAt`
 - `extracted_data` unique index on `(documentId, fieldName)` — the slot key
+- `extracted_data_revisions` — append-only trail: slot, value, source, confidence, engine
+  version, created-at. Indexed on `(documentId, fieldName, createdAt)`
 
 Existing rows migrate as `source = MACHINE`, `machineValue = fieldValue`, except where
 `isConfirmed = true`, which becomes `source = USER`. That is the honest reading: a confirmed
@@ -314,6 +382,8 @@ field is one a person looked at and accepted, and it should survive the next run
 |---|---|
 | Stop deleting extracted data on reprocess; merge instead | `DocumentProcessingPipeline` |
 | `MergeExtractionUseCase` implementing §4.2 | `:core:domain` |
+| Append a revision on every value change, machine or user | `:core:data` |
+| Field history view, revert, and the "worth checking" low-confidence list | `feature:documents` |
 | Stage records, fingerprints, skip logic | `:core:domain` + `:core:data` |
 | Enqueue processing on capture | `feature:scanner` → WorkManager |
 | Page preparation screen for all ingest paths | `feature:scanner` |
