@@ -7,6 +7,7 @@ import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.FactKind
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.TextBounds
+import com.postsaimanager.core.testing.FakeActiveModelProvider
 import com.postsaimanager.core.testing.FakeAiEngine
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
@@ -27,7 +28,8 @@ import org.junit.jupiter.api.Test
 class AiExtractionUseCaseTest {
 
     private val engine = FakeAiEngine()
-    private val extract = AiExtractionUseCase(engine)
+    private val models = FakeActiveModelProvider()
+    private val extract = AiExtractionUseCase(engine, models)
 
     private fun block(text: String, left: Float, top: Float) = OcrBlock(
         text = text,
@@ -183,9 +185,25 @@ class AiExtractionUseCaseTest {
         }
 
         @Test
-        fun `no model loaded is reported, not attempted`() = runTest {
+        fun `no model installed is reported, not attempted`() = runTest {
             engine.isReady = false
+            models.path = null
             assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
+        }
+
+        @Test
+        @DisplayName("a model that is installed but not loaded is loaded on demand")
+        fun `loads when needed`() = runTest {
+            engine.isReady = false
+            engine.response = goodAnswer
+
+            // Processing runs in the background after a scan, when nothing has yet had
+            // reason to load a model. Failing because the user has not opened chat would
+            // be arbitrary.
+            val result = extract(page)
+
+            assertThat(result).isInstanceOf(PamResult.Success::class.java)
+            assertThat(engine.isReady).isTrue()
         }
 
         @Test

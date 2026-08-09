@@ -6,6 +6,7 @@ import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.AiRequest
+import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.OcrBlock
 import kotlinx.coroutines.flow.toList
@@ -41,6 +42,7 @@ import javax.inject.Inject
  */
 class AiExtractionUseCase @Inject constructor(
     private val engine: AiEngine,
+    private val activeModelProvider: ActiveModelProvider,
 ) {
 
     suspend operator fun invoke(
@@ -48,8 +50,15 @@ class AiExtractionUseCase @Inject constructor(
         contextTokens: Int = AiEngine.DEFAULT_CONTEXT_TOKENS,
     ): PamResult<DocumentUnderstanding> {
         if (blocks.isEmpty()) return PamResult.Success(DocumentUnderstanding())
+
+        // Loaded on demand, like the chat path. Processing usually runs in the background
+        // straight after a scan, when nothing has had reason to load a model yet — failing
+        // here because the user has not opened chat would be arbitrary.
         if (!engine.isReady) {
-            return PamResult.Error(PamError.ModelNotLoaded("document understanding"))
+            val path = activeModelProvider.activeModelPath()
+                ?: return PamResult.Error(PamError.ModelNotLoaded("document understanding"))
+            val loaded = engine.load(path, activeModelProvider.activeModelContextTokens())
+            if (loaded is PamResult.Error) return loaded
         }
 
         val page = DocumentLayout.describe(blocks).let { described ->

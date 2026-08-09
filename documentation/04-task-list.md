@@ -496,8 +496,11 @@ useful on its own.*
 - [x] **7.14.10** Entity identification: kind (authority / company / person) **and** role in
       this document (sender / recipient / sender-contact / mentioned), plus `relation` for
       how a mentioned person connects to the recipient.
-- [ ] **7.14.9b** Wire into `DocumentProcessingPipeline`, with the regex extractor as the
-      fallback when no model is installed.
+- [x] **7.14.9b** Wired into `DocumentProcessingPipeline`, with the regex extractor as the
+      fallback when no model is installed, is too large, or returns something unusable.
+      Model output maps to the **same canonical field slots** the patterns use, so switching
+      does not strand a user's corrections.
+- [ ] **7.14.9c** Verify on device against a real letter and compare with the regex result.
 - [ ] **7.14.11** Profile creation and linking. *High confidence links silently, low
       confidence proposes — an auto-created profile from a half-read name is clutter the
       user has to undo.*

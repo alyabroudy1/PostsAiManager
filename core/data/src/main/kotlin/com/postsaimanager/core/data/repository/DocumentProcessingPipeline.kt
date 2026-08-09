@@ -13,7 +13,9 @@ import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
+import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
+import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractionResult
@@ -44,6 +46,7 @@ class DocumentProcessingPipeline @Inject constructor(
     private val entityExtractor: EntityExtractor,
     private val indexDocument: IndexDocumentUseCase,
     private val mergeExtraction: MergeExtractionUseCase,
+    private val aiExtraction: AiExtractionUseCase,
     private val fieldRevisionDao: FieldRevisionDao,
     private val documentMapper: DocumentMapper,
     private val documentDao: DocumentDao,
@@ -125,7 +128,53 @@ class DocumentProcessingPipeline @Inject constructor(
 
                 val combinedText = ocrResults.joinToString("\n\n") { it.fullText }
 
-                val extraction = entityExtractor.extract(documentId, combinedText, null)
+                // Read by the model when one is installed, by patterns when not.
+                //
+                // The model is given the page layout — each block labelled with where it
+                // sits — rather than flat text, which is what lets one prompt work across
+                // sender formats. Patterns encode a single layout in a single language, and
+                // on a clean German letter read the salutation "Frau" as the recipient's
+                // name.
+                //
+                // Falling back rather than failing: a device with no model, too little
+                // memory, or a model that returned something unusable still gets a document
+                // with fields. Worse fields, not none.
+                val allBlocks = ocrResults.flatMap { it.blocks }
+                val understanding = aiExtraction(allBlocks, contextTokens = AI_CONTEXT_TOKENS)
+
+                val usedModel = understanding is PamResult.Success &&
+                    understanding.data.entities.isNotEmpty()
+
+                val extraction = if (understanding is PamResult.Success && usedModel) {
+                    val fields = UnderstandingToFields.invoke(
+                        documentId = documentId,
+                        understanding = understanding.data,
+                        newId = { UuidGenerator.generate() },
+                    )
+                    Log.i(
+                        TAG,
+                        "understood $documentId entities=${understanding.data.entities.size} " +
+                            "facts=${understanding.data.facts.size} fields=${fields.size}",
+                    )
+                    ExtractionResult(
+                        documentId = documentId,
+                        language = understanding.data.language.ifBlank { null },
+                        subject = understanding.data.subject.ifBlank { null },
+                        documentType = null,
+                        fields = fields,
+                    )
+                } else {
+                    if (understanding is PamResult.Error) {
+                        Log.i(TAG, "model unavailable, using patterns: " +
+                            understanding.error.userMessage)
+                    }
+                    entityExtractor.extract(documentId, combinedText, null)
+                }
+
+                // Part of the Understand stage's fingerprint. Switching between the two
+                // re-derives machine values without re-reading a page — and without
+                // touching anything the user decided.
+                val engineVersion = if (usedModel) AI_ENGINE_VERSION else EXTRACTOR_VERSION
 
                 // Step 5: Merge the extraction into what is already stored.
                 //
@@ -146,7 +195,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 val merged = mergeExtraction(
                     existing = stored,
                     extracted = extraction.fields,
-                    engineVersion = EXTRACTOR_VERSION,
+                    engineVersion = engineVersion,
                     now = now,
                     newId = { UuidGenerator.generate() },
                 )
@@ -250,6 +299,16 @@ private const val TAG = "DocProcessing"
  * every document re-derives its machine values on next run without re-reading a single page.
  */
 private const val EXTRACTOR_VERSION = "entity-extractor-1"
+
+/** Bump when the prompt, the grammar or the field mapping changes. */
+private const val AI_ENGINE_VERSION = "ai-understanding-1"
+
+/**
+ * Smaller than the models' 32k windows on purpose: context costs memory proportionally, and
+ * a one-page letter's layout description is a few thousand characters. Reading a document
+ * should not be the thing that makes the app unloadable on a mid-range phone.
+ */
+private const val AI_CONTEXT_TOKENS = 4096
 
 sealed interface ProcessingState {
     data object Idle : ProcessingState

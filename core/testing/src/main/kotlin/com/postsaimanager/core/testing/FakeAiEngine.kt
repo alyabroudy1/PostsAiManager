@@ -71,3 +71,17 @@ class FakeAiEngine(
         isReady = false
     }
 }
+
+/**
+ * An [com.postsaimanager.core.domain.ai.ActiveModelProvider] that reports a model on disk.
+ *
+ * `path = null` is the device with no model installed — the case that has to degrade rather
+ * than fail, since it is every device before the first download.
+ */
+class FakeActiveModelProvider(
+    var path: String? = "/data/local/tmp/fake-model.gguf",
+    var contextTokens: Int = 4096,
+) : com.postsaimanager.core.domain.ai.ActiveModelProvider {
+    override suspend fun activeModelPath(): String? = path
+    override suspend fun activeModelContextTokens(): Int = contextTokens
+}
