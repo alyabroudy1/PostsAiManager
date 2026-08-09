@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.usecase
 
+import android.util.Log
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiChatMessage
@@ -45,11 +46,18 @@ class AiExtractionUseCase @Inject constructor(
     private val activeModelProvider: ActiveModelProvider,
 ) {
 
+    /**
+     * @param contextTokens overrides the window to budget against. Normally left null so it
+     *   comes from the same source the model is loaded with — a budget computed against a
+     *   different number than the one allocated is how a prompt silently overflows.
+     */
     suspend operator fun invoke(
         blocks: List<OcrBlock>,
-        contextTokens: Int = AiEngine.DEFAULT_CONTEXT_TOKENS,
+        contextTokens: Int? = null,
     ): PamResult<DocumentUnderstanding> {
         if (blocks.isEmpty()) return PamResult.Success(DocumentUnderstanding())
+
+        val window = contextTokens ?: activeModelProvider.activeModelContextTokens()
 
         // Loaded on demand, like the chat path. Processing usually runs in the background
         // straight after a scan, when nothing has had reason to load a model yet — failing
@@ -57,12 +65,12 @@ class AiExtractionUseCase @Inject constructor(
         if (!engine.isReady) {
             val path = activeModelProvider.activeModelPath()
                 ?: return PamResult.Error(PamError.ModelNotLoaded("document understanding"))
-            val loaded = engine.load(path, activeModelProvider.activeModelContextTokens())
+            val loaded = engine.load(path, window)
             if (loaded is PamResult.Error) return loaded
         }
 
         val page = DocumentLayout.describe(blocks).let { described ->
-            val budget = characterBudget(contextTokens)
+            val budget = characterBudget(window)
             // Truncating the tail keeps the header, address and reference blocks — where
             // almost everything structured lives. The body is what a long letter has too
             // much of, and it contributes least to the fields being extracted.
@@ -110,6 +118,10 @@ class AiExtractionUseCase @Inject constructor(
             val parsed = json.decodeFromString(DocumentUnderstanding.serializer(), text)
             PamResult.Success(sanitise(parsed))
         } catch (e: Exception) {
+            // The answer itself, not just the parser's complaint. Whether the model produced
+            // sense that was cut off or nonsense that parsed is the whole diagnosis, and
+            // without this it is invisible.
+            Log.w(TAG, "unparseable answer (${text.length} chars): ${text.take(400)}")
             PamResult.Error(
                 PamError.InferenceError("Could not read the model's answer: ${e.message}", e),
             )
@@ -143,14 +155,15 @@ class AiExtractionUseCase @Inject constructor(
     private fun characterBudget(contextTokens: Int): Int =
         ((contextTokens - MAX_TOKENS - SYSTEM_PROMPT_TOKENS).coerceAtLeast(512)) * CHARS_PER_TOKEN
 
-    private companion object {
-        val json = Json { ignoreUnknownKeys = true; isLenient = true }
+    companion object {
+        private const val TAG = "AiExtraction"
+        private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-        const val CHARS_PER_TOKEN = 3
-        const val MAX_TOKENS = 768
-        const val SYSTEM_PROMPT_TOKENS = 320
+        private const val CHARS_PER_TOKEN = 3
+        private const val MAX_TOKENS = 768
+        private const val SYSTEM_PROMPT_TOKENS = 320
 
-        val SYSTEM_PROMPT = """
+        internal val SYSTEM_PROMPT = """
             You read scanned business letters and return structured data as JSON.
 
             Each input line is one block of text from the page, prefixed with where it sits:
@@ -167,6 +180,10 @@ class AiExtractionUseCase @Inject constructor(
             - facts: reference numbers, dates, amounts, IBANs. Use DEADLINE only for a date
               the recipient must act by, and DATE for the letter's own date.
 
+            List only what matters: the sender, the recipient, any named contact, and people
+            actually named in the body. At most 8 entities and 10 facts — choose the
+            important ones rather than every capitalised phrase. Do not repeat an entity.
+
             Set confidence to how sure you are, between 0 and 1. Be honest: use a low value
             when the text is unclear or you are inferring. Do not invent anything that is not
             on the page. Return only what you actually find.
@@ -178,14 +195,21 @@ class AiExtractionUseCase @Inject constructor(
          * Enum members are literal alternatives, so the model cannot coin a role that does
          * not exist and force the parser to guess. Confidence is restricted to one or two
          * decimals, which is all the precision the value carries.
+         *
+         * The list lengths are **bounded**, and that is not tidiness. Left unbounded, a 2B
+         * model reading a one-page letter emitted fourteen entities and was still going
+         * when it hit the token limit — leaving JSON that was valid right up to the point
+         * it stopped, and therefore unparseable. A grammar that cannot run away is cheaper
+         * than a larger token budget and produces a better answer, since the model has to
+         * choose what matters instead of listing every capitalised phrase.
          */
         val GRAMMAR = """
             root ::= "{" ws "\"language\":" ws string "," ws "\"documentType\":" ws string "," ws "\"subject\":" ws string "," ws "\"entities\":" ws entities "," ws "\"facts\":" ws facts ws "}"
 
-            entities ::= "[" ws (entity (ws "," ws entity)*)? ws "]"
+            entities ::= "[" ws (entity (ws "," ws entity){0,7})? ws "]"
             entity ::= "{" ws "\"name\":" ws string "," ws "\"kind\":" ws kind "," ws "\"role\":" ws role "," ws "\"relation\":" ws string "," ws "\"confidence\":" ws conf ws "}"
 
-            facts ::= "[" ws (fact (ws "," ws fact)*)? ws "]"
+            facts ::= "[" ws (fact (ws "," ws fact){0,9})? ws "]"
             fact ::= "{" ws "\"label\":" ws string "," ws "\"value\":" ws string "," ws "\"kind\":" ws factkind "," ws "\"confidence\":" ws conf ws "}"
 
             kind ::= "\"PERSON\"" | "\"AUTHORITY\"" | "\"COMPANY\"" | "\"OTHER\""

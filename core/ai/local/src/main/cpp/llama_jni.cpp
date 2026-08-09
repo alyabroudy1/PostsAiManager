@@ -187,9 +187,35 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
         llama_sampler_chain_add(chain, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
     }
 
-    session->chain     = chain;
-    session->batch     = llama_batch_get_one(session->promptTokens.data(),
-                                             (int32_t) session->promptTokens.size());
+    session->chain = chain;
+
+    // Feed the prompt in n_batch-sized pieces.
+    //
+    // llama_decode asserts that a batch is no larger than n_batch (512 here) and, being an
+    // assert, it calls ggml_abort — SIGABRT, taking the whole inference process with it.
+    // Not an error code, nothing catchable. Submitting the prompt as one batch therefore
+    // worked only while prompts stayed under 512 tokens: short chat turns did, a document
+    // extraction prompt (instructions plus the page layout, around 800) did not, and
+    // grounding chat in a document would have hit exactly the same wall.
+    //
+    // All but the final piece are decoded here; the remainder is left in session->batch so
+    // the first nextToken decodes it and samples from its logits.
+    const int nBatch = (int) llama_n_batch(session->ctx);
+    const int total  = (int) session->promptTokens.size();
+    int consumed = 0;
+
+    while (total - consumed > nBatch) {
+        llama_batch chunk = llama_batch_get_one(session->promptTokens.data() + consumed, nBatch);
+        if (llama_decode(session->ctx, chunk) != 0) {
+            LOGE("prompt decode failed at token %d of %d", consumed, total);
+            releaseChain(session);
+            return JNI_FALSE;
+        }
+        consumed += nBatch;
+    }
+
+    session->batch = llama_batch_get_one(session->promptTokens.data() + consumed,
+                                         total - consumed);
     session->generated = 0;
     session->maxTokens = maxTokens;
     session->finished  = false;

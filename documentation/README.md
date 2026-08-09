@@ -53,6 +53,9 @@ ordered the way they are.
 | **Chat models installable** | 5 pinned by revision + SHA-256, all ungated, URLs verified 200 | 2026-08-09 |
 | **Model download end to end** | Qwen 1.5B fetched through the app: 1,117,320,736 bytes, exact pinned size, set active | 2026-08-09 |
 | Catalog generation | **Gemma 4** (Jul 2026, Google QAT builds) + **Qwen 3.5** | 2026-08-09 |
+| 🔴 Prompt >512 tokens | **Fixed** — `n_batch=512` with a single-batch prompt aborted the inference process. Would have killed grounded chat too | 2026-08-09 |
+| Context window | Capped at **4096** — 8192 aborted on the reference phone with more memory free than 4096 succeeded with | 2026-08-09 |
+| AI extraction on device | Runs, **107 s** per letter (Qwen3.5 2B). Gets the recipient right where regex read a salutation; misses the sender role and several facts | 2026-08-09 |
 | **OCR keeps layout** | Normalised box per block, persisted; schema v4 migrated on device, 3 documents / 12 fields intact | 2026-08-09 |
 | **Model download end to end** | ✅ 258 MB fetched, hashes verified, both files in place | 2026-08-09 |
 | Foreground download crash | ⚠️ Found on device: WorkManager's service declares no `foregroundServiceType` — **would have crashed every chat-model download too** | 2026-08-09 |

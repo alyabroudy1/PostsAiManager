@@ -140,7 +140,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 // memory, or a model that returned something unusable still gets a document
                 // with fields. Worse fields, not none.
                 val allBlocks = ocrResults.flatMap { it.blocks }
-                val understanding = aiExtraction(allBlocks, contextTokens = AI_CONTEXT_TOKENS)
+                val understanding = aiExtraction(allBlocks)
 
                 val usedModel = understanding is PamResult.Success &&
                     understanding.data.entities.isNotEmpty()
@@ -303,12 +303,9 @@ private const val EXTRACTOR_VERSION = "entity-extractor-1"
 /** Bump when the prompt, the grammar or the field mapping changes. */
 private const val AI_ENGINE_VERSION = "ai-understanding-1"
 
-/**
- * Smaller than the models' 32k windows on purpose: context costs memory proportionally, and
- * a one-page letter's layout description is a few thousand characters. Reading a document
- * should not be the thing that makes the app unloadable on a mid-range phone.
- */
-private const val AI_CONTEXT_TOKENS = 4096
+// The context window comes from ActiveModelProvider, which caps the catalogued value by
+// what the device can actually afford. Passing a separate constant here would budget the
+// prompt against one number while the KV cache was allocated for another.
 
 sealed interface ProcessingState {
     data object Idle : ProcessingState

@@ -99,6 +99,21 @@ class AiExtractionUseCaseTest {
         }
 
         @Test
+        @DisplayName("the window budgeted against is the window loaded with")
+        fun `budget follows the provider`() = runTest {
+            engine.response = goodAnswer
+            engine.isReady = false
+            // The device cap, not the model's catalogued maximum. Loading 32k of KV cache on
+            // a phone with 2.5 GB free aborted inside llama_decode — a native crash, so
+            // nothing catchable.
+            models.contextTokens = 2048
+
+            extract(page)
+
+            assertThat(engine.lastMessages.last().content.length).isAtMost(2048 * 3)
+        }
+
+        @Test
         fun `a long page is truncated to fit the context`() = runTest {
             engine.response = goodAnswer
             val huge = List(400) { block("Ein sehr langer Absatz mit viel Inhalt $it", 0.08f, 0.5f) }
