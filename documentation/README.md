@@ -128,7 +128,12 @@ See [01-findings-report.md](01-findings-report.md) for the evidence behind each 
 
 ## The two structural guarantees
 
-Not promises — **module dependency facts**, checked by Konsist in CI:
+Not promises — **module dependency facts**. The compiler enforces them: a module that does
+not declare a dependency cannot import from it.
+
+⚠️ **Nothing stops them being broken.** Konsist is not in the project and there is no CI, so
+a future dependency line would silently undo either guarantee. Adding that check is
+[task 11.x](04-task-list.md) and is the difference between a guarantee and a habit.
 
 1. **An online provider cannot read a document.** `:core:ai:online` has no dependency on
    `:core:data`.

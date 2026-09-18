@@ -469,6 +469,18 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` cut
       restarting a stale partial.
 - [ ] **7.6.9** Device test: kill the app mid-download, relaunch, confirm resume from offset. *Needs a real signed manifest (7.4.6) or a test fixture URL.*
 
+### 7.15 Architecture enforcement
+
+- [ ] **7.15.1** 🔴 Add Konsist (or a Gradle dependency assertion) proving the two structural
+      guarantees and the feature→domain rule. *The README claimed this existed; it did not.
+      The guarantees hold by module graph today, but one dependency line would undo them
+      silently.*
+- [ ] **7.15.2** Fix the one real boundary violation: `feature:documents` → `:core:data`.
+      *It reaches past domain for `ProfileMatcher` and `DocumentProcessingPipeline`; both
+      want domain ports.*
+- [ ] **7.15.3** Set up CI so the above runs on every change rather than when someone thinks
+      to look.
+
 ### 7.14 Document understanding (entities, profiles, layout)
 
 *Replaces regex extraction with a model that reads the document. Ordered so each step is
