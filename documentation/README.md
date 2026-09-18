@@ -34,7 +34,7 @@ ordered the way they are.
 | Build | `assembleDebug` **BUILD SUCCESSFUL** | 2026-08-07 |
 | Debug APK — before | 300.4 MB (4 ABIs, 173.8 MB assets) | 2026-08-07 |
 | Debug APK — after | **110.2 MB** — parser cut + `abiFilters` → **−190.2 MB (−63%)** | 2026-08-07 |
-| Unit tests | **658 passing, 0 failing** | 2026-08-09 |
+| Unit tests | **670 passing, 0 failing** | 2026-08-09 |
 | Test capability | 18 / 18 modules via `pam.test-conventions` | 2026-08-07 |
 | Defects found by tests | 7 fixed, 2 pinned open | 2026-08-07 |
 | ✅ Reprocessing data loss | **Fixed** — provenance + merge + revision history, schema v3, migrated on-device with no loss | 2026-08-09 |

@@ -42,11 +42,11 @@ fun normaliseEntityName(name: String): String = name.trim().lowercase()
 object EntityCoverageFilter {
 
     /**
-     * @param documentId The document [suggestions] belongs to.
-     * @param suggestions Field-based suggestions about to reach the UI.
-     * @param pendingProposals [EntityProposal]s still awaiting an answer for [documentId] — see
+     * @param suggestions Field-based suggestions about to reach the UI, all for the same
+     *   document.
+     * @param pendingProposals [EntityProposal]s still awaiting an answer for that document — see
      *   `EntityProposalService.pendingProposals`.
-     * @param entityLinkedProfiles Every profile currently linked to [documentId] (see
+     * @param entityLinkedProfiles Every profile currently linked to that document (see
      *   `ProfileRepository.getProfilesForDocument`), regardless of which subsystem linked it or
      *   which document originally created it. All of them are coverage: the question a
      *   [ProfileSuggestion] asks is "shall I create or link a profile for this person?", and if
@@ -59,7 +59,6 @@ object EntityCoverageFilter {
      *   edge case.
      */
     fun apply(
-        documentId: String,
         suggestions: List<ProfileSuggestion>,
         pendingProposals: List<EntityProposal>,
         entityLinkedProfiles: List<Profile>,

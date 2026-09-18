@@ -91,7 +91,7 @@ class DocumentDetailViewModel @Inject constructor(
         profileRepository.getProfilesForDocument(documentId),
     ) { suggestions, proposals, linkedProfiles ->
         EntityCoverageFilter.apply(
-            documentId, suggestions, proposals, linkedProfiles.map { (profile, _) -> profile },
+            suggestions, proposals, linkedProfiles.map { (profile, _) -> profile },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

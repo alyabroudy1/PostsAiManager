@@ -80,7 +80,7 @@ class EntityCoverageFilterTest {
             val entityProposal = proposal(entityName = "Jobcenter Berlin")
 
             val result = EntityCoverageFilter.apply(
-                documentId, listOf(fieldSuggestion), listOf(entityProposal), emptyList(),
+                listOf(fieldSuggestion), listOf(entityProposal), emptyList(),
             )
 
             assertThat(result).isEmpty()
@@ -98,7 +98,7 @@ class EntityCoverageFilterTest {
             val entityProposal = proposal(entityName = "Jobcenter Berlin")
 
             val result = EntityCoverageFilter.apply(
-                documentId, listOf(covered, unrelated), listOf(entityProposal), emptyList(),
+                listOf(covered, unrelated), listOf(entityProposal), emptyList(),
             )
 
             assertThat(result).containsExactly(unrelated)
@@ -120,7 +120,7 @@ class EntityCoverageFilterTest {
                 .copy(sourceDocumentId = documentId, sourceEntityName = "jobcenter berlin")
 
             val result = EntityCoverageFilter.apply(
-                documentId, listOf(fieldSuggestion), emptyList(), listOf(linkedByEntityPath),
+                listOf(fieldSuggestion), emptyList(), listOf(linkedByEntityPath),
             )
 
             assertThat(result).isEmpty()
@@ -140,7 +140,7 @@ class EntityCoverageFilterTest {
                 .copy(sourceDocumentId = "doc-other", sourceEntityName = "jobcenter berlin")
 
             val result = EntityCoverageFilter.apply(
-                documentId, listOf(fieldSuggestion), emptyList(), listOf(fromAnotherDocument),
+                listOf(fieldSuggestion), emptyList(), listOf(fromAnotherDocument),
             )
 
             assertThat(result).isEmpty()
@@ -164,7 +164,7 @@ class EntityCoverageFilterTest {
                 .copy(sourceDocumentId = "doc-1", sourceEntityName = "jobcenter berlin")
 
             val result = EntityCoverageFilter.apply(
-                "doc-2", listOf(fieldSuggestion), emptyList(), listOf(linkedToDoc1ThenAlsoToDoc2),
+                listOf(fieldSuggestion), emptyList(), listOf(linkedToDoc1ThenAlsoToDoc2),
             )
 
             assertThat(result).isEmpty()
@@ -184,7 +184,7 @@ class EntityCoverageFilterTest {
             val fieldCreated = testProfile(name = "Jobcenter Berlin")
 
             val result = EntityCoverageFilter.apply(
-                documentId, listOf(fieldSuggestion), emptyList(), listOf(fieldCreated),
+                listOf(fieldSuggestion), emptyList(), listOf(fieldCreated),
             )
 
             assertThat(result).isEmpty()
@@ -210,7 +210,7 @@ class EntityCoverageFilterTest {
             )
 
             val result = EntityCoverageFilter.apply(
-                documentId, listOf(fieldSuggestion), listOf(unrelatedProposal), emptyList(),
+                listOf(fieldSuggestion), listOf(unrelatedProposal), emptyList(),
             )
 
             assertThat(result).containsExactly(fieldSuggestion)
@@ -231,7 +231,7 @@ class EntityCoverageFilterTest {
             )
 
             val result =
-                EntityCoverageFilter.apply(documentId, suggestions, emptyList(), emptyList())
+                EntityCoverageFilter.apply(suggestions, emptyList(), emptyList())
 
             assertThat(result).isSameInstanceAs(suggestions)
         }
@@ -248,7 +248,7 @@ class EntityCoverageFilterTest {
             val entityProposal = proposal(entityName = "JOBCENTER berlin")
 
             val result = EntityCoverageFilter.apply(
-                documentId, listOf(fieldSuggestion), listOf(entityProposal), emptyList(),
+                listOf(fieldSuggestion), listOf(entityProposal), emptyList(),
             )
 
             assertThat(result).isEmpty()
@@ -270,7 +270,7 @@ class EntityCoverageFilterTest {
 
             assertThat(
                 EntityCoverageFilter.apply(
-                    documentId, listOf(nameOnlySuggestion), listOf(entityProposal), emptyList(),
+                    listOf(nameOnlySuggestion), listOf(entityProposal), emptyList(),
                 ),
             ).isEmpty()
         }
@@ -291,7 +291,7 @@ class EntityCoverageFilterTest {
 
             assertThat(
                 EntityCoverageFilter.apply(
-                    documentId, listOf(orgOnlySuggestion), listOf(contactProposal), emptyList(),
+                    listOf(orgOnlySuggestion), listOf(contactProposal), emptyList(),
                 ),
             ).isEmpty()
         }

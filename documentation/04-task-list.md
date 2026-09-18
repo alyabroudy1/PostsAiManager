@@ -575,8 +575,15 @@ useful on its own.*
       same document, in different visual idioms with different buttons. Scanning one letter
       can ask about the Jobcenter twice. *Decision needed: retire the field-based matcher, or
       keep it as the fallback for devices with no model — where the AI path yields nothing.*
-- [ ] **7.14.11c** Nothing in the app calls `deleteProfile`, so the tombstone-on-delete that
-      makes a deleted machine profile stay deleted is exercised only by tests.
+- [x] **7.14.11c** Profile deletion wired into `feature:profiles` with a confirmation that
+      says what actually happens — linked documents stay, and for a machine-created profile,
+      that deleting also stops the app suggesting it again. The tombstone is now reachable
+      from the UI rather than only from tests.
+- [ ] **7.14.11e** Same anti-pattern elsewhere: `DocumentsViewModel.onDeleteDocument` exists
+      and nothing in `DocumentsScreen` calls it, so document deletion is unreachable too.
+- [ ] **7.14.11f** `DocumentsViewModel.onDeleteDocument` and
+      `DocumentDetailViewModel.saveProfileFromForm` discard `PamResult.Error` silently —
+      the swallowed-write-failure problem the README already flags, now with two named sites.
 - [ ] **7.14.12** Contact persons belong to their organisation's profile, not standalone.
 - [ ] **7.14.13** "Me" is never given a profile — the recipient is recognised, not created.
 - [ ] **7.14.14** Real per-field confidence from the model, replacing the per-field-type

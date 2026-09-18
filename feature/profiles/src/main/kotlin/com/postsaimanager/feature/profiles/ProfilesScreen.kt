@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,10 +32,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,9 +64,20 @@ fun ProfilesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val pendingDeletion by viewModel.pendingDeletion.collectAsStateWithLifecycle()
+    val message by viewModel.message.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(message) {
+        message?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeMessage()
+        }
+    }
 
     Scaffold(
         topBar = { PamTopAppBar(title = "Profiles") },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
     ) { innerPadding ->
         Column(
@@ -116,6 +133,7 @@ fun ProfilesScreen(
                             ProfileListItem(
                                 profile = profile,
                                 onClick = { onProfileClick(profile.id) },
+                                onDeleteClick = { viewModel.requestDelete(profile) },
                             )
                         }
                     }
@@ -123,12 +141,62 @@ fun ProfilesScreen(
             }
         }
     }
+
+    pendingDeletion?.let { profile ->
+        DeleteProfileDialog(
+            profile = profile,
+            onConfirm = viewModel::confirmDelete,
+            onDismiss = viewModel::cancelDelete,
+        )
+    }
+}
+
+/**
+ * Confirms a profile delete before it happens — the operation is destructive and, unlike
+ * unlinking a document, not obviously undoable from this screen.
+ *
+ * The wording is deliberately different for a machine-created profile: the tombstone
+ * `ProfileRepository.deleteProfile` writes for it (so a reprocessed document does not silently
+ * recreate what the user just removed) is otherwise an implementation detail nobody asked for —
+ * surfaced here as a plain reassurance, not a technical aside.
+ */
+@Composable
+private fun DeleteProfileDialog(
+    profile: Profile,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val isMachineCreated = profile.sourceDocumentId != null
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete ${profile.name}?") },
+        text = {
+            Text(
+                if (isMachineCreated) {
+                    "Documents linked to this profile are not deleted — only the profile " +
+                        "itself goes away. This profile was created automatically from a " +
+                        "scanned document, so deleting it also stops the app from " +
+                        "suggesting it again the next time that document is processed."
+                } else {
+                    "Documents linked to this profile are not deleted — only the profile " +
+                        "itself goes away."
+                },
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Delete", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable
 private fun ProfileListItem(
     profile: Profile,
     onClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -182,6 +250,13 @@ private fun ProfileListItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+            IconButton(onClick = onDeleteClick) {
+                Icon(
+                    PamIcons.Delete,
+                    contentDescription = "Delete profile",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
