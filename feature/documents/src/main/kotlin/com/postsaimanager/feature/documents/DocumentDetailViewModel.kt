@@ -8,6 +8,7 @@ import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.DocumentProcessor
+import com.postsaimanager.core.domain.document.EntityCoverageFilter
 import com.postsaimanager.core.domain.document.EntityProposalService
 import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
 import com.postsaimanager.core.domain.document.ProfileMatchingService
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -52,8 +54,14 @@ class DocumentDetailViewModel @Inject constructor(
     private val _processingProgress = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     val processingProgress: StateFlow<ProcessingState> = _processingProgress.asStateFlow()
 
+    /**
+     * Every field-based suggestion `ProfileMatchingService` produced, before
+     * [EntityCoverageFilter] removes the ones the entity path already covers — see
+     * [profileSuggestions]. Kept separate so [linkSuggestionToProfile] and friends, which
+     * update this list by identity, are not fighting the filtered view over what "the list"
+     * means.
+     */
     private val _profileSuggestions = MutableStateFlow<List<ProfileSuggestion>>(emptyList())
-    val profileSuggestions: StateFlow<List<ProfileSuggestion>> = _profileSuggestions.asStateFlow()
 
     /**
      * Entities the app found but would not act on automatically — see
@@ -63,6 +71,29 @@ class DocumentDetailViewModel @Inject constructor(
     val entityProposals: StateFlow<List<EntityProposal>> =
         entityProposalService.pendingProposals(documentId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Field-based suggestions actually worth showing: [EntityCoverageFilter] drops any that
+     * ask about a person [entityProposals] already asks about, or that a profile the entity
+     * path linked to this document already covers (task 7.14.11d — a Jobcenter letter used to
+     * be able to put up two differently-worded cards asking about the same Jobcenter).
+     *
+     * Combined here, in the ViewModel, rather than behind a new domain port: the two inputs
+     * ([entityProposalService.pendingProposals] and [profileRepository.getProfilesForDocument])
+     * are already domain-level flows this ViewModel holds a reference to for other reasons, and
+     * the actual dedupe rule is [EntityCoverageFilter] — a pure, independently-tested function
+     * in `:core:domain`. A new port here would only wrap the same two calls this class already
+     * makes, without moving any decision out of the ViewModel.
+     */
+    val profileSuggestions: StateFlow<List<ProfileSuggestion>> = combine(
+        _profileSuggestions,
+        entityProposals,
+        profileRepository.getProfilesForDocument(documentId),
+    ) { suggestions, proposals, linkedProfiles ->
+        EntityCoverageFilter.apply(
+            documentId, suggestions, proposals, linkedProfiles.map { (profile, _) -> profile },
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Holds the suggestion that triggered profile creation — shown in ProfileEditSheet */
     private val _editingProfileSuggestion = MutableStateFlow<ProfileSuggestion?>(null)

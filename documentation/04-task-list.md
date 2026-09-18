@@ -564,7 +564,12 @@ useful on its own.*
       `Propose` branch is effectively dead in production. Needs persistence plus a pending-
       suggestions surface. *My spec said "wire into the pipeline" without saying where
       proposals land — the gap is in the spec, not the implementation.*
-- [ ] **7.14.11d** 🔶 **Two subsystems prompt about the same person.**
+- [x] **7.14.11d** Deduped, not suppressed. `EntityCoverageFilter` hides a field-based
+      suggestion only when an entity proposal or an already-linked profile covers the same
+      person. *Suppressing the field path whenever the model ran would have been wrong: on a
+      real device Qwen3.5 found no sender at all, which would have left that document with no
+      profile prompt whatsoever.* The field matcher stays as the no-model fallback.
+      *Was: **Two subsystems prompt about the same person.***
       `ProfileMatchingService` (from extracted sender/receiver *fields*) and
       `EntityProposalService` (from AI-recognised *entities*) render adjacent cards on the
       same document, in different visual idioms with different buttons. Scanning one letter

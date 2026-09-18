@@ -7,6 +7,7 @@ import com.postsaimanager.core.data.database.dao.EntityProposalDao
 import com.postsaimanager.core.data.database.entity.DismissedEntityEntity
 import com.postsaimanager.core.data.database.entity.EntityProposalEntity
 import com.postsaimanager.core.domain.document.EntityProposalService
+import com.postsaimanager.core.domain.document.normaliseEntityName
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.domain.usecase.EntityLinkingUseCase
 import com.postsaimanager.core.model.DocumentUnderstanding
@@ -86,7 +87,7 @@ class EntityProfileLinker @Inject constructor(
         for (entity in understanding.entities) {
             if (entity.name.isBlank()) continue
 
-            val key = normalise(entity.name)
+            val key = normaliseEntityName(entity.name)
             val dismissed = dismissedEntityDao.isDismissed(documentId, key)
             val match = if (dismissed) null else findMatch(entity, senderOrganisation)
 
@@ -185,7 +186,7 @@ class EntityProfileLinker @Inject constructor(
             name = proposal.entityName,
             organization = proposal.organization,
             sourceDocumentId = proposal.documentId,
-            sourceEntityName = normalise(proposal.entityName),
+            sourceEntityName = normaliseEntityName(proposal.entityName),
             createdAt = now,
             modifiedAt = now,
         )
@@ -238,7 +239,9 @@ class EntityProfileLinker @Inject constructor(
      */
     suspend fun dismiss(documentId: String, entityName: String) {
         dismissedEntityDao.dismiss(
-            DismissedEntityEntity(documentId, normalise(entityName), System.currentTimeMillis()),
+            DismissedEntityEntity(
+                documentId, normaliseEntityName(entityName), System.currentTimeMillis(),
+            ),
         )
     }
 
@@ -302,7 +305,4 @@ class EntityProfileLinker @Inject constructor(
 
     private fun isOrganisation(kind: EntityKind): Boolean =
         kind == EntityKind.AUTHORITY || kind == EntityKind.COMPANY
-
-    /** Trimmed and lower-cased so a stray casing difference across runs is not a new key. */
-    private fun normalise(name: String): String = name.trim().lowercase()
 }
