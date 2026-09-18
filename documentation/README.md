@@ -34,7 +34,7 @@ ordered the way they are.
 | Build | `assembleDebug` **BUILD SUCCESSFUL** | 2026-08-07 |
 | Debug APK — before | 300.4 MB (4 ABIs, 173.8 MB assets) | 2026-08-07 |
 | Debug APK — after | **110.2 MB** — parser cut + `abiFilters` → **−190.2 MB (−63%)** | 2026-08-07 |
-| Unit tests | **532 passing, 0 failing** | 2026-08-09 |
+| Unit tests | **566 passing, 0 failing** | 2026-08-09 |
 | Test capability | 18 / 18 modules via `pam.test-conventions` | 2026-08-07 |
 | Defects found by tests | 7 fixed, 2 pinned open | 2026-08-07 |
 | ✅ Reprocessing data loss | **Fixed** — provenance + merge + revision history, schema v3, migrated on-device with no loss | 2026-08-09 |
@@ -58,7 +58,7 @@ ordered the way they are.
 | **Best on-device extractor** | **Gemma 4 E2B** — sender, recipient, contact, both references, deadline and amount all correct on a real letter. Now selectable separately from the chat model | 2026-08-09 |
 | Extraction speed | Gemma 4 E2B **247 s**, Qwen3.5 2B **164 s** per letter — background work, not interactive | 2026-08-09 |
 | Qwen3.5 + grammar | ⚠️ Reasoning model — emits `<think>`; forcing straight-to-JSON fights its training and it misses the deadline entirely | 2026-08-09 |
-| Confidence from models | ⚠️ **Still flat** — both report 0.9 for everything despite explicit banding in the prompt | 2026-08-09 |
+| Confidence | ✅ **Derived from the page, not self-reported** — models returned a constant 0.9, so the number is now computed by verifying each value against the source | 2026-08-09 |
 | **OCR keeps layout** | Normalised box per block, persisted; schema v4 migrated on device, 3 documents / 12 fields intact | 2026-08-09 |
 | Embedding model download | ✅ 258 MB fetched, hashes verified, both files in place | 2026-08-09 |
 | Foreground download crash | ⚠️ Found on device: WorkManager's service declares no `foregroundServiceType` — **would have crashed every chat-model download too** | 2026-08-09 |

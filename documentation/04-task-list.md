@@ -507,9 +507,19 @@ useful on its own.*
 - [x] **7.14.9d** Gemma 4 marked `recommendedForExtraction`; the reading model is chosen
       separately from the chat model, defaulting to the same one. Resolution rules live on
       `InstalledIndex` so they are testable without a `Context`.
-- [ ] **7.14.9e** Confidence is still flat at 0.9 from both models despite explicit banding
-      in the prompt. Until it varies, the low-confidence review queue cannot work — consider
-      deriving it from agreement between two reads, or from token logprobs.
+- [x] **7.14.9e** Confidence is now **derived, not asked for**. `ExtractionConfidence` scores
+      each value by checking it against the page: grounded verbatim 0.95, normalised 0.85,
+      token-subset 0.5, absent 0.05, and 0.15 when grounded but invalid for its claimed kind.
+      Catches the hallucinated year, the phone-as-IBAN and the salutation-as-name seen on
+      device. *Rejected token logprobs: under grammar-constrained sampling the structural
+      tokens are forced to ~1.0, so raw logprobs read as confidence where the model had no
+      choice.*
+- [ ] **7.14.9h** 🔶 **Grounding answers "did we read this right", not "should we act on
+      it".** A spouse merely mentioned in a letter is now read correctly and therefore scores
+      0.95, which clears `AUTO_LINK_CONFIDENCE` and would silently create a profile for them.
+      Latent today — nothing consumes `confident()` yet — but it must be resolved as part of
+      7.14.11: the **role** should gate the action, with only SENDER/RECIPIENT auto-linking
+      and MENTIONED always proposing however well it was read.
 - [ ] **7.14.9f** Reasoning models need a grammar that permits a thinking block before the
       JSON. Qwen3.5 emits `<think>`; forcing it straight into JSON fights its training.
 - [ ] **7.14.9g** Drop duplicate facts that differ only by label ("Regelleistung Betrag" vs

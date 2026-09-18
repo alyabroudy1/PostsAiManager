@@ -41,7 +41,10 @@ class AiExtractionUseCaseTest {
         block("Jobcenter Berlin Mitte", 0.08f, 0.04f),
         block("Frau\nAylin Mustermann", 0.08f, 0.20f),
         block("Aktenzeichen: BG 1234/5678", 0.60f, 0.20f),
-        block("Ihre Ehefrau Layla ist ebenfalls betroffen.", 0.08f, 0.55f),
+        // Deliberately does not name "Layla" — goodAnswer below claims her anyway, so that
+        // the mismatch between claim and page stands in for a model hallucinating a
+        // specific name the source text never gave it.
+        block("Ihre Ehefrau ist ebenfalls betroffen.", 0.08f, 0.55f),
     )
 
     private val goodAnswer = """
@@ -167,7 +170,11 @@ class AiExtractionUseCaseTest {
 
             val result = (extract(page) as PamResult.Success).data
 
-            // Layla at 0.6 is proposed, not silently turned into a profile.
+            // Jobcenter and Aylin are both copied straight from a block on the page, so
+            // ExtractionConfidence grounds them at the top band. Layla's name is nowhere in
+            // `page` (see its definition above) — the model's self-reported 0.6 is discarded
+            // entirely, and it is the *lack of grounding* that puts her in review, not a
+            // number the model happened to attach to her.
             assertThat(result.confident().map { it.name })
                 .containsExactly("Jobcenter Berlin Mitte", "Aylin Mustermann")
             assertThat(result.needingReview().map { it.name }).containsExactly("Layla")

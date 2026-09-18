@@ -105,7 +105,14 @@ class AiExtractionUseCase @Inject constructor(
             return PamResult.Error(PamError.InferenceError("Reading the document failed", e))
         }
 
-        return parse(raw)
+        // Plain text, not the zone-labelled `page` sent to the model: labels like
+        // "[address block @ 8%,18%]" would themselves become substrings a value could
+        // spuriously match against, and "%" or a stray "8" is exactly the kind of short
+        // token that could launder a bad reading. Grounding checks the document, not the
+        // prompt.
+        val groundingText = DocumentLayout.plainText(blocks)
+
+        return parse(raw, groundingText)
     }
 
     /**
@@ -113,7 +120,7 @@ class AiExtractionUseCase @Inject constructor(
      * that hits [MAX_TOKENS] mid-object leaves valid-so-far text that is not valid JSON. So
      * this still has to fail gracefully rather than assume.
      */
-    private fun parse(raw: String): PamResult<DocumentUnderstanding> {
+    private fun parse(raw: String, pageText: String): PamResult<DocumentUnderstanding> {
         val text = raw.trim()
         if (text.isEmpty()) {
             return PamResult.Error(PamError.InferenceError("The model returned nothing"))
@@ -121,7 +128,7 @@ class AiExtractionUseCase @Inject constructor(
 
         return try {
             val parsed = json.decodeFromString(DocumentUnderstanding.serializer(), text)
-            PamResult.Success(sanitise(parsed))
+            PamResult.Success(sanitise(parsed, pageText))
         } catch (e: Exception) {
             // Carries a slice of the answer, not just the parser's complaint. Whether the
             // model produced sense that was cut off or nonsense that parsed is the whole
@@ -141,21 +148,36 @@ class AiExtractionUseCase @Inject constructor(
     }
 
     /**
-     * Drops what cannot be used and clamps what can.
+     * Drops what cannot be used, and replaces confidence rather than trusting or clamping it.
      *
      * A grammar constrains *shape*, not *sense*: it permits an entity with an empty name and
      * a confidence of 0.99. Storing those would create nameless profiles and make the review
      * queue meaningless.
+     *
+     * The model's own `confidence` is discarded outright, not clamped and not blended with
+     * the derived score: on every model tried on device it is 0.9 for almost every field, a
+     * constant rather than a measurement, and averaging a constant into a real signal only
+     * compresses the real signal. See [ExtractionConfidence] for what replaces it.
      */
-    private fun sanitise(understanding: DocumentUnderstanding) = understanding.copy(
+    private fun sanitise(understanding: DocumentUnderstanding, pageText: String) = understanding.copy(
         entities = understanding.entities
             .filter { it.name.isNotBlank() }
-            .map { it.copy(name = it.name.trim(), confidence = it.confidence.coerceIn(0f, 1f)) }
+            .map {
+                it.copy(
+                    name = it.name.trim(),
+                    confidence = ExtractionConfidence.forEntity(it, pageText),
+                )
+            }
             // The same organisation named twice in one letter is one entity.
             .distinctBy { it.name.lowercase() to it.role },
         facts = understanding.facts
             .filter { it.value.isNotBlank() }
-            .map { it.copy(value = it.value.trim(), confidence = it.confidence.coerceIn(0f, 1f)) },
+            .map {
+                it.copy(
+                    value = it.value.trim(),
+                    confidence = ExtractionConfidence.forFact(it, pageText),
+                )
+            },
     )
 
     /**
@@ -174,6 +196,13 @@ class AiExtractionUseCase @Inject constructor(
         private const val MAX_TOKENS = 768
         private const val SYSTEM_PROMPT_TOKENS = 320
 
+        // The prompt used to spend a paragraph asking the model to vary its confidence and
+        // mean it ("0.9+ only when...", "Below 0.5 when guessing..."). Removed: on every
+        // model tried on device the answer was 0.9 for almost every field regardless of what
+        // this section asked for, so it was tokens spent asking for something we now discard
+        // and replace with ExtractionConfidence's derived score. The grammar still requires
+        // the model to emit a `confidence` number — that cannot change without touching the
+        // GBNF — but nothing downstream reads it any more.
         internal val SYSTEM_PROMPT = """
             You read scanned business letters and return structured data as JSON.
 
@@ -197,11 +226,6 @@ class AiExtractionUseCase @Inject constructor(
             - DEADLINE is a date the recipient must act by. DATE is the letter's own date.
             - AMOUNT is a sum of money. IBAN is a bank account beginning with two letters,
               such as DE02. A telephone number is neither — it is OTHER.
-
-            CONFIDENCE — vary it, and mean it:
-            - 0.9+ only when the value is printed plainly and you copied it directly.
-            - 0.5-0.7 when you inferred it, or the text was unclear.
-            - Below 0.5 when guessing. Marking everything 0.9 is useless to the reader.
 
             List only what matters: the sender, the recipient, any named contact, and people
             actually named in the body. At most 8 entities and 10 facts. Do not repeat an
