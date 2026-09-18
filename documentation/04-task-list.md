@@ -355,7 +355,14 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` cut
 - [ ] **7.2.9** Measure **peak RSS** while a model is loaded — replaces the
       `minAvailableRamBytes` estimate (file size × 1.4) with a real number in the fit check.
 - [ ] **7.2.10** Register llama.cpp as a **git submodule** at `b10299` (currently a shallow
-      clone, gitignored) now the revision is proven good.
+      clone, gitignored) now the revision is proven good. **Blocks CI's `assembleDebug`
+      job (see 7.15.3):** until this lands, `core/ai/local/src/main/cpp/llama.cpp/` doesn't
+      exist on a clean checkout, so any CI job building `:app` or `:core:ai:local`'s native
+      code fails for everyone. Needed once this is done: a `.gitmodules` entry, `git
+      submodule update --init --recursive` (or `actions/checkout` `submodules: true`) added
+      to `.github/workflows/ci.yml`, and a new `native-build` job running
+      `./gradlew :app:assembleDebug` — kept separate from the guards/unit-test job so a slow
+      native compile doesn't delay fast feedback.
 - [ ] **7.3.12** Implement `android:process=":inference"` isolation (from 7.2.3).
 
 ### 7.3 `LocalAiEngine`
@@ -487,8 +494,15 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` cut
       `ProfileSuggestion`/`MatchType` moved to `:core:model` too. `feature:documents` no
       longer depends on `project(":core:data")`. `TEMPORARY_EXCEPTIONS` in
       `FeatureBoundaryKonsistTest` is now empty.
-- [ ] **7.15.3** Set up CI so the above runs on every change rather than when someone thinks
-      to look.
+- [x] **7.15.3** ✅ **GitHub Actions workflow at `.github/workflows/ci.yml`.** Runs on every
+      push and pull request: `:architecture-test:test` (the four Konsist guards) then `test`
+      (670 JVM unit tests), JDK 17, Gradle dependency caching, JUnit XML published as a check
+      run plus an artifact fallback. Deliberately **excludes `:app:assembleDebug`** —
+      `:core:ai:local`'s native build needs `core/ai/local/src/main/cpp/llama.cpp/`, which is
+      gitignored and not a submodule (see **7.2.10**), so it doesn't exist on a clean CI
+      checkout and `CMakeLists.txt` fails fast by design. See the comment block at the top of
+      the workflow file for the full reasoning and what 7.2.10 must land before an
+      `assembleDebug` job can be added.
 - [ ] **7.15.4** Build the `PamLogger` abstraction §11.7 prescribes. *It is referenced by the
       architecture doc and by the domain-purity guard's failure message, but does not exist —
       so the rule currently tells a developer to use something unavailable. Until it lands,
@@ -1010,16 +1024,24 @@ useful on its own.*
 
 ### 11.5 CI & architecture enforcement
 
-- [ ] **11.5.1** GitHub Actions workflow — **no CI exists.**
+- [x] **11.5.1** ✅ GitHub Actions workflow added — see **7.15.3**. *Covers guards + unit
+      tests only; no coverage gate, lint, or native build yet (11.5.2–11.5.3, 11.5.8).*
 - [ ] **11.5.2** ktlint + detekt + empty-catch lint on PR.
-- [ ] **11.5.3** Unit tests + coverage gate on PR.
-- [ ] **11.5.4** 🔴 **Konsist: `:core:ai:online` must not depend on `:core:data`.**
-      *(Guarantee 1 — cannot read a document.)*
-- [ ] **11.5.5** 🔴 **Konsist: `:core:ai:online` must not depend on `:core:domain`.**
-      *(Guarantee 2 — cannot execute a tool.)*
-- [ ] **11.5.6** Konsist: no `feature:*` → impl module; no Android imports in `core:domain`.
-- [ ] **11.5.7** Konsist: no `try/catch` outside infrastructure boundaries.
-- [ ] **11.5.8** NDK build + instrumented tests in CI.
+- [ ] **11.5.3** Unit tests + coverage gate on PR. *Unit tests run in CI (7.15.3); no
+      coverage gate.*
+- [x] **11.5.4** ✅ **Konsist: `:core:ai:online` must not depend on `:core:data`.**
+      *(Guarantee 1 — cannot read a document.)* Enforced by `OnlineProviderKonsistTest`,
+      running in CI since 7.15.3.
+- [x] **11.5.5** ✅ **Konsist: `:core:ai:online` must not depend on `:core:domain`.**
+      *(Guarantee 2 — cannot execute a tool.)* Same test class, running in CI since 7.15.3.
+- [x] **11.5.6** ✅ Konsist: no `feature:*` → impl module; no Android imports in
+      `core:domain`. Enforced by `FeatureBoundaryKonsistTest` and `DomainPurityKonsistTest`,
+      running in CI since 7.15.3.
+- [ ] **11.5.7** Konsist: no `try/catch` outside infrastructure boundaries. *Not yet
+      written — no Konsist test covers this rule.*
+- [ ] **11.5.8** NDK build + instrumented tests in CI. *Blocked on 7.2.10 for the build half;
+      instrumented tests additionally need a connected device/emulator, out of scope for
+      hosted CI runners.*
 
 ### 11.6 Observability
 

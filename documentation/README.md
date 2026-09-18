@@ -92,9 +92,9 @@ ordered the way they are.
 | Area | State |
 |---|---|
 | Architecture & module split | ✅ `:core:ai` split; privacy guarantees are compile-time facts. `feature:documents` → `core:data` boundary violation fixed (task 7.15.2) — Konsist's temporary-exception list is empty |
-| Scan → OCR → extract → persist pipeline | Working end to end, **now covered by 44 tests** |
+| Scan → OCR → extract → persist pipeline | Working end to end, covered by tests end to end |
 | Document management (list, detail, search, PDF, profiles) | Working |
-| Test infrastructure | ✅ `build-logic` convention plugin, `:core:testing` fakes + fixtures, **532 unit tests + device suites** |
+| Test infrastructure | ✅ `build-logic` convention plugin, `:core:testing` fakes + fixtures, **670 unit tests + device suites** |
 | Error handling | ⚠️ Systemic gaps — empty catches, raw debug strings, no logging abstraction, **ViewModels discard write failures** |
 | **On-device LLM** | ✅ **Working on device** — llama.cpp b10299, five installable models, grammar-constrained extraction reading real letters |
 | **Model management** | ✅ **Complete and now usable** — 4 chat models pinned and installable; previously every catalog entry was `NotInstallable`, so no model could be downloaded at all |
@@ -133,14 +133,55 @@ not declare a dependency cannot import from it.
 
 ✅ **Enforced** by `:architecture-test` (Konsist), which also pins two more: features may see
 only the domain, and `:core:domain` imports nothing from `android.*`. Suppressions are
-per-import and say whether they are temporary or sanctioned. Still missing CI, so the guard
-runs when someone runs it — [task 7.15.3](04-task-list.md).
+per-import and say whether they are temporary or sanctioned. **Runs in CI on every push and
+pull request** — see [Continuous integration](#continuous-integration) below and
+[task 7.15.3](04-task-list.md).
 
 1. **An online provider cannot read a document.** `:core:ai:online` has no dependency on
    `:core:data`.
 2. **An online provider cannot execute a tool.** `ToolSpec` (inert) lives in `:core:model`;
    `AiTool` (executable) lives in `:core:domain`, and `:core:ai:online` depends on neither
    `:core:domain` nor `:core:data`.
+
+## ⚠️ A clean clone cannot build the app
+
+`llama.cpp` is vendored at `core/ai/local/src/main/cpp/llama.cpp/` and **gitignored**. It is
+not a submodule, there is no `.gitmodules`, and `git ls-files` returns nothing for that path.
+It exists on this machine only because someone ran the shallow clone by hand.
+
+`CMakeLists.txt` fails loudly rather than mysteriously (`FATAL_ERROR`), which is the right
+behaviour — but it means a fresh checkout builds nothing that touches `:core:ai:local`, and
+CI cannot run `assembleDebug` at all. Fixing it is [task 7.2.10](04-task-list.md), and it
+blocks more than it appears to.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push and every pull request. One job,
+`guards-and-tests`, on `ubuntu-latest` with JDK 17 and Gradle dependency caching:
+
+- `./gradlew :architecture-test:test` — the four Konsist rules above (feature→domain,
+  the two online-provider isolation guarantees, domain purity).
+- `./gradlew test` — the full JVM unit test suite (670 tests as of 2026-09-18).
+- Test results are published as a check run (via the default `GITHUB_TOKEN`, no secret
+  needed) and uploaded as an artifact fallback, so a failure is readable without digging
+  through raw logs.
+
+**What CI deliberately does not cover:**
+
+- **No `:app:assembleDebug` / native build.** `:core:ai:local` compiles llama.cpp from
+  source via CMake/NDK, and that source is vendored as a gitignored shallow clone, not a
+  git submodule ([task 7.2.10](04-task-list.md) is still open). It does not exist on a
+  clean checkout, so a CI job that tries to build it would fail for everyone — see the
+  comment block at the top of `ci.yml` for the full reasoning. Add this once 7.2.10 lands.
+- **No instrumented / device tests.** `connectedDebugAndroidTest` (the `androidTest`
+  suites under `core/ai/local`, embeddings, Room, etc.) need a real device or emulator and
+  are not run in CI. They stay a manual, on-device step — see
+  [05-test-harness.md](05-test-harness.md).
+- **No lint, static analysis, or coverage gate.** ktlint/detekt and a coverage threshold
+  are tracked separately as [11.5.2](04-task-list.md) and [11.5.3](04-task-list.md) and are
+  not wired up yet.
+- **No signing, secrets, or release build.** Nothing in CI requires a signing key or any
+  repository secret.
 
 ## Guiding principles
 

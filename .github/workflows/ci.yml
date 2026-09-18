@@ -1,0 +1,119 @@
+# CI — task 7.15.3 (documentation/04-task-list.md).
+#
+# Runs the Konsist architecture guards (:architecture-test) and the JVM unit test
+# suite (670 tests as of 2026-09-18) on every push and every pull request, so the
+# guards enforce themselves instead of relying on someone remembering to run them.
+#
+# ---------------------------------------------------------------------------
+# Why there is no :app:assembleDebug / native-build job
+# ---------------------------------------------------------------------------
+# :core:ai:local compiles llama.cpp from source via CMake/NDK
+# (core/ai/local/src/main/cpp/CMakeLists.txt, add_subdirectory on
+# core/ai/local/src/main/cpp/llama.cpp). That llama.cpp source is vendored on
+# disk as a shallow clone pinned to tag b10299, but it is explicitly gitignored
+# (.gitignore: "Vendored llama.cpp ... Becomes a git submodule once the Phase 7.2
+# spike confirms the revision") and it is NOT registered as a git submodule —
+# there is no .gitmodules file, and task 7.2.10 ("Register llama.cpp as a git
+# submodule") is still open in documentation/04-task-list.md.
+#
+# That means on a clean checkout — which is exactly what every CI runner and
+# every fresh clone gets — core/ai/local/src/main/cpp/llama.cpp/ does not exist.
+# The CMakeLists.txt already fails fast and on purpose in that case:
+#
+#   if(NOT EXISTS ${LLAMA_DIR}/CMakeLists.txt)
+#       message(FATAL_ERROR "llama.cpp submodule is missing. Run: ...")
+#   endif()
+#
+# Verified locally: `./gradlew test --dry-run` never schedules a
+# configureCMake*/buildCMake* task — JVM unit tests don't package native libs, so
+# they never touch externalNativeBuild. `./gradlew :app:assembleDebug --dry-run`
+# DOES schedule `:core:ai:local:configureCMakeRelease[arm64-v8a]` and
+# `buildCMakeRelease[arm64-v8a]`. An assembleDebug job would only appear to pass
+# because a local checkout happens to have the vendored source sitting on disk
+# from prior work; on an actual clean CI runner it would fail for everyone, every
+# time, with the FATAL_ERROR above. That is worse than not having the job.
+#
+# Add an :app:assembleDebug job (in its own job, so a slow native compile never
+# delays the fast guard/unit-test feedback) once 7.2.10 lands: llama.cpp
+# registered as a real git submodule plus a
+# `git submodule update --init --recursive` (or actions/checkout
+# `submodules: true`) step. See the note added next to 7.2.10 in
+# documentation/04-task-list.md.
+# ---------------------------------------------------------------------------
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write
+
+# Cancel a stale run on the same ref when new commits land, so pushes don't queue.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guards-and-tests:
+    name: Architecture guards + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The project targets Java 17 (compileOptions/jvmTarget in
+      # build-logic/convention/build.gradle.kts and app/build.gradle.kts).
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Caches Gradle dependencies, wrapper distribution and build outputs keyed
+      # on the wrapper + lock files, so the job isn't dominated by downloads.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Konsist guards: feature -> domain only, the two online-provider isolation
+      # rules, and domain purity (no android.* in :core:domain). Plain JVM/JUnit5
+      # module, no Android SDK or native dependency — runs in seconds and gates
+      # everything else.
+      - name: Architecture guards (Konsist)
+        run: ./gradlew :architecture-test:test --console=plain
+
+      # Full JVM unit test suite across every module. Does not require a
+      # connected device or emulator, and does not touch externalNativeBuild
+      # (see the note at the top of this file).
+      - name: Unit tests
+        run: ./gradlew test --console=plain
+
+      # Turns a red build into readable annotations instead of a wall of log
+      # output. Uses the default GITHUB_TOKEN, no secret required. On PRs from
+      # forks the token is read-only and this step cannot create a check run —
+      # continue-on-error keeps that a soft failure, never masking the real
+      # test outcome from the steps above.
+      - name: Publish test results
+        if: always()
+        continue-on-error: true
+        uses: dorny/test-reporter@v1
+        with:
+          name: Unit test results
+          path: "**/build/test-results/**/*.xml"
+          reporter: java-junit
+          fail-on-error: false
+
+      # Fallback that works regardless of token permissions or fork origin: the
+      # raw XML/HTML reports are always downloadable from the run summary.
+      - name: Upload test result artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            **/build/test-results/**/*.xml
+            **/build/reports/tests/**
+          retention-days: 14
+          if-no-files-found: warn
