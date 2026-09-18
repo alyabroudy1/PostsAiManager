@@ -34,13 +34,13 @@ ordered the way they are.
 | Build | `assembleDebug` **BUILD SUCCESSFUL** | 2026-08-07 |
 | Debug APK — before | 300.4 MB (4 ABIs, 173.8 MB assets) | 2026-08-07 |
 | Debug APK — after | **110.2 MB** — parser cut + `abiFilters` → **−190.2 MB (−63%)** | 2026-08-07 |
-| Unit tests | **380 passing, 0 failing** | 2026-08-07 |
+| Unit tests | **532 passing, 0 failing** | 2026-08-09 |
 | Test capability | 18 / 18 modules via `pam.test-conventions` | 2026-08-07 |
 | Defects found by tests | 7 fixed, 2 pinned open | 2026-08-07 |
 | ✅ Reprocessing data loss | **Fixed** — provenance + merge + revision history, schema v3, migrated on-device with no loss | 2026-08-09 |
 | ⚠️ Extractor quality | **Open** — regex extraction read a salutation as a name and a sentence fragment as an organisation, both at a hardcoded 0.80. Confidence is a per-field-type constant, not a measurement | 2026-08-09 |
 | Test device | Samsung SM-S918B, Android 16 (API 36), arm64-v8a | 2026-08-07 |
-| Device RAM | 11.3 GB total — **2.5 GB available** | 2026-08-07 |
+| Device RAM | 11.3 GB total — 2.5–4.7 GB available depending on what else is running | 2026-08-07 |
 | Smoke test T001 | **PASS**, 20/20 steps, zero crashes | 2026-08-07 |
 | **llama.cpp on device** | **173 tok/s** (Qwen 0.5B Q4_0), 297 ms load, ≈5.8 MB libs | 2026-08-07 |
 | **GBNF grammar constraint** | ✅ **works** — valid tool-call JSON from a 0.5B model | 2026-08-07 |
@@ -51,7 +51,7 @@ ordered the way they are.
 | Batch embedding | 8 texts in **97 ms** (12 ms each) after batch-max padding — was 1554 ms | 2026-08-07 |
 | Embedding device tests | **15 / 15 passing** on real hardware | 2026-08-07 |
 | **Chat models installable** | 5 pinned by revision + SHA-256, all ungated, URLs verified 200 | 2026-08-09 |
-| **Model download end to end** | Qwen 1.5B fetched through the app: 1,117,320,736 bytes, exact pinned size, set active | 2026-08-09 |
+| Chat model download | Qwen 1.5B and Gemma 4 E2B fetched through the app at their exact pinned sizes | 2026-08-09 |
 | Catalog generation | **Gemma 4** (Jul 2026, Google QAT builds) + **Qwen 3.5** | 2026-08-09 |
 | 🔴 Prompt >512 tokens | **Fixed** — `n_batch=512` with a single-batch prompt aborted the inference process. Would have killed grounded chat too | 2026-08-09 |
 | Context window | Capped at **4096** — 8192 aborted on the reference phone with more memory free than 4096 succeeded with | 2026-08-09 |
@@ -60,7 +60,7 @@ ordered the way they are.
 | Qwen3.5 + grammar | ⚠️ Reasoning model — emits `<think>`; forcing straight-to-JSON fights its training and it misses the deadline entirely | 2026-08-09 |
 | Confidence from models | ⚠️ **Still flat** — both report 0.9 for everything despite explicit banding in the prompt | 2026-08-09 |
 | **OCR keeps layout** | Normalised box per block, persisted; schema v4 migrated on device, 3 documents / 12 fields intact | 2026-08-09 |
-| **Model download end to end** | ✅ 258 MB fetched, hashes verified, both files in place | 2026-08-09 |
+| Embedding model download | ✅ 258 MB fetched, hashes verified, both files in place | 2026-08-09 |
 | Foreground download crash | ⚠️ Found on device: WorkManager's service declares no `foregroundServiceType` — **would have crashed every chat-model download too** | 2026-08-09 |
 | Paragraph ranking accuracy | **4 / 5** questions rank the right paragraph first | 2026-08-07 |
 | Question-vs-paragraph scores | correct **0.13 – 0.30**, unrelated **−0.04 – 0.04** | 2026-08-07 |
@@ -72,7 +72,7 @@ ordered the way they are.
   your own mail.
 - **Stack:** Kotlin 2.1.0, Compose (BOM 2024.12.01), Hilt 2.53.1, Room 2.6.1, ML Kit,
   ONNX Runtime 1.24.3. Planned: llama.cpp + GGUF, WorkManager. minSdk 26 / targetSdk 35.
-- **Today:** 17 Gradle modules + `build-logic`, ~80 Kotlin files, **zero bundled ML assets** (models download on demand).
+- **Today:** 21 Gradle modules + `build-logic`, 183 Kotlin files, **zero bundled ML assets** (models download on demand).
 
 ## Roadmap
 
@@ -94,9 +94,9 @@ ordered the way they are.
 | Architecture & module split | ✅ `:core:ai` split; privacy guarantees are compile-time facts. One boundary violation left (`feature:documents` → `core:data`) |
 | Scan → OCR → extract → persist pipeline | Working end to end, **now covered by 44 tests** |
 | Document management (list, detail, search, PDF, profiles) | Working |
-| Test infrastructure | ✅ `build-logic` convention plugin, `:core:testing` fakes + fixtures, 75 tests |
+| Test infrastructure | ✅ `build-logic` convention plugin, `:core:testing` fakes + fixtures, **532 unit tests + device suites** |
 | Error handling | ⚠️ Systemic gaps — empty catches, raw debug strings, no logging abstraction, **ViewModels discard write failures** |
-| **On-device LLM** | ✅ **Runtime proven on device** (llama.cpp b10299, 173 tok/s, GBNF works). `LocalAiEngine` wrapper next. |
+| **On-device LLM** | ✅ **Working on device** — llama.cpp b10299, five installable models, grammar-constrained extraction reading real letters |
 | **Model management** | ✅ **Complete and now usable** — 4 chat models pinned and installable; previously every catalog entry was `NotInstallable`, so no model could be downloaded at all |
 | **Tool / agent layer** | **Not started** |
 | **RAG / semantic search** | ✅ **Working on device** — ONNX encoder, hybrid RRF retrieval, indexed on scan. Thresholds calibrated from measurement (4/5 paragraph ranking). Model delivery to a real install is the remaining gap |
