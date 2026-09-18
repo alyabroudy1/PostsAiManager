@@ -77,6 +77,8 @@ import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.EntityProposal
+import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ValueSource
 import com.postsaimanager.core.model.ExtractedFieldType
@@ -100,6 +102,7 @@ fun DocumentDetailScreen(
     val processingState by viewModel.processingProgress.collectAsStateWithLifecycle()
     val profileSuggestions by viewModel.profileSuggestions.collectAsStateWithLifecycle()
     val editingProfileSuggestion by viewModel.editingProfileSuggestion.collectAsStateWithLifecycle()
+    val entityProposals by viewModel.entityProposals.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -127,6 +130,7 @@ fun DocumentDetailScreen(
                     selectedTab = selectedTab,
                     processingState = processingState,
                     profileSuggestions = profileSuggestions,
+                    entityProposals = entityProposals,
                     onTabSelected = viewModel::selectTab,
                     onProcess = viewModel::startProcessing,
                     onConfirmField = viewModel::confirmField,
@@ -136,6 +140,8 @@ fun DocumentDetailScreen(
                     onLinkProfile = viewModel::linkSuggestionToProfile,
                     onCreateProfile = viewModel::openProfileCreation,
                     onDismissSuggestion = viewModel::dismissSuggestion,
+                    onAcceptProposal = viewModel::acceptProposal,
+                    onDismissProposal = viewModel::dismissProposal,
                     onChatClick = { onChatClick(state.document.id) },
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSharePdf = { viewModel.generatePdf() },
@@ -169,6 +175,7 @@ private fun DocumentDetailContent(
     selectedTab: DetailTab,
     processingState: ProcessingState,
     profileSuggestions: List<ProfileSuggestion>,
+    entityProposals: List<EntityProposal>,
     onTabSelected: (DetailTab) -> Unit,
     onProcess: () -> Unit,
     onConfirmField: (String) -> Unit,
@@ -178,6 +185,8 @@ private fun DocumentDetailContent(
     onLinkProfile: (ProfileSuggestion) -> Unit,
     onCreateProfile: (ProfileSuggestion) -> Unit,
     onDismissSuggestion: (ProfileSuggestion) -> Unit,
+    onAcceptProposal: (EntityProposal) -> Unit,
+    onDismissProposal: (EntityProposal) -> Unit,
     onSharePdf: () -> File?,
     onChatClick: () -> Unit,
     onToggleFavorite: () -> Unit,
@@ -245,6 +254,7 @@ private fun DocumentDetailContent(
                 data = state.extractedData,
                 language = state.document.language,
                 profileSuggestions = profileSuggestions,
+                entityProposals = entityProposals,
                 onConfirm = onConfirmField,
                 onAdd = onAddField,
                 onUpdate = onUpdateField,
@@ -252,6 +262,8 @@ private fun DocumentDetailContent(
                 onLinkProfile = onLinkProfile,
                 onCreateProfile = onCreateProfile,
                 onDismissSuggestion = onDismissSuggestion,
+                onAcceptProposal = onAcceptProposal,
+                onDismissProposal = onDismissProposal,
                 onReprocess = onProcess,
             )
             DetailTab.TIMELINE -> TimelineTab(state.timeline)
@@ -439,6 +451,7 @@ private fun ExtractedTemplateTab(
     data: List<ExtractedData>,
     language: String?,
     profileSuggestions: List<ProfileSuggestion>,
+    entityProposals: List<EntityProposal>,
     onConfirm: (String) -> Unit,
     onAdd: (String, String, ExtractedFieldType) -> Unit,
     onUpdate: (String, String, String) -> Unit,
@@ -446,13 +459,15 @@ private fun ExtractedTemplateTab(
     onLinkProfile: (ProfileSuggestion) -> Unit,
     onCreateProfile: (ProfileSuggestion) -> Unit,
     onDismissSuggestion: (ProfileSuggestion) -> Unit,
+    onAcceptProposal: (EntityProposal) -> Unit,
+    onDismissProposal: (EntityProposal) -> Unit,
     onReprocess: () -> Unit,
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var editingField by remember { mutableStateOf<ExtractedData?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (data.isEmpty() && profileSuggestions.isEmpty()) {
+        if (data.isEmpty() && profileSuggestions.isEmpty() && entityProposals.isEmpty()) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -489,6 +504,21 @@ private fun ExtractedTemplateTab(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Re-extract", style = MaterialTheme.typography.labelSmall)
                         }
+                    }
+                }
+
+                // ── Entity Proposals — found in the document, but not something the app
+                // decides on its own (see EntityLinkingUseCase). Above the profile-matching
+                // suggestions below: these are the ones still waiting on a person, so they
+                // are seen first rather than after scrolling past what already matched.
+                if (entityProposals.isNotEmpty()) {
+                    item { EntityProposalsSummary(entityProposals) }
+                    items(entityProposals, key = { it.id }) { proposal ->
+                        EntityProposalCard(
+                            proposal = proposal,
+                            onAccept = { onAcceptProposal(proposal) },
+                            onDismiss = { onDismissProposal(proposal) },
+                        )
                     }
                 }
 
@@ -936,6 +966,154 @@ private fun ReviewSummary(fields: List<ExtractedData>) {
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
         }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Entity Proposals — people/organisations the model found but would not act on alone
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * A count of what is waiting on a person's answer, above the individual questions.
+ *
+ * Mirrors [ReviewSummary]'s reasoning: without a total, "is this me?" for the recipient and
+ * "add Layla?" for a mentioned spouse are each found only by scrolling — fine for one entity,
+ * easy to miss for several.
+ */
+@Composable
+private fun EntityProposalsSummary(proposals: List<EntityProposal>) {
+    if (proposals.isEmpty()) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        ),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(
+                if (proposals.size == 1) "1 thing found in this document needs your answer"
+                else "${proposals.size} things found in this document need your answer",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "The app will not create a profile for any of these on its own.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+        }
+    }
+}
+
+/**
+ * One [EntityProposal], asked in words rather than shown as raw data — never
+ * "Entity proposal: Layla (MENTIONED, 0.95)". See [EntityProposal.question] and
+ * [EntityLinkingUseCase][com.postsaimanager.core.domain.usecase.EntityLinkingUseCase]'s class
+ * doc for why the app asks instead of deciding here.
+ *
+ * Answering either way is final: accepting creates and links the profile, dismissing tells
+ * the app not to ask about this entity on this document again (see `EntityProposalService`).
+ * There is no third "later" option, because [pendingProposals][
+ * com.postsaimanager.core.domain.document.EntityProposalService.pendingProposals] already
+ * keeps the question on screen until one of these two is pressed.
+ */
+@Composable
+private fun EntityProposalCard(
+    proposal: EntityProposal,
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val isRecipient = proposal.entityRole == EntityRole.RECIPIENT
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(proposal.question(), style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onAccept, modifier = Modifier.weight(1f)) {
+                    Text(
+                        when {
+                            isRecipient -> "Yes, that's me"
+                            // A known profile is on file — accepting links to it, not a
+                            // second row for the same person/organisation, so the button
+                            // must not promise "profile" as if one will be made.
+                            proposal.existingProfileId != null -> "Link profile"
+                            else -> "Add profile"
+                        },
+                    )
+                }
+                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                    Text(if (isRecipient) "No, someone else" else "Not now")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The plain-English question for one [EntityProposal].
+ *
+ * [EntityRole] decides the shape of the sentence, exactly as it decides the shape of the
+ * underlying decision in `EntityLinkingUseCase` — a `RECIPIENT` proposal is never "add a
+ * profile for this name", it is "is this you?", because that is the one thing the app is
+ * actually unsure about (see that class's doc on `ProfileType.USER_SELF`). A `MENTIONED`
+ * proposal states what the document said and mentions the relation whenever the model
+ * supplied one, since "spouse of the recipient" is what makes the entity meaningful rather
+ * than an unexplained name.
+ *
+ * [existingProfileId] shifts the closing question from creating to linking for the same
+ * reason the button does (see [EntityProposalCard]) — a plausible match was already found,
+ * so "add them as a contact?" would describe a profile the app is not actually about to
+ * make. `RECIPIENT` is unaffected: "is this you?" already asks about identity, not creation,
+ * so it reads correctly whether accepting links or creates.
+ */
+private fun EntityProposal.question(): String = when (entityRole) {
+    EntityRole.RECIPIENT ->
+        "This document is addressed to \"$entityName\". Is this you?"
+
+    EntityRole.MENTIONED -> if (relation.isNotBlank()) {
+        "\"$entityName\" is mentioned in this document, as $relation. " +
+            if (existingProfileId != null) {
+                "Link them to the existing profile?"
+            } else {
+                "Add them as a profile?"
+            }
+    } else {
+        "\"$entityName\" is mentioned in this document. " +
+            if (existingProfileId != null) {
+                "Link them to the existing profile?"
+            } else {
+                "Add them as a profile?"
+            }
+    }
+
+    EntityRole.SENDER_CONTACT -> if (organization != null) {
+        "\"$entityName\" signed this document on behalf of $organization. " +
+            if (existingProfileId != null) {
+                "Link them to the existing contact?"
+            } else {
+                "Add them as a contact?"
+            }
+    } else {
+        "\"$entityName\" signed this document, but it is not clear yet who sent it. " +
+            if (existingProfileId != null) {
+                "Link them to the existing contact anyway?"
+            } else {
+                "Add them as a contact anyway?"
+            }
+    }
+
+    EntityRole.SENDER -> if (existingProfileId != null) {
+        "\"$entityName\" appears to have sent this document. Link them to the existing profile?"
+    } else {
+        "\"$entityName\" appears to have sent this document. Add a profile for them?"
     }
 }
 

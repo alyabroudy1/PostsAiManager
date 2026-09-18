@@ -180,5 +180,51 @@ object PamMigrations {
         }
     }
 
-    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+    /**
+     * Lets a Propose decision reach the user instead of being counted in a log line and
+     * dropped (Phase 7.14.11b).
+     *
+     * Before this, [EntityLinkingUseCase.Action.Propose] results were collected into
+     * `EntityProfileLinker.Outcome.proposals`, logged as a count, and discarded when
+     * `processDocument` returned — so a spouse mentioned in a letter, or the letter's own
+     * recipient, was found and then silently forgotten. `entity_proposals` is what
+     * `EntityProfileLinker` now writes those decisions to, so they survive to be shown on the
+     * document's detail screen and stay there until accepted or dismissed. See
+     * `EntityProposalEntity`'s doc comment for why the id is generated rather than the natural
+     * key, and `EntityProposalDao.insert` for how that keeps reprocessing from duplicating a
+     * still-pending proposal.
+     */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `entity_proposals` (
+                    `id` TEXT NOT NULL,
+                    `documentId` TEXT NOT NULL,
+                    `entityName` TEXT NOT NULL,
+                    `entityNameKey` TEXT NOT NULL,
+                    `kind` TEXT NOT NULL,
+                    `entityRole` TEXT NOT NULL,
+                    `relation` TEXT NOT NULL,
+                    `role` TEXT NOT NULL,
+                    `profileType` TEXT NOT NULL,
+                    `organization` TEXT,
+                    `existingProfileId` TEXT,
+                    `confidence` REAL NOT NULL,
+                    `createdAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`),
+                    FOREIGN KEY(`documentId`) REFERENCES `documents`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                    "`index_entity_proposals_documentId_entityNameKey` " +
+                    "ON `entity_proposals` (`documentId`, `entityNameKey`)",
+            )
+        }
+    }
+
+    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 }

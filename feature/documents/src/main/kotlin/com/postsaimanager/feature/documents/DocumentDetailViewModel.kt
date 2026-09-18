@@ -8,10 +8,12 @@ import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.DocumentProcessor
+import com.postsaimanager.core.domain.document.EntityProposalService
 import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
 import com.postsaimanager.core.domain.document.ProfileMatchingService
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
+import com.postsaimanager.core.model.EntityProposal
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.MatchType
@@ -38,6 +40,7 @@ class DocumentDetailViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
     private val documentProcessor: DocumentProcessor,
     private val profileMatchingService: ProfileMatchingService,
+    private val entityProposalService: EntityProposalService,
     private val documentExporter: DocumentExporter,
 ) : ViewModel() {
 
@@ -51,6 +54,15 @@ class DocumentDetailViewModel @Inject constructor(
 
     private val _profileSuggestions = MutableStateFlow<List<ProfileSuggestion>>(emptyList())
     val profileSuggestions: StateFlow<List<ProfileSuggestion>> = _profileSuggestions.asStateFlow()
+
+    /**
+     * Entities the app found but would not act on automatically — see
+     * [EntityProposalService]. Document-scoped and answered here, not a global inbox: see
+     * [EntityProposal]'s class doc.
+     */
+    val entityProposals: StateFlow<List<EntityProposal>> =
+        entityProposalService.pendingProposals(documentId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Holds the suggestion that triggered profile creation — shown in ProfileEditSheet */
     private val _editingProfileSuggestion = MutableStateFlow<ProfileSuggestion?>(null)
@@ -187,6 +199,18 @@ class DocumentDetailViewModel @Inject constructor(
 
     fun dismissSuggestion(suggestion: ProfileSuggestion) {
         _profileSuggestions.value = _profileSuggestions.value.filter { it !== suggestion }
+    }
+
+    // ── Entity proposals ──
+    // Both answers are fire-and-forget from the UI's perspective: entityProposals is backed by
+    // the same Room row the service just resolved, so the list updates on its own once the
+    // write lands — there is no local list to reconcile here, unlike profileSuggestions above.
+    fun acceptProposal(proposal: EntityProposal) {
+        viewModelScope.launch { entityProposalService.accept(proposal) }
+    }
+
+    fun dismissProposal(proposal: EntityProposal) {
+        viewModelScope.launch { entityProposalService.dismiss(proposal) }
     }
 
     // ── PDF generation ──

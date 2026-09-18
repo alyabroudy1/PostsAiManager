@@ -114,6 +114,51 @@ data class DismissedEntityEntity(
     val dismissedAt: Long,
 )
 
+/**
+ * A recognised entity [EntityLinkingUseCase] would not act on automatically, persisted so the
+ * question survives past the process that discovered it — see `EntityProposalService` and
+ * `EntityProposal` in `:core:model`.
+ *
+ * Keyed by a generated [id] rather than (documentId, entityNameKey) directly, because
+ * accepting or dismissing needs to name one row. The uniqueness that stops reprocessing from
+ * duplicating a still-pending proposal is enforced instead by the index on
+ * (documentId, entityNameKey), combined with `OnConflictStrategy.IGNORE` on insert — the
+ * conflicting insert (including its freshly generated id) is dropped, so the original row the
+ * UI may already be showing keeps its id.
+ */
+@Entity(
+    tableName = "entity_proposals",
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index(value = ["documentId", "entityNameKey"], unique = true)],
+)
+data class EntityProposalEntity(
+    @PrimaryKey val id: String,
+    val documentId: String,
+    val entityName: String,
+    /** Normalised (trimmed, lower-cased) — see `EntityProfileLinker.normalise`. */
+    val entityNameKey: String,
+    /** `EntityKind` name. */
+    val kind: String,
+    /** `EntityRole` name — what the entity was doing in the document. */
+    val entityRole: String,
+    val relation: String,
+    /** `ProfileRole` name — what this would be linked as if accepted. */
+    val role: String,
+    /** `ProfileType` name. */
+    val profileType: String,
+    val organization: String?,
+    val existingProfileId: String?,
+    val confidence: Float,
+    val createdAt: Long,
+)
+
 @Entity(
     tableName = "document_profile_links",
     primaryKeys = ["documentId", "profileId"],

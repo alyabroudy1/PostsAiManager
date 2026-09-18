@@ -204,6 +204,101 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate5To6_entityProposalsTableWorksAndCascades() {
+        helper.createDatabase(TEST_DB, 5).apply {
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite,
+                     createdAt, modifiedAt, syncStatus)
+                VALUES ('doc-1', 'Bescheid', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL')
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 6, true, PamMigrations.MIGRATION_5_6,
+        )
+        db.execSQL("PRAGMA foreign_keys = ON")
+        db.execSQL(
+            """
+            INSERT INTO entity_proposals
+                (id, documentId, entityName, entityNameKey, kind, entityRole, relation, role,
+                 profileType, organization, existingProfileId, confidence, createdAt)
+            VALUES
+                ('prop-1', 'doc-1', 'Layla', 'layla', 'PERSON', 'MENTIONED',
+                 'spouse of the recipient', 'RELATED', 'PERSON', NULL, NULL, 0.95, 1)
+            """.trimIndent(),
+        )
+
+        db.query("SELECT entityName FROM entity_proposals WHERE documentId = 'doc-1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Layla", cursor.getString(0))
+        }
+
+        db.execSQL("DELETE FROM documents WHERE id = 'doc-1'")
+
+        // A proposal outliving its document would ask the user about an entity from a
+        // document they can no longer even open.
+        db.query("SELECT COUNT(*) FROM entity_proposals").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("proposals outlived their document", 0, cursor.getInt(0))
+        }
+    }
+
+    @Test
+    fun migrate5To6_duplicateProposalForTheSameEntityIsRejected() {
+        helper.createDatabase(TEST_DB, 5).apply {
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite,
+                     createdAt, modifiedAt, syncStatus)
+                VALUES ('doc-1', 'Bescheid', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL')
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 6, true, PamMigrations.MIGRATION_5_6,
+        )
+        db.execSQL(
+            """
+            INSERT INTO entity_proposals
+                (id, documentId, entityName, entityNameKey, kind, entityRole, relation, role,
+                 profileType, organization, existingProfileId, confidence, createdAt)
+            VALUES
+                ('prop-1', 'doc-1', 'Sam', 'sam', 'PERSON', 'RECIPIENT', '', 'RECEIVER',
+                 'USER_SELF', NULL, NULL, 0.9, 1)
+            """.trimIndent(),
+        )
+
+        // Reprocessing the same letter must not turn one pending question into two — the
+        // unique index this test pins is exactly what `EntityProposalDao.insert`'s
+        // `OnConflictStrategy.IGNORE` relies on.
+        val threw = runCatching {
+            db.execSQL(
+                """
+                INSERT INTO entity_proposals
+                    (id, documentId, entityName, entityNameKey, kind, entityRole, relation,
+                     role, profileType, organization, existingProfileId, confidence, createdAt)
+                VALUES
+                    ('prop-2', 'doc-1', 'Sam', 'sam', 'PERSON', 'RECIPIENT', '', 'RECEIVER',
+                     'USER_SELF', NULL, NULL, 0.9, 2)
+                """.trimIndent(),
+            )
+        }.isFailure
+        assertTrue("the unique (documentId, entityNameKey) index did not reject the duplicate", threw)
+
+        db.query("SELECT COUNT(*) FROM entity_proposals").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(1, cursor.getInt(0))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

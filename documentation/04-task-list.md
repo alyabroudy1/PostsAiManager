@@ -556,11 +556,20 @@ useful on its own.*
 - [x] **7.14.11** Profile creation and linking. `EntityLinkingUseCase` holds the decision
       table (pure, JVM-testable); `EntityProfileLinker` executes it. **Role gates the action,
       not confidence alone** — this is the resolution of 7.14.9h.
-- [ ] **7.14.11b** 🔴 **Proposals go nowhere.** `Propose` results are computed, counted in a
+- [x] **7.14.11b** Proposals persist and reach the user. `entity_proposals` table (schema v6),
+      `EntityProposalService` port, and accept/dismiss cards on the document detail screen.
+      Document-scoped and persist until answered — no global inbox, since a proposal is a
+      question about *that* document. *Was: **Proposals go nowhere.*** `Propose` results are computed, counted in a
       log line and discarded, so Sam and Layla are silently ignored rather than offered. The
       `Propose` branch is effectively dead in production. Needs persistence plus a pending-
       suggestions surface. *My spec said "wire into the pipeline" without saying where
       proposals land — the gap is in the spec, not the implementation.*
+- [ ] **7.14.11d** 🔶 **Two subsystems prompt about the same person.**
+      `ProfileMatchingService` (from extracted sender/receiver *fields*) and
+      `EntityProposalService` (from AI-recognised *entities*) render adjacent cards on the
+      same document, in different visual idioms with different buttons. Scanning one letter
+      can ask about the Jobcenter twice. *Decision needed: retire the field-based matcher, or
+      keep it as the fallback for devices with no model — where the AI path yields nothing.*
 - [ ] **7.14.11c** Nothing in the app calls `deleteProfile`, so the tombstone-on-delete that
       makes a deleted machine profile stay deleted is exercised only by tests.
 - [ ] **7.14.12** Contact persons belong to their organisation's profile, not standalone.
