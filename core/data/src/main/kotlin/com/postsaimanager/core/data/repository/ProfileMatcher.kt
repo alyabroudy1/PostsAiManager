@@ -3,11 +3,14 @@ package com.postsaimanager.core.data.repository
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.result.getOrNull
 import com.postsaimanager.core.common.util.UuidGenerator
+import com.postsaimanager.core.domain.document.ProfileMatchingService
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
+import com.postsaimanager.core.model.MatchType
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileRole
+import com.postsaimanager.core.model.ProfileSuggestion
 import com.postsaimanager.core.model.ProfileType
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,11 +22,11 @@ import javax.inject.Singleton
 @Singleton
 class ProfileMatcher @Inject constructor(
     private val profileRepository: ProfileRepository,
-) {
+) : ProfileMatchingService {
     /**
      * Analyze extracted data and produce profile suggestions for sender and receiver.
      */
-    suspend fun matchProfiles(
+    override suspend fun matchProfiles(
         documentId: String,
         extractedData: List<ExtractedData>,
     ): List<ProfileSuggestion> {
@@ -239,7 +242,7 @@ class ProfileMatcher @Inject constructor(
     /**
      * Create a new profile from extracted data and link to document.
      */
-    suspend fun createAndLinkProfile(suggestion: ProfileSuggestion): PamResult<Profile> {
+    override suspend fun createAndLinkProfile(suggestion: ProfileSuggestion): PamResult<Profile> {
         val now = System.currentTimeMillis()
         val profile = Profile(
             id = UuidGenerator.generate(),
@@ -264,7 +267,7 @@ class ProfileMatcher @Inject constructor(
      * Link an existing profile to a document.
      * Also update profile with any new contact info from extraction.
      */
-    suspend fun linkExistingProfile(suggestion: ProfileSuggestion): PamResult<Unit> {
+    override suspend fun linkExistingProfile(suggestion: ProfileSuggestion): PamResult<Unit> {
         val profile = suggestion.existingProfile ?: return PamResult.Error(
             com.postsaimanager.core.common.result.PamError.FileNotFound("No profile to link")
         )
@@ -291,22 +294,5 @@ class ProfileMatcher @Inject constructor(
     }
 }
 
-data class ProfileSuggestion(
-    val role: ProfileRole,
-    val matchType: MatchType,
-    val existingProfile: Profile?,
-    val confidence: Float,
-    val extractedName: String?,
-    val extractedOrganization: String?,
-    val extractedEmail: String?,
-    val extractedPhone: String?,
-    val extractedAddress: String?,
-    val documentId: String,
-    val isAutoLinked: Boolean,
-)
-
-enum class MatchType {
-    EXACT_MATCH,      // >= 95% confidence → auto-link suggested
-    POSSIBLE_MATCH,   // < 95% → user confirms
-    NEW_PROFILE,      // No match → offer to create
-}
+// ProfileSuggestion and MatchType moved to :core:model (task 7.15.2) — they are data, and
+// the feature layer needs them without reaching past :core:domain to get here.

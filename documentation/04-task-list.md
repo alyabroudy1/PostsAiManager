@@ -478,9 +478,15 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` cut
       guarantees and the feature→domain rule. *The README claimed this existed; it did not.
       The guarantees hold by module graph today, but one dependency line would undo them
       silently.*
-- [ ] **7.15.2** Fix the one real boundary violation: `feature:documents` → `:core:data`.
-      *It reaches past domain for `ProfileMatcher` and `DocumentProcessingPipeline`; both
-      want domain ports.*
+- [x] **7.15.2** ✅ Fixed the one real boundary violation: `feature:documents` → `:core:data`.
+      Three domain ports added — `DocumentProcessor`, `ProfileMatchingService`,
+      `DocumentExporter` — implemented by `DocumentProcessingPipeline`, `ProfileMatcher` and
+      `PdfGenerator` respectively and bound in `DataModule`. `ProcessingState` moved to
+      `:core:model` as structured data (stage enum, progress, page/field counts) instead of
+      data-layer English strings; the feature layer now renders the sentence.
+      `ProfileSuggestion`/`MatchType` moved to `:core:model` too. `feature:documents` no
+      longer depends on `project(":core:data")`. `TEMPORARY_EXCEPTIONS` in
+      `FeatureBoundaryKonsistTest` is now empty.
 - [ ] **7.15.3** Set up CI so the above runs on every change rather than when someone thinks
       to look.
 - [ ] **7.15.4** Build the `PamLogger` abstraction §11.7 prescribes. *It is referenced by the

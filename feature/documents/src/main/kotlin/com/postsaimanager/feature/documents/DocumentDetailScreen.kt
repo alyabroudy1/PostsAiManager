@@ -70,9 +70,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.postsaimanager.core.common.extensions.toRelativeTime
-import com.postsaimanager.core.data.repository.MatchType
-import com.postsaimanager.core.data.repository.ProcessingState
-import com.postsaimanager.core.data.repository.ProfileSuggestion
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
@@ -83,6 +80,10 @@ import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ValueSource
 import com.postsaimanager.core.model.ExtractedFieldType
+import com.postsaimanager.core.model.MatchType
+import com.postsaimanager.core.model.ProcessingStage
+import com.postsaimanager.core.model.ProcessingState
+import com.postsaimanager.core.model.ProfileSuggestion
 import com.postsaimanager.core.model.TimelineEvent
 import java.io.File
 
@@ -261,10 +262,35 @@ private fun DocumentDetailContent(
 @Composable
 private fun ProcessingBanner(state: ProcessingState.Running) {
     Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer).padding(16.dp)) {
-        Text(state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Text(state.toDisplayMessage(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
         Spacer(modifier = Modifier.height(8.dp))
         LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
     }
+}
+
+/**
+ * Turns the data layer's structured progress into the English a user reads.
+ *
+ * `ProcessingState` carries a stage and numbers only — never a sentence (see its doc comment
+ * in `:core:model`). Deciding what that sentence says is a presentation concern, so it lives
+ * here rather than in `DocumentProcessingPipeline`. Kept as plain Kotlin rather than
+ * `stringResource` for now: localisation is a separate, deliberately deferred task, not
+ * something to introduce as a side effect of this boundary fix.
+ */
+private fun ProcessingState.Running.toDisplayMessage(): String = when (stage) {
+    ProcessingStage.CAPTURE -> "Preparing document..."
+    ProcessingStage.READ -> if (currentPage != null && totalPages != null) {
+        "OCR: Page $currentPage/$totalPages"
+    } else {
+        "Starting OCR..."
+    }
+    ProcessingStage.UNDERSTAND -> if (fieldCount != null) {
+        "Saving $fieldCount fields..."
+    } else {
+        "Analyzing document structure..."
+    }
+    ProcessingStage.LINK -> "Matching profiles..."
+    ProcessingStage.INDEX -> "Indexing for search..."
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -269,7 +269,7 @@ those land is far more expensive than establishing it first — hence Phase 6.5.
 
 Derived from the actual `project(":...")` edges in every `build.gradle.kts`.
 
-### 4.1 🟠 `feature:documents` → `core:data`
+### 4.1 ✅ **RESOLVED 2026-08-09** (task 7.15.2) — `feature:documents` → `core:data`
 
 Every other feature module depends only on `core:common`, `core:designsystem`,
 `core:domain`, `core:model`. `feature:documents` additionally depends on **`core:data`**,

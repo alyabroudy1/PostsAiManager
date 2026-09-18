@@ -20,17 +20,19 @@ import org.junit.jupiter.api.Test
  * silently stepping around every one of those guarantees. The compiler cannot catch that
  * mistake unless the dependency line is absent — which is what this test polices.
  *
- * Two files break this today, on purpose, each with a name and a reason rather than a
- * blanket skip:
+ * One file family broke this until task 7.15.2: `feature:documents` reached into
+ * `:core:data` for `DocumentProcessingPipeline`, `ProfileMatcher`, `ProfileSuggestion`,
+ * `MatchType`, `ProcessingState` and `PdfGenerator`. Fixed by moving the data types
+ * (`ProfileSuggestion`, `MatchType`, `ProcessingState`) down to `:core:model` and putting
+ * the mechanisms (`DocumentProcessingPipeline`, `ProfileMatcher`, `PdfGenerator`) behind
+ * domain ports (`DocumentProcessor`, `ProfileMatchingService`, `DocumentExporter`) that
+ * `:core:data` implements and binds. `TEMPORARY_EXCEPTIONS` is now empty and stays only so
+ * the next real violation has somewhere named to go, rather than a blanket rule change.
  *
- * - [TEMPORARY_EXCEPTIONS] — `feature:documents` reaching into `:core:data`. This is a
- *   real violation, tracked as task 7.15.2, being fixed next. It is listed here so the
- *   fix is verifiable: once 7.15.2 lands, the entry becomes a set that allows nothing and
- *   can be deleted.
- * - [SANCTIONED_EXCEPTIONS] — `feature:models` reaching into `:core:ai:catalog` and
- *   `:core:ai:embed`. This is not a bug: model management *is* that subsystem's UI, and a
- *   domain port here would be a pure pass-through with no logic of its own. See
- *   documentation/02-architecture.md §2.3 and the comment in feature/models/build.gradle.kts.
+ * [SANCTIONED_EXCEPTIONS] remains: `feature:models` reaching into `:core:ai:catalog` and
+ * `:core:ai:embed`. This is not a bug: model management *is* that subsystem's UI, and a
+ * domain port here would be a pure pass-through with no logic of its own. See
+ * documentation/02-architecture.md §2.3 and the comment in feature/models/build.gradle.kts.
  *
  * Both lists name the exact imports allowed, not just the file — so a new, different
  * violation landing in an already-excepted file still fails this test.
@@ -51,35 +53,10 @@ class FeatureBoundaryKonsistTest {
     )
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // TEMPORARY — must shrink to nothing. Tracked as task 7.15.2.
+    // TEMPORARY — empty. Task 7.15.2 fixed the last entry; kept as a named home for the
+    // next reasoned, temporary exception rather than deleting the concept entirely.
     // ─────────────────────────────────────────────────────────────────────────────
-    private val TEMPORARY_EXCEPTIONS = listOf(
-        NamedException(
-            filePathSuffix = "feature/documents/src/main/kotlin/com/postsaimanager/feature/documents/" +
-                "DocumentDetailViewModel.kt",
-            allowedImportNames = setOf(
-                "com.postsaimanager.core.data.repository.DocumentProcessingPipeline",
-                "com.postsaimanager.core.data.repository.MatchType",
-                "com.postsaimanager.core.data.repository.ProcessingState",
-                "com.postsaimanager.core.data.repository.ProfileMatcher",
-                "com.postsaimanager.core.data.repository.ProfileSuggestion",
-                "com.postsaimanager.core.data.util.PdfGenerator",
-            ),
-            note = "TEMPORARY — task 7.15.2 removes this. The ViewModel drives Room-backed " +
-                "pipeline types and a PDF utility directly instead of through a use case.",
-        ),
-        NamedException(
-            filePathSuffix = "feature/documents/src/main/kotlin/com/postsaimanager/feature/documents/" +
-                "DocumentDetailScreen.kt",
-            allowedImportNames = setOf(
-                "com.postsaimanager.core.data.repository.MatchType",
-                "com.postsaimanager.core.data.repository.ProcessingState",
-                "com.postsaimanager.core.data.repository.ProfileSuggestion",
-            ),
-            note = "TEMPORARY — task 7.15.2 removes this. The same :core:data types leak one " +
-                "layer further, into the Composable itself.",
-        ),
-    )
+    private val TEMPORARY_EXCEPTIONS = emptyList<NamedException>()
 
     // ─────────────────────────────────────────────────────────────────────────────
     // SANCTIONED — a permanent, deliberate exception. Not tracked for removal.

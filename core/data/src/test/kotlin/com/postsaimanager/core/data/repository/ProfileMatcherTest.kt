@@ -3,6 +3,7 @@ package com.postsaimanager.core.data.repository
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
+import com.postsaimanager.core.model.MatchType
 import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.testProfile

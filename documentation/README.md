@@ -91,7 +91,7 @@ ordered the way they are.
 
 | Area | State |
 |---|---|
-| Architecture & module split | ✅ `:core:ai` split; privacy guarantees are compile-time facts. One boundary violation left (`feature:documents` → `core:data`) |
+| Architecture & module split | ✅ `:core:ai` split; privacy guarantees are compile-time facts. `feature:documents` → `core:data` boundary violation fixed (task 7.15.2) — Konsist's temporary-exception list is empty |
 | Scan → OCR → extract → persist pipeline | Working end to end, **now covered by 44 tests** |
 | Document management (list, detail, search, PDF, profiles) | Working |
 | Test infrastructure | ✅ `build-logic` convention plugin, `:core:testing` fakes + fixtures, **532 unit tests + device suites** |

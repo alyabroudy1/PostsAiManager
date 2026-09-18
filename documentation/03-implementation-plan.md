@@ -192,8 +192,8 @@ branch before deleting.
 
 | Today (in `core:data`) | Add to `core:domain` | Impl stays in |
 |---|---|---|
-| `DocumentProcessingPipeline` | `ProcessDocumentUseCase` | `core:data` |
-| `ProfileMatcher` | `MatchProfileUseCase` | `core:data` |
+| `DocumentProcessingPipeline` | `DocumentProcessor` | `core:data` |
+| `ProfileMatcher` | `ProfileMatchingService` | `core:data` |
 | `PdfGenerator` | `DocumentExporter` interface | `core:data` |
 
 Then delete `project(":core:data")` from `feature/documents/build.gradle.kts`. **If it

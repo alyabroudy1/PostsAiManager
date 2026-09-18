@@ -5,20 +5,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.util.UuidGenerator
-import com.postsaimanager.core.data.repository.DocumentProcessingPipeline
-import com.postsaimanager.core.data.repository.MatchType
-import com.postsaimanager.core.data.repository.ProcessingState
-import com.postsaimanager.core.data.repository.ProfileMatcher
-import com.postsaimanager.core.data.repository.ProfileSuggestion
-import com.postsaimanager.core.data.util.PdfGenerator
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
+import com.postsaimanager.core.domain.document.DocumentExporter
+import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
+import com.postsaimanager.core.domain.document.ProfileMatchingService
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
+import com.postsaimanager.core.model.MatchType
+import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileRole
+import com.postsaimanager.core.model.ProfileSuggestion
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,9 +36,9 @@ class DocumentDetailViewModel @Inject constructor(
     getDocumentDetailUseCase: GetDocumentDetailUseCase,
     private val documentRepository: DocumentRepository,
     private val profileRepository: ProfileRepository,
-    private val processingPipeline: DocumentProcessingPipeline,
-    private val profileMatcher: ProfileMatcher,
-    private val pdfGenerator: PdfGenerator,
+    private val documentProcessor: DocumentProcessor,
+    private val profileMatchingService: ProfileMatchingService,
+    private val documentExporter: DocumentExporter,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
@@ -67,7 +67,7 @@ class DocumentDetailViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            processingPipeline.processingState.collect { state ->
+            documentProcessor.processingState.collect { state ->
                 _processingProgress.value = state
                 if (state is ProcessingState.Completed) runProfileMatching()
             }
@@ -84,11 +84,11 @@ class DocumentDetailViewModel @Inject constructor(
     private suspend fun runProfileMatching() {
         val state = uiState.value
         if (state is DocumentDetailUiState.Success) {
-            val suggestions = profileMatcher.matchProfiles(documentId, state.extractedData)
+            val suggestions = profileMatchingService.matchProfiles(documentId, state.extractedData)
             _profileSuggestions.value = suggestions
             // Auto-link exact matches
             suggestions.filter { it.matchType == MatchType.EXACT_MATCH && !it.isAutoLinked }.forEach { suggestion ->
-                profileMatcher.linkExistingProfile(suggestion)
+                profileMatchingService.linkExistingProfile(suggestion)
                 _profileSuggestions.value = _profileSuggestions.value.map {
                     if (it === suggestion) it.copy(isAutoLinked = true) else it
                 }
@@ -103,7 +103,7 @@ class DocumentDetailViewModel @Inject constructor(
     fun startProcessing() {
         viewModelScope.launch {
             _profileSuggestions.value = emptyList()
-            processingPipeline.processDocument(documentId)
+            documentProcessor.processDocument(documentId)
         }
     }
 
@@ -131,7 +131,7 @@ class DocumentDetailViewModel @Inject constructor(
     // ── Profile linking ──
     fun linkSuggestionToProfile(suggestion: ProfileSuggestion) {
         viewModelScope.launch {
-            profileMatcher.linkExistingProfile(suggestion)
+            profileMatchingService.linkExistingProfile(suggestion)
             _profileSuggestions.value = _profileSuggestions.value.map {
                 if (it.role == suggestion.role && it.existingProfile?.id == suggestion.existingProfile?.id) {
                     it.copy(isAutoLinked = true)
@@ -195,7 +195,9 @@ class DocumentDetailViewModel @Inject constructor(
         if (state !is DocumentDetailUiState.Success) return null
         val paths = state.pages.map { it.imagePath }
         val title = state.document.title.replace(Regex("[^a-zA-Z0-9_-]"), "_").take(50)
-        return pdfGenerator.generatePdf(paths, "PAM_$title")
+        // The port speaks paths, not File — see DocumentExporter's doc comment. The
+        // Composable still wants a File for FileProvider, so the feature re-wraps it here.
+        return documentExporter.exportPdf(paths, "PAM_$title")?.let(::File)
     }
 
     // ── Favorites ──

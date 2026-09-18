@@ -11,6 +11,7 @@ import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
+import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
@@ -19,6 +20,8 @@ import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractionResult
+import com.postsaimanager.core.model.ProcessingStage
+import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.TimelineEvent
 import com.postsaimanager.core.model.TimelineEventType
 import kotlinx.coroutines.CoroutineDispatcher
@@ -53,15 +56,15 @@ class DocumentProcessingPipeline @Inject constructor(
     private val documentDao: DocumentDao,
     private val timelineRepository: TimelineRepository,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
-) {
+) : DocumentProcessor {
     private val _processingState = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
-    val processingState: Flow<ProcessingState> = _processingState.asStateFlow()
+    override val processingState: Flow<ProcessingState> = _processingState.asStateFlow()
 
-    suspend fun processDocument(documentId: String): PamResult<ExtractionResult> =
+    override suspend fun processDocument(documentId: String): PamResult<ExtractionResult> =
         withContext(ioDispatcher) {
             try {
                 // Step 1: Mark as processing
-                _processingState.value = ProcessingState.Running(documentId, "Starting OCR...", 0f)
+                _processingState.value = ProcessingState.Running(documentId, ProcessingStage.READ, 0f)
                 documentDao.updateStatus(documentId, DocumentStatus.PROCESSING.name)
 
                 // Step 2: Get pages
@@ -77,9 +80,11 @@ class DocumentProcessingPipeline @Inject constructor(
                 pages.forEachIndexed { index, page ->
                     val progress = (index + 1).toFloat() / pages.size * 0.6f
                     _processingState.value = ProcessingState.Running(
-                        documentId,
-                        "OCR: Page ${index + 1}/${pages.size}",
-                        progress,
+                        documentId = documentId,
+                        stage = ProcessingStage.READ,
+                        progress = progress,
+                        currentPage = index + 1,
+                        totalPages = pages.size,
                     )
 
                     val result = ocrService.recognizeText(page.imagePath)
@@ -124,7 +129,7 @@ class DocumentProcessingPipeline @Inject constructor(
 
                 // Step 4: Entity extraction (with built-in language detection)
                 _processingState.value = ProcessingState.Running(
-                    documentId, "Analyzing document structure...", 0.7f
+                    documentId = documentId, stage = ProcessingStage.UNDERSTAND, progress = 0.7f,
                 )
 
                 val combinedText = ocrResults.joinToString("\n\n") { it.fullText }
@@ -186,7 +191,10 @@ class DocumentProcessingPipeline @Inject constructor(
                 // honours deletions, and flags the cases where extraction now disagrees
                 // instead of picking a winner.
                 _processingState.value = ProcessingState.Running(
-                    documentId, "Saving ${extraction.fields.size} fields...", 0.9f
+                    documentId = documentId,
+                    stage = ProcessingStage.UNDERSTAND,
+                    progress = 0.9f,
+                    fieldCount = extraction.fields.size,
                 )
 
                 val stored = documentDao.getExtractedData(documentId)
@@ -285,7 +293,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 // installed it stores the chunks as text, and keyword search still finds
                 // them.
                 _processingState.value = ProcessingState.Running(
-                    documentId, "Indexing for search...", 0.95f
+                    documentId = documentId, stage = ProcessingStage.INDEX, progress = 0.95f,
                 )
                 when (val indexed = indexDocument(documentId, combinedText)) {
                     is PamResult.Success -> Log.i(
@@ -330,13 +338,5 @@ private const val AI_ENGINE_VERSION = "ai-understanding-1"
 // what the device can actually afford. Passing a separate constant here would budget the
 // prompt against one number while the KV cache was allocated for another.
 
-sealed interface ProcessingState {
-    data object Idle : ProcessingState
-    data class Running(
-        val documentId: String,
-        val message: String,
-        val progress: Float,
-    ) : ProcessingState
-    data class Completed(val documentId: String) : ProcessingState
-    data class Failed(val documentId: String, val error: String) : ProcessingState
-}
+// ProcessingState and ProcessingStage moved to :core:model (task 7.15.2) — the data layer
+// must not decide what English a user reads for a progress message; see their doc comments.
