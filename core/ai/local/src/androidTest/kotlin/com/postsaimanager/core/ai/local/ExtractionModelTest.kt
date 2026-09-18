@@ -235,4 +235,6 @@ class ExtractionModelTest {
 private class StubActiveModel(private val path: String) : ActiveModelProvider {
     override suspend fun activeModelPath(): String = path
     override suspend fun activeModelContextTokens(): Int = 4096
+    override suspend fun extractionModelPath(): String = path
+    override suspend fun extractionModelContextTokens(): Int = 4096
 }

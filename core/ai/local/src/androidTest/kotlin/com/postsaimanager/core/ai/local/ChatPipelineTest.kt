@@ -80,6 +80,8 @@ class ChatPipelineTest {
     private class StubActiveModel(private val path: String?) : ActiveModelProvider {
         override suspend fun activeModelPath(): String? = path
         override suspend fun activeModelContextTokens(): Int = 1024
+        override suspend fun extractionModelPath(): String? = path
+        override suspend fun extractionModelContextTokens(): Int = 1024
     }
 
     /**

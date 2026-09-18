@@ -112,9 +112,25 @@ sealed interface AiEngineState {
  * know *which file* to load, not how models are downloaded, verified or stored.
  */
 interface ActiveModelProvider {
-    /** Absolute path of the active model file, or null if none is installed. */
+    /** Absolute path of the chat model file, or null if none is installed. */
     suspend fun activeModelPath(): String?
 
-    /** Context window the active model was catalogued with. */
+    /** Context window the chat model should be loaded with. */
     suspend fun activeModelContextTokens(): Int
+
+    /**
+     * The model that reads documents, which need not be the one that chats.
+     *
+     * They are different jobs. Chat is interactive, so a reply that starts quickly matters
+     * more than a perfect one. Reading a document runs in the background after a scan,
+     * where nobody is waiting and a missed deadline is a real cost — measured on a German
+     * letter, Gemma 4 E2B found the sender, the deadline and both references where
+     * Qwen3.5 2B found no sender and no deadline at all, and took 247 seconds against 164.
+     *
+     * Defaults to [activeModelPath] when the user has not chosen separately, so the common
+     * case stays one model and one load.
+     */
+    suspend fun extractionModelPath(): String?
+
+    suspend fun extractionModelContextTokens(): Int
 }

@@ -504,8 +504,9 @@ useful on its own.*
       two models. **Gemma 4 E2B** reads sender, recipient, contact, both references, the
       deadline and the amount correctly; regex got the recipient and sender wrong; Qwen3.5
       2B finds no sender and misses the deadline.
-- [ ] **7.14.9d** Make Gemma 4 E2B the recommended extractor and let the extractor model be
-      chosen separately from the chat model.
+- [x] **7.14.9d** Gemma 4 marked `recommendedForExtraction`; the reading model is chosen
+      separately from the chat model, defaulting to the same one. Resolution rules live on
+      `InstalledIndex` so they are testable without a `Context`.
 - [ ] **7.14.9e** Confidence is still flat at 0.9 from both models despite explicit banding
       in the prompt. Until it varies, the low-confidence review queue cannot work — consider
       deriving it from agreement between two reads, or from token logprobs.

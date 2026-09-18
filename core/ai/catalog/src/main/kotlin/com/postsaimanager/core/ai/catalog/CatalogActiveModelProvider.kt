@@ -47,8 +47,19 @@ class CatalogActiveModelProvider @Inject constructor(
      * this layer does not have. Task 7.2.9 — measuring peak RSS per model — is what would
      * replace it.
      */
-    override suspend fun activeModelContextTokens(): Int {
-        val catalogued = installedStore.activeModel()?.contextTokens ?: DEFAULT_CONTEXT_TOKENS
+    override suspend fun extractionModelPath(): String? {
+        installedStore.reconcile()
+        return installedStore.extractionModel()?.filePath
+    }
+
+    override suspend fun extractionModelContextTokens(): Int =
+        affordableContext(installedStore.extractionModel()?.contextTokens)
+
+    override suspend fun activeModelContextTokens(): Int =
+        affordableContext(installedStore.activeModel()?.contextTokens)
+
+    private fun affordableContext(catalogued0: Int?): Int {
+        val catalogued = catalogued0 ?: DEFAULT_CONTEXT_TOKENS
         val available = deviceCapability.current().availableRamBytes
 
         val affordable = when {

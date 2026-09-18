@@ -24,6 +24,17 @@ data class AiModelDescriptor(
     /** Required before any download is allowed. See [isInstallable]. */
     val sha256: String? = null,
     val supportsTools: Boolean = false,
+    /**
+     * Suited to reading a document into structured fields, which is a different job from
+     * holding a conversation.
+     *
+     * Measured, not assumed. On a real German letter Gemma 4 E2B identified the sender,
+     * recipient, contact, both reference numbers, the deadline and the amount; Qwen3.5 2B
+     * on the identical prompt found no sender and missed the deadline entirely. Reading is
+     * a one-shot structured task where accuracy is everything and latency barely matters,
+     * since it runs in the background after a scan — the opposite of chat.
+     */
+    val recommendedForExtraction: Boolean = false,
     val description: String? = null,
 ) {
     /**

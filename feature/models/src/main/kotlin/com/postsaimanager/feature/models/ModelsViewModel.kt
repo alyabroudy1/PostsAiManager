@@ -127,6 +127,11 @@ class ModelsViewModel @Inject constructor(
 
     fun setActive(modelId: String) = repository.setActive(modelId)
 
+    fun setExtractionModel(modelId: String) {
+        repository.setExtractionModel(modelId)
+        _message.value = "Documents will be read with this model from now on."
+    }
+
     fun onDownloadFinished(descriptor: AiModelDescriptor, status: ModelDownloadStatus) {
         if (status is ModelDownloadStatus.Complete && status.filePath.isNotBlank()) {
             repository.onDownloadComplete(descriptor, status.filePath)

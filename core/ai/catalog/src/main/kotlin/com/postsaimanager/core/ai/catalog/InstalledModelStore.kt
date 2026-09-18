@@ -17,16 +17,46 @@ import javax.inject.Singleton
 data class InstalledIndex(
     val models: List<InstalledModel> = emptyList(),
     val activeModelId: String? = null,
-)
+    /**
+     * Model used to read documents, when it differs from the chat model.
+     *
+     * Null means "the same one" — the common case, and the reason this is nullable rather
+     * than defaulted to a copy of [activeModelId]. Storing a copy would silently freeze the
+     * extraction choice the first time a user changed their chat model.
+     */
+    val extractionModelId: String? = null,
+) {
+    /**
+     * Resolution rules, kept here rather than in the store so they can be tested without an
+     * Android `Context`. They are decisions about data, and every one of them is a fallback
+     * that decides whether a document gets read at all.
+     */
+    fun chatModel(): InstalledModel? = models.firstOrNull { it.id == activeModelId }
+
+    /**
+     * The model that reads documents.
+     *
+     * Falls back to the chat model when none is chosen, and again when the chosen one has
+     * been uninstalled. Reading a document with a different model than the user picked is a
+     * far better outcome than not reading it at all.
+     */
+    fun readerModel(): InstalledModel? =
+        models.firstOrNull { it.id == extractionModelId } ?: chatModel()
+
+    /** True when one model does both jobs — the default, and one load instead of two. */
+    val sharesOneModel: Boolean
+        get() = extractionModelId == null || extractionModelId == activeModelId
+}
 
 /**
- * Tracks which models are installed, and which one is active.
+ * Tracks which models are installed, which one chats, and which one reads documents.
  *
  * ### Why a JSON file rather than a Room table
  *
- * Adding an entity means bumping the schema version, and `DatabaseModule` still uses
- * `fallbackToDestructiveMigration()` — every schema change wipes **all user documents**
- * (task 11.1). Storing this outside Room avoids forcing that trade now.
+ * The source of truth here is the set of `.gguf` files on disk, not a row. Room would add
+ * a schema version to maintain for data that is really a cache of the filesystem, and a
+ * migration to write every time this index gains a field — [extractionModelId] would have
+ * been one.
  *
  * It is also the more honest model: the source of truth is the set of `.gguf` files that
  * actually exist. [reconcile] drops index entries whose file has vanished — after a
@@ -56,8 +86,10 @@ class InstalledModelStore @Inject constructor(
 
     fun models(): List<InstalledModel> = _state.value.models
 
-    fun activeModel(): InstalledModel? =
-        _state.value.let { index -> index.models.firstOrNull { it.id == index.activeModelId } }
+    fun activeModel(): InstalledModel? = _state.value.chatModel()
+
+    /** See [InstalledIndex.readerModel]. */
+    fun extractionModel(): InstalledModel? = _state.value.readerModel()
 
     fun isInstalled(descriptorId: String): Boolean =
         _state.value.models.any { it.descriptorId == descriptorId }
@@ -79,6 +111,7 @@ class InstalledModelStore @Inject constructor(
             index.models.firstOrNull { it.id == modelId }?.let { File(it.filePath).delete() }
             index.copy(
                 models = remaining,
+                extractionModelId = index.extractionModelId?.takeIf { it != modelId },
                 activeModelId = if (index.activeModelId == modelId) {
                     remaining.firstOrNull()?.id
                 } else {
@@ -93,6 +126,12 @@ class InstalledModelStore @Inject constructor(
         update { it.copy(activeModelId = modelId) }
     }
 
+    /** @param modelId null returns reading to whichever model chats. */
+    fun setExtractionModel(modelId: String?) {
+        if (modelId != null && _state.value.models.none { it.id == modelId }) return
+        update { it.copy(extractionModelId = modelId) }
+    }
+
     /** Drops entries whose backing file no longer exists. */
     fun reconcile() {
         update { index ->
@@ -101,6 +140,10 @@ class InstalledModelStore @Inject constructor(
                 models = present,
                 activeModelId = index.activeModelId?.takeIf { id -> present.any { it.id == id } }
                     ?: present.firstOrNull()?.id,
+                // Cleared rather than repointed: null already means "use the chat model",
+                // which is the right answer when the chosen reader has gone.
+                extractionModelId = index.extractionModelId
+                    ?.takeIf { id -> present.any { it.id == id } },
             )
         }
     }

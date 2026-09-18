@@ -119,6 +119,7 @@ fun ModelsScreen(
                         InstalledCard(
                             entry = entry,
                             onSetActive = { viewModel.setActive(it) },
+                            onSetExtraction = { viewModel.setExtractionModel(it) },
                             onUninstall = { viewModel.uninstall(it) },
                         )
                     }
@@ -198,6 +199,7 @@ private fun OfflineCatalogNotice() {
 private fun InstalledCard(
     entry: CatalogEntry,
     onSetActive: (String) -> Unit,
+    onSetExtraction: (String) -> Unit,
     onUninstall: (String) -> Unit,
 ) {
     Card {
@@ -208,12 +210,15 @@ private fun InstalledCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(entry.descriptor.name, style = MaterialTheme.typography.titleMedium)
-                if (entry.isActive) {
-                    AssistChip(
-                        onClick = {},
-                        label = { Text("Active") },
-                        colors = AssistChipDefaults.assistChipColors(),
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // Two jobs, two chips. A model can hold one, both or neither, and
+                    // "Active" alone could not say which.
+                    if (entry.isActive) {
+                        AssistChip(onClick = {}, label = { Text("Chat") })
+                    }
+                    if (entry.isExtractionModel) {
+                        AssistChip(onClick = {}, label = { Text("Reads documents") })
+                    }
                 }
             }
             Text(
@@ -222,10 +227,27 @@ private fun InstalledCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (entry.descriptor.recommendedForExtraction && !entry.isExtractionModel) {
+                // Said plainly, because the difference is not obvious from a model name and
+                // the gain is concrete: on a real letter this is the difference between
+                // capturing a deadline and missing it.
+                Text(
+                    "Better at reading documents than at chatting. Measured on a German " +
+                        "letter, it found the sender and the deadline where a smaller model " +
+                        "found neither.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!entry.isActive) {
                     Button(onClick = { entry.installed?.let { onSetActive(it.id) } }) {
-                        Text("Use this model")
+                        Text("Use for chat")
+                    }
+                }
+                if (!entry.isExtractionModel) {
+                    OutlinedButton(onClick = { entry.installed?.let { onSetExtraction(it.id) } }) {
+                        Text("Use for reading")
                     }
                 }
                 TextButton(onClick = { entry.installed?.let { onUninstall(it.id) } }) {

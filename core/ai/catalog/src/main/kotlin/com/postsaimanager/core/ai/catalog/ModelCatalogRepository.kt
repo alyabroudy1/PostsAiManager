@@ -18,7 +18,10 @@ data class CatalogEntry(
     val descriptor: AiModelDescriptor,
     val fit: ModelFit,
     val installed: InstalledModel?,
+    /** Chats with the user. */
     val isActive: Boolean,
+    /** Reads scanned documents. The same model as [isActive] unless the user split them. */
+    val isExtractionModel: Boolean = false,
 ) {
     val isInstalled: Boolean get() = installed != null
 }
@@ -70,6 +73,8 @@ class ModelCatalogRepository @Inject constructor(
                         fit = ModelFit.evaluate(descriptor, capability),
                         installed = installed,
                         isActive = installed != null && installed.id == index.activeModelId,
+                        isExtractionModel = installed != null &&
+                            installed.id == (index.extractionModelId ?: index.activeModelId),
                     )
                 },
                 capability = capability,
@@ -105,6 +110,9 @@ class ModelCatalogRepository @Inject constructor(
     fun uninstall(modelId: String) = installedStore.remove(modelId)
 
     fun setActive(modelId: String) = installedStore.setActive(modelId)
+
+    /** @param modelId null returns reading to whichever model chats. */
+    fun setExtractionModel(modelId: String?) = installedStore.setExtractionModel(modelId)
 
     val activeModel: Flow<InstalledModel?> =
         installedStore.installed.map { index ->

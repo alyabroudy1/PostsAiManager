@@ -76,6 +76,17 @@ class BundledCatalogTest {
     }
 
     @Test
+    @DisplayName("a model is recommended for reading documents")
+    fun `at least one extraction model is offered`() {
+        val readers = BundledCatalog.models.filter { it.recommendedForExtraction }
+
+        // Without one, a user has no signal that reading and chatting want different
+        // models, and the app quietly reads letters with whatever they picked for chat.
+        assertThat(readers).isNotEmpty()
+        assertThat(readers.map { it.family }).contains("Gemma")
+    }
+
+    @Test
     fun `the range spans small and capable devices`() {
         val sizes = BundledCatalog.models.map { it.sizeBytes }
         // Only offering large models makes the app useless on a cheap phone; only small

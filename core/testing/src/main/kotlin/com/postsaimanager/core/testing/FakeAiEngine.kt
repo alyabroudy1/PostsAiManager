@@ -81,7 +81,11 @@ class FakeAiEngine(
 class FakeActiveModelProvider(
     var path: String? = "/data/local/tmp/fake-model.gguf",
     var contextTokens: Int = 4096,
+    /** Null means "same as the chat model", which is the default the app ships. */
+    var extractionPath: String? = null,
 ) : com.postsaimanager.core.domain.ai.ActiveModelProvider {
     override suspend fun activeModelPath(): String? = path
     override suspend fun activeModelContextTokens(): Int = contextTokens
+    override suspend fun extractionModelPath(): String? = extractionPath ?: path
+    override suspend fun extractionModelContextTokens(): Int = contextTokens
 }

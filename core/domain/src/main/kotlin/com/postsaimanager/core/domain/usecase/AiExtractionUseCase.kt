@@ -56,13 +56,19 @@ class AiExtractionUseCase @Inject constructor(
     ): PamResult<DocumentUnderstanding> {
         if (blocks.isEmpty()) return PamResult.Success(DocumentUnderstanding())
 
-        val window = contextTokens ?: activeModelProvider.activeModelContextTokens()
+        val window = contextTokens ?: activeModelProvider.extractionModelContextTokens()
 
         // Loaded on demand, like the chat path. Processing usually runs in the background
         // straight after a scan, when nothing has had reason to load a model yet — failing
         // here because the user has not opened chat would be arbitrary.
+        //
+        // When the reading model differs from the chat model this reload is not free: the
+        // engine holds one model at a time, so alternating between reading a document and
+        // answering a question pays a load each way. Acceptable because reading is
+        // background work and the default is a single shared model; if it becomes a problem
+        // the answer is scheduling, not two engines in memory at once.
         if (!engine.isReady) {
-            val path = activeModelProvider.activeModelPath()
+            val path = activeModelProvider.extractionModelPath()
                 ?: return PamResult.Error(PamError.ModelNotLoaded("document understanding"))
             val loaded = engine.load(path, window)
             if (loaded is PamResult.Error) return loaded

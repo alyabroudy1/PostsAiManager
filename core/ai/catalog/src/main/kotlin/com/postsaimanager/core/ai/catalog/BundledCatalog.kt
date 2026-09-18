@@ -117,6 +117,7 @@ object BundledCatalog {
             downloadUrl = "https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/" +
                 "resolve/$GEMMA4_E2B_REV/gemma-4-E2B_q4_0-it.gguf",
             sha256 = "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
+            recommendedForExtraction = true,
             // No native tool-calling template; grammar-constrained decoding covers it, which
             // is what the tool layer was designed around anyway.
             supportsTools = false,
@@ -137,6 +138,7 @@ object BundledCatalog {
             downloadUrl = "https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/" +
                 "resolve/$GEMMA4_E4B_REV/gemma-4-E4B_q4_0-it.gguf",
             sha256 = "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
+            recommendedForExtraction = true,
             supportsTools = false,
             description = "The best understanding of a document available on-device, and the " +
                 "most reliable at identifying people and organisations. Needs a high-end " +
