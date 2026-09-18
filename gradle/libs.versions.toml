@@ -69,6 +69,8 @@ turbine = "1.2.0"
 mockk = "1.13.13"
 robolectric = "4.14.1"
 truth = "1.4.4"
+# Latest stable per Maven Central as of 2026-09-18 (no release since Dec 2024 — see report).
+konsist = "0.17.3"
 
 # AndroidX
 coreKtx = "1.15.0"
@@ -163,6 +165,7 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
+konsist = { group = "com.lemonappdev", name = "konsist", version.ref = "konsist" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

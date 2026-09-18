@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.postsaimanager.core.data.database.PamDatabase
 import com.postsaimanager.core.data.database.PamMigrations
 import com.postsaimanager.core.data.database.dao.ConversationDao
+import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.data.database.dao.DocumentChunkDao
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
@@ -59,4 +60,8 @@ object DatabaseModule {
     @Provides
     fun provideFieldRevisionDao(database: PamDatabase): FieldRevisionDao =
         database.fieldRevisionDao()
+
+    @Provides
+    fun provideDismissedEntityDao(database: PamDatabase): DismissedEntityDao =
+        database.dismissedEntityDao()
 }

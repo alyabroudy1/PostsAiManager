@@ -3,6 +3,7 @@ package com.postsaimanager.core.data.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.postsaimanager.core.data.database.dao.ConversationDao
+import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.data.database.dao.DocumentChunkDao
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
@@ -27,8 +28,9 @@ import com.postsaimanager.core.data.database.entity.*
         ReminderEntity::class,
         DocumentChunkEntity::class,
         FieldRevisionEntity::class,
+        DismissedEntityEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class PamDatabase : RoomDatabase() {
@@ -39,6 +41,7 @@ abstract class PamDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
     abstract fun documentChunkDao(): DocumentChunkDao
     abstract fun fieldRevisionDao(): FieldRevisionDao
+    abstract fun dismissedEntityDao(): DismissedEntityDao
 
     companion object {
         const val DATABASE_NAME = "pam_database"

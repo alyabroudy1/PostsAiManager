@@ -47,6 +47,7 @@ class DocumentProcessingPipeline @Inject constructor(
     private val indexDocument: IndexDocumentUseCase,
     private val mergeExtraction: MergeExtractionUseCase,
     private val aiExtraction: AiExtractionUseCase,
+    private val entityProfileLinker: EntityProfileLinker,
     private val fieldRevisionDao: FieldRevisionDao,
     private val documentMapper: DocumentMapper,
     private val documentDao: DocumentDao,
@@ -222,6 +223,28 @@ class DocumentProcessingPipeline @Inject constructor(
                             createdAt = now,
                         )
                     )
+                }
+
+                // Step 5b: Turn what the model recognised into profiles and links.
+                //
+                // Only possible when the model ran — the pattern extractor never produces
+                // RecognisedEntity values, so understanding.data.entities would be empty
+                // anyway. Wrapped the same way indexing is: a document the user scanned is
+                // complete without this, so a failure here is logged and the document
+                // proceeds exactly as if no entities had been found.
+                if (understanding is PamResult.Success && usedModel) {
+                    runCatching {
+                        entityProfileLinker.process(documentId, understanding.data)
+                    }.onSuccess { outcome ->
+                        Log.i(
+                            TAG,
+                            "profiles for $documentId linked=${outcome.linked} " +
+                                "created=${outcome.created} proposals=${outcome.proposals.size} " +
+                                "dismissed=${outcome.ignoredAsDismissed}",
+                        )
+                    }.onFailure { e ->
+                        Log.w(TAG, "entity linking failed for $documentId: ${e.message}")
+                    }
                 }
 
                 // Update document with detected type, language, and subject

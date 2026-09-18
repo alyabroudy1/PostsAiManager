@@ -26,6 +26,9 @@ rootProject.name = "PostsAiManager"
 // App
 include(":app")
 
+// Architecture enforcement — scans the whole tree, so it must see every module's sources.
+include(":architecture-test")
+
 // Core
 include(":core:common")
 include(":core:model")

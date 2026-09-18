@@ -78,6 +78,40 @@ data class ProfileEntity(
     val avatarPath: String?,
     @ColumnInfo(index = true) val createdAt: Long,
     val modifiedAt: Long,
+    /** See [com.postsaimanager.core.model.Profile.sourceDocumentId]. */
+    val sourceDocumentId: String? = null,
+    val sourceEntityName: String? = null,
+)
+
+/**
+ * A recognised entity the user has said no to for one document — either by dismissing a
+ * proposal outright, or by deleting a profile [EntityLinkingUseCase] auto-created from it.
+ *
+ * Mirrors `extracted_data.deletedByUser`: without this, [DocumentProcessingPipeline]
+ * re-running on the same document would have no memory of the refusal, and would recreate or
+ * re-propose the exact thing the user just removed on every subsequent scan.
+ *
+ * Keyed by (documentId, entityName) rather than a profile id, because a dismissed *proposal*
+ * never had a profile to key on in the first place.
+ */
+@Entity(
+    tableName = "dismissed_entities",
+    primaryKeys = ["documentId", "entityName"],
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("documentId")],
+)
+data class DismissedEntityEntity(
+    val documentId: String,
+    /** Normalised (trimmed, lower-cased) — see `EntityProfileLinker.normalise`. */
+    val entityName: String,
+    val dismissedAt: Long,
 )
 
 @Entity(

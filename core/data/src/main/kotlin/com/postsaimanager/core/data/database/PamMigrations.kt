@@ -146,5 +146,39 @@ object PamMigrations {
         }
     }
 
-    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+    /**
+     * Lets recognised entities become profiles and links, and lets a "no" stick (Phase 7.14.11).
+     *
+     * `sourceDocumentId`/`sourceEntityName` record which document and entity a profile was
+     * machine-created from. Without them, deleting a profile the AI created has no way to stop
+     * the next reprocess of that same document from creating it right back — the same
+     * "argues with the user every run" failure `extracted_data.deletedByUser` already fixed
+     * for fields. `dismissed_entities` is the equivalent tombstone for a proposal the user
+     * declined outright, before any profile ever existed to delete.
+     */
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `profiles` ADD COLUMN `sourceDocumentId` TEXT")
+            db.execSQL("ALTER TABLE `profiles` ADD COLUMN `sourceEntityName` TEXT")
+
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `dismissed_entities` (
+                    `documentId` TEXT NOT NULL,
+                    `entityName` TEXT NOT NULL,
+                    `dismissedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`documentId`, `entityName`),
+                    FOREIGN KEY(`documentId`) REFERENCES `documents`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_dismissed_entities_documentId` " +
+                    "ON `dismissed_entities` (`documentId`)",
+            )
+        }
+    }
+
+    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 }

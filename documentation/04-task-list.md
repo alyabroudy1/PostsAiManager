@@ -471,7 +471,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` cut
 
 ### 7.15 Architecture enforcement
 
-- [ ] **7.15.1** 🔴 Add Konsist (or a Gradle dependency assertion) proving the two structural
+- [x] **7.15.1** Konsist enforces four rules — feature→domain, the two online-provider
+      guarantees, and domain purity. Suppressions are per-file *and* per-import, and
+      distinguish "temporary, must shrink" from "sanctioned". Proven by deliberately breaking
+      the domain-purity rule and watching it fail. *Was: Add Konsist (or a Gradle dependency assertion) proving the two structural
       guarantees and the feature→domain rule. *The README claimed this existed; it did not.
       The guarantees hold by module graph today, but one dependency line would undo them
       silently.*
@@ -480,6 +483,14 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` cut
       want domain ports.*
 - [ ] **7.15.3** Set up CI so the above runs on every change rather than when someone thinks
       to look.
+- [ ] **7.15.4** Build the `PamLogger` abstraction §11.7 prescribes. *It is referenced by the
+      architecture doc and by the domain-purity guard's failure message, but does not exist —
+      so the rule currently tells a developer to use something unavailable. Until it lands,
+      the domain carries diagnostics in `PamError` instead.*
+- [ ] **7.15.5** `pam.test-conventions` cannot be applied to a non-Android module: it
+      unconditionally adds `project(":core:testing")`, an Android library whose variants are
+      `androidJvm`-attributed, so a plain JVM consumer fails variant resolution.
+      *`:architecture-test` wires JUnit 5 by hand as a result.*
 
 ### 7.14 Document understanding (entities, profiles, layout)
 
@@ -536,9 +547,16 @@ useful on its own.*
       JSON. Qwen3.5 emits `<think>`; forcing it straight into JSON fights its training.
 - [ ] **7.14.9g** Drop duplicate facts that differ only by label ("Regelleistung Betrag" vs
       "Regelleistung voraussichtlich").
-- [ ] **7.14.11** Profile creation and linking. *High confidence links silently, low
-      confidence proposes — an auto-created profile from a half-read name is clutter the
-      user has to undo.*
+- [x] **7.14.11** Profile creation and linking. `EntityLinkingUseCase` holds the decision
+      table (pure, JVM-testable); `EntityProfileLinker` executes it. **Role gates the action,
+      not confidence alone** — this is the resolution of 7.14.9h.
+- [ ] **7.14.11b** 🔴 **Proposals go nowhere.** `Propose` results are computed, counted in a
+      log line and discarded, so Sam and Layla are silently ignored rather than offered. The
+      `Propose` branch is effectively dead in production. Needs persistence plus a pending-
+      suggestions surface. *My spec said "wire into the pipeline" without saying where
+      proposals land — the gap is in the spec, not the implementation.*
+- [ ] **7.14.11c** Nothing in the app calls `deleteProfile`, so the tombstone-on-delete that
+      makes a deleted machine profile stay deleted is exercised only by tests.
 - [ ] **7.14.12** Contact persons belong to their organisation's profile, not standalone.
 - [ ] **7.14.13** "Me" is never given a profile — the recipient is recognised, not created.
 - [ ] **7.14.14** Real per-field confidence from the model, replacing the per-field-type

@@ -130,6 +130,80 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate4To5_preservesExistingProfilesAndLinks() {
+        helper.createDatabase(TEST_DB, 4).apply {
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite,
+                     createdAt, modifiedAt, syncStatus)
+                VALUES ('doc-1', 'Bescheid', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL')
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO profiles
+                    (id, type, name, organization, department, street, city, postalCode,
+                     country, phone, email, website, reference, notes, completionScore,
+                     missingFields, avatarPath, createdAt, modifiedAt)
+                VALUES
+                    ('p1', 'AUTHORITY', 'Jobcenter Berlin Mitte', 'Jobcenter Berlin Mitte',
+                     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0,
+                     NULL, NULL, 1, 1)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 5, true, PamMigrations.MIGRATION_4_5,
+        )
+
+        // A profile scanned before this migration existed is still there, with the two new
+        // provenance columns simply unset — exactly what "additive" is supposed to mean.
+        db.query("SELECT id, name, sourceDocumentId, sourceEntityName FROM profiles").use { cursor ->
+            assertTrue("the profile was lost in migration", cursor.moveToFirst())
+            assertEquals("p1", cursor.getString(0))
+            assertEquals("Jobcenter Berlin Mitte", cursor.getString(1))
+            assertTrue("sourceDocumentId should be NULL for a pre-existing profile", cursor.isNull(2))
+            assertTrue("sourceEntityName should be NULL for a pre-existing profile", cursor.isNull(3))
+        }
+    }
+
+    @Test
+    fun migrate4To5_dismissedEntitiesTableWorksAndCascades() {
+        helper.createDatabase(TEST_DB, 4).apply {
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite,
+                     createdAt, modifiedAt, syncStatus)
+                VALUES ('doc-1', 'Bescheid', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL')
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 5, true, PamMigrations.MIGRATION_4_5,
+        )
+        db.execSQL("PRAGMA foreign_keys = ON")
+        db.execSQL(
+            "INSERT INTO dismissed_entities (documentId, entityName, dismissedAt) " +
+                "VALUES ('doc-1', 'layla', 1)",
+        )
+
+        db.execSQL("DELETE FROM documents WHERE id = 'doc-1'")
+
+        // A dismissal outliving its document would mean a *different* document that happens
+        // to reuse the same id inherits someone else's refusal.
+        db.query("SELECT COUNT(*) FROM dismissed_entities").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("dismissals outlived their document", 0, cursor.getInt(0))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

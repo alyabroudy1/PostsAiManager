@@ -79,25 +79,14 @@ class ProfileMatcher @Inject constructor(
         address: String?,
         documentId: String,
     ): ProfileSuggestion? {
-        val searchName = organization ?: name ?: return null
-
-        // Search existing profiles
-        val similar = profileRepository.findSimilarProfiles(searchName, organization).getOrNull() ?: emptyList()
-
-        // Score EVERY candidate and take the highest. Previously `similar.first()` was
-        // taken before any scoring, so the "best match" was whatever order Room happened
-        // to return — a perfect match further down the list was silently ignored.
-        val best = similar
-            .map { it to calculateMatchConfidence(it, name, organization, email) }
-            .maxByOrNull { it.second }
+        if (organization == null && name == null) return null
+        val (bestMatch, confidence) = findBestMatch(name, organization, email)
 
         // A candidate is only worth showing if it actually resembles the extracted party.
         // The old code branched on `similar.isNotEmpty()`, so a 0-confidence row was
         // presented as a POSSIBLE_MATCH and the user was asked to confirm a link between
         // two entirely unrelated organisations.
-        if (best != null && best.second >= MIN_SUGGESTION_CONFIDENCE) {
-            val (bestMatch, confidence) = best
-
+        if (bestMatch != null && confidence >= MIN_SUGGESTION_CONFIDENCE) {
             return ProfileSuggestion(
                 role = role,
                 matchType = if (confidence >= EXACT_MATCH_CONFIDENCE) {
@@ -131,6 +120,43 @@ class ProfileMatcher @Inject constructor(
             documentId = documentId,
             isAutoLinked = false,
         )
+    }
+
+    /**
+     * The best-scoring existing profile for a name/organization pair, or null with 0f when
+     * nothing in the database resembles it at all.
+     *
+     * Shared by the extracted-field flow above and [com.postsaimanager.core.data.repository]'s
+     * entity-based linker (`EntityProfileLinker`), so an AI-recognised entity and a
+     * pattern-extracted field are scored by exactly the same rules — one similarity
+     * implementation, not two that could quietly drift apart.
+     */
+    suspend fun findBestMatch(
+        name: String?,
+        organization: String?,
+        email: String? = null,
+        /**
+         * Restricts which [ProfileType]s are eligible, applied *before* scoring rather than
+         * to the winner after. `findSimilarProfiles` matches on the `organization` column
+         * alone with no notion of type, so an organisation's own profile and a caseworker's
+         * profile at that organisation can tie on an organisation-only search — filtering
+         * only the winner would risk keeping the wrong one of the two on that tie; filtering
+         * the pool first means the runner-up is still found instead of nothing at all.
+         */
+        profileType: ((ProfileType) -> Boolean)? = null,
+    ): Pair<Profile?, Float> {
+        val searchName = organization ?: name ?: return null to 0f
+        val similar = profileRepository.findSimilarProfiles(searchName, organization).getOrNull() ?: emptyList()
+        val candidates = if (profileType != null) similar.filter { profileType(it.type) } else similar
+
+        // Score EVERY candidate and take the highest. Taking `similar.first()` before any
+        // scoring meant the "best match" was whatever order Room happened to return — a
+        // perfect match further down the list was silently ignored.
+        val best = candidates
+            .map { it to calculateMatchConfidence(it, name, organization, email) }
+            .maxByOrNull { it.second }
+
+        return best?.first to (best?.second ?: 0f)
     }
 
     private fun calculateMatchConfidence(

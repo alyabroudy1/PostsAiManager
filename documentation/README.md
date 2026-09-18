@@ -34,7 +34,7 @@ ordered the way they are.
 | Build | `assembleDebug` **BUILD SUCCESSFUL** | 2026-08-07 |
 | Debug APK — before | 300.4 MB (4 ABIs, 173.8 MB assets) | 2026-08-07 |
 | Debug APK — after | **110.2 MB** — parser cut + `abiFilters` → **−190.2 MB (−63%)** | 2026-08-07 |
-| Unit tests | **566 passing, 0 failing** | 2026-08-09 |
+| Unit tests | **620 passing, 0 failing** | 2026-08-09 |
 | Test capability | 18 / 18 modules via `pam.test-conventions` | 2026-08-07 |
 | Defects found by tests | 7 fixed, 2 pinned open | 2026-08-07 |
 | ✅ Reprocessing data loss | **Fixed** — provenance + merge + revision history, schema v3, migrated on-device with no loss | 2026-08-09 |
@@ -131,9 +131,10 @@ See [01-findings-report.md](01-findings-report.md) for the evidence behind each 
 Not promises — **module dependency facts**. The compiler enforces them: a module that does
 not declare a dependency cannot import from it.
 
-⚠️ **Nothing stops them being broken.** Konsist is not in the project and there is no CI, so
-a future dependency line would silently undo either guarantee. Adding that check is
-[task 11.x](04-task-list.md) and is the difference between a guarantee and a habit.
+✅ **Enforced** by `:architecture-test` (Konsist), which also pins two more: features may see
+only the domain, and `:core:domain` imports nothing from `android.*`. Suppressions are
+per-import and say whether they are temporary or sanctioned. Still missing CI, so the guard
+runs when someone runs it — [task 7.15.3](04-task-list.md).
 
 1. **An online provider cannot read a document.** `:core:ai:online` has no dependency on
    `:core:data`.

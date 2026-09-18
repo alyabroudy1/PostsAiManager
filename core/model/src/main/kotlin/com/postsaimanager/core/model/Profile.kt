@@ -25,6 +25,16 @@ data class Profile(
     val completionScore: Float = 0f,
     val missingFields: List<String> = emptyList(),
     val avatarPath: String? = null,
+    /**
+     * The document and entity name that machine-created this profile, or null for one a
+     * person created directly.
+     *
+     * Recorded so a deletion can be turned into a tombstone (see `EntityLinkingUseCase`):
+     * without it, reprocessing the same document would have no way to know the user already
+     * rejected this profile, and would silently recreate it.
+     */
+    val sourceDocumentId: String? = null,
+    val sourceEntityName: String? = null,
     val createdAt: Long,
     val modifiedAt: Long,
 )
