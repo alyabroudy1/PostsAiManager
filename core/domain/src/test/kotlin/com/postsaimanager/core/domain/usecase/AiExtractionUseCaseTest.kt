@@ -60,6 +60,22 @@ class AiExtractionUseCaseTest {
          ]}
     """.trimIndent()
 
+    // Mirrors the real device failure this whole mechanism exists for: a well-formed answer
+    // with two entities and two complete facts, cut off mid-way through a third fact's value.
+    // Before the salvage path existed this discarded everything — both entities and both
+    // finished facts — and fell back to the regex extractor with no explanation on screen.
+    private val truncatedAnswer = """
+        {"language":"de","documentType":"Bescheid","subject":"Widerspruch",
+         "entities":[
+           {"name":"Jobcenter Berlin Mitte","kind":"AUTHORITY","role":"SENDER","relation":"","confidence":0.95},
+           {"name":"Aylin Mustermann","kind":"PERSON","role":"RECIPIENT","relation":"","confidence":0.9}
+         ],
+         "facts":[
+           {"label":"Aktenzeichen","value":"BG 1234/5678","kind":"REFERENCE","confidence":0.92},
+           {"label":"Frist","value":"31.01.2026","kind":"DEADLINE","confidence":0.85},
+           {"label":"Regelleistung","value":"502,00 EUR pro Monat ab dem naechsten M
+    """.trimIndent()
+
     @Nested
     @DisplayName("What the model is asked")
     inner class Request {
@@ -179,6 +195,18 @@ class AiExtractionUseCaseTest {
                 .containsExactly("Jobcenter Berlin Mitte", "Aylin Mustermann")
             assertThat(result.needingReview().map { it.name }).containsExactly("Layla")
         }
+
+        @Test
+        @DisplayName("a complete answer is not marked as truncated")
+        fun `complete answer is not flagged`() = runTest {
+            engine.response = goodAnswer
+
+            val result = (extract(page) as PamResult.Success).data
+
+            // The flag exists so a caller can tell a partial reading from a full one. A
+            // false positive here would make every ordinary result look suspect.
+            assertThat(result.truncated).isFalse()
+        }
     }
 
     @Nested
@@ -188,7 +216,9 @@ class AiExtractionUseCaseTest {
         @Test
         fun `truncated json is an error, not a crash`() = runTest {
             // The grammar prevents malformed output but not output cut off at the token
-            // limit, which is valid-so-far and not valid JSON.
+            // limit, which is valid-so-far and not valid JSON. This cut lands before even
+            // one entity finished, so there is nothing for the salvage path to recover
+            // either — it must fall through to the same error as before, not crash trying.
             engine.response = """{"language":"de","entities":[{"name":"Jobcen"""
 
             assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
@@ -280,6 +310,64 @@ class AiExtractionUseCaseTest {
 
             assertThat((extract(page) as PamResult.Success).data.entities.single().confidence)
                 .isAtMost(1f)
+        }
+    }
+
+    @Nested
+    @DisplayName("Recovering a truncated answer")
+    inner class Salvaging {
+
+        @Test
+        @DisplayName("keeps the entities and facts the model had already finished")
+        fun `salvages the complete prefix of a cut-off answer`() = runTest {
+            // The bug on a real device: a legal answer cut off mid-way through the seventh
+            // fact discarded six complete facts and every entity along with it, and the
+            // user saw the regex fallback's worse fields with nothing explaining why.
+            engine.response = truncatedAnswer
+
+            val result = (extract(page) as PamResult.Success).data
+
+            assertThat(result.truncated).isTrue()
+            assertThat(result.entities.map { it.name })
+                .containsExactly("Jobcenter Berlin Mitte", "Aylin Mustermann")
+            // The third fact was cut mid-value and is gone, not garbled into the other two.
+            assertThat(result.facts.map { it.label }).containsExactly("Aktenzeichen", "Frist")
+        }
+
+        @Test
+        @DisplayName("with nothing complete, still reports the original parse error")
+        fun `does not salvage when the cut lands before anything finished`() = runTest {
+            // The failure a naive "always return what we can" fix would cause: turning a
+            // model that produced nothing usable at all into a silent, empty success would
+            // hide that from the user entirely instead of falling back to patterns.
+            engine.response = """{"language":"de","documentType":"Bescheid ueber Leistungsanspr"""
+
+            assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
+        }
+    }
+
+    @Nested
+    @DisplayName("Token budget")
+    inner class TokenBudget {
+
+        @Test
+        @DisplayName("MAX_TOKENS covers the grammar's own worst-case answer, with headroom")
+        fun `token budget and grammar bounds agree`() {
+            // The defect this guards against: MAX_ENTITIES and MAX_FACTS bound the grammar,
+            // but nothing forced MAX_TOKENS to be big enough for a legal answer at those
+            // bounds. A real device produced exactly that — a well-formed, schema-valid
+            // answer generation still cut off — because 8 entities and 10 facts add up to
+            // more JSON than 768 tokens can hold. If a future change raises either bound
+            // without raising MAX_TOKENS to match, this fails instead of shipping the same
+            // bug again.
+            val worstCaseTokens = (AiExtractionUseCase.MAX_ANSWER_CHARS +
+                AiExtractionUseCase.CHARS_PER_TOKEN - 1) / AiExtractionUseCase.CHARS_PER_TOKEN
+
+            assertThat(AiExtractionUseCase.MAX_TOKENS).isAtLeast(worstCaseTokens)
+            // Not just "fits" but "fits comfortably" — a budget sized to the exact worst
+            // case leaves no room for the model's own formatting choices (extra whitespace,
+            // a slightly longer name than assumed) before the same failure returns.
+            assertThat(AiExtractionUseCase.MAX_TOKENS).isAtLeast((worstCaseTokens * 1.1).toInt())
         }
     }
 }

@@ -88,6 +88,17 @@ data class DocumentUnderstanding(
     val subject: String = "",
     val entities: List<RecognisedEntity> = emptyList(),
     val facts: List<RecognisedFact> = emptyList(),
+    /**
+     * True when the model's answer was cut off before it finished, and this is only the
+     * well-formed prefix that could be recovered — not the complete reading.
+     *
+     * A caller must not treat this the same as a normal result: entities and facts the
+     * model would have gone on to find are simply absent here, not merely low-confidence,
+     * and that is a different thing to tell the user than "the document has no deadline".
+     * Left `false` on every ordinary result, including one where the model itself decided
+     * there was nothing to report.
+     */
+    val truncated: Boolean = false,
 ) {
     val sender: RecognisedEntity? get() = entities.firstOrNull { it.role == EntityRole.SENDER }
 

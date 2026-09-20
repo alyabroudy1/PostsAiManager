@@ -119,6 +119,10 @@ class AiExtractionUseCase @Inject constructor(
      * The grammar makes malformed JSON impossible, but not impossible to *truncate*: a model
      * that hits [MAX_TOKENS] mid-object leaves valid-so-far text that is not valid JSON. So
      * this still has to fail gracefully rather than assume.
+     *
+     * A straight parse failure is not the end: [salvage] tries once to recover whatever
+     * entities and facts were already complete before the cut. Only if that finds nothing
+     * usable does this report the original error.
      */
     private fun parse(raw: String, pageText: String): PamResult<DocumentUnderstanding> {
         val text = raw.trim()
@@ -130,6 +134,9 @@ class AiExtractionUseCase @Inject constructor(
             val parsed = json.decodeFromString(DocumentUnderstanding.serializer(), text)
             PamResult.Success(sanitise(parsed, pageText))
         } catch (e: Exception) {
+            salvage(text)?.let { recovered ->
+                return PamResult.Success(sanitise(recovered, pageText).copy(truncated = true))
+            }
             // Carries a slice of the answer, not just the parser's complaint. Whether the
             // model produced sense that was cut off or nonsense that parsed is the whole
             // diagnosis, and without it the failure is invisible at the call site.
@@ -145,6 +152,86 @@ class AiExtractionUseCase @Inject constructor(
                 ),
             )
         }
+    }
+
+    /**
+     * Recovers the entities and facts the model had already finished before generation was
+     * cut off, discarding whatever came after the last complete one.
+     *
+     * ### What this is
+     *
+     * [closeAtLastCompleteElement] finds the last point in the text where a whole entity or
+     * fact object had just been closed while its array was still open, cuts there, and
+     * closes whatever braces/brackets were still open at that point. That is valid JSON
+     * built only from text the model actually finished writing.
+     *
+     * ### What this deliberately does not do
+     *
+     * This is not a JSON repair library. It does not fix a broken value, complete a
+     * half-written string, guess a missing field, or salvage anything from inside a
+     * partially-written element — only whole elements survive. If `language`,
+     * `documentType` or `subject` themselves were cut short (they come first in the
+     * grammar, so this only happens on a very early truncation), or if not even one entity
+     * or fact was completed, [closeAtLastCompleteElement] finds no safe cut point and this
+     * returns null — callers fall back to reporting the original parse error.
+     */
+    private fun salvage(text: String): DocumentUnderstanding? {
+        val closed = closeAtLastCompleteElement(text) ?: return null
+        return try {
+            json.decodeFromString(DocumentUnderstanding.serializer(), closed)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Scans [text] tracking brace/bracket nesting and string/escape state, and remembers the
+     * index right after every `}` that closes one whole array element (an entity or a fact)
+     * while that array is still open. The last such index is the safest place to cut: it is
+     * the most that could have been written and still be a set of complete elements.
+     *
+     * Returns the text up to that cut, followed by the closing braces/brackets needed to
+     * balance whatever containers were still open at that point — or null if no element was
+     * ever completed, or the brackets are malformed and cutting anywhere would be a guess.
+     */
+    private fun closeAtLastCompleteElement(text: String): String? {
+        val stack = mutableListOf<Char>()
+        var inString = false
+        var escaped = false
+        var lastCutIndex: Int? = null
+        var lastCutStack: List<Char>? = null
+
+        for (i in text.indices) {
+            val c = text[i]
+            if (inString) {
+                when {
+                    escaped -> escaped = false
+                    c == '\\' -> escaped = true
+                    c == '"' -> inString = false
+                }
+                continue
+            }
+            when (c) {
+                '"' -> inString = true
+                '{', '[' -> stack.add(c)
+                '}' -> {
+                    if (stack.removeLastOrNull() != '{') return null
+                    if (stack.lastOrNull() == '[') {
+                        lastCutIndex = i + 1
+                        lastCutStack = stack.toList()
+                    }
+                }
+                ']' -> {
+                    if (stack.removeLastOrNull() != '[') return null
+                }
+            }
+        }
+
+        val cut = lastCutIndex ?: return null
+        val remainingOpen = lastCutStack ?: return null
+        val closingSuffix = remainingOpen.asReversed()
+            .joinToString("") { if (it == '{') "}" else "]" }
+        return text.substring(0, cut) + closingSuffix
     }
 
     /**
@@ -192,9 +279,105 @@ class AiExtractionUseCase @Inject constructor(
     companion object {
         private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-        private const val CHARS_PER_TOKEN = 3
-        private const val MAX_TOKENS = 768
-        private const val SYSTEM_PROMPT_TOKENS = 320
+        /**
+         * Conservative chars-per-token, same estimate and same direction of error as
+         * `BuildChatContextUseCase` uses for the input side: German compounds tokenise
+         * worse than this assumes, so it under-counts how many tokens a given amount of
+         * text needs — safe for a *budget* in both directions, since that means we never
+         * assume we have more room (input) or need fewer tokens (output) than we really do.
+         */
+        internal const val CHARS_PER_TOKEN = 3
+
+        // ── How many entities/facts the grammar permits ──
+        //
+        // These two numbers are read from three places — the grammar's own repetition
+        // bounds below, the prompt text telling the model its limit, and the worst-case
+        // arithmetic that sizes MAX_TOKENS — so there is exactly one place to change them
+        // and nowhere for the three to quietly disagree again.
+        //
+        // Bounded at all, rather than left open, because an unbounded list is what caused
+        // the *other* failure mode this file has seen: a 2B model reading a one-page letter
+        // emitted fourteen entities and was still going when it hit the token limit,
+        // producing text that was valid right up to the point it stopped and therefore
+        // unparseable. A grammar that cannot run away also produces a better answer, since
+        // the model has to choose what matters instead of listing every capitalised phrase.
+        internal const val MAX_ENTITIES = 8
+        internal const val MAX_FACTS = 10
+
+        // ── Worst-case answer size, in characters ──
+        //
+        // A grammar constrains *shape*: it cannot bound how long `name` or `relation` gets,
+        // since `string` is `char*` with no length limit, and it cannot bound how much
+        // whitespace the model spends on `ws`. So "worst case" below is not the absolute
+        // worst the grammar permits — that is unbounded — it is a realistic ceiling built
+        // from the longest content this schema actually calls for, lightly spaced the way
+        // every model tried on device formats its answers (see `goodAnswer` in
+        // AiExtractionUseCaseTest). A model that ignores realistic field lengths entirely
+        // could still overflow this; see the report for that residual risk.
+        //
+        // One maximal entity, e.g.:
+        //   {"name": "Bundesagentur für Arbeit Regionaldirektion Sachsen",
+        //    "kind": "AUTHORITY", "role": "SENDER_CONTACT",
+        //    "relation": "authorized representative of the recipient", "confidence": 0.95}
+        //   = 187 characters, rounded up for safety margin.
+        internal const val MAX_ENTITY_JSON_CHARS = 190
+
+        // One maximal fact, e.g.:
+        //   {"label": "Bedarfsgemeinschaftsnummer laut Bescheid",
+        //    "value": "DE02 1203 0000 0000 2020 51 aktuell",
+        //    "kind": "REFERENCE", "confidence": 0.95}
+        //   = 142 characters, rounded up for safety margin.
+        internal const val MAX_FACT_JSON_CHARS = 145
+
+        // `language`, `documentType`, `subject` (each a realistic-length string), plus the
+        // object braces, the two key names, and the array brackets around entities/facts.
+        // Measured example totals 167 characters; rounded up for safety margin.
+        internal const val WRAPPER_JSON_CHARS = 170
+
+        /**
+         * The worst case this grammar is sized against: the wrapper, plus [MAX_ENTITIES]
+         * maximal entities separated by ", ", plus [MAX_FACTS] maximal facts separated by
+         * ", " — two characters per separator, matching the lightly-spaced formatting the
+         * examples above use.
+         *
+         *   170 + (8 × 190 + 7 × 2) + (10 × 145 + 9 × 2) = 3,172 characters ≈ 1,058 tokens
+         *
+         * at [CHARS_PER_TOKEN]. See [AiExtractionUseCaseTest] for the test that fails the
+         * build if [MAX_TOKENS] stops covering this with headroom — which is what actually
+         * enforces the relationship; this is arithmetic, not the guardrail.
+         */
+        internal const val MAX_ANSWER_CHARS = WRAPPER_JSON_CHARS +
+            (MAX_ENTITIES * MAX_ENTITY_JSON_CHARS + (MAX_ENTITIES - 1) * 2) +
+            (MAX_FACTS * MAX_FACT_JSON_CHARS + (MAX_FACTS - 1) * 2)
+
+        /**
+         * Tokens needed to emit [MAX_ANSWER_CHARS] characters, rounding up so the estimate
+         * never under-counts.
+         */
+        private const val MIN_TOKENS_FOR_MAX_ANSWER =
+            (MAX_ANSWER_CHARS + CHARS_PER_TOKEN - 1) / CHARS_PER_TOKEN
+
+        /**
+         * [MIN_TOKENS_FOR_MAX_ANSWER] plus 25% headroom, for the formatting variance the
+         * character estimate above cannot see — extra `ws`, a slightly longer name than the
+         * example. This is the fix for the defect this file shipped with: the grammar's own
+         * worst case (≈1,058 tokens) did not fit inside the previous MAX_TOKENS of 768, so a
+         * legal, complete-by-the-grammar answer could still be truncated and discarded
+         * whole. Deriving it from [MAX_ANSWER_CHARS] rather than writing a number means
+         * raising [MAX_ENTITIES] or [MAX_FACTS] later moves this too, instead of quietly
+         * reopening the same gap.
+         *
+         * Trade made instead of shrinking the grammar: the device profile this budgets
+         * against is the 4096-token cap in `CatalogActiveModelProvider`, and a one-page
+         * letter's layout description is a few thousand characters regardless — see
+         * [characterBudget]. At 4096 there is comfortable room left over for the page even
+         * with this budget; the grammar's entity/fact ceilings were kept because 8 entities
+         * and 10 facts is not an unreasonable amount of real content for one letter, and
+         * cutting them would trade correctness on ordinary letters to protect a 2048-token
+         * device tier that is already a degraded fallback by design (see
+         * `CatalogActiveModelProvider.affordableContext`).
+         */
+        internal const val MAX_TOKENS = MIN_TOKENS_FOR_MAX_ANSWER + MIN_TOKENS_FOR_MAX_ANSWER / 4
 
         // The prompt used to spend a paragraph asking the model to vary its confidence and
         // mean it ("0.9+ only when...", "Below 0.5 when guessing..."). Removed: on every
@@ -203,6 +386,10 @@ class AiExtractionUseCase @Inject constructor(
         // and replace with ExtractionConfidence's derived score. The grammar still requires
         // the model to emit a `confidence` number — that cannot change without touching the
         // GBNF — but nothing downstream reads it any more.
+        //
+        // Declared before SYSTEM_PROMPT_TOKENS, which reads its length: companion object
+        // properties initialise in declaration order, so the reverse order would compile
+        // but hand SYSTEM_PROMPT_TOKENS an empty string.
         internal val SYSTEM_PROMPT = """
             You read scanned business letters and return structured data as JSON.
 
@@ -228,9 +415,21 @@ class AiExtractionUseCase @Inject constructor(
               such as DE02. A telephone number is neither — it is OTHER.
 
             List only what matters: the sender, the recipient, any named contact, and people
-            actually named in the body. At most 8 entities and 10 facts. Do not repeat an
-            entity. Do not invent anything that is not on the page.
+            actually named in the body. At most $MAX_ENTITIES entities and $MAX_FACTS facts.
+            Do not repeat an entity. Do not invent anything that is not on the page.
         """.trimIndent()
+
+        /**
+         * Measured, not guessed: `SYSTEM_PROMPT.length` at [CHARS_PER_TOKEN], rounded up.
+         * The constant this replaced was a hardcoded 320 — someone's guess, never checked
+         * against the prompt it was meant to describe. The real prompt is 1,464 characters,
+         * which is ≈488 tokens: 53% more than the guess. That gap was silently eating into
+         * [characterBudget]'s idea of how much room the page had, in the same direction as
+         * the token-budget defect this file was fixed for. Computed from the prompt so it
+         * cannot drift back out of sync when the prompt text changes.
+         */
+        internal val SYSTEM_PROMPT_TOKENS: Int =
+            (SYSTEM_PROMPT.length + CHARS_PER_TOKEN - 1) / CHARS_PER_TOKEN
 
         /**
          * GBNF constraining the reply to exactly the shape of `DocumentUnderstanding`.
@@ -239,20 +438,17 @@ class AiExtractionUseCase @Inject constructor(
          * not exist and force the parser to guess. Confidence is restricted to one or two
          * decimals, which is all the precision the value carries.
          *
-         * The list lengths are **bounded**, and that is not tidiness. Left unbounded, a 2B
-         * model reading a one-page letter emitted fourteen entities and was still going
-         * when it hit the token limit — leaving JSON that was valid right up to the point
-         * it stopped, and therefore unparseable. A grammar that cannot run away is cheaper
-         * than a larger token budget and produces a better answer, since the model has to
-         * choose what matters instead of listing every capitalised phrase.
+         * The list lengths are **bounded**, at [MAX_ENTITIES] and [MAX_FACTS] — see the
+         * comment on those constants for why, and [MAX_TOKENS] for the arithmetic that
+         * keeps this in sync with the token budget generation is cut off at.
          */
         val GRAMMAR = """
             root ::= "{" ws "\"language\":" ws string "," ws "\"documentType\":" ws string "," ws "\"subject\":" ws string "," ws "\"entities\":" ws entities "," ws "\"facts\":" ws facts ws "}"
 
-            entities ::= "[" ws (entity (ws "," ws entity){0,7})? ws "]"
+            entities ::= "[" ws (entity (ws "," ws entity){0,${MAX_ENTITIES - 1}})? ws "]"
             entity ::= "{" ws "\"name\":" ws string "," ws "\"kind\":" ws kind "," ws "\"role\":" ws role "," ws "\"relation\":" ws string "," ws "\"confidence\":" ws conf ws "}"
 
-            facts ::= "[" ws (fact (ws "," ws fact){0,9})? ws "]"
+            facts ::= "[" ws (fact (ws "," ws fact){0,${MAX_FACTS - 1}})? ws "]"
             fact ::= "{" ws "\"label\":" ws string "," ws "\"value\":" ws string "," ws "\"kind\":" ws factkind "," ws "\"confidence\":" ws conf ws "}"
 
             kind ::= "\"PERSON\"" | "\"AUTHORITY\"" | "\"COMPANY\"" | "\"OTHER\""

@@ -476,6 +476,21 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` cut
       restarting a stale partial.
 - [ ] **7.6.9** Device test: kill the app mid-download, relaunch, confirm resume from offset. *Needs a real signed manifest (7.4.6) or a test fixture URL.*
 
+- [x] **7.14.9i** Token budget and grammar bounds made consistent. The grammar permitted 8
+      entities and 10 facts while `MAX_TOKENS` was 768 — a legal maximal answer was ~1058
+      tokens, so the model could emit valid JSON that was then truncated and discarded
+      wholesale, silently falling back to regex. Both are now derived from the same
+      arithmetic, with a test that fails the build if they drift apart. *Found on device, not
+      in tests.* `SYSTEM_PROMPT_TOKENS` was also a guess of 320 against a real 488.
+- [ ] **7.14.9j** Surface `DocumentUnderstanding.truncated` to the user. *A salvaged reading
+      is not a complete one — "no deadline found" and "the model stopped before it got
+      there" are different statements and currently look identical.*
+- [ ] **7.14.11g** A document interrupted mid-processing is stranded in `PROCESSING` forever.
+      *Observed on device after the app was force-stopped during a run: nothing resets the
+      status, so the document shows "Processing" with no way back.*
+- [ ] **7.15.6** The GBNF `string` and `ws` rules are unbounded, so a pathologically long
+      value could still overflow the token budget the worst-case arithmetic assumes.
+
 ### 7.15 Architecture enforcement
 
 - [x] **7.15.1** Konsist enforces four rules — feature→domain, the two online-provider
