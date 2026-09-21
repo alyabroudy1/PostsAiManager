@@ -12,9 +12,5 @@ captures/
 *.apk
 *.aab
 
-# Vendored llama.cpp (shallow clone, pinned to tag b10299).
-# Becomes a git submodule once the Phase 7.2 spike confirms the revision.
-core/ai/local/src/main/cpp/llama.cpp/
-
 # Kotlin compiler session files (build noise)
 .kotlin/

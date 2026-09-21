@@ -5,40 +5,19 @@
 # guards enforce themselves instead of relying on someone remembering to run them.
 #
 # ---------------------------------------------------------------------------
-# Why there is no :app:assembleDebug / native-build job
+# Two jobs, on purpose
 # ---------------------------------------------------------------------------
-# :core:ai:local compiles llama.cpp from source via CMake/NDK
-# (core/ai/local/src/main/cpp/CMakeLists.txt, add_subdirectory on
-# core/ai/local/src/main/cpp/llama.cpp). That llama.cpp source is vendored on
-# disk as a shallow clone pinned to tag b10299, but it is explicitly gitignored
-# (.gitignore: "Vendored llama.cpp ... Becomes a git submodule once the Phase 7.2
-# spike confirms the revision") and it is NOT registered as a git submodule —
-# there is no .gitmodules file, and task 7.2.10 ("Register llama.cpp as a git
-# submodule") is still open in documentation/04-task-list.md.
+# guards-and-tests: JVM only. `./gradlew test` never schedules a
+# configureCMake*/buildCMake* task (unit tests don't package native libs), so
+# it needs neither the NDK nor the llama.cpp source and finishes in minutes.
 #
-# That means on a clean checkout — which is exactly what every CI runner and
-# every fresh clone gets — core/ai/local/src/main/cpp/llama.cpp/ does not exist.
-# The CMakeLists.txt already fails fast and on purpose in that case:
-#
-#   if(NOT EXISTS ${LLAMA_DIR}/CMakeLists.txt)
-#       message(FATAL_ERROR "llama.cpp submodule is missing. Run: ...")
-#   endif()
-#
-# Verified locally: `./gradlew test --dry-run` never schedules a
-# configureCMake*/buildCMake* task — JVM unit tests don't package native libs, so
-# they never touch externalNativeBuild. `./gradlew :app:assembleDebug --dry-run`
-# DOES schedule `:core:ai:local:configureCMakeRelease[arm64-v8a]` and
-# `buildCMakeRelease[arm64-v8a]`. An assembleDebug job would only appear to pass
-# because a local checkout happens to have the vendored source sitting on disk
-# from prior work; on an actual clean CI runner it would fail for everyone, every
-# time, with the FATAL_ERROR above. That is worse than not having the job.
-#
-# Add an :app:assembleDebug job (in its own job, so a slow native compile never
-# delays the fast guard/unit-test feedback) once 7.2.10 lands: llama.cpp
-# registered as a real git submodule plus a
-# `git submodule update --init --recursive` (or actions/checkout
-# `submodules: true`) step. See the note added next to 7.2.10 in
-# documentation/04-task-list.md.
+# native-build: `./gradlew :app:assembleDebug`, which DOES schedule
+# `:core:ai:local:configureCMakeRelease[arm64-v8a]` / `buildCMakeRelease[...]`
+# and compiles llama.cpp from source. llama.cpp is a git submodule at
+# core/ai/local/src/main/cpp/llama.cpp (task 7.2.10), pinned to tag b10299, so
+# the checkout step must pull submodules or CMakeLists.txt fails fast with
+# "llama.cpp submodule is missing". It is a separate job so the slow native
+# compile never delays the guard/unit-test feedback.
 # ---------------------------------------------------------------------------
 
 name: CI
@@ -117,3 +96,42 @@ jobs:
             **/build/reports/tests/**
           retention-days: 14
           if-no-files-found: warn
+
+  native-build:
+    name: Native build (:app:assembleDebug)
+    runs-on: ubuntu-latest
+    steps:
+      # `submodules: true` pulls core/ai/local/src/main/cpp/llama.cpp at the
+      # gitlink commit. .gitmodules sets `shallow = true`, so this fetches only
+      # that commit rather than llama.cpp's full history.
+      - name: Checkout (with llama.cpp submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # The versions core/ai/local/build.gradle.kts pins (ndkVersion) and the
+      # spike was built with (documentation/06-llama-spike.md). The hosted image
+      # ships an Android SDK with sdkmanager on PATH; installing the exact
+      # versions here keeps CI from drifting when the image's defaults change.
+      - name: Install NDK 27.0.12077973 and CMake 3.22.1
+        run: yes | sdkmanager --install "ndk;27.0.12077973" "cmake;3.22.1" > /dev/null
+
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug --console=plain
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error

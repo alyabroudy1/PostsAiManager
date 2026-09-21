@@ -143,21 +143,20 @@ pull request** — see [Continuous integration](#continuous-integration) below a
    `AiTool` (executable) lives in `:core:domain`, and `:core:ai:online` depends on neither
    `:core:domain` nor `:core:data`.
 
-## ⚠️ A clean clone cannot build the app
+## Cloning: llama.cpp is a submodule
 
-`llama.cpp` is vendored at `core/ai/local/src/main/cpp/llama.cpp/` and **gitignored**. It is
-not a submodule, there is no `.gitmodules`, and `git ls-files` returns nothing for that path.
-It exists on this machine only because someone ran the shallow clone by hand.
+`llama.cpp` is a git submodule at `core/ai/local/src/main/cpp/llama.cpp/`, pinned to tag
+`b10299` ([task 7.2.10](04-task-list.md)). Clone with `git clone --recurse-submodules`, or
+run `git submodule update --init --recursive` in an existing clone. `.gitmodules` sets
+`shallow = true`, so only the pinned commit is fetched.
 
-`CMakeLists.txt` fails loudly rather than mysteriously (`FATAL_ERROR`), which is the right
-behaviour — but it means a fresh checkout builds nothing that touches `:core:ai:local`, and
-CI cannot run `assembleDebug` at all. Fixing it is [task 7.2.10](04-task-list.md), and it
-blocks more than it appears to.
+Without the submodule, `CMakeLists.txt` fails loudly (`FATAL_ERROR "llama.cpp submodule is
+missing"`) rather than mysteriously, and nothing that touches `:core:ai:local` builds.
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every push and every pull request. One job,
-`guards-and-tests`, on `ubuntu-latest` with JDK 17 and Gradle dependency caching:
+`.github/workflows/ci.yml` runs on every push and every pull request. Two jobs on
+`ubuntu-latest` with JDK 17 and Gradle dependency caching. `guards-and-tests`:
 
 - `./gradlew :architecture-test:test` — the four Konsist rules above (feature→domain,
   the two online-provider isolation guarantees, domain purity).
@@ -166,13 +165,12 @@ blocks more than it appears to.
   needed) and uploaded as an artifact fallback, so a failure is readable without digging
   through raw logs.
 
+`native-build` checks out with `submodules: true`, installs NDK `27.0.12077973` and CMake
+`3.22.1`, runs `./gradlew :app:assembleDebug` and uploads the debug APK. It is a separate
+job so the native compile never delays the guard/unit-test feedback.
+
 **What CI deliberately does not cover:**
 
-- **No `:app:assembleDebug` / native build.** `:core:ai:local` compiles llama.cpp from
-  source via CMake/NDK, and that source is vendored as a gitignored shallow clone, not a
-  git submodule ([task 7.2.10](04-task-list.md) is still open). It does not exist on a
-  clean checkout, so a CI job that tries to build it would fail for everyone — see the
-  comment block at the top of `ci.yml` for the full reasoning. Add this once 7.2.10 lands.
 - **No instrumented / device tests.** `connectedDebugAndroidTest` (the `androidTest`
   suites under `core/ai/local`, embeddings, Room, etc.) need a real device or emulator and
   are not run in CI. They stay a manual, on-device step — see

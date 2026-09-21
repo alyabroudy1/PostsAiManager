@@ -42,19 +42,20 @@ Nothing was installed at the start of the session. All of it now is:
 | `cmdline-tools` | 13114758 | downloaded, unpacked to `$SDK/cmdline-tools/latest` |
 | NDK | `27.0.12077973` | `sdkmanager --install` |
 | CMake | `3.22.1` | `sdkmanager --install` |
-| llama.cpp | tag **`b10299`** | shallow clone into `core/ai/local/src/main/cpp/llama.cpp` |
+| llama.cpp | tag **`b10299`** | git submodule at `core/ai/local/src/main/cpp/llama.cpp` (`shallow = true`) |
 
 To reproduce on another machine:
 
 ```bash
 sdkmanager "ndk;27.0.12077973" "cmake;3.22.1"
-git clone --depth 1 --branch b10299 https://github.com/ggml-org/llama.cpp     core/ai/local/src/main/cpp/llama.cpp
+git submodule update --init --recursive   # or: git clone --recurse-submodules <repo>
 ./gradlew :core:ai:local:assembleDebug
 ```
 
-llama.cpp is currently a plain shallow clone, **not** a registered submodule — it is
-excluded from git for now. Register it once the spike concludes and the revision is
-confirmed good, so the pin lands with evidence behind it.
+llama.cpp is a registered git submodule (task 7.2.10), pinned to `b10299` by the gitlink
+in this repository. `.gitmodules` sets `shallow = true`, so the checkout fetches only the
+pinned commit. It started life as a gitignored shallow clone during the spike and was
+registered once the revision was proven good.
 
 ### Still blocked: a device
 

@@ -5,13 +5,19 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ── llama.cpp ────────────────────────────────────────────────────────────────
-# Vendored as a git submodule at core/ai/local/src/main/cpp/llama.cpp so the exact
-# revision is pinned in this repository. Fetching at build time would make builds
+# Vendored as a git submodule at core/ai/local/src/main/cpp/llama.cpp (see
+# .gitmodules), pinned to tag b10299. The pinned commit lives in this repository, so
+# every checkout builds the same revision; fetching at build time would make builds
 # non-reproducible and break offline/CI builds.
 #
-#   git submodule add https://github.com/ggml-org/llama.cpp \
-#       core/ai/local/src/main/cpp/llama.cpp
-#   cd core/ai/local/src/main/cpp/llama.cpp && git checkout <known-good-tag>
+# Fresh clone:      git clone --recurse-submodules <repo>
+# Existing clone:   git submodule update --init --recursive
+# Bump the pin:     cd core/ai/local/src/main/cpp/llama.cpp
+#                   git fetch --depth 1 origin tag <tag> && git checkout <tag>
+#                   then commit the new gitlink from the repo root.
+#
+# `shallow = true` in .gitmodules keeps the clone to the pinned commit only; the full
+# llama.cpp history is several hundred MB nobody needs on a phone-app checkout.
 #
 set(LLAMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp)
 
