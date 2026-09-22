@@ -411,6 +411,85 @@ graph TB
 Rule 7 is the one that is easy to lose. Agentic loops are built on feeding results back —
 so the loop is a **local-only** capability by design, not by omission.
 
+### 5.1a What is sent to the model
+
+The `system` half of `formatPrompt(system + history + user text)` (see the sequence diagram
+below) is assembled by
+[`BuildChatContextUseCase`](../core/domain/src/main/kotlin/com/postsaimanager/core/domain/usecase/BuildChatContextUseCase.kt),
+in `:core:domain` — deciding what the model is told is domain logic, not an infrastructure
+detail. Content is added in descending order of signal per token (instructions, document
+metadata, extracted fields, then raw OCR text, budgeted and truncated to fit the local
+model's context window). The instruction list ends with a short, standalone, imperative
+line: *"Always answer in the same language the user writes in. If the user writes in
+English, answer in English, even if the document is in another language."* It is placed
+last and phrased without a qualifying "unless" clause because small on-device models weight
+recent, unambiguous instructions far more reliably than an earlier, hedged one — an earlier
+version buried this rule mid-prompt as "reply in the document's language unless the user
+writes in another," which the 0.8B model routinely ignored, answering in the document's
+language even when the user asked in English. Documents may be in any language; the prompt
+does not assume German.
+
+A reasoning model (Qwen3/Qwen3.5, DeepSeek) writes its chain of thought and its answer into
+the *same* token stream, delimited by `<think>…</think>`. Chat treats that boundary as
+load-bearing, not cosmetic — the same discipline as the online-escalation payload above,
+applied to a much more common path: **every local turn**, not just the rare one that leaves
+the device.
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant CVM as ChatViewModel
+    participant UC as SendChatMessageUseCase
+    participant AE as AiEngine
+    participant TSP as ThinkingStreamParser
+    participant Repo as ConversationRepository (Room)
+
+    U->>CVM: sendMessage(text)
+    CVM->>UC: invoke(conversationId, text)
+    UC->>Repo: getMessages(conversationId) — prior turns
+    UC->>UC: buildHistory(priorTurns) — content only, never .thinking
+    UC->>AE: formatPrompt(system + history + user text)
+    UC->>AE: generate(prompt)
+
+    loop each raw token
+        AE-->>UC: token
+        UC->>TSP: consume(token)
+        TSP-->>UC: [Thinking(delta) | Answer(delta)]
+        alt Thinking
+            UC-->>CVM: ChatTurn.ThinkingToken(delta)
+        else Answer
+            UC-->>CVM: ChatTurn.Token(delta)
+        end
+    end
+
+    UC->>Repo: addMessage(content, thinking, thinkingDurationMs)
+    UC-->>CVM: ChatTurn.Complete(message)
+
+    Note over UC,Repo: Next turn's buildHistory reads only .content —<br/>.thinking never leaves this use case.
+```
+
+**The rule:** [`AiMessage.thinking`](../core/model/src/main/kotlin/com/postsaimanager/core/model/AiConversation.kt)
+is display-only. The *only* place a prior turn's text is read back into a prompt is
+`SendChatMessageUseCase.buildHistory`, and it maps `AiMessage.content` — never
+`AiMessage.thinking` — into `AiChatMessage`. There is exactly one code path from persisted
+history into a prompt, which is what makes this an enforceable rule rather than a
+convention: `SendChatMessageUseCaseTest`'s `` `thinking is never sent back to the model` ``
+asserts it directly, by running two turns and checking the second prompt's message content
+for the first turn's thinking text.
+
+Why this matters, concretely: a `<think>` block can run to hundreds of tokens per turn.
+Folding it back into history would (a) balloon every later prompt's token cost for content
+nobody asked the model to reconsider, and (b) feed the model text in a shape (its own past
+reasoning, presented as conversation history) no chat-tuned model was trained to receive —
+degrading output in a way that is easy to miss in casual testing and hard to diagnose later.
+
+`ThinkingStreamParser` (`:core:domain`) is the only place the split happens — a small,
+stateful, pure-Kotlin class that buffers only the unresolved suffix of a possible tag split
+across chunk boundaries, so `<think>`/`</think>` are recognised correctly no matter how the
+token stream happens to chunk them. A stream that ends mid-`<think>` (never closed) is
+treated as entirely reasoning, with the answer left empty — surfaced to the user as "the
+model finished thinking but did not produce an answer" rather than a blank reply.
+
 ### 5.2 Engine routing
 
 ```mermaid
@@ -448,6 +527,491 @@ classDiagram
 
     note for OnlineEscalationService "Deliberately not an AiEngine.\nIf cloud implemented the same interface\nit would be substitutable — and\nsubstitutable means a future refactor\ncould route past the consent gate.\nDifferent type = different call site =\nconsent cannot be bypassed."
 ```
+
+### 5.3 AI inference configuration & lifecycle
+
+> Implemented — this section describes code in the tree, not a plan. Design patterns below
+> are adapted from Google AI Edge Gallery's `Config`/`BackendSpec`/`InitializationStatus`
+> machinery, ported to llama.cpp over JNI/AIDL rather than MediaPipe.
+
+Before this, context size and thread count were loose `Int` parameters threaded separately
+through `AiEngine.load`, the AIDL boundary, `LlamaNative` and the JNI layer; mmap, mlock,
+flash attention and GPU offload were hardcoded in `llama_jni.cpp` and could not change
+without touching C++. Four things replace that: one config type, an explicit accelerator
+seam, a race-safe load state machine, and a persisted, schema-driven settings screen.
+
+#### `InferenceConfig` — the single source of truth
+
+`InferenceConfig` (`:core:model`) is every field llama.cpp needs to load a model and sample
+from it: `contextTokens`, `batchTokens` (default 512), `threads`/`threadsBatch`, `useMmap`,
+`useMlock`, `flashAttention`, `accelerator`, `gpuLayers`, and a nested `SamplingConfig`
+(temperature, topK, topP, seed). It is immutable — changing a setting produces a new
+`InferenceConfig` — and `requiresReload(other)` classifies how expensive moving to it is:
+
+```mermaid
+graph LR
+    S["Sampling only<br/>temperature/topK/topP/seed"] --> N["ReloadScope.NONE<br/>nothing native changes"]
+    C["Context/batch/threads/<br/>flash attention"] --> CX["ReloadScope.CONTEXT<br/>recreate llama_context,<br/>keep the model"]
+    M["mmap/mlock/accelerator/<br/>gpuLayers"] --> MD["ReloadScope.MODEL<br/>full reload from disk"]
+
+    classDef none fill:#e8f5e9,stroke:#2e7d32
+    classDef ctx fill:#fff8e1,stroke:#f9a825
+    classDef mod fill:#ffebee,stroke:#c62828
+    class N none
+    class CX ctx
+    class MD mod
+```
+
+`InferenceConfig.defaults(deviceCapability, catalogedContextTokens)` centralises the RAM- and
+core-count-based heuristics that used to live scattered in `CatalogActiveModelProvider` and
+`LocalAiEngine`: context is capped by what available RAM can afford (2048 below 1.5 GB free,
+4096 otherwise — a ceiling set from a device test where 8192 aborted the inference process
+even with more memory free than the 4096 run that succeeded, so "available RAM" does not
+reliably predict whether a larger allocation lands), and thread count defaults to half the
+cores, floor two, so generation does not starve the UI thread.
+
+#### Overrides, persistence, and the schema-driven Settings UI
+
+`InferenceOverrides` (`:core:model`) is a nullable-everything patch — null means "no
+opinion, keep tracking the default" rather than freezing whatever `defaults` computed the
+day the user first opened Settings. `InferenceConfig.applying(overrides, device, model)`
+layers it on top of a `defaults` result, clamping every field to what the device and the
+active model's `BackendSpec` can actually support (context is only ever clamped *down* to
+the RAM ceiling, never above it — that ceiling is a safety limit against a native abort, not
+a suggestion the user can override upward).
+
+Persistence is a `core:domain` port, `InferenceSettingsRepository { overrides: Flow<..>;
+update(); reset() }`, implemented in `:core:ai:catalog` as
+`DataStoreInferenceSettingsRepository` — Preferences DataStore, file `inference_settings`,
+one key per override field, mirroring `UserPreferencesRepositoryImpl`'s shape in `:core:data`.
+It lives in `:core:ai:catalog` rather than `:core:data` because that module already combines
+overrides with device capability and the model's `BackendSpec` into an effective
+`InferenceConfig` (`CatalogActiveModelProvider`), and putting the store there keeps that
+combination local instead of adding a cross-module dependency for one settings flow.
+
+The Settings screen renders itself from data rather than hand-writing a control per setting.
+`ConfigSpec` (`:core:model`) is a sealed type — `Slider`, `Switch`, `Choice` — each carrying a
+`key` (the `InferenceOverrides` field it writes), a label, and a `reloadScope`.
+`inferenceConfigSchema(device, model, defaults)` builds the list fresh from the device and
+model every time: the thread slider tops out at the actual core count, the context choice
+list is filtered to what `defaults` already decided the device can afford, and the
+accelerator choice is omitted entirely on a CPU-only device. `feature:settings` renders one
+composable per `ConfigSpec` type (`SliderSpecItem`/`SwitchSpecItem`/`ChoiceSpecItem`) and
+shows a "Requires model reload" hint whenever `reloadScope != NONE`, reached through
+`ActiveModelProvider.activeModelSchema()` and the `ObserveInferenceSettingsUseCase` /
+`UpdateInferenceSettingUseCase` / `ResetInferenceSettingsUseCase` use cases — never a direct
+import of `core:ai:*`, respecting rule 1.
+
+#### Accelerator resolution and the native probe
+
+`Accelerator` is `CPU | GPU`. A model declares what it may run on via `BackendSpec
+(accelerators: List<Accelerator>, gpuLayers: Int)` on `AiModelDescriptor`, in preference
+order; every catalog entry defaults to CPU-only. `DeviceCapability.accelerators` reports what
+the device can actually do, probed by `LlamaNative.availableAccelerators()` — over
+`ggml_backend_dev_count()`/`ggml_backend_dev_type()`, run in the `:inference` process and
+exposed to the app process through `IInferenceService.availableAccelerators()`. GPU is
+reported only when a `GGML_BACKEND_DEVICE_TYPE_GPU`/`_IGPU` device is actually enumerated,
+which — until a GPU backend is compiled in — is never; a CPU-only build always reports
+CPU-only, and any caller that cannot reach the probe (service not yet bound) defaults to
+CPU-only as the always-safe answer.
+
+`resolveAccelerator(preference, device, model)` is the one function both the load path and
+the settings schema use: the user's preference wins only if both the device and the model
+agree it will work; failing that, the first accelerator the model prefers that the device
+also supports wins; CPU is the unconditional fallback. `resolveGpuLayers` forces zero offload
+whenever the resolved accelerator is CPU, regardless of what `BackendSpec.gpuLayers` says.
+
+**The `pam.gpuBackend` Gradle switch.** `core/ai/local/build.gradle.kts` exposes a property,
+`pam.gpuBackend` (`none` default, `vulkan`), that adds `-DGGML_VULKAN=ON` to the CMake
+configure step — the one CMake `-D` that is genuinely a per-build choice rather than a fixed
+project setting; every other flag (`GGML_OPENMP=OFF`, `LLAMA_CURL=OFF`,
+`LLAMA_BUILD_TESTS/EXAMPLES/SERVER=OFF`) lives once, in `CMakeLists.txt`, after this refactor
+removed a duplicate copy in `build.gradle.kts` that did nothing (`CACHE ... FORCE` in
+CMakeLists.txt always wins over a command-line `-D`) except invite the two copies to drift.
+
+`-Ppam.gpuBackend=vulkan` builds. Three problems stood between the CMake configure that used
+to fail and an app that reports a GPU device on the phone, all worked around from
+`core/ai/local/src/main/cpp/CMakeLists.txt` and `build.gradle.kts` — `ggml`'s own
+`ggml-vulkan/CMakeLists.txt`, vendored inside the `llama.cpp` submodule, is never edited:
+
+1. **`find_package(SPIRV-Headers CONFIG REQUIRED)` fails at configure.** The NDK toolchain
+   file sets `CMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY`, which restricts a CONFIG-mode
+   `find_package` to the NDK sysroot — and the sysroot never ships a SPIRV-Headers CMake
+   package. This call runs directly in the Android-*target* configure (not only inside the
+   `vulkan-shaders-gen` host sub-build `GGML_VULKAN_SHADERS_GEN_TOOLCHAIN` covers), so that
+   toolchain-file argument alone does not fix it. `CMakeLists.txt` instead relaxes just
+   `CMAKE_FIND_ROOT_PATH_MODE_PACKAGE` to `BOTH` when `GGML_VULKAN` is on, and adds a host
+   prefix to `CMAKE_PREFIX_PATH` — Homebrew by default (`brew --prefix`, or
+   `$HOMEBREW_PREFIX`), or `-DPAM_HOST_PREFIX_PATH=<prefix>` (forwarded from the Gradle
+   property `pam.hostPrefixPath`) as an override, which CI uses to point at
+   `/usr` (the LunarG Vulkan SDK apt package's install prefix). `CMAKE_FIND_ROOT_PATH_MODE_
+   LIBRARY`/`_INCLUDE` are left untouched (still sysroot-only), so the actual `Vulkan::Vulkan`
+   link target still resolves to the NDK's arm64 `libvulkan.so`, never a host binary.
+   `vulkan-shaders-gen`'s own host sub-build gets an explicit toolchain file,
+   `core/ai/local/src/main/cpp/cmake/host-toolchain.cmake`, passed as
+   `GGML_VULKAN_SHADERS_GEN_TOOLCHAIN`: it finds a host C/C++ compiler and reuses the `ninja`
+   that ships next to whichever `cmake` binary is running it (Android Studio's bundled Ninja
+   usually is not on `PATH` by itself).
+2. **`ggml-vulkan.cpp` fails to compile: `'vulkan/vulkan.hpp' file not found`.** The NDK
+   sysroot ships the plain C Vulkan header but not the Vulkan-Hpp C++ bindings. Since
+   `vulkan.hpp` is header-only and pulls in nothing but `vulkan.h` itself, `CMakeLists.txt`
+   adds the same host prefix's `include/` to `ggml-vulkan`'s include path once the target is
+   built, which is safe even though the rest of that target compiles for the NDK sysroot.
+3. **Link fails: `undefined symbol: vkGetPhysicalDeviceFeatures2`.** `ggml-vulkan.cpp` calls
+   that Vulkan 1.1 *core* entry point directly against `libvulkan.so`, rather than through its
+   own runtime dispatcher (`DispatchLoaderDynamic`, used everywhere else in that file). The
+   NDK's per-API-level `libvulkan.so` link stub only exports the core symbol from API 29 on —
+   the app's `minSdk` 26 stub only has the `_KHR`-suffixed extension version. `build.gradle.kts`
+   links this one native target against `-DANDROID_PLATFORM=29` when `pam.gpuBackend=vulkan`,
+   without raising the app's `minSdk`: a device below API 29 not reporting Vulkan 1.1 is a
+   runtime capability question `DeviceCapabilityChecker` already gates the GPU backend behind,
+   and every other symbol this library imports keeps resolving fine on API 26.
+
+`glslc` compiles the shaders at build time and never ships to the device;
+`build.gradle.kts`'s `findHostGlslc()` prefers the one the NDK ships under
+`shader-tools/<host>/glslc` (pinned the same way the rest of the NDK is) and falls back to
+`which glslc` (Homebrew's `shaderc`, or the LunarG SDK's, on `PATH`) otherwise, failing the
+build with a clear message if neither is found rather than letting CMake print a confusing
+"glslc not found".
+
+**What it costs and what the device reports.** The Vulkan backend adds one library,
+`libggml-vulkan.so` — compiled-in shader SPIR-V bytecode for every quantisation format
+dominates its size. Stripped, arm64-v8a, debug build:
+
+| Build | Native libs total | `libggml-vulkan.so` |
+| --- | --- | --- |
+| `none` (default) | 5.9 MB | — |
+| `vulkan` | 39 MB | 35 MB |
+
+On a Samsung Galaxy S23 Ultra (SM-S918B, Adreno 740), `InferenceService.availableAccelerators()`
+logs both the probe result and the backend description:
+
+```
+InferenceService: availableAccelerators() -> [0, 1] ; backendDescription() -> Vulkan0 (Adreno (TM) 740)
+```
+
+`0`/`1` are `Accelerator.CPU`/`Accelerator.GPU` ordinals — the probe now reports a GPU where a
+CPU-only build always reported CPU-only. `core/ai/local/src/androidTest/.../GpuSmokeTest.kt`
+loads the spike model both ways and logs tokens/sec; on that device, with a ~400 MB Q4 model
+and 64 generated tokens:
+
+| Accelerator | Load | Generation |
+| --- | --- | --- |
+| CPU | 479 ms | 64 tok in 2.24 s ≈ **28.6 tok/s** |
+| GPU (Vulkan, all layers offloaded) | 612 ms | 64 tok in 4.87 s ≈ **13.1 tok/s** |
+
+GPU is *slower* here, not faster — a phone-class model this small, generating one token at a
+time, is dominated by per-dispatch Vulkan kernel-launch overhead rather than the FLOPs the
+GPU is actually good at; the CPU path's SIMD kernels have far less per-token overhead at this
+scale. This is a real first measurement, not a placeholder — it argues for gating the GPU
+accelerator by model size (or leaving it opt-in) rather than assuming "GPU" beats "CPU"
+unconditionally, a decision left to whoever tunes `resolveAccelerator`'s preference order next.
+
+Default stays `none` (CPU-only) for every normal build — `pam.gpuBackend=vulkan` is opt-in via
+the Gradle property or the commented line in `gradle.properties`. `.github/workflows/ci.yml`
+runs both: `native-build` (the default) and `native-build-vulkan`
+(`-Ppam.gpuBackend=vulkan -Ppam.hostPrefixPath=/usr`, after installing the LunarG Vulkan SDK
+apt package for its SPIRV-Headers CMake package and Vulkan-Hpp headers), so a change that
+breaks either backend fails CI rather than surfacing on a developer's machine.
+
+#### GPU crash fallback — Adreno pipeline-link failure
+
+On the reference S23 Ultra, one model — Qwen3.5 2B (Q4_K_M) — aborts the `:inference`
+process on the very first generation on GPU:
+
+```
+AdrenoVK-0: Failed to link shaders.
+AdrenoVK-0: Pipeline create failed
+libc++abi: terminating due to uncaught exception of type vk::SystemError:
+  vk::Device::createComputePipeline: ErrorUnknown
+F libc: Fatal signal 6 (SIGABRT) ... in Java_..._LlamaNative_startGeneration
+```
+
+The 400 MB Q4 spike model used for `GpuSmokeTest` (above) generates fine on the same GPU —
+this is model-specific (likely a shader variant Adreno's compiler rejects for this model's
+tensor shapes/quantisation mix), not "Vulkan is broken on this device" in general.
+
+**What used to happen.** Two compounding bugs, both fixed:
+
+1. `SendChatMessageUseCase`/`AiExtractionUseCase` only called `engine.load(...)` when the
+   engine reported not-ready or the model path had changed — a config-only change (the user
+   flipping the accelerator chip while the old model was still `Ready`) was silently ignored,
+   and `ModelLoadCoordinator.lastRequested` kept the *old* config, so crash recovery
+   (`ensureLoaded()`) replayed the same GPU config that had just crashed. Both use cases now
+   call `engine.load(path, activeModelConfig())` on every send/extraction — a no-op when
+   nothing changed (`ReloadScope.NONE`), and always current otherwise.
+2. `RemoteAiEngine.generate()`'s `callbackFlow` waited only on the AIDL token callback. A
+   binder death *during* generation (after `startGeneration()` had already returned `true`)
+   updates `ModelLoadCoordinator`'s state to `Failed` — via the existing `DeathRecipient` —
+   but nothing closed the flow waiting on tokens that would now never arrive, so the chat UI
+   hung on "Thinking…" forever even though the engine had already given up. `generate()` now
+   also watches `state` for a transition to `Failed` while a generation is in flight and closes
+   the flow with that failure, so `SendChatMessageUseCase`'s existing `catch` block turns it
+   into a `ChatTurn.Failed` — a visible error bubble — every time.
+
+**Automatic CPU fallback.** `AiEngine.crashEvents: SharedFlow<InferenceCrash>` (carrying the
+model id and the `InferenceConfig` that was active) is emitted by `RemoteAiEngine`'s death
+recipient alongside its existing `reportExternalFailure` call.
+`InferenceCrashObserver` (`:core:ai:local`, started from `PostsAiManagerApp.onCreate`
+next to `InferenceMemoryPressureObserver`) collects it and, only when the crashed config's
+accelerator was GPU, calls `InferenceSettingsRepository.blockGpu(modelId)` — a new
+DataStore-backed set of model paths, `gpuBlockedModels`, that survives `reset()` (it is a
+fact about hardware compatibility, not a user preference). `CatalogActiveModelProvider`
+consumes it two ways: `activeModelConfig()`/`extractionModelConfig()` remove `GPU` from the
+`DeviceCapability.accelerators` set passed into `resolveAccelerator` for a blocked model —
+the same path a CPU-only build already goes through, so the effective config is CPU even if
+the user's persisted preference still says GPU — and `activeModelSchema()` marks the
+accelerator `ConfigSpec.Choice`'s `GPU` option `disabledOptions` with reason `"GPU driver
+failed to compile shaders for this model"` (`ConfigSpec.withGpuBlocked()`), alongside the
+existing "not available in this build" reason for a device/model that never supported GPU at
+all. (This reason string used to just say "Crashed on this device" — reworded once the §5.3
+Adreno investigation below established this is a driver limitation, not an app bug, and that
+none of `ggml-vulkan.cpp`'s env toggles avoid it.) The model sheet also offers "Try GPU
+again" next to that reason (`ConfigSpec.isGpuBlockedByDriver`, `ChatViewModel.tryGpuAgain()`
+→ `UnblockGpuUseCase`) — it only clears the persisted block, it does not itself re-select GPU
+or retry generation, so re-testing after a driver update, or after `documentation/02-
+architecture.md` §5.3 gains a real fix, no longer requires wiping app data.
+
+**Verified on device** (S23 Ultra, `-Ppam.gpuBackend=vulkan`, Qwen3.5 2B, GPU selected):
+send "Hello" → the process aborts as above → the chat shows *"The AI engine crashed while
+generating. Switched to CPU — please retry."* with a Dismiss action, instead of hanging →
+reopening the model sheet shows GPU disabled, "GPU driver failed to compile shaders for this
+model" — persisted across an app restart, not just the current session.
+
+**Residual gap found during verification — fixed via `llama_model_params.devices`.**
+Retrying after the fallback still crashed with the identical
+`vk::Device::createComputePipeline` abort, even though the config that load logged was
+`gpu_layers=0` — nominally CPU-only:
+
+```
+pam_llama: model loaded, n_ctx=4096 n_batch=512 threads=4 threads_batch=4 gpu_layers=0
+AdrenoVK-0: Failed to link shaders.
+AdrenoVK-0: Pipeline create failed
+Abort message: 'terminating due to uncaught exception of type vk::SystemError: ...'
+```
+
+`gpu_layers=0` only controls how many *model weights* are placed on the GPU. It does not
+stop `ggml_backend_sched` from still registering — and dispatching large-batch ops, prompt
+processing in particular, to — every backend device that is enumerated, and
+`LlamaNative.ensureLoaded()`'s single `backendInit()` (`llama_backend_init()` →
+`ggml_backend_load_all()`) registers Vulkan for the whole lifetime of the `:inference` process
+the first time any load happens, GPU or not: a later "CPU" load in the same process still has
+the Vulkan device available to the scheduler, and constructing pipelines against it is enough
+to reproduce the same abort.
+
+The actual switch is `llama_model_params.devices` (`llama.h`, pinned b10299): "NULL-terminated
+list of devices to use for offloading (if NULL, all available devices are used)". `loadModel`
+in `llama_jni.cpp` now branches on the `accelerator` ordinal it receives (plumbed end-to-end:
+`InferenceConfig.accelerator` → `InferenceConfigParcel.accelerator` (already a `String`) →
+`LlamaNative.loadModel(..., accelerator: Int)` → the JNI layer):
+
+- **`accelerator == CPU`:** enumerates every registered backend device
+  (`ggml_backend_dev_count()`/`ggml_backend_dev_get()`/`ggml_backend_dev_type()`), keeps only
+  `GGML_BACKEND_DEVICE_TYPE_CPU` ones, appends a `nullptr` terminator, and points
+  `modelParams.devices` at that list — so Vulkan is never registered for *this model's*
+  scheduler at all, not just excluded from weight placement. `n_gpu_layers` is also forced to
+  `0` regardless of what was forwarded, belt-and-braces. The backing `std::vector` only needs
+  to outlive the synchronous `llama_model_load_from_file` call — llama.cpp reads the list
+  during loading, it does not retain the array — so a function-local vector is enough.
+- **`accelerator == GPU`:** `modelParams.devices = nullptr` (every registered device eligible,
+  the original behaviour) and `n_gpu_layers` comes from `InferenceConfig.gpuLayers` as before.
+
+Other GPU-related `llama_model_params` fields were checked and left alone: `split_mode`
+defaults to `LLAMA_SPLIT_MODE_LAYER`, irrelevant with a single GPU device; `main_gpu` (which
+GPU to use when `split_mode == NONE`) and `tensor_split`/`tensor_buft_overrides` all default to
+"no override" and only matter once more than one non-CPU device can be registered, which does
+not happen on this hardware.
+
+Both branches log which device list was used — `pam_llama: devices=[CPU]` /
+`pam_llama: devices=[all]` — and a diagnostic JNI export, `LlamaNative.lastLoadDevices()`,
+returns the same value (`"CPU"`/`"all"`/`"none"`) for a test to assert on directly rather than
+scrape logcat; `GpuSmokeTest.cpuAcceleratorNeverTouchesTheGpuDeviceOnAVulkanBuild()` does
+exactly that. This closes the gap without needing the `:inference` process to restart between
+the crash and the next load — a model must be resident on exactly one accelerator at a time,
+and the process-lifetime Vulkan *registration* from `ggml_backend_load_all()` is now harmless
+for a CPU load because that load's own device list never includes it.
+
+`ggml-vulkan.cpp`'s `GGML_VK_DISABLE_*` env-var knobs (`COOPMAT`, `INTEGER_DOT_PRODUCT`, `F16`,
+etc., set via the debug-only `LlamaNative.applyVulkanWorkaroundEnv()` /
+`debug.pam.vk_env` system property) remain in the tree as a debugging aid for a *genuine* GPU
+load that fails to compile shaders — that is a separate question from this fix, which is about
+a CPU load never touching Vulkan in the first place — but are no longer needed to make CPU
+fallback recovery reliable.
+
+**Adreno 740 investigation — no env toggle avoids the shader-link failure (2026-09-22).**
+Every `getenv()`-gated knob this pinned llama.cpp (b10299) exposes in
+`ggml/src/ggml-vulkan/ggml-vulkan.cpp` was tried, one at a time and in combination, against the
+model that actually reproduces the crash — Qwen3.5 0.8B Q4_K_M, GPU, all layers offloaded —
+using `RemoteAiEngine` directly from an instrumentation test (a real model load + `generate()`
+call through the same AIDL path the app uses, not just the tiny spike model that never hit
+this bug). Reproduced in ~3 s every time, always at the same point — `pam_llama: model
+loaded` logs successfully, then the *first* pipeline `nextToken()` needs aborts:
+
+```
+AdrenoVK-0: Failed to link shaders.
+AdrenoVK-0: Pipeline create failed
+libc++abi: terminating due to uncaught exception of type vk::SystemError:
+  vk::Device::createComputePipeline: ErrorUnknown
+F libc: Fatal signal 6 (SIGABRT) ... Java_..._LlamaNative_nextToken
+```
+
+The full toggle inventory found by `grep -n getenv` (name → what it gates):
+
+| Env var | Gates |
+| --- | --- |
+| `GGML_VK_DISABLE_COOPMAT` / `_COOPMAT2` / `_COOPMAT2_DECODE_VECTOR` | cooperative-matrix matmul paths |
+| `GGML_VK_DISABLE_INTEGER_DOT_PRODUCT` | `VK_KHR_shader_integer_dot_product` matmul path |
+| `GGML_VK_DISABLE_BFLOAT16` | bf16 arithmetic path |
+| `GGML_VK_DISABLE_DOT2` | a dot-product-2 matmul variant |
+| `GGML_VK_DISABLE_F16` | fp16 arithmetic (forces fp32) |
+| `GGML_VK_DISABLE_OCP_FP4` | OCP fp4 quant path |
+| `GGML_VK_DISABLE_MULTI_ADD` | fused multi-add op |
+| `GGML_VK_DISABLE_GRAPH_OPTIMIZE` | the graph-optimizer pass (node fusion/reordering) |
+| `GGML_VK_DISABLE_FUSION` | general op fusion |
+| `GGML_VK_DISABLE_ASYNC` / `_ASYNC_USE_TRANSFER_QUEUE` | async transfer queue use |
+| `GGML_VK_ALLOW_GRAPHICS_QUEUE` | permits falling back to a graphics-capable queue |
+| `GGML_VK_PREFER_HOST_MEMORY` | host- vs device-local memory preference |
+| `GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM` / `_ALLOW_SYSMEM_FALLBACK` | memory-type selection |
+| `GGML_VK_DISABLE_MMVQ` / `_FORCE_MMVQ` | mul_mat_vec quantized path |
+| `GGML_VK_ENABLE_MEMORY_PRIORITY` | `VK_EXT_memory_priority` |
+| `GGML_VK_SERIALIZE_SUBMISSIONS` | forces one command buffer submission at a time |
+| `GGML_VK_FORCE_MAX_ALLOCATION_SIZE` / `_FORCE_MAX_BUFFER_SIZE` / `_SUBALLOCATION_BLOCK_SIZE` | allocator limits |
+| `GGML_VK_MAX_NODES_PER_SUBMIT` | graph nodes per command buffer |
+| `GGML_VK_VISIBLE_DEVICES` | device enumeration filter |
+| `GGML_VK_DEBUG_MARKERS` / `_PERF_LOGGER[_CONCURRENT]` / `_SYNC_LOGGER` / `_MEMORY_LOGGER` / `_PIPELINE_STATS` / `_PERF_LOGGER_FREQUENCY` | diagnostics only, no behaviour change |
+| `GGML_VULKAN_SKIP_CHECKS` / `_OUTPUT_TENSOR` | validation/debug only |
+
+No built-in Adreno/Qualcomm *quirk table* exists in this file beyond vendor-ID-based queue/driver
+selection (`VK_VENDOR_ID_QUALCOMM` at the two `case` sites) — there is no
+`if (vendor == Adreno) work_around_shader_bug()` path to extend.
+
+Results (`debug.pam.vk_env`, force-stop between trials, same model/prompt each time):
+
+| Toggle tried | Outcome | Key log line |
+| --- | --- | --- |
+| (none — baseline) | Crash | `AdrenoVK-0: Failed to link shaders.` → SIGABRT |
+| `GGML_VK_DISABLE_INTEGER_DOT_PRODUCT` | Crash, identical | same |
+| `GGML_VK_DISABLE_F16` | Crash, identical | same |
+| `GGML_VK_DISABLE_COOPMAT2` | Crash, identical | same |
+| `GGML_VK_DISABLE_GRAPH_OPTIMIZE` | Crash, identical | same |
+| `GGML_VK_DISABLE_MULTI_ADD` | Crash, identical | same |
+| `GGML_VK_DISABLE_BFLOAT16` | Crash, identical | same |
+| `GGML_VK_DISABLE_DOT2` | Crash, identical | same |
+| `GGML_VK_DISABLE_FUSION` | Crash, identical | same |
+| `GGML_VK_ALLOW_GRAPHICS_QUEUE` | Crash, identical | same |
+| `GGML_VK_PREFER_HOST_MEMORY` | Crash, identical | same |
+| `F16,COOPMAT,COOPMAT2` combined | Crash, identical | same |
+
+Every trial loaded the model successfully (`pam_llama: model loaded, ... accelerator=GPU`)
+and aborted at the exact same `AdrenoVK-0: Failed to link shaders.` / `Pipeline create failed`
+pair with no change in timing, stage, or message — strong evidence this is a single SPIR-V
+shader the Adreno 740 driver's compiler rejects regardless of which higher-level ggml-vulkan
+code path is selected, not something any of these toggles routes around. (One infrastructure
+finding along the way: `adb setprop` silently truncates/no-ops past roughly 90 characters, so
+`debug.pam.vk_env` cannot carry more than 3–4 short names at once — combinations were kept
+short enough to fit and verified via the `LlamaNative: vk workaround: ...` log line actually
+appearing once per name.)
+
+**Conclusion: GPU stays off for this model/device pair by default.** No config change
+avoids the failure, so `InferenceService`/`LlamaNative` apply no automatic Adreno-specific
+workaround before `backendInit()` — there is nothing proven to set. The `debug.pam.vk_env`
+hook stays in the tree for whoever revisits this with a newer driver or a smaller/differently
+quantized model. What did change: the block reason shown to the user now says *"GPU driver
+failed to compile shaders for this model"* instead of the generic *"Crashed on this device"*,
+and the model sheet's "Try GPU again" button (`UnblockGpuUseCase`) lets someone re-test
+without wiping app data — clear `InferenceSettingsRepository.gpuBlockedModels` for the model,
+reselect GPU, and the next crash (or success) re-populates the block from a fresh
+`InferenceCrashObserver` event either way.
+
+#### `ModelLoadState`, `ModelLoadCoordinator`, and the generation guard
+
+`ModelLoadState` (`:core:model`) replaces the old `AiEngineState`: `Idle`, `Loading(modelId,
+startedAtNanos)`, `Ready(modelId, config, loadDurationMs)`, `Failed(modelId, error)`. `Ready`
+carries the `InferenceConfig` it was loaded with — what a caller needs to decide whether a
+new load request is a no-op, a context recreation, or a full reload.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Loading: load(modelId, config)
+    Loading --> Ready: success
+    Loading --> Failed: error
+    Ready --> Loading: load() with a different\nmodelId or MODEL/CONTEXT scope
+    Ready --> Ready: load() with ReloadScope.NONE\n(sampling only — no native call)
+    Ready --> Idle: unload() /\nmemory-pressure unload
+    Failed --> Loading: retry
+    Ready --> Failed: binder death /\nexternal crash report
+```
+
+`ModelLoadCoordinator` (`internal`, `:core:ai:local`) drives this for one `AiEngine`, against
+a small `ModelLoadOps` interface (`loadModel`/`recreateContext`/`unloadModel`/
+`isActuallyLoaded`) so the state machine is unit-testable on the JVM independent of whether
+the real implementation is in-process JNI (`LocalAiEngine`) or AIDL calls into `:inference`
+(`RemoteAiEngine`). Three guarantees it exists to get right:
+
+- **Single-flight.** `load()` is entered under a `Mutex`; a second caller arriving mid-load
+  waits and then re-checks the now-current state, rather than racing a second native call.
+- **`ReloadScope` dispatch.** Loading an already-resident model with a `NONE`-scope config
+  change touches nothing native — the sampler chain is already rebuilt per generation.
+  `CONTEXT` calls the new `recreateContext` JNI entry point (and its AIDL counterpart,
+  `IInferenceService.recreateContext`), which frees only the old context's sampler state,
+  builds the new `llama_context`, and swaps it in — the resident model (and its mmap'd
+  weights) is untouched, and if context creation fails the previous context stays valid
+  rather than the session being torn down. `MODEL`, or a different `modelId` entirely, does a
+  full `loadModel`.
+- **Stale-generation guard.** Every state-changing call increments a monotonic generation
+  counter. Asynchronous observers (a binder death, a memory-pressure callback) capture the
+  generation at the moment they notice something via `currentGeneration()` and report through
+  `reportExternalFailure(issuedGeneration, ...)`, which is a no-op if a newer generation has
+  since started — mirroring Google AI Edge Gallery's identity check that prevents a stale
+  cleanup callback from stomping on a newer load's state.
+
+`isActuallyLoaded()` exists because the recorded state can go stale without the coordinator's
+involvement: the `:inference` process can free the model on its own under memory pressure, so
+the `ReloadScope.NONE` fast path always re-checks residency out of band before trusting it.
+
+#### Memory-pressure unloading, in both processes
+
+The model gets unloaded under real memory pressure independently in each process, since the
+system trims them separately:
+
+- **App process:** `InferenceMemoryPressureObserver` (`@Singleton`, `:core:ai:local`)
+  registers itself as a `ComponentCallbacks2` from `PostsAiManagerApp.onCreate` (there is no
+  `androidx.startup` `Initializer` already in use — WorkManager's is disabled in the manifest
+  in favour of Hilt's `Configuration.Provider` — so this follows the same "inject, call from
+  `onCreate`" shape rather than introducing a new pattern). On
+  `TRIM_MEMORY_RUNNING_CRITICAL`/`TRIM_MEMORY_COMPLETE` it calls
+  `RemoteAiEngine.onTrimMemory()`, which routes through
+  `ModelLoadCoordinator.unloadOnMemoryPressure()` — a `tryLock`-based unload that backs off
+  rather than blocking if a load happens to be mid-flight.
+- **`:inference` process:** `InferenceService.onTrimMemory()` frees the resident model
+  directly on the same two trim levels. No separate "not loaded" flag is needed for
+  `IInferenceService.isReady()` to reflect this — it reads the handle directly, so
+  `RemoteAiEngine` observes `isReady() == false` on its very next call and reloads lazily
+  through the coordinator.
+
+#### `LocalAiEngine` is test-only
+
+`LocalAiEngine` (`internal`, `:core:ai:local`) is **not** the engine the app binds —
+`RemoteAiEngine` is, running the same JNI layer inside the isolated `:inference` process (a
+native abort there is a process kill Kotlin cannot catch; see §11.6). `LocalAiEngine` exists
+so the instrumented tests that need to drive the JNI surface directly — spike tests,
+template/grammar regression tests, the chat pipeline test — can do so without the AIDL
+boundary in the way. Both engines share `ChatTemplateFallback.chatMl()` for the ChatML prompt
+format used when a model declares no chat template of its own, rather than keeping two
+hand-rolled copies in sync.
+
+#### Module map delta
+
+| File | Module | Adds |
+|---|---|---|
+| `InferenceConfig.kt`, `ConfigSpec.kt`, `InferenceOverrides.kt`, `ModelLoadState.kt` | `:core:model` | The config/overrides/schema/state types above |
+| `InferenceSettingsRepository.kt`, `InferenceSettingsUseCases.kt` | `:core:domain` | The settings port and the three use cases `feature:settings` calls |
+| `DataStoreInferenceSettingsRepository.kt` | `:core:ai:catalog` | DataStore-backed `InferenceSettingsRepository` |
+| `InferenceConfigParcel.kt` (+ `.aidl`) | `:core:ai:local` | Carries `InferenceConfig` across the AIDL boundary |
+| `ModelLoadCoordinator.kt`, `ModelLoadOps.kt` | `:core:ai:local` | The state machine and its testable native/IPC seam |
+| `ChatTemplateFallback.kt` | `:core:ai:local` | Shared ChatML fallback |
+| `InferenceMemoryPressureObserver.kt` | `:core:ai:local` | App-process memory-pressure unload |
 
 ---
 
