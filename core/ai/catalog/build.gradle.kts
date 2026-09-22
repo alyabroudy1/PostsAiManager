@@ -40,6 +40,7 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.datastore.preferences)
 
     // Resumable model download
     implementation(libs.ktor.client.core)

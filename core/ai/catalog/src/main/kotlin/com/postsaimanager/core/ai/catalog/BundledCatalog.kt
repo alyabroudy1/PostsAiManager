@@ -1,6 +1,8 @@
 package com.postsaimanager.core.ai.catalog
 
+import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.AiModelDescriptor
+import com.postsaimanager.core.model.BackendSpec
 
 /**
  * The models that ship knowable, compiled into the APK.
@@ -67,6 +69,7 @@ object BundledCatalog {
             supportsTools = true,
             description = "Smallest usable assistant. Fits a low-memory phone; expect it to " +
                 "miss details a larger model catches when reading a letter.",
+            backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
         ),
         AiModelDescriptor(
             id = "qwen3.5-2b-q4_k_m",
@@ -84,6 +87,7 @@ object BundledCatalog {
             supportsTools = true,
             description = "The default. Reads a letter and fills structured fields reliably " +
                 "while still fitting a mid-range phone.",
+            backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
         ),
         AiModelDescriptor(
             id = "qwen3.5-4b-q4_k_m",
@@ -101,6 +105,7 @@ object BundledCatalog {
             supportsTools = true,
             description = "Noticeably better at multi-step reasoning and at picking the " +
                 "right entity out of a crowded page.",
+            backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
         ),
         AiModelDescriptor(
             id = "gemma-4-e2b-it-qat-q4_0",
@@ -124,6 +129,7 @@ object BundledCatalog {
             description = "Google's own quantisation-aware build — the 4-bit weights were " +
                 "trained, not rounded afterwards. Strong multilingual reading, including " +
                 "German.",
+            backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
         ),
         AiModelDescriptor(
             id = "gemma-4-e4b-it-qat-q4_0",
@@ -143,6 +149,7 @@ object BundledCatalog {
             description = "The best understanding of a document available on-device, and the " +
                 "most reliable at identifying people and organisations. Needs a high-end " +
                 "phone with memory to spare.",
+            backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
         ),
     )
 }

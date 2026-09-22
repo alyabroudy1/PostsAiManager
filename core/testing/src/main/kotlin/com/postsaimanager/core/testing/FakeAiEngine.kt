@@ -4,10 +4,16 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiCapabilities
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiEngine
-import com.postsaimanager.core.domain.ai.AiEngineState
 import com.postsaimanager.core.domain.ai.AiRequest
+import com.postsaimanager.core.domain.ai.InferenceCrash
+import com.postsaimanager.core.model.Accelerator
+import com.postsaimanager.core.model.DeviceCapability
+import com.postsaimanager.core.model.InferenceConfig
+import com.postsaimanager.core.model.ModelLoadState
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 
@@ -22,17 +28,14 @@ class FakeAiEngine(
     override var isReady: Boolean = true,
 ) : AiEngine {
 
-    private val _state = MutableStateFlow<AiEngineState>(
-        AiEngineState.Ready(
-            AiCapabilities(
-                supportsGrammar = true,
-                contextTokens = 4096,
-                modelName = "fake",
-                hasNativeChatTemplate = true,
-            ),
+    private val _state = MutableStateFlow<ModelLoadState>(
+        ModelLoadState.Ready(
+            modelId = "fake",
+            config = InferenceConfig(contextTokens = 4096, threads = 4),
+            loadDurationMs = 0L,
         ),
     )
-    override val state: StateFlow<AiEngineState> = _state
+    override val state: StateFlow<ModelLoadState> = _state
 
     /** What [generate] emits, in chunks, to exercise streaming. */
     var response: String = ""
@@ -47,10 +50,19 @@ class FakeAiEngine(
     var lastMessages: List<AiChatMessage> = emptyList()
         private set
 
-    override suspend fun load(modelPath: String, contextTokens: Int): PamResult<AiCapabilities> {
+    /** Every `(modelPath, config)` passed to [load], in order — the whole point being to
+     * assert *how many times* and *with what* it was called, not just its return value. */
+    val loadCalls = mutableListOf<Pair<String, InferenceConfig>>()
+
+    /** When set, [load] returns this error instead of succeeding. */
+    var loadFailsWith: PamResult.Error? = null
+
+    override suspend fun load(modelPath: String, config: InferenceConfig): PamResult<AiCapabilities> {
+        loadCalls += modelPath to config
+        loadFailsWith?.let { return it }
         isReady = true
         return PamResult.Success(
-            AiCapabilities(true, contextTokens, "fake", hasNativeChatTemplate = true),
+            AiCapabilities(true, config.contextTokens, "fake", hasNativeChatTemplate = true),
         )
     }
 
@@ -70,6 +82,17 @@ class FakeAiEngine(
     override suspend fun unload() {
         isReady = false
     }
+
+    /** Overridable so a test can exercise GPU-aware resolution without a device. */
+    var accelerators: Set<Accelerator> = setOf(Accelerator.CPU)
+
+    override suspend fun availableAccelerators(): Set<Accelerator> = accelerators
+
+    private val _crashEvents = MutableSharedFlow<InferenceCrash>(extraBufferCapacity = 4)
+    override val crashEvents: SharedFlow<InferenceCrash> = _crashEvents
+
+    /** Lets a test simulate [AiEngine.crashEvents] without a real process death. */
+    suspend fun emitCrash(crash: InferenceCrash) = _crashEvents.emit(crash)
 }
 
 /**
@@ -83,9 +106,28 @@ class FakeActiveModelProvider(
     var contextTokens: Int = 4096,
     /** Null means "same as the chat model", which is the default the app ships. */
     var extractionPath: String? = null,
+    /** Lets a test change the accelerator between sends — see `SendChatMessageUseCaseTest`. */
+    var accelerator: Accelerator = Accelerator.CPU,
 ) : com.postsaimanager.core.domain.ai.ActiveModelProvider {
+    /** Generous enough that [InferenceConfig.defaults]'s heuristic never clamps [contextTokens]. */
+    private val device = DeviceCapability(
+        totalRamBytes = 8L * 1024 * 1024 * 1024,
+        availableRamBytes = 8L * 1024 * 1024 * 1024,
+        freeStorageBytes = 8L * 1024 * 1024 * 1024,
+        supportedAbis = listOf("arm64-v8a"),
+    )
+
     override suspend fun activeModelPath(): String? = path
-    override suspend fun activeModelContextTokens(): Int = contextTokens
+    override suspend fun activeModelConfig(): InferenceConfig =
+        InferenceConfig.defaults(device, contextTokens).copy(
+            accelerator = accelerator,
+            gpuLayers = if (accelerator == Accelerator.GPU) -1 else 0,
+        )
+
     override suspend fun extractionModelPath(): String? = extractionPath ?: path
-    override suspend fun extractionModelContextTokens(): Int = contextTokens
+    override suspend fun extractionModelConfig(): InferenceConfig =
+        InferenceConfig.defaults(device, contextTokens).copy(
+            accelerator = accelerator,
+            gpuLayers = if (accelerator == Accelerator.GPU) -1 else 0,
+        )
 }

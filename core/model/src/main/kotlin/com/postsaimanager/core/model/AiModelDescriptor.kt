@@ -36,6 +36,14 @@ data class AiModelDescriptor(
      */
     val recommendedForExtraction: Boolean = false,
     val description: String? = null,
+    /**
+     * Which accelerators this model may run on, in preference order, and how many layers
+     * to offload when it runs on one of them.
+     *
+     * Defaulted so every existing entry in [BundledCatalog] needs no change — every model
+     * ships CPU-capable, and nothing prefers GPU yet. See [resolveAccelerator].
+     */
+    val backendSpec: BackendSpec = BackendSpec(),
 ) {
     /**
      * A model may only be downloaded when both a URL **and** an integrity hash are known.
@@ -46,6 +54,20 @@ data class AiModelDescriptor(
      */
     val isInstallable: Boolean get() = !downloadUrl.isNullOrBlank() && !sha256.isNullOrBlank()
 }
+
+/**
+ * What accelerators a model may run on, and how many layers to offload when it does.
+ *
+ * @param accelerators in preference order — the first entry the device also supports wins
+ *   when the user has not expressed a preference of their own. See [resolveAccelerator].
+ * @param gpuLayers layers offloaded when [resolveAccelerator] picks a non-CPU accelerator
+ *   for this model. -1 = all. Meaningless (and ignored — see [resolveGpuLayers]) on CPU.
+ */
+@Serializable
+data class BackendSpec(
+    val accelerators: List<Accelerator> = listOf(Accelerator.CPU),
+    val gpuLayers: Int = -1,
+)
 
 /** A model present on disk and usable. */
 @Serializable
@@ -67,6 +89,24 @@ enum class ModelSource {
     CATALOG,
     IMPORTED,
 }
+
+/**
+ * What the chat header/model sheet needs to list an installed model, without reaching into
+ * `:core:ai:catalog` — see `InstalledModelsRepository` in `:core:domain`.
+ *
+ * @param filePath the same value [ModelLoadState.Ready.modelId] carries once this model is
+ *   loaded, so a UI can match "what the engine has resident" back to "which installed model
+ *   that is" without either side knowing about the other's identifiers.
+ */
+data class InstalledModelSummary(
+    val id: String,
+    val name: String,
+    val filePath: String,
+    val sizeBytes: Long,
+    /** Null when the model was side-loaded and its catalog descriptor is unknown. */
+    val quantization: String?,
+    val contextTokens: Int,
+)
 
 /** Coarse device class, used to curate the catalog rather than to gate features. */
 @Serializable
@@ -97,6 +137,13 @@ data class DeviceCapability(
     val freeStorageBytes: Long,
     val supportedAbis: List<String>,
     val isLowMemory: Boolean = false,
+    /**
+     * Accelerators the native backend reports as available, probed via
+     * `LlamaNative.availableAccelerators()` in the `:inference` process. Defaults to
+     * CPU-only, which is also what a caller should fall back to when the probe cannot run
+     * yet — e.g. the inference service is not bound.
+     */
+    val accelerators: Set<Accelerator> = setOf(Accelerator.CPU),
 ) {
     val tier: DeviceTier get() = DeviceTier.ofTotalRam(totalRamBytes)
 

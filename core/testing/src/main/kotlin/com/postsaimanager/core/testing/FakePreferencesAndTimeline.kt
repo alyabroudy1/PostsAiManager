@@ -2,9 +2,11 @@ package com.postsaimanager.core.testing
 
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.repository.InferenceSettingsRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
 import com.postsaimanager.core.domain.repository.UserPreferencesRepository
 import com.postsaimanager.core.model.AppTheme
+import com.postsaimanager.core.model.InferenceOverrides
 import com.postsaimanager.core.model.TimelineEvent
 import com.postsaimanager.core.model.TimelineEventType
 import com.postsaimanager.core.model.UserPreferences
@@ -48,6 +50,35 @@ class FakeUserPreferencesRepository(
 
     override suspend fun setBiometricEnabled(enabled: Boolean) =
         update { it.copy(biometricEnabled = enabled) }
+}
+
+/** In-memory [InferenceSettingsRepository], the same shape as the DataStore-backed one. */
+class FakeInferenceSettingsRepository(
+    initial: InferenceOverrides = InferenceOverrides.NONE,
+) : InferenceSettingsRepository {
+
+    private val state = MutableStateFlow(initial)
+    private val blocked = MutableStateFlow<Set<String>>(emptySet())
+
+    override val overrides: Flow<InferenceOverrides> = state
+
+    override suspend fun update(overrides: InferenceOverrides) {
+        state.value = overrides
+    }
+
+    override suspend fun reset() {
+        state.value = InferenceOverrides.NONE
+    }
+
+    override val gpuBlockedModels: Flow<Set<String>> = blocked
+
+    override suspend fun blockGpu(modelId: String) {
+        blocked.value = blocked.value + modelId
+    }
+
+    override suspend fun unblockGpu(modelId: String) {
+        blocked.value = blocked.value - modelId
+    }
 }
 
 /** In-memory [TimelineRepository]. Recorded events are inspectable via [recorded]. */
