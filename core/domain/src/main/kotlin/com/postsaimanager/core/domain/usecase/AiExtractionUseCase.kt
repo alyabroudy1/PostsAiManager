@@ -56,23 +56,31 @@ class AiExtractionUseCase @Inject constructor(
     ): PamResult<DocumentUnderstanding> {
         if (blocks.isEmpty()) return PamResult.Success(DocumentUnderstanding())
 
-        val window = contextTokens ?: activeModelProvider.extractionModelContextTokens()
+        // The caller's override (if any) replaces only the context window on top of the
+        // device-sized defaults — threads, mmap/mlock and the rest still come from the
+        // single source of truth in InferenceConfig.defaults.
+        val baseConfig = activeModelProvider.extractionModelConfig()
+        val config = contextTokens?.let { baseConfig.copy(contextTokens = it) } ?: baseConfig
+        val window = config.contextTokens
 
-        // Loaded on demand, like the chat path. Processing usually runs in the background
-        // straight after a scan, when nothing has had reason to load a model yet — failing
-        // here because the user has not opened chat would be arbitrary.
+        // Loaded on demand, like the chat path, and — like the chat path — reconciled on
+        // every call rather than only when `!engine.isReady`: the engine may be Ready on
+        // the *chat* model, or on the extraction model with a stale accelerator/thread
+        // config the user changed since. `engine.load` is cheap when nothing actually
+        // changed (`ModelLoadCoordinator` dispatches a same-model, same-config request to
+        // `ReloadScope.NONE`), and this is what keeps `ModelLoadCoordinator.lastRequested`
+        // current for crash recovery — see `SendChatMessageUseCase` for the same fix and
+        // the bug it replaces.
         //
         // When the reading model differs from the chat model this reload is not free: the
         // engine holds one model at a time, so alternating between reading a document and
         // answering a question pays a load each way. Acceptable because reading is
         // background work and the default is a single shared model; if it becomes a problem
         // the answer is scheduling, not two engines in memory at once.
-        if (!engine.isReady) {
-            val path = activeModelProvider.extractionModelPath()
-                ?: return PamResult.Error(PamError.ModelNotLoaded("document understanding"))
-            val loaded = engine.load(path, window)
-            if (loaded is PamResult.Error) return loaded
-        }
+        val path = activeModelProvider.extractionModelPath()
+            ?: return PamResult.Error(PamError.ModelNotLoaded("document understanding"))
+        val loaded = engine.load(path, config)
+        if (loaded is PamResult.Error) return loaded
 
         val page = DocumentLayout.describe(blocks).let { described ->
             val budget = characterBudget(window)

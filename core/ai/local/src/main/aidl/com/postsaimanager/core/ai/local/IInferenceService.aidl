@@ -1,5 +1,6 @@
 package com.postsaimanager.core.ai.local;
 
+import com.postsaimanager.core.ai.local.InferenceConfigParcel;
 import com.postsaimanager.core.ai.local.ITokenCallback;
 
 /**
@@ -11,9 +12,16 @@ import com.postsaimanager.core.ai.local.ITokenCallback;
  */
 interface IInferenceService {
     /** @return true if the model loaded. */
-    boolean loadModel(String modelPath, int contextTokens, int threads);
+    boolean loadModel(String modelPath, in InferenceConfigParcel config);
 
     boolean isReady();
+
+    /**
+     * Recreates the context of the resident model with new context/batch/thread/flash-
+     * attention settings — ReloadScope.CONTEXT. The model itself is not reloaded.
+     * @return true if the context was recreated.
+     */
+    boolean recreateContext(in InferenceConfigParcel config);
 
     /** @return true if the model declares its own chat template. */
     boolean hasNativeChatTemplate();
@@ -26,10 +34,30 @@ interface IInferenceService {
         String prompt,
         int maxTokens,
         float temperature,
+        int topK,
+        float topP,
+        long seed,
         String grammar,
         ITokenCallback callback);
 
     void cancelGeneration();
 
     void unloadModel();
+
+    /**
+     * Which accelerator types the native backend reports as available on this device —
+     * ordinals of `com.postsaimanager.core.model.Accelerator` (0 = CPU, 1 = GPU). Runs the
+     * probe even with no model loaded, since it only enumerates `ggml` backend devices.
+     */
+    int[] availableAccelerators();
+
+    /**
+     * Diagnostic: which devices the most recent successful `loadModel` call actually passed
+     * to `llama_model_params.devices` — `"CPU"`, `"all"`, or `"none"` if nothing has loaded
+     * yet in this process. See `llama_jni.cpp`'s `lastLoadDevices` / `LlamaNative
+     * .lastLoadDevices()`. Exists so a test can assert on this without scraping logcat —
+     * `LlamaNative` itself is only loaded inside the `:inference` process, so this has to
+     * cross the same AIDL boundary as everything else here.
+     */
+    String lastLoadDevices();
 }

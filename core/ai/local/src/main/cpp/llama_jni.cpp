@@ -13,8 +13,10 @@
 #include <android/log.h>
 #include <string>
 #include <vector>
+#include <set>
 
 #include "llama.h"
+#include "ggml-backend.h"
 
 #define LOG_TAG "pam_llama"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
@@ -66,6 +68,62 @@ void releaseChain(PamSession *session) {
     session->finished = true;
 }
 
+/**
+ * Frees everything owned by [session] — chain, context, model — and the struct itself.
+ * Shared by [freeModel] and the "free the previous model before loading a new one" guard in
+ * [loadModel], so both paths tear a session down the same way.
+ */
+void destroySession(PamSession *session) {
+    releaseChain(session);
+    if (session->ctx)   llama_free(session->ctx);
+    if (session->model) llama_model_free(session->model);
+    delete session;
+}
+
+// Tracks the one model this process may have resident, independently of the Kotlin-side
+// handle. A model must be resident on exactly one accelerator at a time and never two at
+// once — InferenceService.loadModel already frees its handle before calling loadModel()
+// again, so in the normal path this is a no-op by the time loadModel runs. It exists as a
+// belt-and-braces guard at the JNI boundary itself: no caller can end up with two resident
+// llama_model/llama_context pairs in this process, even one that (by bug or future
+// refactor) skips the Kotlin-side free.
+PamSession *g_activeSession = nullptr;
+
+// What the most recent loadModel() actually passed to llama_model_params.devices — "CPU"
+// when the device list was restricted to CPU-type devices, "all" when devices was left
+// NULL (every registered backend, including Vulkan, is eligible). Exposed to Kotlin via
+// lastLoadDevices() so a test can assert on it without scraping logcat.
+std::string g_lastLoadDevices = "none";
+
+/**
+ * Builds a NULL-terminated device list containing only CPU-type backend devices, for
+ * `llama_model_params.devices` — see llama.h: "NULL-terminated list of devices to use for
+ * offloading (if NULL, all available devices are used)". Passing this instead of NULL keeps
+ * llama.cpp from ever registering the Vulkan device in ggml_backend_sched, which is what
+ * `n_gpu_layers = 0` alone does not do: it only keeps weights on CPU, but large-batch ops
+ * (prompt processing in particular) still get offloaded to whatever non-CPU device is
+ * registered, which is what crashes on the Adreno 740
+ * (`vk::Device::createComputePipeline: ErrorUnknown`) for models whose shaders do not
+ * compile on this driver.
+ *
+ * The returned vector only needs to stay alive for the duration of the synchronous
+ * `llama_model_load_from_file` call that follows — llama.cpp reads the list during loading,
+ * it does not retain the array itself — so a function-local vector on the caller's stack is
+ * enough; nothing outlives that call holding a pointer into it.
+ */
+std::vector<ggml_backend_dev_t> cpuOnlyDevices() {
+    std::vector<ggml_backend_dev_t> devices;
+    const size_t count = ggml_backend_dev_count();
+    for (size_t i = 0; i < count; ++i) {
+        ggml_backend_dev_t dev = ggml_backend_dev_get(i);
+        if (ggml_backend_dev_type(dev) == GGML_BACKEND_DEVICE_TYPE_CPU) {
+            devices.push_back(dev);
+        }
+    }
+    devices.push_back(nullptr); // NULL terminator — required by llama.cpp's contract.
+    return devices;
+}
+
 } // namespace
 
 extern "C" {
@@ -81,16 +139,103 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_systemInfo(JNIEnv *env, jobjec
     return env->NewStringUTF(llama_print_system_info());
 }
 
+/**
+ * Reports which accelerator types are actually usable on this device.
+ *
+ * `llama_backend_init()` (called from `backendInit()` above, before this can meaningfully
+ * run) already calls `ggml_backend_load_all()` when no backend is registered yet, so every
+ * backend compiled into this binary — CPU always, Vulkan only when built with
+ * `-DGGML_VULKAN=ON` (the `pam.gpuBackend=vulkan` Gradle switch) — is enumerable here via
+ * `ggml_backend_dev_count()`/`ggml_backend_dev_get()`.
+ *
+ * Ordinals match `com.postsaimanager.core.model.Accelerator`: 0 = CPU, 1 = GPU. A CPU/iGPU
+ * device on a build with no GPU backend compiled in still reports as CPU-only, since no
+ * device of type GGML_BACKEND_DEVICE_TYPE_GPU/_IGPU is ever registered in that case.
+ */
+JNIEXPORT jintArray JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_availableAccelerators(JNIEnv *env, jobject) {
+    std::set<jint> accelerators;
+    accelerators.insert(0); // CPU — every build ships the CPU backend.
+
+    const size_t count = ggml_backend_dev_count();
+    for (size_t i = 0; i < count; ++i) {
+        ggml_backend_dev_t dev = ggml_backend_dev_get(i);
+        const enum ggml_backend_dev_type type = ggml_backend_dev_type(dev);
+        if (type == GGML_BACKEND_DEVICE_TYPE_GPU || type == GGML_BACKEND_DEVICE_TYPE_IGPU) {
+            accelerators.insert(1); // GPU
+        }
+    }
+
+    jintArray result = env->NewIntArray((jsize) accelerators.size());
+    std::vector<jint> values(accelerators.begin(), accelerators.end());
+    env->SetIntArrayRegion(result, 0, (jsize) values.size(), values.data());
+    return result;
+}
+
+/** Diagnostics: name and description of every registered backend device, one per line. */
+JNIEXPORT jstring JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_backendDescription(JNIEnv *env, jobject) {
+    std::string description;
+    const size_t count = ggml_backend_dev_count();
+    for (size_t i = 0; i < count; ++i) {
+        ggml_backend_dev_t dev = ggml_backend_dev_get(i);
+        description += ggml_backend_dev_name(dev);
+        description += " (";
+        description += ggml_backend_dev_description(dev);
+        description += ")\n";
+    }
+    return env->NewStringUTF(description.c_str());
+}
+
 JNIEXPORT jlong JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_loadModel(
-        JNIEnv *env, jobject, jstring modelPath, jint contextTokens, jint threads) {
+        JNIEnv *env, jobject, jstring modelPath, jint contextTokens, jint batchTokens,
+        jint threads, jint threadsBatch, jboolean useMmap, jboolean useMlock,
+        jboolean flashAttention, jint gpuLayers, jint accelerator) {
 
     const std::string path = jstringToStd(env, modelPath);
+    // Ordinals of com.postsaimanager.core.model.Accelerator: 0 = CPU, 1 = GPU.
+    const bool cpuOnly = accelerator == 0;
+
+    // A model must be resident on exactly one accelerator at a time, never two, and this
+    // process may hold at most one resident model. InferenceService.loadModel already frees
+    // its handle before calling this again, so g_activeSession is normally already null
+    // here — this is the belt-and-braces guard at the JNI boundary itself: the old model's
+    // weights are always released *before* the new ones are allocated, never after.
+    if (g_activeSession != nullptr) {
+        LOGI("pam_llama: freed previous model before loading %s on %s",
+             path.c_str(), cpuOnly ? "CPU" : "GPU");
+        destroySession(g_activeSession);
+        g_activeSession = nullptr;
+    }
 
     llama_model_params modelParams = llama_model_default_params();
-    // CPU only. GPU offload is a separate question with a large build surface — do not
-    // conflate it with "does this work at all".
-    modelParams.n_gpu_layers = 0;
+
+    // See llama.h: `devices` is a NULL-terminated list of devices to use for offloading; if
+    // NULL, all available devices are used. `n_gpu_layers = 0` alone does not stop llama.cpp
+    // from registering a non-CPU device (Vulkan, here) in ggml_backend_sched and offloading
+    // large-batch ops to it regardless — which is what crashes on the Adreno 740. Passing a
+    // device list that contains only CPU-type devices is the actual "never touch the GPU"
+    // switch. See cpuOnlyDevices() above for why the vector only needs stack lifetime.
+    std::vector<ggml_backend_dev_t> cpuDevices;
+    if (cpuOnly) {
+        cpuDevices = cpuOnlyDevices();
+        modelParams.devices = cpuDevices.data();
+        // Belt-and-braces: CPU means CPU regardless of what gpuLayers was forwarded as.
+        modelParams.n_gpu_layers = 0;
+        g_lastLoadDevices = "CPU";
+        LOGI("pam_llama: devices=[CPU]");
+    } else {
+        modelParams.devices = nullptr; // all available devices — Vulkan may offload.
+        modelParams.n_gpu_layers = gpuLayers;
+        g_lastLoadDevices = "all";
+        LOGI("pam_llama: devices=[all]");
+    }
+
+    modelParams.load_mode = useMmap && useMlock ? LLAMA_LOAD_MODE_MMAP_MLOCK
+                             : useMmap           ? LLAMA_LOAD_MODE_MMAP
+                             : useMlock          ? LLAMA_LOAD_MODE_MLOCK
+                                                  : LLAMA_LOAD_MODE_NONE;
 
     llama_model *model = llama_model_load_from_file(path.c_str(), modelParams);
     if (model == nullptr) {
@@ -99,9 +244,13 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_loadModel(
     }
 
     llama_context_params ctxParams = llama_context_default_params();
-    ctxParams.n_ctx     = static_cast<uint32_t>(contextTokens);
-    ctxParams.n_batch   = 512;
-    ctxParams.n_threads = threads;
+    ctxParams.n_ctx           = static_cast<uint32_t>(contextTokens);
+    ctxParams.n_batch         = static_cast<uint32_t>(batchTokens);
+    ctxParams.n_threads       = threads;
+    ctxParams.n_threads_batch = threadsBatch;
+    ctxParams.flash_attn_type = flashAttention
+            ? LLAMA_FLASH_ATTN_TYPE_ENABLED
+            : LLAMA_FLASH_ATTN_TYPE_DISABLED;
 
     llama_context *ctx = llama_init_from_model(model, ctxParams);
     if (ctx == nullptr) {
@@ -113,18 +262,77 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_loadModel(
     auto *session = new PamSession{};
     session->model = model;
     session->ctx   = ctx;
-    LOGI("model loaded, n_ctx=%d threads=%d", contextTokens, threads);
+    g_activeSession = session;
+    LOGI("model loaded, n_ctx=%d n_batch=%d threads=%d threads_batch=%d gpu_layers=%d accelerator=%s",
+         contextTokens, batchTokens, threads, threadsBatch, gpuLayers, cpuOnly ? "CPU" : "GPU");
     return reinterpret_cast<jlong>(session);
+}
+
+/**
+ * Recreates the context for an already-loaded model — ReloadScope.CONTEXT on the Kotlin
+ * side. The model itself (and its mmap'd/mlock'd weights) is left completely alone; only
+ * context/batch/thread/flash-attention size change, which is what makes this materially
+ * cheaper than a full loadModel().
+ *
+ * Any in-flight generation state belongs to the old context and cannot outlive it, so it is
+ * released first. The new context is created *before* the old one is freed: if creation
+ * fails the old context is still valid and the session is left exactly as it was, rather
+ * than in a half-torn-down state.
+ *
+ * This new-before-free ordering is fine here — unlike loadModel's old-model-before-new-model
+ * ordering — because a `llama_context` is small relative to the resident model weights (KV
+ * cache aside, it holds no second copy of the weights), so briefly holding two contexts for
+ * one already-loaded model never risks the out-of-memory failure that motivates freeing the
+ * old *model* first.
+ */
+JNIEXPORT jboolean JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_recreateContext(
+        JNIEnv *, jobject, jlong handle, jint contextTokens, jint batchTokens,
+        jint threads, jint threadsBatch, jboolean flashAttention) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr || session->model == nullptr) return JNI_FALSE;
+
+    releaseChain(session);
+
+    llama_context_params ctxParams = llama_context_default_params();
+    ctxParams.n_ctx           = static_cast<uint32_t>(contextTokens);
+    ctxParams.n_batch         = static_cast<uint32_t>(batchTokens);
+    ctxParams.n_threads       = threads;
+    ctxParams.n_threads_batch = threadsBatch;
+    ctxParams.flash_attn_type = flashAttention
+            ? LLAMA_FLASH_ATTN_TYPE_ENABLED
+            : LLAMA_FLASH_ATTN_TYPE_DISABLED;
+
+    llama_context *newCtx = llama_init_from_model(session->model, ctxParams);
+    if (newCtx == nullptr) {
+        LOGE("failed to recreate context");
+        return JNI_FALSE;
+    }
+
+    if (session->ctx != nullptr) llama_free(session->ctx);
+    session->ctx = newCtx;
+    LOGI("context recreated, n_ctx=%d n_batch=%d threads=%d threads_batch=%d",
+         contextTokens, batchTokens, threads, threadsBatch);
+    return JNI_TRUE;
 }
 
 JNIEXPORT void JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_freeModel(JNIEnv *, jobject, jlong handle) {
     auto *session = reinterpret_cast<PamSession *>(handle);
     if (session == nullptr) return;
-    releaseChain(session);
-    if (session->ctx)   llama_free(session->ctx);
-    if (session->model) llama_model_free(session->model);
-    delete session;
+    if (session == g_activeSession) g_activeSession = nullptr;
+    destroySession(session);
+}
+
+/**
+ * Diagnostic: which devices the most recent successful loadModel() passed to
+ * `llama_model_params.devices` — `"CPU"` when restricted to CPU-type devices, `"all"` when
+ * left NULL, or `"none"` if no model has ever loaded in this process. Lets a test assert on
+ * this directly instead of scraping logcat for the `pam_llama: devices=` line.
+ */
+JNIEXPORT jstring JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_lastLoadDevices(JNIEnv *env, jobject) {
+    return env->NewStringUTF(g_lastLoadDevices.c_str());
 }
 
 /**
@@ -137,7 +345,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_freeModel(JNIEnv *, jobject, j
 JNIEXPORT jboolean JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
         JNIEnv *env, jobject, jlong handle, jstring prompt, jint maxTokens,
-        jfloat temperature, jstring grammar) {
+        jfloat temperature, jint topK, jfloat topP, jlong seed, jstring grammar) {
 
     auto *session = reinterpret_cast<PamSession *>(handle);
     if (session == nullptr) return JNI_FALSE;
@@ -181,10 +389,12 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
     if (temperature <= 0.0f) {
         llama_sampler_chain_add(chain, llama_sampler_init_greedy());
     } else {
-        llama_sampler_chain_add(chain, llama_sampler_init_top_k(40));
-        llama_sampler_chain_add(chain, llama_sampler_init_top_p(0.9f, 1));
+        llama_sampler_chain_add(chain, llama_sampler_init_top_k(topK));
+        llama_sampler_chain_add(chain, llama_sampler_init_top_p(topP, 1));
         llama_sampler_chain_add(chain, llama_sampler_init_temp(temperature));
-        llama_sampler_chain_add(chain, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
+        // Negative means "no seed requested" from the Kotlin side (AiRequest.seed == null).
+        const uint32_t resolvedSeed = seed < 0 ? LLAMA_DEFAULT_SEED : static_cast<uint32_t>(seed);
+        llama_sampler_chain_add(chain, llama_sampler_init_dist(resolvedSeed));
     }
 
     session->chain = chain;

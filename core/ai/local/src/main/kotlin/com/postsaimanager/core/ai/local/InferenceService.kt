@@ -1,10 +1,12 @@
 package com.postsaimanager.core.ai.local
 
 import android.app.Service
+import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.os.IBinder
 import android.os.RemoteException
 import android.util.Log
+import com.postsaimanager.core.model.Accelerator
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -33,19 +35,48 @@ class InferenceService : Service() {
 
     private val binder = object : IInferenceService.Stub() {
 
-        override fun loadModel(modelPath: String?, contextTokens: Int, threads: Int): Boolean {
-            if (modelPath == null) return false
+        override fun loadModel(modelPath: String?, config: InferenceConfigParcel?): Boolean {
+            if (modelPath == null || config == null) return false
             return submit {
                 if (!LlamaNative.ensureLoaded()) return@submit false
                 if (!File(modelPath).exists()) return@submit false
 
+                // Free before load: the old model's weights are released before the new
+                // ones are allocated, never after — never two resident models at once.
+                // loadModel() in llama_jni.cpp guards this too (defense in depth), but the
+                // Kotlin-side free is what makes it happen even before that JNI call starts.
                 freeHandle()
-                handle = LlamaNative.loadModel(modelPath, contextTokens, threads)
+                handle = LlamaNative.loadModel(
+                    modelPath = modelPath,
+                    contextTokens = config.contextTokens,
+                    batchTokens = config.batchTokens,
+                    threads = config.threads,
+                    threadsBatch = config.threadsBatch,
+                    useMmap = config.useMmap,
+                    useMlock = config.useMlock,
+                    flashAttention = config.flashAttention,
+                    gpuLayers = config.gpuLayers,
+                    accelerator = Accelerator.fromLabel(config.accelerator).ordinal,
+                )
                 handle != 0L
             } ?: false
         }
 
         override fun isReady(): Boolean = handle != 0L
+
+        override fun recreateContext(config: InferenceConfigParcel?): Boolean {
+            if (handle == 0L || config == null) return false
+            return submit {
+                LlamaNative.recreateContext(
+                    handle = handle,
+                    contextTokens = config.contextTokens,
+                    batchTokens = config.batchTokens,
+                    threads = config.threads,
+                    threadsBatch = config.threadsBatch,
+                    flashAttention = config.flashAttention,
+                )
+            } ?: false
+        }
 
         override fun hasNativeChatTemplate(): Boolean =
             handle != 0L && (submit { LlamaNative.hasChatTemplate(handle) } ?: false)
@@ -70,6 +101,9 @@ class InferenceService : Service() {
             prompt: String?,
             maxTokens: Int,
             temperature: Float,
+            topK: Int,
+            topP: Float,
+            seed: Long,
             grammar: String?,
             callback: ITokenCallback?,
         ): Boolean {
@@ -82,7 +116,7 @@ class InferenceService : Service() {
             executor.execute {
                 try {
                     val started = LlamaNative.startGeneration(
-                        handle, prompt, maxTokens, temperature, grammar,
+                        handle, prompt, maxTokens, temperature, topK, topP, seed, grammar,
                     )
                     if (!started) {
                         callback.onError("The prompt could not be tokenised.")
@@ -117,6 +151,20 @@ class InferenceService : Service() {
         override fun unloadModel() {
             submit { freeHandle() }
         }
+
+        override fun availableAccelerators(): IntArray {
+            if (!LlamaNative.ensureLoaded()) return intArrayOf(0) // CPU only
+            val accelerators = submit { LlamaNative.availableAccelerators() } ?: intArrayOf(0)
+            val description = submit { LlamaNative.backendDescription() } ?: "<unavailable>"
+            Log.i(
+                TAG,
+                "availableAccelerators() -> ${accelerators.toList()} ; backendDescription() -> $description",
+            )
+            return accelerators
+        }
+
+        override fun lastLoadDevices(): String =
+            submit { LlamaNative.lastLoadDevices() } ?: "none"
     }
 
     /** Runs [block] on the inference thread and waits — binder calls are already off-main. */
@@ -135,6 +183,23 @@ class InferenceService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
+
+    /**
+     * Frees the model under real memory pressure.
+     *
+     * No separate "not loaded" flag is needed for [IInferenceService.isReady] to reflect
+     * this — it already reads [handle] directly, so [RemoteAiEngine] sees `isReady() ==
+     * false` on its very next call and reloads lazily through [ModelLoadCoordinator].
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+            level == ComponentCallbacks2.TRIM_MEMORY_COMPLETE
+        ) {
+            Log.w(TAG, "onTrimMemory($level) — freeing the resident model")
+            submit { freeHandle() }
+        }
+    }
 
     override fun onDestroy() {
         submit { freeHandle() }
