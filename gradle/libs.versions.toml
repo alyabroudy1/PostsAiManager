@@ -46,7 +46,10 @@ mlkitEntityExtraction = "16.0.0-beta5"
 
 # UI
 coil = "3.0.4"
-composeMarkdown = "0.22.0"
+# multiplatform-markdown-renderer-m3: latest release from 0.45.0 down that still declares a
+# kotlin-stdlib runtime requirement matching this project's pinned kotlin = "2.1.0" (0.33.0+
+# requires 2.1.20+); bumping kotlin later can move this forward too.
+composeMarkdown = "0.30.0"
 lottieCompose = "6.6.2"
 
 # Google Services

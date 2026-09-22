@@ -139,6 +139,7 @@ fun PamApp() {
                 ChatScreen(
                     documentId = it.arguments?.getString("documentId"),
                     onNavigateBack = { navController.popBackStack() },
+                    onManageModelsClick = { navController.navigate("models") },
                 )
             }
         }

@@ -5,17 +5,30 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.ai.AiEngine
-import com.postsaimanager.core.domain.ai.AiEngineState
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.usecase.ChatErrorAction
 import com.postsaimanager.core.domain.usecase.ChatTurn
+import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
+import com.postsaimanager.core.domain.usecase.ObserveInstalledModelsUseCase
+import com.postsaimanager.core.domain.usecase.PreloadActiveModelUseCase
+import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
+import com.postsaimanager.core.domain.usecase.SelectActiveModelUseCase
 import com.postsaimanager.core.domain.usecase.SendChatMessageUseCase
+import com.postsaimanager.core.domain.usecase.UnblockGpuUseCase
+import com.postsaimanager.core.domain.usecase.UpdateInferenceSettingUseCase
+import com.postsaimanager.core.model.ConfigSpec
+import com.postsaimanager.core.model.InferenceOverrides
+import com.postsaimanager.core.model.InstalledModelSummary
 import com.postsaimanager.core.model.MessageRole
+import com.postsaimanager.core.model.ModelLoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -26,6 +39,13 @@ class ChatViewModel @Inject constructor(
     private val sendChatMessage: SendChatMessageUseCase,
     private val conversationRepository: ConversationRepository,
     private val engine: AiEngine,
+    private val observeInstalledModels: ObserveInstalledModelsUseCase,
+    private val selectActiveModel: SelectActiveModelUseCase,
+    private val preloadActiveModel: PreloadActiveModelUseCase,
+    private val observeInferenceSettings: ObserveInferenceSettingsUseCase,
+    private val updateInferenceSetting: UpdateInferenceSettingUseCase,
+    private val resetInferenceSettings: ResetInferenceSettingsUseCase,
+    private val unblockGpu: UnblockGpuUseCase,
 ) : ViewModel() {
 
     private val documentId: String? = savedStateHandle["documentId"]
@@ -39,6 +59,32 @@ class ChatViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+
+    /**
+     * Everything the chat header chip and its model sheet render — which model is loaded,
+     * which are installed, and the schema-driven inference settings for the active one.
+     * Kept separate from [uiState] rather than folded in: it changes on a completely
+     * different rhythm (engine load transitions, not tokens streaming in) and the sheet is
+     * dismissed most of the time, so most collectors never touch it.
+     */
+    val modelSheetState: StateFlow<ModelSheetUiState> =
+        combine(
+            engine.state,
+            observeInstalledModels(),
+            observeInferenceSettings(),
+        ) { loadState, installed, inference ->
+            ModelSheetUiState(
+                loadState = loadState,
+                installedModels = installed.models,
+                activeModelId = installed.activeModelId,
+                schema = inference.schema,
+                overrides = inference.overrides,
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ModelSheetUiState(),
+        )
 
     private var generationJob: Job? = null
 
@@ -55,9 +101,12 @@ class ChatViewModel @Inject constructor(
                     state.copy(
                         messages = messages.map {
                             ChatMessage(
+                                id = it.id,
                                 text = it.content,
                                 isUser = it.role == MessageRole.USER,
                                 timestamp = it.createdAt,
+                                thinking = it.thinking,
+                                thinkingDurationMs = it.thinkingDurationMs,
                             )
                         },
                     )
@@ -69,17 +118,30 @@ class ChatViewModel @Inject constructor(
     private fun observeEngine() {
         viewModelScope.launch {
             engine.state.collect { engineState ->
-                _uiState.update { it.copy(engineReady = engineState is AiEngineState.Ready) }
+                _uiState.update { it.copy(engineReady = engineState is ModelLoadState.Ready) }
             }
         }
     }
 
+    /** The text of the last message sent — what [retry] resends after a failure. */
+    private var lastSentText: String? = null
+
     fun sendMessage(text: String) {
         if (text.isBlank() || _uiState.value.isProcessing) return
+        lastSentText = text
 
         // The streamed reply is held separately from persisted history: it is not yet a
         // stored message, and merging the two would make history flicker as tokens arrive.
-        _uiState.update { it.copy(isProcessing = true, streamingText = "", error = null) }
+        _uiState.update {
+            it.copy(
+                isProcessing = true,
+                streamingText = "",
+                thinkingText = "",
+                thinkingDurationMs = null,
+                isThinkingActive = false,
+                error = null,
+            )
+        }
 
         generationJob = viewModelScope.launch {
             sendChatMessage(
@@ -90,6 +152,25 @@ class ChatViewModel @Inject constructor(
                 when (turn) {
                     is ChatTurn.PreparingModel ->
                         _uiState.update { it.copy(statusText = "Loading model…") }
+
+                    is ChatTurn.ThinkingToken ->
+                        _uiState.update {
+                            it.copy(
+                                statusText = null,
+                                isThinkingActive = true,
+                                thinkingText = it.thinkingText + turn.text,
+                            )
+                        }
+
+                    is ChatTurn.ThinkingComplete ->
+                        // The answer is about to start — collapse the thinking card to its
+                        // header, exactly as a finished, persisted message will render.
+                        _uiState.update {
+                            it.copy(
+                                isThinkingActive = false,
+                                thinkingDurationMs = turn.durationMs,
+                            )
+                        }
 
                     is ChatTurn.Token ->
                         _uiState.update {
@@ -106,6 +187,8 @@ class ChatViewModel @Inject constructor(
                             it.copy(
                                 isProcessing = false,
                                 streamingText = "",
+                                thinkingText = "",
+                                isThinkingActive = false,
                                 statusText = null,
                             )
                         }
@@ -115,6 +198,7 @@ class ChatViewModel @Inject constructor(
                             it.copy(
                                 isProcessing = false,
                                 streamingText = "",
+                                isThinkingActive = false,
                                 statusText = null,
                                 error = ChatError(turn.message, turn.action),
                             )
@@ -128,11 +212,66 @@ class ChatViewModel @Inject constructor(
     fun stopGeneration() {
         generationJob?.cancel()
         generationJob = null
-        _uiState.update { it.copy(isProcessing = false, streamingText = "", statusText = null) }
+        _uiState.update {
+            it.copy(
+                isProcessing = false,
+                streamingText = "",
+                thinkingText = "",
+                isThinkingActive = false,
+                statusText = null,
+            )
+        }
     }
 
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    /** Re-sends the message that failed — the whole point of [ChatErrorAction.RETRY]. */
+    fun retry() {
+        lastSentText?.let { sendMessage(it) }
+    }
+
+    /**
+     * Switches the active chat model and loads it immediately, so the header chip visibly
+     * moves Loading → Ready on the new model rather than sitting still until the next
+     * message — see [PreloadActiveModelUseCase].
+     */
+    fun selectModel(modelId: String) {
+        viewModelScope.launch {
+            selectActiveModel(modelId)
+            preloadActiveModel()
+        }
+    }
+
+    /** [value] is whatever the [ConfigSpec]'s own control produced — see the use case doc. */
+    fun setInferenceSetting(key: String, value: Any) {
+        viewModelScope.launch { updateInferenceSetting(key, value) }
+    }
+
+    fun resetInference() {
+        viewModelScope.launch { resetInferenceSettings() }
+    }
+
+    /**
+     * "Try GPU again" — clears the persisted GPU crash block for the active model so the
+     * accelerator choice offers GPU again, without wiping any other app data. Re-selecting
+     * GPU afterwards is still a separate, explicit [setInferenceSetting] call; this only
+     * unblocks the option.
+     *
+     * Looks the active model's file path up from [modelSheetState] rather than taking a
+     * parameter — [InferenceSettingsRepository.gpuBlockedModels][
+     * com.postsaimanager.core.domain.repository.InferenceSettingsRepository.gpuBlockedModels]
+     * is keyed by `InstalledModelSummary.filePath`, not `.id`, and the sheet only has the
+     * latter to hand.
+     */
+    fun tryGpuAgain() {
+        val state = modelSheetState.value
+        val filePath = state.installedModels
+            .firstOrNull { it.id == state.activeModelId }
+            ?.filePath
+            ?: return
+        viewModelScope.launch { unblockGpu(filePath) }
     }
 
     override fun onCleared() {
@@ -141,11 +280,26 @@ class ChatViewModel @Inject constructor(
     }
 }
 
+/** See [ChatViewModel.modelSheetState]. */
+data class ModelSheetUiState(
+    val loadState: ModelLoadState = ModelLoadState.Idle,
+    val installedModels: List<InstalledModelSummary> = emptyList(),
+    val activeModelId: String? = null,
+    val schema: List<ConfigSpec> = emptyList(),
+    val overrides: InferenceOverrides = InferenceOverrides.NONE,
+)
+
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
     val isProcessing: Boolean = false,
     /** Partial reply while tokens stream in; empty when idle. */
     val streamingText: String = "",
+    /** Partial reasoning trace while it streams; empty once the answer starts or is idle. */
+    val thinkingText: String = "",
+    /** True only while the thinking phase is actively streaming — drives auto-expand. */
+    val isThinkingActive: Boolean = false,
+    /** Set once the thinking phase ends, for the live "Thought for N s" header. */
+    val thinkingDurationMs: Long? = null,
     /** Transient status such as "Loading model…". */
     val statusText: String? = null,
     val engineReady: Boolean = false,
@@ -159,7 +313,11 @@ data class ChatError(
 )
 
 data class ChatMessage(
+    val id: String = "",
     val text: String,
     val isUser: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
+    /** The model's reasoning trace for this reply, if any — display-only, see [com.postsaimanager.core.model.AiMessage]. */
+    val thinking: String? = null,
+    val thinkingDurationMs: Long? = null,
 )
