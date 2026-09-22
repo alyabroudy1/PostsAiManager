@@ -62,6 +62,7 @@ class BuildChatContextUseCaseTest {
 
             assertThat(prompt).contains("No document is open")
             assertThat(prompt).contains("correspondence")
+            assertThat(prompt).doesNotContain("German")
         }
 
         @Test
@@ -103,6 +104,23 @@ class BuildChatContextUseCaseTest {
 
             assertThat(prompt).contains("Do not invent")
             assertThat(prompt).contains("say so plainly")
+        }
+
+        @Test
+        @DisplayName("tells the model to answer in the user's language, not the document's")
+        fun `includes the language rule as its own imperative instruction`() = runTest {
+            documents.seed(testDocument(id = "d1"))
+
+            val prompt = useCase(documentId = "d1", contextTokens = 4096)
+
+            assertThat(prompt).contains(
+                "Always answer in the same language the user writes in. If the user writes " +
+                    "in English, answer in English, even if the document is in another language.",
+            )
+            // The language rule must be the last instruction — recency helps small models
+            // follow it instead of defaulting to the document's language.
+            assertThat(prompt.trimEnd().endsWith("in another language.")).isTrue()
+            assertThat(prompt).doesNotContain("German")
         }
 
         @Test

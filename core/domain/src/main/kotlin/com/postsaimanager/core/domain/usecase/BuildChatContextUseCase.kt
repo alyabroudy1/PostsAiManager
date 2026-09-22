@@ -130,23 +130,30 @@ class BuildChatContextUseCase @Inject constructor(
 
     companion object {
         private const val ROLE =
-            "You are an assistant for managing German postal correspondence. You help the " +
+            "You are an assistant for managing postal correspondence. You help the " +
                 "user understand, organise and reply to official letters."
 
+        // The language rule is deliberately its own short, imperative line placed at the very
+        // end of the prompt: small on-device models weight recent instructions more heavily,
+        // and this one was previously getting lost (and contradicted by "unless" phrasing)
+        // among the earlier, more general instructions above.
         private val INSTRUCTIONS = buildString {
             appendLine()
             appendLine("## Instructions")
             appendLine("- Answer using the document above. Do not invent details it does not contain.")
             appendLine("- If the answer is not in the document, say so plainly.")
-            appendLine("- Reply in the document's language unless the user writes in another.")
-            appendLine("- For a draft reply, use formal German letter conventions.")
+            appendLine("- For a draft reply, use formal letter conventions.")
             appendLine("- Be concise.")
+            appendLine(
+                "- Always answer in the same language the user writes in. If the user writes " +
+                    "in English, answer in English, even if the document is in another language.",
+            )
         }
 
         private const val STANDALONE_PROMPT =
-            "You are an assistant for managing German postal correspondence. No document is " +
+            "You are an assistant for managing postal correspondence. No document is " +
                 "open, so answer generally and say when you would need the document to be " +
-                "more specific."
+                "more specific. Always answer in the same language the user writes in."
 
         private const val TRUNCATION_NOTE =
             "\n[… the rest of this document was omitted to fit the context window …]\n"
