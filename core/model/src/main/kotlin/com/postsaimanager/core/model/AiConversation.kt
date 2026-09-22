@@ -20,6 +20,14 @@ data class AiConversation(
 
 /**
  * A single message in a conversation.
+ *
+ * [content] is the answer — the only part of an assistant message that is ever fed back
+ * into a future prompt (see `SendChatMessageUseCase`'s KDoc on "what is sent to the
+ * model"). [thinking] is the model's own reasoning trace, parsed out of `<think>…</think>`
+ * by `ThinkingStreamParser`; it is stored purely for display (a collapsible "Thought for
+ * N s" section) and must never be read back into [content] or into a prompt. Both are null
+ * for a user message and for any assistant reply from a model that never emits a thinking
+ * block.
  */
 @Serializable
 data class AiMessage(
@@ -35,6 +43,10 @@ data class AiMessage(
     val toolResult: String? = null,
     val isStreaming: Boolean = false,
     val createdAt: Long,
+    /** The model's reasoning trace for this turn, if any. Display-only — see class doc. */
+    val thinking: String? = null,
+    /** Wall-clock time spent in the thinking phase, if any — powers "Thought for N s". */
+    val thinkingDurationMs: Long? = null,
 )
 
 @Serializable

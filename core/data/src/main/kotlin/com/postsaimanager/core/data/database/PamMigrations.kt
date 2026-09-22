@@ -226,5 +226,28 @@ object PamMigrations {
         }
     }
 
-    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+    /**
+     * Separates a message's answer from its reasoning trace (chat thinking/reasoning UI).
+     *
+     * Before this, a `<think>…</think>` block from a reasoning model (Qwen3/Qwen3.5,
+     * DeepSeek) had nowhere to go but `content` — mixed in with the answer, sent back into
+     * every future prompt, and rendered inline with no way to collapse it. `thinking` is
+     * nullable and additive: a message persisted before this migration simply has no
+     * reasoning trace, exactly like a model that never emits one.
+     */
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `messages` ADD COLUMN `thinking` TEXT")
+            db.execSQL("ALTER TABLE `messages` ADD COLUMN `thinkingDurationMs` INTEGER")
+        }
+    }
+
+    val ALL = arrayOf(
+        MIGRATION_1_2,
+        MIGRATION_2_3,
+        MIGRATION_3_4,
+        MIGRATION_4_5,
+        MIGRATION_5_6,
+        MIGRATION_6_7,
+    )
 }

@@ -346,6 +346,9 @@ data class MessageEntity(
     val toolResult: String?,
     val isStreaming: Boolean = false,
     val createdAt: Long,
+    /** The model's reasoning trace, display-only — see [com.postsaimanager.core.model.AiMessage]. */
+    val thinking: String? = null,
+    val thinkingDurationMs: Long? = null,
 )
 
 @Entity(

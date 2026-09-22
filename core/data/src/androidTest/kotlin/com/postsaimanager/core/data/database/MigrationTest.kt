@@ -299,6 +299,61 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate6To7_thinkingColumnsAreAdditiveAndNullForExistingMessages() {
+        helper.createDatabase(TEST_DB, 6).apply {
+            execSQL(
+                """
+                INSERT INTO conversations
+                    (id, documentId, aiModelId, modelType, title, lastMessageAt,
+                     messageCount, isActive, createdAt)
+                VALUES ('conv-1', NULL, NULL, 'LOCAL', 'Chat', 1, 1, 1, 1)
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO messages
+                    (id, conversationId, role, content, mediaType, mediaPath, toolCallId,
+                     toolName, toolArgs, toolResult, isStreaming, createdAt)
+                VALUES
+                    ('m1', 'conv-1', 'ASSISTANT', 'The sky is blue.', 'TEXT', NULL, NULL,
+                     NULL, NULL, NULL, 0, 1)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 7, true, PamMigrations.MIGRATION_6_7,
+        )
+
+        // A reply persisted before thinking/answer separation existed keeps its content and
+        // simply has no reasoning trace — exactly like a model that never emits one.
+        db.query(
+            "SELECT content, thinking, thinkingDurationMs FROM messages WHERE id = 'm1'",
+        ).use { cursor ->
+            assertTrue("the message was lost in migration", cursor.moveToFirst())
+            assertEquals("The sky is blue.", cursor.getString(0))
+            assertTrue("thinking should be NULL for a pre-existing message", cursor.isNull(1))
+            assertTrue(
+                "thinkingDurationMs should be NULL for a pre-existing message",
+                cursor.isNull(2),
+            )
+        }
+
+        db.execSQL(
+            "UPDATE messages SET thinking = 'Because of Rayleigh scattering.', " +
+                "thinkingDurationMs = 1234 WHERE id = 'm1'",
+        )
+        db.query(
+            "SELECT thinking, thinkingDurationMs FROM messages WHERE id = 'm1'",
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Because of Rayleigh scattering.", cursor.getString(0))
+            assertEquals(1234, cursor.getLong(1))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

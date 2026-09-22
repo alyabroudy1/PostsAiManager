@@ -137,6 +137,8 @@ class ConversationRepositoryImpl @Inject constructor(
         toolResult = entity.toolResult,
         isStreaming = entity.isStreaming,
         createdAt = entity.createdAt,
+        thinking = entity.thinking,
+        thinkingDurationMs = entity.thinkingDurationMs,
     )
 
     private fun toEntity(model: AiMessage) = MessageEntity(
@@ -152,6 +154,8 @@ class ConversationRepositoryImpl @Inject constructor(
         toolResult = model.toolResult,
         isStreaming = model.isStreaming,
         createdAt = model.createdAt,
+        thinking = model.thinking,
+        thinkingDurationMs = model.thinkingDurationMs,
     )
 }
 
