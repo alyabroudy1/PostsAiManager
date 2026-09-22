@@ -15,7 +15,19 @@
 
 set -euo pipefail
 
-ADB="${PAM_ADB:-/c/Users/test/AppData/Local/Android/Sdk/platform-tools/adb.exe}"
+# Resolve adb: explicit PAM_ADB wins; otherwise fall back to the common SDK
+# locations for the host OS (macOS/Linux first, then the Windows Git Bash path).
+if [ -z "${PAM_ADB:-}" ]; then
+  for candidate in \
+    "${ANDROID_HOME:-}/platform-tools/adb" \
+    "${ANDROID_SDK_ROOT:-}/platform-tools/adb" \
+    "$HOME/Library/Android/sdk/platform-tools/adb" \
+    "$HOME/Android/Sdk/platform-tools/adb" \
+    "/c/Users/test/AppData/Local/Android/Sdk/platform-tools/adb.exe"; do
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then PAM_ADB="$candidate"; break; fi
+  done
+fi
+ADB="${PAM_ADB:-}"
 DEVICE="${PAM_DEVICE:-R5CW21KC1BM}"
 PKG="com.postsaimanager.debug"
 
@@ -37,13 +49,16 @@ case "${1:-}" in
     die "'$1' is not permitted by the harness" ;;
 esac
 
+# uninstall / pm clear wipe app data (multi-GB downloaded models, documents).
+# Restricted to our own debug package AND require an explicit opt-in, because
+# an automated agent once wiped the developer's models with `pm clear`.
 case "$ARGS" in
   *uninstall*)
-    # Only ever uninstall our own debug package.
     case "$ARGS" in
       *"$PKG"*) : ;;
       *) die "uninstall is restricted to $PKG" ;;
-    esac ;;
+    esac
+    [ "${PAM_ALLOW_WIPE:-}" = "1" ] || die "uninstall wipes app data; re-run with PAM_ALLOW_WIPE=1 if you really mean it" ;;
 esac
 
 case "$ARGS" in
@@ -51,7 +66,8 @@ case "$ARGS" in
     case "$ARGS" in
       *"$PKG"*) : ;;
       *) die "pm clear is restricted to $PKG" ;;
-    esac ;;
+    esac
+    [ "${PAM_ALLOW_WIPE:-}" = "1" ] || die "pm clear wipes app data; re-run with PAM_ALLOW_WIPE=1 if you really mean it" ;;
 esac
 
 # Only the three animation scales may be written. Everything else is read-only.
