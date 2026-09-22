@@ -12,6 +12,7 @@ import com.postsaimanager.core.domain.usecase.BuildChatContextUseCase
 import com.postsaimanager.core.domain.usecase.SendChatMessageUseCase
 import com.postsaimanager.core.model.AiConversation
 import com.postsaimanager.core.model.AiMessage
+import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
@@ -79,9 +80,11 @@ class ChatPipelineTest {
 
     private class StubActiveModel(private val path: String?) : ActiveModelProvider {
         override suspend fun activeModelPath(): String? = path
-        override suspend fun activeModelContextTokens(): Int = 1024
+        override suspend fun activeModelConfig(): InferenceConfig =
+            InferenceConfig(contextTokens = 1024, threads = InferenceConfig.defaultThreadCount())
         override suspend fun extractionModelPath(): String? = path
-        override suspend fun extractionModelContextTokens(): Int = 1024
+        override suspend fun extractionModelConfig(): InferenceConfig =
+            InferenceConfig(contextTokens = 1024, threads = InferenceConfig.defaultThreadCount())
     }
 
     /**

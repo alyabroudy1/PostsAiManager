@@ -15,7 +15,7 @@ private fun drain(
     maxTokens: Int,
     grammar: String?,
 ): String {
-    if (!LlamaNative.startGeneration(handle, prompt, maxTokens, 0.0f, grammar)) return ""
+    if (!LlamaNative.startGeneration(handle, prompt, maxTokens, 0.0f, 40, 0.9f, -1L, grammar)) return ""
     val sb = StringBuilder()
     try {
         while (true) sb.append(LlamaNative.nextToken(handle) ?: break)
@@ -55,7 +55,12 @@ class GrammarRegressionTest {
     @Test
     fun sequentialGenerationsAreIndependent() {
         requireModel()
-        val handle = LlamaNative.loadModel(modelPath, contextTokens = 1024, threads = 4)
+        val handle = LlamaNative.loadModel(
+            modelPath, contextTokens = 1024, batchTokens = 512, threads = 4,
+            threadsBatch = 4, useMmap = true, useMlock = false, flashAttention = false,
+            gpuLayers = 0,
+            accelerator = 0,
+        )
         assertNotEquals(0L, handle)
 
         try {
@@ -74,7 +79,12 @@ class GrammarRegressionTest {
     @Test
     fun degenerateInputDoesNotKillTheProcess() {
         requireModel()
-        val handle = LlamaNative.loadModel(modelPath, contextTokens = 512, threads = 2)
+        val handle = LlamaNative.loadModel(
+            modelPath, contextTokens = 512, batchTokens = 512, threads = 2,
+            threadsBatch = 2, useMmap = true, useMlock = false, flashAttention = false,
+            gpuLayers = 0,
+            accelerator = 0,
+        )
         assertNotEquals(0L, handle)
 
         try {
@@ -100,7 +110,12 @@ class GrammarRegressionTest {
     fun loadFreeCycleIsRepeatable() {
         requireModel()
         repeat(3) { i ->
-            val handle = LlamaNative.loadModel(modelPath, contextTokens = 512, threads = 2)
+            val handle = LlamaNative.loadModel(
+            modelPath, contextTokens = 512, batchTokens = 512, threads = 2,
+            threadsBatch = 2, useMmap = true, useMlock = false, flashAttention = false,
+            gpuLayers = 0,
+            accelerator = 0,
+        )
             assertNotEquals("load $i failed", 0L, handle)
             val out = drain(handle, "Say alpha.", 4, grammar).trim()
             Log.i(tag, "cycle $i out=<<<$out>>>")

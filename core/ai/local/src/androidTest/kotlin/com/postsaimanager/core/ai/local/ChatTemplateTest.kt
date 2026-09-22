@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiChatRole
+import com.postsaimanager.core.model.InferenceConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
@@ -37,7 +38,7 @@ class ChatTemplateTest {
         val engine = LocalAiEngine(Dispatchers.IO)
 
         try {
-            val result = engine.loadFile(modelFile, contextTokens = 1024)
+            val result = engine.loadFile(modelFile, InferenceConfig(contextTokens = 1024, threads = InferenceConfig.defaultThreadCount()))
             val caps = (result as PamResult.Success).data
 
             Log.i(tag, "template hasNative=${caps.hasNativeChatTemplate}")
@@ -67,7 +68,7 @@ class ChatTemplateTest {
         val engine = LocalAiEngine(Dispatchers.IO)
 
         try {
-            engine.loadFile(modelFile, contextTokens = 1024)
+            engine.loadFile(modelFile, InferenceConfig(contextTokens = 1024, threads = InferenceConfig.defaultThreadCount()))
 
             val prompt = engine.formatPrompt(
                 listOf(

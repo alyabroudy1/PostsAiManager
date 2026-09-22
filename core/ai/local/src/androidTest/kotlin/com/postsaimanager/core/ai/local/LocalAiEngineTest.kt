@@ -3,8 +3,9 @@ package com.postsaimanager.core.ai.local
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.postsaimanager.core.common.result.PamResult
-import com.postsaimanager.core.domain.ai.AiEngineState
 import com.postsaimanager.core.domain.ai.AiRequest
+import com.postsaimanager.core.model.InferenceConfig
+import com.postsaimanager.core.model.ModelLoadState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -32,6 +33,9 @@ class LocalAiEngineTest {
 
     private fun engine() = LocalAiEngine(Dispatchers.IO)
 
+    private fun config(contextTokens: Int = 1024) =
+        InferenceConfig(contextTokens = contextTokens, threads = InferenceConfig.defaultThreadCount())
+
     private fun requireModel() {
         assumeTrue("No model at ${modelFile.path}", modelFile.exists())
         assumeTrue("Native library unavailable", LlamaNative.ensureLoaded())
@@ -39,7 +43,7 @@ class LocalAiEngineTest {
 
     @Test
     fun reportsNoModelBeforeLoading() {
-        assertEquals(AiEngineState.NoModel, engine().state.value)
+        assertEquals(ModelLoadState.Idle, engine().state.value)
     }
 
     @Test
@@ -48,7 +52,7 @@ class LocalAiEngineTest {
 
         assertTrue(result is PamResult.Error)
         // The failure must be typed and actionable, not an exception escaping to the caller.
-        assertTrue(engine().state.value is AiEngineState.NoModel)
+        assertTrue(engine().state.value is ModelLoadState.Idle)
     }
 
     @Test
@@ -56,26 +60,26 @@ class LocalAiEngineTest {
         requireModel()
         val engine = engine()
 
-        val result = engine.loadFile(modelFile, contextTokens = 1024)
+        val result = engine.loadFile(modelFile, config())
 
         assertTrue("load failed: $result", result is PamResult.Success)
         val caps = (result as PamResult.Success).data
-        Log.i(tag, "engine caps=$caps threads=${LocalAiEngine.defaultThreadCount()}")
+        Log.i(tag, "engine caps=$caps threads=${InferenceConfig.defaultThreadCount()}")
 
         assertTrue(caps.supportsGrammar)
         assertEquals(1024, caps.contextTokens)
         assertTrue(engine.isReady)
-        assertTrue(engine.state.value is AiEngineState.Ready)
+        assertTrue(engine.state.value is ModelLoadState.Ready)
 
         engine.unload()
-        assertEquals(AiEngineState.NoModel, engine.state.value)
+        assertEquals(ModelLoadState.Idle, engine.state.value)
     }
 
     @Test
     fun streamsTokensIncrementally() = runBlocking {
         requireModel()
         val engine = engine()
-        engine.loadFile(modelFile, contextTokens = 1024)
+        engine.loadFile(modelFile, config())
 
         try {
             val tokens = engine.generate(AiRequest("Name three colours.", maxTokens = 24, temperature = 0f))
@@ -101,7 +105,7 @@ class LocalAiEngineTest {
     fun generationsDoNotLeakContextIntoEachOther() = runBlocking {
         requireModel()
         val engine = engine()
-        engine.loadFile(modelFile, contextTokens = 1024)
+        engine.loadFile(modelFile, config())
 
         try {
             val prompt = "Repeat exactly: banana"
@@ -124,7 +128,7 @@ class LocalAiEngineTest {
     fun cancellationStopsGenerationPromptly() = runBlocking {
         requireModel()
         val engine = engine()
-        engine.loadFile(modelFile, contextTokens = 1024)
+        engine.loadFile(modelFile, config())
 
         try {
             // take(3) cancels the flow after three tokens; the engine must release native
@@ -150,7 +154,7 @@ class LocalAiEngineTest {
     fun grammarConstrainsStreamedOutput() = runBlocking {
         requireModel()
         val engine = engine()
-        engine.loadFile(modelFile, contextTokens = 1024)
+        engine.loadFile(modelFile, config())
 
         try {
             val grammar = "root ::= \"yes\" | \"no\"\n"

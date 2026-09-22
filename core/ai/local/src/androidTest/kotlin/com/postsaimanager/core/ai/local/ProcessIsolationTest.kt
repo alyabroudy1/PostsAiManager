@@ -8,8 +8,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiChatRole
-import com.postsaimanager.core.domain.ai.AiEngineState
 import com.postsaimanager.core.domain.ai.AiRequest
+import com.postsaimanager.core.model.InferenceConfig
+import com.postsaimanager.core.model.ModelLoadState
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -37,6 +38,9 @@ class ProcessIsolationTest {
 
     private fun engine() = RemoteAiEngine(context)
 
+    private fun config(contextTokens: Int = 1024) =
+        InferenceConfig(contextTokens = contextTokens, threads = InferenceConfig.defaultThreadCount())
+
     private fun requireModel() {
         assumeTrue("No model at ${modelFile.path}", modelFile.exists())
     }
@@ -55,7 +59,7 @@ class ProcessIsolationTest {
         requireModel()
         val engine = engine()
 
-        val result = engine.load(modelFile.absolutePath, contextTokens = 1024)
+        val result = engine.load(modelFile.absolutePath, config(1024))
         assertTrue("load failed: $result", result is PamResult.Success)
 
         val pid = inferencePid()
@@ -72,7 +76,7 @@ class ProcessIsolationTest {
     fun generationWorksAcrossTheProcessBoundary() = runBlocking {
         requireModel()
         val engine = engine()
-        engine.load(modelFile.absolutePath, contextTokens = 1024)
+        engine.load(modelFile.absolutePath, config(1024))
 
         try {
             val tokens = engine.generate(
@@ -94,7 +98,7 @@ class ProcessIsolationTest {
     fun grammarStillConstrainsAcrossTheBoundary() = runBlocking {
         requireModel()
         val engine = engine()
-        engine.load(modelFile.absolutePath, contextTokens = 1024)
+        engine.load(modelFile.absolutePath, config(1024))
 
         try {
             val out = engine.generate(
@@ -126,7 +130,7 @@ class ProcessIsolationTest {
     fun survivesTheInferenceProcessBeingKilled() = runBlocking {
         requireModel()
         val engine = engine()
-        engine.load(modelFile.absolutePath, contextTokens = 1024)
+        engine.load(modelFile.absolutePath, config(1024))
 
         val pid = inferencePid()
         assertTrue("no :inference process", pid != null)
@@ -143,12 +147,12 @@ class ProcessIsolationTest {
         val state = engine.state.value
         assertTrue(
             "expected a Failed state after the crash, got $state",
-            state is AiEngineState.Failed,
+            state is ModelLoadState.Failed,
         )
         // The message must reassure, not alarm: nothing the user owns was lost.
         assertTrue(
-            "message should mention documents are safe: ${(state as AiEngineState.Failed).message}",
-            state.message.contains("documents", ignoreCase = true),
+            "message should mention documents are safe: ${(state as ModelLoadState.Failed).error}",
+            state.error.contains("documents", ignoreCase = true),
         )
 
         // And it must recover: the next request rebinds and reloads.
@@ -169,7 +173,7 @@ class ProcessIsolationTest {
 
         runBlocking {
             val engine = engine()
-            engine.load(modelFile.absolutePath, contextTokens = 512)
+            engine.load(modelFile.absolutePath, config(512))
             inferencePid()?.let { android.os.Process.killProcess(it) }
             Thread.sleep(1_500)
         }

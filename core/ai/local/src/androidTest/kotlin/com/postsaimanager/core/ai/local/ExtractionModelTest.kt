@@ -8,6 +8,7 @@ import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
+import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.TextBounds
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +53,10 @@ class ExtractionModelTest {
     private suspend fun loaded(): LocalAiEngine {
         val engine = LocalAiEngine(Dispatchers.IO)
         // The window the device provider now caps to, so this reproduces what the app does.
-        val result = engine.load(modelFile.absolutePath, contextTokens = 4096)
+        val result = engine.load(
+            modelFile.absolutePath,
+            InferenceConfig(contextTokens = 4096, threads = InferenceConfig.defaultThreadCount()),
+        )
         check(result is PamResult.Success) { "load failed: $result" }
         Log.i(tag, "model loaded: ${result.data}")
         return engine
@@ -234,7 +238,9 @@ class ExtractionModelTest {
 /** Points the extraction use case at the model this test loaded. */
 private class StubActiveModel(private val path: String) : ActiveModelProvider {
     override suspend fun activeModelPath(): String = path
-    override suspend fun activeModelContextTokens(): Int = 4096
+    override suspend fun activeModelConfig(): InferenceConfig =
+        InferenceConfig(contextTokens = 4096, threads = InferenceConfig.defaultThreadCount())
     override suspend fun extractionModelPath(): String = path
-    override suspend fun extractionModelContextTokens(): Int = 4096
+    override suspend fun extractionModelConfig(): InferenceConfig =
+        InferenceConfig(contextTokens = 4096, threads = InferenceConfig.defaultThreadCount())
 }

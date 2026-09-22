@@ -18,7 +18,7 @@ private fun drain(
     temperature: Float,
     grammar: String?,
 ): String {
-    if (!LlamaNative.startGeneration(handle, prompt, maxTokens, temperature, grammar)) return ""
+    if (!LlamaNative.startGeneration(handle, prompt, maxTokens, temperature, 40, 0.9f, -1L, grammar)) return ""
     val sb = StringBuilder()
     try {
         while (true) sb.append(LlamaNative.nextToken(handle) ?: break)
@@ -59,7 +59,12 @@ class LlamaSpikeTest {
 
         var handle = 0L
         val loadMs = measureTimeMillis {
-            handle = LlamaNative.loadModel(modelPath, contextTokens = 2048, threads = 4)
+            handle = LlamaNative.loadModel(
+            modelPath, contextTokens = 2048, batchTokens = 512, threads = 4,
+            threadsBatch = 4, useMmap = true, useMlock = false, flashAttention = false,
+            gpuLayers = 0,
+            accelerator = 0,
+        )
         }
         Log.i(tag, "Q2 load_ms=$loadMs handle=$handle")
         assertNotEquals("model failed to load", 0L, handle)
@@ -97,7 +102,12 @@ class LlamaSpikeTest {
     fun q4_grammarConstrainsOutput() {
         requireModel()
 
-        val handle = LlamaNative.loadModel(modelPath, contextTokens = 2048, threads = 4)
+        val handle = LlamaNative.loadModel(
+            modelPath, contextTokens = 2048, batchTokens = 512, threads = 4,
+            threadsBatch = 4, useMmap = true, useMlock = false, flashAttention = false,
+            gpuLayers = 0,
+            accelerator = 0,
+        )
         assertNotEquals(0L, handle)
 
         try {
@@ -129,7 +139,12 @@ class LlamaSpikeTest {
     fun q4b_jsonGrammarProducesValidJson() {
         requireModel()
 
-        val handle = LlamaNative.loadModel(modelPath, contextTokens = 2048, threads = 4)
+        val handle = LlamaNative.loadModel(
+            modelPath, contextTokens = 2048, batchTokens = 512, threads = 4,
+            threadsBatch = 4, useMmap = true, useMlock = false, flashAttention = false,
+            gpuLayers = 0,
+            accelerator = 0,
+        )
         assertNotEquals(0L, handle)
 
         try {
