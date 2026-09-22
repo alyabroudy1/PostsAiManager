@@ -28,6 +28,11 @@ android {
 }
 
 dependencies {
+    // The generic ConfigSpec-driven controls (Settings' "On-device AI" section, the chat
+    // header's model sheet) render `com.postsaimanager.core.model.ConfigSpec` and friends
+    // directly, so every consumer of this module gets them for free.
+    api(project(":core:model"))
+
     // Compose
     api(platform(libs.compose.bom))
     api(libs.compose.ui)
@@ -44,6 +49,9 @@ dependencies {
 
     // Lottie
     api(libs.lottie.compose)
+
+    // Markdown rendering for assistant chat replies (bold, lists, headings, code fences).
+    api(libs.compose.markdown)
 
     // Debug
     debugApi(libs.compose.ui.tooling)

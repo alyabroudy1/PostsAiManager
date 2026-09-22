@@ -3,8 +3,13 @@ package com.postsaimanager.feature.settings
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamError
+import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
+import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
+import com.postsaimanager.core.domain.usecase.UpdateInferenceSettingUseCase
 import com.postsaimanager.core.model.AppTheme
 import com.postsaimanager.core.model.UserPreferences
+import com.postsaimanager.core.testing.FakeActiveModelProvider
+import com.postsaimanager.core.testing.FakeInferenceSettingsRepository
 import com.postsaimanager.core.testing.FakeUserPreferencesRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
 import kotlinx.coroutines.test.runTest
@@ -23,8 +28,15 @@ import org.junit.jupiter.api.extension.ExtendWith
 class SettingsViewModelTest {
 
     private val repo = FakeUserPreferencesRepository()
+    private val models = FakeActiveModelProvider()
+    private val inferenceSettingsRepo = FakeInferenceSettingsRepository()
 
-    private fun viewModel() = SettingsViewModel(repo)
+    private fun viewModel(userPreferencesRepository: FakeUserPreferencesRepository = repo) = SettingsViewModel(
+        userPreferencesRepository = userPreferencesRepository,
+        observeInferenceSettings = ObserveInferenceSettingsUseCase(models, inferenceSettingsRepo),
+        updateInferenceSetting = UpdateInferenceSettingUseCase(inferenceSettingsRepo),
+        resetInferenceSettings = ResetInferenceSettingsUseCase(inferenceSettingsRepo),
+    )
 
     @Test
     fun `starts with default preferences`() = runTest {
@@ -40,7 +52,7 @@ class SettingsViewModelTest {
             UserPreferences(theme = AppTheme.DARK, defaultLanguage = "ar"),
         )
 
-        SettingsViewModel(repo).preferences.test {
+        viewModel(repo).preferences.test {
             val emitted = awaitItem()
             assertThat(emitted.theme).isEqualTo(AppTheme.DARK)
             assertThat(emitted.defaultLanguage).isEqualTo("ar")
