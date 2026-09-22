@@ -6,17 +6,19 @@ import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiCapabilities
 import com.postsaimanager.core.domain.ai.AiChatMessage
-import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.domain.ai.AiEngine
-import com.postsaimanager.core.domain.ai.AiEngineState
 import com.postsaimanager.core.domain.ai.AiRequest
+import com.postsaimanager.core.domain.ai.InferenceCrash
+import com.postsaimanager.core.model.Accelerator
+import com.postsaimanager.core.model.InferenceConfig
+import com.postsaimanager.core.model.ModelLoadState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.sync.Mutex
@@ -24,10 +26,16 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
- * On-device inference over llama.cpp.
+ * On-device inference over llama.cpp, run **in-process**.
+ *
+ * This is not the engine the app binds — [RemoteAiEngine] is, running the same JNI layer in
+ * the isolated `:inference` process (see its KDoc for why: a native abort here is a process
+ * kill that Kotlin cannot catch). This class exists for the instrumented tests that need to
+ * drive the JNI surface directly without the AIDL boundary in the way — spike tests,
+ * template/grammar regression tests, the chat pipeline test. Not Hilt-bound to [AiEngine] in
+ * production; `internal` where nothing outside this module needs it.
  *
  * ### Design
  *
@@ -36,21 +44,15 @@ import javax.inject.Singleton
  *
  * **All native access is serialised** through [mutex]. The JNI layer is not thread-safe per
  * handle, and two concurrent generations sharing one context would corrupt each other's KV
- * cache — a failure that surfaces as nonsense output rather than an error.
+ * cache — a failure that surfaces as nonsense output rather than an error. Load, context
+ * recreation and unload — driven through [ModelLoadCoordinator] — also run under [mutex], so
+ * they can never interleave with an in-flight generation touching the same handle.
  *
  * **Cancellation is cooperative and immediate.** The token loop checks
  * `ensureActive()` each iteration, so collecting the [Flow] in a cancellable scope stops
  * generation within one token — no flag, no race.
- *
- * ### What this deliberately does not do
- *
- * Run in a separate process. Spike Q3 measured a native abort killing the entire app
- * (`SIGABRT`, `Zygote: Process exited`), so isolation via `android:process=":inference"`
- * is justified — but it is a distinct change with its own IPC surface, tracked as 7.3.12.
- * Until then a malformed model or bad grammar can still take the app down.
  */
-@Singleton
-class LocalAiEngine @Inject constructor(
+internal class LocalAiEngine @Inject constructor(
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : AiEngine {
 
@@ -59,81 +61,117 @@ class LocalAiEngine @Inject constructor(
     @Volatile
     private var handle: Long = 0L
 
-    private val _state = MutableStateFlow<AiEngineState>(AiEngineState.NoModel)
-    override val state: StateFlow<AiEngineState> = _state.asStateFlow()
+    private val ops = object : ModelLoadOps {
+        override suspend fun loadModel(modelId: String, config: InferenceConfig): PamResult<AiCapabilities> =
+            mutex.withLock {
+                withContext(ioDispatcher) {
+                    if (!LlamaNative.ensureLoaded()) {
+                        return@withContext PamResult.Error(
+                            PamError.ModelNotLoaded("On-device AI is not supported on this device's processor."),
+                        )
+                    }
+                    val file = File(modelId)
+                    if (!file.exists()) {
+                        return@withContext PamResult.Error(PamError.FileNotFound(modelId))
+                    }
+
+                    freeHandleLocked()
+                    val newHandle = LlamaNative.loadModel(
+                        modelPath = file.absolutePath,
+                        contextTokens = config.contextTokens,
+                        batchTokens = config.batchTokens,
+                        threads = config.threads,
+                        threadsBatch = config.threadsBatch,
+                        useMmap = config.useMmap,
+                        useMlock = config.useMlock,
+                        flashAttention = config.flashAttention,
+                        gpuLayers = config.gpuLayers,
+                        accelerator = config.accelerator.ordinal,
+                    )
+                    if (newHandle == 0L) {
+                        // llama.cpp reports load failure by returning null rather than
+                        // throwing; the cause is only in logcat.
+                        return@withContext PamResult.Error(
+                            PamError.ModelNotLoaded(
+                                "Could not load ${file.name}. The file may be corrupt or use " +
+                                    "an unsupported model architecture.",
+                            ),
+                        )
+                    }
+                    handle = newHandle
+                    PamResult.Success(capabilitiesOf(file, config, newHandle))
+                }
+            }
+
+        override suspend fun recreateContext(modelId: String, config: InferenceConfig): PamResult<AiCapabilities> =
+            mutex.withLock {
+                withContext(ioDispatcher) {
+                    val current = handle
+                    if (current == 0L) {
+                        return@withContext PamResult.Error(
+                            PamError.ModelNotLoaded("No model resident to apply the new settings to."),
+                        )
+                    }
+                    val ok = LlamaNative.recreateContext(
+                        handle = current,
+                        contextTokens = config.contextTokens,
+                        batchTokens = config.batchTokens,
+                        threads = config.threads,
+                        threadsBatch = config.threadsBatch,
+                        flashAttention = config.flashAttention,
+                    )
+                    if (!ok) {
+                        return@withContext PamResult.Error(PamError.ModelNotLoaded("Could not apply the new settings."))
+                    }
+                    PamResult.Success(capabilitiesOf(File(modelId), config, current))
+                }
+            }
+
+        override suspend fun unloadModel() = mutex.withLock {
+            withContext(ioDispatcher) { freeHandleLocked() }
+        }
+
+        override suspend fun isActuallyLoaded(): Boolean = handle != 0L
+    }
+
+    private val coordinator = ModelLoadCoordinator(ops)
+
+    override val state: StateFlow<ModelLoadState> = coordinator.state
 
     override val isReady: Boolean get() = handle != 0L
 
-    /**
-     * Loads a model, replacing any currently loaded one.
-     *
-     * @param threads defaults to half the available cores — using all of them starves the
-     *   UI thread and makes the app feel frozen while generating.
-     */
+    // In-process: a native abort here kills the whole app process (see the class doc), so
+    // there is no callback to observe — nothing ever survives to emit on this. It exists
+    // only to satisfy AiEngine for the instrumented tests that use this engine directly.
+    override val crashEvents: SharedFlow<InferenceCrash> = MutableSharedFlow()
+
+    /** Loads a model, replacing any currently loaded one. See [InferenceConfig]. */
     override suspend fun load(
         modelPath: String,
-        contextTokens: Int,
-    ): PamResult<AiCapabilities> = loadFile(File(modelPath), contextTokens)
+        config: InferenceConfig,
+    ): PamResult<AiCapabilities> = loadFile(File(modelPath), config)
 
     suspend fun loadFile(
         modelFile: File,
-        contextTokens: Int = DEFAULT_CONTEXT_TOKENS,
-        threads: Int = defaultThreadCount(),
-    ): PamResult<AiCapabilities> = mutex.withLock {
-        withContext(ioDispatcher) {
-            if (!LlamaNative.ensureLoaded()) {
-                val error = PamError.ModelNotLoaded(
-                    "On-device AI is not supported on this device's processor.",
-                )
-                _state.value = AiEngineState.Failed(error.userMessage)
-                return@withContext PamResult.Error(error)
-            }
+        config: InferenceConfig = InferenceConfig(
+            contextTokens = DEFAULT_CONTEXT_TOKENS,
+            threads = InferenceConfig.defaultThreadCount(),
+        ),
+    ): PamResult<AiCapabilities> = coordinator.load(modelFile.absolutePath, config)
 
-            if (!modelFile.exists()) {
-                val error = PamError.FileNotFound(modelFile.absolutePath)
-                _state.value = AiEngineState.Failed(error.userMessage)
-                return@withContext PamResult.Error(error)
-            }
-
-            _state.value = AiEngineState.Loading
-            unloadLocked()
-
-            val newHandle = LlamaNative.loadModel(
-                modelPath = modelFile.absolutePath,
-                contextTokens = contextTokens,
-                threads = threads,
-            )
-
-            if (newHandle == 0L) {
-                // llama.cpp reports load failure by returning null rather than throwing;
-                // the cause (corrupt file, unsupported architecture, OOM) is only in logcat.
-                val error = PamError.ModelNotLoaded(
-                    "Could not load ${modelFile.name}. The file may be corrupt or use an " +
-                        "unsupported model architecture.",
-                )
-                _state.value = AiEngineState.Failed(error.userMessage)
-                return@withContext PamResult.Error(error)
-            }
-
-            handle = newHandle
-            val hasTemplate = LlamaNative.hasChatTemplate(newHandle)
-            if (!hasTemplate) {
-                // Not fatal, but worth knowing: the ChatML fallback may be wrong for this
-                // model, and wrong templates degrade output silently rather than erroring.
-                android.util.Log.w(
-                    "LocalAiEngine",
-                    "${modelFile.name} declares no chat template; falling back to ChatML",
-                )
-            }
-            val capabilities = AiCapabilities(
-                supportsGrammar = true, // verified on device — spike Q4
-                contextTokens = contextTokens,
-                modelName = modelFile.nameWithoutExtension,
-                hasNativeChatTemplate = hasTemplate,
-            )
-            _state.value = AiEngineState.Ready(capabilities)
-            PamResult.Success(capabilities)
+    private fun capabilitiesOf(file: File, config: InferenceConfig, handle: Long): AiCapabilities {
+        val hasTemplate = LlamaNative.hasChatTemplate(handle)
+        if (!hasTemplate) {
+            // Not fatal, but worth knowing: the ChatML fallback may be wrong for this
+            // model, and wrong templates degrade output silently rather than erroring.
+            android.util.Log.w(TAG, "${file.name} declares no chat template; falling back to ChatML")
         }
+        return AiCapabilities(
+            supportsGrammar = true, // verified on device — spike Q4
+            contextTokens = config.contextTokens,
+            modelName = file.nameWithoutExtension,
+            hasNativeChatTemplate = hasTemplate,
+        )
     }
 
     /**
@@ -162,6 +200,10 @@ class LocalAiEngine @Inject constructor(
                 prompt = prompt,
                 maxTokens = maxTokens,
                 temperature = temperature,
+                topK = request.topK,
+                topP = request.topP,
+                // null means "no seed requested"; the JNI layer treats negative as that.
+                seed = request.seed ?: -1L,
                 grammar = grammar,
             )
             if (!started) {
@@ -192,7 +234,7 @@ class LocalAiEngine @Inject constructor(
         grammar: String? = null,
     ): PamResult<String> = try {
         val builder = StringBuilder()
-        generate(AiRequest(prompt, maxTokens, temperature, grammar))
+        generate(AiRequest(prompt = prompt, maxTokens = maxTokens, temperature = temperature, grammar = grammar))
             .collect { builder.append(it) }
         PamResult.Success(builder.toString())
     } catch (e: kotlinx.coroutines.CancellationException) {
@@ -219,26 +261,13 @@ class LocalAiEngine @Inject constructor(
             )
             if (native != null) return native
         }
-        return chatMlFallback(messages)
+        return ChatTemplateFallback.chatMl(messages)
     }
 
-    private fun chatMlFallback(messages: List<AiChatMessage>): String = buildString {
-        messages.forEach { message ->
-            appendLine("<|im_start|>${message.role.wireName}")
-            appendLine("${message.content}<|im_end|>")
-        }
-        appendLine("<|im_start|>assistant")
-    }
-
-    override suspend fun unload() = mutex.withLock {
-        withContext(ioDispatcher) {
-            unloadLocked()
-            _state.value = AiEngineState.NoModel
-        }
-    }
+    override suspend fun unload() = coordinator.unload()
 
     /** Caller must hold [mutex]. */
-    private fun unloadLocked() {
+    private fun freeHandleLocked() {
         if (handle != 0L) {
             LlamaNative.freeModel(handle)
             handle = 0L
@@ -248,18 +277,18 @@ class LocalAiEngine @Inject constructor(
     fun systemInfo(): String =
         if (LlamaNative.ensureLoaded()) LlamaNative.systemInfo() else "native library unavailable"
 
+    /** See [AiEngine.availableAccelerators]. Runs in-process — this variant has no probe to bind. */
+    override suspend fun availableAccelerators(): Set<Accelerator> {
+        if (!LlamaNative.ensureLoaded()) return setOf(Accelerator.CPU)
+        val ordinals = withContext(ioDispatcher) { LlamaNative.availableAccelerators() }
+        val accelerators = ordinals.toList().mapNotNull { Accelerator.entries.getOrNull(it) }.toSet()
+        return accelerators.ifEmpty { setOf(Accelerator.CPU) }
+    }
+
     companion object {
         const val DEFAULT_CONTEXT_TOKENS = 4096
         const val DEFAULT_MAX_TOKENS = 512
         const val DEFAULT_TEMPERATURE = 0.7f
-
-        /**
-         * Half the cores, at least two.
-         *
-         * Using every core measurably starves the UI thread — generation is CPU-bound and
-         * will happily consume everything it is given.
-         */
-        fun defaultThreadCount(): Int =
-            (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(2)
+        private const val TAG = "LocalAiEngine"
     }
 }
