@@ -18,6 +18,12 @@
 # the checkout step must pull submodules or CMakeLists.txt fails fast with
 # "llama.cpp submodule is missing". It is a separate job so the slow native
 # compile never delays the guard/unit-test feedback.
+#
+# native-build-vulkan: the same native build, with `-Ppam.gpuBackend=vulkan`
+# (documentation/02-architecture.md §5.3). Also a separate job — it needs the
+# LunarG Vulkan SDK on top of everything native-build needs (for
+# SPIRV-Headers' CMake package and the Vulkan-Hpp C++ headers the NDK sysroot
+# does not ship), and its shader compile step adds a couple of minutes.
 # ---------------------------------------------------------------------------
 
 name: CI
@@ -132,6 +138,63 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
+
+  native-build-vulkan:
+    name: Native build, Vulkan backend (:app:assembleDebug -Ppam.gpuBackend=vulkan)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with llama.cpp submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install NDK 27.0.12077973 and CMake 3.22.1
+        run: yes | sdkmanager --install "ndk;27.0.12077973" "cmake;3.22.1" > /dev/null
+
+      # GGML_VULKAN=ON needs two things the NDK sysroot does not ship:
+      # SPIRV-Headers' CMake CONFIG package (ggml-vulkan/CMakeLists.txt calls
+      # find_package(SPIRV-Headers CONFIG REQUIRED) directly, even for this
+      # Android-target configure — see the comment in
+      # core/ai/local/src/main/cpp/CMakeLists.txt) and the Vulkan-Hpp C++
+      # bindings (vulkan/vulkan.hpp; the sysroot only has the plain C header).
+      # The LunarG apt repo's `vulkan-sdk` meta-package installs both, plus a
+      # host glslc, under /usr — the NDK's own shader-tools glslc is used for
+      # the actual shader compile (see build.gradle.kts' findHostGlslc()), so
+      # this one only needs to be findable, not necessarily used.
+      - name: Install the Vulkan SDK (SPIRV-Headers, Vulkan-Hpp)
+        run: |
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list \
+            https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt-get update
+          sudo apt-get install -y vulkan-sdk
+
+      # -Ppam.hostPrefixPath=/usr: on this runner there is no Homebrew for
+      # CMakeLists.txt's default `brew --prefix` detection to find, so point
+      # it at the Vulkan SDK's actual install prefix directly.
+      - name: Assemble debug APK (Vulkan backend)
+        run: |
+          ./gradlew :app:assembleDebug \
+            -Ppam.gpuBackend=vulkan \
+            -Ppam.hostPrefixPath=/usr \
+            --console=plain
+
+      - name: Upload debug APK (Vulkan backend)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-vulkan.apk
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
           if-no-files-found: error
