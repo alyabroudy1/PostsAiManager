@@ -37,6 +37,16 @@ class FakeAiEngine(
     )
     override val state: StateFlow<ModelLoadState> = _state
 
+    /**
+     * Puts [state] into [ModelLoadState.Ready] for [modelId] with [config] — lets a test
+     * simulate "the model is already loaded from a previous send" without going through
+     * [load], e.g. to exercise a caller (like `CatalogActiveModelProvider`) that reads
+     * [state] to decide whether to reuse part of a previously loaded config.
+     */
+    fun setReady(modelId: String, config: InferenceConfig, loadDurationMs: Long = 0L) {
+        _state.value = ModelLoadState.Ready(modelId, config, loadDurationMs)
+    }
+
     /** What [generate] emits, in chunks, to exercise streaming. */
     var response: String = ""
 

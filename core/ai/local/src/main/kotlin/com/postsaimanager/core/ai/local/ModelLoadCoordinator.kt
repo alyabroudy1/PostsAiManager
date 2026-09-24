@@ -3,6 +3,7 @@ package com.postsaimanager.core.ai.local
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiCapabilities
+import android.util.Log
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.model.ReloadScope
@@ -100,13 +101,50 @@ internal class ModelLoadCoordinator(private val ops: ModelLoadOps) {
         // resident — never trust the fast paths below without checking.
         if (sameModelReady && ops.isActuallyLoaded()) {
             val readyState = current as ModelLoadState.Ready
-            return when (readyState.config.requiresReload(config)) {
+            val scope = readyState.config.requiresReload(config)
+            logScope(scope, readyState.config, config)
+            return when (scope) {
                 ReloadScope.NONE -> noReloadNeeded(readyState, config)
                 ReloadScope.CONTEXT -> recreateContextLocked(modelId, config)
                 ReloadScope.MODEL -> fullLoadLocked(modelId, config)
             }
         }
+        logScope(ReloadScope.MODEL, current = null, requested = config)
         return fullLoadLocked(modelId, config)
+    }
+
+    /**
+     * One line per [load] call, so "why did it reload" is diagnosable from `adb logcat`
+     * without reaching for a debugger — see the on-device repro in
+     * `SendChatMessageUseCase`'s KDoc, where this call happens on every send by design and a
+     * scope other than [ReloadScope.NONE] on an unchanged config is exactly the bug this
+     * pins down. [Log.i] rather than [Log.d]: cheap, and worth having in a release-debuggable
+     * build without a debug flag.
+     */
+    private fun logScope(scope: ReloadScope, current: InferenceConfig?, requested: InferenceConfig) {
+        val reason = if (current == null) {
+            "no resident model"
+        } else {
+            diff(current, requested)
+        }
+        runCatching { Log.i(TAG, "load requested scope=$scope reason=$reason") }
+    }
+
+    /** Which top-level fields differ between [a] and [b] — the "why" behind a [ReloadScope]. */
+    private fun diff(a: InferenceConfig, b: InferenceConfig): String {
+        val fields = buildList {
+            if (a.contextTokens != b.contextTokens) add("contextTokens ${a.contextTokens}->${b.contextTokens}")
+            if (a.batchTokens != b.batchTokens) add("batchTokens ${a.batchTokens}->${b.batchTokens}")
+            if (a.threads != b.threads) add("threads ${a.threads}->${b.threads}")
+            if (a.threadsBatch != b.threadsBatch) add("threadsBatch ${a.threadsBatch}->${b.threadsBatch}")
+            if (a.useMmap != b.useMmap) add("useMmap ${a.useMmap}->${b.useMmap}")
+            if (a.useMlock != b.useMlock) add("useMlock ${a.useMlock}->${b.useMlock}")
+            if (a.flashAttention != b.flashAttention) add("flashAttention ${a.flashAttention}->${b.flashAttention}")
+            if (a.accelerator != b.accelerator) add("accelerator ${a.accelerator}->${b.accelerator}")
+            if (a.gpuLayers != b.gpuLayers) add("gpuLayers ${a.gpuLayers}->${b.gpuLayers}")
+            if (a.sampling != b.sampling) add("sampling ${a.sampling}->${b.sampling}")
+        }
+        return if (fields.isEmpty()) "no field differs" else fields.joinToString(", ")
     }
 
     /** Caller must hold [mutex]. Nothing native changes — sampling is per-request anyway. */
@@ -245,5 +283,9 @@ internal class ModelLoadCoordinator(private val ops: ModelLoadOps) {
     suspend fun ensureLoaded(): PamResult<AiCapabilities>? {
         val (modelId, config) = lastRequested ?: return null
         return load(modelId, config)
+    }
+
+    private companion object {
+        const val TAG = "ModelLoadCoordinator"
     }
 }
