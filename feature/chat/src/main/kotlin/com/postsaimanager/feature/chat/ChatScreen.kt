@@ -214,6 +214,7 @@ fun ChatScreen(
                         state = modelSheetState,
                         onClick = { showModelSheet = true },
                         modifier = Modifier.padding(end = 8.dp),
+                        isPrimingConversation = uiState.isPrimingConversation,
                     )
                 },
             )

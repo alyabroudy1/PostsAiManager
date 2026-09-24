@@ -11,7 +11,6 @@ import com.postsaimanager.core.domain.usecase.ChatTurn
 import com.postsaimanager.core.domain.usecase.CitationParser
 import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.ObserveInstalledModelsUseCase
-import com.postsaimanager.core.domain.usecase.PreloadActiveModelUseCase
 import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.SelectActiveModelUseCase
 import com.postsaimanager.core.domain.usecase.SendChatMessageUseCase
@@ -47,7 +46,6 @@ class ChatViewModel @Inject constructor(
     private val engine: AiEngine,
     private val observeInstalledModels: ObserveInstalledModelsUseCase,
     private val selectActiveModel: SelectActiveModelUseCase,
-    private val preloadActiveModel: PreloadActiveModelUseCase,
     private val observeInferenceSettings: ObserveInferenceSettingsUseCase,
     private val updateInferenceSetting: UpdateInferenceSettingUseCase,
     private val resetInferenceSettings: ResetInferenceSettingsUseCase,
@@ -128,20 +126,37 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * Requests the active model load as soon as the chat screen opens, rather than waiting
-     * for the first message — through the exact same path [sendMessage] uses
-     * ([PreloadActiveModelUseCase] calls `engine.load`, same as
-     * [SendChatMessageUseCase][com.postsaimanager.core.domain.usecase.SendChatMessageUseCase]),
-     * so a send that races this simply joins the same in-flight load
+     * Requests the active model load *and* primes this conversation's session as soon as the
+     * chat screen opens, rather than waiting for the first message.
+     *
+     * [SendChatMessageUseCase.primeConversation] calls `engine.load` — the same path
+     * [sendMessage] uses — so a send that races this simply joins the same in-flight load
      * ([ModelLoadCoordinator][com.postsaimanager.core.ai.local.ModelLoadCoordinator] is
-     * single-flight) instead of starting a second one. Fire-and-forget: [modelSheetState]
-     * already observes [engine]'s [ModelLoadState][com.postsaimanager.core.model
-     * .ModelLoadState] independently, so the header chip moves through Loading -> Ready on its
-     * own without this function needing to touch [uiState]. A no-op, not a crash or a log
-     * warning, when nothing is installed — see [PreloadActiveModelUseCase]'s early return.
+     * single-flight), then `engine.ensureChatSession`, guarded by the engine's own session
+     * lock: a send that starts while this is still priming blocks on that lock and then finds
+     * the session already primed (a no-op), rather than re-doing the work or racing it. See
+     * [SendChatMessageUseCase.primeConversation]'s doc for why this is safe to call
+     * concurrently with a real send.
+     *
+     * [isPrimingConversation] only covers the priming half — [modelSheetState] already
+     * observes [engine]'s [ModelLoadState][com.postsaimanager.core.model.ModelLoadState]
+     * independently for the model-load half, so the header chip moves through Loading -> Ready
+     * on its own. A no-op, not a crash or a log warning, when nothing is installed — see
+     * [com.postsaimanager.core.domain.usecase.PreloadActiveModelUseCase]'s early return,
+     * which `primeConversation` shares.
      */
     private fun preWarmModel() {
-        viewModelScope.launch { preloadActiveModel() }
+        viewModelScope.launch { primeConversation() }
+    }
+
+    /** Shared by [preWarmModel] and [selectModel] — see their docs. */
+    private suspend fun primeConversation() {
+        _uiState.update { it.copy(isPrimingConversation = true) }
+        try {
+            sendChatMessage.primeConversation(conversationId, documentId)
+        } finally {
+            _uiState.update { it.copy(isPrimingConversation = false) }
+        }
     }
 
     /** Chat survives process death — messages are persisted, not held in the ViewModel. */
@@ -261,7 +276,8 @@ class ChatViewModel @Inject constructor(
                 conversationId = conversationId,
                 documentId = documentId,
                 text = text,
-                thinkingEnabled = modelSheetState.value.overrides.thinkingEnabled ?: true,
+                // Default OFF — see InferenceOverrides.thinkingEnabled's KDoc.
+                thinkingEnabled = modelSheetState.value.overrides.thinkingEnabled ?: false,
             ).collect(::applyTurn)
         }
     }
@@ -292,7 +308,8 @@ class ChatViewModel @Inject constructor(
             sendChatMessage.regenerateLastReply(
                 conversationId = conversationId,
                 documentId = documentId,
-                thinkingEnabled = modelSheetState.value.overrides.thinkingEnabled ?: true,
+                // Default OFF — see InferenceOverrides.thinkingEnabled's KDoc.
+                thinkingEnabled = modelSheetState.value.overrides.thinkingEnabled ?: false,
             ).collect(::applyTurn)
         }
     }
@@ -405,14 +422,16 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * Switches the active chat model and loads it immediately, so the header chip visibly
-     * moves Loading → Ready on the new model rather than sitting still until the next
-     * message — see [PreloadActiveModelUseCase].
+     * Switches the active chat model and loads + primes it immediately, so the header chip
+     * visibly moves Loading → Ready (and then shows "Preparing conversation…" briefly) on the
+     * new model rather than sitting still until the next message — same path as
+     * [preWarmModel], since a model switch invalidates whatever session the previous model had
+     * primed just as much as opening the screen fresh does.
      */
     fun selectModel(modelId: String) {
         viewModelScope.launch {
             selectActiveModel(modelId)
-            preloadActiveModel()
+            primeConversation()
         }
     }
 
@@ -480,6 +499,12 @@ data class ChatUiState(
     /** Transient status such as "Loading model…". */
     val statusText: String? = null,
     val engineReady: Boolean = false,
+    /**
+     * True while [ChatViewModel.preWarmModel] is priming this conversation's session (model
+     * load + grounding/history prefill) in the background, before any message has been sent.
+     * Drives the "Preparing conversation…" header subtitle — see [ModelHeaderChip].
+     */
+    val isPrimingConversation: Boolean = false,
     val error: ChatError? = null,
     /**
      * Set to `System.currentTimeMillis()` every time [ChatViewModel.sendMessage] runs —

@@ -47,7 +47,12 @@ import com.postsaimanager.core.model.isGpuBlockedByDriver
  * model and its runtime state are always one tap away, not buried in Settings.
  */
 @Composable
-fun ModelHeaderChip(state: ModelSheetUiState, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun ModelHeaderChip(
+    state: ModelSheetUiState,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isPrimingConversation: Boolean = false,
+) {
     val activeModel = state.installedModels.firstOrNull { it.id == state.activeModelId }
     Surface(
         onClick = onClick,
@@ -59,7 +64,7 @@ fun ModelHeaderChip(state: ModelSheetUiState, onClick: () -> Unit, modifier: Mod
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            LoadStateDot(state.loadState)
+            LoadStateDot(state.loadState, isPrimingConversation = isPrimingConversation)
             Spacer(modifier = Modifier.width(8.dp))
             Column {
                 Text(
@@ -68,7 +73,14 @@ fun ModelHeaderChip(state: ModelSheetUiState, onClick: () -> Unit, modifier: Mod
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = loadStateSubtitle(state.loadState),
+                    // Pre-warm priming (see ChatViewModel.preWarmModel) only ever runs once
+                    // the model itself has already reached Ready — the chip's own subtitle
+                    // for [ModelLoadState.Loading] still applies during the load half.
+                    text = if (isPrimingConversation && state.loadState is ModelLoadState.Ready) {
+                        "Preparing conversation…"
+                    } else {
+                        loadStateSubtitle(state.loadState)
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -85,28 +97,29 @@ fun ModelHeaderChip(state: ModelSheetUiState, onClick: () -> Unit, modifier: Mod
 }
 
 @Composable
-private fun LoadStateDot(loadState: ModelLoadState) {
-    when (loadState) {
-        is ModelLoadState.Loading -> CircularProgressIndicator(
-            modifier = Modifier.size(14.dp),
-            strokeWidth = 2.dp,
-        )
+private fun LoadStateDot(loadState: ModelLoadState, isPrimingConversation: Boolean = false) {
+    when {
+        loadState is ModelLoadState.Loading || (isPrimingConversation && loadState is ModelLoadState.Ready) ->
+            CircularProgressIndicator(
+                modifier = Modifier.size(14.dp),
+                strokeWidth = 2.dp,
+            )
 
-        is ModelLoadState.Ready -> Surface(
+        loadState is ModelLoadState.Ready -> Surface(
             modifier = Modifier
                 .size(10.dp)
                 .clip(RoundedCornerShape(50)),
             color = MaterialTheme.colorScheme.primary,
         ) {}
 
-        is ModelLoadState.Failed -> Surface(
+        loadState is ModelLoadState.Failed -> Surface(
             modifier = Modifier
                 .size(10.dp)
                 .clip(RoundedCornerShape(50)),
             color = MaterialTheme.colorScheme.error,
         ) {}
 
-        ModelLoadState.Idle -> Surface(
+        else -> Surface( // ModelLoadState.Idle
             modifier = Modifier
                 .size(10.dp)
                 .clip(RoundedCornerShape(50)),
