@@ -392,3 +392,49 @@ field is one a person looked at and accepted, and it should survive the next run
 
 Ordered by what protects the user first: the merge comes before the new ingest paths,
 because every day the current behaviour ships is a day someone's corrections can be erased.
+
+## 11. Deleting documents
+
+Delete is soft by default. `documents.deletedAt` (migration 11→12, nullable, additive — the
+same pattern as every migration in §9) is null for a live document and a timestamp for a
+trashed one. Every read path that feeds a list, a count or search — the documents list, Home,
+search, `DocumentProcessingRecovery`, and the chat corpus (`DocumentChunkDao.getAll`, joined
+against `documents`) — filters `deletedAt IS NULL` in the DAO query itself, not in the UI.
+`getById`/`observeById` stay unfiltered: the detail screen, restore, and a citation chip's
+"gone" check all need to find a trashed (or already-deleted) document by id.
+
+**Trashing** (`DocumentRepository.moveToTrash`) cancels the document's `WorkManager` work and
+stamps `deletedAt`. Files and every child row (pages, extracted data, revisions, chunks…) are
+left alone — restore is a plain field flip. A worker already mid-run when the document is
+trashed is the race this can't cancel away: `DocumentProcessingPipeline.processDocument`
+re-checks `deletedAt` itself, once before Step 1 (nothing written yet) and once more right
+before it persists this run's extraction results, and stops without writing either time.
+
+The document's conversation (`conv-<id>`) is not deleted, only hidden along with the document
+— it reappears on restore. A citation chip pointing at a trashed or permanently deleted
+document renders disabled, labelled "Deleted document" (`ChatViewModel.toChatSource`,
+`ChatScreen`'s `SourceChip`) rather than navigating somewhere that no longer exists.
+
+**Permanent delete** (`DocumentRepository.deletePermanently`, called directly from the trash
+screen or by the 30-day auto-purge) runs in this order:
+
+1. cancel any processing work (idempotent);
+2. one DB transaction (`RoomDatabase.withTransaction`) that deletes the document's own
+   conversation and any stray `message_sources` elsewhere that cite it — `conversations` and
+   `message_sources.documentId` carry no FK to `documents`, so nothing cascades them — then
+   deletes the `documents` row itself, whose own `ON DELETE CASCADE` FKs remove every child
+   row (pages, extracted data, revisions, chunks, tags links, relations, profile links,
+   dismissed entities, entity proposals);
+3. once that transaction commits, the on-disk page images (`filesDir/documents/<id>/`).
+
+Files are deleted only *after* the transaction commits, so a failed delete never leaves a
+document row with no images behind it. Profiles and tags are never touched — only the link
+rows (`document_profile_links`, `document_tags`), via cascade. Cached/shared PDFs
+(`cacheDir/shared_pdfs`) are deliberately left alone: they're named from the document's title
+at export time, not its id, so there's no way to attribute one back to a specific document
+without risking another document's export that happens to share a title — and that cache is
+OS-reclaimable, not the source of truth.
+
+Auto-purge (`PurgeExpiredDocumentsUseCase`, 30-day retention) runs once on app start, gated
+behind `isMainProcess()` exactly like `DocumentProcessingRecovery` — see
+`PostsAiManagerApp.onCreate`.

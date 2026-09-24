@@ -25,6 +25,7 @@ import com.postsaimanager.feature.chat.ChatScreen
 import com.postsaimanager.feature.chat.ChatSource
 import com.postsaimanager.feature.documents.DocumentDetailScreen
 import com.postsaimanager.feature.documents.DocumentsScreen
+import com.postsaimanager.feature.documents.TrashScreen
 import com.postsaimanager.feature.home.HomeScreen
 import com.postsaimanager.feature.profiles.ProfilesScreen
 import com.postsaimanager.feature.scanner.ScannerScreen
@@ -99,11 +100,16 @@ fun PamApp() {
             composable(TopLevelDestination.SETTINGS.route) {
                 SettingsScreen(
                     onManageModelsClick = { navController.navigate("models") },
+                    onRecentlyDeletedClick = { navController.navigate("trash") },
                 )
             }
 
             composable("models") {
                 ModelsScreen(onNavigateBack = { navController.popBackStack() })
+            }
+
+            composable("trash") {
+                TrashScreen(onNavigateBack = { navController.popBackStack() })
             }
 
             // ── Detail destinations ──

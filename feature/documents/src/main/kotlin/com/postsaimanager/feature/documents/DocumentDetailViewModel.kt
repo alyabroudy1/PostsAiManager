@@ -330,8 +330,19 @@ class DocumentDetailViewModel @Inject constructor(
     // ── Favorites ──
     fun toggleFavorite() { viewModelScope.launch { documentRepository.toggleFavorite(documentId) } }
 
-    fun deleteDocument(onDeleted: () -> Unit) {
-        viewModelScope.launch { documentRepository.deleteDocument(documentId); onDeleted() }
+    /**
+     * Moves this document to the trash (overflow menu "Delete", and the FAILED banner's
+     * delete). Does not navigate itself — `DocumentDetailScreen` shows the "moved to Recently
+     * deleted / Undo" snackbar first and navigates back once it resolves, same shape as the
+     * documents-list swipe-to-delete.
+     */
+    fun moveToTrash() {
+        viewModelScope.launch { documentRepository.moveToTrash(documentId) }
+    }
+
+    /** Restores this document — used from the "This document was deleted" state. */
+    fun restoreDocument() {
+        viewModelScope.launch { documentRepository.restore(documentId) }
     }
 }
 

@@ -117,6 +117,13 @@ fun DocumentDetailScreen(
     val entityProposals by viewModel.entityProposals.collectAsStateWithLifecycle()
     val pendingConfirmAllUndo by viewModel.pendingConfirmAllUndo.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    // Set right when "Delete" is tapped; the trash write itself already happened (see
+    // onDelete below) — this just drives the confirmation snackbar and, once it resolves,
+    // the navigate-back. Kept separate from `uiState.document.isTrashed` so a document that
+    // was *already* trashed when this screen opened (e.g. a stale citation) renders the
+    // permanent "This document was deleted" state below instead of this transient one.
+    var pendingTrashUndo by remember { mutableStateOf(false) }
 
     // A citation chip always means "show me that page" — even if the user was last looking
     // at a different tab (Extracted, Timeline) when they left this document.
@@ -142,6 +149,24 @@ fun DocumentDetailScreen(
         }
     }
 
+    // The write already happened when "Delete" was tapped (optimistic, like Confirm-all's
+    // undo above) — this just shows the confirmation and, once it resolves one way or the
+    // other, leaves the screen. Undo restores in place rather than re-navigating anywhere.
+    LaunchedEffect(pendingTrashUndo) {
+        if (!pendingTrashUndo) return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = "Document moved to Recently deleted",
+            actionLabel = "Undo",
+            duration = SnackbarDuration.Long,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.restoreDocument()
+            pendingTrashUndo = false
+        } else {
+            onNavigateBack()
+        }
+    }
+
     Scaffold(
         topBar = {
             PamTopAppBar(
@@ -150,6 +175,23 @@ fun DocumentDetailScreen(
                     else -> "Document"
                 },
                 onNavigateBack = onNavigateBack,
+                actions = {
+                    if (uiState is DocumentDetailUiState.Success && !pendingTrashUndo) {
+                        IconButton(onClick = { showOverflowMenu = true }) {
+                            Icon(PamIcons.More, contentDescription = "More options")
+                        }
+                        DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    viewModel.moveToTrash()
+                                    pendingTrashUndo = true
+                                },
+                            )
+                        }
+                    }
+                },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -161,10 +203,23 @@ fun DocumentDetailScreen(
             label = "detail_content",
             modifier = Modifier.padding(innerPadding),
         ) { state ->
-            when (state) {
-                is DocumentDetailUiState.Loading -> PamLoadingState()
-                is DocumentDetailUiState.Error -> PamErrorState(message = state.message, icon = PamIcons.Error)
-                is DocumentDetailUiState.Success -> DocumentDetailContent(
+            when {
+                state is DocumentDetailUiState.Loading -> PamLoadingState()
+                state is DocumentDetailUiState.Error ->
+                    PamErrorState(message = state.message, icon = PamIcons.Error)
+                state is DocumentDetailUiState.NotFound ->
+                    PamErrorState(message = "This document no longer exists.", icon = PamIcons.Error)
+                // A trashed document reaches Success too (GetDocumentDetailUseCase doesn't
+                // filter it out) — rendered as its own state rather than the normal content,
+                // whether the user got here by deleting it just now (pendingTrashUndo, above
+                // the snackbar) or by opening a citation/deep link to something already
+                // trashed.
+                state is DocumentDetailUiState.Success && state.document.isTrashed ->
+                    TrashedDocumentState(
+                        title = state.document.title,
+                        onRestore = viewModel::restoreDocument,
+                    )
+                state is DocumentDetailUiState.Success -> DocumentDetailContent(
                     state = state,
                     selectedTab = selectedTab,
                     initialPage = initialPage,
@@ -186,7 +241,10 @@ fun DocumentDetailScreen(
                     onChatClick = { onChatClick(state.document.id) },
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSharePdf = { viewModel.generatePdf() },
-                    onDelete = { viewModel.deleteDocument(onNavigateBack) },
+                    onDelete = {
+                        viewModel.moveToTrash()
+                        pendingTrashUndo = true
+                    },
                 )
             }
         }
@@ -334,6 +392,38 @@ private fun DocumentDetailContent(
             )
             DetailTab.TIMELINE -> TimelineTab(state.timeline)
         }
+    }
+}
+
+/**
+ * Shown instead of the normal detail content for a document that is currently in the trash —
+ * whether the user just deleted it (behind the confirmation snackbar) or arrived here via a
+ * citation chip/deep link into something already trashed. Restoring here brings back the
+ * normal content in place, with no navigation.
+ */
+@Composable
+private fun TrashedDocumentState(title: String, onRestore: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            PamIcons.Delete,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(48.dp),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("This document was deleted", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            "\"$title\" is in Recently deleted.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onRestore) { Text("Restore") }
     }
 }
 

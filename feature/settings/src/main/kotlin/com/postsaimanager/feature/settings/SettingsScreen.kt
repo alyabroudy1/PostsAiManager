@@ -43,6 +43,7 @@ import com.postsaimanager.core.model.AppTheme
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     onManageModelsClick: () -> Unit = {},
+    onRecentlyDeletedClick: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
@@ -127,6 +128,12 @@ fun SettingsScreen(
                 subtitle = "Run OCR and extraction automatically",
                 checked = prefs.autoProcessAfterScan,
                 onCheckedChange = viewModel::setAutoProcess,
+            )
+            SettingsClickItem(
+                icon = PamIcons.Delete,
+                title = "Recently deleted",
+                subtitle = "Restore or permanently delete documents",
+                onClick = onRecentlyDeletedClick,
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
