@@ -714,6 +714,122 @@ runs both: `native-build` (the default) and `native-build-vulkan`
 apt package for its SPIRV-Headers CMake package and Vulkan-Hpp headers), so a change that
 breaks either backend fails CI rather than surfacing on a developer's machine.
 
+#### Chat sessions — the KV cache is the conversation
+
+> Implemented. Replaces an earlier "prompt-prefix diffing" design that was rejected as
+> reinventing something llama.cpp already solves — see below.
+
+**The problem this fixes.** Every chat turn used to call `llama_memory_clear()` and
+re-decode the *entire* formatted conversation — grounding, every prior turn, and the new
+message — from scratch. On a long-running chat that is tens of thousands of prompt tokens
+reprocessed for one new sentence: on the reference S23 Ultra (Qwen3.5 0.8B Q4_K_M, CPU), a
+20-turn conversation took **41.4 s** just to re-evaluate the prompt before generation could
+even begin, on top of the actual reply.
+
+**The fix.** `PamSession` (`llama_jni.cpp`) keeps a standing chat session bound to the
+`llama_context`'s KV cache: `chatHistory` (the message list last rendered) and
+`chatPrevLen` (how many characters of that rendering were decoded). This mirrors
+llama.cpp's own `examples/simple-chat/simple-chat.cpp` — the KV cache *is* the
+conversation; it is **never cleared between turns**, only ever on `openChatSession`/
+`resetChatSession`. Each turn:
+
+1. `sendChatMessage(userText)` appends the user turn to `chatHistory` and renders the
+   *whole* history with the model's own template (`llama_chat_apply_template`,
+   `addAssistant=true`).
+2. Only the **diff** — the template text beyond `chatPrevLen`, i.e. essentially just the new
+   user turn and the assistant header — is tokenised and decoded. `chatPrevLen` moves to the
+   end of that rendering.
+3. Tokens stream out through the existing pull-based `nextToken()`; each sampled token is
+   decoded into the KV cache as it always was, so the reply's tokens are already resident
+   once generation ends.
+4. `commitChatReply(answer)` appends the (thinking-stripped) reply to `chatHistory` and
+   re-renders once more (`addAssistant=false`) to fix `chatPrevLen` for the *next* turn —
+   this decodes nothing; those tokens are already in the cache from step 3.
+
+```mermaid
+sequenceDiagram
+    participant VM as SendChatMessageUseCase
+    participant Engine as RemoteAiEngine
+    participant JNI as llama_jni.cpp (PamSession)
+
+    Note over VM,JNI: First message in a conversation
+    VM->>Engine: ensureChatSession(id, systemPrompt, history)
+    Engine->>JNI: openChatSession(systemPrompt)
+    Engine->>JNI: primeChatSession(history)
+    Note right of JNI: one full decode — the only time this happens
+    VM->>Engine: sendChatMessage(text)
+    Engine->>JNI: sendChatMessage(text) -> decodes only the new diff
+    JNI-->>Engine: tokens (nextToken loop)
+    VM->>Engine: commitChatReply(answer)
+    Engine->>JNI: commitChatReply(answer) -> no decode, just bookkeeping
+
+    Note over VM,JNI: Every later message in the same conversation
+    VM->>Engine: ensureChatSession(id, ...)
+    Note right of Engine: no-op — same id, session still valid
+    VM->>Engine: sendChatMessage(text2)
+    Engine->>JNI: decodes only text2's diff (a handful of tokens)
+```
+
+**Session ownership and invalidation.** `RemoteAiEngine`/`LocalAiEngine` track
+`sessionConversationId` — which conversation's session is primed in the `:inference`
+process right now. `AiEngine.ensureChatSession(conversationId, systemPrompt, history)` is
+cheap to call on every send (mirroring the existing "reconcile config on every send"
+pattern for `engine.load`): a no-op when `sessionConversationId` already matches, otherwise
+it opens a fresh session and replays `history` — the *one* legitimate full re-decode,
+paid once per conversation per app/process lifetime rather than once per turn. The tracked
+id is cleared (forcing a re-prime on the next chat turn) whenever the KV cache is actually
+invalidated: `loadModel`/`recreateContext`/`unloadModel`, and a one-shot `generate()` call
+(`AiExtractionUseCase`'s grammar path, which still clears the KV cache unconditionally on
+every call — see `startGeneration`'s doc in `llama_jni.cpp`) — so extraction and chat can
+share the one resident `llama_context` without corrupting each other's state; whichever ran
+most recently owns the cache, and the other side notices and re-primes.
+
+**Context overflow.** If a turn's diff plus `maxTokens` would not fit in the remaining
+`n_ctx`, `sendChatMessage` drops the oldest non-system turn(s) from `chatHistory`, clears
+the KV cache, and re-decodes the (smaller) remaining history once — logged as `pam_llama:
+context overflow (...) — dropping oldest turns`.
+
+**Truncation stays prefix-stable.** `BuildChatContextUseCase`'s grounding text depends only
+on the document and the context window size, never on how many turns have happened, so it
+never shifts underneath a growing conversation. `SendChatMessageUseCase.buildHistory` caps
+history at the last 20 turns by dropping from the oldest turn boundary only — the tail a
+session's diff decoding sees is always a clean suffix, never a reshuffled window.
+
+**Rejected alternative — prompt-prefix diffing.** An earlier design kept `cachedTokens` and
+computed the longest common token prefix with the new prompt on every turn
+(`llama_memory_seq_rm` to drop the divergent tail). Correct, but strictly more complex than
+necessary for a use case where the "prefix" is *always* the entire prior conversation by
+construction — the chat template only ever appends. Session-based turn tracking (this
+section) gets the same KV-cache reuse with less bookkeeping and no dependence on
+`llama_memory_seq_rm`'s partial-removal support (which some KV cache types, e.g. SWA, do not
+have).
+
+**Thinking toggle.** `InferenceOverrides.thinkingEnabled` (default null = on) surfaces as a
+`ConfigSpec.Switch("thinking", reloadScope = NONE)` in the chat model sheet. When off,
+`sendChatMessage`'s `noThink` parameter appends `/no_think` to the user turn before
+rendering — the practical way to disable Qwen3/3.5 reasoning: `llama_chat_apply_template`
+has no mechanism for passing template kwargs like Python's `enable_thinking`, but the
+Qwen3.5 GGUF's baked-in Jinja template reacts to this in-band marker in the user message
+text itself. Verified on device: with thinking on, a turn produces a `<think>…</think>`
+block before the answer (`ThinkingStreamParser` splits it out for display, as before); with
+it off, the model answers directly and turnaround drops accordingly (measured: 78–96 tokens
+over ~7s with thinking vs. 38 tokens over 3.4s without, for a comparable question).
+
+**Measured before/after** (S23 Ultra, Qwen3.5 0.8B Q4_K_M, CPU, existing 20-turn
+conversation):
+
+| Turn | Before (full re-decode every turn) | After |
+|---|---|---|
+| Cold open (prime 20 turns, 1164 tok) | ~30 s+ reported per message, every message | 41.4 s once, at session open |
+| Turn 2 (new diff only) | full re-decode again | `new_tokens=14`, `prompt_eval_ms≈0`, TTFT ~instant |
+| Turn 3 | full re-decode again | `new_tokens=10`, `prompt_eval_ms≈0` |
+| Turn 4 | full re-decode again | `new_tokens=13`, `prompt_eval_ms≈0` |
+| Turn 5 (thinking off) | — | `new_tokens=15`, `prompt_eval_ms=0.1`; 38 tok in 3.4 s, no `<think>` block |
+
+Per-turn latency after the fix is dominated entirely by generation speed (~11–14 tok/s on
+this device/model), not prompt reprocessing — the 30 s/message complaint this section fixes
+was almost entirely the full re-decode, not generation.
+
 #### GPU crash fallback — Adreno pipeline-link failure
 
 On the reference S23 Ultra, one model — Qwen3.5 2B (Q4_K_M) — aborts the `:inference`
