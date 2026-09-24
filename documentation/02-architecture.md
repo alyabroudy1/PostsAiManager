@@ -528,6 +528,22 @@ classDiagram
     note for OnlineEscalationService "Deliberately not an AiEngine.\nIf cloud implemented the same interface\nit would be substitutable — and\nsubstitutable means a future refactor\ncould route past the consent gate.\nDifferent type = different call site =\nconsent cannot be bypassed."
 ```
 
+**Main-thread rule.** Every `RemoteAiEngine` method that crosses the AIDL boundary into the
+`:inference` process — `loadModel`, `recreateContext`, `ensureChatSession`,
+`sendChatMessage`, `commitChatReply`, `discardPendingReply`, `resetChatSession`,
+`availableAccelerators`, and the rest — wraps its binder call in
+`withContext(ioDispatcher)`. This is load-bearing, not tidiness: a `suspend fun` that makes
+a synchronous binder call does **not** move itself off the caller's dispatcher just because
+it awaits IPC — `ChatViewModel.sendMessage` runs on `viewModelScope.launch`'s
+`Dispatchers.Main.immediate` by default, and without the explicit `withContext`, a
+multi-second `loadModel` call (cold start) blocked Main for its entire duration: the
+composer stopped accepting input, the transcript stopped scrolling, `Choreographer` logged
+skipped frames. Verified fixed on device (S23 Ultra, cold start, Qwen3.5 0.8B): sending a
+message, scrolling the transcript, and typing into the composer during the ~model-load
+window all work, and `adb logcat -s Choreographer` shows no "Skipped N frames" for the
+duration. A debug-only `StrictMode` thread policy (`PostsAiManagerApp.enableStrictModeInDebug`)
+logs any future regression of this kind.
+
 ### 5.3 AI inference configuration & lifecycle
 
 > Implemented — this section describes code in the tree, not a plan. Design patterns below

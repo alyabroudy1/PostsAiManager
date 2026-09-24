@@ -33,7 +33,7 @@ class GpuSmokeTest {
 
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
-    private fun engine() = RemoteAiEngine(context)
+    private fun engine() = RemoteAiEngine(context, kotlinx.coroutines.Dispatchers.IO)
 
     private fun config(accelerator: Accelerator, gpuLayers: Int) = InferenceConfig(
         contextTokens = 1024,

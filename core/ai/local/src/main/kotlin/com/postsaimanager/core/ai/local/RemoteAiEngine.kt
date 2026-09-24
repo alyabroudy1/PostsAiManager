@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.util.Log
+import com.postsaimanager.core.common.dispatcher.Dispatcher
+import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiCapabilities
@@ -17,6 +19,7 @@ import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -26,6 +29,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -56,6 +60,7 @@ import kotlin.coroutines.resume
 @Singleton
 class RemoteAiEngine @Inject constructor(
     @ApplicationContext private val context: Context,
+    @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : AiEngine {
 
     @Volatile
@@ -70,52 +75,66 @@ class RemoteAiEngine @Inject constructor(
     @Volatile
     private var sessionConversationId: String? = null
 
+    // Every method below crosses the binder to the `:inference` process and blocks the
+    // calling thread until the far side replies — `loadModel` in particular can take
+    // seconds. `ModelLoadCoordinator.load` (and everything upstream of it, ultimately
+    // `ChatViewModel.sendMessage`'s `viewModelScope.launch`, which defaults to
+    // `Dispatchers.Main.immediate`) is otherwise perfectly happy to run these suspend
+    // functions on whatever dispatcher the caller used — Kotlin does not move a coroutine
+    // to a background thread just because it awaits IPC. Without `withContext(ioDispatcher)`
+    // here, a cold-start model load freezes the whole UI (composer, scrolling, everything)
+    // for the entire load: this was defect 1's root cause. Wrapping it here, once, is what
+    // makes every caller correct without each of them having to remember to dispatch.
     private val ops = object : ModelLoadOps {
-        override suspend fun loadModel(modelId: String, config: InferenceConfig): PamResult<AiCapabilities> {
-            val remote = connect() ?: return PamResult.Error(
-                PamError.ModelNotLoaded("Could not start the AI engine."),
-            )
-            if (!File(modelId).exists()) {
-                return PamResult.Error(PamError.FileNotFound(modelId))
-            }
-            val ok = runCatching {
-                remote.loadModel(modelId, InferenceConfigParcel.from(config))
-            }.getOrDefault(false)
-            // A model load recreates the llama_context, taking the KV cache — and any
-            // primed chat session — with it, whether or not the load itself succeeded.
-            sessionConversationId = null
-            if (!ok) {
-                return PamResult.Error(
-                    PamError.ModelNotLoaded(
-                        "Could not load ${File(modelId).name}. The file may be corrupt or use " +
-                            "an unsupported model architecture.",
-                    ),
+        override suspend fun loadModel(modelId: String, config: InferenceConfig): PamResult<AiCapabilities> =
+            withContext(ioDispatcher) {
+                val remote = connect() ?: return@withContext PamResult.Error(
+                    PamError.ModelNotLoaded("Could not start the AI engine."),
                 )
+                if (!File(modelId).exists()) {
+                    return@withContext PamResult.Error(PamError.FileNotFound(modelId))
+                }
+                val ok = runCatching {
+                    remote.loadModel(modelId, InferenceConfigParcel.from(config))
+                }.getOrDefault(false)
+                // A model load recreates the llama_context, taking the KV cache — and any
+                // primed chat session — with it, whether or not the load itself succeeded.
+                sessionConversationId = null
+                if (!ok) {
+                    return@withContext PamResult.Error(
+                        PamError.ModelNotLoaded(
+                            "Could not load ${File(modelId).name}. The file may be corrupt or use " +
+                                "an unsupported model architecture.",
+                        ),
+                    )
+                }
+                PamResult.Success(capabilitiesOf(remote, modelId, config))
             }
-            return PamResult.Success(capabilitiesOf(remote, modelId, config))
-        }
 
-        override suspend fun recreateContext(modelId: String, config: InferenceConfig): PamResult<AiCapabilities> {
-            val remote = connect() ?: return PamResult.Error(
-                PamError.ModelNotLoaded("Could not reach the AI engine."),
-            )
-            val ok = runCatching { remote.recreateContext(InferenceConfigParcel.from(config)) }
-                .getOrDefault(false)
-            // Same reasoning as loadModel(): a fresh llama_context has an empty KV cache.
-            sessionConversationId = null
-            if (!ok) {
-                return PamResult.Error(PamError.ModelNotLoaded("Could not apply the new settings."))
+        override suspend fun recreateContext(modelId: String, config: InferenceConfig): PamResult<AiCapabilities> =
+            withContext(ioDispatcher) {
+                val remote = connect() ?: return@withContext PamResult.Error(
+                    PamError.ModelNotLoaded("Could not reach the AI engine."),
+                )
+                val ok = runCatching { remote.recreateContext(InferenceConfigParcel.from(config)) }
+                    .getOrDefault(false)
+                // Same reasoning as loadModel(): a fresh llama_context has an empty KV cache.
+                sessionConversationId = null
+                if (!ok) {
+                    return@withContext PamResult.Error(PamError.ModelNotLoaded("Could not apply the new settings."))
+                }
+                PamResult.Success(capabilitiesOf(remote, modelId, config))
             }
-            return PamResult.Success(capabilitiesOf(remote, modelId, config))
-        }
 
-        override suspend fun unloadModel() {
+        override suspend fun unloadModel() = withContext(ioDispatcher) {
             sessionConversationId = null
             runCatching { service?.unloadModel() }
+            Unit
         }
 
-        override suspend fun isActuallyLoaded(): Boolean =
+        override suspend fun isActuallyLoaded(): Boolean = withContext(ioDispatcher) {
             runCatching { service?.isReady == true }.getOrDefault(false)
+        }
     }
 
     private val coordinator = ModelLoadCoordinator(ops)
@@ -198,7 +217,11 @@ class RemoteAiEngine @Inject constructor(
     ): PamResult<AiCapabilities> = coordinator.load(modelPath, config)
 
     override fun generate(request: AiRequest): Flow<String> = callbackFlow {
-        val remote = connect() ?: run {
+        // `callbackFlow`'s producer block runs in the collector's context — a plain
+        // `Dispatchers.Main.immediate` for anything reached from `viewModelScope.launch` —
+        // so every blocking binder call below is explicitly moved to `ioDispatcher`. See
+        // the doc on `ops` above.
+        val remote = withContext(ioDispatcher) { connect() } ?: run {
             close(IllegalStateException("The AI engine is not running."))
             return@callbackFlow
         }
@@ -215,7 +238,8 @@ class RemoteAiEngine @Inject constructor(
         // resident. Reload through the coordinator rather than issuing a bare loadModel
         // call, so the state machine (and the generation counter) stay accurate — and so
         // this recovers from Failed, not just from a stale Ready.
-        if (!remote.isReady) {
+        val isReady = withContext(ioDispatcher) { remote.isReady }
+        if (!isReady) {
             when (val reloaded = coordinator.ensureLoaded()) {
                 null -> {
                     // Nothing has ever been requested (or it was cleared by an explicit
@@ -255,18 +279,20 @@ class RemoteAiEngine @Inject constructor(
             }
         }
 
-        val started = runCatching {
-            remote.startGeneration(
-                request.prompt,
-                request.maxTokens,
-                request.temperature,
-                request.topK,
-                request.topP,
-                request.seed ?: -1L,
-                request.grammar,
-                callback,
-            )
-        }.getOrDefault(false)
+        val started = withContext(ioDispatcher) {
+            runCatching {
+                remote.startGeneration(
+                    request.prompt,
+                    request.maxTokens,
+                    request.temperature,
+                    request.topK,
+                    request.topP,
+                    request.seed ?: -1L,
+                    request.grammar,
+                    callback,
+                )
+            }.getOrDefault(false)
+        }
 
         if (!started) {
             close(IllegalArgumentException("Prompt produced no tokens"))
@@ -308,26 +334,30 @@ class RemoteAiEngine @Inject constructor(
     ): Boolean {
         if (sessionConversationId == conversationId) return false
 
-        val remote = connect() ?: return false
-        val opened = runCatching { remote.openChatSession(systemPrompt) }.getOrDefault(false)
-        if (!opened) return false
+        return withContext(ioDispatcher) {
+            val remote = connect() ?: return@withContext false
+            val opened = runCatching { remote.openChatSession(systemPrompt) }.getOrDefault(false)
+            if (!opened) return@withContext false
 
-        if (history.isNotEmpty()) {
-            val primed = runCatching {
-                remote.primeChatSession(
-                    history.map { it.role.wireName }.toTypedArray(),
-                    history.map { it.content }.toTypedArray(),
-                )
-            }.getOrDefault(false)
-            if (!primed) return false
+            if (history.isNotEmpty()) {
+                val primed = runCatching {
+                    remote.primeChatSession(
+                        history.map { it.role.wireName }.toTypedArray(),
+                        history.map { it.content }.toTypedArray(),
+                    )
+                }.getOrDefault(false)
+                if (!primed) return@withContext false
+            }
+            sessionConversationId = conversationId
+            Log.i(TAG, "ensureChatSession: primed conversation with ${history.size} prior turns")
+            true
         }
-        sessionConversationId = conversationId
-        Log.i(TAG, "ensureChatSession: primed conversation with ${history.size} prior turns")
-        return true
     }
 
     override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> = callbackFlow {
-        val remote = connect() ?: run {
+        // See the note in generate() — this producer block otherwise inherits the
+        // collector's (often Main) dispatcher.
+        val remote = withContext(ioDispatcher) { connect() } ?: run {
             close(IllegalStateException("The AI engine is not running."))
             return@callbackFlow
         }
@@ -353,19 +383,21 @@ class RemoteAiEngine @Inject constructor(
             }
         }
 
-        val started = runCatching {
-            remote.sendChatMessage(
-                userText,
-                request.maxTokens,
-                request.temperature,
-                request.topK,
-                request.topP,
-                request.seed ?: -1L,
-                request.grammar,
-                !request.thinkingEnabled,
-                callback,
-            )
-        }.getOrDefault(false)
+        val started = withContext(ioDispatcher) {
+            runCatching {
+                remote.sendChatMessage(
+                    userText,
+                    request.maxTokens,
+                    request.temperature,
+                    request.topK,
+                    request.topP,
+                    request.seed ?: -1L,
+                    request.grammar,
+                    !request.thinkingEnabled,
+                    callback,
+                )
+            }.getOrDefault(false)
+        }
 
         if (!started) {
             close(IllegalArgumentException("The chat turn could not be started"))
@@ -385,15 +417,28 @@ class RemoteAiEngine @Inject constructor(
         }
     }
 
-    override suspend fun commitChatReply(answer: String) {
-        val remote = service ?: return
+    override suspend fun commitChatReply(answer: String) = withContext(ioDispatcher) {
+        val remote = service ?: return@withContext
         runCatching { remote.commitChatReply(answer) }
+        Unit
     }
 
-    override suspend fun resetChatSession() {
+    /**
+     * See [AiEngine.discardPendingReply]. Skipped entirely — rather than calling the AIDL
+     * method with no session open — when nothing has been primed, since there is then
+     * nothing native to roll back.
+     */
+    override suspend fun discardPendingReply() = withContext(ioDispatcher) {
+        val remote = service ?: return@withContext
+        runCatching { remote.discardPendingReply() }
+        Unit
+    }
+
+    override suspend fun resetChatSession() = withContext(ioDispatcher) {
         sessionConversationId = null
-        val remote = service ?: return
+        val remote = service ?: return@withContext
         runCatching { remote.resetChatSession() }
+        Unit
     }
 
     override fun formatPrompt(messages: List<AiChatMessage>): String {
@@ -431,14 +476,14 @@ class RemoteAiEngine @Inject constructor(
      * defaults to CPU-only rather than propagating a failure: a service that cannot be
      * reached is exactly the case where "assume no GPU" is the safe answer.
      */
-    override suspend fun availableAccelerators(): Set<Accelerator> {
-        val remote = connect() ?: return setOf(Accelerator.CPU)
+    override suspend fun availableAccelerators(): Set<Accelerator> = withContext(ioDispatcher) {
+        val remote = connect() ?: return@withContext setOf(Accelerator.CPU)
         val ordinals = runCatching { remote.availableAccelerators() }.getOrNull()
-            ?: return setOf(Accelerator.CPU)
+            ?: return@withContext setOf(Accelerator.CPU)
         val accelerators = ordinals.toList().mapNotNull { ordinal ->
             Accelerator.entries.getOrNull(ordinal)
         }.toSet()
-        return accelerators.ifEmpty { setOf(Accelerator.CPU) }
+        accelerators.ifEmpty { setOf(Accelerator.CPU) }
     }
 
     /**
@@ -448,9 +493,9 @@ class RemoteAiEngine @Inject constructor(
      * everything else here rather than being called directly. Used by
      * `GpuSmokeTest.cpuAcceleratorNeverTouchesTheGpuDeviceOnAVulkanBuild`.
      */
-    suspend fun lastLoadDevices(): String? {
-        val remote = connect() ?: return null
-        return runCatching { remote.lastLoadDevices() }.getOrNull()
+    suspend fun lastLoadDevices(): String? = withContext(ioDispatcher) {
+        val remote = connect() ?: return@withContext null
+        runCatching { remote.lastLoadDevices() }.getOrNull()
     }
 
     /**

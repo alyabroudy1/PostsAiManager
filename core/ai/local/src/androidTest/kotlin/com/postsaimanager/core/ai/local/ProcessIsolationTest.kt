@@ -36,7 +36,7 @@ class ProcessIsolationTest {
 
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
-    private fun engine() = RemoteAiEngine(context)
+    private fun engine() = RemoteAiEngine(context, kotlinx.coroutines.Dispatchers.IO)
 
     private fun config(contextTokens: Int = 1024) =
         InferenceConfig(contextTokens = contextTokens, threads = InferenceConfig.defaultThreadCount())
