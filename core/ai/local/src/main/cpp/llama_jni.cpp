@@ -11,6 +11,8 @@
 
 #include <jni.h>
 #include <android/log.h>
+#include <algorithm>
+#include <chrono>
 #include <string>
 #include <vector>
 #include <set>
@@ -23,6 +25,12 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 namespace {
+
+/** One message in a [PamSession]'s standing chat history — see its doc. */
+struct ChatTurn {
+    std::string role;
+    std::string content;
+};
 
 struct PamSession {
     llama_model   *model = nullptr;
@@ -37,7 +45,23 @@ struct PamSession {
     int  generated = 0;
     int  maxTokens = 0;
     bool finished  = true;
+
+    // ── standing chat session ────────────────────────────────────────────────
+    //
+    // The KV cache *is* the conversation (see documentation/02-architecture.md §5.3 and
+    // llama.cpp's examples/simple-chat/simple-chat.cpp, which this mirrors): rather than
+    // re-decoding the whole formatted prompt on every turn, the session keeps the message
+    // list it last rendered and, on each new turn, decodes only the text the chat template
+    // adds beyond what was rendered last time (`chatPrevLen` — the "prev_len" trick).
+    // Sampled/decoded tokens are never removed from the KV cache between turns; only
+    // openChatSession/resetChatSession ever clear it.
+    std::vector<ChatTurn> chatHistory;
+    int chatPrevLen = 0;
 };
+
+double elapsedMs(std::chrono::steady_clock::time_point start) {
+    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+}
 
 std::string jstringToStd(JNIEnv *env, jstring value) {
     if (value == nullptr) return {};
@@ -111,6 +135,133 @@ std::string g_lastLoadDevices = "none";
  * it does not retain the array itself — so a function-local vector on the caller's stack is
  * enough; nothing outlives that call holding a pointer into it.
  */
+/**
+ * Renders [session]'s standing chat history with the model's own template — shared by
+ * formatChat() (stateless, one-shot) and the chat-session functions below (stateful,
+ * incremental). Returns empty when the model declares no template.
+ */
+std::string renderChatHistory(PamSession *session, bool addAssistant) {
+    const char *tmpl = llama_model_chat_template(session->model, nullptr);
+    if (tmpl == nullptr) return {};
+
+    const size_t count = session->chatHistory.size();
+    std::vector<llama_chat_message> messages(count);
+    size_t totalChars = 0;
+    for (size_t i = 0; i < count; ++i) {
+        messages[i].role = session->chatHistory[i].role.c_str();
+        messages[i].content = session->chatHistory[i].content.c_str();
+        totalChars += session->chatHistory[i].role.size() + session->chatHistory[i].content.size();
+    }
+
+    std::vector<char> buf(totalChars * 2 + 512);
+    int32_t written = llama_chat_apply_template(
+            tmpl, messages.data(), messages.size(), addAssistant, buf.data(), (int32_t) buf.size());
+    if (written > (int32_t) buf.size()) {
+        buf.resize(written + 1);
+        written = llama_chat_apply_template(
+                tmpl, messages.data(), messages.size(), addAssistant, buf.data(), (int32_t) buf.size());
+    }
+    if (written < 0) return {};
+    return std::string(buf.data(), written);
+}
+
+/**
+ * Tokenises [text] and decodes it into [session]'s context in `n_batch`-sized chunks — the
+ * same chunking [startGeneration] always needed (see its doc on why one big batch aborts
+ * the process). All but the last chunk are decoded here; the remainder is left as
+ * [session]->batch/promptTokens so a following [nextToken] can decode it and sample.
+ *
+ * @param addSpecial whether to add the model's special tokens (BOS) — only true for the
+ *   very first decode this context has ever seen; see `llama_memory_seq_pos_max(mem, 0) ==
+ *   -1` at each call site, matching llama.cpp's own simple-chat example.
+ * @param leaveRemainderForSampling when true (a chat turn about to generate), the final
+ *   chunk is left un-decoded for nextToken's first call; when false (bulk history replay,
+ *   nothing will be generated from it), every chunk including the last is decoded here.
+ * @return false only on an actual decode failure — an empty [text] is not an error.
+ */
+bool decodeIntoSession(PamSession *session, const std::string &text, bool addSpecial,
+                        bool leaveRemainderForSampling, int *outTokenCount) {
+    *outTokenCount = 0;
+    if (text.empty()) return true;
+
+    const llama_vocab *vocab = llama_model_get_vocab(session->model);
+    const int needed = -llama_tokenize(
+            vocab, text.c_str(), (int32_t) text.size(), nullptr, 0, addSpecial, true);
+    if (needed <= 0) return true;
+
+    session->promptTokens.assign(needed, 0);
+    if (llama_tokenize(vocab, text.c_str(), (int32_t) text.size(),
+                        session->promptTokens.data(), needed, addSpecial, true) < 0) {
+        LOGE("decodeIntoSession: tokenisation failed");
+        return false;
+    }
+    *outTokenCount = needed;
+
+    const int nBatch = (int) llama_n_batch(session->ctx);
+    const int total  = needed;
+    int consumed = 0;
+
+    // Leave the final chunk un-decoded only when the caller wants to sample from it next
+    // (a chat turn, via nextToken); a bulk replay decodes everything, chunk by chunk,
+    // including the last — there is no generation to follow it.
+    while (total - consumed > (leaveRemainderForSampling ? nBatch : 0)) {
+        const int chunkSize = std::min(nBatch, total - consumed);
+        llama_batch chunk = llama_batch_get_one(session->promptTokens.data() + consumed, chunkSize);
+        if (llama_decode(session->ctx, chunk) != 0) {
+            LOGE("decodeIntoSession: decode failed at token %d of %d", consumed, total);
+            return false;
+        }
+        consumed += chunkSize;
+    }
+
+    if (leaveRemainderForSampling) {
+        session->batch = llama_batch_get_one(session->promptTokens.data() + consumed, total - consumed);
+    }
+    return true;
+}
+
+/** Builds the sampler chain shared by the raw one-shot path and the chat-session path. */
+llama_sampler *buildSamplerChain(const llama_vocab *vocab, float temperature, int topK, float topP,
+                                  jlong seed, const std::string &grammarStd) {
+    llama_sampler *chain = llama_sampler_chain_init(llama_sampler_chain_default_params());
+
+    // The grammar goes first so it filters the candidate set before any probabilistic
+    // sampler runs. Placed afterwards, the constraint could be sampled around.
+    if (!grammarStd.empty()) {
+        llama_sampler *grammarSampler =
+                llama_sampler_init_grammar(vocab, grammarStd.c_str(), "root");
+        if (grammarSampler == nullptr) {
+            LOGE("grammar failed to parse — continuing unconstrained");
+        } else {
+            llama_sampler_chain_add(chain, grammarSampler);
+        }
+    }
+
+    if (temperature <= 0.0f) {
+        llama_sampler_chain_add(chain, llama_sampler_init_greedy());
+    } else {
+        llama_sampler_chain_add(chain, llama_sampler_init_top_k(topK));
+        llama_sampler_chain_add(chain, llama_sampler_init_top_p(topP, 1));
+        llama_sampler_chain_add(chain, llama_sampler_init_temp(temperature));
+        // Negative means "no seed requested" from the Kotlin side (AiRequest.seed == null).
+        const uint32_t resolvedSeed = seed < 0 ? LLAMA_DEFAULT_SEED : static_cast<uint32_t>(seed);
+        llama_sampler_chain_add(chain, llama_sampler_init_dist(resolvedSeed));
+    }
+    return chain;
+}
+
+/**
+ * Drops the oldest non-system turn (a user/assistant pair, or a lone trailing user turn) so
+ * a context-overflowing conversation can be rebuilt smaller. @return false if there is
+ * nothing left to drop (only the pending, not-yet-answered user turn remains).
+ */
+bool dropOldestChatTurn(PamSession *session) {
+    const size_t start = (!session->chatHistory.empty() && session->chatHistory[0].role == "system") ? 1 : 0;
+    if (session->chatHistory.size() <= start + 1) return false;
+    session->chatHistory.erase(session->chatHistory.begin() + (long) start);
+    return true;
+}
+
 std::vector<ggml_backend_dev_t> cpuOnlyDevices() {
     std::vector<ggml_backend_dev_t> devices;
     const size_t count = ggml_backend_dev_count();
@@ -336,11 +487,16 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_lastLoadDevices(JNIEnv *env, j
 }
 
 /**
- * Begins a generation. Tokens are then pulled one at a time via nextToken().
+ * Begins a **one-shot** generation — no standing conversation, tokens pulled one at a time
+ * via nextToken(). Used by `AiExtractionUseCase`'s grammar-constrained extraction, which
+ * must not read or pollute a chat session's KV cache (they can share this process's one
+ * resident context — see the class doc on `PamSession`).
  *
- * The KV cache is cleared first. Without that every generation inherits the previous
- * one's context, so two unrelated prompts silently condition on each other — which
- * presents as a model-quality problem rather than the state bug it actually is.
+ * The KV cache is cleared first, and any chat session standing in it is discarded (its
+ * `chatHistory`/`chatPrevLen` reset to empty/0) — the two paths are mutually exclusive by
+ * construction: whichever ran most recently owns the KV cache, and the chat path's
+ * `ensureChatSession` on the Kotlin side is what notices this happened and re-primes before
+ * the next chat turn (see `RemoteAiEngine`/`LocalAiEngine`).
  */
 JNIEXPORT jboolean JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
@@ -352,6 +508,8 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
 
     releaseChain(session);
     llama_memory_clear(llama_get_memory(session->ctx), true);
+    session->chatHistory.clear();
+    session->chatPrevLen = 0;
 
     const std::string promptStd  = jstringToStd(env, prompt);
     const std::string grammarStd = jstringToStd(env, grammar);
@@ -372,32 +530,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
         return JNI_FALSE;
     }
 
-    llama_sampler *chain = llama_sampler_chain_init(llama_sampler_chain_default_params());
-
-    // The grammar goes first so it filters the candidate set before any probabilistic
-    // sampler runs. Placed afterwards, the constraint could be sampled around.
-    if (!grammarStd.empty()) {
-        llama_sampler *grammarSampler =
-                llama_sampler_init_grammar(vocab, grammarStd.c_str(), "root");
-        if (grammarSampler == nullptr) {
-            LOGE("grammar failed to parse — continuing unconstrained");
-        } else {
-            llama_sampler_chain_add(chain, grammarSampler);
-        }
-    }
-
-    if (temperature <= 0.0f) {
-        llama_sampler_chain_add(chain, llama_sampler_init_greedy());
-    } else {
-        llama_sampler_chain_add(chain, llama_sampler_init_top_k(topK));
-        llama_sampler_chain_add(chain, llama_sampler_init_top_p(topP, 1));
-        llama_sampler_chain_add(chain, llama_sampler_init_temp(temperature));
-        // Negative means "no seed requested" from the Kotlin side (AiRequest.seed == null).
-        const uint32_t resolvedSeed = seed < 0 ? LLAMA_DEFAULT_SEED : static_cast<uint32_t>(seed);
-        llama_sampler_chain_add(chain, llama_sampler_init_dist(resolvedSeed));
-    }
-
-    session->chain = chain;
+    session->chain = buildSamplerChain(vocab, temperature, topK, topP, seed, grammarStd);
 
     // Feed the prompt in n_batch-sized pieces.
     //
@@ -413,6 +546,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
     const int nBatch = (int) llama_n_batch(session->ctx);
     const int total  = (int) session->promptTokens.size();
     int consumed = 0;
+    const auto decodeStart = std::chrono::steady_clock::now();
 
     while (total - consumed > nBatch) {
         llama_batch chunk = llama_batch_get_one(session->promptTokens.data() + consumed, nBatch);
@@ -426,6 +560,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
 
     session->batch = llama_batch_get_one(session->promptTokens.data() + consumed,
                                          total - consumed);
+    LOGI("pam_llama: one-shot prompt tokens=%d prompt_eval_ms=%.1f", total, elapsedMs(decodeStart));
     session->generated = 0;
     session->maxTokens = maxTokens;
     session->finished  = false;
@@ -474,6 +609,200 @@ JNIEXPORT void JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_stopGeneration(JNIEnv *, jobject, jlong handle) {
     auto *session = reinterpret_cast<PamSession *>(handle);
     if (session != nullptr) releaseChain(session);
+}
+
+// ── standing chat session ───────────────────────────────────────────────────────────────
+//
+// See the `chatHistory`/`chatPrevLen` doc on PamSession and documentation/02-architecture.md
+// §5.3. Mirrors llama.cpp's own examples/simple-chat/simple-chat.cpp: the KV cache is never
+// cleared between turns, so only the template text *newly added* since the last turn is
+// tokenised and decoded — a handful of tokens instead of the whole conversation every time.
+
+/**
+ * Opens a fresh chat session: clears the KV cache and this session's chat history, then
+ * seeds it with [systemPrompt] (skipped if blank). Nothing is decoded yet — the system
+ * prompt's tokens are folded into the first turn's diff by [sendChatMessage].
+ */
+JNIEXPORT jboolean JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_openChatSession(
+        JNIEnv *env, jobject, jlong handle, jstring systemPrompt) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr) return JNI_FALSE;
+
+    releaseChain(session);
+    llama_memory_clear(llama_get_memory(session->ctx), true);
+    session->chatHistory.clear();
+    session->chatPrevLen = 0;
+
+    const std::string sys = jstringToStd(env, systemPrompt);
+    if (!sys.empty()) {
+        session->chatHistory.push_back({"system", sys});
+    }
+    LOGI("pam_llama: chat session opened, system prompt %zu chars", sys.size());
+    return JNI_TRUE;
+}
+
+/**
+ * Bulk-replays already-completed turns (persisted history) into an opened session — used
+ * once when a session is (re)opened for a conversation that already has messages, e.g. on
+ * cold start or after a model reload invalidated the KV cache. This is the one place a
+ * full re-decode of history is expected: everything else only ever decodes the newest turn.
+ *
+ * [roles]/[contents] must alternate user/assistant (system, if any, was already set by
+ * [openChatSession]). Nothing is generated; the whole rendered diff is decoded immediately.
+ */
+JNIEXPORT jboolean JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_primeChatSession(
+        JNIEnv *env, jobject, jlong handle, jobjectArray roles, jobjectArray contents) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr) return JNI_FALSE;
+
+    const jsize count = env->GetArrayLength(roles);
+    if (count == 0) return JNI_TRUE;
+    if (env->GetArrayLength(contents) != count) return JNI_FALSE;
+
+    for (jsize i = 0; i < count; ++i) {
+        auto role = (jstring) env->GetObjectArrayElement(roles, i);
+        auto content = (jstring) env->GetObjectArrayElement(contents, i);
+        session->chatHistory.push_back({jstringToStd(env, role), jstringToStd(env, content)});
+        env->DeleteLocalRef(role);
+        env->DeleteLocalRef(content);
+    }
+
+    const std::string formatted = renderChatHistory(session, /* addAssistant */ false);
+    if (formatted.empty()) {
+        LOGE("primeChatSession: model has no chat template");
+        return JNI_FALSE;
+    }
+    const size_t from = std::min((size_t) session->chatPrevLen, formatted.size());
+    const std::string diff = formatted.substr(from);
+
+    llama_memory_t mem = llama_get_memory(session->ctx);
+    const bool isFirst = llama_memory_seq_pos_max(mem, 0) == -1;
+
+    int tokenCount = 0;
+    const auto start = std::chrono::steady_clock::now();
+    if (!decodeIntoSession(session, diff, isFirst, /* leaveRemainderForSampling */ false, &tokenCount)) {
+        return JNI_FALSE;
+    }
+    session->chatPrevLen = (int) formatted.size();
+    LOGI("pam_llama: session primed turns=%d tokens=%d ms=%.1f", (int) count, tokenCount, elapsedMs(start));
+    return JNI_TRUE;
+}
+
+/**
+ * Begins a chat turn: appends [userText] to the session's history, renders the template
+ * with an open assistant turn, and decodes only what is new since the last turn was
+ * committed (see the class doc). Tokens are then pulled via the existing [nextToken].
+ *
+ * If [noThink] is set, `/no_think` is appended to the user turn — the practical way to
+ * disable Qwen3/3.5 reasoning without a chat-template kwarg llama.cpp's
+ * `llama_chat_apply_template` has no way to pass (see documentation/02-architecture.md §5.3
+ * on why this, rather than an `enable_thinking` flag, is what actually works against the
+ * template baked into the GGUF).
+ *
+ * On overflow (this turn would not fit in `n_ctx`) the oldest non-system turns are dropped
+ * and the remaining history is fully re-decoded once — the one legitimate full re-decode
+ * outside of [primeChatSession].
+ */
+JNIEXPORT jboolean JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
+        JNIEnv *env, jobject, jlong handle, jstring userText, jint maxTokens,
+        jfloat temperature, jint topK, jfloat topP, jlong seed, jstring grammar, jboolean noThink) {
+
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr) return JNI_FALSE;
+
+    releaseChain(session);
+
+    std::string userStd = jstringToStd(env, userText);
+    if (noThink == JNI_TRUE) userStd += " /no_think";
+    const std::string grammarStd = jstringToStd(env, grammar);
+
+    session->chatHistory.push_back({"user", userStd});
+
+    std::string formatted = renderChatHistory(session, /* addAssistant */ true);
+    if (formatted.empty()) {
+        LOGE("sendChatMessage: model has no chat template");
+        return JNI_FALSE;
+    }
+
+    llama_memory_t mem = llama_get_memory(session->ctx);
+    const llama_vocab *vocab = llama_model_get_vocab(session->model);
+    const int nCtx = (int) llama_n_ctx(session->ctx);
+
+    auto currentDiffTokenCount = [&]() -> int {
+        const size_t from = std::min((size_t) session->chatPrevLen, formatted.size());
+        const std::string diff = formatted.substr(from);
+        if (diff.empty()) return 0;
+        const bool isFirst = llama_memory_seq_pos_max(mem, 0) == -1;
+        return -llama_tokenize(vocab, diff.c_str(), (int32_t) diff.size(), nullptr, 0, isFirst, true);
+    };
+
+    int nPast = (int) llama_memory_seq_pos_max(mem, 0) + 1;
+    int diffTokens = currentDiffTokenCount();
+
+    if (nPast + diffTokens + (int) maxTokens > nCtx) {
+        LOGI("pam_llama: context overflow (n_past=%d diff=%d max=%d n_ctx=%d) — dropping oldest turns",
+             nPast, diffTokens, (int) maxTokens, nCtx);
+        while (nPast + diffTokens + (int) maxTokens > nCtx && dropOldestChatTurn(session)) {
+            llama_memory_clear(mem, true);
+            session->chatPrevLen = 0;
+            formatted = renderChatHistory(session, /* addAssistant */ true);
+            nPast = (int) llama_memory_seq_pos_max(mem, 0) + 1; // always 0 right after clear
+            diffTokens = currentDiffTokenCount();
+        }
+    }
+
+    const size_t from = std::min((size_t) session->chatPrevLen, formatted.size());
+    const std::string diff = formatted.substr(from);
+    const bool isFirst = llama_memory_seq_pos_max(mem, 0) == -1;
+
+    int tokenCount = 0;
+    const auto start = std::chrono::steady_clock::now();
+    if (!decodeIntoSession(session, diff, isFirst, /* leaveRemainderForSampling */ true, &tokenCount)) {
+        return JNI_FALSE;
+    }
+    LOGI("pam_llama: session decode new_tokens=%d n_past=%d prompt_eval_ms=%.1f",
+         tokenCount, nPast, elapsedMs(start));
+
+    // Marks "up to the open assistant turn" as decoded; commitChatReply() extends this once
+    // the generated content is known, without decoding anything more (see its doc).
+    session->chatPrevLen = (int) formatted.size();
+
+    session->chain = buildSamplerChain(vocab, temperature, topK, topP, seed, grammarStd);
+    session->generated = 0;
+    session->maxTokens = maxTokens;
+    session->finished  = false;
+    return JNI_TRUE;
+}
+
+/**
+ * Records the assistant's reply (thinking-stripped — see `SendChatMessageUseCase`'s KDoc on
+ * why a reasoning trace never re-enters a future prompt) in the session's history, so the
+ * *next* turn's template diff renders correctly. Decodes nothing: the reply's tokens are
+ * already in the KV cache from the [nextToken] calls that produced them.
+ */
+JNIEXPORT void JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_commitChatReply(
+        JNIEnv *env, jobject, jlong handle, jstring answer) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr) return;
+
+    session->chatHistory.push_back({"assistant", jstringToStd(env, answer)});
+    const std::string formatted = renderChatHistory(session, /* addAssistant */ false);
+    session->chatPrevLen = (int) formatted.size();
+}
+
+/** Drops the standing chat session — its KV cache and history — e.g. on a conversation switch. */
+JNIEXPORT void JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_resetChatSession(JNIEnv *, jobject, jlong handle) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr) return;
+    releaseChain(session);
+    llama_memory_clear(llama_get_memory(session->ctx), true);
+    session->chatHistory.clear();
+    session->chatPrevLen = 0;
 }
 
 /**

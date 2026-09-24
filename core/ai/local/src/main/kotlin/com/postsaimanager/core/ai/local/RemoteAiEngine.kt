@@ -61,6 +61,15 @@ class RemoteAiEngine @Inject constructor(
     @Volatile
     private var service: IInferenceService? = null
 
+    /**
+     * Which conversation's chat session is currently primed in the `:inference` process's
+     * KV cache, or null when none is (nothing opened yet, or the most recent generation was
+     * a one-shot [generate] call — e.g. `AiExtractionUseCase` — or the KV cache was
+     * invalidated by a reload/unload). See [ensureChatSession].
+     */
+    @Volatile
+    private var sessionConversationId: String? = null
+
     private val ops = object : ModelLoadOps {
         override suspend fun loadModel(modelId: String, config: InferenceConfig): PamResult<AiCapabilities> {
             val remote = connect() ?: return PamResult.Error(
@@ -72,6 +81,9 @@ class RemoteAiEngine @Inject constructor(
             val ok = runCatching {
                 remote.loadModel(modelId, InferenceConfigParcel.from(config))
             }.getOrDefault(false)
+            // A model load recreates the llama_context, taking the KV cache — and any
+            // primed chat session — with it, whether or not the load itself succeeded.
+            sessionConversationId = null
             if (!ok) {
                 return PamResult.Error(
                     PamError.ModelNotLoaded(
@@ -89,6 +101,8 @@ class RemoteAiEngine @Inject constructor(
             )
             val ok = runCatching { remote.recreateContext(InferenceConfigParcel.from(config)) }
                 .getOrDefault(false)
+            // Same reasoning as loadModel(): a fresh llama_context has an empty KV cache.
+            sessionConversationId = null
             if (!ok) {
                 return PamResult.Error(PamError.ModelNotLoaded("Could not apply the new settings."))
             }
@@ -96,6 +110,7 @@ class RemoteAiEngine @Inject constructor(
         }
 
         override suspend fun unloadModel() {
+            sessionConversationId = null
             runCatching { service?.unloadModel() }
         }
 
@@ -188,6 +203,13 @@ class RemoteAiEngine @Inject constructor(
             return@callbackFlow
         }
 
+        // A one-shot generation (AiExtractionUseCase's grammar path) clears the KV cache on
+        // the native side — see llama_jni.cpp's startGeneration doc — which takes any
+        // primed chat session with it. Marking it gone here (rather than only after a
+        // reload) is what makes the *next* chat turn re-prime instead of silently decoding
+        // a diff against a cache that no longer holds what it thinks it holds.
+        sessionConversationId = null
+
         // A previous crash (binder death moves the coordinator to Failed), or a
         // memory-pressure unload in the :inference process, can leave nothing actually
         // resident. Reload through the coordinator rather than issuing a bare loadModel
@@ -279,6 +301,101 @@ class RemoteAiEngine @Inject constructor(
         }
     }
 
+    override suspend fun ensureChatSession(
+        conversationId: String,
+        systemPrompt: String,
+        history: List<AiChatMessage>,
+    ): Boolean {
+        if (sessionConversationId == conversationId) return false
+
+        val remote = connect() ?: return false
+        val opened = runCatching { remote.openChatSession(systemPrompt) }.getOrDefault(false)
+        if (!opened) return false
+
+        if (history.isNotEmpty()) {
+            val primed = runCatching {
+                remote.primeChatSession(
+                    history.map { it.role.wireName }.toTypedArray(),
+                    history.map { it.content }.toTypedArray(),
+                )
+            }.getOrDefault(false)
+            if (!primed) return false
+        }
+        sessionConversationId = conversationId
+        Log.i(TAG, "ensureChatSession: primed conversation with ${history.size} prior turns")
+        return true
+    }
+
+    override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> = callbackFlow {
+        val remote = connect() ?: run {
+            close(IllegalStateException("The AI engine is not running."))
+            return@callbackFlow
+        }
+
+        val genStartNanos = System.nanoTime()
+        var tokenCount = 0
+        val callback = object : ITokenCallback.Stub() {
+            override fun onToken(token: String?) {
+                token?.let {
+                    tokenCount++
+                    trySend(it)
+                }
+            }
+
+            override fun onComplete() {
+                logGenerationTiming(genStartNanos, tokenCount, "sendChatMessage")
+                close()
+            }
+
+            override fun onError(message: String?) {
+                logGenerationTiming(genStartNanos, tokenCount, "sendChatMessage")
+                close(IllegalStateException(message ?: "Generation failed."))
+            }
+        }
+
+        val started = runCatching {
+            remote.sendChatMessage(
+                userText,
+                request.maxTokens,
+                request.temperature,
+                request.topK,
+                request.topP,
+                request.seed ?: -1L,
+                request.grammar,
+                !request.thinkingEnabled,
+                callback,
+            )
+        }.getOrDefault(false)
+
+        if (!started) {
+            close(IllegalArgumentException("The chat turn could not be started"))
+            return@callbackFlow
+        }
+
+        // Same death-watch as generate() — see its doc.
+        val deathWatch = launch {
+            state.collect { s ->
+                if (s is ModelLoadState.Failed) close(IllegalStateException(s.error))
+            }
+        }
+
+        awaitClose {
+            deathWatch.cancel()
+            runCatching { remote.cancelGeneration() }
+        }
+    }
+
+    override suspend fun commitChatReply(answer: String) {
+        val remote = service ?: return
+        runCatching { remote.commitChatReply(answer) }
+    }
+
+    override suspend fun resetChatSession() {
+        sessionConversationId = null
+        val remote = service ?: return
+        runCatching { remote.resetChatSession() }
+    }
+
     override fun formatPrompt(messages: List<AiChatMessage>): String {
         // Debug-only, and roles + lengths rather than content: this is the one place a
         // caller can verify "what is sent to the model" (see SendChatMessageUseCase's KDoc
@@ -336,11 +453,16 @@ class RemoteAiEngine @Inject constructor(
         return runCatching { remote.lastLoadDevices() }.getOrNull()
     }
 
-    /** See the `genStartNanos`/`tokenCount` doc comment in [generate]. */
-    private fun logGenerationTiming(genStartNanos: Long, tokenCount: Int) {
+    /**
+     * See the `genStartNanos`/`tokenCount` doc comment in [generate]. Shared by [generate]
+     * and [sendChatMessage] — [label] tells the two apart in logcat, since the native-side
+     * `prompt_eval_ms`/`new_tokens` lines already distinguish the one-shot and chat-session
+     * decode paths and this only needs to add generation throughput on top.
+     */
+    private fun logGenerationTiming(genStartNanos: Long, tokenCount: Int, label: String = "generate") {
         val seconds = (System.nanoTime() - genStartNanos) / 1_000_000_000.0
         val tokensPerSecond = if (seconds > 0) tokenCount / seconds else 0.0
-        Log.i(TAG, "generate: tokens=$tokenCount seconds=$seconds tokensPerSecond=$tokensPerSecond")
+        Log.i(TAG, "$label: tokens=$tokenCount seconds=$seconds tokensPerSecond=$tokensPerSecond")
     }
 
     private companion object {

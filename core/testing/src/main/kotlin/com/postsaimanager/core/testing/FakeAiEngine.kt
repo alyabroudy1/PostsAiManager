@@ -84,6 +84,46 @@ class FakeAiEngine(
         response.chunked(7).forEach { emit(it) }
     }
 
+    /** Every `(conversationId, systemPrompt, history)` passed to [ensureChatSession], in order. */
+    val ensureChatSessionCalls = mutableListOf<Triple<String, String, List<AiChatMessage>>>()
+
+    /** The `history` from the most recent [ensureChatSession] call — what a test usually wants. */
+    val lastSessionHistory: List<AiChatMessage>
+        get() = ensureChatSessionCalls.lastOrNull()?.third.orEmpty()
+
+    /** Every reply passed to [commitChatReply], in order. */
+    val committedReplies = mutableListOf<String>()
+
+    var chatSessionWasReset: Boolean = false
+        private set
+
+    var lastChatUserText: String? = null
+        private set
+
+    override suspend fun ensureChatSession(
+        conversationId: String,
+        systemPrompt: String,
+        history: List<AiChatMessage>,
+    ): Boolean {
+        ensureChatSessionCalls += Triple(conversationId, systemPrompt, history)
+        return true
+    }
+
+    override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> = flow {
+        lastChatUserText = userText
+        lastRequest = request
+        failWith?.let { throw it }
+        response.chunked(7).forEach { emit(it) }
+    }
+
+    override suspend fun commitChatReply(answer: String) {
+        committedReplies += answer
+    }
+
+    override suspend fun resetChatSession() {
+        chatSessionWasReset = true
+    }
+
     override fun formatPrompt(messages: List<AiChatMessage>): String {
         lastMessages = messages
         return messages.joinToString("\n") { "${it.role.wireName}: ${it.content}" }

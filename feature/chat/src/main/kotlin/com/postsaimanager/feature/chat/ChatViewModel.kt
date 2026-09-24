@@ -148,6 +148,7 @@ class ChatViewModel @Inject constructor(
                 conversationId = conversationId,
                 documentId = documentId,
                 text = text,
+                thinkingEnabled = modelSheetState.value.overrides.thinkingEnabled ?: true,
             ).collect { turn ->
                 when (turn) {
                     is ChatTurn.PreparingModel ->

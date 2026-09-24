@@ -197,6 +197,55 @@ internal object LlamaNative {
 
     external fun hasChatTemplate(handle: Long): Boolean
 
+    /**
+     * Opens a standing chat session — the KV cache *is* the conversation from this point on
+     * (see documentation/02-architecture.md §5.3). Clears the KV cache and any previous
+     * session's history, then seeds it with [systemPrompt] (skipped if blank). Nothing is
+     * decoded yet; the first [sendChatMessage] folds it into that turn's diff.
+     */
+    external fun openChatSession(handle: Long, systemPrompt: String): Boolean
+
+    /**
+     * Bulk-replays already-completed [roles]/[contents] turns into an opened session and
+     * decodes them in one shot — used once when a session is (re)opened for a conversation
+     * that already has persisted messages (cold start, or after a reload invalidated the
+     * KV cache). Every later turn decodes only what is new; see [sendChatMessage].
+     */
+    external fun primeChatSession(handle: Long, roles: Array<String>, contents: Array<String>): Boolean
+
+    /**
+     * Begins one chat turn: appends [userText] to the session, renders the model's chat
+     * template over the whole history, and decodes only the text newly added since the
+     * previous turn was [commitChatReply]'d — a handful of tokens on turn 2+ instead of the
+     * whole conversation. Tokens are then pulled with the existing [nextToken].
+     *
+     * @param noThink appends `/no_think` to [userText] — the practical way to disable
+     *   Qwen3/3.5 reasoning; see documentation/02-architecture.md §5.3.
+     * @return false if the model declares no chat template (chat sessions need one) or the
+     *   turn could not be tokenised/decoded.
+     */
+    external fun sendChatMessage(
+        handle: Long,
+        userText: String,
+        maxTokens: Int,
+        temperature: Float,
+        topK: Int,
+        topP: Float,
+        seed: Long,
+        grammar: String?,
+        noThink: Boolean,
+    ): Boolean
+
+    /**
+     * Records the assistant's (thinking-stripped) [answer] in the session's history so the
+     * *next* turn's diff renders correctly. Decodes nothing — those tokens are already in
+     * the KV cache from the [nextToken] calls that produced them.
+     */
+    external fun commitChatReply(handle: Long, answer: String)
+
+    /** Drops the standing chat session — its KV cache and history — e.g. on conversation switch. */
+    external fun resetChatSession(handle: Long)
+
     /** Debug only — intentionally segfaults to measure crash blast radius (spike Q3). */
     external fun crashForTesting()
 }

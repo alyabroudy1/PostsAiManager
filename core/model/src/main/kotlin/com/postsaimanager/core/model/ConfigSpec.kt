@@ -68,6 +68,7 @@ fun ConfigSpec.Slider.effectiveValue(overrides: InferenceOverrides): Float = whe
 
 fun ConfigSpec.Switch.effectiveValue(overrides: InferenceOverrides): Boolean = when (key) {
     "flashAttention" -> overrides.flashAttention
+    "thinking" -> overrides.thinkingEnabled
     else -> null
 } ?: default
 
@@ -177,6 +178,17 @@ fun inferenceConfigSchema(
         label = "Flash attention",
         default = defaults.flashAttention,
         reloadScope = ReloadScope.CONTEXT,
+    )
+
+    // Sampling-only — see InferenceOverrides.thinkingEnabled. Not model/device-conditional
+    // (unlike accelerator/context above): every model that ships no `<think>` tags at all
+    // simply ignores the `/no_think` suffix this sends, so the control is always safe to
+    // show rather than only for models known to reason.
+    specs += ConfigSpec.Switch(
+        key = "thinking",
+        label = "Thinking",
+        default = true,
+        reloadScope = ReloadScope.NONE,
     )
 
     return specs

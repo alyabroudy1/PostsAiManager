@@ -42,6 +42,30 @@ interface IInferenceService {
 
     void cancelGeneration();
 
+    /** Opens a standing chat session — see `LlamaNative.openChatSession`. */
+    boolean openChatSession(String systemPrompt);
+
+    /** Bulk-replays persisted history into an opened session — see `LlamaNative.primeChatSession`. */
+    boolean primeChatSession(in String[] roles, in String[] contents);
+
+    /** Begins one chat turn and streams the reply to [callback] — see `LlamaNative.sendChatMessage`. */
+    boolean sendChatMessage(
+        String userText,
+        int maxTokens,
+        float temperature,
+        int topK,
+        float topP,
+        long seed,
+        String grammar,
+        boolean noThink,
+        ITokenCallback callback);
+
+    /** Records the assistant's reply in the session's history — see `LlamaNative.commitChatReply`. */
+    void commitChatReply(String answer);
+
+    /** Drops the standing chat session — see `LlamaNative.resetChatSession`. */
+    void resetChatSession();
+
     void unloadModel();
 
     /**

@@ -61,6 +61,10 @@ internal class LocalAiEngine @Inject constructor(
     @Volatile
     private var handle: Long = 0L
 
+    /** See `RemoteAiEngine.sessionConversationId` — same tracking, in-process. */
+    @Volatile
+    private var sessionConversationId: String? = null
+
     private val ops = object : ModelLoadOps {
         override suspend fun loadModel(modelId: String, config: InferenceConfig): PamResult<AiCapabilities> =
             mutex.withLock {
@@ -75,6 +79,7 @@ internal class LocalAiEngine @Inject constructor(
                         return@withContext PamResult.Error(PamError.FileNotFound(modelId))
                     }
 
+                    sessionConversationId = null
                     freeHandleLocked()
                     val newHandle = LlamaNative.loadModel(
                         modelPath = file.absolutePath,
@@ -112,6 +117,7 @@ internal class LocalAiEngine @Inject constructor(
                             PamError.ModelNotLoaded("No model resident to apply the new settings to."),
                         )
                     }
+                    sessionConversationId = null
                     val ok = LlamaNative.recreateContext(
                         handle = current,
                         contextTokens = config.contextTokens,
@@ -128,7 +134,10 @@ internal class LocalAiEngine @Inject constructor(
             }
 
         override suspend fun unloadModel() = mutex.withLock {
-            withContext(ioDispatcher) { freeHandleLocked() }
+            withContext(ioDispatcher) {
+                sessionConversationId = null
+                freeHandleLocked()
+            }
         }
 
         override suspend fun isActuallyLoaded(): Boolean = handle != 0L
@@ -193,6 +202,10 @@ internal class LocalAiEngine @Inject constructor(
         if (current == 0L) {
             throw IllegalStateException("No model is loaded")
         }
+
+        // See RemoteAiEngine.generate's doc: a one-shot generation clears the KV cache on
+        // the native side, taking any primed chat session with it.
+        sessionConversationId = null
 
         mutex.withLock {
             val started = LlamaNative.startGeneration(
@@ -262,6 +275,75 @@ internal class LocalAiEngine @Inject constructor(
             if (native != null) return native
         }
         return ChatTemplateFallback.chatMl(messages)
+    }
+
+    override suspend fun ensureChatSession(
+        conversationId: String,
+        systemPrompt: String,
+        history: List<AiChatMessage>,
+    ): Boolean {
+        if (sessionConversationId == conversationId) return false
+        val current = handle
+        if (current == 0L) return false
+
+        return mutex.withLock {
+            withContext(ioDispatcher) {
+                if (!LlamaNative.openChatSession(current, systemPrompt)) return@withContext false
+                if (history.isNotEmpty()) {
+                    val primed = LlamaNative.primeChatSession(
+                        current,
+                        history.map { it.role.wireName }.toTypedArray(),
+                        history.map { it.content }.toTypedArray(),
+                    )
+                    if (!primed) return@withContext false
+                }
+                sessionConversationId = conversationId
+                true
+            }
+        }
+    }
+
+    override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> = flow {
+        val current = handle
+        if (current == 0L) throw IllegalStateException("No model is loaded")
+
+        mutex.withLock {
+            val started = LlamaNative.sendChatMessage(
+                handle = current,
+                userText = userText,
+                maxTokens = request.maxTokens,
+                temperature = request.temperature,
+                topK = request.topK,
+                topP = request.topP,
+                seed = request.seed ?: -1L,
+                grammar = request.grammar,
+                noThink = !request.thinkingEnabled,
+            )
+            if (!started) throw IllegalArgumentException("The chat turn could not be started")
+
+            try {
+                while (true) {
+                    currentCoroutineContext().ensureActive()
+                    val token = LlamaNative.nextToken(current) ?: break
+                    emit(token)
+                }
+            } finally {
+                LlamaNative.stopGeneration(current)
+            }
+        }
+    }.flowOn(ioDispatcher)
+
+    override suspend fun commitChatReply(answer: String) {
+        val current = handle
+        if (current == 0L) return
+        mutex.withLock { withContext(ioDispatcher) { LlamaNative.commitChatReply(current, answer) } }
+    }
+
+    override suspend fun resetChatSession() {
+        sessionConversationId = null
+        val current = handle
+        if (current == 0L) return
+        mutex.withLock { withContext(ioDispatcher) { LlamaNative.resetChatSession(current) } }
     }
 
     override suspend fun unload() = coordinator.unload()

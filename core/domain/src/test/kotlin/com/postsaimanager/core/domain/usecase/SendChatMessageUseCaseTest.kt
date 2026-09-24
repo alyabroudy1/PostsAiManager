@@ -123,19 +123,26 @@ class SendChatMessageUseCaseTest {
         engine.response = "<think>Scratch notes nobody should ever see again.</think>\n\nFirst answer."
         sendChatMessage("conv-1", documentId = null, text = "first question").toList()
 
-        // Second turn: whatever prompt the engine now formats must carry the *answer* from
-        // the previous turn, and must not contain so much as a fragment of its thinking —
-        // the only path any prior turn's text reaches the prompt through is
-        // `SendChatMessageUseCase.buildHistory`, which reads `AiMessage.content` only.
+        // The reply committed into the session's own history — what SendChatMessageUseCase
+        // told the engine to remember for future turns — must be the answer only.
+        assertThat(engine.committedReplies).containsExactly("First answer.")
+
+        // Second turn: `ensureChatSession`'s `history` (what a fresh/reloaded session would
+        // be re-primed with) must carry the *answer* from the previous turn, and must not
+        // contain so much as a fragment of its thinking — the only path any prior turn's
+        // text reaches the model through is `SendChatMessageUseCase.buildHistory`, which
+        // reads `AiMessage.content` only.
         engine.response = "Second answer, no thinking this time."
         sendChatMessage("conv-1", documentId = null, text = "second question").toList()
 
-        val lastMessages = engine.lastMessages
-        val historyText = lastMessages.joinToString("\n") { it.content }
+        val history = engine.lastSessionHistory
+        val historyText = history.joinToString("\n") { it.content }
 
         assertThat(historyText).contains("First answer.")
         assertThat(historyText).doesNotContain("Scratch notes")
-        assertThat(lastMessages.any { it.role == com.postsaimanager.core.domain.ai.AiChatRole.ASSISTANT })
+        assertThat(history.any { it.role == com.postsaimanager.core.domain.ai.AiChatRole.ASSISTANT })
             .isTrue()
+        assertThat(engine.committedReplies)
+            .containsExactly("First answer.", "Second answer, no thinking this time.")
     }
 }

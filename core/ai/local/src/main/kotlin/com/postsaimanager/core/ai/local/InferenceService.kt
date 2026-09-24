@@ -148,6 +148,75 @@ class InferenceService : Service() {
             cancelled.set(true)
         }
 
+        override fun openChatSession(systemPrompt: String?): Boolean {
+            if (handle == 0L) return false
+            return submit { LlamaNative.openChatSession(handle, systemPrompt.orEmpty()) } ?: false
+        }
+
+        override fun primeChatSession(roles: Array<out String>?, contents: Array<out String>?): Boolean {
+            if (handle == 0L || roles == null || contents == null) return false
+            return submit {
+                LlamaNative.primeChatSession(
+                    handle,
+                    Array(roles.size) { roles[it] },
+                    Array(contents.size) { contents[it] },
+                )
+            } ?: false
+        }
+
+        override fun sendChatMessage(
+            userText: String?,
+            maxTokens: Int,
+            temperature: Float,
+            topK: Int,
+            topP: Float,
+            seed: Long,
+            grammar: String?,
+            noThink: Boolean,
+            callback: ITokenCallback?,
+        ): Boolean {
+            if (handle == 0L || userText == null || callback == null) return false
+
+            cancelled.set(false)
+
+            // Same pull-based streaming shape as startGeneration — see its doc.
+            executor.execute {
+                try {
+                    val started = LlamaNative.sendChatMessage(
+                        handle, userText, maxTokens, temperature, topK, topP, seed, grammar, noThink,
+                    )
+                    if (!started) {
+                        callback.onError("The chat turn could not be started.")
+                        return@execute
+                    }
+
+                    while (!cancelled.get()) {
+                        val token = LlamaNative.nextToken(handle) ?: break
+                        callback.onToken(token)
+                    }
+                    LlamaNative.stopGeneration(handle)
+                    callback.onComplete()
+                } catch (e: RemoteException) {
+                    Log.w(TAG, "client disconnected during generation", e)
+                    runCatching { LlamaNative.stopGeneration(handle) }
+                } catch (e: Throwable) {
+                    Log.e(TAG, "chat generation failed", e)
+                    runCatching { callback.onError(e.message ?: "Generation failed.") }
+                }
+            }
+            return true
+        }
+
+        override fun commitChatReply(answer: String?) {
+            if (handle == 0L || answer == null) return
+            submit { LlamaNative.commitChatReply(handle, answer) }
+        }
+
+        override fun resetChatSession() {
+            if (handle == 0L) return
+            submit { LlamaNative.resetChatSession(handle) }
+        }
+
         override fun unloadModel() {
             submit { freeHandle() }
         }

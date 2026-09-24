@@ -88,6 +88,15 @@ class InferenceCrashObserverTest {
         override suspend fun load(modelPath: String, config: InferenceConfig): PamResult<AiCapabilities> =
             error("not used by this test")
         override fun generate(request: AiRequest): Flow<String> = error("not used by this test")
+        override suspend fun ensureChatSession(
+            conversationId: String,
+            systemPrompt: String,
+            history: List<AiChatMessage>,
+        ): Boolean = error("not used by this test")
+        override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> =
+            error("not used by this test")
+        override suspend fun commitChatReply(answer: String) = error("not used by this test")
+        override suspend fun resetChatSession() = error("not used by this test")
         override fun formatPrompt(messages: List<AiChatMessage>): String = error("not used by this test")
         override suspend fun unload() = error("not used by this test")
         override suspend fun availableAccelerators(): Set<Accelerator> = setOf(Accelerator.CPU)

@@ -92,6 +92,7 @@ class SendChatMessageUseCase @Inject constructor(
         documentId: String?,
         text: String,
         systemPrompt: String? = null,
+        thinkingEnabled: Boolean = true,
     ): Flow<ChatTurn> = flow {
         val now = System.currentTimeMillis()
 
@@ -161,17 +162,12 @@ class SendChatMessageUseCase @Inject constructor(
         }
         val grounding = systemPrompt ?: buildChatContext(documentId, contextTokens)
 
-        // The engine applies the *model's own* chat template — Qwen, Gemma and Llama 3 all
-        // differ, and the wrong one degrades output silently rather than failing.
-        val prompt = engine.formatPrompt(
-            buildList {
-                if (grounding.isNotBlank()) {
-                    add(AiChatMessage(AiChatRole.SYSTEM, grounding))
-                }
-                addAll(buildHistory(priorTurns))
-                add(AiChatMessage(AiChatRole.USER, text))
-            },
-        )
+        // The engine's chat session IS the conversation from here on — its KV cache holds
+        // the decoded history, so only the new user turn below gets tokenised and decoded
+        // (see AiEngine.ensureChatSession's KDoc and documentation/02-architecture.md §5.3).
+        // Cheap to call on every send, same as `engine.load` above: a no-op when this
+        // conversation's session is already primed and valid.
+        engine.ensureChatSession(conversationId, grounding, buildHistory(priorTurns))
 
         val parser = ThinkingStreamParser()
         val thinkingBuilder = StringBuilder()
@@ -207,9 +203,10 @@ class SendChatMessageUseCase @Inject constructor(
         }
 
         try {
-            engine.generate(AiRequest(prompt = prompt)).collect { token ->
-                apply(parser.consume(token)).forEach { emit(it) }
-            }
+            // `prompt` is unused here — sendChatMessage renders the turn itself from the
+            // session's own history plus `text`; only the sampling/thinking fields matter.
+            engine.sendChatMessage(text, AiRequest(prompt = "", thinkingEnabled = thinkingEnabled))
+                .collect { token -> apply(parser.consume(token)).forEach { emit(it) } }
             apply(parser.finish()).forEach { emit(it) }
         } catch (e: kotlinx.coroutines.CancellationException) {
             // The user stopped generation. Whatever was produced is still worth keeping —
@@ -218,12 +215,13 @@ class SendChatMessageUseCase @Inject constructor(
             thinkingStartNanos?.let { start ->
                 if (thinkingDurationMs == null) thinkingDurationMs = elapsedMs(start)
             }
-            persistAssistant(
+            val assistant = persistAssistant(
                 conversationId,
                 answerBuilder.toString(),
                 thinkingBuilder.toString(),
                 thinkingDurationMs,
             )
+            engine.commitChatReply(assistant.content)
             throw e
         } catch (e: Exception) {
             emit(ChatTurn.Failed(e.message ?: "Generation failed.", ChatErrorAction.RETRY))
@@ -240,6 +238,12 @@ class SendChatMessageUseCase @Inject constructor(
             thinkingBuilder.toString(),
             thinkingDurationMs,
         )
+        // Records the (thinking-stripped) reply in the session's own history so the next
+        // turn's diff renders correctly — see AiEngine.commitChatReply's KDoc. Uses
+        // `assistant.content` rather than `answerBuilder` directly so the session's record
+        // and what got persisted (and is shown as history next time) are always the same
+        // string, including the NO_ANSWER_PRODUCED fallback below.
+        engine.commitChatReply(assistant.content)
         emit(ChatTurn.Complete(assistant))
     }
 

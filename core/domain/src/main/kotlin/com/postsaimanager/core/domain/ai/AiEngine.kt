@@ -58,6 +58,48 @@ interface AiEngine {
      */
     fun formatPrompt(messages: List<AiChatMessage>): String
 
+    /**
+     * Opens or reuses a standing chat session for [conversationId] — the engine's KV cache
+     * *is* the conversation from this point on (documentation/02-architecture.md §5.3).
+     *
+     * A no-op when this conversation's session is already open and valid: the implementation
+     * tracks which conversation (and which model generation — a reload/crash invalidates the
+     * KV cache) it last primed, and only re-sends [systemPrompt]/[history] when that no
+     * longer holds. Callers are expected to call this on every turn, exactly as they already
+     * call [load] on every turn — cheap when nothing changed, correct when it did.
+     *
+     * @param history prior turns, oldest first — replayed once (decoded in a single shot)
+     *   when (re)priming is needed. Assistant turns must already be thinking-stripped; see
+     *   [SendChatMessageUseCase][com.postsaimanager.core.domain.usecase.SendChatMessageUseCase]'s
+     *   KDoc on why a reasoning trace never re-enters a future prompt.
+     * @return true if the session was just (re)primed, false if an already-open session for
+     *   this conversation was reused as-is. Informational only — callers do not need to
+     *   branch on it.
+     */
+    suspend fun ensureChatSession(
+        conversationId: String,
+        systemPrompt: String,
+        history: List<AiChatMessage>,
+    ): Boolean
+
+    /**
+     * Streams a reply to [userText] within the session opened by [ensureChatSession]. Only
+     * the template text newly added since the previous turn is decoded — see
+     * [ensureChatSession] and `LlamaNative.sendChatMessage`.
+     *
+     * The caller must call [commitChatReply] once the reply is known (even on failure/
+     * cancellation, with whatever was produced) so the *next* turn's diff is computed
+     * correctly — this method does not append the reply to the session itself, since the
+     * caller may still need to strip a reasoning trace from it first.
+     */
+    fun sendChatMessage(userText: String, request: AiRequest): Flow<String>
+
+    /** Appends [answer] (thinking-stripped) to the open chat session's history. See [sendChatMessage]. */
+    suspend fun commitChatReply(answer: String)
+
+    /** Drops the standing chat session — its KV cache and history. E.g. on conversation switch. */
+    suspend fun resetChatSession()
+
     suspend fun unload()
 
     /**
@@ -119,6 +161,13 @@ data class AiRequest(
     val topP: Float = SamplingConfig().topP,
     val seed: Long? = SamplingConfig().seed,
     val grammar: String? = null,
+    /**
+     * False disables Qwen3/3.5 reasoning for this turn (`/no_think`) — see
+     * [com.postsaimanager.core.model.InferenceOverrides.thinkingEnabled] and
+     * documentation/02-architecture.md §5.3. Only meaningful for
+     * [AiEngine.sendChatMessage]; the one-shot [AiEngine.generate] path ignores it.
+     */
+    val thinkingEnabled: Boolean = true,
 )
 
 data class AiCapabilities(
