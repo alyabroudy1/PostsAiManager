@@ -231,66 +231,100 @@ class ChatViewModel @Inject constructor(
                 documentId = documentId,
                 text = text,
                 thinkingEnabled = modelSheetState.value.overrides.thinkingEnabled ?: true,
-            ).collect { turn ->
-                when (turn) {
-                    is ChatTurn.PreparingModel ->
-                        _uiState.update { it.copy(statusText = turn.reason ?: "Loading model…") }
+            ).collect(::applyTurn)
+        }
+    }
 
-                    is ChatTurn.PreparingConversation ->
-                        _uiState.update { it.copy(statusText = "Preparing conversation…") }
+    /**
+     * Regenerates the LATEST assistant reply (5.1) — offered by `ChatScreen` only on that
+     * one message, so this never has to figure out which reply is meant. Streams and
+     * persists a fresh answer to the same question exactly like [sendMessage]; see
+     * [SendChatMessageUseCase.regenerateLastReply] for how the standing session is kept in
+     * sync with the deleted reply.
+     */
+    fun regenerate() {
+        if (_uiState.value.isProcessing) return
 
-                    is ChatTurn.ThinkingToken ->
-                        _uiState.update {
-                            it.copy(
-                                statusText = null,
-                                isThinkingActive = true,
-                                thinkingText = it.thinkingText + turn.text,
-                            )
-                        }
+        _uiState.update {
+            it.copy(
+                isProcessing = true,
+                streamingText = "",
+                thinkingText = "",
+                thinkingDurationMs = null,
+                isThinkingActive = false,
+                error = null,
+                lastSentAt = System.currentTimeMillis(),
+            )
+        }
 
-                    is ChatTurn.ThinkingComplete ->
-                        // The answer is about to start — collapse the thinking card to its
-                        // header, exactly as a finished, persisted message will render.
-                        _uiState.update {
-                            it.copy(
-                                isThinkingActive = false,
-                                thinkingDurationMs = turn.durationMs,
-                            )
-                        }
+        generationJob = viewModelScope.launch {
+            sendChatMessage.regenerateLastReply(
+                conversationId = conversationId,
+                documentId = documentId,
+                thinkingEnabled = modelSheetState.value.overrides.thinkingEnabled ?: true,
+            ).collect(::applyTurn)
+        }
+    }
 
-                    is ChatTurn.Token ->
-                        _uiState.update {
-                            it.copy(
-                                statusText = null,
-                                streamingText = it.streamingText + turn.text,
-                            )
-                        }
+    /** Shared by [sendMessage] and [regenerate] — both stream the identical [ChatTurn] shape. */
+    private fun applyTurn(turn: ChatTurn) {
+        when (turn) {
+            is ChatTurn.PreparingModel ->
+                _uiState.update { it.copy(statusText = turn.reason ?: "Loading model…") }
 
-                    is ChatTurn.Complete ->
-                        // History reloads from the repository, so clear the streaming
-                        // buffer to avoid showing the reply twice.
-                        _uiState.update {
-                            it.copy(
-                                isProcessing = false,
-                                streamingText = "",
-                                thinkingText = "",
-                                isThinkingActive = false,
-                                statusText = null,
-                            )
-                        }
+            is ChatTurn.PreparingConversation ->
+                _uiState.update { it.copy(statusText = "Preparing conversation…") }
 
-                    is ChatTurn.Failed ->
-                        _uiState.update {
-                            it.copy(
-                                isProcessing = false,
-                                streamingText = "",
-                                isThinkingActive = false,
-                                statusText = null,
-                                error = ChatError(turn.message, turn.action),
-                            )
-                        }
+            is ChatTurn.ThinkingToken ->
+                _uiState.update {
+                    it.copy(
+                        statusText = null,
+                        isThinkingActive = true,
+                        thinkingText = it.thinkingText + turn.text,
+                    )
                 }
-            }
+
+            is ChatTurn.ThinkingComplete ->
+                // The answer is about to start — collapse the thinking card to its
+                // header, exactly as a finished, persisted message will render.
+                _uiState.update {
+                    it.copy(
+                        isThinkingActive = false,
+                        thinkingDurationMs = turn.durationMs,
+                    )
+                }
+
+            is ChatTurn.Token ->
+                _uiState.update {
+                    it.copy(
+                        statusText = null,
+                        streamingText = it.streamingText + turn.text,
+                    )
+                }
+
+            is ChatTurn.Complete ->
+                // History reloads from the repository, so clear the streaming
+                // buffer to avoid showing the reply twice.
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        streamingText = "",
+                        thinkingText = "",
+                        isThinkingActive = false,
+                        statusText = null,
+                    )
+                }
+
+            is ChatTurn.Failed ->
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        streamingText = "",
+                        isThinkingActive = false,
+                        statusText = null,
+                        error = ChatError(turn.message, turn.action),
+                    )
+                }
         }
     }
 

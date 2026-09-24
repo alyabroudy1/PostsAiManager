@@ -578,4 +578,64 @@ class SendChatMessageUseCaseTest {
         val complete = turns.filterIsInstance<ChatTurn.Complete>().single()
         assertThat(complete.sources.map { it.chunk.id }).containsExactly("c1")
     }
+
+    // ── 5.1: regenerate the latest assistant reply ──
+
+    @Test
+    @DisplayName("regenerating replaces the latest reply without duplicating the user's message")
+    fun `regenerate replaces the latest reply without duplicating the question`() = runTest {
+        engine.response = "first answer"
+        sendChatMessage("conv-1", documentId = null, text = "What's the weather?").toList()
+
+        val beforeUserCount = conversations.getMessages("conv-1").first()
+            .count { it.role == MessageRole.USER }
+
+        engine.response = "second, better answer"
+        val turns = sendChatMessage.regenerateLastReply("conv-1", documentId = null).toList()
+
+        val persisted = conversations.getMessages("conv-1").first()
+        val afterUserCount = persisted.count { it.role == MessageRole.USER }
+        val assistantMessages = persisted.filter { it.role == MessageRole.ASSISTANT }
+
+        // No duplicate user message.
+        assertThat(afterUserCount).isEqualTo(beforeUserCount)
+        // Old answer gone, new answer persisted.
+        assertThat(assistantMessages).hasSize(1)
+        assertThat(assistantMessages.single().content).isEqualTo("second, better answer")
+        assertThat(persisted.first { it.role == MessageRole.USER }.content)
+            .isEqualTo("What's the weather?")
+
+        // Session was invalidated (so it re-primes) and the new reply was committed (after
+        // the original one, from the first send).
+        assertThat(engine.chatSessionWasReset).isTrue()
+        assertThat(engine.committedReplies).containsExactly("first answer", "second, better answer")
+
+        val complete = turns.filterIsInstance<ChatTurn.Complete>().single()
+        assertThat(complete.message.content).isEqualTo("second, better answer")
+    }
+
+    @Test
+    @DisplayName("regenerate re-primes the session from what remains in the DB")
+    fun `regenerate re-primes the session`() = runTest {
+        engine.response = "first answer"
+        sendChatMessage("conv-1", documentId = null, text = "hi there").toList()
+
+        engine.response = "second answer"
+        sendChatMessage.regenerateLastReply("conv-1", documentId = null).toList()
+
+        // A re-prime happened (the reset session forces ensureChatSession to prime again).
+        val primedCalls = sendChatMessage.let { engine.ensureChatSessionCalls }
+        assertThat(primedCalls.last().second).isNotEmpty()
+        // The history that was re-primed with does not contain the deleted reply.
+        assertThat(engine.lastSessionHistory.map { it.content }).doesNotContain("first answer")
+    }
+
+    @Test
+    @DisplayName("regenerating with nothing to regenerate fails instead of crashing")
+    fun `regenerate with no assistant reply fails gracefully`() = runTest {
+        val turns = sendChatMessage.regenerateLastReply("conv-none", documentId = null).toList()
+
+        assertThat(turns).hasSize(1)
+        assertThat(turns.single()).isInstanceOf(ChatTurn.Failed::class.java)
+    }
 }

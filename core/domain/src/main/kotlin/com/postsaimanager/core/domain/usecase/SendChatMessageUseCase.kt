@@ -21,6 +21,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
@@ -168,6 +169,14 @@ class SendChatMessageUseCase @Inject constructor(
         text: String,
         systemPrompt: String? = null,
         thinkingEnabled: Boolean = true,
+        /**
+         * False only for [regenerateLastReply] (5.1): [text] there is already the latest row
+         * `ConversationRepository` holds for this conversation — the just-deleted reply's
+         * preceding user turn — so persisting it again would leave two copies of the same
+         * question in history. Everything else about the turn (grounding, retrieval,
+         * priming, commit) runs exactly as a normal send.
+         */
+        persistUserMessage: Boolean = true,
     ): Flow<ChatTurn> = flow {
         val now = System.currentTimeMillis()
 
@@ -187,18 +196,24 @@ class SendChatMessageUseCase @Inject constructor(
         }
 
         // Read before the new user message is appended, so it is exactly the turns that
-        // precede this one — see the class KDoc on "what is sent to the model".
-        val priorTurns = conversationRepository.getMessages(conversationId).first()
+        // precede this one — see the class KDoc on "what is sent to the model". When
+        // [persistUserMessage] is false, [text] is already the trailing row (regenerate), so
+        // it is dropped here too — the rest of this function must see the same "turns before
+        // this one" shape either way.
+        val readTurns = conversationRepository.getMessages(conversationId).first()
+        val priorTurns = if (persistUserMessage) readTurns else readTurns.dropLast(1)
 
-        // Persist the user's message first — see the class note on ordering.
-        val userMessage = AiMessage(
-            id = UuidGenerator.generate(),
-            conversationId = conversationId,
-            role = MessageRole.USER,
-            content = text,
-            createdAt = now,
-        )
-        conversationRepository.addMessage(userMessage)
+        if (persistUserMessage) {
+            // Persist the user's message first — see the class note on ordering.
+            val userMessage = AiMessage(
+                id = UuidGenerator.generate(),
+                conversationId = conversationId,
+                role = MessageRole.USER,
+                content = text,
+                createdAt = now,
+            )
+            conversationRepository.addMessage(userMessage)
+        }
 
         // Always reconcile against the active path AND config, on every send — not just
         // when the engine reports not-ready or a different model path. The user may have
@@ -425,6 +440,65 @@ class SendChatMessageUseCase @Inject constructor(
         // string, including the NO_ANSWER_PRODUCED fallback below.
         engine.commitChatReply(assistant.content)
         emit(ChatTurn.Complete(assistant, sources = sources))
+    }
+
+    /**
+     * Regenerates the LATEST assistant reply in [conversationId] (5.1).
+     *
+     * The KV-cache constraint this has to respect: [commitChatReply] already folded the
+     * reply being regenerated into the engine's standing session — its tokens are sitting in
+     * the cache and its text is in `chatHistory`. Simply deleting the persisted message and
+     * sending again would leave the session out of sync with what is now in the DB (the
+     * cache would still "remember" an answer that no longer exists), so this:
+     *
+     * 1. Deletes the latest assistant [AiMessage] (and its sources — `ON DELETE CASCADE`,
+     *    see `MessageSourceEntity`) from [conversationRepository].
+     * 2. Calls [AiEngine.resetChatSession] to drop the standing session outright, so the
+     *    *next* [ensureChatSession][AiEngine.ensureChatSession] call — inside the [invoke] this
+     *    delegates to — is forced to re-prime from scratch, replaying exactly what
+     *    [conversationRepository] now holds (the deleted reply excluded).
+     * 3. Re-runs [invoke] for the same user text, with `persistUserMessage = false` — that
+     *    text is already the trailing row in the DB (the turn preceding the reply just
+     *    deleted), so sending it again must not write a second copy.
+     *
+     * Not this use case's job to decide *whether* regeneration is offered — the caller
+     * (`ChatViewModel`/`ChatScreen`) only ever offers it on the newest assistant reply. This
+     * trusts that and looks up the newest one directly; regenerating anything else would
+     * delete a reply with turns still after it, which nothing here reconciles.
+     *
+     * @return the same [ChatTurn] stream [invoke] emits for a fresh send.
+     */
+    fun regenerateLastReply(
+        conversationId: String,
+        documentId: String?,
+        systemPrompt: String? = null,
+        thinkingEnabled: Boolean = true,
+    ): Flow<ChatTurn> = flow {
+        val messages = conversationRepository.getMessages(conversationId).first()
+        val lastAssistant = messages.lastOrNull { it.role == MessageRole.ASSISTANT }
+        val precedingUserText = lastAssistant
+            ?.let { assistant -> messages.takeWhile { it.id != assistant.id } }
+            ?.lastOrNull { it.role == MessageRole.USER }
+            ?.content
+
+        if (lastAssistant == null || precedingUserText == null) {
+            emit(ChatTurn.Failed("Nothing to regenerate yet.", null))
+            return@flow
+        }
+
+        conversationRepository.deleteMessage(lastAssistant.id)
+        engine.resetChatSession()
+
+        emitAll(
+            invoke(
+                conversationId = conversationId,
+                documentId = documentId,
+                text = precedingUserText,
+                systemPrompt = systemPrompt,
+                thinkingEnabled = thinkingEnabled,
+                persistUserMessage = false,
+            ),
+        )
     }
 
     /**

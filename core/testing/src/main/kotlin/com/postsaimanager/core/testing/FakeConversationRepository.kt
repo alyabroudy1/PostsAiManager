@@ -40,6 +40,11 @@ class FakeConversationRepository : ConversationRepository {
         return PamResult.Success(Unit)
     }
 
+    override suspend fun deleteMessage(id: String): PamResult<Unit> {
+        messages.value = messages.value.filterNot { it.id == id }
+        return PamResult.Success(Unit)
+    }
+
     override suspend fun deleteConversation(id: String): PamResult<Unit> {
         conversations.value = conversations.value.filterNot { it.id == id }
         return PamResult.Success(Unit)

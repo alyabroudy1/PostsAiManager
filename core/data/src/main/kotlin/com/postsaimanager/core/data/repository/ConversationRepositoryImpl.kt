@@ -95,6 +95,16 @@ class ConversationRepositoryImpl @Inject constructor(
                 )
         }
 
+    override suspend fun deleteMessage(id: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            // Sources cascade via the ForeignKey on MessageSourceEntity.
+            runCatching { messageDao.deleteById(id) }
+                .fold(
+                    onSuccess = { PamResult.Success(Unit) },
+                    onFailure = { PamResult.Error(PamError.DatabaseError(it)) },
+                )
+        }
+
     override suspend fun deleteConversation(id: String): PamResult<Unit> =
         withContext(ioDispatcher) {
             // Messages cascade via the ForeignKey on MessageEntity.

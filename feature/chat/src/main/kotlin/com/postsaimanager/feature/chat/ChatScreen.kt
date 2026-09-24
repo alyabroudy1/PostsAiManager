@@ -37,9 +37,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -51,6 +53,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TextButton
 import com.postsaimanager.core.domain.usecase.ChatErrorAction
 import androidx.compose.material3.MaterialTheme
@@ -72,8 +77,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -112,6 +119,18 @@ fun ChatScreen(
     var showModelSheet by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // 5.1: "Copy" needs only a brief, non-blocking confirmation — a Snackbar rather than a
+    // dialog, and one already dismissing itself is replaced rather than queued behind.
+    fun copyToClipboard(text: String) {
+        clipboardManager.setText(AnnotatedString(text))
+        coroutineScope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar("Copied to clipboard")
+        }
+    }
 
     // "Follow" mirrors what every streaming chat UI does: stick to the bottom while new
     // content arrives, but the instant the user scrolls up, stop — nothing is more hostile
@@ -184,6 +203,7 @@ fun ChatScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             PamTopAppBar(
                 title = if (documentId != null) "Document Chat" else "AI Assistant",
@@ -342,6 +362,11 @@ fun ChatScreen(
                         }
                     }
 
+                    // 5.1: regenerate is offered only on the LATEST assistant reply — a
+                    // finished one, not the live streaming bubble (a separate item above,
+                    // never part of `uiState.messages` until it is persisted and reloaded).
+                    val latestAssistantId = uiState.messages.lastOrNull { !it.isUser }?.id
+
                     items(
                         uiState.messages.asReversed(),
                         key = { it.id.ifEmpty { it.timestamp.toString() } },
@@ -351,6 +376,12 @@ fun ChatScreen(
                             documentChat = documentId != null,
                             onRetry = { viewModel.retryMessage(message) },
                             onSourceClick = onSourceClick,
+                            onCopy = { copyToClipboard(message.text) },
+                            onRegenerate = { viewModel.regenerate() },
+                            isLatestAssistantReply = !message.isUser &&
+                                message.id.isNotEmpty() &&
+                                message.id == latestAssistantId &&
+                                !uiState.isProcessing,
                         )
                     }
                 }
@@ -448,6 +479,12 @@ private fun ChatBubble(
     documentChat: Boolean = false,
     onRetry: () -> Unit = {},
     onSourceClick: (ChatSource) -> Unit = {},
+    /** 5.1: copies [ChatMessage.text] — the answer only, never [ChatMessage.thinking]. */
+    onCopy: () -> Unit = {},
+    /** 5.1: re-runs this reply — only ever wired when [isLatestAssistantReply] is true. */
+    onRegenerate: () -> Unit = {},
+    /** True only for the newest, finished assistant reply — see `ChatScreen`'s call site. */
+    isLatestAssistantReply: Boolean = false,
 ) {
     val isUser = message.isUser
     Column(horizontalAlignment = if (isUser) Alignment.End else Alignment.Start) {
@@ -556,6 +593,37 @@ private fun ChatBubble(
                 Spacer(modifier = Modifier.width(8.dp))
                 TextButton(onClick = onRetry, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                     Text("Retry", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+
+        // 5.1: Copy/Regenerate on a finished reply only — a stopped/crashed one already
+        // shows its own Stopped/Retry row above, and copying or regenerating half an answer
+        // is not a real action. Regenerate is further limited to the LATEST assistant reply
+        // ([isLatestAssistantReply], decided by `ChatScreen`) — anything older would delete a
+        // reply with turns still after it in the transcript.
+        if (!isUser && !message.incomplete && message.text.isNotBlank()) {
+            Row(
+                modifier = Modifier.padding(start = 32.dp, top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onCopy, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.ContentCopy,
+                        contentDescription = "Copy answer",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (isLatestAssistantReply) {
+                    IconButton(onClick = onRegenerate, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = "Regenerate answer",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
