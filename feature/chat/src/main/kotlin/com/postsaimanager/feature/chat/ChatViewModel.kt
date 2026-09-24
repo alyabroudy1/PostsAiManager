@@ -91,6 +91,24 @@ class ChatViewModel @Inject constructor(
     init {
         restoreHistory()
         observeEngine()
+        preWarmModel()
+    }
+
+    /**
+     * Requests the active model load as soon as the chat screen opens, rather than waiting
+     * for the first message — through the exact same path [sendMessage] uses
+     * ([PreloadActiveModelUseCase] calls `engine.load`, same as
+     * [SendChatMessageUseCase][com.postsaimanager.core.domain.usecase.SendChatMessageUseCase]),
+     * so a send that races this simply joins the same in-flight load
+     * ([ModelLoadCoordinator][com.postsaimanager.core.ai.local.ModelLoadCoordinator] is
+     * single-flight) instead of starting a second one. Fire-and-forget: [modelSheetState]
+     * already observes [engine]'s [ModelLoadState][com.postsaimanager.core.model
+     * .ModelLoadState] independently, so the header chip moves through Loading -> Ready on its
+     * own without this function needing to touch [uiState]. A no-op, not a crash or a log
+     * warning, when nothing is installed — see [PreloadActiveModelUseCase]'s early return.
+     */
+    private fun preWarmModel() {
+        viewModelScope.launch { preloadActiveModel() }
     }
 
     /** Chat survives process death — messages are persisted, not held in the ViewModel. */
@@ -160,7 +178,10 @@ class ChatViewModel @Inject constructor(
             ).collect { turn ->
                 when (turn) {
                     is ChatTurn.PreparingModel ->
-                        _uiState.update { it.copy(statusText = "Loading model…") }
+                        _uiState.update { it.copy(statusText = turn.reason ?: "Loading model…") }
+
+                    is ChatTurn.PreparingConversation ->
+                        _uiState.update { it.copy(statusText = "Preparing conversation…") }
 
                     is ChatTurn.ThinkingToken ->
                         _uiState.update {
