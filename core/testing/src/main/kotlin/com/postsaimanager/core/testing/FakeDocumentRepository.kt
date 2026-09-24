@@ -51,16 +51,19 @@ class FakeDocumentRepository : DocumentRepository {
         failWith?.let { PamResult.Error(it) } ?: block()
 
     override fun getDocuments(): Flow<List<Document>> =
-        throwOnObserve?.let { error -> kotlinx.coroutines.flow.flow { throw error } } ?: documents
+        (throwOnObserve?.let { error -> kotlinx.coroutines.flow.flow<List<Document>> { throw error } } ?: documents)
+            .map { list -> list.filterNot { it.isTrashed } }
 
     override fun getDocumentsByStatus(status: DocumentStatus): Flow<List<Document>> =
-        documents.map { list -> list.filter { it.status == status } }
+        documents.map { list -> list.filter { it.status == status && !it.isTrashed } }
 
     override fun getFavoriteDocuments(): Flow<List<Document>> =
-        documents.map { list -> list.filter { it.isFavorite } }
+        documents.map { list -> list.filter { it.isFavorite && !it.isTrashed } }
 
     override fun searchDocuments(query: String): Flow<List<Document>> =
-        documents.map { list -> list.filter { it.title.contains(query, ignoreCase = true) } }
+        documents.map { list ->
+            list.filter { it.title.contains(query, ignoreCase = true) && !it.isTrashed }
+        }
 
     override suspend fun getDocumentById(id: String): PamResult<Document> = guard {
         documents.value.firstOrNull { it.id == id }
@@ -85,9 +88,33 @@ class FakeDocumentRepository : DocumentRepository {
         PamResult.Success(Unit)
     }
 
-    override suspend fun deleteDocument(id: String): PamResult<Unit> = guard {
-        documents.value = documents.value.filterNot { it.id == id }
+    override fun observeTrash(): Flow<List<Document>> =
+        documents.map { list -> list.filter { it.isTrashed }.sortedByDescending { it.deletedAt } }
+
+    override suspend fun moveToTrash(id: String): PamResult<Unit> = guard {
+        documents.value = documents.value.map {
+            if (it.id == id) it.copy(deletedAt = System.currentTimeMillis()) else it
+        }
         PamResult.Success(Unit)
+    }
+
+    override suspend fun restore(id: String): PamResult<Unit> = guard {
+        documents.value = documents.value.map { if (it.id == id) it.copy(deletedAt = null) else it }
+        PamResult.Success(Unit)
+    }
+
+    override suspend fun deletePermanently(id: String): PamResult<Unit> = guard {
+        documents.value = documents.value.filterNot { it.id == id }
+        pages.value = pages.value - id
+        extracted.value = extracted.value - id
+        PamResult.Success(Unit)
+    }
+
+    override suspend fun purgeTrashOlderThan(cutoff: Long): PamResult<Int> {
+        failWith?.let { return PamResult.Error(it) }
+        val expired = documents.value.filter { it.isTrashed && (it.deletedAt ?: 0L) < cutoff }
+        expired.forEach { deletePermanently(it.id) }
+        return PamResult.Success(expired.size)
     }
 
     override suspend fun toggleFavorite(id: String): PamResult<Unit> = guard {
@@ -176,6 +203,7 @@ fun testDocument(
     status: DocumentStatus = DocumentStatus.NEW,
     isFavorite: Boolean = false,
     createdAt: Long = 0L,
+    deletedAt: Long? = null,
 ) = Document(
     id = id,
     title = title,
@@ -184,4 +212,5 @@ fun testDocument(
     isFavorite = isFavorite,
     createdAt = createdAt,
     modifiedAt = createdAt,
+    deletedAt = deletedAt,
 )

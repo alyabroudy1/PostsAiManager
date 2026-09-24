@@ -14,17 +14,22 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface DocumentDao {
 
-    @Query("SELECT * FROM documents ORDER BY createdAt DESC")
+    // Every read below that feeds a list, count or search excludes trashed documents
+    // (`deletedAt IS NULL`) — a trashed document must not resurface anywhere except the
+    // trash itself until it's restored. `getById`/`observeById` stay unfiltered: the detail
+    // screen and restore flow need to find a trashed (or just-deleted) document by id.
+
+    @Query("SELECT * FROM documents WHERE deletedAt IS NULL ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<DocumentEntity>>
 
-    @Query("SELECT * FROM documents WHERE status = :status ORDER BY createdAt DESC")
+    @Query("SELECT * FROM documents WHERE status = :status AND deletedAt IS NULL ORDER BY createdAt DESC")
     fun observeByStatus(status: String): Flow<List<DocumentEntity>>
 
     /** One-shot read, for startup recovery — see `DocumentProcessingRecovery`. */
-    @Query("SELECT * FROM documents WHERE status = :status ORDER BY createdAt DESC")
+    @Query("SELECT * FROM documents WHERE status = :status AND deletedAt IS NULL ORDER BY createdAt DESC")
     suspend fun getByStatus(status: String): List<DocumentEntity>
 
-    @Query("SELECT * FROM documents WHERE isFavorite = 1 ORDER BY createdAt DESC")
+    @Query("SELECT * FROM documents WHERE isFavorite = 1 AND deletedAt IS NULL ORDER BY createdAt DESC")
     fun observeFavorites(): Flow<List<DocumentEntity>>
 
     @Query("SELECT * FROM documents WHERE id = :id")
@@ -33,11 +38,25 @@ interface DocumentDao {
     @Query("""
         SELECT d.* FROM documents d
         INNER JOIN document_pages dp ON d.id = dp.documentId
-        WHERE dp.ocrText LIKE '%' || :query || '%'
+        WHERE dp.ocrText LIKE '%' || :query || '%' AND d.deletedAt IS NULL
         GROUP BY d.id
         ORDER BY d.createdAt DESC
     """)
     fun search(query: String): Flow<List<DocumentEntity>>
+
+    // ── Trash ──
+
+    @Query("UPDATE documents SET deletedAt = :deletedAt WHERE id = :id")
+    suspend fun setDeletedAt(id: String, deletedAt: Long)
+
+    @Query("UPDATE documents SET deletedAt = NULL WHERE id = :id")
+    suspend fun clearDeletedAt(id: String)
+
+    @Query("SELECT * FROM documents WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC")
+    fun observeTrashed(): Flow<List<DocumentEntity>>
+
+    @Query("SELECT * FROM documents WHERE deletedAt IS NOT NULL AND deletedAt < :cutoff")
+    suspend fun getTrashedOlderThan(cutoff: Long): List<DocumentEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(document: DocumentEntity)

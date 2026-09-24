@@ -337,6 +337,20 @@ object PamMigrations {
         }
     }
 
+    /**
+     * Adds a trash for documents (Phase: delete/undo/restore).
+     *
+     * `deletedAt` is nullable and additive: null (the default for every existing row) means
+     * "not deleted"; a timestamp means the document was moved to trash at that time and is
+     * hidden from every list, search and chat-retrieval path until it is restored or purged.
+     * Rows and files are kept while trashed so restore is a plain field flip, not a re-import.
+     */
+    val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `deletedAt` INTEGER")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -348,5 +362,6 @@ object PamMigrations {
         MIGRATION_8_9,
         MIGRATION_9_10,
         MIGRATION_10_11,
+        MIGRATION_11_12,
     )
 }

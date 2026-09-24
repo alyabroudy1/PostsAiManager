@@ -561,6 +561,37 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate11To12_deletedAtColumnIsAdditiveAndNullForExistingDocuments() {
+        helper.createDatabase(TEST_DB, 11).apply {
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite,
+                     createdAt, modifiedAt, syncStatus)
+                VALUES ('doc-1', 'Bescheid', 'EXTRACTED', 'CAMERA', 3, 0, 1, 1, 'LOCAL')
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 12, true, PamMigrations.MIGRATION_11_12,
+        )
+
+        // A document that existed before trash was added is simply not deleted.
+        db.query("SELECT deletedAt FROM documents WHERE id = 'doc-1'").use { cursor ->
+            assertTrue("the document was lost in migration", cursor.moveToFirst())
+            assertTrue("deletedAt should be NULL for a pre-existing document", cursor.isNull(0))
+        }
+
+        db.execSQL("UPDATE documents SET deletedAt = 1000 WHERE id = 'doc-1'")
+        db.query("SELECT deletedAt FROM documents WHERE id = 'doc-1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(1000, cursor.getLong(0))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

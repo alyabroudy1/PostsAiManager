@@ -1,9 +1,12 @@
 package com.postsaimanager.core.data.repository
 
+import androidx.room.withTransaction
 import com.postsaimanager.core.common.dispatcher.Dispatcher
 import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.data.database.PamDatabase
+import com.postsaimanager.core.data.database.dao.ConversationDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
@@ -24,7 +27,9 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class DocumentRepositoryImpl @Inject constructor(
+    private val database: PamDatabase,
     private val documentDao: DocumentDao,
+    private val conversationDao: ConversationDao,
     private val mapper: DocumentMapper,
     private val fieldRevisionDao: FieldRevisionDao,
     private val mergeExtraction: MergeExtractionUseCase,
@@ -137,16 +142,84 @@ class DocumentRepositoryImpl @Inject constructor(
             }
         }
 
-    override suspend fun deleteDocument(id: String): PamResult<Unit> =
+    override fun observeTrash(): Flow<List<Document>> =
+        documentDao.observeTrashed()
+            .map { entities -> entities.map(mapper::toDomain) }
+            .flowOn(ioDispatcher)
+
+    override suspend fun moveToTrash(id: String): PamResult<Unit> =
         withContext(ioDispatcher) {
             try {
-                // Before the row goes away: a worker that finishes after this delete would
-                // otherwise write OCR text, fields and a status right back onto a document
-                // that no longer exists.
+                // Before the flag is set: a worker that finishes after this would otherwise
+                // write OCR text, fields and a status right back onto a document the user
+                // just asked to disappear. `processDocument` also re-checks this itself
+                // right before every write, closing the race where a worker is already
+                // mid-run when this call lands.
                 documentProcessor.cancel(id)
-                documentDao.deleteById(id)
+                documentDao.setDeletedAt(id, System.currentTimeMillis())
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun restore(id: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentDao.clearDeletedAt(id)
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    /**
+     * Deletes a document for good, in a fixed order:
+     * 1. cancel any processing work (idempotent — it may already be cancelled from
+     *    [moveToTrash]);
+     * 2. delete the DB row in one transaction — the row's own cascade removes pages,
+     *    extracted data, revisions, chunks, tags links, relations, profile links and
+     *    dismissed-entity/proposal rows, and this also deletes the document's own
+     *    conversation(s) and any stray `message_sources` elsewhere that cite it, since
+     *    neither has a foreign key to `documents` (see `ConversationDao.deleteForDocument`/
+     *    `deleteMessageSourcesForDocument`);
+     * 3. once that transaction commits, delete the on-disk page images.
+     *
+     * Files are deleted only after the DB transaction commits: if the transaction fails, the
+     * document (and its files) are left exactly as they were, rather than a document row
+     * surviving with no images behind it.
+     *
+     * Profiles are never touched — only `document_profile_links` rows, via cascade. Tags are
+     * never touched — only `document_tags` rows, via cascade.
+     *
+     * Shared/exported PDFs in `cacheDir/shared_pdfs` are deliberately not touched here: they
+     * are named from the document's title at export time (`PAM_<title>.pdf`), not from its
+     * id, so there is no reliable way to attribute a cached PDF back to this document without
+     * risking deleting another document's export that happens to share a title. That cache is
+     * OS-reclaimable and holds throwaway copies, not the source of truth.
+     */
+    override suspend fun deletePermanently(id: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentProcessor.cancel(id)
+                database.withTransaction {
+                    conversationDao.deleteForDocument(id)
+                    conversationDao.deleteMessageSourcesForDocument(id)
+                    documentDao.deleteById(id)
+                }
                 pageImageStore.deleteDocumentImages(id)
                 PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun purgeTrashOlderThan(cutoff: Long): PamResult<Int> =
+        withContext(ioDispatcher) {
+            try {
+                val expired = documentDao.getTrashedOlderThan(cutoff)
+                expired.forEach { entity -> deletePermanently(entity.id) }
+                PamResult.Success(expired.size)
             } catch (e: Exception) {
                 PamResult.Error(PamError.DatabaseError(cause = e))
             }

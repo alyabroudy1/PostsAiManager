@@ -42,6 +42,24 @@ interface ConversationDao {
     suspend fun deleteById(id: String)
 
     /**
+     * A document's own conversation (id `conv-<documentId>`) plus, in principle, any other
+     * conversation ever pointed at it — `documentId` carries no foreign key (see
+     * [MessageSourceEntity]), so this is a defensive sweep, not just the one row. Messages
+     * and their sources cascade off `conversations.id`.
+     */
+    @Query("DELETE FROM conversations WHERE documentId = :documentId")
+    suspend fun deleteForDocument(documentId: String)
+
+    /**
+     * `message_sources` rows citing [documentId] from *other* conversations — chiefly the
+     * all-documents chat (`conv-standalone`). There is no FK from `message_sources.documentId`
+     * to `documents.id` (a citation is allowed to outlive its source document, see
+     * [MessageSourceEntity]), so a permanent delete has to clean these up itself.
+     */
+    @Query("DELETE FROM message_sources WHERE documentId = :documentId")
+    suspend fun deleteMessageSourcesForDocument(documentId: String)
+
+    /**
      * Keeps the denormalised `messageCount` / `lastMessageAt` columns in step with the
      * messages table. Called inside [insertMessageAndTouchConversation] so the two writes
      * cannot drift apart.

@@ -23,6 +23,12 @@ data class DocumentEntity(
     /** See [com.postsaimanager.core.model.Document.extractionPagesRead] (5.4). */
     val extractionPagesRead: Int? = null,
     val extractionTotalPages: Int? = null,
+    /**
+     * When set, the document is in the trash: hidden from every list, search and chat
+     * retrieval path, but its rows and files are kept so it can be restored. Null means
+     * "not deleted". See documentation/07-document-pipeline.md, "Deleting documents".
+     */
+    val deletedAt: Long? = null,
 )
 
 @Entity(

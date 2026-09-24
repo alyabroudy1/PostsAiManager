@@ -26,7 +26,17 @@ data class Document(
      */
     val extractionPagesRead: Int? = null,
     val extractionTotalPages: Int? = null,
-)
+    /**
+     * Set when the document is in the trash (moved there by the user, or by processing
+     * itself refusing to write after a race with a delete). Null means "not deleted". A
+     * trashed document is hidden from every list, search and chat-retrieval path, but its
+     * rows and files are kept until it is restored or purged — see
+     * documentation/07-document-pipeline.md, "Deleting documents".
+     */
+    val deletedAt: Long? = null,
+) {
+    val isTrashed: Boolean get() = deletedAt != null
+}
 
 /**
  * Stored as its `name` in Room ([DocumentEntity][com.postsaimanager.core.data.database.entity]

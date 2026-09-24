@@ -35,6 +35,7 @@ class DocumentMapper @Inject constructor() {
         modifiedAt = entity.modifiedAt,
         extractionPagesRead = entity.extractionPagesRead,
         extractionTotalPages = entity.extractionTotalPages,
+        deletedAt = entity.deletedAt,
     )
 
     fun toEntity(domain: Document): DocumentEntity = DocumentEntity(
@@ -51,6 +52,7 @@ class DocumentMapper @Inject constructor() {
         modifiedAt = domain.modifiedAt,
         extractionPagesRead = domain.extractionPagesRead,
         extractionTotalPages = domain.extractionTotalPages,
+        deletedAt = domain.deletedAt,
     )
 
     fun pageToDomain(entity: DocumentPageEntity): DocumentPage = DocumentPage(
