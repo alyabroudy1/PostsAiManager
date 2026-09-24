@@ -92,6 +92,7 @@ import com.postsaimanager.core.model.ProcessingStage
 import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.ProfileSuggestion
 import com.postsaimanager.core.model.TimelineEvent
+import com.postsaimanager.core.model.TimelineEventType
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -185,6 +186,7 @@ fun DocumentDetailScreen(
                     onChatClick = { onChatClick(state.document.id) },
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSharePdf = { viewModel.generatePdf() },
+                    onDelete = { viewModel.deleteDocument(onNavigateBack) },
                 )
             }
         }
@@ -235,6 +237,7 @@ private fun DocumentDetailContent(
     onSharePdf: () -> File?,
     onChatClick: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // A document starts processing itself the moment it is captured — there is no
@@ -246,7 +249,16 @@ private fun DocumentDetailContent(
                 ProcessingBanner(processingState)
             state.document.status == DocumentStatus.QUEUED -> QueuedBanner()
             state.document.status == DocumentStatus.FAILED ->
-                FailedBanner(onRetry = { onProcess(true) })
+                FailedBanner(
+                    // Latest, not first: a document can be reprocessed after a first failure,
+                    // so the most recent PROCESSING_FAILED event is the one that actually
+                    // explains the current FAILED status.
+                    reason = state.timeline
+                        .filter { it.eventType == TimelineEventType.PROCESSING_FAILED }
+                        .maxByOrNull { it.createdAt },
+                    onRetry = { onProcess(true) },
+                    onDelete = onDelete,
+                )
         }
 
         // Action row — nothing to act on yet while a document is new, queued or running.
@@ -355,20 +367,57 @@ private fun QueuedBanner() {
     }
 }
 
+/**
+ * `reason` is the latest `PROCESSING_FAILED` timeline event, when one was recorded — a
+ * document that failed before this task's fix (or whose `failDocument` write itself failed)
+ * has none, and falls back to the generic message. A no-pages document can never be read by
+ * retrying it: the pages that would need OCR were never saved, so "Try again" would just fail
+ * the same way again. Delete (or re-scanning) is the only way out — see
+ * `DocumentProcessingPipeline.failDocument`'s `REASON_NO_PAGES`.
+ */
 @Composable
-private fun FailedBanner(onRetry: () -> Unit) {
+private fun FailedBanner(reason: TimelineEvent?, onRetry: () -> Unit, onDelete: () -> Unit) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val isNoPages = reason?.data == "no_pages"
+
     Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).padding(16.dp)) {
         Text(
-            "Something went wrong while reading this document.",
+            if (isNoPages) {
+                "This document has no pages. Delete it or scan it again."
+            } else {
+                reason?.description ?: "Something went wrong while reading this document."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onErrorContainer,
         )
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedButton(onClick = onRetry) {
-            Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("Try again")
+        if (isNoPages) {
+            OutlinedButton(onClick = { showDeleteConfirm = true }) {
+                Icon(PamIcons.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Delete")
+            }
+        } else {
+            OutlinedButton(onClick = onRetry) {
+                Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Try again")
+            }
         }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete this document?") },
+            text = { Text("It has no pages to read, so nothing can be recovered from it.") },
+            confirmButton = {
+                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 

@@ -3,6 +3,7 @@ package com.postsaimanager.core.data.worker
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
@@ -64,9 +65,16 @@ class DocumentProcessingWorker @AssistedInject constructor(
         }
 
         try {
-            when (documentProcessor.processDocument(documentId)) {
+            when (val result = documentProcessor.processDocument(documentId)) {
                 is PamResult.Success -> Result.success()
-                is PamResult.Error -> Result.failure()
+                is PamResult.Error -> {
+                    // The pipeline itself already logged (and recorded on the timeline) the
+                    // specific reason via `failDocument` — this line is what turns
+                    // logcat's bare "Worker result FAILURE" into something that names the
+                    // document and says why, without having to cross-reference the two logs.
+                    Log.w(TAG, "processing failed for $documentId: ${result.error.userMessage}")
+                    Result.failure()
+                }
             }
         } finally {
             progressJob.cancel()
@@ -123,6 +131,7 @@ class DocumentProcessingWorker @AssistedInject constructor(
     }
 
     companion object {
+        private const val TAG = "DocProcessingWorker"
         const val CHANNEL_ID = DocumentProcessingNotifications.CHANNEL_ID
         const val NOTIFICATION_ID_BASE = 5711
         const val KEY_DOCUMENT_ID = "documentId"

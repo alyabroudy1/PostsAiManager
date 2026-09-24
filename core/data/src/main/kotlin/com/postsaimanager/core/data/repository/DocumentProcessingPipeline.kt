@@ -122,9 +122,9 @@ class DocumentProcessingPipeline @Inject constructor(
                 // Step 2: Get pages
                 val pages = documentDao.getPages(documentId)
                 if (pages.isEmpty()) {
-                    return@withContext PamResult.Error(
-                        PamError.OcrFailed(detail = "No pages found for document")
-                    )
+                    val detail = "No pages found for document"
+                    failDocument(documentId, REASON_NO_PAGES, detail)
+                    return@withContext PamResult.Error(PamError.OcrFailed(detail = detail))
                 }
 
                 // Step 3: OCR pages concurrently, bounded to OCR_CONCURRENCY in flight at
@@ -425,13 +425,45 @@ class DocumentProcessingPipeline @Inject constructor(
                 // start, or whoever cancelled it) decides what happens next, not this run.
                 throw e
             } catch (e: Exception) {
-                _processingState.value = ProcessingState.Failed(documentId, e.message ?: "Unknown error")
-                // Persisted, not just transient: processingState is one in-memory flow that
-                // nothing restores after the app is killed, but a failed document must still
-                // read as failed — with a retry — the next time anyone opens it.
-                runCatching { documentDao.updateStatus(documentId, DocumentStatus.FAILED.name) }
-                PamResult.Error(PamError.ExtractionFailed(detail = e.message ?: "Pipeline failed", cause = e))
+                val detail = e.message ?: "Pipeline failed"
+                failDocument(documentId, REASON_ERROR, detail)
+                PamResult.Error(PamError.ExtractionFailed(detail = detail, cause = e))
             }
+        }
+    }
+
+    /**
+     * Every non-cancellation exit of [processDocument] that isn't a success routes through
+     * here: it is the one place that marks a document `FAILED`, so no early return can leave
+     * one stuck at `PROCESSING` forever (the bug this method exists to close — a document with
+     * no pages used to return an error without ever changing the row's status, and startup
+     * recovery kept re-running it on every launch).
+     *
+     * Three things happen, and none of them can skip the other two just because it failed:
+     * - [Log.w], so `adb logcat` shows *why* — the worker used to log only "Worker result
+     *   FAILURE" with no reason attached.
+     * - the status is [persisted][DocumentStatus.FAILED], since [_processingState] is one
+     *   in-memory flow nothing restores after the app is killed.
+     * - the reason is recorded on the timeline (`reasonCode` machine-readable for the detail
+     *   screen to branch on, `detail` human-readable for its description), so the FAILED
+     *   banner can say something more useful than "something went wrong".
+     */
+    private suspend fun failDocument(documentId: String, reasonCode: String, detail: String) {
+        Log.w(TAG, "processing failed for $documentId ($reasonCode): $detail")
+        _processingState.value = ProcessingState.Failed(documentId, detail)
+        runCatching { documentDao.updateStatus(documentId, DocumentStatus.FAILED.name) }
+        runCatching {
+            timelineRepository.recordEvent(
+                TimelineEvent(
+                    id = UuidGenerator.generate(),
+                    documentId = documentId,
+                    eventType = TimelineEventType.PROCESSING_FAILED,
+                    title = "Processing failed",
+                    description = detail,
+                    data = reasonCode,
+                    createdAt = System.currentTimeMillis(),
+                )
+            )
         }
     }
 }
@@ -440,6 +472,13 @@ class DocumentProcessingPipeline @Inject constructor(
 private val blockJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
 
 private const val TAG = "DocProcessing"
+
+/**
+ * [TimelineEvent.data] reason codes `failDocument` records — the detail screen's FAILED
+ * banner branches on these, e.g. to offer Delete instead of Try again for [REASON_NO_PAGES].
+ */
+private const val REASON_NO_PAGES = "no_pages"
+private const val REASON_ERROR = "error"
 
 /** Pages OCR'd at once. Bounded so a ten-page scan doesn't decode ten bitmaps together. */
 private const val OCR_CONCURRENCY = 2
