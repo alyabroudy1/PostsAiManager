@@ -9,6 +9,7 @@ import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.mapper.DocumentMapper
+import com.postsaimanager.core.data.util.PageImageStore
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
@@ -26,6 +27,7 @@ class DocumentRepositoryImpl @Inject constructor(
     private val mapper: DocumentMapper,
     private val fieldRevisionDao: FieldRevisionDao,
     private val mergeExtraction: MergeExtractionUseCase,
+    private val pageImageStore: PageImageStore,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : DocumentRepository {
 
@@ -104,12 +106,21 @@ class DocumentRepositoryImpl @Inject constructor(
     override suspend fun createDocument(document: Document, pages: List<DocumentPage>): PamResult<Document> =
         withContext(ioDispatcher) {
             try {
+                // Own the scanned images before anything is persisted: `pages` still points
+                // at ML Kit's scan cache here, which the OS can clear at any time. Features
+                // stay unaware of this — they hand over whatever URI they were given and get
+                // back pages backed by app storage.
+                val stored = when (val result = pageImageStore.storePages(document.id, pages)) {
+                    is PamResult.Success -> result.data
+                    is PamResult.Error -> return@withContext result
+                }
                 documentDao.insertDocumentWithPages(
                     document = mapper.toEntity(document),
-                    pages = pages.map(mapper::pageToEntity),
+                    pages = stored.map(mapper::pageToEntity),
                 )
                 PamResult.Success(document)
             } catch (e: Exception) {
+                pageImageStore.deleteDocumentImages(document.id)
                 PamResult.Error(PamError.DatabaseError(cause = e))
             }
         }
@@ -128,6 +139,7 @@ class DocumentRepositoryImpl @Inject constructor(
         withContext(ioDispatcher) {
             try {
                 documentDao.deleteById(id)
+                pageImageStore.deleteDocumentImages(id)
                 PamResult.Success(Unit)
             } catch (e: Exception) {
                 PamResult.Error(PamError.DatabaseError(cause = e))
