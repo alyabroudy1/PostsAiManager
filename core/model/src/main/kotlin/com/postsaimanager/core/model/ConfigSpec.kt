@@ -184,10 +184,15 @@ fun inferenceConfigSchema(
     // (unlike accelerator/context above): every model that ships no `<think>` tags at all
     // simply ignores the `/no_think` suffix this sends, so the control is always safe to
     // show rather than only for models known to reason.
+    //
+    // Default OFF: on-device CPU decode is slow enough (see documentation/06-llama-spike.md
+    // perf notes) that a Qwen3/3.5 reasoning trace can add tens of seconds before the first
+    // visible answer token. Users who want the reasoning trace can still turn this on — this
+    // only changes what a user who has never touched the switch gets.
     specs += ConfigSpec.Switch(
         key = "thinking",
         label = "Thinking",
-        default = true,
+        default = false,
         reloadScope = ReloadScope.NONE,
     )
 

@@ -25,11 +25,14 @@ data class InferenceOverrides(
     val topP: Float? = null,
     val flashAttention: Boolean? = null,
     /**
-     * Null (the default) means "reasoning on" — most Qwen3/3.5 checkpoints think by
-     * default. False sends `/no_think` for every chat turn, disabling it; see
-     * `LlamaNative.sendChatMessage`'s KDoc and documentation/02-architecture.md §5.3.
-     * Sampling-only — [ConfigSpec.Switch]'s `reloadScope` for it is [ReloadScope.NONE],
-     * same as temperature/top-k/top-p.
+     * Null (the default) means "reasoning off" — most Qwen3/3.5 checkpoints think by
+     * default, but on-device CPU decode is slow enough that the reasoning trace can add
+     * tens of seconds before the first visible answer token, so a user who has never
+     * touched this switch gets `/no_think` sent for every chat turn; see
+     * `LlamaNative.sendChatMessage`'s KDoc and documentation/02-architecture.md §5.3. True
+     * turns reasoning back on for users who explicitly opt in. Sampling-only —
+     * [ConfigSpec.Switch]'s `reloadScope` for it is [ReloadScope.NONE], same as
+     * temperature/top-k/top-p.
      */
     val thinkingEnabled: Boolean? = null,
 ) {

@@ -168,7 +168,10 @@ class SendChatMessageUseCase @Inject constructor(
         documentId: String?,
         text: String,
         systemPrompt: String? = null,
-        thinkingEnabled: Boolean = true,
+        // Default OFF — see InferenceOverrides.thinkingEnabled's KDoc: on-device CPU decode
+        // is slow enough that a Qwen3/3.5 reasoning trace can add tens of seconds before the
+        // first visible answer token.
+        thinkingEnabled: Boolean = false,
         /**
          * False only for [regenerateLastReply] (5.1): [text] there is already the latest row
          * `ConversationRepository` holds for this conversation — the just-deleted reply's
@@ -472,7 +475,8 @@ class SendChatMessageUseCase @Inject constructor(
         conversationId: String,
         documentId: String?,
         systemPrompt: String? = null,
-        thinkingEnabled: Boolean = true,
+        // Default OFF — same reasoning as invoke()'s own default; see its KDoc.
+        thinkingEnabled: Boolean = false,
     ): Flow<ChatTurn> = flow {
         val messages = conversationRepository.getMessages(conversationId).first()
         val lastAssistant = messages.lastOrNull { it.role == MessageRole.ASSISTANT }
@@ -498,6 +502,54 @@ class SendChatMessageUseCase @Inject constructor(
                 thinkingEnabled = thinkingEnabled,
                 persistUserMessage = false,
             ),
+        )
+    }
+
+    /**
+     * Loads the active model and primes [conversationId]'s chat session — grounding plus
+     * history — without sending a message. Used by the chat screen's pre-warm-on-open path
+     * (`ChatViewModel.preWarmModel`) so the first real [invoke] only has to decode its own new
+     * turn, instead of also paying the grounding/history prefill this normally does on the
+     * first send after the screen opens (documentation/02-architecture.md §5.3's cold-prime
+     * measurement).
+     *
+     * Mirrors exactly the subset of [invoke] that loads the model and calls
+     * [AiEngine.ensureChatSession] — with `systemPrompt` always null (this project's only
+     * caller of [invoke], [ChatViewModel], never passes one either), so the grounding text
+     * this builds is byte-for-byte what a following [invoke] for the same conversation would
+     * build, and [AiEngine.ensureChatSession]'s own "already primed for this conversation"
+     * check treats them as the same session rather than re-priming.
+     *
+     * Safe to race a real [invoke] call: both go through the same [AiEngine.load] (single-
+     * flight in `ModelLoadCoordinator`) and the same [AiEngine.ensureChatSession] (serialized
+     * on the engine's own session lock — see `LocalAiEngine`). Whichever call reaches
+     * `ensureChatSession` first does the real decode; the other blocks on the lock and then
+     * finds the session already primed, a no-op — never two priming decodes, never a decode
+     * racing a read of the session it is still building.
+     *
+     * A no-op, not an error, when nothing is installed or the load fails — same as
+     * [PreloadActiveModelUseCase], which this replaces at that call site.
+     */
+    suspend fun primeConversation(conversationId: String, documentId: String?) {
+        val activeModelPath = activeModelProvider.activeModelPath() ?: return
+        val config = activeModelProvider.activeModelConfig()
+        val loaded = engine.load(activeModelPath, config)
+        if (loaded is PamResult.Error) return
+
+        // Same ground truth invoke() re-checks after load — a config change during load can
+        // still require a (re)prime even if this conversation looked primed a moment ago.
+        if (engine.isChatSessionPrimed(conversationId)) return
+
+        val chatContext = buildChatContext(documentId, config.contextTokens)
+        val priorTurns = conversationRepository.getMessages(conversationId).first()
+        val contextTokens = when (val state = engine.state.value) {
+            is ModelLoadState.Ready -> state.config.contextTokens
+            else -> config.contextTokens
+        }
+        engine.ensureChatSession(
+            conversationId,
+            chatContext.text,
+            buildHistory(priorTurns, contextTokens, chatContext.text),
         )
     }
 
