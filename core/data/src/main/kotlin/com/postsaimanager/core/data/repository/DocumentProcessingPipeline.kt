@@ -9,6 +9,7 @@ import com.postsaimanager.core.common.result.getOrNull
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
+import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.domain.document.DocumentProcessor
@@ -25,10 +26,16 @@ import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.TimelineEvent
 import com.postsaimanager.core.model.TimelineEventType
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -75,42 +82,59 @@ class DocumentProcessingPipeline @Inject constructor(
                     )
                 }
 
-                // Step 3: OCR each page
-                val ocrResults = mutableListOf<OcrResult>()
-                pages.forEachIndexed { index, page ->
-                    val progress = (index + 1).toFloat() / pages.size * 0.6f
-                    _processingState.value = ProcessingState.Running(
-                        documentId = documentId,
-                        stage = ProcessingStage.READ,
-                        progress = progress,
-                        currentPage = index + 1,
-                        totalPages = pages.size,
-                    )
+                // Step 3: OCR pages concurrently, bounded to OCR_CONCURRENCY in flight at
+                // once — enough to overlap ML Kit's per-page latency without decoding every
+                // page's bitmap into memory at the same time. Page order in the result list
+                // is preserved regardless of completion order: `combinedText` below reads
+                // page 1 before page 2 no matter which one finished OCR first. Progress is
+                // reported by completion count, which — with bounded, not ordered,
+                // concurrency — does not always match page number.
+                val ocrSemaphore = Semaphore(OCR_CONCURRENCY)
+                val completedPages = AtomicInteger(0)
 
-                    val result = ocrService.recognizeText(page.imagePath)
-                    val ocrResult = result.getOrNull()
-                    if (ocrResult != null) {
-                        ocrResults.add(ocrResult)
-                        // Update page with OCR text
-                        documentDao.insertPages(
-                            listOf(
-                                page.copy(
-                                    ocrText = ocrResult.fullText,
-                                    ocrConfidence = ocrResult.confidence,
-                                    // Positions kept, so a layout-aware extractor can use
-                                    // this page later without re-reading the image.
-                                    ocrBlocks = runCatching {
-                                        blockJson.encodeToString(
-                                            kotlinx.serialization.builtins.ListSerializer(
-                                                com.postsaimanager.core.model.OcrBlock.serializer(),
-                                            ),
-                                            ocrResult.blocks,
-                                        )
-                                    }.getOrNull(),
+                val ocrByPage: List<Pair<DocumentPageEntity, OcrResult?>> = coroutineScope {
+                    pages.map { page ->
+                        async {
+                            ocrSemaphore.withPermit {
+                                val ocrResult = ocrService.recognizeText(page.imagePath).getOrNull()
+                                val completed = completedPages.incrementAndGet()
+                                _processingState.value = ProcessingState.Running(
+                                    documentId = documentId,
+                                    stage = ProcessingStage.READ,
+                                    progress = completed.toFloat() / pages.size * 0.6f,
+                                    currentPage = completed,
+                                    totalPages = pages.size,
                                 )
-                            )
+                                page to ocrResult
+                            }
+                        }
+                    }.awaitAll()
+                }
+
+                val ocrResults = ocrByPage.mapNotNull { it.second }
+
+                // One write for every page that produced text, instead of one DAO call per
+                // page — turns an N-statement sequence into a single batched insert.
+                val updatedPages = ocrByPage.mapNotNull { (page, ocrResult) ->
+                    ocrResult?.let {
+                        page.copy(
+                            ocrText = it.fullText,
+                            ocrConfidence = it.confidence,
+                            // Positions kept, so a layout-aware extractor can use
+                            // this page later without re-reading the image.
+                            ocrBlocks = runCatching {
+                                blockJson.encodeToString(
+                                    kotlinx.serialization.builtins.ListSerializer(
+                                        com.postsaimanager.core.model.OcrBlock.serializer(),
+                                    ),
+                                    it.blocks,
+                                )
+                            }.getOrNull(),
                         )
                     }
+                }
+                if (updatedPages.isNotEmpty()) {
+                    documentDao.insertPages(updatedPages)
                 }
 
                 // Log OCR event
@@ -322,6 +346,9 @@ class DocumentProcessingPipeline @Inject constructor(
 private val blockJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
 
 private const val TAG = "DocProcessing"
+
+/** Pages OCR'd at once. Bounded so a ten-page scan doesn't decode ten bitmaps together. */
+private const val OCR_CONCURRENCY = 2
 
 /**
  * Identifies the extractor that produced a value.
