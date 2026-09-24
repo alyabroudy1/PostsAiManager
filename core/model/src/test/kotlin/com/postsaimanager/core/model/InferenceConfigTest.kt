@@ -65,9 +65,30 @@ class InferenceConfigTest {
         }
 
         @Test
-        fun `threads default to threadsBatch`() {
-            val config = InferenceConfig.defaults(device(8 * gb), 4096)
+        fun `threadsBatch falls back to threads when the core frequency reading is uninformative`() {
+            // Uniform frequencies (or too few readings) tell performanceCoreThreadCount
+            // nothing about which cores are "performance" ones, so it should defer to the
+            // same half-the-cores default `threads` already uses — deterministic regardless
+            // of what the test machine's own /sys/devices/system/cpu happens to report.
+            val config = InferenceConfig.defaults(device(8 * gb), 4096, coreMaxFreqsKHz = emptyList())
             assertThat(config.threadsBatch).isEqualTo(config.threads)
+        }
+
+        @Test
+        fun `threadsBatch prefers the performance cluster when the reading is big-LITTLE`() {
+            // Modelled on this project's reference device (Snapdragon 8 Gen 2): 3 efficiency
+            // cores near 2.0 GHz, 5 performance cores from 2.8-3.36 GHz.
+            val snapdragon8Gen2MaxFreqsKHz = listOf(
+                2_000_000L, 2_000_000L, 2_000_000L, // 3x Cortex-A510
+                2_800_000L, 2_800_000L, 2_800_000L, 2_800_000L, // 2x A710 + 2x A715
+                3_360_000L, // 1x Cortex-X3
+            )
+            val config = InferenceConfig.defaults(
+                device(8 * gb),
+                4096,
+                coreMaxFreqsKHz = snapdragon8Gen2MaxFreqsKHz,
+            )
+            assertThat(config.threadsBatch).isEqualTo(5)
         }
 
         @Test
@@ -76,6 +97,44 @@ class InferenceConfigTest {
             // and the halving relationship are guaranteed regardless of the test machine.
             assertThat(InferenceConfig.defaultThreadCount()).isAtLeast(2)
         }
+    }
+
+    @Nested
+    @DisplayName("performanceCoreThreadCount")
+    inner class PerformanceCoreThreadCount {
+
+        @Test
+        fun `counts cores well above the slowest cluster`() {
+            val freqs = listOf(2_000_000L, 2_000_000L, 2_800_000L, 2_800_000L, 3_360_000L)
+            assertThat(InferenceConfig.performanceCoreThreadCount(freqs)).isEqualTo(3)
+        }
+
+        @Test
+        fun `homogeneous cores return null (nothing to distinguish)`() {
+            val freqs = List(8) { 2_400_000L }
+            assertThat(InferenceConfig.performanceCoreThreadCount(freqs)).isNull()
+        }
+
+        @Test
+        fun `fewer than two readings return null`() {
+            assertThat(InferenceConfig.performanceCoreThreadCount(emptyList())).isNull()
+            assertThat(InferenceConfig.performanceCoreThreadCount(listOf(2_000_000L))).isNull()
+        }
+
+        @Test
+        fun `a lone performance core is still coerced to at least two threads`() {
+            val freqs = listOf(2_000_000L, 2_000_000L, 2_000_000L, 3_360_000L)
+            assertThat(InferenceConfig.performanceCoreThreadCount(freqs)).isEqualTo(2)
+        }
+
+        @Test
+        fun `zero or negative readings are ignored, not treated as the slowest core`() {
+            val freqs = listOf(0L, -1L, 2_800_000L, 2_800_000L, 3_360_000L)
+            // Only the three positive readings are considered; they are not uniform (2.8 vs
+            // 3.36 GHz), so this still resolves rather than returning null.
+            assertThat(InferenceConfig.performanceCoreThreadCount(freqs)).isEqualTo(2)
+        }
+
     }
 
     @Nested

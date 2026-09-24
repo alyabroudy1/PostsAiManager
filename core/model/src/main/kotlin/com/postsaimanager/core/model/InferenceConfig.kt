@@ -1,6 +1,7 @@
 package com.postsaimanager.core.model
 
 import kotlinx.serialization.Serializable
+import java.io.File
 
 /**
  * Everything llama.cpp needs to load a model and sample from it.
@@ -66,13 +67,75 @@ data class InferenceConfig(
          * @param catalogedContextTokens the context window the model itself declares — the
          *   ceiling. What this computes is how much of it the device can actually afford.
          */
+        /**
+         * @param coreMaxFreqsKHz defaults to a live [readCoreMaxFreqsKHz] read; overridable
+         *   so tests can supply a fixed, deterministic reading instead of depending on
+         *   whatever the test machine's own `/sys/devices/system/cpu` happens to report (or,
+         *   off Linux/Android, does not report at all).
+         */
         fun defaults(
             deviceCapability: DeviceCapability,
             catalogedContextTokens: Int,
-        ): InferenceConfig = InferenceConfig(
-            contextTokens = affordableContext(deviceCapability, catalogedContextTokens),
-            threads = defaultThreadCount(),
-        )
+            coreMaxFreqsKHz: List<Long> = readCoreMaxFreqsKHz(),
+        ): InferenceConfig {
+            val threads = defaultThreadCount()
+            return InferenceConfig(
+                contextTokens = affordableContext(deviceCapability, catalogedContextTokens),
+                threads = threads,
+                // Prompt processing (threadsBatch) parallelises across the whole batch, so —
+                // unlike token generation, which is a mostly-serial chain of single-token
+                // decodes — it benefits from every performance core it can get on a
+                // big.LITTLE SoC, not just half of them. See performanceCoreThreadCount's doc.
+                threadsBatch = performanceCoreThreadCount(coreMaxFreqsKHz) ?: threads,
+            )
+        }
+
+        /**
+         * Threads to use for prompt processing (`threadsBatch`), preferring the SoC's
+         * performance cluster over its efficiency cores on a big.LITTLE design.
+         *
+         * Prompt eval is compute-bound and parallel across `n_batch` — every core helps —
+         * whereas token generation is a mostly-serial chain of single-token decodes where
+         * more threads past a point mostly adds coordination overhead (why [defaultThreadCount]
+         * intentionally stays at half the cores). The two workloads want different thread
+         * counts, which is why `threadsBatch` exists as its own [InferenceConfig] field.
+         *
+         * @param coreMaxFreqsKHz each logical core's max scaling frequency, in any order —
+         *   this only ever counts them, never assumes an ordering or a specific core index.
+         *   Typically [readCoreMaxFreqsKHz]'s result.
+         * @return null when the input does not look like a real big.LITTLE reading (fewer
+         *   than 2 cores, or every core reporting the same frequency, e.g. a device that
+         *   hides cpufreq, an emulator, or a read failure) — the caller falls back to
+         *   [defaultThreadCount] in that case, same as it always did.
+         */
+        fun performanceCoreThreadCount(coreMaxFreqsKHz: List<Long>): Int? {
+            val freqs = coreMaxFreqsKHz.filter { it > 0 }
+            if (freqs.size < 2) return null
+
+            val minFreq = freqs.min()
+            val maxFreq = freqs.max()
+            if (minFreq == maxFreq) return null // homogeneous — not big.LITTLE, or a bad read.
+
+            val performanceCores = freqs.count { it > minFreq * PERFORMANCE_CORE_THRESHOLD }
+            return performanceCores.takeIf { it in 1 until freqs.size }?.coerceAtLeast(2)
+        }
+
+        /**
+         * Reads each online CPU's max scaling frequency from sysfs
+         * (`/sys/devices/system/cpu/cpuN/cpufreq/cpuinfo_max_freq`, in kHz — the standard
+         * Linux cpufreq interface, present on essentially every Android device; this project
+         * has no prior reader of it). Missing/unreadable entries are simply skipped, not
+         * substituted with a guess — [performanceCoreThreadCount] already treats a too-short
+         * or too-uniform result as "unknown" and falls back safely.
+         */
+        fun readCoreMaxFreqsKHz(): List<Long> {
+            val cpuDir = File("/sys/devices/system/cpu")
+            val cpuDirs = cpuDir.listFiles { file -> file.name.matches(CPU_DIR_REGEX) } ?: return emptyList()
+            return cpuDirs.mapNotNull { dir ->
+                File(dir, "cpufreq/cpuinfo_max_freq").takeIf { it.canRead() }
+                    ?.let { runCatching { it.readText().trim().toLong() }.getOrNull() }
+            }
+        }
 
         /**
          * What the device can **afford**, not what the model supports.
@@ -131,6 +194,18 @@ data class InferenceConfig(
             (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(2)
 
         private const val MB = 1024L * 1024L
+
+        /**
+         * A core counts as "performance" once its max frequency is at least this multiple of
+         * the slowest core's — chosen to sit clearly between a typical efficiency cluster and
+         * a mid/performance cluster (e.g. this project's reference device, a Snapdragon
+         * 8 Gen 2: 3 Cortex-A510 efficiency cores near 2.0 GHz vs. 2x A710 + 2x A715 near
+         * 2.8 GHz + 1x Cortex-X3 near 3.36 GHz — a 1.15x threshold cleanly separates the two
+         * without depending on exact model numbers, which vary chip to chip).
+         */
+        private const val PERFORMANCE_CORE_THRESHOLD = 1.15
+
+        private val CPU_DIR_REGEX = Regex("cpu[0-9]+")
     }
 }
 
