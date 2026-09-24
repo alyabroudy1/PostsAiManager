@@ -107,6 +107,7 @@ class ChatViewModel @Inject constructor(
                                 timestamp = it.createdAt,
                                 thinking = it.thinking,
                                 thinkingDurationMs = it.thinkingDurationMs,
+                                incomplete = it.incomplete,
                             )
                         },
                     )
@@ -132,6 +133,12 @@ class ChatViewModel @Inject constructor(
 
         // The streamed reply is held separately from persisted history: it is not yet a
         // stored message, and merging the two would make history flicker as tokens arrive.
+        //
+        // `lastSentAt` is what makes the transcript ALWAYS jump to the bottom on send
+        // (defect 2), regardless of `followBottom` — see ChatScreen's `LaunchedEffect` keyed
+        // on it. Keyed on this send event rather than on `messages.size` so a message
+        // arriving from elsewhere (history restore, a retry) never fights the user's own
+        // scroll the way `followBottom`-gated auto-scroll otherwise correctly does.
         _uiState.update {
             it.copy(
                 isProcessing = true,
@@ -140,6 +147,7 @@ class ChatViewModel @Inject constructor(
                 thinkingDurationMs = null,
                 isThinkingActive = false,
                 error = null,
+                lastSentAt = System.currentTimeMillis(),
             )
         }
 
@@ -234,6 +242,27 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
+     * Retries a stopped/incomplete assistant reply (defect 3's "Retry" affordance) — finds
+     * the user turn that preceded [message] and re-sends exactly that text.
+     *
+     * Deliberately the simplest consistent behaviour: the incomplete message is **kept**,
+     * not deleted — a fresh assistant reply is appended below it, exactly like any other
+     * retry in this screen (see [retry]). Nothing here needs to reach into persistence to
+     * delete a message, and the stopped reply stays visible as a record of what happened,
+     * consistent with defect 3's "keep the partial answer visible" requirement.
+     */
+    fun retryMessage(message: ChatMessage) {
+        val messages = _uiState.value.messages
+        val index = messages.indexOfFirst { it.id == message.id }
+        if (index < 0) return
+        val precedingUserText = messages.subList(0, index)
+            .lastOrNull { it.isUser }
+            ?.text
+            ?: return
+        sendMessage(precedingUserText)
+    }
+
+    /**
      * Switches the active chat model and loads it immediately, so the header chip visibly
      * moves Loading → Ready on the new model rather than sitting still until the next
      * message — see [PreloadActiveModelUseCase].
@@ -305,6 +334,13 @@ data class ChatUiState(
     val statusText: String? = null,
     val engineReady: Boolean = false,
     val error: ChatError? = null,
+    /**
+     * Set to `System.currentTimeMillis()` every time [ChatViewModel.sendMessage] runs —
+     * never derived from [messages] itself. See [ChatViewModel.sendMessage]'s doc: this is
+     * what makes the transcript always jump to the bottom on send (defect 2), independent
+     * of `followBottom`.
+     */
+    val lastSentAt: Long = 0L,
 )
 
 /** A failure the user can act on, rather than a swallowed exception (see defect 6.7.12). */
@@ -321,4 +357,6 @@ data class ChatMessage(
     /** The model's reasoning trace for this reply, if any — display-only, see [com.postsaimanager.core.model.AiMessage]. */
     val thinking: String? = null,
     val thinkingDurationMs: Long? = null,
+    /** True for a reply the user stopped, or one that failed mid-stream. See [com.postsaimanager.core.model.AiMessage.incomplete]. */
+    val incomplete: Boolean = false,
 )

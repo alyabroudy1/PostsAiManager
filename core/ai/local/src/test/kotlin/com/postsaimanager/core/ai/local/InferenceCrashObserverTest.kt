@@ -96,6 +96,7 @@ class InferenceCrashObserverTest {
         override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> =
             error("not used by this test")
         override suspend fun commitChatReply(answer: String) = error("not used by this test")
+        override suspend fun discardPendingReply() = error("not used by this test")
         override suspend fun resetChatSession() = error("not used by this test")
         override fun formatPrompt(messages: List<AiChatMessage>): String = error("not used by this test")
         override suspend fun unload() = error("not used by this test")

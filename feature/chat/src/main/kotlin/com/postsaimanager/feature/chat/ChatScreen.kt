@@ -147,6 +147,18 @@ fun ChatScreen(
         }
     }
 
+    // Defect 2: sending a message must ALWAYS snap the transcript to the bottom, even if the
+    // user had scrolled away to read older messages — a person who just tapped Send wants to
+    // see what they sent, full stop. Keyed on `uiState.lastSentAt` (a ViewModel-owned send
+    // event), not on `uiState.messages.size` — a message arriving for any other reason (e.g.
+    // history restore) must not force-scroll and fight a person who is deliberately reading
+    // up in the transcript.
+    LaunchedEffect(uiState.lastSentAt) {
+        if (uiState.lastSentAt == 0L) return@LaunchedEffect
+        followBottom = true
+        listState.scrollToItem(0)
+    }
+
     if (showModelSheet) {
         ModelConfigBottomSheet(
             state = modelSheetState,
@@ -324,7 +336,7 @@ fun ChatScreen(
                         uiState.messages.asReversed(),
                         key = { it.id.ifEmpty { it.timestamp.toString() } },
                     ) { message ->
-                        ChatBubble(message = message)
+                        ChatBubble(message = message, onRetry = { viewModel.retryMessage(message) })
                     }
                 }
 
@@ -416,7 +428,7 @@ private fun ChatInputBar(
 }
 
 @Composable
-private fun ChatBubble(message: ChatMessage) {
+private fun ChatBubble(message: ChatMessage, onRetry: () -> Unit = {}) {
     val isUser = message.isUser
     Column(horizontalAlignment = if (isUser) Alignment.End else Alignment.Start) {
         // A persisted reply that thought before answering shows its trace collapsed to a
@@ -479,6 +491,35 @@ private fun ChatBubble(message: ChatMessage) {
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                }
+            }
+        }
+
+        // Defect 3: a stopped/crashed reply keeps its partial text (see `ChatBubble` above,
+        // unchanged) rather than being deleted, marked with a small "Stopped" caption rather
+        // than looking like a normal finished reply — and offers Retry rather than a dead
+        // end. Never shown for a user bubble; `AiMessage.incomplete` is assistant-only by
+        // construction (`SendChatMessageUseCase` never sets it on a user message).
+        if (!isUser && message.incomplete) {
+            Row(
+                modifier = Modifier.padding(start = 40.dp, top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Stop,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Stopped",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                TextButton(onClick = onRetry, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+                    Text("Retry", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

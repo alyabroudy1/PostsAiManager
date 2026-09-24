@@ -109,15 +109,31 @@ class FakeAiEngine(
         return true
     }
 
+    /**
+     * When set, [sendChatMessage] emits [response] in full and *then* throws — unlike
+     * [failWith], which fails before anything streams. Exists to exercise the "partial
+     * reply persisted as incomplete" path (a crash mid-stream), which needs some text to
+     * already be in flight before the failure.
+     */
+    var failAfterResponse: Exception? = null
+
     override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> = flow {
         lastChatUserText = userText
         lastRequest = request
         failWith?.let { throw it }
         response.chunked(7).forEach { emit(it) }
+        failAfterResponse?.let { throw it }
     }
 
     override suspend fun commitChatReply(answer: String) {
         committedReplies += answer
+    }
+
+    /** Turns [discardPendingReply] was called for, in order — see the doc on [AiEngine]. */
+    val discardedReplies: MutableList<Unit> = mutableListOf()
+
+    override suspend fun discardPendingReply() {
+        discardedReplies += Unit
     }
 
     override suspend fun resetChatSession() {

@@ -339,6 +339,12 @@ internal class LocalAiEngine @Inject constructor(
         mutex.withLock { withContext(ioDispatcher) { LlamaNative.commitChatReply(current, answer) } }
     }
 
+    override suspend fun discardPendingReply() {
+        val current = handle
+        if (current == 0L) return
+        mutex.withLock { withContext(ioDispatcher) { LlamaNative.discardPendingReply(current) } }
+    }
+
     override suspend fun resetChatSession() {
         sessionConversationId = null
         val current = handle

@@ -97,6 +97,22 @@ interface AiEngine {
     /** Appends [answer] (thinking-stripped) to the open chat session's history. See [sendChatMessage]. */
     suspend fun commitChatReply(answer: String)
 
+    /**
+     * Rolls back an interrupted (stopped, crashed, or otherwise cancelled) reply: removes
+     * the reply's sampled tokens from the KV cache — everything decoded since the user's
+     * turn was rendered in [sendChatMessage], via `llama_memory_seq_rm` — **without**
+     * touching `chatHistory`. The user's turn stays; no assistant turn is appended.
+     *
+     * This is the counterpart to [commitChatReply] for a turn that is never committed: call
+     * exactly one of the two once a turn's outcome is known. Without this, the KV cache
+     * would keep the half-formed reply as if the model had actually said it, and the next
+     * turn's diff would be decoded against a cache state `chatHistory` no longer describes
+     * — the model would effectively see its own abandoned words as prior context.
+     *
+     * A no-op when no chat session is open (nothing to roll back).
+     */
+    suspend fun discardPendingReply()
+
     /** Drops the standing chat session — its KV cache and history. E.g. on conversation switch. */
     suspend fun resetChatSession()
 

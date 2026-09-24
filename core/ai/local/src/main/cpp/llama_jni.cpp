@@ -57,6 +57,12 @@ struct PamSession {
     // openChatSession/resetChatSession ever clear it.
     std::vector<ChatTurn> chatHistory;
     int chatPrevLen = 0;
+
+    // KV-cache position right before the currently open reply's tokens start — i.e. right
+    // after [sendChatMessage] decoded the user turn + open assistant tag, before any tokens
+    // were sampled. -1 when no reply is open (nothing pending to discard). Set at the end of
+    // sendChatMessage and consumed by discardPendingReply — see its doc.
+    llama_pos replyStartPos = -1;
 };
 
 double elapsedMs(std::chrono::steady_clock::time_point start) {
@@ -633,6 +639,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_openChatSession(
     llama_memory_clear(llama_get_memory(session->ctx), true);
     session->chatHistory.clear();
     session->chatPrevLen = 0;
+    session->replyStartPos = -1;
 
     const std::string sys = jstringToStd(env, systemPrompt);
     if (!sys.empty()) {
@@ -770,6 +777,11 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
     // the generated content is known, without decoding anything more (see its doc).
     session->chatPrevLen = (int) formatted.size();
 
+    // Everything decoded from here on (the [nextToken] calls that follow) is this reply's
+    // own tokens — the position discardPendingReply() rolls back to if the turn is never
+    // committed. See its doc and PamSession::replyStartPos.
+    session->replyStartPos = (llama_pos) llama_memory_seq_pos_max(mem, 0) + 1;
+
     session->chain = buildSamplerChain(vocab, temperature, topK, topP, seed, grammarStd);
     session->generated = 0;
     session->maxTokens = maxTokens;
@@ -792,6 +804,28 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_commitChatReply(
     session->chatHistory.push_back({"assistant", jstringToStd(env, answer)});
     const std::string formatted = renderChatHistory(session, /* addAssistant */ false);
     session->chatPrevLen = (int) formatted.size();
+    // The reply is committed — nothing pending left to roll back.
+    session->replyStartPos = -1;
+}
+
+/**
+ * Rolls back an interrupted reply: removes every token decoded since [sendChatMessage]
+ * opened this turn (the reply's own tokens — the user's turn and everything before it are
+ * left alone) from the KV cache, via `llama_memory_seq_rm(mem, 0, replyStartPos, -1)`.
+ * `chatHistory` is untouched — the user's turn stays queued, no assistant turn is appended
+ * — so the *next* [sendChatMessage] call naturally re-renders and decodes only the new user
+ * turn, exactly as if this reply had never been generated. A no-op if no reply is open.
+ */
+JNIEXPORT void JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_discardPendingReply(JNIEnv *, jobject, jlong handle) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr || session->replyStartPos < 0) return;
+
+    releaseChain(session);
+    llama_memory_t mem = llama_get_memory(session->ctx);
+    llama_memory_seq_rm(mem, 0, session->replyStartPos, -1);
+    LOGI("pam_llama: discardPendingReply removed tokens from n_past=%d onward", (int) session->replyStartPos);
+    session->replyStartPos = -1;
 }
 
 /** Drops the standing chat session — its KV cache and history — e.g. on a conversation switch. */
@@ -800,6 +834,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_resetChatSession(JNIEnv *, job
     auto *session = reinterpret_cast<PamSession *>(handle);
     if (session == nullptr) return;
     releaseChain(session);
+    session->replyStartPos = -1;
     llama_memory_clear(llama_get_memory(session->ctx), true);
     session->chatHistory.clear();
     session->chatPrevLen = 0;

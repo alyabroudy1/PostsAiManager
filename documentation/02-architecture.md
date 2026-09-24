@@ -846,6 +846,48 @@ Per-turn latency after the fix is dominated entirely by generation speed (~11–
 this device/model), not prompt reprocessing — the 30 s/message complaint this section fixes
 was almost entirely the full re-decode, not generation.
 
+#### Interrupted replies — Stop, and crashes, never poison the session
+
+> Implemented.
+
+A reply the user stops mid-stream, or one that fails (a native crash, a binder death), is
+**kept** — the partial text is persisted and shown, with a "■ Stopped" caption, rather than
+discarded (`AiMessage.incomplete = true`, Room column added in migration 7→8). What it must
+never become is something the model believes *it* said: the standing chat session's KV cache
+(previous section) already has that reply's sampled tokens resident from the `nextToken()`
+calls that produced them, and `chatHistory` still expects `commitChatReply` to close out the
+turn.
+
+**The rule, enforced in one place.** `SendChatMessageUseCase.isEligibleForModel` — an
+incomplete message is never fed back into a prompt, neither as replayed history
+(`ensureChatSession`'s `history`, via `primeChatSession` after a reload) nor, live, in the
+session's own KV cache. The two halves:
+
+- **Persistence.** On `CancellationException` (Stop) or any other `Exception` mid-stream,
+  `SendChatMessageUseCase` persists whatever was produced with `incomplete = true`, inside
+  `withContext(NonCancellable)` — the surrounding coroutine is already cancelled at this
+  point, so the repository's suspend insert would otherwise itself race the cancellation and
+  silently lose the partial text.
+- **The session.** `AiEngine.discardPendingReply()` is called instead of `commitChatReply()`.
+  `PamSession` (`llama_jni.cpp`) records `replyStartPos` — the KV-cache position right after
+  the user's turn was decoded, before any reply token was sampled — at the end of
+  `sendChatMessage`. `discardPendingReply` calls
+  `llama_memory_seq_rm(mem, 0, replyStartPos, -1)`, removing exactly the interrupted reply's
+  tokens, and leaves `chatHistory` untouched: the user's turn stays queued, no assistant turn
+  is appended. The *next* `sendChatMessage` call for that conversation then renders and
+  decodes only the new user turn, exactly as if the stopped reply had never been generated —
+  verified on device: `pam_llama: discardPendingReply removed tokens from n_past=NNN onward`
+  in logcat, immediately followed by a coherent (non-duplicated, on-topic) continuation on
+  the next turn.
+- **On reload**, `primeChatSession` never sees an incomplete message in the first place —
+  `buildHistory` filters it out before it is ever handed to `ensureChatSession`.
+
+**Retry.** Offered on a stopped message; it resends the same preceding user turn
+(`ChatViewModel.retryMessage`) exactly like the existing error-card Retry. The incomplete
+message itself is **kept**, not deleted — the simplest behaviour consistent with "the
+partial answer stays visible" (the same principle that keeps it around in the first place),
+and the fresh reply is simply appended below it.
+
 #### GPU crash fallback — Adreno pipeline-link failure
 
 On the reference S23 Ultra, one model — Qwen3.5 2B (Q4_K_M) — aborts the `:inference`

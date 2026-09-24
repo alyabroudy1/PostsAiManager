@@ -139,6 +139,7 @@ class ConversationRepositoryImpl @Inject constructor(
         createdAt = entity.createdAt,
         thinking = entity.thinking,
         thinkingDurationMs = entity.thinkingDurationMs,
+        incomplete = entity.incomplete,
     )
 
     private fun toEntity(model: AiMessage) = MessageEntity(
@@ -156,6 +157,7 @@ class ConversationRepositoryImpl @Inject constructor(
         createdAt = model.createdAt,
         thinking = model.thinking,
         thinkingDurationMs = model.thinkingDurationMs,
+        incomplete = model.incomplete,
     )
 }
 

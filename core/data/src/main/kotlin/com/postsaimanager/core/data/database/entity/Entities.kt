@@ -349,6 +349,8 @@ data class MessageEntity(
     /** The model's reasoning trace, display-only — see [com.postsaimanager.core.model.AiMessage]. */
     val thinking: String? = null,
     val thinkingDurationMs: Long? = null,
+    /** See [com.postsaimanager.core.model.AiMessage.incomplete]. */
+    val incomplete: Boolean = false,
 )
 
 @Entity(

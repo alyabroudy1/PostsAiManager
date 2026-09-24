@@ -15,9 +15,11 @@ import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.AiModelType
 import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.model.ModelLoadState
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /** Progress of one assistant turn, as the UI needs to render it. */
@@ -79,6 +81,17 @@ enum class ChatErrorAction {
  * See `ThinkingStreamParser` for where thinking is split out of the raw stream in the first
  * place, and `SendChatMessageUseCaseTest`'s "thinking is never sent back to the model" for
  * the test that pins this.
+ *
+ * ### Stopped / interrupted replies
+ *
+ * A reply the user stops, or one that fails mid-stream, is still persisted — with whatever
+ * text was produced — but marked [AiMessage.incomplete]. [isEligibleForModel]
+ * is the one place that exclusion is enforced: [buildHistory] drops such messages before they
+ * ever become part of a prompt, whether replayed fresh into a reloaded engine session
+ * ([ensureChatSession]) or read here on the next send. The engine's own chat-session KV cache
+ * is kept in sync on the same event: [AiEngine.discardPendingReply] is called instead of
+ * [AiEngine.commitChatReply] for an incomplete reply, rolling back the reply's sampled
+ * tokens so the session's cache and `chatHistory` never disagree with what got persisted.
  */
 class SendChatMessageUseCase @Inject constructor(
     private val conversationRepository: ConversationRepository,
@@ -210,20 +223,50 @@ class SendChatMessageUseCase @Inject constructor(
             apply(parser.finish()).forEach { emit(it) }
         } catch (e: kotlinx.coroutines.CancellationException) {
             // The user stopped generation. Whatever was produced is still worth keeping —
-            // but the collector is gone, so only finalise state, never emit.
-            apply(parser.finish())
-            thinkingStartNanos?.let { start ->
-                if (thinkingDurationMs == null) thinkingDurationMs = elapsedMs(start)
+            // but the collector is gone (and this coroutine is itself already cancelled),
+            // so persistence runs under NonCancellable: without it, the repository's
+            // suspend insert can itself be torn down mid-write, racing the cancellation
+            // and silently dropping the partial reply instead of persisting it.
+            withContext(NonCancellable) {
+                apply(parser.finish())
+                thinkingStartNanos?.let { start ->
+                    if (thinkingDurationMs == null) thinkingDurationMs = elapsedMs(start)
+                }
+                persistAssistant(
+                    conversationId,
+                    answerBuilder.toString(),
+                    thinkingBuilder.toString(),
+                    thinkingDurationMs,
+                    incomplete = true,
+                )
+                // Not commitChatReply(): the reply was never finished, so it must not be
+                // recorded as something the model actually said — see the class KDoc on
+                // "Stopped / interrupted replies". Rolls the session's KV cache back to
+                // right before this reply's tokens instead.
+                engine.discardPendingReply()
             }
-            val assistant = persistAssistant(
-                conversationId,
-                answerBuilder.toString(),
-                thinkingBuilder.toString(),
-                thinkingDurationMs,
-            )
-            engine.commitChatReply(assistant.content)
             throw e
         } catch (e: Exception) {
+            // Same reasoning as the cancellation path above: an error mid-stream (a native
+            // crash, a binder death) leaves exactly the same half-formed reply and the same
+            // stale pending-turn tokens in the session's KV cache, so it is finalised the
+            // same way rather than being silently discarded.
+            withContext(NonCancellable) {
+                apply(parser.finish())
+                thinkingStartNanos?.let { start ->
+                    if (thinkingDurationMs == null) thinkingDurationMs = elapsedMs(start)
+                }
+                if (answerBuilder.isNotBlank() || thinkingBuilder.isNotBlank()) {
+                    persistAssistant(
+                        conversationId,
+                        answerBuilder.toString(),
+                        thinkingBuilder.toString(),
+                        thinkingDurationMs,
+                        incomplete = true,
+                    )
+                }
+                engine.discardPendingReply()
+            }
             emit(ChatTurn.Failed(e.message ?: "Generation failed.", ChatErrorAction.RETRY))
             return@flow
         }
@@ -251,10 +294,17 @@ class SendChatMessageUseCase @Inject constructor(
      * Prior turns of this conversation, as history the model can see — user text and
      * assistant *answers* only. See the class KDoc: [AiMessage.thinking] is intentionally
      * never touched here.
+     *
+     * [AiMessage.incomplete] turns are dropped here too — see
+     * [isEligibleForModel]. This covers the "replay history" path
+     * ([ensureChatSession]'s `history` parameter, via `primeChatSession`); the live-session
+     * path is covered separately by [AiEngine.discardPendingReply], called instead of
+     * [AiEngine.commitChatReply] for the same messages when they were first produced.
      */
     private fun buildHistory(priorTurns: List<AiMessage>): List<AiChatMessage> =
         priorTurns
             .filter { it.role == MessageRole.USER || it.role == MessageRole.ASSISTANT }
+            .filter(::isEligibleForModel)
             .takeLast(MAX_HISTORY_TURNS)
             .map { message ->
                 AiChatMessage(
@@ -268,6 +318,7 @@ class SendChatMessageUseCase @Inject constructor(
         content: String,
         thinking: String,
         thinkingDurationMs: Long?,
+        incomplete: Boolean = false,
     ): AiMessage {
         val message = AiMessage(
             id = UuidGenerator.generate(),
@@ -277,6 +328,7 @@ class SendChatMessageUseCase @Inject constructor(
             createdAt = System.currentTimeMillis(),
             thinking = thinking.ifBlank { null },
             thinkingDurationMs = thinkingDurationMs,
+            incomplete = incomplete,
         )
         conversationRepository.addMessage(message)
         return message
@@ -286,6 +338,18 @@ class SendChatMessageUseCase @Inject constructor(
         (System.nanoTime() - startNanos) / NANOS_PER_MILLI
 
     private companion object {
+        /**
+         * INCOMPLETE_REPLIES_ARE_NOT_SENT_TO_MODEL.
+         *
+         * The single rule, enforced in the single place: a message the user stopped or that
+         * failed mid-stream ([AiMessage.incomplete]) is kept for display but never fed back
+         * into a prompt. See the class KDoc's "Stopped / interrupted replies" section for
+         * why — the engine's own KV cache already had this reply's tokens rolled back via
+         * [AiEngine.discardPendingReply], and replaying it here would silently reintroduce
+         * exactly what that call exists to prevent.
+         */
+        fun isEligibleForModel(message: AiMessage): Boolean = !message.incomplete
+
         const val CONVERSATION_TITLE_LENGTH = 60
 
         /**

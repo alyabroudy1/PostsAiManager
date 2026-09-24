@@ -243,6 +243,15 @@ internal object LlamaNative {
      */
     external fun commitChatReply(handle: Long, answer: String)
 
+    /**
+     * Rolls back an interrupted (stopped/crashed/cancelled) reply: removes the reply's
+     * sampled tokens from the KV cache — everything decoded since [sendChatMessage] opened
+     * this turn — via `llama_memory_seq_rm`, without touching `chatHistory`. The user's
+     * turn stays; no assistant turn is appended. Call exactly one of this or
+     * [commitChatReply] per turn, once its outcome is known. A no-op if no turn is open.
+     */
+    external fun discardPendingReply(handle: Long)
+
     /** Drops the standing chat session — its KV cache and history — e.g. on conversation switch. */
     external fun resetChatSession(handle: Long)
 

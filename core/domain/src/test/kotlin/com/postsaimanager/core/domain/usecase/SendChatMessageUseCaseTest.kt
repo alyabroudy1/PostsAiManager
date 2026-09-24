@@ -2,11 +2,15 @@ package com.postsaimanager.core.domain.usecase
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.model.Accelerator
+import com.postsaimanager.core.model.AiMessage
+import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.testing.FakeActiveModelProvider
 import com.postsaimanager.core.testing.FakeAiEngine
 import com.postsaimanager.core.testing.FakeConversationRepository
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
@@ -144,5 +148,94 @@ class SendChatMessageUseCaseTest {
             .isTrue()
         assertThat(engine.committedReplies)
             .containsExactly("First answer.", "Second answer, no thinking this time.")
+    }
+
+    @Test
+    @DisplayName("stopping generation persists the partial reply as incomplete and discards the pending session reply, not commits it")
+    fun `stopped generation persists a partial incomplete reply`() = runTest {
+        engine.response = "This is a long answer that will be interrupted"
+        // Stands in for the real `ChatViewModel.stopGeneration()` cancelling the collecting
+        // job: `SendChatMessageUseCase` reacts identically to any `CancellationException`
+        // raised while collecting `engine.sendChatMessage`, so raising one directly here
+        // (after some text has already streamed) exercises that same catch block
+        // deterministically, without depending on exactly when cooperative cancellation
+        // happens to be observed mid-collection.
+        engine.failAfterResponse = CancellationException("user tapped Stop")
+
+        val caught = runCatching {
+            sendChatMessage("conv-1", documentId = null, text = "tell me a story").toList()
+        }.exceptionOrNull()
+        assertThat(caught).isInstanceOf(CancellationException::class.java)
+
+        // Never committed as if the model had actually said it in full.
+        assertThat(engine.committedReplies).isEmpty()
+        // The KV cache's pending-reply tokens were rolled back exactly once.
+        assertThat(engine.discardedReplies).hasSize(1)
+
+        val persisted = conversations.getMessages("conv-1").first()
+        val assistantMessage = persisted.last { it.role == MessageRole.ASSISTANT }
+        assertThat(assistantMessage.incomplete).isTrue()
+        assertThat(assistantMessage.content).isEqualTo(engine.response)
+    }
+
+    @Test
+    @DisplayName("a crash mid-stream follows the same path as a stop: partial kept, incomplete, pending reply discarded")
+    fun `crash mid-stream persists a partial incomplete reply`() = runTest {
+        engine.response = "Partial answer before the crash"
+        engine.failAfterResponse = IllegalStateException("native crash")
+
+        val turns = sendChatMessage("conv-1", documentId = null, text = "hello").toList()
+
+        assertThat(turns.last()).isInstanceOf(ChatTurn.Failed::class.java)
+        assertThat(engine.committedReplies).isEmpty()
+        assertThat(engine.discardedReplies).hasSize(1)
+
+        val persisted = conversations.getMessages("conv-1").first()
+        val assistantMessage = persisted.last { it.role == MessageRole.ASSISTANT }
+        assertThat(assistantMessage.incomplete).isTrue()
+        assertThat(assistantMessage.content).isEqualTo("Partial answer before the crash")
+    }
+
+    @Test
+    @DisplayName("incomplete replies are never sent back to the model as history")
+    fun `incomplete replies are excluded from history sent to the model`() = runTest {
+        val now = System.currentTimeMillis()
+        conversations.createConversation(
+            com.postsaimanager.core.model.AiConversation(
+                id = "conv-1",
+                documentId = null,
+                aiModelId = null,
+                modelType = com.postsaimanager.core.model.AiModelType.LOCAL,
+                title = "Chat",
+                lastMessageAt = now,
+                createdAt = now,
+            ),
+        )
+        conversations.addMessage(
+            AiMessage(
+                id = "u1",
+                conversationId = "conv-1",
+                role = MessageRole.USER,
+                content = "What's the weather?",
+                createdAt = now,
+            ),
+        )
+        conversations.addMessage(
+            AiMessage(
+                id = "a1",
+                conversationId = "conv-1",
+                role = MessageRole.ASSISTANT,
+                content = "It's rain",
+                createdAt = now,
+                incomplete = true,
+            ),
+        )
+
+        engine.response = "Sunny today."
+        sendChatMessage("conv-1", documentId = null, text = "and tomorrow?").toList()
+
+        val history = engine.lastSessionHistory
+        assertThat(history.map { it.content }).doesNotContain("It's rain")
+        assertThat(history.map { it.content }).contains("What's the weather?")
     }
 }

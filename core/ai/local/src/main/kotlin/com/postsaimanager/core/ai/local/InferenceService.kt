@@ -212,6 +212,11 @@ class InferenceService : Service() {
             submit { LlamaNative.commitChatReply(handle, answer) }
         }
 
+        override fun discardPendingReply() {
+            if (handle == 0L) return
+            submit { LlamaNative.discardPendingReply(handle) }
+        }
+
         override fun resetChatSession() {
             if (handle == 0L) return
             submit { LlamaNative.resetChatSession(handle) }

@@ -354,6 +354,60 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate7To8_incompleteColumnIsAdditiveAndFalseForExistingMessages() {
+        helper.createDatabase(TEST_DB, 7).apply {
+            execSQL(
+                """
+                INSERT INTO conversations
+                    (id, documentId, aiModelId, modelType, title, lastMessageAt,
+                     messageCount, isActive, createdAt)
+                VALUES ('conv-1', NULL, NULL, 'LOCAL', 'Chat', 1, 1, 1, 1)
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO messages
+                    (id, conversationId, role, content, mediaType, mediaPath, toolCallId,
+                     toolName, toolArgs, toolResult, isStreaming, createdAt, thinking,
+                     thinkingDurationMs)
+                VALUES
+                    ('m1', 'conv-1', 'ASSISTANT', 'The sky is blue.', 'TEXT', NULL, NULL,
+                     NULL, NULL, NULL, 0, 1, NULL, NULL)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 8, true, PamMigrations.MIGRATION_7_8,
+        )
+
+        // A reply persisted before Stop-mid-stream existed finished normally, by
+        // definition — it must read as `incomplete = 0`, not just "not null".
+        db.query("SELECT content, incomplete FROM messages WHERE id = 'm1'").use { cursor ->
+            assertTrue("the message was lost in migration", cursor.moveToFirst())
+            assertEquals("The sky is blue.", cursor.getString(0))
+            assertEquals("a pre-existing message must not read as incomplete", 0, cursor.getInt(1))
+        }
+
+        db.execSQL(
+            """
+            INSERT INTO messages
+                (id, conversationId, role, content, mediaType, mediaPath, toolCallId,
+                 toolName, toolArgs, toolResult, isStreaming, createdAt, thinking,
+                 thinkingDurationMs, incomplete)
+            VALUES
+                ('m2', 'conv-1', 'ASSISTANT', 'The sky is', 'TEXT', NULL, NULL, NULL, NULL,
+                 NULL, 0, 2, NULL, NULL, 1)
+            """.trimIndent(),
+        )
+        db.query("SELECT incomplete FROM messages WHERE id = 'm2'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(0))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

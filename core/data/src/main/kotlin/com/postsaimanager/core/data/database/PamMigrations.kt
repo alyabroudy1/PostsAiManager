@@ -242,6 +242,27 @@ object PamMigrations {
         }
     }
 
+    /**
+     * Lets a stopped or crashed reply survive instead of vanishing (chat stop/crash UX).
+     *
+     * Before this, a partial reply was persisted the same as a finished one, and the
+     * engine's chat session committed it into the KV cache as if the model had actually
+     * said it in full — so the *next* turn silently continued from words the user
+     * interrupted. `incomplete` marks such a reply so the UI can show a "Stopped" caption
+     * and [com.postsaimanager.core.domain.usecase.SendChatMessageUseCase] can exclude it
+     * from both the history it replays into a rebuilt prompt and — going forward — the
+     * live chat session, whose own pending-reply tokens are separately rolled back via
+     * `AiEngine.discardPendingReply`. Nullable-safe default `0`: every message persisted
+     * before this migration finished normally, exactly like `false`.
+     */
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE `messages` ADD COLUMN `incomplete` INTEGER NOT NULL DEFAULT 0",
+            )
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -249,5 +270,6 @@ object PamMigrations {
         MIGRATION_4_5,
         MIGRATION_5_6,
         MIGRATION_6_7,
+        MIGRATION_7_8,
     )
 }

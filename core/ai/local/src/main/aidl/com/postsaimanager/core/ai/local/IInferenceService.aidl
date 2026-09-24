@@ -63,6 +63,12 @@ interface IInferenceService {
     /** Records the assistant's reply in the session's history — see `LlamaNative.commitChatReply`. */
     void commitChatReply(String answer);
 
+    /**
+     * Rolls back an interrupted reply's tokens from the KV cache without touching the
+     * session's history — see `LlamaNative.discardPendingReply`.
+     */
+    void discardPendingReply();
+
     /** Drops the standing chat session — see `LlamaNative.resetChatSession`. */
     void resetChatSession();
 
