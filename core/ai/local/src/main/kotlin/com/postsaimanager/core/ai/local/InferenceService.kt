@@ -173,6 +173,7 @@ class InferenceService : Service() {
             seed: Long,
             grammar: String?,
             noThink: Boolean,
+            thinkingBudgetTokens: Int,
             callback: ITokenCallback?,
         ): Boolean {
             if (handle == 0L || userText == null || callback == null) return false
@@ -184,6 +185,7 @@ class InferenceService : Service() {
                 try {
                     val started = LlamaNative.sendChatMessage(
                         handle, userText, maxTokens, temperature, topK, topP, seed, grammar, noThink,
+                        thinkingBudgetTokens,
                     )
                     if (!started) {
                         callback.onError("The chat turn could not be started.")

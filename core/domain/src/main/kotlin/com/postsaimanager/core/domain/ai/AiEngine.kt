@@ -234,11 +234,22 @@ data class AiRequest(
     val grammar: String? = null,
     /**
      * False disables Qwen3/3.5 reasoning for this turn (`/no_think`) — see
-     * [com.postsaimanager.core.model.InferenceOverrides.thinkingEnabled] and
+     * [com.postsaimanager.core.model.InferenceOverrides.thinkingEffort] and
      * documentation/02-architecture.md §5.3. Only meaningful for
      * [AiEngine.sendChatMessage]; the one-shot [AiEngine.generate] path ignores it.
      */
     val thinkingEnabled: Boolean = true,
+    /**
+     * The reasoning trace's own sub-budget, in tokens, inside [maxTokens] — how much of the
+     * reply budget a turn may spend still inside `<think>` before generation forces the tag
+     * closed (Qwen3 Technical Report's "thinking budget" technique) and moves on to the
+     * answer. 0 (the default) disables the forced close: thinking, if any, may run
+     * unconstrained up to [maxTokens] — only [SendChatMessageUseCase][com.postsaimanager
+     * .core.domain.usecase.SendChatMessageUseCase] (via the user's Off/Low/High thinking
+     * effort setting) ever sets this to something else. Ignored when [thinkingEnabled] is
+     * false, and by the one-shot [AiEngine.generate] path, same as [thinkingEnabled] itself.
+     */
+    val thinkingBudgetTokens: Int = 0,
 )
 
 data class AiCapabilities(

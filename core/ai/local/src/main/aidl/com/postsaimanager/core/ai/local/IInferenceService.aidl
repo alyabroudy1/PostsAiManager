@@ -58,6 +58,7 @@ interface IInferenceService {
         long seed,
         String grammar,
         boolean noThink,
+        int thinkingBudgetTokens,
         ITokenCallback callback);
 
     /** Records the assistant's reply in the session's history — see `LlamaNative.commitChatReply`. */

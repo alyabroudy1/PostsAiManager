@@ -485,6 +485,7 @@ class RemoteAiEngine @Inject constructor(
                     request.seed ?: -1L,
                     request.grammar,
                     !request.thinkingEnabled,
+                    request.thinkingBudgetTokens,
                     callback,
                 )
             }.getOrDefault(false)

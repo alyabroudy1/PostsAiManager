@@ -28,6 +28,12 @@
 
 namespace {
 
+// Reply-budget floors (see sendChatMessage()'s doc, "Reply budget"). Deliberately small,
+// fixed constants rather than a fraction of n_ctx — they only ever bind in the edge case of
+// a conversation already hard up against its context window.
+constexpr int kMinReplyTokens = 32;          // never offer less than this to answer with at all.
+constexpr int kMinAnswerReserveTokens = 256; // thinking may never eat into this much of the reply.
+
 /**
  * CMakeLists.txt builds this library with `-march=armv8.2-a+dotprod+fp16` (see its
  * comment) rather than true runtime dispatch, which means the whole .so — not just a
@@ -87,6 +93,27 @@ struct PamSession {
     // were sampled. -1 when no reply is open (nothing pending to discard). Set at the end of
     // sendChatMessage and consumed by discardPendingReply — see its doc.
     llama_pos replyStartPos = -1;
+
+    // ── thinking-budget forced close ─────────────────────────────────────────
+    //
+    // Without this, a turn's maxTokens is spent on thinking + answer combined, and a small
+    // model asked to reason about a document can easily spend the whole budget inside
+    // <think>...</think>, leaving nothing to generate the actual answer — "model finished
+    // thinking but produced no answer". See nextToken()'s doc and updateThinkingState().
+
+    /** Only true for a chat turn where thinking is enabled — see sendChatMessage(). */
+    bool trackThinking = false;
+    bool sawThinkOpen = false;
+    /** True from the first token after `<think>` until `</think>` (natural or forced). */
+    bool inThinking = false;
+    int  thinkingTokenCount = 0;
+    /** Trigger threshold for the forced close; 0 (or trackThinking false) disables it. */
+    int  thinkingBudgetTokens = 0;
+    /** Rolling window of recently generated text, scanned for `<think>`/`</think>`. */
+    std::string tagScanBuffer;
+    /** Queued once the budget is hit — drained by nextToken() before it samples anything. */
+    std::vector<llama_token> forcedCloseTokens;
+    size_t forcedCloseIndex = 0;
 };
 
 double elapsedMs(std::chrono::steady_clock::time_point start) {
@@ -321,6 +348,98 @@ std::vector<ggml_backend_dev_t> cpuOnlyDevices() {
     }
     devices.push_back(nullptr); // NULL terminator — required by llama.cpp's contract.
     return devices;
+}
+
+/**
+ * On hitting the thinking budget, generation does not just splice in a bare `</think>` —
+ * for a small model, an abrupt close with no explanation can produce a weak or empty answer,
+ * since nothing told it reasoning is over. Qwen3's own technical report describes exactly
+ * this "thinking budget" technique and its fix: insert a short natural-language stop
+ * instruction before the closing tag, then let the model continue past it normally.
+ * Source: Qwen3 Technical Report, §2.3.3 "Thinking Budget" (https://arxiv.org/abs/2505.09388).
+ */
+const std::string FORCE_THINK_CLOSE_TEXT =
+    "\nConsidering the limited time by the user, I have to give the solution based on the "
+    "thinking directly now.\n</think>\n\n";
+
+/**
+ * Tokenises [text] (no BOS — this is mid-context, never the start of a sequence; special
+ * tokens are parsed, so a model with dedicated `</think>`-family tokens uses them rather
+ * than spelling the tag out as plain text) and appends the result to [out].
+ */
+void tokenizeAppend(const llama_vocab *vocab, const std::string &text, std::vector<llama_token> &out) {
+    const int needed = -llama_tokenize(
+            vocab, text.c_str(), (int32_t) text.size(), nullptr, 0, /* addSpecial */ false, true);
+    if (needed <= 0) return;
+    const size_t base = out.size();
+    out.resize(base + needed);
+    llama_tokenize(vocab, text.c_str(), (int32_t) text.size(), out.data() + base, needed, false, true);
+}
+
+/** Queues [FORCE_THINK_CLOSE_TEXT] for nextToken() to emit — see its doc. */
+void triggerForcedThinkClose(PamSession *session, const llama_vocab *vocab) {
+    tokenizeAppend(vocab, FORCE_THINK_CLOSE_TEXT, session->forcedCloseTokens);
+    session->forcedCloseIndex = 0;
+    // Logically closed from here on, even though the forced tokens still have to trickle
+    // out one nextToken() call at a time before the *stream* reflects it.
+    session->inThinking = false;
+    session->trackThinking = false;
+    LOGI("pam_llama: forcing </think> close after %d thinking tokens (budget=%d)",
+         session->thinkingTokenCount, session->thinkingBudgetTokens);
+}
+
+/**
+ * Feeds [piece] — the text nextToken() is about to return — through the same `<think>` /
+ * `</think>` detection `ThinkingStreamParser` (Kotlin) already does on the client side, but
+ * natively: this is what lets generation *act* on crossing into a reasoning block, rather
+ * than only classifying it after the fact. A rolling 32-character window is enough to catch
+ * either tag split across any number of token pieces (`</think>` is 8 characters) without
+ * holding the whole reply in memory.
+ *
+ * No-op once [PamSession::trackThinking] is false — set only for a chat turn with thinking
+ * enabled (see sendChatMessage()), and cleared the moment thinking closes, naturally or
+ * forced, so a turn's tail end (the answer) is never scanned for nothing.
+ */
+void updateThinkingState(PamSession *session, const llama_vocab *vocab, const std::string &piece) {
+    if (!session->trackThinking) return;
+
+    constexpr size_t kMaxKeep = 32; // » longest tag ("</think>", 8 chars), generous margin.
+    auto trim = [&]() {
+        if (session->tagScanBuffer.size() > kMaxKeep) {
+            session->tagScanBuffer.erase(0, session->tagScanBuffer.size() - kMaxKeep);
+        }
+    };
+
+    session->tagScanBuffer += piece;
+
+    if (!session->sawThinkOpen) {
+        const size_t pos = session->tagScanBuffer.find("<think>");
+        if (pos == std::string::npos) {
+            trim();
+            return;
+        }
+        session->sawThinkOpen = true;
+        session->inThinking = true;
+        session->tagScanBuffer.erase(0, pos + 7); // strlen("<think>") — keep scanning below.
+    }
+
+    if (!session->inThinking) {
+        trim();
+        return;
+    }
+
+    session->thinkingTokenCount++;
+    const size_t closePos = session->tagScanBuffer.find("</think>");
+    if (closePos != std::string::npos) {
+        session->inThinking = false;
+        session->trackThinking = false; // closed naturally — nothing left to force.
+        return;
+    }
+    trim();
+
+    if (session->thinkingTokenCount >= session->thinkingBudgetTokens) {
+        triggerForcedThinkClose(session, vocab);
+    }
 }
 
 } // namespace
@@ -579,6 +698,10 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
     llama_memory_clear(llama_get_memory(session->ctx), true);
     session->chatHistory.clear();
     session->chatPrevLen = 0;
+    // Grammar-constrained one-shot generation never tracks a thinking budget — see
+    // sendChatMessage()'s doc and PamSession::trackThinking. Reset defensively in case this
+    // session previously ran a chat turn.
+    session->trackThinking = false;
 
     const std::string promptStd  = jstringToStd(env, prompt);
     const std::string grammarStd = jstringToStd(env, grammar);
@@ -639,7 +762,19 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
     return JNI_TRUE;
 }
 
-/** @return the next token's text, or null when generation is complete. */
+/**
+ * @return the next token's text, or null when generation is complete.
+ *
+ * Normally samples one token from [PamSession::chain]. But when a thinking-budget forced
+ * close is queued ([PamSession::forcedCloseTokens], set by [triggerForcedThinkClose] once
+ * [updateThinkingState] sees the budget exceeded), this instead plays back the next queued
+ * token in place of sampling — the model's own KV cache still absorbs it exactly like a
+ * sampled token would (via the normal decode-then-advance sequence below), so the forced
+ * text is indistinguishable from something the model generated once it resumes sampling
+ * after the queue drains. The grammar-constrained one-shot path (startGeneration) never
+ * sets [PamSession::trackThinking], so [forcedCloseTokens] is always empty there and this
+ * is a pure pass-through — chat and extraction genuinely share this one function safely.
+ */
 JNIEXPORT jstring JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_nextToken(JNIEnv *env, jobject, jlong handle) {
     auto *session = reinterpret_cast<PamSession *>(handle);
@@ -658,17 +793,23 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_nextToken(JNIEnv *env, jobject
         return nullptr;
     }
 
-    // llama_sampler_sample() samples *and accepts* — calling llama_sampler_accept again
-    // would advance the grammar state twice per token and abort the process.
-    const llama_token next = llama_sampler_sample(session->chain, session->ctx, -1);
-
     const llama_vocab *vocab = llama_model_get_vocab(session->model);
-    if (llama_vocab_is_eog(vocab, next)) {
-        releaseChain(session);
-        return nullptr;
+    const bool forced = session->forcedCloseIndex < session->forcedCloseTokens.size();
+    llama_token next;
+    if (forced) {
+        next = session->forcedCloseTokens[session->forcedCloseIndex++];
+    } else {
+        // llama_sampler_sample() samples *and accepts* — calling llama_sampler_accept again
+        // would advance the grammar state twice per token and abort the process.
+        next = llama_sampler_sample(session->chain, session->ctx, -1);
+        if (llama_vocab_is_eog(vocab, next)) {
+            releaseChain(session);
+            return nullptr;
+        }
     }
 
     const std::string piece = tokenToPiece(vocab, next);
+    updateThinkingState(session, vocab, piece);
 
     session->lastToken = next;
     session->batch     = llama_batch_get_one(&session->lastToken, 1);
@@ -779,16 +920,40 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_primeChatSession(
  * On overflow (this turn would not fit in `n_ctx`) the oldest non-system turns are dropped
  * and the remaining history is fully re-decoded once — the one legitimate full re-decode
  * outside of [primeChatSession].
+ *
+ * ### Reply budget (was: "model finished thinking but produced no answer")
+ *
+ * [maxTokens] as received is a **cap**, not a promise — the actual per-turn budget is
+ * `min(maxTokens, whatever still fits in n_ctx after this turn's prompt)`, so a
+ * conversation near its context limit gets a smaller, still-safe budget rather than an
+ * overflow. [thinkingBudgetTokens] (from `InferenceOverrides`'s Off/Low/High effort choice
+ * on the Kotlin side — see `ConfigSpec.kt`) is a **sub-budget inside that same total**: it
+ * can never eat into the last [kMinAnswerReserveTokens] tokens of it, so — even at the
+ * highest thinking effort — there is always room left to answer once thinking closes,
+ * forced or not. See [updateThinkingState] for how the forced close itself works.
  */
 JNIEXPORT jboolean JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
         JNIEnv *env, jobject, jlong handle, jstring userText, jint maxTokens,
-        jfloat temperature, jint topK, jfloat topP, jlong seed, jstring grammar, jboolean noThink) {
+        jfloat temperature, jint topK, jfloat topP, jlong seed, jstring grammar, jboolean noThink,
+        jint thinkingBudgetTokens) {
 
     auto *session = reinterpret_cast<PamSession *>(handle);
     if (session == nullptr) return JNI_FALSE;
 
     releaseChain(session);
+
+    // Fresh per-turn thinking-budget state — see PamSession's doc on these fields. Reset
+    // unconditionally (even when thinking is off) so a stale flag from an earlier turn can
+    // never leak into this one.
+    session->trackThinking      = false;
+    session->sawThinkOpen       = false;
+    session->inThinking         = false;
+    session->thinkingTokenCount = 0;
+    session->thinkingBudgetTokens = 0;
+    session->tagScanBuffer.clear();
+    session->forcedCloseTokens.clear();
+    session->forcedCloseIndex = 0;
 
     std::string userStd = jstringToStd(env, userText);
     if (noThink == JNI_TRUE) userStd += " /no_think";
@@ -851,9 +1016,28 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
     // committed. See its doc and PamSession::replyStartPos.
     session->replyStartPos = (llama_pos) llama_memory_seq_pos_max(mem, 0) + 1;
 
+    // The real per-turn ceiling: never more than what was requested, never more than what
+    // still fits after this turn's prompt (nPast has already advanced past the just-decoded
+    // diff, via replyStartPos above), floored so a near-full context still gets *something*
+    // to answer with rather than 0.
+    const int nPastAfterPrompt = (int) session->replyStartPos;
+    const int fitsInContext = std::max(kMinReplyTokens, nCtx - nPastAfterPrompt);
+    const int resolvedMaxTokens = std::min((int) maxTokens, fitsInContext);
+
+    // thinkingBudgetTokens is a sub-budget *inside* resolvedMaxTokens, never eating into the
+    // last kMinAnswerReserveTokens of it — see this function's doc.
+    const bool thinkingRequested = noThink == JNI_FALSE && thinkingBudgetTokens > 0;
+    session->trackThinking = thinkingRequested;
+    session->thinkingBudgetTokens = thinkingRequested
+            ? std::max(0, std::min((int) thinkingBudgetTokens, resolvedMaxTokens - kMinAnswerReserveTokens))
+            : 0;
+    // A budget of 0 (context left almost no room at all) means "don't bother tracking" —
+    // forcing a close on the very first thinking token would be pointless busywork.
+    if (session->thinkingBudgetTokens <= 0) session->trackThinking = false;
+
     session->chain = buildSamplerChain(vocab, temperature, topK, topP, seed, grammarStd);
     session->generated = 0;
-    session->maxTokens = maxTokens;
+    session->maxTokens = resolvedMaxTokens;
     session->finished  = false;
     session->generationStart = std::chrono::steady_clock::now();
     return JNI_TRUE;
@@ -862,8 +1046,29 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
 /**
  * Records the assistant's reply (thinking-stripped — see `SendChatMessageUseCase`'s KDoc on
  * why a reasoning trace never re-enters a future prompt) in the session's history, so the
- * *next* turn's template diff renders correctly. Decodes nothing: the reply's tokens are
- * already in the KV cache from the [nextToken] calls that produced them.
+ * *next* turn's template diff renders correctly.
+ *
+ * Usually decodes nothing: the reply's tokens are already in the KV cache from the
+ * [nextToken] calls that produced them, and [chatHistory]'s answer-only text plus
+ * [chatPrevLen]'s bookkeeping stay consistent with that on their own.
+ *
+ * ### Except when this turn thought
+ *
+ * If it did, what is *physically* in the KV cache is the model's raw output —
+ * `<think>...</think>` included — never the clean `{answer}<|im_end|>\n`-shaped text
+ * [chatHistory] now claims for this turn (chatHistory only ever stores the answer — see
+ * above — and nothing ever decodes a turn's closing tag; the *next* turn's diff normally
+ * absorbs it lazily, which is exactly the mechanism this exploits below). Left alone, every
+ * future turn's generation would silently keep attending to this turn's own reasoning trace
+ * through the KV cache, even though no text-level bookkeeping anywhere admits it is there —
+ * violating the same "history is answer-only" invariant chatHistory itself keeps.
+ *
+ * Fixed by rolling the whole raw span back
+ * (`llama_memory_seq_rm(mem, 0, replyStartPos, -1)` — the same, already-proven-safe
+ * rollback [discardPendingReply] uses) and re-decoding the clean, answer-only closed turn
+ * in its place via the same [decodeIntoSession] helper every other decode in this file
+ * uses. A second small decode, but only for a turn that thought — the common, no-thinking
+ * turn stays exactly as cheap as it always was.
  */
 JNIEXPORT void JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_commitChatReply(
@@ -871,11 +1076,36 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_commitChatReply(
     auto *session = reinterpret_cast<PamSession *>(handle);
     if (session == nullptr) return;
 
+    const bool hadThinking = session->sawThinkOpen;
+    const int replyOpenTextLen = session->chatPrevLen; // text boundary right at replyStartPos.
+    const llama_pos replyStartPos = session->replyStartPos;
+
     session->chatHistory.push_back({"assistant", jstringToStd(env, answer)});
     const std::string formatted = renderChatHistory(session, /* addAssistant */ false);
     session->chatPrevLen = (int) formatted.size();
     // The reply is committed — nothing pending left to roll back.
     session->replyStartPos = -1;
+    session->sawThinkOpen = false;
+
+    if (!hadThinking || replyStartPos < 0) return;
+
+    llama_memory_t mem = llama_get_memory(session->ctx);
+    llama_memory_seq_rm(mem, 0, replyStartPos, -1);
+
+    const std::string closingDiff =
+            formatted.substr(std::min((size_t) replyOpenTextLen, formatted.size()));
+    int tokenCount = 0;
+    const auto start = std::chrono::steady_clock::now();
+    // Never the first-ever decode in this context — a reply always follows at least the
+    // opening prompt/system turn — so addSpecial is always false here.
+    if (decodeIntoSession(session, closingDiff, /* addSpecial */ false,
+                           /* leaveRemainderForSampling */ false, &tokenCount)) {
+        LOGI("pam_llama: rewound thinking trace, re-decoded clean turn tokens=%d ms=%.1f",
+             tokenCount, elapsedMs(start));
+    } else {
+        LOGE("pam_llama: failed to re-decode the clean turn after rewinding thinking — "
+             "the next turn's diff may now be based on a stale KV cache");
+    }
 }
 
 /**

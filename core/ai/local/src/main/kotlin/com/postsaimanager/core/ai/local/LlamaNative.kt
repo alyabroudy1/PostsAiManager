@@ -221,6 +221,13 @@ internal object LlamaNative {
      *
      * @param noThink appends `/no_think` to [userText] — the practical way to disable
      *   Qwen3/3.5 reasoning; see documentation/02-architecture.md §5.3.
+     * @param maxTokens a **cap**, not a promise — the native side clamps it further to
+     *   whatever still fits in the context window after this turn's prompt.
+     * @param thinkingBudgetTokens the reasoning trace's own sub-budget, inside [maxTokens]
+     *   — see [InferenceOverrides.thinkingEffort][com.postsaimanager.core.model
+     *   .InferenceOverrides.thinkingEffort] and `llama_jni.cpp`'s `sendChatMessage` KDoc on
+     *   the forced `</think>` close. Ignored when [noThink] is true; 0 disables the forced
+     *   close outright (thinking, if any, may run all the way to [maxTokens]).
      * @return false if the model declares no chat template (chat sessions need one) or the
      *   turn could not be tokenised/decoded.
      */
@@ -234,6 +241,7 @@ internal object LlamaNative {
         seed: Long,
         grammar: String?,
         noThink: Boolean,
+        thinkingBudgetTokens: Int,
     ): Boolean
 
     /**

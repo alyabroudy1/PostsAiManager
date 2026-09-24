@@ -323,6 +323,7 @@ internal class LocalAiEngine @Inject constructor(
                 seed = request.seed ?: -1L,
                 grammar = request.grammar,
                 noThink = !request.thinkingEnabled,
+                thinkingBudgetTokens = request.thinkingBudgetTokens,
             )
             if (!started) throw IllegalArgumentException("The chat turn could not be started")
 
