@@ -632,9 +632,16 @@ private fun ChatBubble(
 @Composable
 private fun SourceChip(source: ChatSource, documentChat: Boolean, onClick: () -> Unit) {
     val where = source.pageNumber?.let { "Page $it" } ?: "Excerpt"
-    val label = if (documentChat) where else "${source.title ?: "Untitled document"} · ${where.replaceFirstChar { it.lowercase() }}"
+    val label = when {
+        // A trashed/permanently-deleted source: nothing left to navigate a tap to, in
+        // either chat type — see ChatSource.documentDeleted's KDoc.
+        source.documentDeleted -> "Deleted document"
+        documentChat -> where
+        else -> "${source.title ?: "Untitled document"} · ${where.replaceFirstChar { it.lowercase() }}"
+    }
     AssistChip(
         onClick = onClick,
+        enabled = !source.documentDeleted,
         label = { Text(label, style = MaterialTheme.typography.labelSmall) },
         leadingIcon = {
             Icon(PamIcons.Documents, contentDescription = null, modifier = Modifier.size(14.dp))

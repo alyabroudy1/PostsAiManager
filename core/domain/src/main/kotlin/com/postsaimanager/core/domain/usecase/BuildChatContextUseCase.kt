@@ -88,10 +88,13 @@ class BuildChatContextUseCase @Inject constructor(
         if (documentId == null) return standaloneGrounding()
 
         val document = documentRepository.getDocumentById(documentId).getOrNull()
-            // Not the standalone flow (4.2) — a stale reference to a document that is gone.
-            // Nothing to retrieve either: RetrieveChunksUseCase filtered to this documentId
-            // would only ever come back empty, so there is no point in a per-turn retrieval
-            // step for it.
+            ?.takeUnless { it.isTrashed }
+            // Not the standalone flow (4.2) — a stale reference to a document that is gone
+            // (or trashed: DocumentDetailScreen's chat entry point is hidden for a trashed
+            // document, but a chat opened before that — e.g. re-opened from history — must
+            // still degrade rather than keep grounding on deleted content). Nothing to
+            // retrieve either: RetrieveChunksUseCase filtered to this documentId would only
+            // ever come back empty, so there is no point in a per-turn retrieval step for it.
             ?: return ChatGrounding(STANDALONE_PROMPT, retrievalMode = false)
 
         val extracted = documentRepository.observeExtractedData(documentId).first()

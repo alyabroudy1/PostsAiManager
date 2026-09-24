@@ -20,10 +20,24 @@ interface DocumentChunkDao {
      * Retrieval loads the whole set and scores it in memory. At a few hundred documents
      * that is under a megabyte of floats and sub-millisecond to scan — a vector index would
      * be infrastructure without a problem. Revisit past five figures of documents.
+     *
+     * Joined against `documents` to drop chunks of a trashed document — the all-documents
+     * chat must not ground answers on, or cite, something the user just deleted.
      */
-    @Query("SELECT * FROM document_chunks")
+    @Query(
+        """
+        SELECT c.* FROM document_chunks c
+        INNER JOIN documents d ON d.id = c.documentId
+        WHERE d.deletedAt IS NULL
+        """,
+    )
     suspend fun getAll(): List<DocumentChunkEntity>
 
+    /**
+     * Not filtered by trash state: a per-document chat is closed off entirely while its
+     * document is trashed (the detail/chat screen shows "This document was deleted"
+     * instead), so this is only ever reached for a live document.
+     */
     @Query("SELECT * FROM document_chunks WHERE documentId = :documentId ORDER BY ordinal ASC")
     suspend fun getForDocument(documentId: String): List<DocumentChunkEntity>
 

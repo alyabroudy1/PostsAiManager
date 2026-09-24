@@ -10,6 +10,7 @@ import androidx.work.Configuration
 import com.postsaimanager.core.ai.local.InferenceCrashObserver
 import com.postsaimanager.core.ai.local.InferenceMemoryPressureObserver
 import com.postsaimanager.core.data.worker.DocumentProcessingRecovery
+import com.postsaimanager.core.domain.document.PurgeExpiredDocumentsUseCase
 import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -68,6 +69,12 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
     @Inject
     lateinit var documentProcessingRecovery: Lazy<DocumentProcessingRecovery>
 
+    // Same reasoning as documentProcessingRecovery above: PurgeExpiredDocumentsUseCase pulls
+    // in DocumentRepositoryImpl's whole graph (DocumentProcessor included), so it must stay
+    // un-built in :inference.
+    @Inject
+    lateinit var purgeExpiredDocuments: Lazy<PurgeExpiredDocumentsUseCase>
+
     /** Process-lifetime scope for start-up work that must outlive `onCreate` returning. */
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -87,6 +94,10 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
         // §8) needs re-enqueuing, but that is a DAO read plus a WorkManager call, not
         // something the app's cold start should wait on.
         applicationScope.launch { documentProcessingRecovery.get().resumeInterrupted() }
+        // Trash older than 30 days is gone for good from here — see documentation/
+        // 07-document-pipeline.md, "Deleting documents". Same off-Main, fire-and-forget
+        // treatment as recovery above: nothing in this cold start should wait on it.
+        applicationScope.launch { purgeExpiredDocuments.get().invoke() }
     }
 
     /**

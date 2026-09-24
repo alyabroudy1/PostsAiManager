@@ -6,6 +6,7 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
+import com.postsaimanager.core.data.database.entity.DocumentEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
@@ -77,6 +78,11 @@ class DocumentProcessingPipelineTest {
     @Test
     @DisplayName("a document with no pages ends FAILED, with the reason logged and recorded")
     fun noPagesFailsDocument() = runTest(dispatcher) {
+        // Explicit, not left to the relaxed mock's default: a relaxed `DocumentEntity?`
+        // return value is a *non-null* zero-valued instance, which the trashed-document
+        // guard would (wrongly, for this test) read as trashed — see
+        // `trashedDocumentStopsBeforeAnyWrite` below for the case that guard exists for.
+        coEvery { documentDao.getById("doc-1") } returns null
         coEvery { documentDao.getPages("doc-1") } returns emptyList()
 
         val result = pipeline.processDocument("doc-1")
@@ -96,5 +102,29 @@ class DocumentProcessingPipelineTest {
         // The machine-readable reason the detail screen's FAILED banner branches on, to offer
         // Delete instead of a pointless Try again.
         assertThat(event.data).isEqualTo("no_pages")
+    }
+
+    @Test
+    @DisplayName("a trashed document is not processed — no status write, no pages read")
+    fun trashedDocumentStopsBeforeAnyWrite() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns DocumentEntity(
+            id = "doc-1",
+            title = "doc-1",
+            status = DocumentStatus.QUEUED.name,
+            documentType = null,
+            language = null,
+            sourceType = "CAMERA",
+            thumbnailPath = null,
+            pageCount = 1,
+            createdAt = 0L,
+            modifiedAt = 0L,
+            deletedAt = 1_000L,
+        )
+
+        val result = pipeline.processDocument("doc-1")
+
+        assertThat(result).isInstanceOf(PamResult.Error::class.java)
+        coVerify(exactly = 0) { documentDao.updateStatus("doc-1", DocumentStatus.PROCESSING.name, any()) }
+        coVerify(exactly = 0) { documentDao.getPages("doc-1") }
     }
 }

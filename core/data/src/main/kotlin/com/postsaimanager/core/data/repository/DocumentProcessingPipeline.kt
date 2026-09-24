@@ -115,6 +115,14 @@ class DocumentProcessingPipeline @Inject constructor(
         processingMutex.withLock {
         withContext(ioDispatcher) {
             try {
+                // A document trashed after this run was enqueued but before it started: stop
+                // before anything is written. Not a failure — same treatment as a
+                // cancellation below — because nothing went wrong, the document is just gone
+                // from the user's point of view.
+                if (documentDao.getById(documentId)?.deletedAt != null) {
+                    return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
+                }
+
                 // Step 1: Mark as processing
                 _processingState.value = ProcessingState.Running(documentId, ProcessingStage.READ, 0f)
                 documentDao.updateStatus(documentId, DocumentStatus.PROCESSING.name)
@@ -344,8 +352,16 @@ class DocumentProcessingPipeline @Inject constructor(
                     ?.data
                     ?.inputTruncation
 
-                // Update document with detected type, language, and subject
+                // Re-checked right before the first write of this run's results: trashing a
+                // document cancels its work (DocumentRepositoryImpl.moveToTrash), but a run
+                // already past that cancellation point would otherwise keep going and write
+                // OCR text, fields and a status onto a document the user just deleted. This
+                // is the race DocumentRepositoryImpl's moveToTrash KDoc points back to.
                 val doc = documentDao.getById(documentId)
+                if (doc?.deletedAt != null) {
+                    _processingState.value = ProcessingState.Completed(documentId)
+                    return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
+                }
                 if (doc != null) {
                     documentDao.update(
                         doc.copy(

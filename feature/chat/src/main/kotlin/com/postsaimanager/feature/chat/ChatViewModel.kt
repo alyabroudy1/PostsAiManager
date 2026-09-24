@@ -170,10 +170,12 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * Cache of document id -> title, for [toChatSource]'s standalone-chat label. Never
-     * invalidated: a document's title barely ever changes after it is scanned, and a stale
-     * title on a citation chip is a cosmetic, not a correctness, problem — not worth a Flow
-     * subscription per source.
+     * Cache of document id -> (title, deleted), for [toChatSource]. Never invalidated for a
+     * *title*: a document's title barely ever changes after it is scanned, and a stale title
+     * on a citation chip is a cosmetic, not a correctness, problem — not worth a Flow
+     * subscription per source. A trashed/deleted verdict is re-checked every time instead
+     * (see [toChatSource]) since that one does matter — a chip must not keep looking live
+     * after the user deletes the document mid-conversation.
      */
     private val documentTitleCache = mutableMapOf<String, String?>()
 
@@ -181,16 +183,23 @@ class ChatViewModel @Inject constructor(
      * [ChatSource.title] is only resolved for a document-less conversation ([documentId] is
      * null here) — a document-scoped chat already has exactly one document in view, so
      * `ChatScreen` never needs the title to render "Page N" (see [ChatSource]'s doc comment).
+     * [ChatSource.documentDeleted] is checked regardless of chat type: a document-scoped chat
+     * whose document was trashed since the message was sent still needs its own chips to stop
+     * being tappable.
      */
     private suspend fun toChatSource(source: MessageSource): ChatSource {
+        val document = (documentRepository.getDocumentById(source.documentId) as? PamResult.Success)?.data
         val title = if (documentId == null) {
-            documentTitleCache.getOrPut(source.documentId) {
-                (documentRepository.getDocumentById(source.documentId) as? PamResult.Success)?.data?.title
-            }
+            documentTitleCache.getOrPut(source.documentId) { document?.title }
         } else {
             null
         }
-        return ChatSource(documentId = source.documentId, pageNumber = source.pageNumber, title = title)
+        return ChatSource(
+            documentId = source.documentId,
+            pageNumber = source.pageNumber,
+            title = title,
+            documentDeleted = document == null || document.isTrashed,
+        )
     }
 
     /**
@@ -514,4 +523,10 @@ data class ChatSource(
     val documentId: String,
     val pageNumber: Int?,
     val title: String?,
+    /**
+     * True when [documentId] no longer resolves to a live document — trashed or
+     * permanently deleted. `ChatScreen`'s chip renders disabled and un-tappable for one of
+     * these: there is nowhere left to navigate a tap to.
+     */
+    val documentDeleted: Boolean = false,
 )
