@@ -29,7 +29,16 @@ class OcrService @Inject constructor(
     @ApplicationContext private val context: Context,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) {
-    private val textRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    // Lazy, not eager: constructing this calls TextRecognition.getClient(), which requires ML
+    // Kit's ContentProvider-based init to have already run — true in the main process, never in
+    // `:inference` (see PostsAiManagerApp's class KDoc). OcrService itself is only ever *used*
+    // from the main process's document pipeline, but Dagger still builds every @Inject
+    // constructor's field initialisers as soon as something reaches this class in the graph —
+    // deferring the actual TextRecognition.getClient() call to first real use means a stray
+    // graph reference (a Lazy<...> some future change forgets to gate, a test harness touching
+    // this module) fails only if OCR is actually attempted, not merely because this object was
+    // constructed.
+    private val textRecognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
 
     /**
      * Run OCR on a single image URI and return the extracted text with confidence.
