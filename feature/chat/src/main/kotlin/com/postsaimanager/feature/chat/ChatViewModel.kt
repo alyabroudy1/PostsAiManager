@@ -15,6 +15,7 @@ import com.postsaimanager.core.domain.usecase.PreloadActiveModelUseCase
 import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.SelectActiveModelUseCase
 import com.postsaimanager.core.domain.usecase.SendChatMessageUseCase
+import com.postsaimanager.core.domain.usecase.SuggestedChatQuestions
 import com.postsaimanager.core.domain.usecase.UnblockGpuUseCase
 import com.postsaimanager.core.domain.usecase.UpdateInferenceSettingUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -98,6 +100,26 @@ class ChatViewModel @Inject constructor(
         )
 
     private var generationJob: Job? = null
+
+    /**
+     * Starter questions for the empty-conversation state (5.2) — see [SuggestedChatQuestions].
+     * Document chat re-derives these from [DocumentRepository.observeExtractedData] as
+     * extraction fills fields in, so a chat opened right after scanning (no fields yet) picks
+     * up the deadline/amount-specific questions the moment they appear, without the screen
+     * needing to be reopened. Standalone chat has no per-document fields to react to, so it
+     * is computed once.
+     */
+    val suggestedQuestions: StateFlow<List<String>> = if (documentId != null) {
+        documentRepository.observeExtractedData(documentId)
+            .map { fields -> SuggestedChatQuestions.forDocument(fields) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList(),
+            )
+    } else {
+        MutableStateFlow(SuggestedChatQuestions.forStandaloneChat()).asStateFlow()
+    }
 
     init {
         restoreHistory()

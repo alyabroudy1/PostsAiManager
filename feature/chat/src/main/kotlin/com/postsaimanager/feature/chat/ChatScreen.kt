@@ -115,6 +115,7 @@ fun ChatScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val modelSheetState by viewModel.modelSheetState.collectAsStateWithLifecycle()
+    val suggestedQuestions by viewModel.suggestedQuestions.collectAsStateWithLifecycle()
     var inputText by rememberSaveable { mutableStateOf("") }
     var showModelSheet by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -267,18 +268,9 @@ fun ChatScreen(
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Quick action chips
-                val suggestions = if (documentId != null) listOf(
-                    "Summarize this document",
-                    "What are the deadlines?",
-                    "Draft a response",
-                    "Who is the sender?",
-                ) else listOf(
-                    "Show recent deadlines",
-                    "Summarize my unread mail",
-                    "Help me organize my documents",
-                )
-                suggestions.forEach { suggestion ->
+                // 5.2: starter questions this app's own data can actually answer — see
+                // ChatViewModel.suggestedQuestions / SuggestedChatQuestions.
+                suggestedQuestions.forEach { suggestion ->
                     Surface(
                         onClick = {
                             viewModel.sendMessage(suggestion)
