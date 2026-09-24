@@ -5,6 +5,7 @@ import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.MessageRole
+import com.postsaimanager.core.model.ThinkingEffort
 import com.postsaimanager.core.testing.FakeActiveModelProvider
 import com.postsaimanager.core.testing.FakeAiEngine
 import com.postsaimanager.core.testing.FakeConversationRepository
@@ -102,17 +103,124 @@ class SendChatMessageUseCaseTest {
     }
 
     @Test
-    @DisplayName("a stream that never closes its think block yields a friendly no-answer message")
-    fun `unclosed thinking produces a friendly fallback answer`() = runTest {
+    @DisplayName("a stream that never closes its think block never shows a blank bubble — it fails, marked incomplete, with a Retry action")
+    fun `unclosed thinking is never a blank bubble`() = runTest {
         engine.response = "<think>still reasoning and the stream just stops here"
 
         val turns = sendChatMessage("conv-1", documentId = null, text = "hello").toList()
 
-        val complete = turns.filterIsInstance<ChatTurn.Complete>().single()
-        assertThat(complete.message.thinking)
-            .isEqualTo("still reasoning and the stream just stops here")
-        assertThat(complete.message.content).contains("did not produce an answer")
+        // M5: "model finished thinking but produced no answer" is never persisted as a
+        // normal-looking Complete turn with placeholder content — it follows the same
+        // incomplete/Retry path a stopped or crashed reply takes.
+        val failed = turns.filterIsInstance<ChatTurn.Failed>().single()
+        assertThat(failed.action).isEqualTo(ChatErrorAction.RETRY)
+        assertThat(turns.filterIsInstance<ChatTurn.Complete>()).isEmpty()
         assertThat(turns.filterIsInstance<ChatTurn.Token>()).isEmpty()
+
+        val persisted = conversations.getMessages("conv-1").first()
+        val assistantMessage = persisted.last { it.role == MessageRole.ASSISTANT }
+        assertThat(assistantMessage.incomplete).isTrue()
+        assertThat(assistantMessage.thinking)
+            .isEqualTo("still reasoning and the stream just stops here")
+
+        // Never committed into the session's own history either — excluded from future
+        // prompts, same as any other interrupted reply.
+        assertThat(engine.committedReplies).isEmpty()
+        assertThat(engine.discardedReplies).hasSize(1)
+    }
+
+    @Test
+    @DisplayName("thinking that closes properly but leaves nothing after it is the same as never producing an answer")
+    fun `closed thinking with no trailing answer is never a blank bubble`() = runTest {
+        // The exact defect this was filed for: a small model spends its whole reply budget
+        // reasoning and hits </think> with the turn already over — properly closed, but
+        // nothing follows it.
+        engine.response = "<think>I have used my whole budget reasoning about this.</think>"
+
+        val turns = sendChatMessage("conv-1", documentId = null, text = "hello").toList()
+
+        val failed = turns.filterIsInstance<ChatTurn.Failed>().single()
+        assertThat(failed.action).isEqualTo(ChatErrorAction.RETRY)
+        assertThat(turns.filterIsInstance<ChatTurn.Complete>()).isEmpty()
+
+        val persisted = conversations.getMessages("conv-1").first()
+        val assistantMessage = persisted.last { it.role == MessageRole.ASSISTANT }
+        assertThat(assistantMessage.incomplete).isTrue()
+    }
+
+    // ── M1/M2: reply/thinking token budgets ──
+
+    @Test
+    @DisplayName("thinking Off sends no thinking budget and thinkingEnabled=false")
+    fun `off effort sends no thinking budget`() = runTest {
+        engine.response = "hi"
+        sendChatMessage("conv-1", documentId = null, text = "hello", thinkingEffort = ThinkingEffort.OFF)
+            .toList()
+
+        val request = engine.lastRequest
+        assertThat(request).isNotNull()
+        assertThat(request!!.thinkingEnabled).isFalse()
+        assertThat(request.thinkingBudgetTokens).isEqualTo(0)
+    }
+
+    @Test
+    @DisplayName("thinking Low requests the low sub-budget with thinkingEnabled=true")
+    fun `low effort requests the low sub-budget`() = runTest {
+        engine.response = "hi"
+        sendChatMessage("conv-1", documentId = null, text = "hello", thinkingEffort = ThinkingEffort.LOW)
+            .toList()
+
+        val request = engine.lastRequest
+        assertThat(request).isNotNull()
+        assertThat(request!!.thinkingEnabled).isTrue()
+        assertThat(request.thinkingBudgetTokens).isEqualTo(256)
+    }
+
+    @Test
+    @DisplayName("thinking High requests the high sub-budget with thinkingEnabled=true")
+    fun `high effort requests the high sub-budget`() = runTest {
+        engine.response = "hi"
+        sendChatMessage("conv-1", documentId = null, text = "hello", thinkingEffort = ThinkingEffort.HIGH)
+            .toList()
+
+        val request = engine.lastRequest
+        assertThat(request).isNotNull()
+        assertThat(request!!.thinkingEnabled).isTrue()
+        assertThat(request.thinkingBudgetTokens).isEqualTo(1024)
+    }
+
+    @Test
+    @DisplayName("every thinking effort level requests the same reply cap")
+    fun `reply cap is independent of thinking effort`() = runTest {
+        engine.response = "hi"
+
+        sendChatMessage("conv-1", documentId = null, text = "a", thinkingEffort = ThinkingEffort.OFF).toList()
+        val offMaxTokens = engine.lastRequest!!.maxTokens
+
+        sendChatMessage("conv-1", documentId = null, text = "b", thinkingEffort = ThinkingEffort.HIGH).toList()
+        val highMaxTokens = engine.lastRequest!!.maxTokens
+
+        // The reply cap is the answer/output budget, sized independently of thinking effort
+        // (M1) — the thinking budget is a *sub*-budget inside it, never a separate addend, so
+        // a higher thinking effort never grows the ceiling native clamps against.
+        assertThat(offMaxTokens).isEqualTo(highMaxTokens)
+        assertThat(offMaxTokens).isEqualTo(1024)
+    }
+
+    @Test
+    @DisplayName("a user who explicitly picked Off via regenerate keeps thinking off there too")
+    fun `regenerate honours the requested thinking effort`() = runTest {
+        engine.response = "hi"
+        sendChatMessage("conv-1", documentId = null, text = "hello").toList()
+
+        engine.response = "regenerated"
+        sendChatMessage.regenerateLastReply(
+            "conv-1",
+            documentId = null,
+            thinkingEffort = ThinkingEffort.HIGH,
+        ).toList()
+
+        assertThat(engine.lastRequest!!.thinkingBudgetTokens).isEqualTo(1024)
     }
 
     @Test

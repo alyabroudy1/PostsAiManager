@@ -15,6 +15,7 @@ import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.domain.repository.InferenceSettingsRepository
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceOverrides
+import com.postsaimanager.core.model.ThinkingEffort
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -37,6 +38,12 @@ private object InferenceSettingsKeys {
     val TOP_P = floatPreferencesKey("top_p")
     val FLASH_ATTENTION = booleanPreferencesKey("flash_attention")
     val GPU_BLOCKED_MODELS = stringSetPreferencesKey("gpu_blocked_models")
+    // New key — there is no old "thinking" boolean key to migrate here. `InferenceOverrides
+    // .thinkingEnabled` (the earlier Switch) was never actually wired into
+    // `UpdateInferenceSettingUseCase`'s `when` (no "thinking" branch existed), so toggling it
+    // in the old UI never reached this repository in the first place; nothing was ever
+    // persisted for a migration to read.
+    val THINKING_EFFORT = stringPreferencesKey("thinking_effort")
 }
 
 /**
@@ -62,6 +69,7 @@ class DataStoreInferenceSettingsRepository @Inject constructor(
                 topK = prefs[InferenceSettingsKeys.TOP_K],
                 topP = prefs[InferenceSettingsKeys.TOP_P],
                 flashAttention = prefs[InferenceSettingsKeys.FLASH_ATTENTION],
+                thinkingEffort = prefs[InferenceSettingsKeys.THINKING_EFFORT]?.let(ThinkingEffort::fromLabel),
             )
         }
         .catch { emit(InferenceOverrides.NONE) }
@@ -76,6 +84,7 @@ class DataStoreInferenceSettingsRepository @Inject constructor(
             overrides.topK.applyTo(prefs, InferenceSettingsKeys.TOP_K)
             overrides.topP.applyTo(prefs, InferenceSettingsKeys.TOP_P)
             overrides.flashAttention.applyTo(prefs, InferenceSettingsKeys.FLASH_ATTENTION)
+            overrides.thinkingEffort?.name.applyTo(prefs, InferenceSettingsKeys.THINKING_EFFORT)
         }
         Unit
     }

@@ -17,6 +17,7 @@ import com.postsaimanager.core.model.AiModelType
 import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.model.MessageSource
 import com.postsaimanager.core.model.ModelLoadState
+import com.postsaimanager.core.model.ThinkingEffort
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -168,10 +169,10 @@ class SendChatMessageUseCase @Inject constructor(
         documentId: String?,
         text: String,
         systemPrompt: String? = null,
-        // Default OFF — see InferenceOverrides.thinkingEnabled's KDoc: on-device CPU decode
-        // is slow enough that a Qwen3/3.5 reasoning trace can add tens of seconds before the
-        // first visible answer token.
-        thinkingEnabled: Boolean = false,
+        // Default OFF — see InferenceOverrides.thinkingEffort's KDoc: on-device CPU decode
+        // is slow enough that an unbounded Qwen3/3.5 reasoning trace can add tens of seconds
+        // before the first visible answer token.
+        thinkingEffort: ThinkingEffort = ThinkingEffort.OFF,
         /**
          * False only for [regenerateLastReply] (5.1): [text] there is already the latest row
          * `ConversationRepository` holds for this conversation — the just-deleted reply's
@@ -366,7 +367,15 @@ class SendChatMessageUseCase @Inject constructor(
             // session's own history plus `sentText`; only the sampling/thinking fields
             // matter. `sentText` is `text` with any retrieved passages prefixed (4.1/4.2) —
             // see the class KDoc's "Retrieval-augmented grounding".
-            engine.sendChatMessage(sentText, AiRequest(prompt = "", thinkingEnabled = thinkingEnabled))
+            engine.sendChatMessage(
+                sentText,
+                AiRequest(
+                    prompt = "",
+                    maxTokens = replyMaxTokens(thinkingEffort),
+                    thinkingEnabled = thinkingEffort != ThinkingEffort.OFF,
+                    thinkingBudgetTokens = thinkingBudgetTokens(thinkingEffort),
+                ),
+            )
                 .collect { token -> apply(parser.consume(token)).forEach { emit(it) } }
             apply(parser.finish()).forEach { emit(it) }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -429,6 +438,27 @@ class SendChatMessageUseCase @Inject constructor(
             if (thinkingDurationMs == null) thinkingDurationMs = elapsedMs(start)
         }
 
+        // "Model finished thinking but produced no answer" — a thinking trace with nothing
+        // after it (ran out of budget still inside <think>, or hit EOS right after
+        // </think> with no answer text). Never shown as a blank bubble: this follows the
+        // same incomplete/Retry path a stopped or crashed reply takes — never committed to
+        // the session's history (discardPendingReply, not commitChatReply), so it can never
+        // re-enter a future prompt — rather than persisting a normal-looking answer with a
+        // placeholder string, which is what this used to do (see git history/NO_ANSWER_PRODUCED).
+        if (answerBuilder.isBlank() && thinkingBuilder.isNotBlank()) {
+            persistAssistant(
+                conversationId,
+                content = RAN_OUT_OF_ROOM_WHILE_THINKING,
+                thinking = thinkingBuilder.toString(),
+                thinkingDurationMs = thinkingDurationMs,
+                incomplete = true,
+                sources = sources.toMessageSources(),
+            )
+            engine.discardPendingReply()
+            emit(ChatTurn.Failed(RAN_OUT_OF_ROOM_WHILE_THINKING, ChatErrorAction.RETRY))
+            return@flow
+        }
+
         val assistant = persistAssistant(
             conversationId,
             answerBuilder.toString(),
@@ -440,7 +470,7 @@ class SendChatMessageUseCase @Inject constructor(
         // turn's diff renders correctly — see AiEngine.commitChatReply's KDoc. Uses
         // `assistant.content` rather than `answerBuilder` directly so the session's record
         // and what got persisted (and is shown as history next time) are always the same
-        // string, including the NO_ANSWER_PRODUCED fallback below.
+        // string.
         engine.commitChatReply(assistant.content)
         emit(ChatTurn.Complete(assistant, sources = sources))
     }
@@ -476,7 +506,7 @@ class SendChatMessageUseCase @Inject constructor(
         documentId: String?,
         systemPrompt: String? = null,
         // Default OFF — same reasoning as invoke()'s own default; see its KDoc.
-        thinkingEnabled: Boolean = false,
+        thinkingEffort: ThinkingEffort = ThinkingEffort.OFF,
     ): Flow<ChatTurn> = flow {
         val messages = conversationRepository.getMessages(conversationId).first()
         val lastAssistant = messages.lastOrNull { it.role == MessageRole.ASSISTANT }
@@ -499,7 +529,7 @@ class SendChatMessageUseCase @Inject constructor(
                 documentId = documentId,
                 text = precedingUserText,
                 systemPrompt = systemPrompt,
-                thinkingEnabled = thinkingEnabled,
+                thinkingEffort = thinkingEffort,
                 persistUserMessage = false,
             ),
         )
@@ -715,6 +745,28 @@ class SendChatMessageUseCase @Inject constructor(
     private fun elapsedMs(startNanos: Long): Long =
         (System.nanoTime() - startNanos) / NANOS_PER_MILLI
 
+    /**
+     * A **cap**, not a promise — `llama_jni.cpp`'s `sendChatMessage` clamps it further to
+     * whatever still fits in the context window after this turn's prompt (see its KDoc,
+     * "Reply budget"). [MAX_REPLY_TOKENS] just bounds runaway/looping output; EOS normally
+     * ends a reply well before it, thinking or not — same reasoning OpenAI's
+     * `max_completion_tokens` and Anthropic's `max_tokens` use.
+     */
+    private fun replyMaxTokens(@Suppress("UNUSED_PARAMETER") thinkingEffort: ThinkingEffort): Int =
+        MAX_REPLY_TOKENS
+
+    /**
+     * The reasoning trace's own sub-budget, inside [replyMaxTokens] — see
+     * `AiRequest.thinkingBudgetTokens`'s KDoc and `llama_jni.cpp`'s forced `</think>` close.
+     * 0 for [ThinkingEffort.OFF] disables the forced-close machinery outright (nothing to
+     * force-close when `/no_think` already means no `<think>` block is expected at all).
+     */
+    private fun thinkingBudgetTokens(thinkingEffort: ThinkingEffort): Int = when (thinkingEffort) {
+        ThinkingEffort.OFF -> 0
+        ThinkingEffort.LOW -> THINKING_BUDGET_LOW
+        ThinkingEffort.HIGH -> THINKING_BUDGET_HIGH
+    }
+
     private companion object {
         /**
          * INCOMPLETE_REPLIES_ARE_NOT_SENT_TO_MODEL.
@@ -752,6 +804,22 @@ class SendChatMessageUseCase @Inject constructor(
         const val NANOS_PER_MILLI = 1_000_000L
         const val NO_ANSWER_PRODUCED =
             "The model finished thinking but did not produce an answer. You can try again."
+
+        /** M5: shown instead of a blank bubble when thinking used the whole reply budget. */
+        const val RAN_OUT_OF_ROOM_WHILE_THINKING =
+            "The model ran out of room while thinking. Try again, or set Thinking to Off " +
+                "for faster answers."
+
+        /** See [replyMaxTokens]'s doc. */
+        const val MAX_REPLY_TOKENS = 1024
+
+        /**
+         * [ThinkingEffort.LOW]/[ThinkingEffort.HIGH]'s requested reasoning sub-budgets, in
+         * tokens, before [replyMaxTokens] and the native `kMinAnswerReserveTokens` floor
+         * clamp them further — see [thinkingBudgetTokens]'s doc.
+         */
+        const val THINKING_BUDGET_LOW = 256
+        const val THINKING_BUDGET_HIGH = 1024
 
         /**
          * How many passages [RetrieveChunksUseCase] is asked for per turn (4.1/4.2). A

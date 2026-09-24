@@ -68,13 +68,13 @@ fun ConfigSpec.Slider.effectiveValue(overrides: InferenceOverrides): Float = whe
 
 fun ConfigSpec.Switch.effectiveValue(overrides: InferenceOverrides): Boolean = when (key) {
     "flashAttention" -> overrides.flashAttention
-    "thinking" -> overrides.thinkingEnabled
     else -> null
 } ?: default
 
 fun ConfigSpec.Choice.effectiveValue(overrides: InferenceOverrides): String = when (key) {
     "contextTokens" -> overrides.contextTokens?.toString()
     "accelerator" -> overrides.accelerator?.name
+    "thinkingEffort" -> overrides.thinkingEffort?.name
     else -> null
 } ?: default
 
@@ -180,19 +180,21 @@ fun inferenceConfigSchema(
         reloadScope = ReloadScope.CONTEXT,
     )
 
-    // Sampling-only — see InferenceOverrides.thinkingEnabled. Not model/device-conditional
+    // Sampling-only — see InferenceOverrides.thinkingEffort. Not model/device-conditional
     // (unlike accelerator/context above): every model that ships no `<think>` tags at all
-    // simply ignores the `/no_think` suffix this sends, so the control is always safe to
-    // show rather than only for models known to reason.
+    // simply ignores the `/no_think` suffix Off sends, so the control is always safe to show
+    // rather than only for models known to reason.
     //
     // Default OFF: on-device CPU decode is slow enough (see documentation/06-llama-spike.md
-    // perf notes) that a Qwen3/3.5 reasoning trace can add tens of seconds before the first
-    // visible answer token. Users who want the reasoning trace can still turn this on — this
-    // only changes what a user who has never touched the switch gets.
-    specs += ConfigSpec.Switch(
-        key = "thinking",
+    // perf notes) that an unbounded Qwen3/3.5 reasoning trace can add tens of seconds before
+    // the first visible answer token. Low/High both turn reasoning on with a bounded budget
+    // (see ThinkingEffort) — this only changes what a user who has never touched the setting
+    // gets.
+    specs += ConfigSpec.Choice(
+        key = "thinkingEffort",
         label = "Thinking",
-        default = false,
+        options = ThinkingEffort.entries.map { it.name },
+        default = ThinkingEffort.OFF.name,
         reloadScope = ReloadScope.NONE,
     )
 

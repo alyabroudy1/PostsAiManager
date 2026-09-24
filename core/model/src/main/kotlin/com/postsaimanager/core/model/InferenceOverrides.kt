@@ -25,19 +25,44 @@ data class InferenceOverrides(
     val topP: Float? = null,
     val flashAttention: Boolean? = null,
     /**
-     * Null (the default) means "reasoning off" — most Qwen3/3.5 checkpoints think by
-     * default, but on-device CPU decode is slow enough that the reasoning trace can add
-     * tens of seconds before the first visible answer token, so a user who has never
-     * touched this switch gets `/no_think` sent for every chat turn; see
-     * `LlamaNative.sendChatMessage`'s KDoc and documentation/02-architecture.md §5.3. True
-     * turns reasoning back on for users who explicitly opt in. Sampling-only —
-     * [ConfigSpec.Switch]'s `reloadScope` for it is [ReloadScope.NONE], same as
-     * temperature/top-k/top-p.
+     * Null (the default) is [ThinkingEffort.OFF] — most Qwen3/3.5 checkpoints think by
+     * default, but on-device CPU decode is slow enough that an unbounded reasoning trace can
+     * add tens of seconds before the first visible answer token, so a user who has never
+     * touched this setting gets `/no_think` sent for every chat turn; see
+     * `LlamaNative.sendChatMessage`'s KDoc and documentation/02-architecture.md §5.3. LOW/HIGH
+     * both turn reasoning on, bounded to a sub-budget of the reply that can never eat into the
+     * answer's own share — see [ThinkingEffort]. Sampling-only — [ConfigSpec.Choice]'s
+     * `reloadScope` for it is [ReloadScope.NONE], same as temperature/top-k/top-p.
      */
-    val thinkingEnabled: Boolean? = null,
+    val thinkingEffort: ThinkingEffort? = null,
 ) {
     companion object {
         val NONE = InferenceOverrides()
+    }
+}
+
+/**
+ * How much of a chat turn's reply budget may go to reasoning before generation forces the
+ * `</think>` tag closed (the Qwen3 Technical Report's own "thinking budget" technique — see
+ * `llama_jni.cpp`'s `triggerForcedThinkClose`). Off/Low/High mirrors how other chat products
+ * expose "how hard should the model think" as a bounded budget rather than a bare on/off
+ * switch — Anthropic's `budget_tokens`, OpenAI's reasoning effort levels, Gemini's
+ * `thinkingBudget`.
+ *
+ * The concrete token numbers each level requests live in
+ * `SendChatMessageUseCase`'s `thinkingBudgetTokens` — the single source of truth — not here;
+ * this enum is only ever the user-facing choice.
+ */
+@Serializable
+enum class ThinkingEffort {
+    OFF,
+    LOW,
+    HIGH,
+    ;
+
+    companion object {
+        fun fromLabel(label: String): ThinkingEffort =
+            entries.firstOrNull { it.name.equals(label, ignoreCase = true) } ?: OFF
     }
 }
 

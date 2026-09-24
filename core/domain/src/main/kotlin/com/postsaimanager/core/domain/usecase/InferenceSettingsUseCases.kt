@@ -6,6 +6,7 @@ import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.ConfigSpec
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.InferenceOverrides
+import com.postsaimanager.core.model.ThinkingEffort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -64,6 +65,7 @@ class UpdateInferenceSettingUseCase @Inject constructor(
             "topK" -> current.copy(topK = (value as Number).toInt())
             "topP" -> current.copy(topP = (value as Number).toFloat())
             "flashAttention" -> current.copy(flashAttention = value as Boolean)
+            "thinkingEffort" -> current.copy(thinkingEffort = ThinkingEffort.fromLabel(value.toString()))
             else -> current
         }
         inferenceSettingsRepository.update(next)

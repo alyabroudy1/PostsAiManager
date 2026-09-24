@@ -24,6 +24,7 @@ import com.postsaimanager.core.model.InstalledModelSummary
 import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.model.MessageSource
 import com.postsaimanager.core.model.ModelLoadState
+import com.postsaimanager.core.model.ThinkingEffort
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -276,8 +277,8 @@ class ChatViewModel @Inject constructor(
                 conversationId = conversationId,
                 documentId = documentId,
                 text = text,
-                // Default OFF — see InferenceOverrides.thinkingEnabled's KDoc.
-                thinkingEnabled = modelSheetState.value.overrides.thinkingEnabled ?: false,
+                // Default OFF — see InferenceOverrides.thinkingEffort's KDoc.
+                thinkingEffort = modelSheetState.value.overrides.thinkingEffort ?: ThinkingEffort.OFF,
             ).collect(::applyTurn)
         }
     }
@@ -308,8 +309,8 @@ class ChatViewModel @Inject constructor(
             sendChatMessage.regenerateLastReply(
                 conversationId = conversationId,
                 documentId = documentId,
-                // Default OFF — see InferenceOverrides.thinkingEnabled's KDoc.
-                thinkingEnabled = modelSheetState.value.overrides.thinkingEnabled ?: false,
+                // Default OFF — see InferenceOverrides.thinkingEffort's KDoc.
+                thinkingEffort = modelSheetState.value.overrides.thinkingEffort ?: ThinkingEffort.OFF,
             ).collect(::applyTurn)
         }
     }
