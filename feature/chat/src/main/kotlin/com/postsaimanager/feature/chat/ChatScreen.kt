@@ -731,7 +731,12 @@ private fun ThinkingCard(
                 )
             }
             AnimatedVisibility(visible = expanded) {
-                Text(
+                // B2: the answer bubble already renders through MarkdownText (see ChatBubble
+                // above) and streams live the same way this does — a reasoning trace is no
+                // less likely to contain a list or a code fence, so it gets the same
+                // treatment rather than showing raw `**`/`` ` `` characters. Muted style/size
+                // and the bounded inner scroll are unchanged from the plain-Text version.
+                MarkdownText(
                     text = thinkingText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
