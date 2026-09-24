@@ -50,7 +50,7 @@ class CatalogActiveModelProviderTest {
     )
 
     private val installedStore = mockk<InstalledModelStore> {
-        every { reconcile() } returns Unit
+        coEvery { reconcile() } returns Unit
         every { activeModel() } returns model
         every { extractionModel() } returns model
     }

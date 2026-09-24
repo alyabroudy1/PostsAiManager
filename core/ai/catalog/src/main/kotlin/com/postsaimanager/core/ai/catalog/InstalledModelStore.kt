@@ -1,11 +1,15 @@
 package com.postsaimanager.core.ai.catalog
 
 import android.content.Context
+import com.postsaimanager.core.common.dispatcher.Dispatcher
+import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.model.InstalledModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -67,6 +71,7 @@ data class InstalledIndex(
 class InstalledModelStore @Inject constructor(
     @ApplicationContext private val context: Context,
     private val json: Json,
+    @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) {
 
     private val indexFile: File
@@ -132,8 +137,19 @@ class InstalledModelStore @Inject constructor(
         update { it.copy(extractionModelId = modelId) }
     }
 
-    /** Drops entries whose backing file no longer exists. */
-    fun reconcile() {
+    /**
+     * Drops entries whose backing file no longer exists.
+     *
+     * Touches disk (`File.exists()` per installed model, plus [modelsDir]'s `mkdirs()` via
+     * [indexFile]) — dispatched onto [ioDispatcher] here, once, rather than trusting every
+     * caller to remember to. [CatalogActiveModelProvider.activeModelPath] calling this on
+     * every chat pre-warm (`ChatViewModel.preWarmModel` -> `PreloadActiveModelUseCase`) used
+     * to do exactly that IO on whatever dispatcher the caller happened to be on — `Main`, for
+     * a `viewModelScope.launch` — and trip StrictMode's disk-read detector.
+     */
+    suspend fun reconcile() = withContext(ioDispatcher) { reconcileBlocking() }
+
+    private fun reconcileBlocking() {
         update { index ->
             val present = index.models.filter { File(it.filePath).exists() }
             index.copy(
@@ -148,6 +164,10 @@ class InstalledModelStore @Inject constructor(
         }
     }
 
+    // Runs during Hilt's field/constructor injection (init {}), which is not a coroutine —
+    // there is no dispatcher to hop to here, so this one call remains synchronous on
+    // whatever thread first resolves this singleton. Every *other* path that touches disk
+    // goes through suspend fun reconcile() above instead.
     private fun load() {
         val loaded = runCatching {
             if (indexFile.exists()) json.decodeFromString<InstalledIndex>(indexFile.readText())
@@ -158,7 +178,7 @@ class InstalledModelStore @Inject constructor(
             InstalledIndex()
         }
         _state.value = loaded
-        reconcile()
+        reconcileBlocking()
     }
 
     private fun update(block: (InstalledIndex) -> InstalledIndex) {
