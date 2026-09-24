@@ -3,7 +3,6 @@ package com.postsaimanager.feature.chat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.usecase.ChatErrorAction
@@ -52,10 +51,17 @@ class ChatViewModel @Inject constructor(
 
     /**
      * One conversation per document, so reopening a document resumes its history rather
-     * than starting over. A document-less chat gets a fresh conversation per screen.
+     * than starting over.
+     *
+     * A document-less chat (4.2, "Ask about your documents") gets exactly one standing
+     * conversation across the whole app, for the same reason: [ConversationRepository] has
+     * no concept of "which standalone session" beyond the id it is given, so a fresh random
+     * id every time this screen opened would silently orphan the previous conversation's
+     * history instead of resuming it. If per-session standalone conversations (a history
+     * list to pick from, say) are ever wanted, that needs an actual UI to choose one and is
+     * out of scope here.
      */
-    private val conversationId: String =
-        documentId?.let { "conv-$it" } ?: "conv-${UuidGenerator.generate()}"
+    private val conversationId: String = documentId?.let { "conv-$it" } ?: STANDALONE_CONVERSATION_ID
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
@@ -328,6 +334,11 @@ class ChatViewModel @Inject constructor(
     override fun onCleared() {
         generationJob?.cancel()
         super.onCleared()
+    }
+
+    private companion object {
+        /** The one standing conversation for a document-less chat — see [conversationId]. */
+        const val STANDALONE_CONVERSATION_ID = "conv-standalone"
     }
 }
 

@@ -24,6 +24,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -52,6 +53,7 @@ import com.postsaimanager.core.model.ProcessingState
 fun HomeScreen(
     onDocumentClick: (String) -> Unit,
     onScanClick: () -> Unit,
+    onAskAcrossDocumentsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -60,7 +62,17 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            PamTopAppBar(title = "Posts AI Manager")
+            PamTopAppBar(
+                title = "Posts AI Manager",
+                actions = {
+                    IconButton(onClick = onAskAcrossDocumentsClick) {
+                        Icon(
+                            imageVector = PamIcons.AiChat,
+                            contentDescription = "Ask about your documents",
+                        )
+                    }
+                },
+            )
         },
         floatingActionButton = {
             FloatingActionButton(

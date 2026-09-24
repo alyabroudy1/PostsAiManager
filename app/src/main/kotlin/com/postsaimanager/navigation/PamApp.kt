@@ -78,6 +78,9 @@ fun PamApp() {
                     onScanClick = {
                         navController.navigate("scanner")
                     },
+                    onAskAcrossDocumentsClick = {
+                        navController.navigate("chat")
+                    },
                 )
             }
             composable(TopLevelDestination.DOCUMENTS.route) {
