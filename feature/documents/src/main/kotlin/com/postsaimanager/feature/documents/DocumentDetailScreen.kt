@@ -53,6 +53,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -94,6 +95,12 @@ import java.io.File
 fun DocumentDetailScreen(
     onNavigateBack: () -> Unit,
     onChatClick: (String) -> Unit,
+    /**
+     * A 1-based page to land on, e.g. from a chat citation chip (4.3) — jumps straight to the
+     * Pages tab at that page instead of wherever the user last left this document. Null opens
+     * on whatever [viewModel] would show anyway (the Pages tab by default).
+     */
+    initialPage: Int? = null,
     modifier: Modifier = Modifier,
     viewModel: DocumentDetailViewModel = hiltViewModel(),
 ) {
@@ -103,6 +110,12 @@ fun DocumentDetailScreen(
     val profileSuggestions by viewModel.profileSuggestions.collectAsStateWithLifecycle()
     val editingProfileSuggestion by viewModel.editingProfileSuggestion.collectAsStateWithLifecycle()
     val entityProposals by viewModel.entityProposals.collectAsStateWithLifecycle()
+
+    // A citation chip always means "show me that page" — even if the user was last looking
+    // at a different tab (Extracted, Timeline) when they left this document.
+    LaunchedEffect(initialPage) {
+        if (initialPage != null) viewModel.selectTab(DetailTab.PAGES)
+    }
 
     Scaffold(
         topBar = {
@@ -128,6 +141,7 @@ fun DocumentDetailScreen(
                 is DocumentDetailUiState.Success -> DocumentDetailContent(
                     state = state,
                     selectedTab = selectedTab,
+                    initialPage = initialPage,
                     processingState = processingState,
                     profileSuggestions = profileSuggestions,
                     entityProposals = entityProposals,
@@ -173,6 +187,7 @@ fun DocumentDetailScreen(
 private fun DocumentDetailContent(
     state: DocumentDetailUiState.Success,
     selectedTab: DetailTab,
+    initialPage: Int?,
     processingState: ProcessingState,
     profileSuggestions: List<ProfileSuggestion>,
     entityProposals: List<EntityProposal>,
@@ -258,7 +273,7 @@ private fun DocumentDetailContent(
         }
 
         when (selectedTab) {
-            DetailTab.PAGES -> PagesTab(state.pages, onSharePdf)
+            DetailTab.PAGES -> PagesTab(state.pages, onSharePdf, initialPage)
             DetailTab.EXTRACTED -> ExtractedTemplateTab(
                 data = state.extractedData,
                 language = state.document.language,
@@ -353,14 +368,18 @@ private fun ProcessingState.Running.toDisplayMessage(): String = when (stage) {
 // ═══════════════════════════════════════════════════════════
 
 @Composable
-private fun PagesTab(pages: List<DocumentPage>, onSharePdf: () -> File?) {
+private fun PagesTab(pages: List<DocumentPage>, onSharePdf: () -> File?, initialPage: Int? = null) {
     if (pages.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No pages scanned yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
-    val pagerState = rememberPagerState(pageCount = { pages.size })
+    // A citation's page number is 1-based (how a reader talks about a document); the pager
+    // is 0-indexed, and clamped in case the citation is stale (the document was re-scanned
+    // with fewer pages since).
+    val startPage = initialPage?.minus(1)?.coerceIn(0, pages.size - 1) ?: 0
+    val pagerState = rememberPagerState(initialPage = startPage, pageCount = { pages.size })
     val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize()) {

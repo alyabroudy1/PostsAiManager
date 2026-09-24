@@ -3,10 +3,12 @@ package com.postsaimanager.feature.chat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.usecase.ChatErrorAction
 import com.postsaimanager.core.domain.usecase.ChatTurn
+import com.postsaimanager.core.domain.usecase.CitationParser
 import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.ObserveInstalledModelsUseCase
 import com.postsaimanager.core.domain.usecase.PreloadActiveModelUseCase
@@ -15,10 +17,12 @@ import com.postsaimanager.core.domain.usecase.SelectActiveModelUseCase
 import com.postsaimanager.core.domain.usecase.SendChatMessageUseCase
 import com.postsaimanager.core.domain.usecase.UnblockGpuUseCase
 import com.postsaimanager.core.domain.usecase.UpdateInferenceSettingUseCase
+import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.model.ConfigSpec
 import com.postsaimanager.core.model.InferenceOverrides
 import com.postsaimanager.core.model.InstalledModelSummary
 import com.postsaimanager.core.model.MessageRole
+import com.postsaimanager.core.model.MessageSource
 import com.postsaimanager.core.model.ModelLoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -37,6 +41,7 @@ class ChatViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val sendChatMessage: SendChatMessageUseCase,
     private val conversationRepository: ConversationRepository,
+    private val documentRepository: DocumentRepository,
     private val engine: AiEngine,
     private val observeInstalledModels: ObserveInstalledModelsUseCase,
     private val selectActiveModel: SelectActiveModelUseCase,
@@ -121,23 +126,68 @@ class ChatViewModel @Inject constructor(
     private fun restoreHistory() {
         viewModelScope.launch {
             conversationRepository.getMessages(conversationId).collect { messages ->
-                _uiState.update { state ->
-                    state.copy(
-                        messages = messages.map {
-                            ChatMessage(
-                                id = it.id,
-                                text = it.content,
-                                isUser = it.role == MessageRole.USER,
-                                timestamp = it.createdAt,
-                                thinking = it.thinking,
-                                thinkingDurationMs = it.thinkingDurationMs,
-                                incomplete = it.incomplete,
-                            )
-                        },
+                val chatMessages = messages.map { message ->
+                    val sources = message.sources.map { toChatSource(it) }
+                    ChatMessage(
+                        id = message.id,
+                        text = message.content,
+                        isUser = message.role == MessageRole.USER,
+                        timestamp = message.createdAt,
+                        thinking = message.thinking,
+                        thinkingDurationMs = message.thinkingDurationMs,
+                        incomplete = message.incomplete,
+                        // 4.3: every source SendChatMessageUseCase persisted was *shown* to
+                        // the model — narrow that down to what the answer actually cites, or
+                        // keep them all when it cited none (see pickVisibleSources).
+                        sources = pickVisibleSources(message.content, sources),
                     )
                 }
+                _uiState.update { it.copy(messages = chatMessages) }
             }
         }
+    }
+
+    /**
+     * Cache of document id -> title, for [toChatSource]'s standalone-chat label. Never
+     * invalidated: a document's title barely ever changes after it is scanned, and a stale
+     * title on a citation chip is a cosmetic, not a correctness, problem — not worth a Flow
+     * subscription per source.
+     */
+    private val documentTitleCache = mutableMapOf<String, String?>()
+
+    /**
+     * [ChatSource.title] is only resolved for a document-less conversation ([documentId] is
+     * null here) — a document-scoped chat already has exactly one document in view, so
+     * `ChatScreen` never needs the title to render "Page N" (see [ChatSource]'s doc comment).
+     */
+    private suspend fun toChatSource(source: MessageSource): ChatSource {
+        val title = if (documentId == null) {
+            documentTitleCache.getOrPut(source.documentId) {
+                (documentRepository.getDocumentById(source.documentId) as? PamResult.Success)?.data?.title
+            }
+        } else {
+            null
+        }
+        return ChatSource(documentId = source.documentId, pageNumber = source.pageNumber, title = title)
+    }
+
+    /**
+     * [CitationParser] needs each source labelled exactly the way `SendChatMessageUseCase`
+     * showed it to the model — `"p.N"` in a document chat, `"<title>, p.N"` in a standalone
+     * one (see that use case's `withPassages` KDoc) — to recognise the model's citation back.
+     * A source with no page number (a chunk indexed before 4.0's page-aware chunking) cannot
+     * be labelled that way at all, so it goes in [CitationParser.pick]'s `unlabelled` list
+     * instead: never individually citable, but still part of the "show everything" fallback.
+     */
+    private fun pickVisibleSources(content: String, sources: List<ChatSource>): List<ChatSource> {
+        if (sources.isEmpty()) return sources
+        val labelled = sources.mapNotNull { source ->
+            val page = source.pageNumber ?: return@mapNotNull null
+            val label = source.title?.let { "$it, p.$page" } ?: "p.$page"
+            CitationParser.Labelled(label, source)
+        }
+        val unlabelled = sources.filter { it.pageNumber == null }
+        return CitationParser.pick(content, labelled, unlabelled)
     }
 
     private fun observeEngine() {
@@ -391,4 +441,21 @@ data class ChatMessage(
     val thinkingDurationMs: Long? = null,
     /** True for a reply the user stopped, or one that failed mid-stream. See [com.postsaimanager.core.model.AiMessage.incomplete]. */
     val incomplete: Boolean = false,
+    /** The passages this reply cites/was grounded on, for [ChatScreen]'s citation chips (4.3). */
+    val sources: List<ChatSource> = emptyList(),
+)
+
+/**
+ * A citation chip's worth of a [com.postsaimanager.core.model.MessageSource] — resolved with
+ * whatever a UI needs and nothing it would have to look up itself.
+ *
+ * @param title the source document's title, resolved by [ChatViewModel.toChatSource] — only
+ *   for a document-less (standalone) conversation, where several documents can appear in one
+ *   answer and a chip needs to say which. Null in a document-scoped chat, where `ChatScreen`
+ *   renders "Page N" without it — see that screen's `SourceChip`.
+ */
+data class ChatSource(
+    val documentId: String,
+    val pageNumber: Int?,
+    val title: String?,
 )

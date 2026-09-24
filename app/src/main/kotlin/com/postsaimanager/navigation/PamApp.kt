@@ -22,6 +22,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.postsaimanager.feature.chat.ChatScreen
+import com.postsaimanager.feature.chat.ChatSource
 import com.postsaimanager.feature.documents.DocumentDetailScreen
 import com.postsaimanager.feature.documents.DocumentsScreen
 import com.postsaimanager.feature.home.HomeScreen
@@ -107,14 +108,24 @@ fun PamApp() {
 
             // ── Detail destinations ──
             composable(
-                route = "document/{documentId}",
-                arguments = listOf(navArgument("documentId") { type = NavType.StringType }),
-            ) {
+                // `page` is optional and 1-based — set only when arriving from a chat
+                // citation chip (4.3), so DocumentDetailScreen can jump straight to it.
+                route = "document/{documentId}?page={page}",
+                arguments = listOf(
+                    navArgument("documentId") { type = NavType.StringType },
+                    navArgument("page") {
+                        type = NavType.IntType
+                        defaultValue = NO_INITIAL_PAGE
+                    },
+                ),
+            ) { backStackEntry ->
+                val page = backStackEntry.arguments?.getInt("page") ?: NO_INITIAL_PAGE
                 DocumentDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onChatClick = { docId ->
                         navController.navigate("chat?documentId=$docId")
                     },
+                    initialPage = page.takeIf { it != NO_INITIAL_PAGE },
                 )
             }
 
@@ -143,11 +154,19 @@ fun PamApp() {
                     documentId = it.arguments?.getString("documentId"),
                     onNavigateBack = { navController.popBackStack() },
                     onManageModelsClick = { navController.navigate("models") },
+                    onSourceClick = { source -> navController.navigate(source.toRoute()) },
                 )
             }
         }
     }
 }
+
+/** A tapped citation chip's own document, at its page — see the `document/{documentId}?page={page}` route. */
+private fun ChatSource.toRoute(): String =
+    pageNumber?.let { "document/$documentId?page=$it" } ?: "document/$documentId"
+
+/** [NavType.IntType] cannot express "absent" with `null`, so this stands in for it. */
+private const val NO_INITIAL_PAGE = -1
 
 @Composable
 private fun PamBottomNavigationBar(

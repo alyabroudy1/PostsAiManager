@@ -451,6 +451,19 @@ retrieved passage cite a page instead of an opaque ordinal; a chunk indexed befo
 change simply has no page number, the same "additive, nullable" pattern every other schema
 migration in this codebase follows.
 
+**Citations (4.3).** Every passage a turn injects — whether the reply finished, was stopped,
+or crashed mid-stream — is persisted on `AiMessage.sources` (a new
+`MessageSource(documentId, pageNumber, chunkId)` — `message_sources` is a child table with
+`CASCADE` on the owning message, schema v10, `MIGRATION_9_10`): whatever was shown to the
+model grounded whatever it produced. *Which* of those to actually show as a citation chip is a
+presentation decision, made in `ChatViewModel` rather than the use case: `CitationParser`
+(pure domain code) looks for the model's `[p.2]`/`[part 3]`/`[<title>, p.2]`-shaped citations
+in the answer — leniently, spacing/case/German `S.`/`Seite` for "page" all match — and the
+ViewModel narrows a message's sources down to just those, or keeps every injected source when
+none were recognisably cited. `ChatScreen` renders each as a tappable chip under the assistant
+bubble — "Page 2" in a document chat, "`<title>` · p.2" in the document-less one — that
+navigates to `document/{id}?page={n}`.
+
 A reasoning model (Qwen3/Qwen3.5, DeepSeek) writes its chain of thought and its answer into
 the *same* token stream, delimited by `<think>…</think>`. Chat treats that boundary as
 load-bearing, not cosmetic — the same discipline as the online-escalation payload above,

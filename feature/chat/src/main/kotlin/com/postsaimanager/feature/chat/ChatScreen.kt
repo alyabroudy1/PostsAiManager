@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +41,8 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -69,6 +72,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -95,6 +100,9 @@ fun ChatScreen(
     documentId: String?,
     onNavigateBack: () -> Unit,
     onManageModelsClick: () -> Unit = {},
+    /** A citation chip was tapped (4.3) — navigate to that source's document, at its page
+     * when the destination can cheaply jump there. */
+    onSourceClick: (ChatSource) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
@@ -338,7 +346,12 @@ fun ChatScreen(
                         uiState.messages.asReversed(),
                         key = { it.id.ifEmpty { it.timestamp.toString() } },
                     ) { message ->
-                        ChatBubble(message = message, onRetry = { viewModel.retryMessage(message) })
+                        ChatBubble(
+                            message = message,
+                            documentChat = documentId != null,
+                            onRetry = { viewModel.retryMessage(message) },
+                            onSourceClick = onSourceClick,
+                        )
                     }
                 }
 
@@ -430,7 +443,12 @@ private fun ChatInputBar(
 }
 
 @Composable
-private fun ChatBubble(message: ChatMessage, onRetry: () -> Unit = {}) {
+private fun ChatBubble(
+    message: ChatMessage,
+    documentChat: Boolean = false,
+    onRetry: () -> Unit = {},
+    onSourceClick: (ChatSource) -> Unit = {},
+) {
     val isUser = message.isUser
     Column(horizontalAlignment = if (isUser) Alignment.End else Alignment.Start) {
         // A persisted reply that thought before answering shows its trace collapsed to a
@@ -497,6 +515,22 @@ private fun ChatBubble(message: ChatMessage, onRetry: () -> Unit = {}) {
             }
         }
 
+        // 4.3: what grounded this answer, as tappable chips — only for a finished assistant
+        // reply with something to show (a streaming bubble, built from `ChatMessage(text=…)`
+        // with no `id`, never has sources yet; see the streaming-bubble call site above).
+        if (!isUser && message.sources.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .padding(start = 40.dp, top = 4.dp)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                message.sources.forEach { source ->
+                    SourceChip(source = source, documentChat = documentChat, onClick = { onSourceClick(source) })
+                }
+            }
+        }
+
         // Defect 3: a stopped/crashed reply keeps its partial text (see `ChatBubble` above,
         // unchanged) rather than being deleted, marked with a small "Stopped" caption rather
         // than looking like a normal finished reply — and offers Retry rather than a dead
@@ -526,6 +560,38 @@ private fun ChatBubble(message: ChatMessage, onRetry: () -> Unit = {}) {
             }
         }
     }
+}
+
+/**
+ * One citation chip under an assistant reply (4.3) — "Page 2" (or "Excerpt 3" when the
+ * source predates page-aware chunking, see [MessageSource.pageNumber][
+ * com.postsaimanager.core.model.MessageSource.pageNumber]) in a document chat, where the
+ * document is already the one thing being discussed; "<title> · p.2" in a standalone chat,
+ * which can cite several documents in one answer and so needs to say which.
+ */
+@Composable
+private fun SourceChip(source: ChatSource, documentChat: Boolean, onClick: () -> Unit) {
+    val where = source.pageNumber?.let { "Page $it" } ?: "Excerpt"
+    val label = if (documentChat) where else "${source.title ?: "Untitled document"} · ${where.replaceFirstChar { it.lowercase() }}"
+    AssistChip(
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+        leadingIcon = {
+            Icon(PamIcons.Documents, contentDescription = null, modifier = Modifier.size(14.dp))
+        },
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        modifier = Modifier
+            .height(28.dp)
+            .semantics {
+                contentDescription = if (source.pageNumber != null) {
+                    "Source: page ${source.pageNumber} of ${source.title ?: "this document"}"
+                } else {
+                    "Source: an excerpt of ${source.title ?: "this document"}"
+                }
+            },
+    )
 }
 
 /**
