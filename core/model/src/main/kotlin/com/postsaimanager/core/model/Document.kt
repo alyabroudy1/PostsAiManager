@@ -20,13 +20,25 @@ data class Document(
     val modifiedAt: Long,
 )
 
+/**
+ * Stored as its `name` in Room ([DocumentEntity][com.postsaimanager.core.data.database.entity]
+ * keeps `status` as a plain `TEXT` column read back through `valueOf`), so adding a value here
+ * is additive and needs no migration — only code that exhaustively `when`s over every value
+ * does.
+ */
 @Serializable
 enum class DocumentStatus {
     NEW,
+
+    /** Enqueued for processing but not yet running — see `DocumentProcessor.enqueue`. */
+    QUEUED,
     PROCESSING,
     EXTRACTED,
     REVIEWED,
     ARCHIVED,
+
+    /** The last processing attempt failed; the document keeps whatever it had before. */
+    FAILED,
 }
 
 @Serializable

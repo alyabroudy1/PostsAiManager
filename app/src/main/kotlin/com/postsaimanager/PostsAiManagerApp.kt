@@ -6,7 +6,12 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.postsaimanager.core.ai.local.InferenceCrashObserver
 import com.postsaimanager.core.ai.local.InferenceMemoryPressureObserver
+import com.postsaimanager.core.data.worker.DocumentProcessingRecovery
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -29,6 +34,12 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
     @Inject
     lateinit var inferenceCrashObserver: InferenceCrashObserver
 
+    @Inject
+    lateinit var documentProcessingRecovery: DocumentProcessingRecovery
+
+    /** Process-lifetime scope for start-up work that must outlive `onCreate` returning. */
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -39,6 +50,11 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
         enableStrictModeInDebug()
         inferenceMemoryPressureObserver.start()
         inferenceCrashObserver.start()
+        // Off Main, and after onCreate returns rather than blocking it: a document stuck at
+        // PROCESSING because the app was killed mid-run (documentation/07-document-pipeline.md
+        // §8) needs re-enqueuing, but that is a DAO read plus a WorkManager call, not
+        // something the app's cold start should wait on.
+        applicationScope.launch { documentProcessingRecovery.resumeInterrupted() }
     }
 
     /**

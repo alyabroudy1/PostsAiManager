@@ -1,6 +1,11 @@
 package com.postsaimanager.core.data.repository
 
+import android.content.Context
 import android.util.Log
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.postsaimanager.core.common.dispatcher.Dispatcher
 import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.common.result.PamError
@@ -12,6 +17,7 @@ import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
+import com.postsaimanager.core.data.worker.DocumentProcessingWorker
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
@@ -25,6 +31,7 @@ import com.postsaimanager.core.model.ProcessingStage
 import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.TimelineEvent
 import com.postsaimanager.core.model.TimelineEventType
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -32,7 +39,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
@@ -62,12 +71,48 @@ class DocumentProcessingPipeline @Inject constructor(
     private val documentMapper: DocumentMapper,
     private val documentDao: DocumentDao,
     private val timelineRepository: TimelineRepository,
+    @ApplicationContext private val appContext: Context,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : DocumentProcessor {
     private val _processingState = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     override val processingState: Flow<ProcessingState> = _processingState.asStateFlow()
 
+    private val workManager get() = WorkManager.getInstance(appContext)
+
+    /**
+     * The on-device model is single-resident (documentation/07-document-pipeline.md §7): two
+     * documents must never run the pipeline at once, or one engine load stomps the other's
+     * session. WorkManager can start more than one worker concurrently, so the serialisation
+     * has to live here rather than in unique-work naming, which only prevents *the same*
+     * document from running twice.
+     */
+    private val processingMutex = Mutex()
+
+    override suspend fun enqueue(documentId: String, force: Boolean) = withContext(ioDispatcher) {
+        val current = documentDao.getById(documentId)?.status
+        if (current != DocumentStatus.PROCESSING.name) {
+            // Honest status before the work actually starts — see DocumentStatus's doc
+            // comment on why this needs no migration.
+            documentDao.updateStatus(documentId, DocumentStatus.QUEUED.name)
+        }
+
+        val request = OneTimeWorkRequestBuilder<DocumentProcessingWorker>()
+            .setInputData(workDataOf(DocumentProcessingWorker.KEY_DOCUMENT_ID to documentId))
+            .build()
+        workManager.enqueueUniqueWork(
+            DocumentProcessingWorker.workName(documentId),
+            if (force) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
+            request,
+        )
+        Unit
+    }
+
+    override fun cancel(documentId: String) {
+        workManager.cancelUniqueWork(DocumentProcessingWorker.workName(documentId))
+    }
+
     override suspend fun processDocument(documentId: String): PamResult<ExtractionResult> =
+        processingMutex.withLock {
         withContext(ioDispatcher) {
             try {
                 // Step 1: Mark as processing
@@ -337,9 +382,14 @@ class DocumentProcessingPipeline @Inject constructor(
                 PamResult.Success(extraction)
             } catch (e: Exception) {
                 _processingState.value = ProcessingState.Failed(documentId, e.message ?: "Unknown error")
+                // Persisted, not just transient: processingState is one in-memory flow that
+                // nothing restores after the app is killed, but a failed document must still
+                // read as failed — with a retry — the next time anyone opens it.
+                runCatching { documentDao.updateStatus(documentId, DocumentStatus.FAILED.name) }
                 PamResult.Error(PamError.ExtractionFailed(detail = e.message ?: "Pipeline failed", cause = e))
             }
         }
+    }
 }
 
 /** Lenient: a stored layout that cannot be parsed must not fail a document. */

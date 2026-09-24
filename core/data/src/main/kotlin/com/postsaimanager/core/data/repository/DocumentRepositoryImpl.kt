@@ -10,6 +10,7 @@ import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.data.util.PageImageStore
+import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
@@ -28,6 +29,7 @@ class DocumentRepositoryImpl @Inject constructor(
     private val fieldRevisionDao: FieldRevisionDao,
     private val mergeExtraction: MergeExtractionUseCase,
     private val pageImageStore: PageImageStore,
+    private val documentProcessor: DocumentProcessor,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : DocumentRepository {
 
@@ -138,6 +140,10 @@ class DocumentRepositoryImpl @Inject constructor(
     override suspend fun deleteDocument(id: String): PamResult<Unit> =
         withContext(ioDispatcher) {
             try {
+                // Before the row goes away: a worker that finishes after this delete would
+                // otherwise write OCR text, fields and a status right back onto a document
+                // that no longer exists.
+                documentProcessor.cancel(id)
                 documentDao.deleteById(id)
                 pageImageStore.deleteDocumentImages(id)
                 PamResult.Success(Unit)

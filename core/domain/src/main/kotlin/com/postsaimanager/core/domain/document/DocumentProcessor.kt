@@ -22,7 +22,28 @@ interface DocumentProcessor {
     /**
      * Runs OCR, understanding, profile linking and indexing for [documentId], merging the
      * result into whatever is already stored rather than replacing it (see
-     * `MergeExtractionUseCase`).
+     * `MergeExtractionUseCase`). Called only by the background worker the implementation
+     * schedules from [enqueue] — a feature should never call this directly, or processing
+     * stops the moment the user leaves the screen.
      */
     suspend fun processDocument(documentId: String): PamResult<ExtractionResult>
+
+    /**
+     * Schedules [documentId] to be processed in the background, surviving navigation and
+     * the app being backgrounded — see documentation/07-document-pipeline.md §7. Sets the
+     * document's status to [com.postsaimanager.core.model.DocumentStatus.QUEUED] (unless it
+     * is already [com.postsaimanager.core.model.DocumentStatus.PROCESSING]) so the UI has an
+     * honest state to show before the work actually starts running.
+     *
+     * Work is unique per document (`process-document-<id>`): a plain call while processing
+     * is already queued or running joins it rather than starting a second run. [force]
+     * requests a fresh run even so — for a manual Reprocess/Retry.
+     */
+    suspend fun enqueue(documentId: String, force: Boolean = false)
+
+    /**
+     * Cancels any queued or running work for [documentId] — called when the document itself
+     * is deleted, so a stale worker does not resurrect rows a delete just removed.
+     */
+    fun cancel(documentId: String)
 }

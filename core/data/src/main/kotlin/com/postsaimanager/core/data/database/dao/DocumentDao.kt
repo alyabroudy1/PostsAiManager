@@ -20,6 +20,10 @@ interface DocumentDao {
     @Query("SELECT * FROM documents WHERE status = :status ORDER BY createdAt DESC")
     fun observeByStatus(status: String): Flow<List<DocumentEntity>>
 
+    /** One-shot read, for startup recovery — see `DocumentProcessingRecovery`. */
+    @Query("SELECT * FROM documents WHERE status = :status ORDER BY createdAt DESC")
+    suspend fun getByStatus(status: String): List<DocumentEntity>
+
     @Query("SELECT * FROM documents WHERE isFavorite = 1 ORDER BY createdAt DESC")
     fun observeFavorites(): Flow<List<DocumentEntity>>
 
