@@ -43,10 +43,38 @@ set(LLAMA_BUILD_SERVER   OFF CACHE BOOL "" FORCE)
 set(LLAMA_CURL           OFF CACHE BOOL "" FORCE)
 set(GGML_OPENMP          OFF CACHE BOOL "" FORCE)
 
-# arm64-v8a CPU features. Runtime dispatch is preferred over baseline -march bumps
-# so one binary serves every arm64 device rather than crashing on older cores.
+# arm64-v8a CPU features.
+#
+# `GGML_NATIVE OFF` alone (the previous setting here) does nothing by itself — without
+# either GGML_BACKEND_DL/GGML_CPU_ALL_VARIANTS (true runtime dispatch, multiple ggml-cpu
+# .so variants selected at load time) or an explicit GGML_CPU_ARM_ARCH, ggml-cpu compiles
+# for the plain armv8-a baseline: no dotprod/i8mm/fp16-vector kernels and no ARM weight
+# repacking. Measured effect: ~43 tok/s prompt eval for a 0.8B Q4_K model on a Snapdragon
+# 8 Gen 2, roughly 5-10x slower than the SoC should manage.
+#
+# GGML_CPU_ALL_VARIANTS (runtime dispatch) is the ideal fix — one APK, no crash risk on
+# any core — but it requires packaging N ggml-cpu variant .so files and calling
+# ggml_backend_load_all_from_path() from Kotlin/JNI with the app's native lib dir, which
+# is a materially bigger change to the packaging and JNI init path. Given this pinned
+# llama.cpp revision (b10299) and the size of that change, we take the documented
+# fallback instead: a fixed -march that targets dotprod + the fp16 vector unit.
+#
+# armv8.2-a+dotprod+fp16 (no i8mm — see below) is safe on essentially every arm64 phone
+# from ~2018 onward (Snapdragon 845 / Exynos 9810 and later; this project's minSdk 26
+# reaches back to 2017, so a small tail of first-generation Android 8.0 devices on
+# pre-8.2 cores, e.g. Snapdragon 835/636, could SIGILL on a dotprod instruction). That
+# trade-off is accepted here for the flagship-class devices this feature targets;
+# `DeviceCapabilityChecker`/JNI added a dotprod runtime check (see llama_jni.cpp,
+# deviceSupportsRequiredCpuFeatures()) that refuses to load a model instead of crashing
+# when HWCAP_ASIMDDP is absent.
+#
+# i8mm is deliberately NOT enabled: it needs armv8.6-a, which is a materially newer and
+# smaller device population than dotprod, and the plan's guidance is explicit that
+# enabling i8mm in a static (non-dispatched) build would SIGILL on older cores that this
+# -march string would otherwise still run on.
 if(ANDROID_ABI STREQUAL "arm64-v8a")
     set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+    set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+fp16" CACHE STRING "" FORCE)
 endif()
 
 # ── Vulkan backend: let CONFIG-mode find_package() see host packages ───────────

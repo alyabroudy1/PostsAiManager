@@ -16,6 +16,8 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <sys/auxv.h>
+#include <asm/hwcap.h>
 
 #include "llama.h"
 #include "ggml-backend.h"
@@ -25,6 +27,25 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 namespace {
+
+/**
+ * CMakeLists.txt builds this library with `-march=armv8.2-a+dotprod+fp16` (see its
+ * comment) rather than true runtime dispatch, which means the whole .so — not just a
+ * runtime-selected kernel — can contain dotprod instructions. A core without dotprod
+ * (pre-2018-ish arm64, still reachable at this project's minSdk 26) would SIGILL the
+ * first time one of those instructions executes.
+ *
+ * Checked once, before the first model load, via the HWCAP_ASIMDDP bit
+ * (`getauxval(AT_HWCAP)`, bionic's documented way to read ARMv8 feature bits — this is
+ * what /proc/cpuinfo's "asimddp" line is derived from). If it is missing we refuse to
+ * load a model instead of letting the process crash.
+ */
+bool deviceSupportsRequiredCpuFeatures() {
+    const unsigned long hwcap = getauxval(AT_HWCAP);
+    const bool hasDotprod = (hwcap & HWCAP_ASIMDDP) != 0;
+    LOGI("pam_llama: HWCAP_ASIMDDP (dotprod) %s", hasDotprod ? "present" : "MISSING");
+    return hasDotprod;
+}
 
 /** One message in a [PamSession]'s standing chat history — see its doc. */
 struct ChatTurn {
@@ -45,6 +66,9 @@ struct PamSession {
     int  generated = 0;
     int  maxTokens = 0;
     bool finished  = true;
+    // Wall-clock start of the current generation (set by startGeneration/sendChatMessage),
+    // used to log total decode tok/s once generation ends — see nextToken().
+    std::chrono::steady_clock::time_point generationStart{};
 
     // ── standing chat session ────────────────────────────────────────────────
     //
@@ -69,6 +93,11 @@ double elapsedMs(std::chrono::steady_clock::time_point start) {
     return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
 }
 
+/** tokens / (ms / 1000) — 0 when ms is ~0 so a log line never divides by zero. */
+double tokensPerSecond(int tokens, double ms) {
+    return ms > 0.001 ? (double) tokens / (ms / 1000.0) : 0.0;
+}
+
 std::string jstringToStd(JNIEnv *env, jstring value) {
     if (value == nullptr) return {};
     const char *chars = env->GetStringUTFChars(value, nullptr);
@@ -90,8 +119,21 @@ std::string tokenToPiece(const llama_vocab *vocab, llama_token token) {
     return std::string(large.data(), n);
 }
 
+/**
+ * Logs decode throughput for the generation that just ended (0 tokens is a no-op — a
+ * failed/empty turn has nothing to report). Called from every path that can end a
+ * generation, right before it stops being "in flight" — see releaseChain()'s callers.
+ */
+void logGenerationEnd(const PamSession *session) {
+    if (session->generated <= 0) return;
+    const double ms = elapsedMs(session->generationStart);
+    LOGI("pam_llama: decode tokens=%d ms=%.1f tok_s=%.1f",
+         session->generated, ms, tokensPerSecond(session->generated, ms));
+}
+
 void releaseChain(PamSession *session) {
     if (session->chain != nullptr) {
+        logGenerationEnd(session);
         llama_sampler_free(session->chain);
         session->chain = nullptr;
     }
@@ -285,10 +327,20 @@ std::vector<ggml_backend_dev_t> cpuOnlyDevices() {
 
 extern "C" {
 
+// Set once deviceSupportsRequiredCpuFeatures() has run, so loadModel() (which can be
+// called many times) does not need to re-derive it.
+bool g_cpuFeaturesChecked = false;
+bool g_cpuFeaturesOk = false;
+
 JNIEXPORT void JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_backendInit(JNIEnv *, jobject) {
     llama_backend_init();
-    LOGI("llama backend initialised");
+    g_cpuFeaturesOk = deviceSupportsRequiredCpuFeatures();
+    g_cpuFeaturesChecked = true;
+    // Proves which CPU kernels are actually active on this device/build — see
+    // CMakeLists.txt's comment on why this is a fixed -march rather than runtime
+    // dispatch, and check for "DOTPROD = 1" / "FP16_VA = 1" in this line on device.
+    LOGI("llama backend initialised — %s", llama_print_system_info());
 }
 
 JNIEXPORT jstring JNICALL
@@ -349,6 +401,17 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_loadModel(
         JNIEnv *env, jobject, jstring modelPath, jint contextTokens, jint batchTokens,
         jint threads, jint threadsBatch, jboolean useMmap, jboolean useMlock,
         jboolean flashAttention, jint gpuLayers, jint accelerator) {
+
+    if (!g_cpuFeaturesChecked) {
+        // Callers are expected to run backendInit() first; guard anyway so a missed
+        // ordering fails safe (refuses to load) rather than risking a SIGILL.
+        g_cpuFeaturesOk = deviceSupportsRequiredCpuFeatures();
+        g_cpuFeaturesChecked = true;
+    }
+    if (!g_cpuFeaturesOk) {
+        LOGE("pam_llama: refusing to load model — device lacks required CPU features (dotprod)");
+        return 0;
+    }
 
     const std::string path = jstringToStd(env, modelPath);
     // Ordinals of com.postsaimanager.core.model.Accelerator: 0 = CPU, 1 = GPU.
@@ -566,10 +629,13 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
 
     session->batch = llama_batch_get_one(session->promptTokens.data() + consumed,
                                          total - consumed);
-    LOGI("pam_llama: one-shot prompt tokens=%d prompt_eval_ms=%.1f", total, elapsedMs(decodeStart));
+    const double promptMs = elapsedMs(decodeStart);
+    LOGI("pam_llama: one-shot prompt tokens=%d prompt_eval_ms=%.1f prompt_eval_tok_s=%.1f",
+         total, promptMs, tokensPerSecond(total, promptMs));
     session->generated = 0;
     session->maxTokens = maxTokens;
     session->finished  = false;
+    session->generationStart = std::chrono::steady_clock::now();
     return JNI_TRUE;
 }
 
@@ -693,7 +759,9 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_primeChatSession(
         return JNI_FALSE;
     }
     session->chatPrevLen = (int) formatted.size();
-    LOGI("pam_llama: session primed turns=%d tokens=%d ms=%.1f", (int) count, tokenCount, elapsedMs(start));
+    const double primeMs = elapsedMs(start);
+    LOGI("pam_llama: session primed turns=%d tokens=%d ms=%.1f tok_s=%.1f",
+         (int) count, tokenCount, primeMs, tokensPerSecond(tokenCount, primeMs));
     return JNI_TRUE;
 }
 
@@ -770,8 +838,9 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
     if (!decodeIntoSession(session, diff, isFirst, /* leaveRemainderForSampling */ true, &tokenCount)) {
         return JNI_FALSE;
     }
-    LOGI("pam_llama: session decode new_tokens=%d n_past=%d prompt_eval_ms=%.1f",
-         tokenCount, nPast, elapsedMs(start));
+    const double promptMs = elapsedMs(start);
+    LOGI("pam_llama: session decode new_tokens=%d n_past=%d prompt_eval_ms=%.1f prompt_eval_tok_s=%.1f",
+         tokenCount, nPast, promptMs, tokensPerSecond(tokenCount, promptMs));
 
     // Marks "up to the open assistant turn" as decoded; commitChatReply() extends this once
     // the generated content is known, without decoding anything more (see its doc).
@@ -786,6 +855,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
     session->generated = 0;
     session->maxTokens = maxTokens;
     session->finished  = false;
+    session->generationStart = std::chrono::steady_clock::now();
     return JNI_TRUE;
 }
 
