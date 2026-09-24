@@ -31,8 +31,9 @@ import com.postsaimanager.core.data.database.entity.*
         FieldRevisionEntity::class,
         DismissedEntityEntity::class,
         EntityProposalEntity::class,
+        MessageSourceEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 abstract class PamDatabase : RoomDatabase() {

@@ -1,13 +1,16 @@
 package com.postsaimanager.core.data.database.dao
 
 import androidx.room.Dao
+import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Relation
 import androidx.room.Transaction
 import androidx.room.Update
 import com.postsaimanager.core.data.database.entity.ConversationEntity
 import com.postsaimanager.core.data.database.entity.MessageEntity
+import com.postsaimanager.core.data.database.entity.MessageSourceEntity
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -56,15 +59,25 @@ interface ConversationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
 
+    /** See [MessageSourceEntity]. Called only from [insertMessageAndTouchConversation]. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessageSources(sources: List<MessageSourceEntity>)
+
     /**
-     * Appends a message and refreshes the conversation summary atomically.
+     * Appends a message — and, if it was grounded on retrieved passages (4.3), the sources
+     * that were shown to the model — and refreshes the conversation summary, atomically.
      *
-     * Without the transaction a crash between the two writes leaves `messageCount` wrong
-     * forever — there is no reconciliation pass anywhere in the app.
+     * Without the transaction a crash between the writes leaves `messageCount` wrong forever
+     * — there is no reconciliation pass anywhere in the app — or a message with no sources
+     * even though the use case computed some.
      */
     @Transaction
-    suspend fun insertMessageAndTouchConversation(message: MessageEntity) {
+    suspend fun insertMessageAndTouchConversation(
+        message: MessageEntity,
+        sources: List<MessageSourceEntity> = emptyList(),
+    ) {
         insertMessage(message)
+        if (sources.isNotEmpty()) insertMessageSources(sources)
         touch(message.conversationId, message.createdAt)
     }
 }
@@ -72,8 +85,15 @@ interface ConversationDao {
 @Dao
 interface MessageDao {
 
+    /**
+     * `@Relation` rather than a manual join: a message's sources are a small (0–4), rarely
+     * queried side list — see [MessageSourceEntity]'s doc comment — and Room's generated
+     * follow-up query is exactly as cheap as hand-writing one, without hand-maintaining the
+     * join.
+     */
+    @Transaction
     @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY createdAt ASC")
-    fun observeForConversation(conversationId: String): Flow<List<MessageEntity>>
+    fun observeForConversation(conversationId: String): Flow<List<MessageWithSources>>
 
     @Query("SELECT * FROM messages WHERE id = :id")
     suspend fun getById(id: String): MessageEntity?
@@ -84,3 +104,10 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE id = :id")
     suspend fun deleteById(id: String)
 }
+
+/** A [MessageEntity] with its [MessageSourceEntity] rows — see [MessageDao.observeForConversation]. */
+data class MessageWithSources(
+    @Embedded val message: MessageEntity,
+    @Relation(parentColumn = "id", entityColumn = "messageId")
+    val sources: List<MessageSourceEntity>,
+)

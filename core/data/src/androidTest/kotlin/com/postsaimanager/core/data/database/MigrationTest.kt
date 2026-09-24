@@ -454,6 +454,72 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate9To10_messageSourcesTableWorksAndCascades() {
+        helper.createDatabase(TEST_DB, 9).apply {
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite,
+                     createdAt, modifiedAt, syncStatus)
+                VALUES ('doc-1', 'Bescheid', 'EXTRACTED', 'CAMERA', 2, 0, 1, 1, 'LOCAL')
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO conversations
+                    (id, documentId, aiModelId, modelType, title, lastMessageAt,
+                     messageCount, isActive, createdAt)
+                VALUES ('conv-1', 'doc-1', NULL, 'LOCAL', 'Chat', 1, 1, 1, 1)
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO messages
+                    (id, conversationId, role, content, mediaType, mediaPath, toolCallId,
+                     toolName, toolArgs, toolResult, isStreaming, createdAt, thinking,
+                     thinkingDurationMs, incomplete)
+                VALUES
+                    ('m1', 'conv-1', 'ASSISTANT', 'The deadline is in two weeks [p.2].', 'TEXT',
+                     NULL, NULL, NULL, NULL, NULL, 0, 1, NULL, NULL, 0)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 10, true, PamMigrations.MIGRATION_9_10,
+        )
+
+        // A message persisted before citations existed keeps its content and simply has no
+        // sources — exactly like an assistant reply generated outside retrieval mode.
+        db.query("SELECT COUNT(*) FROM message_sources WHERE messageId = 'm1'").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("a pre-existing message must not gain sources", 0, cursor.getInt(0))
+        }
+
+        db.execSQL("PRAGMA foreign_keys = ON")
+        db.execSQL(
+            "INSERT INTO message_sources (messageId, documentId, pageNumber, chunkId) " +
+                "VALUES ('m1', 'doc-1', 2, 'chunk-1')",
+        )
+        db.query("SELECT documentId, pageNumber, chunkId FROM message_sources WHERE messageId = 'm1'")
+            .use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("doc-1", cursor.getString(0))
+                assertEquals(2, cursor.getInt(1))
+                assertEquals("chunk-1", cursor.getString(2))
+            }
+
+        db.execSQL("DELETE FROM messages WHERE id = 'm1'")
+
+        // A source outliving its message would render as a citation on nothing.
+        db.query("SELECT COUNT(*) FROM message_sources").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("sources outlived their message", 0, cursor.getInt(0))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

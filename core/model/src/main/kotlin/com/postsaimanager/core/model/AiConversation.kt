@@ -61,6 +61,41 @@ data class AiMessage(
      * silently reintroduce exactly that.
      */
     val incomplete: Boolean = false,
+    /**
+     * The passages, if any, that were injected into this turn's prompt and grounded the
+     * answer (4.1/4.2 retrieval mode) — empty for a user message, for a reply generated
+     * outside retrieval mode (the whole document already sat in the grounding), and for a
+     * turn whose retrieval came back with nothing relevant.
+     *
+     * Persisted even for an [incomplete] reply: the passages were shown to the model before
+     * generation was cut short, so they are still what grounded whatever text it produced —
+     * see `SendChatMessageUseCase`'s KDoc on "Retrieval-augmented grounding" and
+     * "Stopped / interrupted replies".
+     *
+     * Already filtered to "what to show": `SendChatMessageUseCase` decides, once generation
+     * finishes, whether the answer actually cites specific passages (`CitationParser`) and
+     * persists only those — falling back to every injected passage when the answer cites
+     * none of them, or was never finished (an interrupted reply, where citation parsing
+     * would be meaningless against a cut-off sentence).
+     */
+    val sources: List<MessageSource> = emptyList(),
+)
+
+/**
+ * One passage cited or shown as grounding for an [AiMessage] — see [AiMessage.sources].
+ *
+ * Deliberately minimal: just enough to render a citation chip ("Page 2" or "<title>, p.2")
+ * and navigate to it. The passage's own text is not duplicated here — [chunkId] is enough to
+ * look it up again if a future feature needs the full excerpt, and re-fetching is cheap
+ * (`DocumentChunkRepository` is a local Room table), so there is no reason to widen this
+ * beyond what the UI actually needs.
+ */
+@Serializable
+data class MessageSource(
+    val documentId: String,
+    /** Null for a passage indexed before page tracking (4.0) — see `StoredChunk.pageNumber`. */
+    val pageNumber: Int?,
+    val chunkId: String,
 )
 
 @Serializable

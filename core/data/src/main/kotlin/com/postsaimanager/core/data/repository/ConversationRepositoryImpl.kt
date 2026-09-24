@@ -6,14 +6,17 @@ import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.data.database.dao.ConversationDao
 import com.postsaimanager.core.data.database.dao.MessageDao
+import com.postsaimanager.core.data.database.dao.MessageWithSources
 import com.postsaimanager.core.data.database.entity.ConversationEntity
 import com.postsaimanager.core.data.database.entity.MessageEntity
+import com.postsaimanager.core.data.database.entity.MessageSourceEntity
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.model.AiConversation
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.AiModelType
 import com.postsaimanager.core.model.MediaType
 import com.postsaimanager.core.model.MessageRole
+import com.postsaimanager.core.model.MessageSource
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -43,7 +46,7 @@ class ConversationRepositoryImpl @Inject constructor(
 
     override fun getMessages(conversationId: String): Flow<List<AiMessage>> =
         messageDao.observeForConversation(conversationId)
-            .map { entities -> entities.map(::toDomain) }
+            .map { rows -> rows.map(::toDomain) }
             .flowOn(ioDispatcher)
 
     override suspend fun getConversationById(id: String): PamResult<AiConversation> =
@@ -71,8 +74,12 @@ class ConversationRepositoryImpl @Inject constructor(
     override suspend fun addMessage(message: AiMessage): PamResult<AiMessage> =
         withContext(ioDispatcher) {
             runCatching {
-                // Atomic: the message plus the conversation's messageCount/lastMessageAt.
-                conversationDao.insertMessageAndTouchConversation(toEntity(message))
+                // Atomic: the message, its sources (4.3, if any), and the conversation's
+                // messageCount/lastMessageAt.
+                conversationDao.insertMessageAndTouchConversation(
+                    toEntity(message),
+                    message.sources.map { toEntity(message.id, it) },
+                )
             }.fold(
                 onSuccess = { PamResult.Success(message) },
                 onFailure = { PamResult.Error(PamError.DatabaseError(it)) },
@@ -124,22 +131,23 @@ class ConversationRepositoryImpl @Inject constructor(
         createdAt = model.createdAt,
     )
 
-    private fun toDomain(entity: MessageEntity) = AiMessage(
-        id = entity.id,
-        conversationId = entity.conversationId,
-        role = entity.role.toEnumOr(MessageRole.ASSISTANT),
-        content = entity.content,
-        mediaType = entity.mediaType.toEnumOr(MediaType.TEXT),
-        mediaPath = entity.mediaPath,
-        toolCallId = entity.toolCallId,
-        toolName = entity.toolName,
-        toolArgs = entity.toolArgs,
-        toolResult = entity.toolResult,
-        isStreaming = entity.isStreaming,
-        createdAt = entity.createdAt,
-        thinking = entity.thinking,
-        thinkingDurationMs = entity.thinkingDurationMs,
-        incomplete = entity.incomplete,
+    private fun toDomain(row: MessageWithSources) = AiMessage(
+        id = row.message.id,
+        conversationId = row.message.conversationId,
+        role = row.message.role.toEnumOr(MessageRole.ASSISTANT),
+        content = row.message.content,
+        mediaType = row.message.mediaType.toEnumOr(MediaType.TEXT),
+        mediaPath = row.message.mediaPath,
+        toolCallId = row.message.toolCallId,
+        toolName = row.message.toolName,
+        toolArgs = row.message.toolArgs,
+        toolResult = row.message.toolResult,
+        isStreaming = row.message.isStreaming,
+        createdAt = row.message.createdAt,
+        thinking = row.message.thinking,
+        thinkingDurationMs = row.message.thinkingDurationMs,
+        incomplete = row.message.incomplete,
+        sources = row.sources.map(::toDomain),
     )
 
     private fun toEntity(model: AiMessage) = MessageEntity(
@@ -158,6 +166,19 @@ class ConversationRepositoryImpl @Inject constructor(
         thinking = model.thinking,
         thinkingDurationMs = model.thinkingDurationMs,
         incomplete = model.incomplete,
+    )
+
+    private fun toDomain(entity: MessageSourceEntity) = MessageSource(
+        documentId = entity.documentId,
+        pageNumber = entity.pageNumber,
+        chunkId = entity.chunkId,
+    )
+
+    private fun toEntity(messageId: String, source: MessageSource) = MessageSourceEntity(
+        messageId = messageId,
+        documentId = source.documentId,
+        pageNumber = source.pageNumber,
+        chunkId = source.chunkId,
     )
 }
 

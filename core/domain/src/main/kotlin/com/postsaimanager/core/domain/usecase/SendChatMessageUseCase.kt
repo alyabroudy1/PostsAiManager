@@ -15,6 +15,7 @@ import com.postsaimanager.core.model.AiConversation
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.AiModelType
 import com.postsaimanager.core.model.MessageRole
+import com.postsaimanager.core.model.MessageSource
 import com.postsaimanager.core.model.ModelLoadState
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
@@ -62,12 +63,10 @@ sealed interface ChatTurn {
     /**
      * Finished; [message] is the persisted assistant message.
      *
-     * @param sources the passages, if any, [RetrieveChunksUseCase] retrieved and injected
+     * @param sources every passage, if any, [RetrieveChunksUseCase] retrieved and injected
      *   into *this turn's* prompt (never into the grounding — see the class KDoc's
-     *   "Retrieval-augmented grounding"). Not persisted by this use case: it exists so a
-     *   caller — today nobody, from 4.3 onward the citation-persisting step — can record
-     *   which passages the answer was actually grounded in, without having to re-derive
-     *   them.
+     *   "Retrieval-augmented grounding") — the same list persisted on [message]'s
+     *   [AiMessage.sources] (4.3), exposed here too so a caller does not have to re-read it.
      */
     data class Complete(val message: AiMessage, val sources: List<RetrievedChunk> = emptyList()) : ChatTurn
 
@@ -127,7 +126,7 @@ enum class ChatErrorAction {
  * fit the grounding budget whole, or there is no single document (`documentId == null`) —
  * this use case runs [RetrieveChunksUseCase] on **every turn**, scoped to [documentId] (or the
  * whole corpus when it is null), and prefixes the top passages to *that turn's* text before
- * calling [AiEngine.sendChatMessage]. They never touch [ChatGrounding.text] or get persisted:
+ * calling [AiEngine.sendChatMessage]. They never touch [ChatGrounding.text]:
  *
  *  - [ChatGrounding.text] is the KV-cache prefix [AiEngine.ensureChatSession] primes the
  *    standing session with. It has to stay byte-identical across turns of the same
@@ -143,6 +142,15 @@ enum class ChatErrorAction {
  *
  * A turn whose retrieval comes back empty (nothing relevant, or no chunks indexed yet) is sent
  * as plain `text` — passages are an addition, never a requirement to answer at all.
+ *
+ * ### Citations (4.3)
+ *
+ * Every passage injected into a turn — successful, stopped, or failed alike — is persisted on
+ * [AiMessage.sources] (see [persistAssistant]): whatever was shown to the model grounded
+ * whatever it produced, even a reply cut short. Deciding which of those to actually *show* as
+ * a citation chip (all of them, versus just the ones the answer specifically cites) is a
+ * presentation concern, not something this use case decides — see `CitationParser` in
+ * `:feature:chat`'s `ChatViewModel`.
  */
 class SendChatMessageUseCase @Inject constructor(
     private val conversationRepository: ConversationRepository,
@@ -288,7 +296,8 @@ class SendChatMessageUseCase @Inject constructor(
         // 4.1/4.2: fold retrieved passages into *this turn's* text only — never into
         // `grounding` above, which must stay stable across turns. `sentText` is what the
         // engine actually sees; `text` (persisted a few lines up, and again in `buildHistory`
-        // on a future re-prime) never changes.
+        // on a future re-prime) never changes. `sources` is every passage that made it in —
+        // persisted verbatim on the assistant reply (4.3), see [persistAssistant].
         val (sentText, sources) = withPassages(text, retrieved, documentId, contextTokens)
 
         val parser = ThinkingStreamParser()
@@ -349,6 +358,11 @@ class SendChatMessageUseCase @Inject constructor(
                     thinkingBuilder.toString(),
                     thinkingDurationMs,
                     incomplete = true,
+                    // The stop landed mid-sentence, possibly mid-citation — parsing what
+                    // was and wasn't cited against unfinished text would be meaningless, so
+                    // every passage the model was actually shown is kept (see class KDoc's
+                    // "Stopped / interrupted replies" and [AiMessage.sources]).
+                    sources = sources.toMessageSources(),
                 )
                 // Not commitChatReply(): the reply was never finished, so it must not be
                 // recorded as something the model actually said — see the class KDoc on
@@ -374,6 +388,7 @@ class SendChatMessageUseCase @Inject constructor(
                         thinkingBuilder.toString(),
                         thinkingDurationMs,
                         incomplete = true,
+                        sources = sources.toMessageSources(),
                     )
                 }
                 engine.discardPendingReply()
@@ -391,6 +406,7 @@ class SendChatMessageUseCase @Inject constructor(
             answerBuilder.toString(),
             thinkingBuilder.toString(),
             thinkingDurationMs,
+            sources = sources.toMessageSources(),
         )
         // Records the (thinking-stripped) reply in the session's own history so the next
         // turn's diff renders correctly — see AiEngine.commitChatReply's KDoc. Uses
@@ -490,7 +506,8 @@ class SendChatMessageUseCase @Inject constructor(
      * survives even a tight budget (unless even it alone does not fit).
      *
      * @return the text to actually send, and the passages that made it in — the latter is
-     *   what [ChatTurn.Complete.sources] exposes for 4.3.
+     *   what [ChatTurn.Complete.sources] exposes, and what [persistAssistant] stores on
+     *   [AiMessage.sources] (4.3).
      */
     private suspend fun withPassages(
         text: String,
@@ -537,6 +554,7 @@ class SendChatMessageUseCase @Inject constructor(
         thinking: String,
         thinkingDurationMs: Long?,
         incomplete: Boolean = false,
+        sources: List<MessageSource> = emptyList(),
     ): AiMessage {
         val message = AiMessage(
             id = UuidGenerator.generate(),
@@ -547,9 +565,15 @@ class SendChatMessageUseCase @Inject constructor(
             thinking = thinking.ifBlank { null },
             thinkingDurationMs = thinkingDurationMs,
             incomplete = incomplete,
+            sources = sources,
         )
         conversationRepository.addMessage(message)
         return message
+    }
+
+    /** [RetrievedChunk] -> the minimal shape [AiMessage.sources] persists — see [MessageSource]. */
+    private fun List<RetrievedChunk>.toMessageSources(): List<MessageSource> = map {
+        MessageSource(documentId = it.chunk.documentId, pageNumber = it.chunk.pageNumber, chunkId = it.chunk.id)
     }
 
     private fun elapsedMs(startNanos: Long): Long =

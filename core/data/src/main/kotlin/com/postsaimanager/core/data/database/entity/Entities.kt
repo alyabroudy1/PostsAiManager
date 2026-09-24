@@ -353,6 +353,45 @@ data class MessageEntity(
     val incomplete: Boolean = false,
 )
 
+/**
+ * One passage an assistant [MessageEntity] was grounded on — see
+ * [com.postsaimanager.core.model.MessageSource] for what each field means and why the shape
+ * is this minimal.
+ *
+ * A child table rather than a JSON column on `messages`, matching the rest of this schema's
+ * one-to-many shapes (`field_revisions`, `entity_proposals`, `dismissed_entities`): a message
+ * routinely has 0–4 sources (`SendChatMessageUseCase.RETRIEVAL_LIMIT`), each with its own
+ * FK-checkable `documentId` and a natural, queryable `pageNumber` — exactly the case Room's
+ * relational tooling (`@Relation`, used by [com.postsaimanager.core.data.database.dao
+ * .MessageWithSources]) is for. A JSON blob would give up both: no FK integrity if the
+ * source document is deleted, and every reader would need to deserialise it just to render a
+ * chip.
+ *
+ * No FK to `documents`: a source document can be deleted while the conversation that cited
+ * it survives (chat history is not deleted alongside a document unless its own conversation
+ * is), and the chip this powers already degrades gracefully — see `ChatScreen`'s handling of
+ * a source whose document no longer exists.
+ */
+@Entity(
+    tableName = "message_sources",
+    foreignKeys = [
+        ForeignKey(
+            entity = MessageEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["messageId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("messageId")],
+)
+data class MessageSourceEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val messageId: String,
+    val documentId: String,
+    val pageNumber: Int?,
+    val chunkId: String,
+)
+
 @Entity(
     tableName = "document_relations",
     foreignKeys = [

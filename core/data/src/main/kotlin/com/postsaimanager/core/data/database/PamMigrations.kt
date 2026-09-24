@@ -282,6 +282,43 @@ object PamMigrations {
         }
     }
 
+    /**
+     * Lets an assistant reply remember which passages it was grounded on (Phase 4.3,
+     * citations).
+     *
+     * Before this, [RetrieveChunksUseCase][com.postsaimanager.core.domain.usecase
+     * .RetrieveChunksUseCase]'s results lived only as long as the turn that used them —
+     * `ChatTurn.Complete.sources` existed but nothing persisted it, so a citation chip could
+     * never be shown once a conversation was reloaded. `message_sources` is a child table
+     * (see [com.postsaimanager.core.data.database.entity.MessageSourceEntity]'s doc comment
+     * for why a table rather than a JSON column) with `CASCADE` on the owning message, so
+     * deleting a conversation or a message cleans its sources up the same way `document_pages`
+     * already cleans up after a deleted document. Nothing to backfill: a message persisted
+     * before this migration simply has no rows here, exactly like one from a model that was
+     * never grounded on retrieved passages.
+     */
+    val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `message_sources` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `messageId` TEXT NOT NULL,
+                    `documentId` TEXT NOT NULL,
+                    `pageNumber` INTEGER,
+                    `chunkId` TEXT NOT NULL,
+                    FOREIGN KEY(`messageId`) REFERENCES `messages`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_message_sources_messageId` " +
+                    "ON `message_sources` (`messageId`)",
+            )
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -291,5 +328,6 @@ object PamMigrations {
         MIGRATION_6_7,
         MIGRATION_7_8,
         MIGRATION_8_9,
+        MIGRATION_9_10,
     )
 }
