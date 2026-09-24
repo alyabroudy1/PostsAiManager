@@ -32,6 +32,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -221,23 +222,65 @@ class RemoteAiEngine @Inject constructor(
         }
     }
 
+    /**
+     * Binds `:inference`, or returns the already-bound service.
+     *
+     * Bounded by [CONNECT_TIMEOUT_MS]: without it, a `:inference` that dies during its own
+     * `Application.onCreate` (or never starts at all — low memory, a `SecurityException`
+     * some OEMs throw for background service starts) leaves [onServiceConnected] never
+     * called, and this call — and every caller awaiting it: `engine.load` from
+     * `AiExtractionUseCase` or chat's `ChatViewModel.sendMessage` — would otherwise suspend
+     * forever. [onBindingDied]/[onNullBinding] are the two documented callbacks for exactly
+     * that failure mode and resolve immediately when the platform reports them; the timeout
+     * is the backstop for whatever neither one catches.
+     */
     private suspend fun connect(): IInferenceService? {
         service?.let { return it }
-        return suspendCancellableCoroutine { continuation ->
-            val once = object : ServiceConnection {
-                override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-                    connection.onServiceConnected(name, binder)
-                    if (continuation.isActive) continuation.resume(service)
-                }
+        val remote = withTimeoutOrNull(CONNECT_TIMEOUT_MS) {
+            suspendCancellableCoroutine<IInferenceService?> { continuation ->
+                val once = object : ServiceConnection {
+                    override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                        connection.onServiceConnected(name, binder)
+                        if (continuation.isActive) continuation.resume(service)
+                    }
 
-                override fun onServiceDisconnected(name: ComponentName?) {
-                    connection.onServiceDisconnected(name)
+                    override fun onServiceDisconnected(name: ComponentName?) {
+                        connection.onServiceDisconnected(name)
+                    }
+
+                    // Called when the platform gives up on ever restoring this binding — the
+                    // process hosting the service died before (or instead of) connecting, and
+                    // will not be revived automatically the way onServiceDisconnected's crash
+                    // recovery is. Unbind so a later connect() starts a clean bind rather than
+                    // layering a second registration onto a dead one.
+                    override fun onBindingDied(name: ComponentName?) {
+                        Log.e(TAG, "connect: binding to :inference died before it connected")
+                        runCatching { context.unbindService(this) }
+                        if (continuation.isActive) continuation.resume(null)
+                    }
+
+                    override fun onNullBinding(name: ComponentName?) {
+                        Log.e(TAG, "connect: :inference returned a null binder")
+                        runCatching { context.unbindService(this) }
+                        if (continuation.isActive) continuation.resume(null)
+                    }
                 }
+                val intent = Intent(context, InferenceService::class.java)
+                val bound = context.bindService(intent, once, Context.BIND_AUTO_CREATE)
+                if (!bound) {
+                    if (continuation.isActive) continuation.resume(null)
+                    return@suspendCancellableCoroutine
+                }
+                // Covers both a normal coroutine cancellation and the withTimeoutOrNull above
+                // firing: either way, a bind that never resolved must not stay registered
+                // waiting for a connection nothing is listening for any more.
+                continuation.invokeOnCancellation { runCatching { context.unbindService(once) } }
             }
-            val intent = Intent(context, InferenceService::class.java)
-            val bound = context.bindService(intent, once, Context.BIND_AUTO_CREATE)
-            if (!bound && continuation.isActive) continuation.resume(null)
         }
+        if (remote == null && service == null) {
+            Log.e(TAG, "connect: timed out after ${CONNECT_TIMEOUT_MS}ms waiting for :inference")
+        }
+        return remote
     }
 
     private fun capabilitiesOf(remote: IInferenceService, modelId: String, config: InferenceConfig) =
@@ -566,5 +609,15 @@ class RemoteAiEngine @Inject constructor(
 
     private companion object {
         const val TAG = "RemoteAiEngine"
+
+        /**
+         * How long [connect] waits for `:inference` to bind before giving up and returning
+         * `null` — see [connect]'s KDoc for what this backstops. Generous rather than tight:
+         * a cold `:inference` process start (process fork, classloading, the whole app's
+         * `Hilt` graph for that process, this Application's `onCreate`) is itself part of
+         * what is being waited on, and this only exists to catch "never happens", not to
+         * shave latency off "happens, just slowly".
+         */
+        const val CONNECT_TIMEOUT_MS = 20_000L
     }
 }
