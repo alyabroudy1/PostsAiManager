@@ -238,4 +238,166 @@ class SendChatMessageUseCaseTest {
         assertThat(history.map { it.content }).doesNotContain("It's rain")
         assertThat(history.map { it.content }).contains("What's the weather?")
     }
+
+    // ── 3.4 / 3.5: session priming visibility and the grounding-skip it enables ──
+
+    @Test
+    @DisplayName("PreparingConversation is emitted only when the session actually needs (re)priming")
+    fun `preparing conversation is emitted only on an actual re-prime`() = runTest {
+        engine.response = "hi"
+
+        val first = sendChatMessage("conv-1", documentId = null, text = "first").toList()
+        assertThat(first.any { it is ChatTurn.PreparingConversation }).isTrue()
+
+        // Same conversation, nothing invalidated the session in between: no re-prime, so no
+        // "Preparing conversation…" the second time.
+        val second = sendChatMessage("conv-1", documentId = null, text = "second").toList()
+        assertThat(second.any { it is ChatTurn.PreparingConversation }).isFalse()
+    }
+
+    @Test
+    @DisplayName("a config change that forces a reload re-primes the session on the very next send")
+    fun `config change re-primes the session`() = runTest {
+        engine.response = "hi"
+        sendChatMessage("conv-1", documentId = null, text = "first").toList()
+
+        // Same shape as the accelerator-change test above: nothing about the conversation
+        // changed, but the engine now needs a different config, which the fake's `load`
+        // treats as a reload — see FakeAiEngine.load's doc on why it invalidates the session.
+        models.accelerator = Accelerator.GPU
+
+        val turns = sendChatMessage("conv-1", documentId = null, text = "second").toList()
+        assertThat(turns.any { it is ChatTurn.PreparingConversation }).isTrue()
+    }
+
+    @Test
+    @DisplayName("grounding is not rebuilt once the session is already primed for this conversation")
+    fun `grounding is skipped when the session is already primed`() = runTest {
+        engine.response = "hi"
+
+        sendChatMessage("conv-1", documentId = null, text = "first").toList()
+        val firstGrounding = engine.ensureChatSessionCalls[0].second
+        assertThat(firstGrounding).isNotEmpty()
+
+        sendChatMessage("conv-1", documentId = null, text = "second").toList()
+        // ensureChatSession is still called every send (it is a cheap no-op on the real
+        // engines when nothing changed) — but SendChatMessageUseCase itself never bothered
+        // rebuilding the grounding text for it, since the session was already primed.
+        val secondGrounding = engine.ensureChatSessionCalls[1].second
+        assertThat(secondGrounding).isEmpty()
+    }
+
+    @Test
+    @DisplayName("an engine busy with another caller surfaces why chat is waiting")
+    fun `busy engine surfaces a waiting reason`() = runTest {
+        engine.isBusy = true
+        engine.response = "hi"
+
+        val turns = sendChatMessage("conv-1", documentId = null, text = "hello").toList()
+
+        val preparing = turns.filterIsInstance<ChatTurn.PreparingModel>().first()
+        assertThat(preparing.reason).isNotNull()
+    }
+
+    @Test
+    @DisplayName("an idle engine reports no waiting reason")
+    fun `idle engine reports no waiting reason`() = runTest {
+        engine.isBusy = false
+        engine.response = "hi"
+
+        val turns = sendChatMessage("conv-1", documentId = null, text = "hello").toList()
+
+        val preparing = turns.filterIsInstance<ChatTurn.PreparingModel>().first()
+        assertThat(preparing.reason).isNull()
+    }
+
+    // ── 3.3: token-aware history budgeting ──
+
+    @Test
+    @DisplayName("long history is trimmed by estimated tokens, in a chunk, not to the exact limit")
+    fun `history is trimmed by token budget`() = runTest {
+        // A small context window makes the character budget easy to reason about:
+        // (contextTokens - DEFAULT_REPLY_RESERVE - TEMPLATE_OVERHEAD_TOKENS)
+        //     .coerceAtLeast(MIN_CONTEXT_TOKENS) * CHARS_PER_TOKEN
+        // = (300 - 512 - 128).coerceAtLeast(256) * 3 = 256 * 3 = 768 total budget characters.
+        models.contextTokens = 300
+        val now = System.currentTimeMillis()
+        conversations.createConversation(
+            com.postsaimanager.core.model.AiConversation(
+                id = "conv-1",
+                documentId = null,
+                aiModelId = null,
+                modelType = com.postsaimanager.core.model.AiModelType.LOCAL,
+                title = "Chat",
+                lastMessageAt = now,
+                createdAt = now,
+            ),
+        )
+        // Six 200-character turns = 1200 characters of eligible history, comfortably over the
+        // budget above (768 chars total, minus the standalone grounding prompt's own length).
+        repeat(6) { i ->
+            conversations.addMessage(
+                AiMessage(
+                    id = "u$i",
+                    conversationId = "conv-1",
+                    role = MessageRole.USER,
+                    content = "turn$i:" + "x".repeat(193),
+                    createdAt = now + i,
+                ),
+            )
+        }
+
+        val totalBudgetChars = ((300 - BuildChatContextUseCase.DEFAULT_REPLY_RESERVE -
+            BuildChatContextUseCase.TEMPLATE_OVERHEAD_TOKENS)
+            .coerceAtLeast(BuildChatContextUseCase.MIN_CONTEXT_TOKENS)) *
+            BuildChatContextUseCase.CHARS_PER_TOKEN
+        val standaloneGroundingLength = buildChatContext(null, 300).length
+        val historyBudgetChars = totalBudgetChars - standaloneGroundingLength
+
+        engine.response = "final answer"
+        sendChatMessage("conv-1", documentId = null, text = "final question").toList()
+
+        val history = engine.lastSessionHistory
+        val totalChars = history.sumOf { it.content.length }
+
+        // Never exceeds the budget...
+        assertThat(totalChars).isAtMost(historyBudgetChars)
+        // ...oldest turns are the ones dropped...
+        assertThat(history.map { it.content }).doesNotContain("turn0:" + "x".repeat(193))
+        assertThat(history.map { it.content }).contains("turn5:" + "x".repeat(193))
+        // ...and at least one turn survives — the cut keeps recent context, it does not empty
+        // history outright.
+        assertThat(history).isNotEmpty()
+    }
+
+    @Test
+    @DisplayName("history well within budget is not trimmed at all")
+    fun `history within budget is untouched`() = runTest {
+        engine.response = "hi"
+        val now = System.currentTimeMillis()
+        conversations.createConversation(
+            com.postsaimanager.core.model.AiConversation(
+                id = "conv-1",
+                documentId = null,
+                aiModelId = null,
+                modelType = com.postsaimanager.core.model.AiModelType.LOCAL,
+                title = "Chat",
+                lastMessageAt = now,
+                createdAt = now,
+            ),
+        )
+        conversations.addMessage(
+            AiMessage(
+                id = "u1",
+                conversationId = "conv-1",
+                role = MessageRole.USER,
+                content = "A short question",
+                createdAt = now,
+            ),
+        )
+
+        sendChatMessage("conv-1", documentId = null, text = "another short question").toList()
+
+        assertThat(engine.lastSessionHistory.map { it.content }).contains("A short question")
+    }
 }

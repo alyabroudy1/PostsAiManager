@@ -162,12 +162,16 @@ class BuildChatContextUseCase @Inject constructor(
          * Conservative chars-per-token. German compounds tokenise worse than English, so
          * under-estimating here costs a little unused context; over-estimating truncates
          * the user's question instead.
+         *
+         * `internal`, not `private`: [SendChatMessageUseCase] reuses this exact heuristic to
+         * budget chat history (task 3.3) — one estimate, not two that could quietly drift
+         * apart on the two sides of the same context window.
          */
-        private const val CHARS_PER_TOKEN = 3
+        internal const val CHARS_PER_TOKEN = 3
 
-        private const val DEFAULT_REPLY_RESERVE = 512
-        private const val TEMPLATE_OVERHEAD_TOKENS = 128
-        private const val MIN_CONTEXT_TOKENS = 256
+        internal const val DEFAULT_REPLY_RESERVE = 512
+        internal const val TEMPLATE_OVERHEAD_TOKENS = 128
+        internal const val MIN_CONTEXT_TOKENS = 256
         private const val MIN_OCR_CHARS = 200
         private const val LOW_CONFIDENCE = 0.6f
     }

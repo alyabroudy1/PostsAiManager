@@ -91,6 +91,12 @@ class FakeAiEngine(
             sessionConversationId = null
         }
         lastLoadedPathConfig = modelPath to config
+        // Mirrors the real engines: a successful load reports Ready with exactly the config
+        // that was requested (see ModelLoadCoordinator.applyResult) — callers that read
+        // `state.value.config.contextTokens` after `load()` (SendChatMessageUseCase,
+        // AiExtractionUseCase) need this to reflect what was actually just requested, not
+        // whatever `state` happened to hold before.
+        _state.value = ModelLoadState.Ready(modelPath, config, loadDurationMs = 0L)
         return PamResult.Success(
             AiCapabilities(true, config.contextTokens, "fake", hasNativeChatTemplate = true),
         )

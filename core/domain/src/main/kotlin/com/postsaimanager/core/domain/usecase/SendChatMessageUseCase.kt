@@ -16,6 +16,8 @@ import com.postsaimanager.core.model.AiModelType
 import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.model.ModelLoadState
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -24,8 +26,24 @@ import javax.inject.Inject
 
 /** Progress of one assistant turn, as the UI needs to render it. */
 sealed interface ChatTurn {
-    /** A model is being loaded — first message after app start pays this cost. */
-    data object PreparingModel : ChatTurn
+    /**
+     * A model is being loaded — first message after app start (or a model/config switch)
+     * pays this cost.
+     *
+     * @param reason overrides the default "Loading model…" caption for a more specific one —
+     *   today, only "waiting behind an in-flight document read" (see [AiEngine.isBusy]). Null
+     *   is the common case and renders the default text.
+     */
+    data class PreparingModel(val reason: String? = null) : ChatTurn
+
+    /**
+     * The engine's chat session for this conversation is about to be (re)primed — a full
+     * decode of the grounding prompt plus history, not the fast per-turn diff. Emitted only
+     * when [AiEngine.isChatSessionPrimed] says a re-prime will actually happen (3.4/3.5), so
+     * it never shows on the common case of a subsequent send in an already-primed
+     * conversation.
+     */
+    data object PreparingConversation : ChatTurn
 
     /** An incremental chunk of the model's reasoning trace — never the answer. */
     data class ThinkingToken(val text: String) : ChatTurn
@@ -159,28 +177,82 @@ class SendChatMessageUseCase @Inject constructor(
             return@flow
         }
 
-        emit(ChatTurn.PreparingModel)
-        val loaded = engine.load(activeModelPath, activeModelProvider.activeModelConfig())
+        val config = activeModelProvider.activeModelConfig()
+
+        // 3.5: skip rebuilding the grounding prompt when the session is already primed for
+        // this conversation. Safe because of the guarantee documented on AiEngine — "One
+        // native context, two callers" §2: ANY reload/unload/one-shot generate() that could
+        // change what grounding should say (a different model, context window, accelerator…)
+        // clears the tracked session first, so `isChatSessionPrimed` staying true is proof
+        // nothing that would change the document/config this grounding was built for has
+        // happened since. Read *before* `engine.load` below purely as a hint for whether to
+        // bother starting the concurrent build (3.1) at all — re-checked after load actually
+        // runs, below, since that is the one call that could invalidate it.
+        val primedBeforeLoad = engine.isChatSessionPrimed(conversationId)
+
+        emit(ChatTurn.PreparingModel(reason = if (engine.isBusy) BUSY_REASON else null))
+
+        // 3.1: overlaps `buildChatContext` (a handful of DB reads) with `engine.load` (the
+        // slow part — can mean a multi-second cold model load, or now, also, waiting behind
+        // an in-flight generate() on the shared engine, see AiEngine.isBusy) instead of
+        // waiting for the load to finish first. Skipped when the session already looks primed
+        // (3.5) — grounding built here would go unused in the common case, since
+        // `ensureChatSession` below no-ops without ever reading it.
+        val (loaded, groundingIfBuilt) = coroutineScope {
+            val groundingDeferred = if (primedBeforeLoad) {
+                null
+            } else {
+                async { systemPrompt ?: buildChatContext(documentId, config.contextTokens) }
+            }
+            val loadResult = try {
+                engine.load(activeModelPath, config)
+            } catch (e: Throwable) {
+                // Cancel both on failure — an exception from `load` (as opposed to the
+                // `PamResult.Error` value it normally returns) means this whole turn is being
+                // torn down, and the grounding build should not keep running orphaned.
+                groundingDeferred?.cancel()
+                throw e
+            }
+            if (loadResult is PamResult.Error) {
+                groundingDeferred?.cancel()
+                loadResult to null
+            } else {
+                loadResult to groundingDeferred?.await()
+            }
+        }
         if (loaded is PamResult.Error) {
             emit(ChatTurn.Failed(loaded.error.userMessage, ChatErrorAction.RETRY))
             return@flow
         }
 
-        // Ground the conversation in the document. Built *after* the model is loaded so
-        // the real context window is known — budgeting against a guess would either waste
-        // capacity or overflow it.
+        // Re-checked after `load`: it may have triggered a reload the pre-load snapshot above
+        // could not have anticipated (a config changed since the last send), which would have
+        // invalidated the very session `primedBeforeLoad` reported as fine. This is the actual
+        // ground truth for whether `ensureChatSession` below is about to re-prime.
+        val needsPriming = !engine.isChatSessionPrimed(conversationId)
         val contextTokens = when (val state = engine.state.value) {
             is ModelLoadState.Ready -> state.config.contextTokens
-            else -> AiEngine.DEFAULT_CONTEXT_TOKENS
+            else -> config.contextTokens
         }
-        val grounding = systemPrompt ?: buildChatContext(documentId, contextTokens)
+        // Falls back to building grounding here — losing the 3.1 overlap for this one turn —
+        // only in the rare case load() invalidated a session this call believed, before load,
+        // was still good. Correctness over the overlap in that edge case.
+        val grounding = groundingIfBuilt
+            ?: if (needsPriming) (systemPrompt ?: buildChatContext(documentId, contextTokens)) else ""
+
+        if (needsPriming) {
+            // 3.4: without this, re-priming a long conversation (a full decode of the
+            // grounding + history, not the fast per-turn diff) looks like a frozen screen —
+            // see documentation/02-architecture.md §5.3's 41.4 s cold-prime measurement.
+            emit(ChatTurn.PreparingConversation)
+        }
 
         // The engine's chat session IS the conversation from here on — its KV cache holds
         // the decoded history, so only the new user turn below gets tokenised and decoded
         // (see AiEngine.ensureChatSession's KDoc and documentation/02-architecture.md §5.3).
         // Cheap to call on every send, same as `engine.load` above: a no-op when this
         // conversation's session is already primed and valid.
-        engine.ensureChatSession(conversationId, grounding, buildHistory(priorTurns))
+        engine.ensureChatSession(conversationId, grounding, buildHistory(priorTurns, contextTokens, grounding))
 
         val parser = ThinkingStreamParser()
         val thinkingBuilder = StringBuilder()
@@ -300,18 +372,71 @@ class SendChatMessageUseCase @Inject constructor(
      * ([ensureChatSession]'s `history` parameter, via `primeChatSession`); the live-session
      * path is covered separately by [AiEngine.discardPendingReply], called instead of
      * [AiEngine.commitChatReply] for the same messages when they were first produced.
+     *
+     * ### Token budget (3.3)
+     *
+     * [MAX_HISTORY_TURNS] alone is a coarse, turn-count cap — a long-winded 20-turn
+     * conversation can still overflow the context window once [grounding] and the reply
+     * reserve are accounted for. After that cap, history is additionally trimmed by estimated
+     * *tokens*, using the same chars-per-token heuristic [BuildChatContextUseCase] budgets
+     * grounding against (reused, not re-derived, so the two halves of one prompt can never
+     * silently disagree about how many characters a token costs).
+     *
+     * Trimming drops the *oldest* eligible turns first — same rule [MAX_HISTORY_TURNS]
+     * already follows — and, when the budget is exceeded, cuts down to
+     * [HISTORY_TRIM_TARGET_RATIO] of it rather than to exactly the limit. The KV cache reason:
+     * the standing chat session's cache holds exactly the history last primed with, so trimming
+     * to the very edge of the budget would make the next turn (one message longer) overflow
+     * again and force another re-prime — a conversation hovering near the limit would re-prime
+     * on every single turn instead of settling into the fast per-turn diff path. Cutting
+     * further leaves headroom for several more turns before the next re-prime.
+     *
+     * @param contextTokens the window this turn is budgeting against — see
+     *   [SendChatMessageUseCase.invoke] on why this is read *after* [engine.load][AiEngine.load]
+     *   rather than guessed.
+     * @param grounding the system prompt this history will sit alongside, so its token cost is
+     *   subtracted from the budget rather than double-spent.
      */
-    private fun buildHistory(priorTurns: List<AiMessage>): List<AiChatMessage> =
-        priorTurns
+    private fun buildHistory(
+        priorTurns: List<AiMessage>,
+        contextTokens: Int,
+        grounding: String,
+    ): List<AiChatMessage> {
+        val eligible = priorTurns
             .filter { it.role == MessageRole.USER || it.role == MessageRole.ASSISTANT }
             .filter(::isEligibleForModel)
             .takeLast(MAX_HISTORY_TURNS)
-            .map { message ->
-                AiChatMessage(
-                    role = if (message.role == MessageRole.USER) AiChatRole.USER else AiChatRole.ASSISTANT,
-                    content = message.content,
-                )
+
+        if (eligible.isEmpty()) return emptyList()
+
+        val totalBudgetChars = (
+            (contextTokens - BuildChatContextUseCase.DEFAULT_REPLY_RESERVE - BuildChatContextUseCase.TEMPLATE_OVERHEAD_TOKENS)
+                .coerceAtLeast(BuildChatContextUseCase.MIN_CONTEXT_TOKENS)
+            ) * BuildChatContextUseCase.CHARS_PER_TOKEN
+        val historyBudgetChars = (totalBudgetChars - grounding.length).coerceAtLeast(0)
+
+        var totalChars = eligible.sumOf { it.content.length }
+        val trimmed = if (totalChars <= historyBudgetChars) {
+            eligible
+        } else {
+            // Drop oldest-first down to HISTORY_TRIM_TARGET_RATIO of budget, not just under
+            // it — see the class doc above on why a smaller, stabler cut avoids re-priming
+            // every turn once a conversation is hovering near the limit.
+            val targetChars = (historyBudgetChars * HISTORY_TRIM_TARGET_RATIO).toInt()
+            val kept = eligible.toMutableList()
+            while (kept.size > 1 && totalChars > targetChars) {
+                totalChars -= kept.removeAt(0).content.length
             }
+            kept
+        }
+
+        return trimmed.map { message ->
+            AiChatMessage(
+                role = if (message.role == MessageRole.USER) AiChatRole.USER else AiChatRole.ASSISTANT,
+                content = message.content,
+            )
+        }
+    }
 
     private suspend fun persistAssistant(
         conversationId: String,
@@ -353,11 +478,24 @@ class SendChatMessageUseCase @Inject constructor(
         const val CONVERSATION_TITLE_LENGTH = 60
 
         /**
-         * Caps how many prior turns are replayed into the prompt. Unbounded history would
-         * eventually starve the context window `BuildChatContextUseCase` budgets against —
-         * this is a coarse, cheap guard ahead of any real token-aware trimming.
+         * Caps how many prior turns are replayed into the prompt, before the token-aware
+         * budget in [buildHistory] (3.3) does its own, finer-grained trim. Kept as an outer
+         * cap regardless — a bound on how much history is even considered before estimating
+         * its size is cheap insurance against a pathological conversation.
          */
         const val MAX_HISTORY_TURNS = 20
+
+        /**
+         * When [buildHistory]'s token budget is exceeded, oldest turns are dropped down to
+         * this fraction of the budget rather than to exactly the limit — see that function's
+         * KDoc on why a bigger cut keeps the session's KV cache stable across several turns
+         * instead of forcing a re-prime on every one.
+         */
+        const val HISTORY_TRIM_TARGET_RATIO = 0.6
+
+        /** [ChatTurn.PreparingModel.reason] when the engine is busy with another caller. */
+        const val BUSY_REASON = "Waiting for a document to finish reading…"
+
         const val NANOS_PER_MILLI = 1_000_000L
         const val NO_ANSWER_PRODUCED =
             "The model finished thinking but did not produce an answer. You can try again."
