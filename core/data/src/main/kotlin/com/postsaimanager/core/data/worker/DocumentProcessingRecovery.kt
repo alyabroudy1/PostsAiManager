@@ -11,7 +11,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Re-enqueues documents a killed process left stuck at `PROCESSING`.
+ * Re-enqueues documents a killed process left stuck at `PROCESSING` or `QUEUED`.
  *
  * A document only ever reaches `PROCESSING` because [DocumentProcessingWorker] is running —
  * see [DocumentProcessor.enqueue]. If the app (and with it, the worker's process) is killed
@@ -19,13 +19,21 @@ import javax.inject.Singleton
  * nothing ever re-enqueues it, since enqueuing only happens on capture or on opening a `NEW`
  * document. Called once from `PostsAiManagerApp.onCreate`.
  *
- * Deliberately narrow: this recovers documents that were *actively* being processed, not
- * every legacy `NEW` document sitting unopened — bulk-enqueuing those would silently start
- * running the on-device model against a whole backlog the moment the app updates, which is
- * a surprise, not a fix. `NEW` documents already enqueue themselves the moment their detail
- * screen is opened (`DocumentDetailViewModel`), and `QUEUED` documents already have work
- * enqueued (`ExistingWorkPolicy.KEEP` makes a duplicate enqueue here harmless, but they are
- * excluded anyway since nothing about them needs recovering).
+ * `QUEUED` documents are re-enqueued too, for the same reason: [DocumentProcessor.enqueue]
+ * sets a document `QUEUED` *before* scheduling its `WorkManager` request (an honest status
+ * ahead of the work actually starting), so a process kill in that narrow window — or
+ * WorkManager itself losing the request, e.g. the `:inference` process becoming unreachable
+ * during Understand and `RemoteAiEngine.connect()` returning an error rather than hanging
+ * (see that class) — can leave a row `QUEUED` with no work actually scheduled for it, stuck
+ * exactly like a lost `PROCESSING` row. Re-enqueuing here is idempotent either way: `enqueue`
+ * uses `ExistingWorkPolicy.KEEP` under a unique work name, so a `QUEUED` document whose work
+ * genuinely is still pending just gets a harmless duplicate call that WorkManager drops.
+ *
+ * Deliberately still narrow beyond those two statuses: this recovers documents that were (or
+ * were meant to be) *actively* processing, not every legacy `NEW` document sitting unopened —
+ * bulk-enqueuing those would silently start running the on-device model against a whole
+ * backlog the moment the app updates, which is a surprise, not a fix. `NEW` documents already
+ * enqueue themselves the moment their detail screen is opened (`DocumentDetailViewModel`).
  */
 @Singleton
 class DocumentProcessingRecovery @Inject constructor(
@@ -35,8 +43,14 @@ class DocumentProcessingRecovery @Inject constructor(
 ) {
 
     suspend fun resumeInterrupted() = withContext(ioDispatcher) {
-        documentDao.getByStatus(DocumentStatus.PROCESSING.name).forEach { entity ->
-            documentProcessor.enqueue(entity.id)
+        RECOVERABLE_STATUSES.forEach { status ->
+            documentDao.getByStatus(status.name).forEach { entity ->
+                documentProcessor.enqueue(entity.id)
+            }
         }
+    }
+
+    private companion object {
+        val RECOVERABLE_STATUSES = listOf(DocumentStatus.PROCESSING, DocumentStatus.QUEUED)
     }
 }
