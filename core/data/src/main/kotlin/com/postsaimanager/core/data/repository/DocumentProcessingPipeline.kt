@@ -320,6 +320,12 @@ class DocumentProcessingPipeline @Inject constructor(
                                 "dismissed=${outcome.ignoredAsDismissed}",
                         )
                     }.onFailure { e ->
+                        // A cancellation (REPLACE, delete-cancel, system stop) must propagate
+                        // to the outer scope like any other cancellation — swallowing it here
+                        // via runCatching would let the pipeline carry on as if entity linking
+                        // had merely failed, instead of the whole run being torn down. See the
+                        // outer catch block's doc on the same rule.
+                        if (e is kotlinx.coroutines.CancellationException) throw e
                         Log.w(TAG, "entity linking failed for $documentId: ${e.message}")
                     }
                 }
@@ -380,6 +386,17 @@ class DocumentProcessingPipeline @Inject constructor(
 
                 _processingState.value = ProcessingState.Completed(documentId)
                 PamResult.Success(extraction)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // A cancellation is not a failure — WorkManager REPLACE (Reprocess),
+                // deleting the document mid-run, or the system stopping the worker all
+                // cancel this coroutine. `CancellationException` is a subclass of
+                // `Exception`, so it used to be caught by the `catch (e: Exception)` below
+                // and the document was marked FAILED — wrongly, since nothing actually went
+                // wrong, and a REPLACE'd run racing its own successor to write FAILED last
+                // could stomp a status the new run had already moved past. Rethrow and leave
+                // the document's status exactly as it was: the next enqueue (recovery on app
+                // start, or whoever cancelled it) decides what happens next, not this run.
+                throw e
             } catch (e: Exception) {
                 _processingState.value = ProcessingState.Failed(documentId, e.message ?: "Unknown error")
                 // Persisted, not just transient: processingState is one in-memory flow that
