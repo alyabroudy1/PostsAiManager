@@ -183,6 +183,48 @@ class DocumentRepositoryImpl @Inject constructor(
             }
         }
 
+    override suspend fun confirmAllExtractedFields(documentId: String): PamResult<List<ExtractedData>> =
+        withContext(ioDispatcher) {
+            try {
+                val now = System.currentTimeMillis()
+                val toConfirm = documentDao.getExtractedData(documentId)
+                    .map(mapper::extractedDataToDomain)
+                    .filter { !it.isConfirmed && !it.deletedByUser }
+                if (toConfirm.isEmpty()) return@withContext PamResult.Success(emptyList())
+
+                // Same per-field rule as confirmExtractedField/attributeToUser
+                // (mergeExtraction.applyUserEdit with the field's own value as the "new"
+                // one — confirming is adopting, see that function's KDoc), but built up in
+                // memory and written as two batched calls instead of looping N single-field
+                // writes.
+                val updates = toConfirm.map { field ->
+                    mergeExtraction.applyUserEdit(
+                        field = field,
+                        newValue = field.fieldValue,
+                        now = now,
+                        newId = { UuidGenerator.generate() },
+                    )
+                }
+                documentDao.insertExtractedData(updates.map { (updated, _) -> mapper.extractedDataToEntity(updated) })
+                fieldRevisionDao.insertAll(updates.map { (_, revision) -> mapper.revisionToEntity(revision) })
+                PamResult.Success(toConfirm)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun restoreExtractedFields(fields: List<ExtractedData>): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                if (fields.isNotEmpty()) {
+                    documentDao.insertExtractedData(fields.map(mapper::extractedDataToEntity))
+                }
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
     override suspend fun addExtractedField(field: ExtractedData): PamResult<Unit> =
         withContext(ioDispatcher) {
             try {

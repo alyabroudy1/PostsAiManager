@@ -8,6 +8,7 @@ import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.SourceType
+import com.postsaimanager.core.model.ValueSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -107,6 +108,29 @@ class FakeDocumentRepository : DocumentRepository {
     override suspend fun confirmExtractedField(fieldId: String): PamResult<Unit> = guard {
         extracted.value = extracted.value.mapValues { (_, fields) ->
             fields.map { if (it.id == fieldId) it.copy(isConfirmed = true) else it }
+        }
+        PamResult.Success(Unit)
+    }
+
+    override suspend fun confirmAllExtractedFields(documentId: String): PamResult<List<ExtractedData>> = guard {
+        val current = extracted.value[documentId].orEmpty()
+        val toConfirm = current.filter { !it.isConfirmed && !it.deletedByUser }
+        if (toConfirm.isNotEmpty()) {
+            val confirmIds = toConfirm.map { it.id }.toSet()
+            extracted.value = extracted.value + (
+                documentId to current.map {
+                    if (it.id in confirmIds) it.copy(isConfirmed = true, source = ValueSource.USER) else it
+                }
+                )
+        }
+        PamResult.Success(toConfirm)
+    }
+
+    override suspend fun restoreExtractedFields(fields: List<ExtractedData>): PamResult<Unit> = guard {
+        fields.groupBy { it.documentId }.forEach { (docId, restored) ->
+            val current = extracted.value[docId].orEmpty()
+            val byId = restored.associateBy { it.id }
+            extracted.value = extracted.value + (docId to current.map { byId[it.id] ?: it })
         }
         PamResult.Success(Unit)
     }

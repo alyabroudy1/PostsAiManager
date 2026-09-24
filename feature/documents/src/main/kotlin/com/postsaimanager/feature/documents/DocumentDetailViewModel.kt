@@ -187,8 +187,43 @@ class DocumentDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * The fields [confirmAllFields] just confirmed, exactly as they were before — non-null
+     * only while an undo is still offered. `DocumentDetailScreen` shows the Snackbar for
+     * this and clears it via [undoConfirmAll]/[dismissUndo] once the Snackbar resolves.
+     */
+    private val _pendingConfirmAllUndo = MutableStateFlow<List<ExtractedData>?>(null)
+    val pendingConfirmAllUndo: StateFlow<List<ExtractedData>?> = _pendingConfirmAllUndo.asStateFlow()
+
     // ── Field CRUD ──
     fun confirmField(fieldId: String) { viewModelScope.launch { documentRepository.confirmExtractedField(fieldId) } }
+
+    /**
+     * "Confirm all" (5.3) — one batched repository call rather than [confirmField] looped
+     * over every remaining field; see [DocumentRepository.confirmAllExtractedFields].
+     * Whether a low-confidence field is among them, and therefore whether the "N fields are
+     * worth checking — confirm anyway?" prompt is needed first, is `DocumentDetailScreen`'s
+     * call to make (it already has [ExtractedData.needsReview] on every field on screen) —
+     * this just performs the confirm once asked to.
+     */
+    fun confirmAllFields() {
+        viewModelScope.launch {
+            val result = documentRepository.confirmAllExtractedFields(documentId)
+            if (result is PamResult.Success && result.data.isNotEmpty()) {
+                _pendingConfirmAllUndo.value = result.data
+            }
+        }
+    }
+
+    /** Reverts the last "Confirm all" to exactly what it was before — the Snackbar's Undo. */
+    fun undoConfirmAll() {
+        val fields = _pendingConfirmAllUndo.value ?: return
+        _pendingConfirmAllUndo.value = null
+        viewModelScope.launch { documentRepository.restoreExtractedFields(fields) }
+    }
+
+    /** The Snackbar timed out or was dismissed without Undo — nothing left to revert. */
+    fun dismissConfirmAllUndo() { _pendingConfirmAllUndo.value = null }
 
     fun addField(name: String, value: String, type: ExtractedFieldType) {
         viewModelScope.launch {

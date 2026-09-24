@@ -25,6 +25,24 @@ interface DocumentRepository {
     suspend fun toggleFavorite(id: String): PamResult<Unit>
     suspend fun updateDocumentStatus(id: String, status: DocumentStatus): PamResult<Unit>
     suspend fun confirmExtractedField(fieldId: String): PamResult<Unit>
+
+    /**
+     * Confirms every field of [documentId] that is not already confirmed and has not been
+     * user-deleted, in one batched write rather than one [confirmExtractedField] call per
+     * field (5.3) — see `DocumentRepositoryImpl` for how that batching is done.
+     *
+     * @return the confirmed fields exactly as they were *before* confirming — nothing but a
+     *   caller passing this list straight back to [restoreExtractedFields] undoes the action.
+     */
+    suspend fun confirmAllExtractedFields(documentId: String): PamResult<List<ExtractedData>>
+
+    /**
+     * Writes [fields] back verbatim — the undo half of [confirmAllExtractedFields]. Cheap:
+     * one batched write and no merge/revision bookkeeping, since this restores a state that
+     * was already recorded rather than producing a new one.
+     */
+    suspend fun restoreExtractedFields(fields: List<ExtractedData>): PamResult<Unit>
+
     suspend fun addExtractedField(field: ExtractedData): PamResult<Unit>
     suspend fun updateExtractedField(fieldId: String, name: String, value: String): PamResult<Unit>
     suspend fun deleteExtractedField(fieldId: String): PamResult<Unit>

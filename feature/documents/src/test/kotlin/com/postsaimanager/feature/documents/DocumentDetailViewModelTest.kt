@@ -16,6 +16,7 @@ import com.postsaimanager.core.testing.testDocument
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
@@ -138,6 +139,75 @@ class DocumentDetailViewModelTest {
 
             assertThat(vm.processingProgress.value)
                 .isEqualTo(com.postsaimanager.core.model.ProcessingState.Idle)
+        }
+    }
+
+    @Nested
+    @DisplayName("Confirm all (5.3)")
+    inner class ConfirmAll {
+
+        private fun field(id: String, confirmed: Boolean, confidence: Float = 0.9f) =
+            com.postsaimanager.core.model.ExtractedData(
+                id = id,
+                documentId = "d1",
+                fieldName = "Field $id",
+                fieldValue = "value",
+                fieldType = com.postsaimanager.core.model.ExtractedFieldType.TEXT,
+                confidence = confidence,
+                isConfirmed = confirmed,
+            )
+
+        @Test
+        @DisplayName("confirms every unconfirmed field in one repository call, not one per field")
+        fun `confirms all unconfirmed fields at once`() = runTest {
+            coEvery { profileMatchingService.matchProfiles(any(), any()) } returns emptyList()
+            documentRepository.seed(testDocument(id = "d1", status = DocumentStatus.EXTRACTED))
+            documentRepository.seedExtracted(
+                "d1",
+                field("f1", confirmed = false),
+                field("f2", confirmed = false),
+                field("f3", confirmed = true),
+            )
+            val vm = viewModel("d1")
+            vm.uiState.test { awaitItem(); cancelAndIgnoreRemainingEvents() }
+
+            vm.confirmAllFields()
+
+            val confirmed = documentRepository.observeExtractedData("d1").first()
+            assertThat(confirmed.all { it.isConfirmed }).isTrue()
+        }
+
+        @Test
+        @DisplayName("offers undo, which restores the fields exactly as they were")
+        fun `undo restores the previous state`() = runTest {
+            coEvery { profileMatchingService.matchProfiles(any(), any()) } returns emptyList()
+            documentRepository.seed(testDocument(id = "d1", status = DocumentStatus.EXTRACTED))
+            documentRepository.seedExtracted("d1", field("f1", confirmed = false))
+            val vm = viewModel("d1")
+            vm.uiState.test { awaitItem(); cancelAndIgnoreRemainingEvents() }
+
+            vm.confirmAllFields()
+            assertThat(vm.pendingConfirmAllUndo.value).isNotNull()
+            assertThat(documentRepository.observeExtractedData("d1").first().single().isConfirmed).isTrue()
+
+            vm.undoConfirmAll()
+
+            assertThat(vm.pendingConfirmAllUndo.value).isNull()
+            assertThat(documentRepository.observeExtractedData("d1").first().single().isConfirmed).isFalse()
+        }
+
+        @Test
+        @DisplayName("nothing to confirm offers no undo")
+        fun `no unconfirmed fields offers no undo`() = runTest {
+            coEvery { profileMatchingService.matchProfiles(any(), any()) } returns emptyList()
+            documentRepository.seed(testDocument(id = "d1", status = DocumentStatus.EXTRACTED))
+            documentRepository.seedExtracted("d1", field("f1", confirmed = true))
+            val vm = viewModel("d1")
+            vm.uiState.test { awaitItem(); cancelAndIgnoreRemainingEvents() }
+
+            vm.confirmAllFields()
+
+            assertThat(vm.pendingConfirmAllUndo.value).isNull()
         }
     }
 }

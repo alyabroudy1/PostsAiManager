@@ -48,6 +48,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -110,11 +114,31 @@ fun DocumentDetailScreen(
     val profileSuggestions by viewModel.profileSuggestions.collectAsStateWithLifecycle()
     val editingProfileSuggestion by viewModel.editingProfileSuggestion.collectAsStateWithLifecycle()
     val entityProposals by viewModel.entityProposals.collectAsStateWithLifecycle()
+    val pendingConfirmAllUndo by viewModel.pendingConfirmAllUndo.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // A citation chip always means "show me that page" — even if the user was last looking
     // at a different tab (Extracted, Timeline) when they left this document.
     LaunchedEffect(initialPage) {
         if (initialPage != null) viewModel.selectTab(DetailTab.PAGES)
+    }
+
+    // 5.3: "Confirm all" offers a cheap undo — the Snackbar itself both shows and resolves
+    // it, so there is nothing to reconcile if the screen is left before it times out (the
+    // ViewModel still holds the undo state; only its Snackbar is gone).
+    LaunchedEffect(pendingConfirmAllUndo) {
+        val confirmed = pendingConfirmAllUndo ?: return@LaunchedEffect
+        val count = confirmed.size
+        val result = snackbarHostState.showSnackbar(
+            message = if (count == 1) "1 field confirmed" else "$count fields confirmed",
+            actionLabel = "Undo",
+            duration = SnackbarDuration.Short,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.undoConfirmAll()
+        } else {
+            viewModel.dismissConfirmAllUndo()
+        }
     }
 
     Scaffold(
@@ -127,6 +151,7 @@ fun DocumentDetailScreen(
                 onNavigateBack = onNavigateBack,
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
     ) { innerPadding ->
         AnimatedContent(
@@ -148,6 +173,7 @@ fun DocumentDetailScreen(
                     onTabSelected = viewModel::selectTab,
                     onProcess = { force -> viewModel.startProcessing(force) },
                     onConfirmField = viewModel::confirmField,
+                    onConfirmAllFields = viewModel::confirmAllFields,
                     onAddField = viewModel::addField,
                     onUpdateField = viewModel::updateField,
                     onDeleteField = viewModel::deleteField,
@@ -197,6 +223,7 @@ private fun DocumentDetailContent(
      * open, which this Composable never triggers directly. */
     onProcess: (force: Boolean) -> Unit,
     onConfirmField: (String) -> Unit,
+    onConfirmAllFields: () -> Unit,
     onAddField: (String, String, ExtractedFieldType) -> Unit,
     onUpdateField: (String, String, String) -> Unit,
     onDeleteField: (String) -> Unit,
@@ -280,6 +307,7 @@ private fun DocumentDetailContent(
                 profileSuggestions = profileSuggestions,
                 entityProposals = entityProposals,
                 onConfirm = onConfirmField,
+                onConfirmAll = onConfirmAllFields,
                 onAdd = onAddField,
                 onUpdate = onUpdateField,
                 onDelete = onDeleteField,
@@ -515,6 +543,7 @@ private fun ExtractedTemplateTab(
     profileSuggestions: List<ProfileSuggestion>,
     entityProposals: List<EntityProposal>,
     onConfirm: (String) -> Unit,
+    onConfirmAll: () -> Unit,
     onAdd: (String, String, ExtractedFieldType) -> Unit,
     onUpdate: (String, String, String) -> Unit,
     onDelete: (String) -> Unit,
@@ -548,12 +577,18 @@ private fun ExtractedTemplateTab(
                 }
             }
         } else {
-            val senderFields = data.filter { it.fieldName.startsWith("Sender") }
-            val receiverFields = data.filter { it.fieldName.startsWith("Receiver") }
-            val metadataFields = data.filter { it.fieldType in listOf(ExtractedFieldType.DATE, ExtractedFieldType.SUBJECT, ExtractedFieldType.REFERENCE_NUMBER, ExtractedFieldType.DEADLINE) }
-            val financialFields = data.filter { it.fieldType == ExtractedFieldType.IBAN || it.fieldName == "Amount" }
-            val contactFields = data.filter { it.fieldType in listOf(ExtractedFieldType.EMAIL, ExtractedFieldType.PHONE) && !it.fieldName.startsWith("Sender") && !it.fieldName.startsWith("Receiver") }
-            val contentFields = data.filter { it.fieldType == ExtractedFieldType.TEXT }
+            // 5.3: within each section, the fields worth a look — low confidence, or the
+            // extractor now disagreeing with a value the user set (`needsReview`) — sort
+            // first. `sortedByDescending` is stable, so fields that tie (both needing review,
+            // or both not) keep their original relative order; only the needs-review split
+            // itself reorders anything.
+            val sortedData = data.sortedByDescending { it.needsReview }
+            val senderFields = sortedData.filter { it.fieldName.startsWith("Sender") }
+            val receiverFields = sortedData.filter { it.fieldName.startsWith("Receiver") }
+            val metadataFields = sortedData.filter { it.fieldType in listOf(ExtractedFieldType.DATE, ExtractedFieldType.SUBJECT, ExtractedFieldType.REFERENCE_NUMBER, ExtractedFieldType.DEADLINE) }
+            val financialFields = sortedData.filter { it.fieldType == ExtractedFieldType.IBAN || it.fieldName == "Amount" }
+            val contactFields = sortedData.filter { it.fieldType in listOf(ExtractedFieldType.EMAIL, ExtractedFieldType.PHONE) && !it.fieldName.startsWith("Sender") && !it.fieldName.startsWith("Receiver") }
+            val contentFields = sortedData.filter { it.fieldType == ExtractedFieldType.TEXT }
 
             LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 // Language + retry header
@@ -610,7 +645,7 @@ private fun ExtractedTemplateTab(
                 // ── Extracted Data Sections ──
                 // Above the fields, so what needs attention is seen before the scroll
                 // rather than found during it.
-                item { ReviewSummary(data) }
+                item { ReviewSummary(data, onConfirmAll) }
 
                 if (senderFields.isNotEmpty()) {
                     item { SectionHeader("📤 Sender") }
@@ -1000,34 +1035,86 @@ private fun FieldCard(field: ExtractedData, onConfirm: (String) -> Unit, onEdit:
 }
 
 /**
- * A count of what wants attention, above the fields.
+ * A count of what wants attention, above the fields, plus "Confirm all" (5.3) when there is
+ * anything left to confirm.
  *
- * Without it, a low-confidence field is only found by scrolling and noticing a colour —
- * fine for three fields, useless for a document with twenty.
+ * Without the count, a low-confidence field is only found by scrolling and noticing a colour
+ * — fine for three fields, useless for a document with twenty. Without "Confirm all", clearing
+ * a document with many machine-confident fields means tapping Confirm on each one individually
+ * even though most of them are not in question at all.
  */
 @Composable
-private fun ReviewSummary(fields: List<ExtractedData>) {
+private fun ReviewSummary(fields: List<ExtractedData>, onConfirmAll: () -> Unit) {
     val needing = fields.count { it.needsReview }
-    if (needing == 0) return
+    val unconfirmed = fields.count { !it.isConfirmed && !it.deletedByUser }
+    if (needing == 0 && unconfirmed == 0) return
+
+    // "Confirm all" stays available even with low-confidence fields among them — it just
+    // asks once first, rather than being hidden or requiring them to be resolved individually.
+    var showLowConfidencePrompt by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        colors = CardDefaults.cardColors(
+            containerColor = if (needing > 0) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        ),
     ) {
         Column(Modifier.padding(12.dp)) {
-            Text(
-                if (needing == 1) "1 field is worth checking" else "$needing fields are worth checking",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                "The extractor was unsure, or the document now reads differently. " +
-                    "Your corrections are kept when a document is processed again.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
+            if (needing > 0) {
+                Text(
+                    if (needing == 1) "1 field is worth checking" else "$needing fields are worth checking",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "The extractor was unsure, or the document now reads differently. " +
+                        "Your corrections are kept when a document is processed again.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+            if (unconfirmed > 0) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = if (needing > 0) 8.dp else 0.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(
+                        onClick = { if (needing > 0) showLowConfidencePrompt = true else onConfirmAll() },
+                    ) {
+                        Text(if (unconfirmed == 1) "Confirm 1 field" else "Confirm all $unconfirmed fields")
+                    }
+                }
+            }
         }
+    }
+
+    if (showLowConfidencePrompt) {
+        AlertDialog(
+            onDismissRequest = { showLowConfidencePrompt = false },
+            title = { Text("Confirm anyway?") },
+            text = {
+                Text(
+                    if (needing == 1) {
+                        "1 field is worth checking — confirm anyway?"
+                    } else {
+                        "$needing fields are worth checking — confirm anyway?"
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showLowConfidencePrompt = false; onConfirmAll() }) {
+                    Text("Confirm all")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLowConfidencePrompt = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 
