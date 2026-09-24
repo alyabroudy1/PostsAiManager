@@ -33,6 +33,7 @@ private object PrefsKeys {
     val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
     val AI_MODEL_ID = stringPreferencesKey("ai_model_id")
     val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
+    val NOTIFICATION_PERMISSION_REQUESTED = booleanPreferencesKey("notification_permission_requested")
 }
 
 @Singleton
@@ -53,6 +54,8 @@ class UserPreferencesRepositoryImpl @Inject constructor(
                     notificationsEnabled = prefs[PrefsKeys.NOTIFICATIONS_ENABLED] ?: true,
                     selectedAiModelId = prefs[PrefsKeys.AI_MODEL_ID],
                     biometricEnabled = prefs[PrefsKeys.BIOMETRIC_ENABLED] ?: false,
+                    notificationPermissionRequested =
+                        prefs[PrefsKeys.NOTIFICATION_PERMISSION_REQUESTED] ?: false,
                 )
             }
             .catch { emit(UserPreferences()) }
@@ -78,6 +81,9 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 
     override suspend fun setBiometricEnabled(enabled: Boolean): PamResult<Unit> =
         editPrefs { it[PrefsKeys.BIOMETRIC_ENABLED] = enabled }
+
+    override suspend fun setNotificationPermissionRequested(requested: Boolean): PamResult<Unit> =
+        editPrefs { it[PrefsKeys.NOTIFICATION_PERMISSION_REQUESTED] = requested }
 
     private suspend fun editPrefs(
         block: (MutablePreferences) -> Unit,

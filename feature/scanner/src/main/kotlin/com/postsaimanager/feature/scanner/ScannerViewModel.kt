@@ -8,6 +8,7 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.domain.repository.UserPreferencesRepository
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
@@ -16,6 +17,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,6 +26,7 @@ import javax.inject.Inject
 class ScannerViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val documentProcessor: DocumentProcessor,
+    private val userPreferencesRepository: UserPreferencesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ScannerUiState>(ScannerUiState.Idle)
@@ -80,13 +83,34 @@ class ScannerViewModel @Inject constructor(
                     // navigating away, so it starts reading itself immediately rather than
                     // waiting for someone to open it.
                     documentProcessor.enqueue(documentId)
-                    _uiState.value = ScannerUiState.Success(documentId)
+                    // The natural moment to ask for POST_NOTIFICATIONS (API 33+): right after
+                    // the first thing that would actually benefit from it — a scan that is now
+                    // processing in the background — rather than on first app launch, before
+                    // the user has any reason to care. `!requested` is the whole "once" in "ask
+                    // once": the Composable still checks the OS permission itself (a grant from
+                    // a previous install, or API < 33) before showing anything.
+                    val alreadyRequested = userPreferencesRepository.getUserPreferences()
+                        .first().notificationPermissionRequested
+                    _uiState.value = ScannerUiState.Success(
+                        documentId = documentId,
+                        offerNotificationPermission = !alreadyRequested,
+                    )
                 }
                 is PamResult.Error -> {
                     _uiState.value = ScannerUiState.Error(result.error)
                 }
             }
         }
+    }
+
+    /**
+     * The notification permission prompt (rationale, then the OS dialog, or neither when it
+     * doesn't apply) has run its course — called exactly once per scan, from `ScannerScreen`,
+     * whichever way it was resolved. A denial is as final as a grant: either way, nagging again
+     * on the next scan would be the nag this task exists to avoid.
+     */
+    fun onNotificationPermissionResolved() {
+        viewModelScope.launch { userPreferencesRepository.setNotificationPermissionRequested(true) }
     }
 
     /** The user dismissed ML Kit's scanner UI without scanning anything — not an error. */
@@ -111,6 +135,11 @@ sealed interface ScannerUiState {
         val message: String,
         val progress: Float,
     ) : ScannerUiState
-    data class Success(val documentId: String) : ScannerUiState
+    data class Success(
+        val documentId: String,
+        /** Whether `ScannerScreen` should offer the POST_NOTIFICATIONS rationale before
+         * navigating away — see [ScannerViewModel.onScanComplete]. */
+        val offerNotificationPermission: Boolean = false,
+    ) : ScannerUiState
     data class Error(val error: PamError) : ScannerUiState
 }

@@ -50,6 +50,9 @@ class FakeUserPreferencesRepository(
 
     override suspend fun setBiometricEnabled(enabled: Boolean) =
         update { it.copy(biometricEnabled = enabled) }
+
+    override suspend fun setNotificationPermissionRequested(requested: Boolean) =
+        update { it.copy(notificationPermissionRequested = requested) }
 }
 
 /** In-memory [InferenceSettingsRepository], the same shape as the DataStore-backed one. */

@@ -4,6 +4,7 @@ import android.net.Uri
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.testing.FakeDocumentProcessor
 import com.postsaimanager.core.testing.FakeDocumentRepository
+import com.postsaimanager.core.testing.FakeUserPreferencesRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
 import io.mockk.every
 import io.mockk.mockk
@@ -23,8 +24,9 @@ class ScannerViewModelTest {
 
     private val repo = FakeDocumentRepository()
     private val documentProcessor = FakeDocumentProcessor()
+    private val userPreferencesRepository = FakeUserPreferencesRepository()
 
-    private fun viewModel() = ScannerViewModel(repo, documentProcessor)
+    private fun viewModel() = ScannerViewModel(repo, documentProcessor, userPreferencesRepository)
 
     /** Uri.toString() isn't stubbed by the Android jar in a plain JVM test. */
     private fun uri(value: String): Uri = mockk<Uri>().also { every { it.toString() } returns value }
@@ -40,6 +42,36 @@ class ScannerViewModelTest {
         assertThat(documentProcessor.enqueueCalls).hasSize(1)
         assertThat(documentProcessor.enqueueCalls.single().documentId).isEqualTo(documentId)
         assertThat(documentProcessor.enqueueCalls.single().force).isFalse()
+    }
+
+    @Test
+    fun `a successful scan offers the notification permission prompt when never asked`() = runTest {
+        val vm = viewModel()
+
+        vm.onScanComplete(listOf(uri("content://page-1")))
+
+        val state = vm.uiState.value as ScannerUiState.Success
+        assertThat(state.offerNotificationPermission).isTrue()
+    }
+
+    @Test
+    fun `a scan after the prompt was already resolved does not offer it again`() = runTest {
+        userPreferencesRepository.setNotificationPermissionRequested(true)
+        val vm = viewModel()
+
+        vm.onScanComplete(listOf(uri("content://page-1")))
+
+        val state = vm.uiState.value as ScannerUiState.Success
+        assertThat(state.offerNotificationPermission).isFalse()
+    }
+
+    @Test
+    fun `resolving the prompt remembers it was asked`() = runTest {
+        val vm = viewModel()
+
+        vm.onNotificationPermissionResolved()
+
+        assertThat(userPreferencesRepository.current.notificationPermissionRequested).isTrue()
     }
 
     @Test
