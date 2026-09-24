@@ -125,8 +125,10 @@ enum class ChatErrorAction {
  * When [BuildChatContextUseCase] reports [ChatGrounding.retrievalMode] — the document did not
  * fit the grounding budget whole, or there is no single document (`documentId == null`) —
  * this use case runs [RetrieveChunksUseCase] on **every turn**, scoped to [documentId] (or the
- * whole corpus when it is null), and prefixes the top passages to *that turn's* text before
- * calling [AiEngine.sendChatMessage]. They never touch [ChatGrounding.text]:
+ * whole corpus when it is null), against a query [FollowUpRetrievalQuery] builds (4.4: a
+ * short follow-up is retrieved together with the previous user turn, since it rarely carries
+ * enough signal alone), and prefixes the top passages to *that turn's* text before calling
+ * [AiEngine.sendChatMessage]. They never touch [ChatGrounding.text]:
  *
  *  - [ChatGrounding.text] is the KV-cache prefix [AiEngine.ensureChatSession] primes the
  *    standing session with. It has to stay byte-identical across turns of the same
@@ -237,9 +239,17 @@ class SendChatMessageUseCase @Inject constructor(
         // expensive half of "what does this turn need", since it can itself call the
         // embedding model. Skipped entirely outside retrieval mode: nothing to inject when
         // the whole document already sits in the (stable) grounding.
+        // 4.4: a short follow-up retrieves badly on its own — see FollowUpRetrievalQuery's
+        // KDoc. Only the string handed to retrieval changes; `text` itself (persisted, and
+        // what withPassages prefixes passages onto) is untouched.
+        val retrievalQuery = FollowUpRetrievalQuery.build(
+            text = text,
+            previousUserText = priorTurns.lastOrNull { it.role == MessageRole.USER }?.content,
+        )
+
         val (loaded, retrieved) = coroutineScope {
             val retrievalDeferred = if (chatContext.retrievalMode) {
-                async { retrieveChunks(text, limit = RETRIEVAL_LIMIT, documentId = documentId) }
+                async { retrieveChunks(retrievalQuery, limit = RETRIEVAL_LIMIT, documentId = documentId) }
             } else {
                 null
             }

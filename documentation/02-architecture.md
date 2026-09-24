@@ -449,7 +449,11 @@ embedding model. Indexing is page-aware (`IndexDocumentUseCase` chunks each OCR 
 separately and stamps the result with that page's number — 4.0), which is what lets a
 retrieved passage cite a page instead of an opaque ordinal; a chunk indexed before that
 change simply has no page number, the same "additive, nullable" pattern every other schema
-migration in this codebase follows.
+migration in this codebase follows. A short follow-up question ("and when is it due?")
+retrieves badly on its own — `FollowUpRetrievalQuery` prepends the previous user turn to the
+*retrieval query* when this turn looks like a follow-up (under ~6 words or ~40 characters),
+4.4; only what is handed to `RetrieveChunksUseCase` changes, never the injected label format
+or the persisted text.
 
 **Citations (4.3).** Every passage a turn injects — whether the reply finished, was stopped,
 or crashed mid-stream — is persisted on `AiMessage.sources` (a new

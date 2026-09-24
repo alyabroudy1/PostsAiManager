@@ -475,12 +475,16 @@ class SendChatMessageUseCaseTest {
         )
 
         engine.response = "answer one"
-        useCase("conv-1", documentId = "d1", text = "Widerspruch").toList()
+        useCase("conv-1", documentId = "d1", text = "Was steht zum Widerspruch im Dokument?").toList()
         val firstGrounding = engine.ensureChatSessionCalls[0].second
         assertThat(firstGrounding).isNotEmpty()
 
         engine.response = "answer two"
-        useCase("conv-1", documentId = "d1", text = "IBAN").toList()
+        // Long and self-contained on purpose: FollowUpRetrievalQuery (4.4) would otherwise
+        // widen this turn's retrieval query with the previous turn's text — exactly what a
+        // *short* follow-up needs, but not what this test is pinning (retrieval scoping to
+        // this turn's own passages while the grounding prefix stays stable).
+        useCase("conv-1", documentId = "d1", text = "What is the IBAN number mentioned in the document?").toList()
 
         // Second turn: already primed, so the (stable) grounding sent to the engine is
         // empty — see the 3.5 test above. The point here is that this holds *even though*
