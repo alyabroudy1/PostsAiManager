@@ -65,6 +65,7 @@ class DocumentChunkRepositoryImpl @Inject constructor(
         text = entity.text,
         embedding = VectorMath.fromBytes(entity.embedding),
         embeddingModelId = entity.embeddingModelId,
+        pageNumber = entity.pageNumber,
     )
 
     private fun toEntity(chunk: StoredChunk) = DocumentChunkEntity(
@@ -75,5 +76,6 @@ class DocumentChunkRepositoryImpl @Inject constructor(
         embedding = chunk.embedding?.let(VectorMath::toBytes),
         embeddingModelId = chunk.embeddingModelId,
         createdAt = System.currentTimeMillis(),
+        pageNumber = chunk.pageNumber,
     )
 }

@@ -8,6 +8,13 @@ data class StoredChunk(
     val text: String,
     val embedding: FloatArray?,
     val embeddingModelId: String?,
+    /**
+     * Which page of the document this passage came from, or null for a chunk indexed
+     * before pages were tracked (4.0) — such chunks stay null until the document is
+     * re-processed, they are never backfilled. Lets a retrieved passage be labelled
+     * `[p.N]` instead of only an opaque ordinal.
+     */
+    val pageNumber: Int? = null,
 ) {
     // FloatArray uses identity equality, so a data class would compare embeddings by
     // reference and report identical chunks as different.
@@ -19,6 +26,7 @@ data class StoredChunk(
             ordinal == other.ordinal &&
             text == other.text &&
             embeddingModelId == other.embeddingModelId &&
+            pageNumber == other.pageNumber &&
             (embedding?.contentEquals(other.embedding) ?: (other.embedding == null))
     }
 
@@ -29,6 +37,7 @@ data class StoredChunk(
         result = 31 * result + text.hashCode()
         result = 31 * result + (embedding?.contentHashCode() ?: 0)
         result = 31 * result + (embeddingModelId?.hashCode() ?: 0)
+        result = 31 * result + (pageNumber ?: 0)
         return result
     }
 }

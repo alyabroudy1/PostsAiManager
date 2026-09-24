@@ -263,6 +263,25 @@ object PamMigrations {
         }
     }
 
+    /**
+     * Keeps which page each chunk came from (Phase 4.0, retrieval-grounded chat).
+     *
+     * Before this, [com.postsaimanager.core.domain.repository.StoredChunk] only had an
+     * `ordinal` — a position in the chunking order with no relation to the document's own
+     * page numbers, so a retrieved passage could never be cited as "page 3" the way a
+     * person reading the letter would expect. Nullable and left null for chunks indexed
+     * before this migration: they are still fully searchable, just without a page citation,
+     * exactly like an OCR block scanned before layout tracking existed
+     * ([MIGRATION_3_4]). They start citing pages again once their document is re-processed
+     * — indexing always replaces a document's chunks wholesale
+     * ([com.postsaimanager.core.domain.repository.DocumentChunkRepository.replaceChunks]).
+     */
+    val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `document_chunks` ADD COLUMN `pageNumber` INTEGER")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -271,5 +290,6 @@ object PamMigrations {
         MIGRATION_5_6,
         MIGRATION_6_7,
         MIGRATION_7_8,
+        MIGRATION_8_9,
     )
 }

@@ -40,8 +40,24 @@ class IndexDocumentUseCase @Inject constructor(
         val embedded: Boolean,
     )
 
-    suspend operator fun invoke(documentId: String, text: String): PamResult<Result> {
-        val pieces = TextChunker.chunk(text)
+    /** One page's OCR text, keyed by its page number — see the page-aware chunking KDoc. */
+    data class PageText(val pageNumber: Int?, val text: String)
+
+    /**
+     * Indexes a document page by page (4.0), so each chunk knows which page it came from —
+     * a retrieved passage can then be cited as "p.3" instead of an opaque ordinal.
+     *
+     * Chunking runs **per page** rather than on the pages joined into one string: joining
+     * first would let [TextChunker] draw a passage boundary straight across a page break,
+     * at which point no single page number describes it. [TextChunk.ordinal] is local to
+     * each page's own call, so it is discarded and every chunk is renumbered with a single
+     * document-wide counter afterwards — [chunkId] (and therefore re-indexing in place)
+     * depends on that ordinal being stable and unique per document, not per page.
+     */
+    suspend operator fun invoke(documentId: String, pages: List<PageText>): PamResult<Result> {
+        val pieces = pages
+            .flatMap { page -> TextChunker.chunk(page.text).map { it.copy(pageNumber = page.pageNumber) } }
+            .mapIndexed { globalOrdinal, piece -> piece.copy(ordinal = globalOrdinal) }
 
         if (pieces.isEmpty()) {
             // Still a write: a document re-processed into nothing must not keep serving
@@ -66,6 +82,7 @@ class IndexDocumentUseCase @Inject constructor(
                 text = piece.text,
                 embedding = vectors?.getOrNull(index),
                 embeddingModelId = if (vectors != null) embeddingService.modelId else null,
+                pageNumber = piece.pageNumber,
             )
         }
 
@@ -79,6 +96,15 @@ class IndexDocumentUseCase @Inject constructor(
                 onFailure = { storageError(it) },
             )
     }
+
+    /**
+     * Convenience for a single blob of text with no page boundaries — every test and a few
+     * callers that never had per-page text predate 4.0. Equivalent to a single [PageText]
+     * with no page number, so its chunks come out with `pageNumber = null`, same as a
+     * document indexed before page-aware chunking existed.
+     */
+    suspend operator fun invoke(documentId: String, text: String): PamResult<Result> =
+        invoke(documentId, listOf(PageText(pageNumber = null, text = text)))
 
     /**
      * @return one vector per text, or null if embedding was unavailable or failed — the

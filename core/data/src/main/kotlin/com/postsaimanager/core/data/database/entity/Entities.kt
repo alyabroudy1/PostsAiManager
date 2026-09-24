@@ -433,6 +433,8 @@ data class DocumentChunkEntity(
     /** Which model produced [embedding]; vectors from different models are incomparable. */
     val embeddingModelId: String?,
     val createdAt: Long,
+    /** Which page this passage came from — null for a chunk indexed before 4.0. */
+    val pageNumber: Int? = null,
 ) {
     // ByteArray uses identity equality, so a data class would compare embeddings by
     // reference and silently report equal rows as different.
@@ -445,6 +447,7 @@ data class DocumentChunkEntity(
             text == other.text &&
             embeddingModelId == other.embeddingModelId &&
             createdAt == other.createdAt &&
+            pageNumber == other.pageNumber &&
             (embedding?.contentEquals(other.embedding) ?: (other.embedding == null))
     }
 
@@ -456,6 +459,7 @@ data class DocumentChunkEntity(
         result = 31 * result + (embedding?.contentHashCode() ?: 0)
         result = 31 * result + (embeddingModelId?.hashCode() ?: 0)
         result = 31 * result + createdAt.hashCode()
+        result = 31 * result + (pageNumber ?: 0)
         return result
     }
 }

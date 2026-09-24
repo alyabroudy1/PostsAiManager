@@ -370,7 +370,14 @@ class DocumentProcessingPipeline @Inject constructor(
                 _processingState.value = ProcessingState.Running(
                     documentId = documentId, stage = ProcessingStage.INDEX, progress = 0.95f,
                 )
-                when (val indexed = indexDocument(documentId, combinedText)) {
+                // Per page, not the joined `combinedText` — so a chunk never straddles a
+                // page break and can always be cited as `[p.N]` (4.0). `ocrByPage` already
+                // preserves page order regardless of OCR completion order (see its own
+                // comment above).
+                val pageTexts = ocrByPage.mapNotNull { (page, ocrResult) ->
+                    ocrResult?.let { IndexDocumentUseCase.PageText(page.pageNumber, it.fullText) }
+                }
+                when (val indexed = indexDocument(documentId, pageTexts)) {
                     is PamResult.Success -> Log.i(
                         TAG,
                         "indexed $documentId chunks=${indexed.data.chunkCount} " +

@@ -408,6 +408,52 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate8To9_pageNumberColumnIsAdditiveAndNullForExistingChunks() {
+        helper.createDatabase(TEST_DB, 8).apply {
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite,
+                     createdAt, modifiedAt, syncStatus)
+                VALUES ('doc-1', 'Bescheid', 'EXTRACTED', 'CAMERA', 2, 0, 1, 1, 'LOCAL')
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO document_chunks
+                    (id, documentId, ordinal, text, embedding, embeddingModelId, createdAt)
+                VALUES ('c1', 'doc-1', 0, 'Sehr geehrte Damen und Herren', NULL, 'e5-small', 1)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 9, true, PamMigrations.MIGRATION_8_9,
+        )
+
+        // A chunk indexed before page-aware chunking existed keeps its text and simply has
+        // no page number — exactly like OCR blocks scanned before layout tracking existed.
+        db.query("SELECT text, pageNumber FROM document_chunks WHERE id = 'c1'").use { cursor ->
+            assertTrue("the chunk was lost in migration", cursor.moveToFirst())
+            assertEquals("Sehr geehrte Damen und Herren", cursor.getString(0))
+            assertTrue("pageNumber should be NULL for a pre-existing chunk", cursor.isNull(1))
+        }
+
+        db.execSQL(
+            """
+            INSERT INTO document_chunks
+                (id, documentId, ordinal, text, embedding, embeddingModelId, createdAt, pageNumber)
+            VALUES ('c2', 'doc-1', 1, 'Zweite Seite', NULL, 'e5-small', 2, 2)
+            """.trimIndent(),
+        )
+        db.query("SELECT pageNumber FROM document_chunks WHERE id = 'c2'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(2, cursor.getInt(0))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

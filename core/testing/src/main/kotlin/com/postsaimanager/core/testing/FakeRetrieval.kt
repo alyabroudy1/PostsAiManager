@@ -84,4 +84,5 @@ fun testChunk(
     text: String,
     embedding: FloatArray? = null,
     embeddingModelId: String? = "fake-embed-v1",
-) = StoredChunk(id, documentId, ordinal, text, embedding, embeddingModelId)
+    pageNumber: Int? = null,
+) = StoredChunk(id, documentId, ordinal, text, embedding, embeddingModelId, pageNumber)

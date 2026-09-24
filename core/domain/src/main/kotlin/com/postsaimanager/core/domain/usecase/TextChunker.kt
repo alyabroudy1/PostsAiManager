@@ -1,9 +1,17 @@
 package com.postsaimanager.core.domain.usecase
 
-/** A slice of a document, ready to embed. */
+/**
+ * A slice of a document, ready to embed.
+ *
+ * @param pageNumber which page this text came from — null when [chunk] was called on text
+ *   that already spans multiple pages (or whose page is unknown). [IndexDocumentUseCase]
+ *   calls [chunk] once per page and stamps the result, so a chunk from this function alone
+ *   never knows its page; that is the caller's job.
+ */
 data class TextChunk(
     val ordinal: Int,
     val text: String,
+    val pageNumber: Int? = null,
 )
 
 /**

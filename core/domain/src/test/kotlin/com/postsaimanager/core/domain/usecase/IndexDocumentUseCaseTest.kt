@@ -100,6 +100,62 @@ class IndexDocumentUseCaseTest {
     }
 
     @Nested
+    @DisplayName("Page-aware chunking (4.0)")
+    inner class PageAware {
+
+        @Test
+        @DisplayName("a chunk knows which page it came from")
+        fun `chunks are stamped with their page number`() = runTest {
+            val result = indexDocument(
+                "doc-1",
+                listOf(
+                    IndexDocumentUseCase.PageText(1, "Erste Seite. ${"A".repeat(50)}"),
+                    IndexDocumentUseCase.PageText(2, "Zweite Seite. ${"B".repeat(50)}"),
+                ),
+            )
+
+            assertThat(result).isInstanceOf(PamResult.Success::class.java)
+            val stored = repository.getForDocument("doc-1").sortedBy { it.ordinal }
+            assertThat(stored.map { it.pageNumber }).containsExactly(1, 2).inOrder()
+        }
+
+        @Test
+        @DisplayName("chunking never crosses a page boundary")
+        fun `a chunk never spans two pages`() = runTest {
+            // Long enough that, joined, this would be re-windowed across the seam — the
+            // very failure page-aware chunking exists to prevent.
+            val page1 = "Seite eins. " + "X".repeat(2_000)
+            val page2 = "Seite zwei. " + "Y".repeat(2_000)
+
+            indexDocument("doc-1", listOf(IndexDocumentUseCase.PageText(1, page1), IndexDocumentUseCase.PageText(2, page2)))
+
+            val stored = repository.getForDocument("doc-1")
+            assertThat(stored.none { it.text.contains("X") && it.text.contains("Y") }).isTrue()
+        }
+
+        @Test
+        @DisplayName("ordinals are renumbered document-wide, not restarted per page")
+        fun `ordinals are contiguous across pages`() = runTest {
+            val page1 = "Seite eins. " + "X".repeat(2_000)
+            val page2 = "Seite zwei. " + "Y".repeat(2_000)
+
+            indexDocument("doc-1", listOf(IndexDocumentUseCase.PageText(1, page1), IndexDocumentUseCase.PageText(2, page2)))
+
+            val stored = repository.getForDocument("doc-1").sortedBy { it.ordinal }
+            assertThat(stored.map { it.ordinal }).isEqualTo(stored.indices.toList())
+        }
+
+        @Test
+        @DisplayName("the single-text overload leaves chunks with no page number, exactly like a pre-4.0 index")
+        fun `single-text overload produces null page numbers`() = runTest {
+            indexDocument("doc-1", letter)
+
+            val stored = repository.getForDocument("doc-1")
+            assertThat(stored.all { it.pageNumber == null }).isTrue()
+        }
+    }
+
+    @Nested
     @DisplayName("Without a usable embedding model")
     inner class Degraded {
 
