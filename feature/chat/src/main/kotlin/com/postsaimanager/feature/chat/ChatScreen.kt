@@ -47,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.TextButton
 import com.postsaimanager.core.domain.usecase.ChatErrorAction
 import androidx.compose.material3.MaterialTheme
@@ -290,6 +291,7 @@ fun ChatScreen(
                                 error = error,
                                 onDismiss = viewModel::dismissError,
                                 onRetry = viewModel::retry,
+                                onManageModelsClick = onManageModelsClick,
                             )
                         }
                     }
@@ -685,6 +687,7 @@ private fun ChatErrorCard(
     error: ChatError,
     onDismiss: () -> Unit,
     onRetry: () -> Unit,
+    onManageModelsClick: () -> Unit,
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -702,11 +705,11 @@ private fun ChatErrorCard(
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
             if (error.action == ChatErrorAction.INSTALL_MODEL) {
-                Text(
-                    text = "Settings → AI models",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                )
+                // A dead-end plain-text hint used to sit here. This is the actual fix,
+                // one tap away — the model picker already lives behind this callback.
+                FilledTonalButton(onClick = onManageModelsClick) {
+                    Text("Get an AI model")
+                }
             }
             Row {
                 // Whatever was already produced stays in the transcript as its own

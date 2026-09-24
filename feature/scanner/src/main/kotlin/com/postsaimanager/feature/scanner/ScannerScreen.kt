@@ -87,14 +87,17 @@ fun ScannerScreen(
                 )
             }
             .addOnFailureListener {
-                viewModel.onScanComplete(emptyList()) // triggers error state
+                viewModel.onScanLaunchFailed()
             }
     }
 
-    // Navigate on success
+    // Navigate on success or on cancel — cancelling the scanner UI is not an error, it just
+    // means there is nothing left to do on this screen but leave it.
     LaunchedEffect(uiState) {
-        if (uiState is ScannerUiState.Success) {
-            onScanComplete((uiState as ScannerUiState.Success).documentId)
+        when (val state = uiState) {
+            is ScannerUiState.Success -> onScanComplete(state.documentId)
+            is ScannerUiState.Cancelled -> onNavigateBack()
+            else -> Unit
         }
     }
 
@@ -119,6 +122,9 @@ fun ScannerScreen(
                     title = "Document Scanner",
                     subtitle = "The scanner is starting...",
                 )
+                // Nothing to render — the LaunchedEffect above navigates back on the same
+                // frame this state lands, so this is on screen for a fraction of a second.
+                is ScannerUiState.Cancelled -> Unit
                 is ScannerUiState.Processing -> Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -156,6 +162,7 @@ fun ScannerScreen(
                 is ScannerUiState.Error -> PamErrorState(
                     message = state.error.userMessage,
                     icon = PamIcons.Error,
+                    retryLabel = "Try again",
                     onRetry = {
                         viewModel.resetState()
                         // Re-launch scanner
@@ -165,7 +172,12 @@ fun ScannerScreen(
                                     IntentSenderRequest.Builder(intentSender).build()
                                 )
                             }
+                            .addOnFailureListener {
+                                viewModel.onScanLaunchFailed()
+                            }
                     },
+                    secondaryLabel = "Back",
+                    onSecondary = onNavigateBack,
                 )
             }
         }

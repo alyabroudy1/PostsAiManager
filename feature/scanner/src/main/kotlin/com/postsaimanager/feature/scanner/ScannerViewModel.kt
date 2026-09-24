@@ -82,8 +82,14 @@ class ScannerViewModel @Inject constructor(
         }
     }
 
+    /** The user dismissed ML Kit's scanner UI without scanning anything — not an error. */
     fun onScanCancelled() {
-        _uiState.value = ScannerUiState.Idle
+        _uiState.value = ScannerUiState.Cancelled
+    }
+
+    /** The scanner intent itself could not be launched (e.g. Play Services unavailable). */
+    fun onScanLaunchFailed() {
+        _uiState.value = ScannerUiState.Error(PamError.ScannerUnavailable())
     }
 
     fun resetState() {
@@ -93,6 +99,7 @@ class ScannerViewModel @Inject constructor(
 
 sealed interface ScannerUiState {
     data object Idle : ScannerUiState
+    data object Cancelled : ScannerUiState
     data class Processing(
         val message: String,
         val progress: Float,
