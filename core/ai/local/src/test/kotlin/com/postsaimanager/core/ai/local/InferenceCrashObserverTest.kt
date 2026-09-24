@@ -85,9 +85,12 @@ class InferenceCrashObserverTest {
 
         override val state: StateFlow<ModelLoadState> = MutableStateFlow(ModelLoadState.Idle)
         override val isReady: Boolean = false
+        override val isBusy: Boolean = false
         override suspend fun load(modelPath: String, config: InferenceConfig): PamResult<AiCapabilities> =
             error("not used by this test")
         override fun generate(request: AiRequest): Flow<String> = error("not used by this test")
+        override suspend fun isChatSessionPrimed(conversationId: String): Boolean =
+            error("not used by this test")
         override suspend fun ensureChatSession(
             conversationId: String,
             systemPrompt: String,

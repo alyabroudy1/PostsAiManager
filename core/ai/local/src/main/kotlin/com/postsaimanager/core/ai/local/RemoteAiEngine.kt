@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
@@ -74,6 +76,39 @@ class RemoteAiEngine @Inject constructor(
      */
     @Volatile
     private var sessionConversationId: String? = null
+
+    /**
+     * Serialises every call that touches the native context on the app-process side of the
+     * AIDL boundary — see [AiEngine]'s class KDoc, "One native context, two callers", for the
+     * full guarantee this is half of.
+     *
+     * `InferenceService`'s single-threaded `executor` already serialises the native calls
+     * themselves, but that alone is not enough: `startGeneration`/`sendChatMessage` there
+     * return immediately after *queueing* work and reset a single shared `cancelled` flag on
+     * the calling (binder) thread before the queued work runs. Two callers racing that AIDL
+     * boundary — an extraction [generate] call arriving while a chat [sendChatMessage] stream
+     * is in flight — could have the extraction call's `cancelled.set(false)` land between the
+     * user tapping Stop and the chat's token loop observing it, silently defeating the Stop.
+     * Holding this mutex for the *entire* duration of each call (including the whole token
+     * stream, not just the request that starts it) makes that interleaving impossible: only
+     * one logical caller is ever "in flight" against the service at a time, so the shared flag
+     * is never touched by two callers at once. FIFO-fair, so a caller queued behind an
+     * in-flight [generate] waits only for that one call, never for a whole multi-document
+     * pipeline (`AiExtractionUseCase` makes one [generate] call per document and awaits it
+     * before the next).
+     *
+     * Deliberately **not** taken by `ops.loadModel`/`recreateContext`/`unloadModel` below
+     * (driven by [ModelLoadCoordinator]): [generate]'s own crash-recovery path calls
+     * `coordinator.ensureLoaded()` — and so `ops.loadModel` — *while already holding* this
+     * mutex, and a non-reentrant [Mutex] would deadlock on itself. Those calls are already
+     * safe without it: [ModelLoadCoordinator] has its own single-flight mutex, and
+     * `InferenceService`'s blocking, single-threaded `executor` cannot run a load concurrently
+     * with an in-flight generation on the native side regardless — see its class KDoc.
+     */
+    private val engineMutex = Mutex()
+
+    override suspend fun isChatSessionPrimed(conversationId: String): Boolean =
+        sessionConversationId == conversationId
 
     // Every method below crosses the binder to the `:inference` process and blocks the
     // calling thread until the far side replies — `loadModel` in particular can take
@@ -143,6 +178,8 @@ class RemoteAiEngine @Inject constructor(
 
     override val isReady: Boolean
         get() = runCatching { service?.isReady == true }.getOrDefault(false)
+
+    override val isBusy: Boolean get() = engineMutex.isLocked
 
     private val _crashEvents = MutableSharedFlow<InferenceCrash>(extraBufferCapacity = 4)
     override val crashEvents: SharedFlow<InferenceCrash> = _crashEvents.asSharedFlow()
@@ -216,7 +253,9 @@ class RemoteAiEngine @Inject constructor(
         config: InferenceConfig,
     ): PamResult<AiCapabilities> = coordinator.load(modelPath, config)
 
-    override fun generate(request: AiRequest): Flow<String> = callbackFlow {
+    override fun generate(request: AiRequest): Flow<String> = engineMutex.serialised(generateFlow(request))
+
+    private fun generateFlow(request: AiRequest): Flow<String> = callbackFlow {
         // `callbackFlow`'s producer block runs in the collector's context — a plain
         // `Dispatchers.Main.immediate` for anything reached from `viewModelScope.launch` —
         // so every blocking binder call below is explicitly moved to `ioDispatcher`. See
@@ -334,27 +373,36 @@ class RemoteAiEngine @Inject constructor(
     ): Boolean {
         if (sessionConversationId == conversationId) return false
 
-        return withContext(ioDispatcher) {
-            val remote = connect() ?: return@withContext false
-            val opened = runCatching { remote.openChatSession(systemPrompt) }.getOrDefault(false)
-            if (!opened) return@withContext false
+        // Held for both AIDL calls below (openChatSession + primeChatSession) — without this,
+        // an extraction generate() queued on InferenceService's executor between the two could
+        // clear the KV cache mid-prime, and primeChatSession would then replay history onto a
+        // context that had just been wiped out from under it. See engineMutex's doc.
+        return engineMutex.withLock {
+            withContext(ioDispatcher) {
+                val remote = connect() ?: return@withContext false
+                val opened = runCatching { remote.openChatSession(systemPrompt) }.getOrDefault(false)
+                if (!opened) return@withContext false
 
-            if (history.isNotEmpty()) {
-                val primed = runCatching {
-                    remote.primeChatSession(
-                        history.map { it.role.wireName }.toTypedArray(),
-                        history.map { it.content }.toTypedArray(),
-                    )
-                }.getOrDefault(false)
-                if (!primed) return@withContext false
+                if (history.isNotEmpty()) {
+                    val primed = runCatching {
+                        remote.primeChatSession(
+                            history.map { it.role.wireName }.toTypedArray(),
+                            history.map { it.content }.toTypedArray(),
+                        )
+                    }.getOrDefault(false)
+                    if (!primed) return@withContext false
+                }
+                sessionConversationId = conversationId
+                Log.i(TAG, "ensureChatSession: primed conversation with ${history.size} prior turns")
+                true
             }
-            sessionConversationId = conversationId
-            Log.i(TAG, "ensureChatSession: primed conversation with ${history.size} prior turns")
-            true
         }
     }
 
-    override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> = callbackFlow {
+    override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> =
+        engineMutex.serialised(sendChatMessageFlow(userText, request))
+
+    private fun sendChatMessageFlow(userText: String, request: AiRequest): Flow<String> = callbackFlow {
         // See the note in generate() — this producer block otherwise inherits the
         // collector's (often Main) dispatcher.
         val remote = withContext(ioDispatcher) { connect() } ?: run {
@@ -417,10 +465,12 @@ class RemoteAiEngine @Inject constructor(
         }
     }
 
-    override suspend fun commitChatReply(answer: String) = withContext(ioDispatcher) {
-        val remote = service ?: return@withContext
-        runCatching { remote.commitChatReply(answer) }
-        Unit
+    override suspend fun commitChatReply(answer: String) = engineMutex.withLock {
+        withContext(ioDispatcher) {
+            val remote = service ?: return@withContext
+            runCatching { remote.commitChatReply(answer) }
+            Unit
+        }
     }
 
     /**
@@ -428,17 +478,21 @@ class RemoteAiEngine @Inject constructor(
      * method with no session open — when nothing has been primed, since there is then
      * nothing native to roll back.
      */
-    override suspend fun discardPendingReply() = withContext(ioDispatcher) {
-        val remote = service ?: return@withContext
-        runCatching { remote.discardPendingReply() }
-        Unit
+    override suspend fun discardPendingReply() = engineMutex.withLock {
+        withContext(ioDispatcher) {
+            val remote = service ?: return@withContext
+            runCatching { remote.discardPendingReply() }
+            Unit
+        }
     }
 
-    override suspend fun resetChatSession() = withContext(ioDispatcher) {
-        sessionConversationId = null
-        val remote = service ?: return@withContext
-        runCatching { remote.resetChatSession() }
-        Unit
+    override suspend fun resetChatSession() = engineMutex.withLock {
+        withContext(ioDispatcher) {
+            sessionConversationId = null
+            val remote = service ?: return@withContext
+            runCatching { remote.resetChatSession() }
+            Unit
+        }
     }
 
     override fun formatPrompt(messages: List<AiChatMessage>): String {

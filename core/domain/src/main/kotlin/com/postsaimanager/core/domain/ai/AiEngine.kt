@@ -20,6 +20,36 @@ import kotlinx.coroutines.flow.StateFlow
  * Deliberately **not** implemented by online providers. Cloud escalation is a separate type
  * (`OnlineEscalationService`) taking an `ApprovedPayload`, precisely so cloud can never be
  * substituted here and quietly bypass the consent gate — see architecture rule 4.
+ *
+ * ### One native context, two callers
+ *
+ * `AiExtractionUseCase` (background document reading) and `SendChatMessageUseCase` (chat) both
+ * call this same engine, and — since document processing moved to the background
+ * (`DocumentProcessingWorker`) — can now genuinely overlap in wall-clock time: a chat reply can
+ * be mid-stream while a queued document is being read, or a background read can land between
+ * two chat sends in the same conversation. Every implementation guarantees:
+ *
+ * 1. **Never interleaved on the native context.** [generate], [sendChatMessage],
+ *    [ensureChatSession], [commitChatReply], [discardPendingReply] and [resetChatSession] are
+ *    serialised end-to-end — a caller's whole call (including the entire token stream for
+ *    [generate]/[sendChatMessage], not just the request that starts it) completes before the
+ *    next queued caller's begins. [LocalAiEngine][com.postsaimanager.core.ai.local.LocalAiEngine]
+ *    does this with a `Mutex` held for the duration of each call;
+ *    [RemoteAiEngine][com.postsaimanager.core.ai.local.RemoteAiEngine] mirrors it on the app-
+ *    process side of the AIDL boundary for the same reason — see its KDoc for the specific bug
+ *    this closes (`InferenceService`'s single-threaded executor already serialises native
+ *    calls, but its cancellation flag is shared across callers, so an un-mutexed extraction
+ *    call queued behind an in-flight chat stream could reset a Stop request meant for the chat
+ *    turn). The mutex is FIFO-fair, so a chat send queued behind a document read waits at most
+ *    for *that one* [generate] call to finish, never for the rest of a multi-page pipeline —
+ *    each page/document is its own call.
+ * 2. **A primed chat session never survives a call that could have changed what is in the KV
+ *    cache.** [ensureChatSession] tracks which conversation's session is open; any [generate]
+ *    call (extraction's one-shot grammar path always clears the KV cache — see
+ *    `LlamaNative`/`llama_jni.cpp`'s `startGeneration` doc) or [load]-triggered reload/unload
+ *    clears that tracking, so the *next* [ensureChatSession] for that conversation re-primes
+ *    instead of silently decoding a diff against a cache that no longer holds what it thinks it
+ *    holds. [isChatSessionPrimed] exposes this tracking read-only.
  */
 interface AiEngine {
 
@@ -31,6 +61,18 @@ interface AiEngine {
     val state: StateFlow<ModelLoadState>
 
     val isReady: Boolean
+
+    /**
+     * True while another caller currently holds the native context — a [generate] or
+     * [sendChatMessage] call already in flight (see [AiEngine]'s class KDoc, "One native
+     * context, two callers"). A cheap, non-suspending read of local state, never a native call
+     * or an AIDL round trip, so a caller about to itself wait behind that in-flight call can
+     * say so instead of leaving the wait unexplained — see
+     * [SendChatMessageUseCase][com.postsaimanager.core.domain.usecase.SendChatMessageUseCase]'s
+     * `ChatTurn.PreparingModel(reason = …)`. Approximate by nature (it can flip the instant
+     * after being read); only ever used to decide what to *say*, never what to *do*.
+     */
+    val isBusy: Boolean
 
     /**
      * Loads a model, replacing any currently loaded one.
@@ -81,6 +123,19 @@ interface AiEngine {
         systemPrompt: String,
         history: List<AiChatMessage>,
     ): Boolean
+
+    /**
+     * True when [ensureChatSession] for [conversationId] would be a no-op right now — the
+     * standing chat session is already open for this exact conversation and nothing since has
+     * invalidated it (see [ensureChatSession]'s KDoc on what does: a reload, an unload, or a
+     * one-shot [generate] call). A pure read of local bookkeeping — no native call, no IO —
+     * so callers can cheaply decide *before* doing any work whether a re-prime is about to
+     * happen:
+     * [SendChatMessageUseCase][com.postsaimanager.core.domain.usecase.SendChatMessageUseCase]
+     * uses it both to show "Preparing conversation…" only when priming will actually run, and
+     * to skip rebuilding the grounding system prompt when the session already holds it.
+     */
+    suspend fun isChatSessionPrimed(conversationId: String): Boolean
 
     /**
      * Streams a reply to [userText] within the session opened by [ensureChatSession]. Only

@@ -28,6 +28,15 @@ class FakeAiEngine(
     override var isReady: Boolean = true,
 ) : AiEngine {
 
+    /** Settable so a test can exercise the "waiting behind an in-flight call" path (3.0b/3.4). */
+    override var isBusy: Boolean = false
+
+    /** Mirrors the real engines' tracking — see [AiEngine.isChatSessionPrimed]'s KDoc. */
+    private var sessionConversationId: String? = null
+
+    override suspend fun isChatSessionPrimed(conversationId: String): Boolean =
+        sessionConversationId == conversationId
+
     private val _state = MutableStateFlow<ModelLoadState>(
         ModelLoadState.Ready(
             modelId = "fake",
@@ -67,10 +76,21 @@ class FakeAiEngine(
     /** When set, [load] returns this error instead of succeeding. */
     var loadFailsWith: PamResult.Error? = null
 
+    /** The `(modelPath, config)` of the most recent successful [load] — see its use below. */
+    private var lastLoadedPathConfig: Pair<String, InferenceConfig>? = null
+
     override suspend fun load(modelPath: String, config: InferenceConfig): PamResult<AiCapabilities> {
         loadCalls += modelPath to config
         loadFailsWith?.let { return it }
         isReady = true
+        // Mirrors the real engines' `ReloadScope` dispatch closely enough for tests: a load
+        // with the same (path, config) as last time is a no-op that leaves a primed chat
+        // session alone; anything else is treated as a reload that invalidates it — see
+        // AiEngine.isChatSessionPrimed's KDoc.
+        if (lastLoadedPathConfig != modelPath to config) {
+            sessionConversationId = null
+        }
+        lastLoadedPathConfig = modelPath to config
         return PamResult.Success(
             AiCapabilities(true, config.contextTokens, "fake", hasNativeChatTemplate = true),
         )
@@ -78,6 +98,10 @@ class FakeAiEngine(
 
     override fun generate(request: AiRequest): Flow<String> = flow {
         lastRequest = request
+        // A one-shot generation clears the KV cache on the real engines — see
+        // RemoteAiEngine/LocalAiEngine.generate's doc — taking any primed chat session with
+        // it, regardless of how this call turns out.
+        sessionConversationId = null
         failWith?.let { throw it }
         // Emitted in pieces: a caller that assumes one emission per generation would pass a
         // single-chunk fake and fail against the real streaming engine.
@@ -105,8 +129,16 @@ class FakeAiEngine(
         systemPrompt: String,
         history: List<AiChatMessage>,
     ): Boolean {
+        // Unlike the real engines, this always records the call (and re-primes) even when
+        // [conversationId] was already primed — tests assert on `ensureChatSessionCalls`/
+        // `lastSessionHistory` for every send, and callers that care about skipping the real
+        // work check [isChatSessionPrimed] themselves *before* calling this (see
+        // SendChatMessageUseCase's 3.5 grounding-skip). What this keeps faithful to the real
+        // engines is [sessionConversationId] itself, which is what [isChatSessionPrimed] reads.
         ensureChatSessionCalls += Triple(conversationId, systemPrompt, history)
-        return true
+        val wasAlreadyPrimed = sessionConversationId == conversationId
+        sessionConversationId = conversationId
+        return !wasAlreadyPrimed
     }
 
     /**
@@ -138,6 +170,7 @@ class FakeAiEngine(
 
     override suspend fun resetChatSession() {
         chatSessionWasReset = true
+        sessionConversationId = null
     }
 
     override fun formatPrompt(messages: List<AiChatMessage>): String {
@@ -147,6 +180,7 @@ class FakeAiEngine(
 
     override suspend fun unload() {
         isReady = false
+        sessionConversationId = null
     }
 
     /** Overridable so a test can exercise GPU-aware resolution without a device. */

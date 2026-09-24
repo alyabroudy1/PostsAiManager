@@ -149,6 +149,8 @@ internal class LocalAiEngine @Inject constructor(
 
     override val isReady: Boolean get() = handle != 0L
 
+    override val isBusy: Boolean get() = mutex.isLocked
+
     // In-process: a native abort here kills the whole app process (see the class doc), so
     // there is no callback to observe — nothing ever survives to emit on this. It exists
     // only to satisfy AiEngine for the instrumented tests that use this engine directly.
@@ -276,6 +278,9 @@ internal class LocalAiEngine @Inject constructor(
         }
         return ChatTemplateFallback.chatMl(messages)
     }
+
+    override suspend fun isChatSessionPrimed(conversationId: String): Boolean =
+        sessionConversationId == conversationId
 
     override suspend fun ensureChatSession(
         conversationId: String,
