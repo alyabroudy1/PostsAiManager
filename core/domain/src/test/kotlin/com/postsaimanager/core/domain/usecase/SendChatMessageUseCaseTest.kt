@@ -3,12 +3,17 @@ package com.postsaimanager.core.domain.usecase
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.AiMessage
+import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.testing.FakeActiveModelProvider
 import com.postsaimanager.core.testing.FakeAiEngine
 import com.postsaimanager.core.testing.FakeConversationRepository
+import com.postsaimanager.core.testing.FakeDocumentChunkRepository
 import com.postsaimanager.core.testing.FakeDocumentRepository
+import com.postsaimanager.core.testing.FakeEmbeddingService
 import com.postsaimanager.core.testing.FakeProfileRepository
+import com.postsaimanager.core.testing.testChunk
+import com.postsaimanager.core.testing.testDocument
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
@@ -30,7 +35,10 @@ class SendChatMessageUseCaseTest {
     private val models = FakeActiveModelProvider()
     private val conversations = FakeConversationRepository()
     private val buildChatContext = BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository())
-    private val sendChatMessage = SendChatMessageUseCase(conversations, engine, models, buildChatContext)
+    private val chunkRepository = FakeDocumentChunkRepository()
+    private val retrieveChunks = RetrieveChunksUseCase(chunkRepository, FakeEmbeddingService())
+    private val sendChatMessage =
+        SendChatMessageUseCase(conversations, engine, models, buildChatContext, retrieveChunks)
 
     @Test
     @DisplayName("calls engine.load with the current config on every send, not just the first")
@@ -351,7 +359,7 @@ class SendChatMessageUseCaseTest {
             BuildChatContextUseCase.TEMPLATE_OVERHEAD_TOKENS)
             .coerceAtLeast(BuildChatContextUseCase.MIN_CONTEXT_TOKENS)) *
             BuildChatContextUseCase.CHARS_PER_TOKEN
-        val standaloneGroundingLength = buildChatContext(null, 300).length
+        val standaloneGroundingLength = buildChatContext(null, 300).text.length
         val historyBudgetChars = totalBudgetChars - standaloneGroundingLength
 
         engine.response = "final answer"
@@ -399,5 +407,171 @@ class SendChatMessageUseCaseTest {
         sendChatMessage("conv-1", documentId = null, text = "another short question").toList()
 
         assertThat(engine.lastSessionHistory.map { it.content }).contains("A short question")
+    }
+
+    // ── 4.1/4.2: retrieval-augmented grounding ──
+
+    /** A document long enough that [BuildChatContextUseCase] switches it to retrieval mode. */
+    private fun seedOverflowingDocument(documents: FakeDocumentRepository, id: String = "d1") {
+        documents.seed(testDocument(id = id))
+        documents.seedPages(
+            id,
+            DocumentPage(
+                id = "$id-p1", documentId = id, pageNumber = 1,
+                imagePath = "/tmp/$id-p1.jpg",
+                ocrText = "Sehr geehrte Damen und Herren, ".repeat(2_000),
+                width = 0, height = 0,
+            ),
+        )
+    }
+
+    @Test
+    @DisplayName("retrieved passages are injected into the turn's prompt, never into the stable grounding")
+    fun `retrieved passages go into the user turn only`() = runTest {
+        val documents = FakeDocumentRepository()
+        seedOverflowingDocument(documents)
+        val chunks = FakeDocumentChunkRepository()
+        chunks.seed(
+            testChunk(
+                "c1", documentId = "d1", ordinal = 0, pageNumber = 3,
+                text = "The deadline is 31.01.2026.",
+            ),
+        )
+        val useCase = SendChatMessageUseCase(
+            conversations, engine, models,
+            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+        )
+
+        engine.response = "The deadline is 31.01.2026."
+        useCase("conv-1", documentId = "d1", text = "When is the deadline?").toList()
+
+        // The passage and its page label reached the engine...
+        assertThat(engine.lastChatUserText).contains("The deadline is 31.01.2026.")
+        assertThat(engine.lastChatUserText).contains("[p.3]")
+        assertThat(engine.lastChatUserText).contains("When is the deadline?")
+
+        // ...but the persisted user message is the raw question, untouched.
+        val persisted = conversations.getMessages("conv-1").first()
+        val userMessage = persisted.first { it.role == MessageRole.USER }
+        assertThat(userMessage.content).isEqualTo("When is the deadline?")
+        assertThat(userMessage.content).doesNotContain("The deadline is")
+    }
+
+    @Test
+    @DisplayName("the grounding prefix stays stable across turns even as retrieved passages change")
+    fun `grounding is unchanged turn to turn while passages differ`() = runTest {
+        val documents = FakeDocumentRepository()
+        seedOverflowingDocument(documents)
+        val chunks = FakeDocumentChunkRepository()
+        chunks.seed(
+            testChunk("c1", documentId = "d1", ordinal = 0, pageNumber = 1, text = "Widerspruch eingelegt."),
+            testChunk("c2", documentId = "d1", ordinal = 1, pageNumber = 2, text = "IBAN: DE89370400440532013000"),
+        )
+        val useCase = SendChatMessageUseCase(
+            conversations, engine, models,
+            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+        )
+
+        engine.response = "answer one"
+        useCase("conv-1", documentId = "d1", text = "Widerspruch").toList()
+        val firstGrounding = engine.ensureChatSessionCalls[0].second
+        assertThat(firstGrounding).isNotEmpty()
+
+        engine.response = "answer two"
+        useCase("conv-1", documentId = "d1", text = "IBAN").toList()
+
+        // Second turn: already primed, so the (stable) grounding sent to the engine is
+        // empty — see the 3.5 test above. The point here is that this holds *even though*
+        // this turn's retrieval surfaces a completely different passage than the first.
+        val secondGrounding = engine.ensureChatSessionCalls[1].second
+        assertThat(secondGrounding).isEmpty()
+        assertThat(engine.lastChatUserText).contains("IBAN: DE89370400440532013000")
+        assertThat(engine.lastChatUserText).doesNotContain("Widerspruch eingelegt")
+    }
+
+    @Test
+    @DisplayName("no matching passages falls back to sending the raw question")
+    fun `empty retrieval sends the raw text`() = runTest {
+        val documents = FakeDocumentRepository()
+        seedOverflowingDocument(documents)
+        val useCase = SendChatMessageUseCase(
+            conversations, engine, models,
+            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            RetrieveChunksUseCase(FakeDocumentChunkRepository(), FakeEmbeddingService()),
+        )
+
+        engine.response = "hi"
+        useCase("conv-1", documentId = "d1", text = "hello").toList()
+
+        assertThat(engine.lastChatUserText).isEqualTo("hello")
+    }
+
+    @Test
+    @DisplayName("a document that fits whole never triggers retrieval")
+    fun `no retrieval when the document fits in the grounding`() = runTest {
+        val documents = FakeDocumentRepository()
+        documents.seed(testDocument(id = "d1"))
+        documents.seedPages(
+            "d1",
+            DocumentPage(
+                id = "p1", documentId = "d1", pageNumber = 1,
+                imagePath = "/tmp/p1.jpg", ocrText = "Kurzer Brief.", width = 0, height = 0,
+            ),
+        )
+        val chunks = FakeDocumentChunkRepository()
+        chunks.seed(testChunk("c1", documentId = "d1", text = "Should never be injected."))
+        val useCase = SendChatMessageUseCase(
+            conversations, engine, models,
+            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+        )
+
+        engine.response = "hi"
+        useCase("conv-1", documentId = "d1", text = "hello").toList()
+
+        assertThat(engine.lastChatUserText).isEqualTo("hello")
+    }
+
+    @Test
+    @DisplayName("standalone chat labels a passage with its document's title")
+    fun `standalone passages are labelled with the document title`() = runTest {
+        val documents = FakeDocumentRepository()
+        documents.seed(testDocument(id = "d1", title = "Bescheid über Leistungen"))
+        val chunks = FakeDocumentChunkRepository()
+        chunks.seed(
+            testChunk("c1", documentId = "d1", pageNumber = 2, text = "Wichtiger Hinweis zur Frist."),
+        )
+        val useCase = SendChatMessageUseCase(
+            conversations, engine, models,
+            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+        )
+
+        engine.response = "hi"
+        useCase("conv-1", documentId = null, text = "Was ist die Frist?").toList()
+
+        assertThat(engine.lastChatUserText).contains("[Bescheid über Leistungen, p.2]")
+    }
+
+    @Test
+    @DisplayName("the completed turn exposes the passages it was grounded in, for future citation persistence")
+    fun `complete turn exposes its retrieved sources`() = runTest {
+        val documents = FakeDocumentRepository()
+        seedOverflowingDocument(documents)
+        val chunks = FakeDocumentChunkRepository()
+        chunks.seed(testChunk("c1", documentId = "d1", pageNumber = 1, text = "Die Antwort auf diese Frage."))
+        val useCase = SendChatMessageUseCase(
+            conversations, engine, models,
+            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+        )
+
+        engine.response = "answer"
+        val turns = useCase("conv-1", documentId = "d1", text = "Frage").toList()
+
+        val complete = turns.filterIsInstance<ChatTurn.Complete>().single()
+        assertThat(complete.sources.map { it.chunk.id }).containsExactly("c1")
     }
 }

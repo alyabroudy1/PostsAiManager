@@ -232,7 +232,7 @@ fun ChatScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = if (documentId != null) "I can help you understand this document, find key information, and draft responses."
-                    else "Select a document or ask me a general question about your mail management.",
+                    else "I can search across all your documents to help answer your question.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

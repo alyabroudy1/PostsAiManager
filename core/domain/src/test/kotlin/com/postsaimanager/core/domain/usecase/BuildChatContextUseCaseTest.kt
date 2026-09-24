@@ -58,7 +58,7 @@ class BuildChatContextUseCaseTest {
 
         @Test
         fun `returns a standalone prompt when no document is open`() = runTest {
-            val prompt = useCase(documentId = null, contextTokens = 4096)
+            val prompt = useCase(documentId = null, contextTokens = 4096).text
 
             assertThat(prompt).contains("No document is open")
             assertThat(prompt).contains("correspondence")
@@ -67,8 +67,35 @@ class BuildChatContextUseCaseTest {
 
         @Test
         fun `falls back to standalone when the document cannot be found`() = runTest {
-            val prompt = useCase(documentId = "missing", contextTokens = 4096)
+            val prompt = useCase(documentId = "missing", contextTokens = 4096).text
             assertThat(prompt).contains("No document is open")
+        }
+
+        @Test
+        @DisplayName("a missing document does not enter retrieval mode — nothing to retrieve")
+        fun `a missing document is not retrieval mode`() = runTest {
+            val context = useCase(documentId = "missing", contextTokens = 4096)
+            assertThat(context.retrievalMode).isFalse()
+        }
+
+        @Test
+        @DisplayName("a document-less chat is always retrieval mode, and lists known documents")
+        fun `no document open means retrieval mode, with a title list when documents exist`() = runTest {
+            documents.seed(testDocument(id = "d1", title = "Bescheid über Leistungen"))
+
+            val context = useCase(documentId = null, contextTokens = 4096)
+
+            assertThat(context.retrievalMode).isTrue()
+            assertThat(context.text).contains("Bescheid über Leistungen")
+        }
+
+        @Test
+        @DisplayName("an empty library still returns a usable standalone prompt")
+        fun `no documents at all means no title list`() = runTest {
+            val context = useCase(documentId = null, contextTokens = 4096)
+
+            assertThat(context.retrievalMode).isTrue()
+            assertThat(context.text).doesNotContain("## Your documents")
         }
     }
 
@@ -87,7 +114,7 @@ class BuildChatContextUseCaseTest {
             profiles.seed(testProfile(id = "p1", name = "Jobcenter Berlin"))
             profiles.linkProfileToDocument("p1", "d1", ProfileRole.SENDER)
 
-            val prompt = useCase(documentId = "d1", contextTokens = 4096)
+            val prompt = useCase(documentId = "d1", contextTokens = 4096).text
 
             assertThat(prompt).contains("Bescheid über Leistungen")
             assertThat(prompt).contains("31.01.2026")
@@ -100,7 +127,7 @@ class BuildChatContextUseCaseTest {
         fun `includes grounding instructions`() = runTest {
             documents.seed(testDocument(id = "d1"))
 
-            val prompt = useCase(documentId = "d1", contextTokens = 4096)
+            val prompt = useCase(documentId = "d1", contextTokens = 4096).text
 
             assertThat(prompt).contains("Do not invent")
             assertThat(prompt).contains("say so plainly")
@@ -111,7 +138,7 @@ class BuildChatContextUseCaseTest {
         fun `includes the language rule as its own imperative instruction`() = runTest {
             documents.seed(testDocument(id = "d1"))
 
-            val prompt = useCase(documentId = "d1", contextTokens = 4096)
+            val prompt = useCase(documentId = "d1", contextTokens = 4096).text
 
             assertThat(prompt).contains(
                 "Always answer in the same language the user writes in. If the user writes " +
@@ -133,7 +160,7 @@ class BuildChatContextUseCaseTest {
                 field("Amount", "563,00 EUR", confidence = 0.3f),
             )
 
-            val prompt = useCase(documentId = "d1", contextTokens = 4096)
+            val prompt = useCase(documentId = "d1", contextTokens = 4096).text
 
             assertThat(prompt).contains("563,00 EUR (uncertain)")
             // A confirmed value carries no hedge — the user vouched for it.
@@ -153,12 +180,13 @@ class BuildChatContextUseCaseTest {
             documents.seed(testDocument(id = "d1"))
             documents.seedPages("d1", page(hugeOcr))
 
-            val prompt = useCase(documentId = "d1", contextTokens = 2048)
+            val context = useCase(documentId = "d1", contextTokens = 2048)
 
             // 2048 tokens minus reply/template reserves, at ~3 chars per token, is a few
             // thousand characters — far below the 62 k of raw OCR.
-            assertThat(prompt.length).isLessThan(hugeOcr.length)
-            assertThat(prompt).contains("shortened to fit")
+            assertThat(context.text.length).isLessThan(hugeOcr.length)
+            assertThat(context.text).contains("shortened to fit")
+            assertThat(context.retrievalMode).isTrue()
         }
 
         @Test
@@ -167,7 +195,7 @@ class BuildChatContextUseCaseTest {
             documents.seed(testDocument(id = "d1"))
             documents.seedPages("d1", page(hugeOcr))
 
-            val prompt = useCase(documentId = "d1", contextTokens = 2048)
+            val prompt = useCase(documentId = "d1", contextTokens = 2048).text
 
             // The model must be able to say the text was cut rather than answer
             // confidently from a fragment.
@@ -179,10 +207,13 @@ class BuildChatContextUseCaseTest {
             documents.seed(testDocument(id = "d1"))
             documents.seedPages("d1", page("Kurzer Brief mit wenig Text."))
 
-            val prompt = useCase(documentId = "d1", contextTokens = 4096)
+            val context = useCase(documentId = "d1", contextTokens = 4096)
 
-            assertThat(prompt).contains("Kurzer Brief mit wenig Text.")
-            assertThat(prompt).doesNotContain("shortened to fit")
+            assertThat(context.text).contains("Kurzer Brief mit wenig Text.")
+            assertThat(context.text).doesNotContain("shortened to fit")
+            // Fits whole — no per-turn retrieval needed, the best-quality path for a short
+            // letter.
+            assertThat(context.retrievalMode).isFalse()
         }
 
         @Test
@@ -193,7 +224,7 @@ class BuildChatContextUseCaseTest {
             documents.seedPages("d1", page(hugeOcr))
 
             // A tiny window: only the highest-signal content can survive.
-            val prompt = useCase(documentId = "d1", contextTokens = 512)
+            val prompt = useCase(documentId = "d1", contextTokens = 512).text
 
             // The distilled answer is kept; the bulky source is dropped.
             assertThat(prompt).contains("31.01.2026")
@@ -204,10 +235,55 @@ class BuildChatContextUseCaseTest {
             documents.seed(testDocument(id = "d1"))
             documents.seedPages("d1", page(hugeOcr))
 
-            val prompt = useCase(documentId = "d1", contextTokens = 64)
+            val prompt = useCase(documentId = "d1", contextTokens = 64).text
 
             assertThat(prompt).isNotEmpty()
             assertThat(prompt).contains("Instructions")
+        }
+    }
+
+    @Nested
+    @DisplayName("Retrieval mode (4.1)")
+    inner class RetrievalMode {
+
+        private val hugeOcr = "Sehr geehrte Damen und Herren, ".repeat(2_000)
+
+        @Test
+        @DisplayName("a document that fits whole is not retrieval mode")
+        fun `fits means no retrieval mode`() = runTest {
+            documents.seed(testDocument(id = "d1"))
+            documents.seedPages("d1", page("Kurzer Brief."))
+
+            assertThat(useCase(documentId = "d1", contextTokens = 4096).retrievalMode).isFalse()
+        }
+
+        @Test
+        @DisplayName("a document too large for the window switches to retrieval mode")
+        fun `overflow means retrieval mode`() = runTest {
+            documents.seed(testDocument(id = "d1"))
+            documents.seedPages("d1", page(hugeOcr))
+
+            assertThat(useCase(documentId = "d1", contextTokens = 2048).retrievalMode).isTrue()
+        }
+
+        @Test
+        @DisplayName("a multi-page document keeps only its first page's own text, never a cut across pages")
+        fun `retrieval-mode excerpt never crosses a page boundary`() = runTest {
+            documents.seed(testDocument(id = "d1"))
+            documents.seedPages(
+                "d1",
+                page("Erste Seite. " + "A".repeat(3_000)),
+                DocumentPage(
+                    id = "p2", documentId = "d1", pageNumber = 2,
+                    imagePath = "/tmp/p2.jpg", ocrText = "Zweite Seite. " + "B".repeat(3_000),
+                    width = 0, height = 0,
+                ),
+            )
+
+            val context = useCase(documentId = "d1", contextTokens = 1024)
+
+            assertThat(context.retrievalMode).isTrue()
+            assertThat(context.text).doesNotContain("Zweite Seite")
         }
     }
 }

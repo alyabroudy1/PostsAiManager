@@ -10,6 +10,7 @@ import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.StreamSegment
 import com.postsaimanager.core.domain.ai.ThinkingStreamParser
 import com.postsaimanager.core.domain.repository.ConversationRepository
+import com.postsaimanager.core.domain.repository.StoredChunk
 import com.postsaimanager.core.model.AiConversation
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.AiModelType
@@ -58,8 +59,17 @@ sealed interface ChatTurn {
     /** An incremental token of the answer. */
     data class Token(val text: String) : ChatTurn
 
-    /** Finished; [message] is the persisted assistant message. */
-    data class Complete(val message: AiMessage) : ChatTurn
+    /**
+     * Finished; [message] is the persisted assistant message.
+     *
+     * @param sources the passages, if any, [RetrieveChunksUseCase] retrieved and injected
+     *   into *this turn's* prompt (never into the grounding — see the class KDoc's
+     *   "Retrieval-augmented grounding"). Not persisted by this use case: it exists so a
+     *   caller — today nobody, from 4.3 onward the citation-persisting step — can record
+     *   which passages the answer was actually grounded in, without having to re-derive
+     *   them.
+     */
+    data class Complete(val message: AiMessage, val sources: List<RetrievedChunk> = emptyList()) : ChatTurn
 
     /** Something went wrong, phrased for a person, with an action where one exists. */
     data class Failed(val message: String, val action: ChatErrorAction?) : ChatTurn
@@ -110,12 +120,36 @@ enum class ChatErrorAction {
  * is kept in sync on the same event: [AiEngine.discardPendingReply] is called instead of
  * [AiEngine.commitChatReply] for an incomplete reply, rolling back the reply's sampled
  * tokens so the session's cache and `chatHistory` never disagree with what got persisted.
+ *
+ * ### Retrieval-augmented grounding (4.1/4.2)
+ *
+ * When [BuildChatContextUseCase] reports [ChatGrounding.retrievalMode] — the document did not
+ * fit the grounding budget whole, or there is no single document (`documentId == null`) —
+ * this use case runs [RetrieveChunksUseCase] on **every turn**, scoped to [documentId] (or the
+ * whole corpus when it is null), and prefixes the top passages to *that turn's* text before
+ * calling [AiEngine.sendChatMessage]. They never touch [ChatGrounding.text] or get persisted:
+ *
+ *  - [ChatGrounding.text] is the KV-cache prefix [AiEngine.ensureChatSession] primes the
+ *    standing session with. It has to stay byte-identical across turns of the same
+ *    conversation or the engine cannot reuse the cache and re-prefills on every send — the
+ *    whole point of the standing session (documentation/02-architecture.md §5.3). Per-question
+ *    passages are, definitionally, different every turn, so they can never live there.
+ *  - The [AiMessage] persisted for the user's turn (see "Persistence brackets generation"
+ *    above) is `text` itself, untouched — never the passage-prefixed version sent to the
+ *    engine. [buildHistory] replays that same raw text into a rebuilt prompt on a future
+ *    re-prime, which is exactly what keeps a re-prime a faithful replay of the conversation
+ *    the user actually had, rather than one that silently re-injects every old turn's
+ *    passages back into the window.
+ *
+ * A turn whose retrieval comes back empty (nothing relevant, or no chunks indexed yet) is sent
+ * as plain `text` — passages are an addition, never a requirement to answer at all.
  */
 class SendChatMessageUseCase @Inject constructor(
     private val conversationRepository: ConversationRepository,
     private val engine: AiEngine,
     private val activeModelProvider: ActiveModelProvider,
     private val buildChatContext: BuildChatContextUseCase,
+    private val retrieveChunks: RetrieveChunksUseCase,
 ) {
 
     operator fun invoke(
@@ -179,45 +213,42 @@ class SendChatMessageUseCase @Inject constructor(
 
         val config = activeModelProvider.activeModelConfig()
 
-        // 3.5: skip rebuilding the grounding prompt when the session is already primed for
-        // this conversation. Safe because of the guarantee documented on AiEngine — "One
-        // native context, two callers" §2: ANY reload/unload/one-shot generate() that could
-        // change what grounding should say (a different model, context window, accelerator…)
-        // clears the tracked session first, so `isChatSessionPrimed` staying true is proof
-        // nothing that would change the document/config this grounding was built for has
-        // happened since. Read *before* `engine.load` below purely as a hint for whether to
-        // bother starting the concurrent build (3.1) at all — re-checked after load actually
-        // runs, below, since that is the one call that could invalidate it.
-        val primedBeforeLoad = engine.isChatSessionPrimed(conversationId)
+        // Built up front, not gated on whether the session looks primed (unlike pre-4.1):
+        // `chatContext.retrievalMode` has to be known on *every* turn — including one that
+        // never re-primes — to decide whether this turn needs a retrieval pass at all. The
+        // DB reads this does are cheap (Room, no model call); see the class KDoc,
+        // "Retrieval-augmented grounding".
+        val chatContext = systemPrompt?.let { ChatGrounding(it, retrievalMode = false) }
+            ?: buildChatContext(documentId, config.contextTokens)
 
         emit(ChatTurn.PreparingModel(reason = if (engine.isBusy) BUSY_REASON else null))
 
-        // 3.1: overlaps `buildChatContext` (a handful of DB reads) with `engine.load` (the
-        // slow part — can mean a multi-second cold model load, or now, also, waiting behind
-        // an in-flight generate() on the shared engine, see AiEngine.isBusy) instead of
-        // waiting for the load to finish first. Skipped when the session already looks primed
-        // (3.5) — grounding built here would go unused in the common case, since
-        // `ensureChatSession` below no-ops without ever reading it.
-        val (loaded, groundingIfBuilt) = coroutineScope {
-            val groundingDeferred = if (primedBeforeLoad) {
-                null
+        // Retrieval overlaps `engine.load` (the slow part — can mean a multi-second cold
+        // model load, or waiting behind an in-flight generate() on the shared engine, see
+        // AiEngine.isBusy) exactly the way grounding used to (3.1) — retrieval is now the
+        // expensive half of "what does this turn need", since it can itself call the
+        // embedding model. Skipped entirely outside retrieval mode: nothing to inject when
+        // the whole document already sits in the (stable) grounding.
+        val (loaded, retrieved) = coroutineScope {
+            val retrievalDeferred = if (chatContext.retrievalMode) {
+                async { retrieveChunks(text, limit = RETRIEVAL_LIMIT, documentId = documentId) }
             } else {
-                async { systemPrompt ?: buildChatContext(documentId, config.contextTokens) }
+                null
             }
             val loadResult = try {
                 engine.load(activeModelPath, config)
             } catch (e: Throwable) {
                 // Cancel both on failure — an exception from `load` (as opposed to the
                 // `PamResult.Error` value it normally returns) means this whole turn is being
-                // torn down, and the grounding build should not keep running orphaned.
-                groundingDeferred?.cancel()
+                // torn down, and the retrieval call should not keep running orphaned.
+                retrievalDeferred?.cancel()
                 throw e
             }
             if (loadResult is PamResult.Error) {
-                groundingDeferred?.cancel()
+                retrievalDeferred?.cancel()
                 loadResult to null
             } else {
-                loadResult to groundingDeferred?.await()
+                loadResult to retrievalDeferred?.await()
             }
         }
         if (loaded is PamResult.Error) {
@@ -225,20 +256,20 @@ class SendChatMessageUseCase @Inject constructor(
             return@flow
         }
 
-        // Re-checked after `load`: it may have triggered a reload the pre-load snapshot above
-        // could not have anticipated (a config changed since the last send), which would have
-        // invalidated the very session `primedBeforeLoad` reported as fine. This is the actual
-        // ground truth for whether `ensureChatSession` below is about to re-prime.
+        // Re-checked after `load`: it may have triggered a reload (a config changed since
+        // the last send), which is the one thing that can invalidate a previously-primed
+        // session. This is the ground truth for whether `ensureChatSession` below is about
+        // to re-prime.
         val needsPriming = !engine.isChatSessionPrimed(conversationId)
         val contextTokens = when (val state = engine.state.value) {
             is ModelLoadState.Ready -> state.config.contextTokens
             else -> config.contextTokens
         }
-        // Falls back to building grounding here — losing the 3.1 overlap for this one turn —
-        // only in the rare case load() invalidated a session this call believed, before load,
-        // was still good. Correctness over the overlap in that edge case.
-        val grounding = groundingIfBuilt
-            ?: if (needsPriming) (systemPrompt ?: buildChatContext(documentId, contextTokens)) else ""
+        // 3.5: the grounding text itself is only ever sent to the engine when a (re)prime is
+        // about to happen — an already-primed session's cache already holds it, and sending
+        // it again would not even be wrong, just wasted decode work `ensureChatSession`
+        // would have to notice and skip itself.
+        val grounding = if (needsPriming) chatContext.text else ""
 
         if (needsPriming) {
             // 3.4: without this, re-priming a long conversation (a full decode of the
@@ -253,6 +284,12 @@ class SendChatMessageUseCase @Inject constructor(
         // Cheap to call on every send, same as `engine.load` above: a no-op when this
         // conversation's session is already primed and valid.
         engine.ensureChatSession(conversationId, grounding, buildHistory(priorTurns, contextTokens, grounding))
+
+        // 4.1/4.2: fold retrieved passages into *this turn's* text only — never into
+        // `grounding` above, which must stay stable across turns. `sentText` is what the
+        // engine actually sees; `text` (persisted a few lines up, and again in `buildHistory`
+        // on a future re-prime) never changes.
+        val (sentText, sources) = withPassages(text, retrieved, documentId, contextTokens)
 
         val parser = ThinkingStreamParser()
         val thinkingBuilder = StringBuilder()
@@ -289,8 +326,10 @@ class SendChatMessageUseCase @Inject constructor(
 
         try {
             // `prompt` is unused here — sendChatMessage renders the turn itself from the
-            // session's own history plus `text`; only the sampling/thinking fields matter.
-            engine.sendChatMessage(text, AiRequest(prompt = "", thinkingEnabled = thinkingEnabled))
+            // session's own history plus `sentText`; only the sampling/thinking fields
+            // matter. `sentText` is `text` with any retrieved passages prefixed (4.1/4.2) —
+            // see the class KDoc's "Retrieval-augmented grounding".
+            engine.sendChatMessage(sentText, AiRequest(prompt = "", thinkingEnabled = thinkingEnabled))
                 .collect { token -> apply(parser.consume(token)).forEach { emit(it) } }
             apply(parser.finish()).forEach { emit(it) }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -359,7 +398,7 @@ class SendChatMessageUseCase @Inject constructor(
         // and what got persisted (and is shown as history next time) are always the same
         // string, including the NO_ANSWER_PRODUCED fallback below.
         engine.commitChatReply(assistant.content)
-        emit(ChatTurn.Complete(assistant))
+        emit(ChatTurn.Complete(assistant, sources = sources))
     }
 
     /**
@@ -438,6 +477,60 @@ class SendChatMessageUseCase @Inject constructor(
         }
     }
 
+    /**
+     * Folds [retrieval]'s passages, if any, into a copy of [text] for the engine to see —
+     * see the class KDoc's "Retrieval-augmented grounding" for why this must never touch
+     * [text] itself or the grounding prefix.
+     *
+     * Passages are fit into their own budget — [PASSAGE_BUDGET_FRACTION] of [contextTokens]
+     * — independent of, and on top of, the grounding/history budgets [buildHistory] already
+     * enforces: those account for the *stable* prefix, this is purely this turn's addition,
+     * dropped once the reply is generated. Passages are taken in ranked order and the first
+     * one that would overflow the budget is where inclusion stops, so at least one passage
+     * survives even a tight budget (unless even it alone does not fit).
+     *
+     * @return the text to actually send, and the passages that made it in — the latter is
+     *   what [ChatTurn.Complete.sources] exposes for 4.3.
+     */
+    private suspend fun withPassages(
+        text: String,
+        retrieval: RetrieveChunksUseCase.Result?,
+        documentId: String?,
+        contextTokens: Int,
+    ): Pair<String, List<RetrievedChunk>> {
+        val chunks = retrieval?.chunks.orEmpty()
+        if (chunks.isEmpty()) return text to emptyList()
+
+        val budgetChars = (contextTokens * PASSAGE_BUDGET_FRACTION).toInt() *
+            BuildChatContextUseCase.CHARS_PER_TOKEN
+        // Standalone chat (documentId == null) spans every document, so a passage needs its
+        // source spelled out; a document-scoped chat already has exactly one source in the
+        // grounding, so only the page matters. Cached per document id — several passages
+        // routinely come from the same document.
+        val titleCache = mutableMapOf<String, String?>()
+        suspend fun label(chunk: StoredChunk): String {
+            val where = chunk.pageNumber?.let { "p.$it" } ?: "part ${chunk.ordinal + 1}"
+            if (documentId != null) return where
+            val title = titleCache.getOrPut(chunk.documentId) { buildChatContext.documentTitle(chunk.documentId) }
+            return "${title ?: "Untitled document"}, $where"
+        }
+
+        val included = mutableListOf<RetrievedChunk>()
+        val body = StringBuilder()
+        var used = 0
+        for (retrievedChunk in chunks) {
+            val entry = "[${label(retrievedChunk.chunk)}] ${retrievedChunk.chunk.text}\n\n"
+            if (included.isNotEmpty() && used + entry.length > budgetChars) break
+            body.append(entry)
+            used += entry.length
+            included += retrievedChunk
+        }
+        if (included.isEmpty()) return text to emptyList()
+
+        val prefixed = PASSAGE_INSTRUCTION + "\n\n" + body.toString().trimEnd() + "\n\n---\n\n" + text
+        return prefixed to included
+    }
+
     private suspend fun persistAssistant(
         conversationId: String,
         content: String,
@@ -499,5 +592,29 @@ class SendChatMessageUseCase @Inject constructor(
         const val NANOS_PER_MILLI = 1_000_000L
         const val NO_ANSWER_PRODUCED =
             "The model finished thinking but did not produce an answer. You can try again."
+
+        /**
+         * How many passages [RetrieveChunksUseCase] is asked for per turn (4.1/4.2). A
+         * handful, smaller than [RetrieveChunksUseCase]'s own default limit —
+         * [withPassages]'s char budget is the real limit on what actually gets used; this
+         * just bounds the ranking work and keeps clearly-irrelevant tail results out of
+         * contention.
+         */
+        const val RETRIEVAL_LIMIT = 4
+
+        /**
+         * Retrieved passages get at most this fraction of the context window, in
+         * [withPassages]. A turn's prompt is grounding + history + passages + the question
+         * + the reply — passages competing for the same budget as everything else would let
+         * one greedy retrieval starve the reply reserve [BuildChatContextUseCase] already
+         * budgets for; capping them to a quarter leaves the rest for what was already
+         * accounted for.
+         */
+        const val PASSAGE_BUDGET_FRACTION = 0.25
+
+        /** Prefixed ahead of any turn that has passages to show the model. */
+        const val PASSAGE_INSTRUCTION =
+            "Use the following excerpts if they help answer the question below. Cite the " +
+                "ones you use like [p.2] or [Document title, p.2]."
     }
 }

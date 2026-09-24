@@ -429,6 +429,28 @@ writes in another," which the 0.8B model routinely ignored, answering in the doc
 language even when the user asked in English. Documents may be in any language; the prompt
 does not assume German.
 
+**Retrieval mode (4.1/4.2).** When the whole document's OCR text does not fit the grounding
+budget — or there is no single document at all, in the document-less "Ask about your
+documents" chat — `BuildChatContextUseCase` returns `ChatGrounding(text, retrievalMode =
+true)` instead of the full letter. `text` shrinks to metadata, extracted fields, and a
+first-page excerpt (a document-less chat gets a general prompt plus a short list of document
+titles); `SendChatMessageUseCase` then runs `RetrieveChunksUseCase` — scoped to the document,
+or across every document when there is none — on **every turn**, and prefixes the top
+passages (labelled `[p.N]`, or `[<document title>, p.N]` in the document-less case) to *that
+turn's own text* before calling `sendChatMessage`. This is the one place the "grounding must
+stay prefix-stable" rule below matters most: passages are, by construction, different every
+turn, so injecting them into `text` would invalidate the standing session's KV cache on every
+single send. They go into the per-turn user message instead, and only there — the persisted
+`AiMessage` for that turn, and the history a future re-prime replays, are the user's raw text,
+never the passage-prefixed version the engine actually saw. `RetrieveChunksUseCase` itself
+runs concurrently with `engine.load`, the same overlap `BuildChatContextUseCase`'s own DB
+reads used to get (3.1) — retrieval is now the more expensive half, since it can call the
+embedding model. Indexing is page-aware (`IndexDocumentUseCase` chunks each OCR page
+separately and stamps the result with that page's number — 4.0), which is what lets a
+retrieved passage cite a page instead of an opaque ordinal; a chunk indexed before that
+change simply has no page number, the same "additive, nullable" pattern every other schema
+migration in this codebase follows.
+
 A reasoning model (Qwen3/Qwen3.5, DeepSeek) writes its chain of thought and its answer into
 the *same* token stream, delimited by `<think>…</think>`. Chat treats that boundary as
 load-bearing, not cosmetic — the same discipline as the online-escalation payload above,
@@ -809,7 +831,10 @@ context overflow (...) — dropping oldest turns`.
 on the document and the context window size, never on how many turns have happened, so it
 never shifts underneath a growing conversation. `SendChatMessageUseCase.buildHistory` caps
 history at the last 20 turns by dropping from the oldest turn boundary only — the tail a
-session's diff decoding sees is always a clean suffix, never a reshuffled window.
+session's diff decoding sees is always a clean suffix, never a reshuffled window. Retrieval
+mode (§5.1a) keeps this guarantee too: retrieved passages vary turn to turn by construction,
+so they are injected into that turn's own user text, never into the grounding the session was
+primed with.
 
 **Rejected alternative — prompt-prefix diffing.** An earlier design kept `cachedTokens` and
 computed the longest common token prefix with the new prompt on every turn
