@@ -304,6 +304,8 @@ private fun DocumentDetailContent(
             DetailTab.EXTRACTED -> ExtractedTemplateTab(
                 data = state.extractedData,
                 language = state.document.language,
+                extractionPagesRead = state.document.extractionPagesRead,
+                extractionTotalPages = state.document.extractionTotalPages,
                 profileSuggestions = profileSuggestions,
                 entityProposals = entityProposals,
                 onConfirm = onConfirmField,
@@ -540,6 +542,9 @@ private fun copyOcrText(context: Context, page: DocumentPage) {
 private fun ExtractedTemplateTab(
     data: List<ExtractedData>,
     language: String?,
+    /** See [com.postsaimanager.core.model.Document.extractionPagesRead] (5.4). */
+    extractionPagesRead: Int?,
+    extractionTotalPages: Int?,
     profileSuggestions: List<ProfileSuggestion>,
     entityProposals: List<EntityProposal>,
     onConfirm: (String) -> Unit,
@@ -601,6 +606,24 @@ private fun ExtractedTemplateTab(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Re-extract", style = MaterialTheme.typography.labelSmall)
                         }
+                    }
+                }
+
+                // 5.4: the assistant did not see the whole document — a long letter's layout
+                // had to be cut to fit the extraction budget. Subtle (a caption, not a
+                // warning colour) because it is informational, not something wrong with the
+                // extraction that already happened.
+                if (extractionPagesRead != null && extractionTotalPages != null &&
+                    extractionPagesRead < extractionTotalPages
+                ) {
+                    item {
+                        Text(
+                            "Only the first $extractionPagesRead of $extractionTotalPages pages " +
+                                "were read by the assistant — check the rest yourself.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        )
                     }
                 }
 

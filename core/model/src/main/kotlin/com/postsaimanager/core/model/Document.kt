@@ -18,6 +18,14 @@ data class Document(
     val isFavorite: Boolean = false,
     val createdAt: Long,
     val modifiedAt: Long,
+    /**
+     * Set when the last extraction had to cut this document's layout to fit its context
+     * budget (5.4, `InputTruncation`) — how many of [pageCount] pages the model actually
+     * saw. Null means the whole document was read, which is both the common case and what a
+     * document scanned before this existed reads as.
+     */
+    val extractionPagesRead: Int? = null,
+    val extractionTotalPages: Int? = null,
 )
 
 /**

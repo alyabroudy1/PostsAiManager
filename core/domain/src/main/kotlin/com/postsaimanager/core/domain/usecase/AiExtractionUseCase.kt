@@ -8,7 +8,9 @@ import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.model.DocumentUnderstanding
+import com.postsaimanager.core.model.InputTruncation
 import com.postsaimanager.core.model.OcrBlock
+import com.postsaimanager.core.common.result.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -49,10 +51,18 @@ class AiExtractionUseCase @Inject constructor(
      * @param contextTokens overrides the window to budget against. Normally left null so it
      *   comes from the same source the model is loaded with — a budget computed against a
      *   different number than the one allocated is how a prompt silently overflows.
+     * @param pageBlockCounts how many of [blocks] belong to each page, in page order (e.g.
+     *   `[12, 8, 15]` for a three-page document whose OCR blocks were concatenated
+     *   page-by-page — exactly how `DocumentProcessingPipeline` builds `blocks`). Used only
+     *   to turn a truncated budget into [InputTruncation.pagesRead]/[InputTruncation.totalPages]
+     *   (5.4); left empty when page boundaries are not known (e.g. a caller working from a
+     *   single page's blocks), in which case a truncation is still recorded, just without a
+     *   page estimate — see [InputTruncation]'s KDoc.
      */
     suspend operator fun invoke(
         blocks: List<OcrBlock>,
         contextTokens: Int? = null,
+        pageBlockCounts: List<Int> = emptyList(),
     ): PamResult<DocumentUnderstanding> {
         if (blocks.isEmpty()) return PamResult.Success(DocumentUnderstanding())
 
@@ -82,12 +92,24 @@ class AiExtractionUseCase @Inject constructor(
         val loaded = engine.load(path, config)
         if (loaded is PamResult.Error) return loaded
 
-        val page = DocumentLayout.describe(blocks).let { described ->
-            val budget = characterBudget(window)
-            // Truncating the tail keeps the header, address and reference blocks — where
-            // almost everything structured lives. The body is what a long letter has too
-            // much of, and it contributes least to the fields being extracted.
-            if (described.length <= budget) described else described.take(budget)
+        val described = DocumentLayout.describe(blocks)
+        val budget = characterBudget(window)
+        // Truncating the tail keeps the header, address and reference blocks — where
+        // almost everything structured lives. The body is what a long letter has too
+        // much of, and it contributes least to the fields being extracted.
+        val page = if (described.length <= budget) described else described.take(budget)
+
+        // 5.4: recorded here, at the one place that knows both the budget and what it was
+        // budgeted against, rather than reverse-engineered later from the persisted result.
+        val inputTruncation = if (described.length > budget) {
+            InputTruncation(
+                charactersRead = budget,
+                totalCharacters = described.length,
+                pagesRead = pagesRead(blocks, pageBlockCounts, budget).takeIf { pageBlockCounts.isNotEmpty() },
+                totalPages = pageBlockCounts.size.takeIf { pageBlockCounts.isNotEmpty() },
+            )
+        } else {
+            null
         }
 
         val prompt = engine.formatPrompt(
@@ -120,7 +142,38 @@ class AiExtractionUseCase @Inject constructor(
         // prompt.
         val groundingText = DocumentLayout.plainText(blocks)
 
-        return parse(raw, groundingText)
+        return parse(raw, groundingText).map { it.copy(inputTruncation = inputTruncation) }
+    }
+
+    /**
+     * How many of [pageBlockCounts]' pages are represented in the first [budget] characters
+     * of [blocks]' description — a page counts as "read" the moment any of its content made
+     * the cut, so a page only partially included still counts (the notice this backs says
+     * "check the rest", which is true of a partially-read page too).
+     *
+     * An estimate, not an exact accounting: [DocumentLayout.describe] reorders blocks into
+     * reading order across the *whole* document before this use case ever truncates it, so a
+     * multi-page scan's bands can, in principle, interleave content from different pages
+     * (each page's coordinates are normalised 0..1 independently). Computing each page's own
+     * contribution in isolation — as this does — sidesteps depending on exactly how that
+     * reordering landed, at the cost of being approximate rather than a literal reading of
+     * where the cut fell.
+     */
+    private fun pagesRead(blocks: List<OcrBlock>, pageBlockCounts: List<Int>, budget: Int): Int {
+        var consumedBlocks = 0
+        var consumedChars = 0
+        for ((index, count) in pageBlockCounts.withIndex()) {
+            if (consumedChars >= budget) return index
+            val pageBlocks = blocks.subList(consumedBlocks, (consumedBlocks + count).coerceAtMost(blocks.size))
+            // +1 mirrors describe()'s "\n" joiner between entries, close enough for an estimate.
+            consumedChars += DocumentLayout.describe(pageBlocks).length + 1
+            consumedBlocks += count
+            // This page started within budget but its own content ran past it — it still
+            // counts as read (see the KDoc: any of a page's content making the cut counts),
+            // but nothing after it does.
+            if (consumedChars >= budget) return index + 1
+        }
+        return pageBlockCounts.size
     }
 
     /**

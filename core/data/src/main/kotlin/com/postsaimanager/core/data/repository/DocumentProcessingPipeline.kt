@@ -215,7 +215,13 @@ class DocumentProcessingPipeline @Inject constructor(
                 // memory, or a model that returned something unusable still gets a document
                 // with fields. Worse fields, not none.
                 val allBlocks = ocrResults.flatMap { it.blocks }
-                val understanding = aiExtraction(allBlocks)
+                val understanding = aiExtraction(
+                    allBlocks,
+                    // 5.4: lets AiExtractionUseCase turn a character-budget cut into a page
+                    // estimate — `ocrResults` is already page-ordered, matching how
+                    // `allBlocks` was concatenated above.
+                    pageBlockCounts = ocrResults.map { it.blocks.size },
+                )
 
                 val usedModel = understanding is PamResult.Success &&
                     understanding.data.entities.isNotEmpty()
@@ -330,6 +336,14 @@ class DocumentProcessingPipeline @Inject constructor(
                     }
                 }
 
+                // 5.4: whether this run had to cut the document's layout to fit the
+                // extraction budget — only meaningful when the model actually ran; the
+                // pattern fallback never truncates an input, it just reads flat text.
+                val inputTruncation = (understanding as? PamResult.Success)
+                    ?.takeIf { usedModel }
+                    ?.data
+                    ?.inputTruncation
+
                 // Update document with detected type, language, and subject
                 val doc = documentDao.getById(documentId)
                 if (doc != null) {
@@ -339,6 +353,12 @@ class DocumentProcessingPipeline @Inject constructor(
                             language = extraction.language ?: doc.language,
                             title = if (extraction.subject != null && doc.title.startsWith("Scan"))
                                 extraction.subject!! else doc.title,
+                            // Always overwritten with this run's own answer, null included —
+                            // a reprocess that happens to read the whole document (a bigger
+                            // context window, say) must clear a stale notice from an earlier
+                            // truncated run, not leave it lingering.
+                            extractionPagesRead = inputTruncation?.pagesRead,
+                            extractionTotalPages = inputTruncation?.totalPages,
                         )
                     )
                 }

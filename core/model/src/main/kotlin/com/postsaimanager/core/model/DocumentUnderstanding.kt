@@ -66,6 +66,24 @@ enum class FactKind {
     OTHER,
 }
 
+/**
+ * How much of a document [AiExtractionUseCase] actually gave the model, when it did not all
+ * fit — see [DocumentUnderstanding.inputTruncation].
+ *
+ * [charactersRead]/[totalCharacters] are always exact — they are the same character budget
+ * the use case truncated the labelled layout against. [pagesRead]/[totalPages] are a
+ * best-effort estimate from page boundaries the caller supplied (`AiExtractionUseCase`'s
+ * `pageBlockCounts`); null when those were not known, in which case a UI shows the character
+ * figures instead of a page count.
+ */
+@Serializable
+data class InputTruncation(
+    val charactersRead: Int,
+    val totalCharacters: Int,
+    val pagesRead: Int? = null,
+    val totalPages: Int? = null,
+)
+
 @Serializable
 data class RecognisedFact(
     val label: String,
@@ -99,6 +117,19 @@ data class DocumentUnderstanding(
      * there was nothing to report.
      */
     val truncated: Boolean = false,
+
+    /**
+     * Set when the document's own layout had to be cut to fit the extraction budget (5.4) —
+     * how much of the document the model actually *saw*, as opposed to [truncated], which is
+     * about the model's *answer* being cut off mid-generation. A long, multi-page letter can
+     * hit this while [truncated] stays false (the model finished its answer fine — it simply
+     * was never shown the later pages), or the reverse.
+     *
+     * Never set by the model itself — [AiExtractionUseCase] computes and attaches this after
+     * parsing, from the character budget it enforced before the model ever ran. Null means
+     * the whole document fit inside the budget.
+     */
+    val inputTruncation: InputTruncation? = null,
 ) {
     val sender: RecognisedEntity? get() = entities.firstOrNull { it.role == EntityRole.SENDER }
 

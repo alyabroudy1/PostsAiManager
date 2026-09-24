@@ -20,6 +20,9 @@ data class DocumentEntity(
     @ColumnInfo(index = true) val createdAt: Long,
     @ColumnInfo(index = true) val modifiedAt: Long,
     val syncStatus: String = "LOCAL",
+    /** See [com.postsaimanager.core.model.Document.extractionPagesRead] (5.4). */
+    val extractionPagesRead: Int? = null,
+    val extractionTotalPages: Int? = null,
 )
 
 @Entity(

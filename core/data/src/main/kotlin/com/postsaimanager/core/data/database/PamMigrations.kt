@@ -319,6 +319,24 @@ object PamMigrations {
         }
     }
 
+    /**
+     * Records how much of a document extraction actually read, when its layout had to be
+     * cut to fit the model's context budget (Phase 5.4).
+     *
+     * Before this, `AiExtractionUseCase` silently dropped the tail of a long document — the
+     * model answered from whatever fit, with no record anywhere that later pages were never
+     * seen at all. Nullable and left null for every document processed before this
+     * migration: exactly like a document whose last extraction happened to read it whole,
+     * which is the honest reading — nothing here claims a page was skipped when it is simply
+     * unknown.
+     */
+    val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `extractionPagesRead` INTEGER")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `extractionTotalPages` INTEGER")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -329,5 +347,6 @@ object PamMigrations {
         MIGRATION_7_8,
         MIGRATION_8_9,
         MIGRATION_9_10,
+        MIGRATION_10_11,
     )
 }

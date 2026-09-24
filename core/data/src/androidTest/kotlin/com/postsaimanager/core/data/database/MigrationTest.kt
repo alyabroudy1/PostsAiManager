@@ -520,6 +520,47 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate10To11_extractionCoverageColumnsAreAdditiveAndNullForExistingDocuments() {
+        helper.createDatabase(TEST_DB, 10).apply {
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite,
+                     createdAt, modifiedAt, syncStatus)
+                VALUES ('doc-1', 'Bescheid', 'EXTRACTED', 'CAMERA', 3, 0, 1, 1, 'LOCAL')
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 11, true, PamMigrations.MIGRATION_10_11,
+        )
+
+        // A document extracted before this migration existed simply has no truncation
+        // notice — exactly like one whose last extraction happened to read it whole.
+        db.query(
+            "SELECT title, extractionPagesRead, extractionTotalPages FROM documents WHERE id = 'doc-1'",
+        ).use { cursor ->
+            assertTrue("the document was lost in migration", cursor.moveToFirst())
+            assertEquals("Bescheid", cursor.getString(0))
+            assertTrue("extractionPagesRead should be NULL for a pre-existing document", cursor.isNull(1))
+            assertTrue("extractionTotalPages should be NULL for a pre-existing document", cursor.isNull(2))
+        }
+
+        db.execSQL(
+            "UPDATE documents SET extractionPagesRead = 1, extractionTotalPages = 3 WHERE id = 'doc-1'",
+        )
+        db.query(
+            "SELECT extractionPagesRead, extractionTotalPages FROM documents WHERE id = 'doc-1'",
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(0))
+            assertEquals(3, cursor.getInt(1))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

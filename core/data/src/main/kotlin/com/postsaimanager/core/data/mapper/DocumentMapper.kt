@@ -33,6 +33,8 @@ class DocumentMapper @Inject constructor() {
         isFavorite = entity.isFavorite,
         createdAt = entity.createdAt,
         modifiedAt = entity.modifiedAt,
+        extractionPagesRead = entity.extractionPagesRead,
+        extractionTotalPages = entity.extractionTotalPages,
     )
 
     fun toEntity(domain: Document): DocumentEntity = DocumentEntity(
@@ -47,6 +49,8 @@ class DocumentMapper @Inject constructor() {
         isFavorite = domain.isFavorite,
         createdAt = domain.createdAt,
         modifiedAt = domain.modifiedAt,
+        extractionPagesRead = domain.extractionPagesRead,
+        extractionTotalPages = domain.extractionTotalPages,
     )
 
     fun pageToDomain(entity: DocumentPageEntity): DocumentPage = DocumentPage(

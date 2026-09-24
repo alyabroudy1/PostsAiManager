@@ -145,6 +145,77 @@ class AiExtractionUseCaseTest {
         }
     }
 
+    // ── 5.4: recording that the document itself was cut to fit the budget ──
+
+    @Nested
+    @DisplayName("Input truncation")
+    inner class InputTruncationTests {
+
+        @Test
+        @DisplayName("a page that fits whole records no truncation")
+        fun `no truncation when the page fits`() = runTest {
+            engine.response = goodAnswer
+
+            val result = (extract(page) as PamResult.Success).data
+
+            assertThat(result.inputTruncation).isNull()
+        }
+
+        @Test
+        @DisplayName("a page cut to fit the budget records exact character coverage")
+        fun `records character coverage when cut`() = runTest {
+            engine.response = goodAnswer
+            val huge = List(400) { block("Ein sehr langer Absatz mit viel Inhalt $it", 0.08f, 0.5f) }
+
+            val result = (extract(huge, contextTokens = 2048) as PamResult.Success).data
+
+            val truncation = result.inputTruncation
+            assertThat(truncation).isNotNull()
+            assertThat(truncation!!.charactersRead).isLessThan(truncation.totalCharacters)
+            // What was actually sent to the model is exactly `charactersRead` long.
+            assertThat(engine.lastMessages.last().content.length).isEqualTo(truncation.charactersRead)
+        }
+
+        @Test
+        @DisplayName("page boundaries turn a character cut into a page estimate")
+        fun `estimates pages read from page boundaries`() = runTest {
+            engine.response = goodAnswer
+            // Big enough on its own to run past the (small, floored) budget, so page 2 never
+            // even starts — pinning the "only the pages that started within budget count"
+            // rule against the more common "page 1 alone already overflows" shape.
+            val page1 = List(30) { block("Ein sehr langer Absatz mit viel Inhalt $it", 0.08f, 0.5f) }
+            val page2 = List(400) { block("Noch mehr Inhalt auf der zweiten Seite $it", 0.08f, 0.5f) }
+
+            val result = (
+                extract(
+                    page1 + page2,
+                    contextTokens = 2048,
+                    pageBlockCounts = listOf(page1.size, page2.size),
+                ) as PamResult.Success
+                ).data
+
+            val truncation = result.inputTruncation
+            assertThat(truncation).isNotNull()
+            assertThat(truncation!!.totalPages).isEqualTo(2)
+            // Only the first (short) page fit before the budget ran out.
+            assertThat(truncation.pagesRead).isEqualTo(1)
+        }
+
+        @Test
+        @DisplayName("no page boundaries supplied still records character coverage, without a page estimate")
+        fun `no page boundaries means no page estimate`() = runTest {
+            engine.response = goodAnswer
+            val huge = List(400) { block("Ein sehr langer Absatz mit viel Inhalt $it", 0.08f, 0.5f) }
+
+            val result = (extract(huge, contextTokens = 2048) as PamResult.Success).data
+
+            val truncation = result.inputTruncation
+            assertThat(truncation).isNotNull()
+            assertThat(truncation!!.pagesRead).isNull()
+            assertThat(truncation.totalPages).isNull()
+        }
+    }
+
     @Nested
     @DisplayName("Reading the answer")
     inner class Parsing {
