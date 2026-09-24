@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.util.UuidGenerator
+import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
@@ -22,6 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ScannerViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
+    private val documentProcessor: DocumentProcessor,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ScannerUiState>(ScannerUiState.Idle)
@@ -73,6 +75,11 @@ class ScannerViewModel @Inject constructor(
 
             when (val result = documentRepository.createDocument(document, pages)) {
                 is PamResult.Success -> {
+                    // A scanned document is not searchable until it is processed
+                    // (documentation/07-document-pipeline.md §7) — enqueue it before
+                    // navigating away, so it starts reading itself immediately rather than
+                    // waiting for someone to open it.
+                    documentProcessor.enqueue(documentId)
                     _uiState.value = ScannerUiState.Success(documentId)
                 }
                 is PamResult.Error -> {

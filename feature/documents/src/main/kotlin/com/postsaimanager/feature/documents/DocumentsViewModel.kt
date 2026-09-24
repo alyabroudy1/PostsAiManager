@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.document.DeleteDocumentUseCase
+import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.GetDocumentsUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.model.Document
+import com.postsaimanager.core.model.ProcessingState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,10 +27,20 @@ import javax.inject.Inject
 class DocumentsViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val deleteDocumentUseCase: DeleteDocumentUseCase,
+    documentProcessor: DocumentProcessor,
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    /**
+     * Whichever document is currently being read/understood, for the list row that matches
+     * its id to show real progress ("page x/y") instead of a static "Processing" label — see
+     * `DocumentProcessor.processingState`'s doc comment for why this is one flow, not one
+     * per document.
+     */
+    val processingState: StateFlow<ProcessingState> = documentProcessor.processingState
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProcessingState.Idle)
 
     val uiState: StateFlow<DocumentsUiState> =
         _searchQuery

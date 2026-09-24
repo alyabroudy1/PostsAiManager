@@ -46,6 +46,8 @@ import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.ProcessingStage
+import com.postsaimanager.core.model.ProcessingState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +58,7 @@ fun DocumentsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val processingState by viewModel.processingState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -119,6 +122,8 @@ fun DocumentsScreen(
                         items(state.documents, key = { it.id }) { document ->
                             DocumentListItem(
                                 document = document,
+                                runningState = (processingState as? ProcessingState.Running)
+                                    ?.takeIf { it.documentId == document.id },
                                 onClick = { onDocumentClick(document.id) },
                                 onFavoriteClick = { viewModel.onToggleFavorite(document.id) },
                             )
@@ -133,6 +138,8 @@ fun DocumentsScreen(
 @Composable
 private fun DocumentListItem(
     document: Document,
+    /** Non-null only when this document is the one currently being read/understood. */
+    runningState: ProcessingState.Running?,
     onClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -164,7 +171,7 @@ private fun DocumentListItem(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${document.status.name.lowercase().replaceFirstChar { it.uppercase() }} · ${document.createdAt.toFormattedDate()}",
+                    text = "${document.statusLabel(runningState)} · ${document.createdAt.toFormattedDate()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -180,4 +187,27 @@ private fun DocumentListItem(
             }
         }
     }
+}
+
+/**
+ * The generic `document.status.name` reads fine for every status ([DocumentStatus.QUEUED]
+ * included — "Queued" needs no special case), except `PROCESSING`: real progress is worth
+ * more than a static word when it is cheaply available, which it is here since [Documents
+ * ViewModel] already surfaces the pipeline's [ProcessingState].
+ */
+private fun Document.statusLabel(runningState: ProcessingState.Running?): String {
+    if (status == DocumentStatus.PROCESSING && runningState != null) {
+        return when (runningState.stage) {
+            ProcessingStage.READ -> if (runningState.currentPage != null && runningState.totalPages != null) {
+                "Reading page ${runningState.currentPage}/${runningState.totalPages}"
+            } else {
+                "Reading…"
+            }
+            ProcessingStage.UNDERSTAND -> "Analysing…"
+            ProcessingStage.LINK -> "Matching profiles…"
+            ProcessingStage.INDEX -> "Indexing…"
+            ProcessingStage.CAPTURE -> "Preparing…"
+        }
+    }
+    return status.name.lowercase().replaceFirstChar { it.uppercase() }
 }

@@ -14,6 +14,7 @@ import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
 import com.postsaimanager.core.domain.document.ProfileMatchingService
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
+import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.EntityProposal
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
@@ -108,16 +109,44 @@ class DocumentDetailViewModel @Inject constructor(
                 initialValue = DocumentDetailUiState.Loading,
             )
 
+    /** Guards the auto-enqueue below so opening a `NEW` document does not re-enqueue on
+     * every recomposition — `enqueue` is idempotent via `ExistingWorkPolicy.KEEP` anyway,
+     * but there is no reason to keep hitting Room and WorkManager on every emission. */
+    private var autoEnqueued = false
+
     init {
         viewModelScope.launch {
             documentProcessor.processingState.collect { state ->
-                _processingProgress.value = state
-                if (state is ProcessingState.Completed) runProfileMatching()
+                // The pipeline's processingState is one flow for "whichever document last
+                // started" (see DocumentProcessor's doc comment) — without this filter, a
+                // second document processing in the background would flash its progress on
+                // this screen too.
+                val documentIdOfState = when (state) {
+                    is ProcessingState.Running -> state.documentId
+                    is ProcessingState.Completed -> state.documentId
+                    is ProcessingState.Failed -> state.documentId
+                    ProcessingState.Idle -> null
+                }
+                if (documentIdOfState == documentId) {
+                    _processingProgress.value = state
+                    if (state is ProcessingState.Completed) runProfileMatching()
+                }
             }
         }
         viewModelScope.launch {
             uiState.collect { state ->
-                if (state is DocumentDetailUiState.Success && state.extractedData.isNotEmpty() && _profileSuggestions.value.isEmpty()) {
+                if (state !is DocumentDetailUiState.Success) return@collect
+
+                // A document becomes searchable because it was captured, not because
+                // someone opened it (documentation/07-document-pipeline.md §7) — but a
+                // legacy or otherwise-untouched NEW document still needs a first push, and
+                // opening its detail screen is that push.
+                if (state.document.status == DocumentStatus.NEW && !autoEnqueued) {
+                    autoEnqueued = true
+                    documentProcessor.enqueue(documentId)
+                }
+
+                if (state.extractedData.isNotEmpty() && _profileSuggestions.value.isEmpty()) {
                     runProfileMatching()
                 }
             }
@@ -143,10 +172,18 @@ class DocumentDetailViewModel @Inject constructor(
     fun selectTab(tab: DetailTab) { _selectedTab.value = tab }
 
     // ── Processing ──
-    fun startProcessing() {
+    /**
+     * Enqueues background processing for this document. [force] restarts a document that is
+     * already `EXTRACTED`/`REVIEWED` (the detail screen's "Reprocess") or retries one that
+     * `FAILED`; without it, a document already queued or running just keeps going.
+     *
+     * Never runs the pipeline itself — `DocumentProcessor.processDocument` is called only
+     * by `DocumentProcessingWorker`, so processing survives this screen closing.
+     */
+    fun startProcessing(force: Boolean = false) {
         viewModelScope.launch {
             _profileSuggestions.value = emptyList()
-            documentProcessor.processDocument(documentId)
+            documentProcessor.enqueue(documentId, force = force)
         }
     }
 

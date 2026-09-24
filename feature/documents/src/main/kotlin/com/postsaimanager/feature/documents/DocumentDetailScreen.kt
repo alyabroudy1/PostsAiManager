@@ -132,7 +132,7 @@ fun DocumentDetailScreen(
                     profileSuggestions = profileSuggestions,
                     entityProposals = entityProposals,
                     onTabSelected = viewModel::selectTab,
-                    onProcess = viewModel::startProcessing,
+                    onProcess = { force -> viewModel.startProcessing(force) },
                     onConfirmField = viewModel::confirmField,
                     onAddField = viewModel::addField,
                     onUpdateField = viewModel::updateField,
@@ -177,7 +177,10 @@ private fun DocumentDetailContent(
     profileSuggestions: List<ProfileSuggestion>,
     entityProposals: List<EntityProposal>,
     onTabSelected: (DetailTab) -> Unit,
-    onProcess: () -> Unit,
+    /** `force = true` restarts a document that is already `EXTRACTED`/`REVIEWED`, or retries
+     * one that `FAILED`; `false` is used only for the auto-enqueue done by the ViewModel on
+     * open, which this Composable never triggers directly. */
+    onProcess: (force: Boolean) -> Unit,
     onConfirmField: (String) -> Unit,
     onAddField: (String, String, ExtractedFieldType) -> Unit,
     onUpdateField: (String, String, String) -> Unit,
@@ -192,43 +195,49 @@ private fun DocumentDetailContent(
     onToggleFavorite: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        if (processingState is ProcessingState.Running) {
-            ProcessingBanner(processingState)
+        // A document starts processing itself the moment it is captured — there is no
+        // mandatory button here any more. What shows is honest status: queued, running (with
+        // real progress), or a failure with a retry — see documentation/07-document-pipeline.md
+        // §7-§8.
+        when {
+            processingState is ProcessingState.Running && processingState.documentId == state.document.id ->
+                ProcessingBanner(processingState)
+            state.document.status == DocumentStatus.QUEUED -> QueuedBanner()
+            state.document.status == DocumentStatus.FAILED ->
+                FailedBanner(onRetry = { onProcess(true) })
         }
 
-        // Action row
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        // Action row — nothing to act on yet while a document is new, queued or running.
+        if (state.document.status != DocumentStatus.NEW &&
+            state.document.status != DocumentStatus.QUEUED &&
+            state.document.status != DocumentStatus.PROCESSING
         ) {
-            when {
-                state.document.status == DocumentStatus.NEW -> {
-                    Button(onClick = onProcess, modifier = Modifier.weight(1f)) {
-                        Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Process Document")
-                    }
-                }
-                else -> {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (state.document.status != DocumentStatus.FAILED) {
                     FilledTonalButton(onClick = onChatClick, modifier = Modifier.weight(1f)) {
                         Icon(PamIcons.AiChat, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Ask AI")
                     }
-                    OutlinedButton(onClick = onProcess) {
+                    OutlinedButton(onClick = { onProcess(true) }) {
                         Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Re-extract")
+                        Text("Reprocess")
                     }
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
-            }
-            IconButton(onClick = onToggleFavorite) {
-                Icon(
-                    imageVector = if (state.document.isFavorite) PamIcons.Favorite else PamIcons.FavoriteOutlined,
-                    contentDescription = "Toggle favorite",
-                    tint = if (state.document.isFavorite) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                IconButton(onClick = onToggleFavorite) {
+                    Icon(
+                        imageVector = if (state.document.isFavorite) PamIcons.Favorite else PamIcons.FavoriteOutlined,
+                        contentDescription = "Toggle favorite",
+                        tint = if (state.document.isFavorite) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
@@ -264,7 +273,7 @@ private fun DocumentDetailContent(
                 onDismissSuggestion = onDismissSuggestion,
                 onAcceptProposal = onAcceptProposal,
                 onDismissProposal = onDismissProposal,
-                onReprocess = onProcess,
+                onReprocess = { onProcess(true) },
             )
             DetailTab.TIMELINE -> TimelineTab(state.timeline)
         }
@@ -276,7 +285,45 @@ private fun ProcessingBanner(state: ProcessingState.Running) {
     Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer).padding(16.dp)) {
         Text(state.toDisplayMessage(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
         Spacer(modifier = Modifier.height(8.dp))
-        LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
+        // UNDERSTAND has no meaningful fraction: the pipeline freezes `progress` between
+        // 0.7 and 0.9 for however long the on-device model takes, which is unbounded and
+        // varies wildly with document length and device speed. A determinate bar that stops
+        // moving reads as stuck; an indeterminate one reads as "still working" — which is
+        // the truth. Every other stage does report real, moving progress and keeps the
+        // determinate bar.
+        if (state.stage == ProcessingStage.UNDERSTAND) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        } else {
+            LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun QueuedBanner() {
+    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(16.dp)) {
+        Text(
+            "Waiting to be read…",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun FailedBanner(onRetry: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).padding(16.dp)) {
+        Text(
+            "Something went wrong while reading this document.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(onClick = onRetry) {
+            Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("Try again")
+        }
     }
 }
 
@@ -296,11 +343,7 @@ private fun ProcessingState.Running.toDisplayMessage(): String = when (stage) {
     } else {
         "Starting OCR..."
     }
-    ProcessingStage.UNDERSTAND -> if (fieldCount != null) {
-        "Saving $fieldCount fields..."
-    } else {
-        "Analyzing document structure..."
-    }
+    ProcessingStage.UNDERSTAND -> "Understanding the letter — this can take a minute"
     ProcessingStage.LINK -> "Matching profiles..."
     ProcessingStage.INDEX -> "Indexing for search..."
 }
