@@ -92,21 +92,22 @@ class AiExtractionUseCase @Inject constructor(
         val loaded = engine.load(path, config)
         if (loaded is PamResult.Error) return loaded
 
-        val described = DocumentLayout.describe(blocks)
+        // Per-page zones, never interleaving pages. Under a short budget the description keeps
+        // page-1 header/address/subject first, then payment sections, footers, the last page
+        // and only then the rest (see LetterLayout.describe).
+        val layout = LetterLayoutAnalyzer.analyze(blocks, pageBlockCounts)
         val budget = characterBudget(window)
-        // Truncating the tail keeps the header, address and reference blocks — where
-        // almost everything structured lives. The body is what a long letter has too
-        // much of, and it contributes least to the fields being extracted.
-        val page = if (described.length <= budget) described else described.take(budget)
+        val description = layout.describe(budget)
+        val page = description.text
 
         // 5.4: recorded here, at the one place that knows both the budget and what it was
         // budgeted against, rather than reverse-engineered later from the persisted result.
-        val inputTruncation = if (described.length > budget) {
+        val inputTruncation = if (!description.isComplete) {
             InputTruncation(
-                charactersRead = budget,
-                totalCharacters = described.length,
-                pagesRead = pagesRead(blocks, pageBlockCounts, budget).takeIf { pageBlockCounts.isNotEmpty() },
-                totalPages = pageBlockCounts.size.takeIf { pageBlockCounts.isNotEmpty() },
+                charactersRead = page.length,
+                totalCharacters = layout.describe().text.length,
+                pagesRead = description.pagesRead.takeIf { pageBlockCounts.isNotEmpty() },
+                totalPages = description.totalPages.takeIf { pageBlockCounts.isNotEmpty() },
             )
         } else {
             null
@@ -136,44 +137,13 @@ class AiExtractionUseCase @Inject constructor(
         }
 
         // Plain text, not the zone-labelled `page` sent to the model: labels like
-        // "[address block @ 8%,18%]" would themselves become substrings a value could
+        // "[address-field]" would themselves become substrings a value could
         // spuriously match against, and "%" or a stray "8" is exactly the kind of short
         // token that could launder a bad reading. Grounding checks the document, not the
         // prompt.
         val groundingText = DocumentLayout.plainText(blocks)
 
         return parse(raw, groundingText).map { it.copy(inputTruncation = inputTruncation) }
-    }
-
-    /**
-     * How many of [pageBlockCounts]' pages are represented in the first [budget] characters
-     * of [blocks]' description — a page counts as "read" the moment any of its content made
-     * the cut, so a page only partially included still counts (the notice this backs says
-     * "check the rest", which is true of a partially-read page too).
-     *
-     * An estimate, not an exact accounting: [DocumentLayout.describe] reorders blocks into
-     * reading order across the *whole* document before this use case ever truncates it, so a
-     * multi-page scan's bands can, in principle, interleave content from different pages
-     * (each page's coordinates are normalised 0..1 independently). Computing each page's own
-     * contribution in isolation — as this does — sidesteps depending on exactly how that
-     * reordering landed, at the cost of being approximate rather than a literal reading of
-     * where the cut fell.
-     */
-    private fun pagesRead(blocks: List<OcrBlock>, pageBlockCounts: List<Int>, budget: Int): Int {
-        var consumedBlocks = 0
-        var consumedChars = 0
-        for ((index, count) in pageBlockCounts.withIndex()) {
-            if (consumedChars >= budget) return index
-            val pageBlocks = blocks.subList(consumedBlocks, (consumedBlocks + count).coerceAtMost(blocks.size))
-            // +1 mirrors describe()'s "\n" joiner between entries, close enough for an estimate.
-            consumedChars += DocumentLayout.describe(pageBlocks).length + 1
-            consumedBlocks += count
-            // This page started within budget but its own content ran past it — it still
-            // counts as read (see the KDoc: any of a page's content making the cut counts),
-            // but nothing after it does.
-            if (consumedChars >= budget) return index + 1
-        }
-        return pageBlockCounts.size
     }
 
     /**

@@ -88,8 +88,9 @@ class AiExtractionUseCaseTest {
 
             val userMessage = engine.lastMessages.last().content
             // Position is the whole reason one prompt can work across sender formats.
-            assertThat(userMessage).contains("address block")
-            assertThat(userMessage).contains("reference block")
+            assertThat(userMessage).contains("=== PAGE 1 ===")
+            assertThat(userMessage).contains("[address-field]")
+            assertThat(userMessage).contains("[info-block]")
             assertThat(userMessage).contains("BG 1234/5678")
         }
 
@@ -197,7 +198,8 @@ class AiExtractionUseCaseTest {
             val truncation = result.inputTruncation
             assertThat(truncation).isNotNull()
             assertThat(truncation!!.totalPages).isEqualTo(2)
-            // Only the first (short) page fit before the budget ran out.
+            // The budget is spent by priority, not page order: page 2 (the last page) is
+            // filled first, so only one of the two pages is represented at all.
             assertThat(truncation.pagesRead).isEqualTo(1)
         }
 
