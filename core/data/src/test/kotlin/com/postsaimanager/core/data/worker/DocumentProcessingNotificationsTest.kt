@@ -1,8 +1,13 @@
 package com.postsaimanager.core.data.worker
 
+import android.content.Context
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.data.R
+import com.postsaimanager.core.data.worker.DocumentProcessingNotifications.Text
 import com.postsaimanager.core.model.ProcessingStage
 import com.postsaimanager.core.model.ProcessingState
+import io.mockk.every
+import io.mockk.mockk
 import org.junit.jupiter.api.Test
 
 class DocumentProcessingNotificationsTest {
@@ -23,9 +28,9 @@ class DocumentProcessingNotificationsTest {
             discreet = false,
         )
 
-        assertThat(text).isEqualTo("Reading page 2 of 5")
+        assertThat(text).isEqualTo(Text(R.string.processing_notification_reading_page, listOf(2, 5)))
         assertThat(DocumentProcessingNotifications.progressText(null, discreet = false))
-            .isEqualTo("Starting…")
+            .isEqualTo(Text(R.string.processing_notification_starting))
     }
 
     @Test
@@ -41,7 +46,16 @@ class DocumentProcessingNotificationsTest {
     }
 
     @Test
-    fun `the title is generic`() {
-        assertThat(DocumentProcessingNotifications.TITLE).isEqualTo("Reading your document…")
+    fun `the title is generic and comes from a resource`() {
+        assertThat(DocumentProcessingNotifications.TITLE).isEqualTo(R.string.processing_notification_title)
+    }
+
+    @Test
+    fun `a line is rendered from its resource with its arguments`() {
+        val context = mockk<Context>()
+        every { context.getString(R.string.processing_notification_reading_page, 2, 5) } returns "Seite 2 von 5"
+
+        assertThat(Text(R.string.processing_notification_reading_page, listOf(2, 5)).resolve(context))
+            .isEqualTo("Seite 2 von 5")
     }
 }

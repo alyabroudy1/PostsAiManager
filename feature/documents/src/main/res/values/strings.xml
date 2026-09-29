@@ -11,6 +11,7 @@
     <string name="rename_label">Title</string>
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
+    <string name="share_sheet_unavailable">Unable to open the share sheet</string>
 
     <!-- Summary card -->
     <string name="card_from">From</string>

@@ -692,7 +692,7 @@ private fun sharePdf(context: Context, generatePdf: () -> File?, external: Exter
             context.startActivity(Intent.createChooser(shareIntent, "Share document as PDF"))
         } catch (_: Exception) {
             external.finish()
-            Toast.makeText(context, "Unable to open the share sheet", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.share_sheet_unavailable), Toast.LENGTH_SHORT).show()
         }
     } else {
         Toast.makeText(context, "Failed to generate PDF", Toast.LENGTH_SHORT).show()

@@ -95,15 +95,15 @@ class DocumentProcessingWorker @AssistedInject constructor(
         }.getOrDefault(false)
 
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setContentTitle(DocumentProcessingNotifications.TITLE)
-            .setContentText(DocumentProcessingNotifications.progressText(state, discreet))
+            .setContentTitle(applicationContext.getString(DocumentProcessingNotifications.TITLE))
+            .setContentText(DocumentProcessingNotifications.progressText(state, discreet).resolve(applicationContext))
             .setSmallIcon(android.R.drawable.ic_menu_edit)
             // Progress is not shown on a locked screen; the same generic line is.
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPublicVersion(
                 NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-                    .setContentTitle(DocumentProcessingNotifications.TITLE)
-                    .setContentText(DocumentProcessingNotifications.DISCREET_TEXT)
+                    .setContentTitle(applicationContext.getString(DocumentProcessingNotifications.TITLE))
+                    .setContentText(DocumentProcessingNotifications.DISCREET_TEXT.resolve(applicationContext))
                     .setSmallIcon(android.R.drawable.ic_menu_edit)
                     .build(),
             )

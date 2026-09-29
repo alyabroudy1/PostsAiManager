@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -141,8 +142,8 @@ fun SettingsScreen(
             )
             SettingsSwitchItem(
                 icon = PamIcons.AiModel,
-                title = "Update older letters automatically",
-                subtitle = "Re-read finished letters in the background, while charging or idle, when reading improves. Your edits are never changed",
+                title = stringResource(R.string.settings_update_older_title),
+                subtitle = stringResource(R.string.settings_update_older_subtitle),
                 checked = prefs.updateOlderLettersAutomatically,
                 onCheckedChange = viewModel::setUpdateOlderLettersAutomatically,
             )
@@ -159,16 +160,16 @@ fun SettingsScreen(
             SettingsSectionHeader("Security")
             SettingsSwitchItem(
                 icon = PamIcons.Settings,
-                title = "App lock",
-                subtitle = "Ask for your fingerprint, face, PIN or pattern to open the app",
+                title = stringResource(R.string.settings_app_lock_title),
+                subtitle = stringResource(R.string.settings_app_lock_subtitle),
                 checked = prefs.biometricEnabled,
                 onCheckedChange = viewModel::setBiometricEnabled,
             )
             if (prefs.biometricEnabled) {
                 SettingsClickItem(
                     icon = PamIcons.Settings,
-                    title = "Lock after",
-                    subtitle = lockTimeoutLabel(prefs.appLockTimeoutMinutes),
+                    title = stringResource(R.string.settings_lock_after_title),
+                    subtitle = lockTimeoutLabel(context, prefs.appLockTimeoutMinutes),
                     onClick = { showLockTimeoutDialog = true },
                 )
             }
@@ -219,8 +220,8 @@ fun SettingsScreen(
     if (showLockTimeoutDialog) {
         val options = AppLockTimeouts.OPTIONS_MINUTES
         ChoiceDialog(
-            title = "Lock after",
-            options = options.map(::lockTimeoutLabel),
+            title = stringResource(R.string.settings_lock_after_title),
+            options = options.map { lockTimeoutLabel(context, it) },
             selectedIndex = options.indexOf(prefs.appLockTimeoutMinutes).coerceAtLeast(0),
             onSelect = { index ->
                 viewModel.setAppLockTimeoutMinutes(options[index])
@@ -233,20 +234,16 @@ fun SettingsScreen(
     appLockNotice?.let { notice ->
         AlertDialog(
             onDismissRequest = viewModel::dismissAppLockNotice,
-            title = { Text("App lock is not available yet") },
+            title = { Text(stringResource(R.string.settings_app_lock_notice_title)) },
             text = {
                 Text(
-                    when (notice) {
-                        AppLockNotice.NotEnrolled ->
-                            "This phone has no screen lock or fingerprint/face set up, so there is " +
-                                "nothing to unlock the app with. Set one up in the system " +
-                                "security settings, then come back and turn App lock on."
-                        AppLockNotice.Unavailable ->
-                            "This device cannot check your fingerprint, face or screen lock right " +
-                                "now, so App lock cannot be turned on."
-                        AppLockNotice.AuthenticationFailed ->
-                            "Your identity could not be confirmed, so App lock stays off. Try again."
-                    },
+                    stringResource(
+                        when (notice) {
+                            AppLockNotice.NotEnrolled -> R.string.settings_app_lock_not_enrolled
+                            AppLockNotice.Unavailable -> R.string.settings_app_lock_unavailable
+                            AppLockNotice.AuthenticationFailed -> R.string.settings_app_lock_auth_failed
+                        },
+                    ),
                 )
             },
             confirmButton = {
@@ -257,13 +254,13 @@ fun SettingsScreen(
                             viewModel.onOpeningSecuritySettings()
                             if (!openSecuritySettings(context)) viewModel.onSecuritySettingsLaunchFailed()
                         },
-                    ) { Text("Open security settings") }
+                    ) { Text(stringResource(R.string.settings_open_security_settings)) }
                 } else {
-                    TextButton(onClick = viewModel::dismissAppLockNotice) { Text("OK") }
+                    TextButton(onClick = viewModel::dismissAppLockNotice) { Text(stringResource(R.string.settings_ok)) }
                 }
             },
             dismissButton = if (notice == AppLockNotice.NotEnrolled) {
-                { TextButton(onClick = viewModel::dismissAppLockNotice) { Text("Not now") } }
+                { TextButton(onClick = viewModel::dismissAppLockNotice) { Text(stringResource(R.string.settings_not_now)) } }
             } else {
                 null
             },
@@ -288,11 +285,12 @@ fun SettingsScreen(
 
 private const val BIOMETRIC_STRONG_OR_DEVICE_CREDENTIAL = 0x0000000F or 0x00008000
 
-private fun lockTimeoutLabel(minutes: Int): String = when (minutes) {
-    0 -> "Immediately"
-    1 -> "After 1 minute"
-    else -> "After $minutes minutes"
-}
+private fun lockTimeoutLabel(context: Context, minutes: Int): String =
+    if (minutes == 0) {
+        context.getString(R.string.settings_lock_immediately)
+    } else {
+        context.resources.getQuantityString(R.plurals.settings_lock_after_minutes, minutes, minutes)
+    }
 
 /**
  * Sends the user to where a screen lock or biometric can be set up. Android 11+ has a direct

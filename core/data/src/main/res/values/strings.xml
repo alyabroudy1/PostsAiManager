@@ -1,0 +1,15 @@
+<resources>
+    <!-- The notification shown while a document is read in the background. English only for now;
+         the same names in values-de and values-ar localise it. -->
+    <string name="processing_channel_name">Document processing</string>
+    <string name="processing_channel_description">Progress for documents being read and understood in the background.</string>
+    <string name="processing_notification_title">Reading your document…</string>
+    <string name="processing_notification_discreet">Working in the background</string>
+    <string name="processing_notification_starting">Starting…</string>
+    <string name="processing_notification_preparing">Preparing…</string>
+    <string name="processing_notification_reading_page">Reading page %1$d of %2$d</string>
+    <string name="processing_notification_reading">Reading…</string>
+    <string name="processing_notification_analysing">Analysing…</string>
+    <string name="processing_notification_matching">Matching profiles…</string>
+    <string name="processing_notification_indexing">Indexing for search…</string>
+</resources>
