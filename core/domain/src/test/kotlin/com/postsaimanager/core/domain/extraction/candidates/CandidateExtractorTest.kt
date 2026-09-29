@@ -185,6 +185,50 @@ class CandidateExtractorTest {
         assertThat(set.filter { it.kind == CandidateKind.IBAN }).isEmpty()
     }
 
+    // ── OCR character confusion ─────────────────────────────────────────────────
+
+    @Test
+    fun `an IBAN with o read for 0 or I for 1 is repaired only when its checksum then holds`() {
+        for (line in listOf("IBAN: DEo2 10o1 0010 0006 8201 01", "DE02 1OO1 0010 0006 8201 01", "Konto DE02 1001 0010 0006 8201 0I")) {
+            val c = one(line).single { it.kind == CandidateKind.IBAN }
+            assertThat(c.normalized).isEqualTo("DE02100100100006820101")
+            assertThat(c.validation).isEqualTo(Validation.Valid)
+            assertThat(c.attrs["repaired"]).isNotNull()
+            assertThat(c.raw).isNotEqualTo(c.normalized)
+        }
+        // A misreading whose repaired form does not validate stays what it is: invalid, not repaired.
+        val bad = one("IBAN: DEo2 10o1 0010 0006 8201 02").single { it.kind == CandidateKind.IBAN }
+        assertThat(bad.validation).isInstanceOf(Validation.Invalid::class.java)
+        assertThat(bad.attrs["repaired"]).isNull()
+    }
+
+    @Test
+    fun `an IBAN that is right as printed is never touched, letters in a Dutch one included`() {
+        val nl = one("NL91 ABNA 0417 1643 00").single { it.kind == CandidateKind.IBAN }
+        assertThat(nl.normalized).isEqualTo("NL91ABNA0417164300")
+        assertThat(nl.attrs["repaired"]).isNull()
+        assertThat(nl.validation).isEqualTo(Validation.Valid)
+    }
+
+    @Test
+    fun `a meter number with O for 0 keeps the raw text as evidence and normalises the repaired one`() {
+        val c = one("Zählernummer 1EMHO000123456").single { it.kind == CandidateKind.REFERENCE }
+        assertThat(c.raw).isEqualTo("1EMHO000123456")
+        assertThat(c.normalized).isEqualTo("1EMH0000123456")
+        assertThat(c.attrs["repaired"]).isNotNull()
+        assertThat(c.evidence).contains("1EMHO000123456")
+        // The same in a language with no label rule: the shape alone offers it, repaired.
+        val shape = one("رقم 1EMHO000123456").single { it.kind == CandidateKind.REFERENCE }
+        assertThat(shape.normalized).isEqualTo("1EMH0000123456")
+    }
+
+    @Test
+    fun `identifiers with few digits or ordinary letters are not repaired`() {
+        assertThat(one("Kundennummer: SO12345").single { it.kind == CandidateKind.REFERENCE }.normalized).isEqualTo("SO12345")
+        assertThat(one("Ref AB-2026-10-4471").single { it.kind == CandidateKind.REFERENCE }.attrs["repaired"]).isNull()
+        assertThat(IdentifierRepair.repair("Rechnung2026")).isNull()
+    }
+
     @Test
     fun `BIC needs its label`() {
         val set = one("BIC: COBADEFFXXX", "BEISPIELMARKT", "SWIFT DEUTDEFF")
@@ -403,6 +447,19 @@ class CandidateExtractorTest {
         val set = one("Tel. 0800 555 0100", "service@nordlicht-mobil.example.", "Fax: +49 30 1234567")
         assertThat(set.filter { it.kind == CandidateKind.PHONE }.map { it.normalized }).containsExactly("0800 555 0100", "+49 30 1234567")
         assertThat(set.single { it.kind == CandidateKind.EMAIL }.normalized).isEqualTo("service@nordlicht-mobil.example")
+    }
+
+    @Test
+    fun `a phone number is found by its shape with no label, in any language`() {
+        val set = one("Call +49 30 1234567 or", "هاتف 0800 555 0100", "Tél. 01234-888-44", "Appelez le 0800 555 0199")
+        assertThat(set.filter { it.kind == CandidateKind.PHONE }.map { it.normalized })
+            .containsExactly("+49 30 1234567", "0800 555 0100", "01234-888-44", "0800 555 0199").inOrder()
+    }
+
+    @Test
+    fun `dates, amounts, postcodes and plain digit runs are not phone numbers`() {
+        val set = one("25.09.2026", "64,98 €", "12345 Beispielstadt", "004217", "0044021", "Posten 10 00 00", "am 01.10.2026 um 09:30")
+        assertThat(set.filter { it.kind == CandidateKind.PHONE }).isEmpty()
     }
 
     @Test

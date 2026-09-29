@@ -44,6 +44,38 @@ object IbanValidator {
         return remainder == 1
     }
 
+    /** Characters OCR confuses with a digit inside numbers: `o`/`O` for 0 and `I`/`l` for 1. */
+    private const val CONFUSABLE = "oOIl"
+
+    fun isConfusable(c: Char) = c in CONFUSABLE
+
+    /**
+     * Repairs OCR character confusion in an IBAN that fails its checksum: tries every way of reading
+     * the confusable letters after the country code as digits (fewest changes first) and returns the
+     * upper-case IBAN only when the **mod-97 checksum then validates**; null otherwise (or when the
+     * input has no confusable letters, is not a known country, or has the wrong length).
+     *
+     * A checksum is what makes this safe: a random misreading passes it with a chance of 1 in 97.
+     */
+    fun repair(input: String): String? {
+        val raw = input.filter { !it.isWhitespace() }
+        if (raw.length < 5) return null
+        val expected = lengths[raw.substring(0, 2).uppercase()] ?: return null
+        if (raw.length != expected) return null
+        val positions = (2 until raw.length).filter { raw[it] in CONFUSABLE }
+        if (positions.isEmpty() || positions.size > 10) return null
+        val base = raw.uppercase()
+        for (choice in (1 until (1 shl positions.size)).sortedBy { Integer.bitCount(it) }) {
+            val sb = StringBuilder(base)
+            for (b in positions.indices) {
+                if (choice and (1 shl b) != 0) sb.setCharAt(positions[b], if (raw[positions[b]] in "oO") '0' else '1')
+            }
+            val candidate = sb.toString()
+            if (validate(candidate).isValid) return candidate
+        }
+        return null
+    }
+
     /** Full validation of a (possibly spaced) IBAN: shape, country, length, checksum. */
     fun validate(input: String): Validation {
         val iban = compact(input)
@@ -57,6 +89,33 @@ object IbanValidator {
             return Validation.Invalid("$country IBANs have $expected characters, found ${iban.length}")
         }
         return if (hasValidChecksum(iban)) Validation.Valid else Validation.Invalid("mod-97 checksum failed")
+    }
+}
+
+/**
+ * OCR character-confusion repair for identifiers (reference and meter numbers): inside a long,
+ * digit-heavy token, `O`/`o` next to a digit is a 0 and `I`/`l` between two digits is a 1. Only the
+ * normalised value changes; the raw text stays as the evidence. Tokens with fewer than
+ * [MIN_DIGITS] digits are never touched, so ordinary letter-and-number codes stay as printed.
+ */
+object IdentifierRepair {
+    private const val MIN_LENGTH = 9
+    private const val MIN_DIGITS = 8
+
+    /** The repaired token, or null when nothing would change. */
+    fun repair(token: String): String? {
+        if (token.length < MIN_LENGTH || token.count { it.isDigit() } < MIN_DIGITS) return null
+        val sb = StringBuilder(token)
+        for (i in token.indices) {
+            val prevDigit = i > 0 && token[i - 1].isDigit()
+            val nextDigit = i + 1 < token.length && token[i + 1].isDigit()
+            when (token[i]) {
+                'o', 'O' -> if (prevDigit || nextDigit) sb.setCharAt(i, '0')
+                'I', 'l' -> if (prevDigit && nextDigit) sb.setCharAt(i, '1')
+            }
+        }
+        val out = sb.toString()
+        return out.takeIf { it != token }
     }
 }
 

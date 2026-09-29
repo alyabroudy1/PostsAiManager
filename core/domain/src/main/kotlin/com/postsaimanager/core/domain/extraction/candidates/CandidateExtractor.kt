@@ -93,7 +93,8 @@ private object P {
     )
     val PER_UNIT_AFTER = Regex("^\\s?/\\s?(?:kg|kwh|m|l|st|std|h|tag|monat|jahr|month|year|day)\\b", RegexOption.IGNORE_CASE)
 
-    val IBAN_START = Regex("(?<![A-Za-z0-9])[A-Z]{2}\\d{2}(?=[ A-Z0-9]|$)")
+    /** Two capitals and two check characters; a check character OCR read as a letter (o/O for 0, I/l for 1) is allowed and repaired later. */
+    val IBAN_START = Regex("(?<![A-Za-z0-9])[A-Z]{2}(?:\\d{2}|[0-9oOIl]{2})(?=[ A-Za-z0-9]|$)")
     val IBAN_LABEL = Regex(
         "(?<![\\p{L}])(?:IBAN|Kontoinhaber(?:in)?|Einzugskonto|Bankverbindung|Konto|Empf\u00E4nger|account)(?![\\p{L}])",
         RegexOption.IGNORE_CASE,
@@ -117,7 +118,10 @@ private object P {
     val IDENTIFIER = Regex(
         "(?<![\\p{L}\\p{Nd}])[\\p{L}\\p{Nd}][\\p{L}\\p{Nd}\\-/_.]{2,28}[\\p{L}\\p{Nd}](?![\\p{L}\\p{Nd}])",
     )
-    val PHONE_UNTER = Regex("(?<![\\p{L}\\d])unter\\s+(?:der\\s+Nummer\\s+)?(\\+?\\d[\\d ()/\\-]{6,20}\\d)", RegexOption.IGNORE_CASE)
+    val PHONE_SHAPE = Regex(
+        "(?<![\\p{L}\\d+./-])(?:\\+\\d{1,3}(?:[ ./()-]?\\d){6,12}|0\\d{1,4}(?:[ /()-]\\d{2,}){2,})(?![\\p{L}\\d])",
+    )
+    val PHONE_UNTER =Regex("(?<![\\p{L}\\d])unter\\s+(?:der\\s+Nummer\\s+)?(\\+?\\d[\\d ()/\\-]{6,20}\\d)", RegexOption.IGNORE_CASE)
 
     // ── names ──
     val SALUTATION = Regex(
@@ -378,9 +382,11 @@ private class Run(
                 if (m.range.first == 0) rowNeighbour(line, left = true)?.takeLast(40)?.trim()?.trimEnd(':', '.', ' ').orEmpty() else ""
             }
             mask.add(m.range)
+            val repaired = IdentifierRepair.repair(token)
             add(
-                line, m.range, CandidateKind.REFERENCE, token, token, label = hint,
-                subtype = ReferenceSubtype.OTHER, attrs = mapOf("shape" to "true"),
+                line, m.range, CandidateKind.REFERENCE, token, repaired ?: token, label = hint,
+                subtype = ReferenceSubtype.OTHER,
+                attrs = if (repaired != null) mapOf("shape" to "true", "repaired" to "o/O->0, I/l->1") else mapOf("shape" to "true"),
             )
         }
     }
@@ -409,16 +415,16 @@ private class Run(
         for (m in P.IBAN_START.findAll(text)) {
             val cc = m.value.substring(0, 2)
             val expected = IbanValidator.lengths[cc] ?: continue
-            val check = m.value.substring(2).toInt()
+            val check = m.value.substring(2).map { if (it in "oO") '0' else if (it in "Il") '1' else it }.joinToString("").toInt()
             if (check !in 2..98) continue
             if (!mask.free(m.range)) continue
-            // read runs of [A-Z0-9], separated by single spaces
+            // read runs of [A-Z0-9] (and the o / l OCR confuses with 0 / 1), separated by single spaces
             val sb = StringBuilder()
             var pos = m.range.first
             var end = pos
             fun runAt(s: String, p: Int): String {
                 var q = p
-                while (q < s.length && (s[q] in 'A'..'Z' || s[q] in '0'..'9')) q++
+                while (q < s.length && (s[q] in 'A'..'Z' || s[q] in '0'..'9' || s[q] == 'o' || s[q] == 'l')) q++
                 return s.substring(p, q)
             }
             val first = runAt(text, pos)
@@ -464,10 +470,19 @@ private class Run(
             val pre = text.substring(0, m.range.first).takeLast(40)
             val label = P.IBAN_LABEL.findAll(pre).lastOrNull()?.value.orEmpty()
             mask.add(m.range.first until end)
-            add(
-                line, m.range.first until end, CandidateKind.IBAN, raw, compact, evidence, label,
-                validation = IbanValidator.validate(compact), attrs = mapOf("country" to cc),
-            )
+            var normalized = compact.uppercase()
+            var validation = IbanValidator.validate(compact)
+            val attrs = mutableMapOf("country" to cc)
+            // OCR read a digit as a letter (o/O for 0, I/l for 1): accept the repaired reading only when
+            // its mod-97 checksum then holds, and say so; the raw text stays as printed.
+            if (validation.isInvalid || compact.any { it in "ol" }) {
+                IbanValidator.repair(compact)?.let {
+                    normalized = it
+                    validation = Validation.Valid
+                    attrs["repaired"] = "o/O->0, I/l->1"
+                }
+            }
+            add(line, m.range.first until end, CandidateKind.IBAN, raw, normalized, evidence, label, validation = validation, attrs = attrs)
         }
     }
 
@@ -570,9 +585,13 @@ private class Run(
 
     private fun addRef(line: SourceLine, range: IntRange, rule: RefRule, label: String, value: String, evidence: String = line.text) {
         val v = collapse(value)
+        // OCR confusion (o/O for 0, I/l for 1) inside a long digit-heavy token: the repaired reading is the
+        // normalised value, the raw text stays as printed and as the evidence.
+        val repaired = IdentifierRepair.repair(v)
         add(
-            line, range, CandidateKind.REFERENCE, v, v, evidence, label = collapse(label).trimEnd(':', ' '),
-            subtype = rule.subtype, validation = ReferenceValidator.validate(rule.subtype, v),
+            line, range, CandidateKind.REFERENCE, v, repaired ?: v, evidence, label = collapse(label).trimEnd(':', ' '),
+            subtype = rule.subtype, validation = ReferenceValidator.validate(rule.subtype, repaired ?: v),
+            attrs = if (repaired != null) mapOf("repaired" to "o/O->0, I/l->1") else emptyMap(),
         )
     }
 
@@ -674,6 +693,9 @@ private class Run(
             )
         }
         for (m in P.PHONE_UNTER.findAll(text)) emit(m.groups[1]!!.range, "unter", m.groupValues[1])
+        // and by shape alone, whatever the words around it (or none): an international number with a plus,
+        // or a number that starts with 0 and has an area code and at least two groups
+        for (m in P.PHONE_SHAPE.findAll(text)) emit(m.range, "", m.value)
     }
 
     private fun findEmails(line: SourceLine, mask: Mask) {

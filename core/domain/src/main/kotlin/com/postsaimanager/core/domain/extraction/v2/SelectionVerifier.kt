@@ -177,6 +177,7 @@ class SelectionVerifier(
             usedCandidateIds += c.id
             val checks = mutableListOf<Check>()
             checks += validationCheck(effectiveValidation(c, slot), c.kind)
+            checks += repairCheck(c)
             checks += roleCheck(slot, role)
             checks += dateOrderCheck(slot, c)
             checks += amountConsistencyCheck(slot, c)
@@ -257,6 +258,14 @@ class SelectionVerifier(
                 )
             else -> Check.Pass
         }
+
+        /** A value whose OCR character confusion was repaired is capped: what is stored is not exactly what was printed. */
+        private fun repairCheck(c: Candidate): Check =
+            if (c.attrs["repaired"] == null) {
+                Check.Pass
+            } else {
+                Check.Cap(Caps.REPAIRED, "read with an OCR character repair (${c.raw.trim()} -> ${c.normalized})", blocking = false)
+            }
 
         private fun roleCheck(slot: SlotKey, role: String?): Check {
             if (role == null || slot.expects.isEmpty() || role in slot.expects) return Check.Pass
@@ -485,7 +494,7 @@ class SelectionVerifier(
                     return null
                 }
                 used += id
-                val checks = listOf(validationCheck(effectiveValidation(c, null, pastYears = 10), c.kind))
+                val checks = listOf(validationCheck(effectiveValidation(c, null, pastYears = 10), c.kind), repairCheck(c))
                 return build(null, c, x.confidence, null, checks)
             }
             val q = x.value.trim()

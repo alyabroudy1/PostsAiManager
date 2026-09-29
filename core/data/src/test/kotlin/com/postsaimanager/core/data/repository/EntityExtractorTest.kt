@@ -57,7 +57,7 @@ class EntityExtractorTest {
         fun `an English text gives the same kinds of values`() {
             val r = extract("Dear Sir,\nyour bill of 64,98 EUR is due on 2026-10-14.\nCall +49 30 1234567 or write to help@example.org")
             assertThat(r.fields.map { it.fieldType }).containsAtLeast(
-                ExtractedFieldType.DATE, ExtractedFieldType.OTHER, ExtractedFieldType.EMAIL,
+                ExtractedFieldType.DATE, ExtractedFieldType.OTHER, ExtractedFieldType.EMAIL, ExtractedFieldType.PHONE,
             )
         }
     }

@@ -461,7 +461,10 @@ object LetterLayoutAnalyzer {
     private val STRONG_SEPARATOR = Regex("[·•|]|\\s[-–—]\\s")
     private val COLON_LABEL = Regex("^\\s*\\p{L}[\\p{L} .\\-/]{1,28}:(\\s.*)?$")
     /** An account number in any language: two letters, two digits, then groups. Amounts alone are not payment sections. */
-    private val PAYMENT_SHAPE = Regex("(?<![A-Za-z0-9])[A-Z]{2}\\d{2}(?:\\s?[A-Z0-9]{2,4}){3,}")
+    private val PAYMENT_SHAPE = Regex(
+        // the check characters may carry an OCR confusion (o/O for 0, I/l for 1), but at least one is a real digit
+        "(?<![A-Za-z0-9])[A-Z]{2}(?:[0-9][0-9OoIl]|[OoIl][0-9])(?:\\s?[A-Za-z0-9]{2,4}){3,}",
+    )
 
     /** A short line holding a 4 to 6 digit run (postcode) or an alphanumeric postcode, with letters. */
     private fun isPostcodeLine(t: String) =
