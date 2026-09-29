@@ -70,7 +70,7 @@ class RetrieveChunksUseCase @Inject constructor(
 
         val keywordRanked = rankByKeyword(query, corpus)
 
-        val queryVector = if (embeddingService.isReady) {
+        val queryVector = if (embeddingService.checkReady()) {
             (embeddingService.embed(query) as? PamResult.Success)?.data
         } else {
             null

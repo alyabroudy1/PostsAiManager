@@ -111,7 +111,7 @@ class IndexDocumentUseCase @Inject constructor(
      *   caller stores the chunks as text either way.
      */
     private suspend fun embedAll(texts: List<String>): List<FloatArray>? {
-        if (!embeddingService.isReady) return null
+        if (!embeddingService.checkReady()) return null
 
         val vectors = mutableListOf<FloatArray>()
         // Bounded batches. Embedding a long document in one call would hold every chunk's
