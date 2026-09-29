@@ -7,7 +7,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Test
 import java.util.Locale
 
-/** Baseline file format: `{"metrics": {"recall.all": 0.83, ...}}`. Lower-is-better: names starting `noise` or `leak`. */
+/** Baseline file format: `{"metrics": {"recall.all": 0.83, ...}}`. Lower-is-better: `shownNoise` and names starting `leak`. Recorded but never gated: [NOT_GATED]. */
 object BaselineFile {
     fun render(metrics: Map<String, Double>): String =
         "{\n  \"metrics\": {\n" +
@@ -20,7 +20,10 @@ object BaselineFile {
             .mapValues { it.value.jsonPrimitive.content.toDouble() }
     }
 
-    fun lowerIsBetter(name: String) = name.startsWith("noise") || name.startsWith("leak")
+    fun lowerIsBetter(name: String) = name == "shownNoise" || name.startsWith("leak")
+
+    /** Informational: offering receipt ids to the model is intended, so the count is recorded only. */
+    val NOT_GATED = setOf("offeredNoise")
 }
 
 /**
@@ -36,7 +39,7 @@ class BenchmarkGateTest {
     fun `no metric drops below the baseline`() {
         val baseline = BaselineFile.load()
         val current = ExtractionBenchmark.run(BenchmarkFixtures.load().docs.filter { !it.first.web }).metrics
-        val regressions = baseline.mapNotNull { (name, base) ->
+        val regressions = baseline.filterKeys { it !in BaselineFile.NOT_GATED }.mapNotNull { (name, base) ->
             val now = current[name] ?: return@mapNotNull "$name: missing from current run"
             val worse = if (BaselineFile.lowerIsBetter(name)) now > base + COUNT_EPSILON else now < base - EPSILON
             if (worse) String.format(Locale.ROOT, "%s: %.4f (baseline %.4f)", name, now, base) else null

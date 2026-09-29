@@ -55,13 +55,16 @@ data class DocResult(
     val blocks: Int,
     val candidates: Int,
     val facts: List<FactResult>,
-    val noiseHits: List<String>,
+    /** Candidates that carry a manifest `not_facts` value: offered to the model on purpose, so informational only. */
+    val offeredNoise: List<String>,
     val extrasByKind: Map<CandidateKind, Int>,
     val addresseeInAddressField: Boolean?,
     val senderInSenderZones: Boolean?,
     val senderLeaksIntoAddressField: Boolean?,
     val layout: LetterLayout,
     val candidateSet: CandidateSet,
+    /** `not_facts` values in the user-visible fields of an interpreter result (oracle run); null when no result exists for the letter. */
+    val shownNoise: Int? = null,
 )
 
 class BenchmarkReport(val docs: List<DocResult>) {
@@ -82,7 +85,8 @@ class BenchmarkReport(val docs: List<DocResult>) {
             val fs = facts.filter { it.exp.kindName == k }
             if (fs.isNotEmpty()) out["recall.$k"] = rate(fs)
         }
-        out["noise.hits"] = ds.sumOf { it.noiseHits.size }.toDouble()
+        out["offeredNoise"] = ds.sumOf { it.offeredNoise.size }.toDouble()
+        out["shownNoise"] = ds.sumOf { it.shownNoise ?: 0 }.toDouble()
         val a = ds.mapNotNull { it.addresseeInAddressField }
         out["zone.addressee"] = if (a.isEmpty()) 1.0 else a.count { it }.toDouble() / a.size
         val s = ds.mapNotNull { it.senderInSenderZones }
@@ -96,7 +100,7 @@ class BenchmarkReport(val docs: List<DocResult>) {
 object ExtractionBenchmark {
 
     fun run(docs: List<Pair<ManifestDoc, Fixture>> = BenchmarkFixtures.load().docs): BenchmarkReport =
-        BenchmarkReport(docs.map { (m, f) -> score(m, f) })
+        BenchmarkReport(docs.map { (m, f) -> score(m, f).let { it.copy(shownNoise = OracleRuns.shownNoise(m)) } })
 
     fun score(m: ManifestDoc, f: Fixture): DocResult {
         val pageBlocks = f.pages.map { it.blocks }
@@ -174,7 +178,7 @@ object ExtractionBenchmark {
             if (m.isEmpty()) return
             sb.appendLine("## $title\n\n| metric | value |\n|---|---|")
             m.forEach { (k, v) ->
-                sb.appendLine("| $k | ${if (k.startsWith("noise") || k.startsWith("leak")) v.toInt().toString() else pct(v)} |")
+                sb.appendLine("| $k | ${if (k.endsWith("Noise") || k.startsWith("leak")) v.toInt().toString() else pct(v)} |")
             }
             sb.appendLine()
         }
@@ -182,13 +186,13 @@ object ExtractionBenchmark {
         table("Web samples (local only, not gated)", report.webMetrics)
 
         sb.appendLine("## Per document\n")
-        sb.appendLine("| doc | pages | blocks | candidates | facts found | noise | addressee in ADDRESS_FIELD | sender in sender zones |")
+        sb.appendLine("| doc | pages | blocks | candidates | facts found | offered noise | addressee in ADDRESS_FIELD | sender in sender zones |")
         sb.appendLine("|---|---|---|---|---|---|---|---|")
         for (d in report.docs) {
             fun yn(b: Boolean?) = when (b) { true -> "yes"; false -> "NO"; null -> "-" }
             sb.appendLine(
                 "| ${d.key}${if (d.web) " (web)" else ""} | ${d.pages} | ${d.blocks} | ${d.candidates} | " +
-                    "${d.facts.count { it.found }}/${d.facts.size} | ${d.noiseHits.size} | ${yn(d.addresseeInAddressField)} | ${yn(d.senderInSenderZones)} |",
+                    "${d.facts.count { it.found }}/${d.facts.size} | ${d.offeredNoise.size} | ${yn(d.addresseeInAddressField)} | ${yn(d.senderInSenderZones)} |",
             )
         }
         sb.appendLine()
@@ -214,10 +218,10 @@ object ExtractionBenchmark {
             sb.appendLine()
         }
 
-        val noise = report.docs.filter { it.noiseHits.isNotEmpty() }
+        val noise = report.docs.filter { it.offeredNoise.isNotEmpty() }
         if (noise.isNotEmpty()) {
-            sb.appendLine("## Noise (not_facts proposed as candidates)\n")
-            noise.forEach { d -> d.noiseHits.forEach { sb.appendLine("- ${d.key}: $it") } }
+            sb.appendLine("## Offered noise (not_facts offered as candidates, informational; the model decides)\n")
+            noise.forEach { d -> d.offeredNoise.forEach { sb.appendLine("- ${d.key}: $it") } }
             sb.appendLine()
         }
         sb.appendLine("## Extra candidates (not matched to a manifest fact), per kind\n")

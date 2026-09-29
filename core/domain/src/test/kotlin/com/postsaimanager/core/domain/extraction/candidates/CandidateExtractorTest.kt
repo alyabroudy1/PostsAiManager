@@ -571,7 +571,7 @@ class CandidateExtractorTest {
     // ── not_facts of receipt-noise-1p ───────────────────────────────────────────
 
     @Test
-    fun `receipt noise never becomes a candidate`() {
+    fun `machine-shaped receipt noise never becomes a candidate`() {
         val signature = "kJ3f9Zl0Qw2Rt8Yh5Ub1Nm4Vc7Xz6AaSdFgHjKl0P" // base64-ish TSE signature line
         val serial = "3f9a0c71b2d84e55a6f7019c2b3d4e5f"
         val noise = listOf(
@@ -580,19 +580,16 @@ class CandidateExtractorTest {
             signature.reversed(),
             "Seriennummer:",
             serial,
-            "Transaktionsnummer: 1049233",
-            "Terminal-ID: 52847196",
-            "Trace-Nr.: 004217",
-            "Genehmigungs-Nr.: 918274",
-            "TSE-Start: 2026-09-27T18:41:12",
-            "TSE-Stop: 2026-09-27T18:42:07",
-            "Signaturzähler: 88214",
-            "Sig.-Alg.: ecdsa-plain-SHA256",
-            "PAN: ************4821",
-            "Beleg-Nr.: 7731",
             "40063813339312026092718", // QR / barcode digit run
         )
         assertThat(one(*noise.toTypedArray())).isEmpty()
+    }
+
+    @Test
+    fun `receipt ids are ordinary reference candidates, the model decides whether they matter`() {
+        val refs = one("Terminal-ID: 52847196", "Trace-Nr.: 004217", "Genehmigungs-Nr.: 918274", "Transaktionsnummer: 1049233")
+            .filter { it.kind == CandidateKind.REFERENCE }.map { it.normalized }
+        assertThat(refs).containsAtLeast("52847196", "004217", "918274", "1049233")
     }
 
     @Test
@@ -607,7 +604,7 @@ class CandidateExtractorTest {
                 "SUMME EUR 23,47",
             ),
         )
-        assertThat(set.ofKind(CandidateKind.REFERENCE).map { it.normalized }).containsExactly("4711")
+        assertThat(set.ofKind(CandidateKind.REFERENCE).map { it.normalized }).contains("4711")
         assertThat(set.ofKind(CandidateKind.AMOUNT).map { it.normalized }).containsExactly("23.47 EUR")
         assertThat(set.ofKind(CandidateKind.IBAN)).isEmpty()
     }

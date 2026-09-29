@@ -197,16 +197,15 @@ class ValidatorsTest {
         assertThat(NoiseFilter.isNoiseLine("kJ3f9Zl0Qw2Rt8Yh5Ub1Nm4Vc7Xz6AaS+/")).isTrue()
         assertThat(NoiseFilter.isNoiseLine("3f9a0c71b2d84e55a6f7019c2b3d4e5f")).isTrue()
         assertThat(NoiseFilter.isNoiseLine("40063813339312026092718")).isTrue()
-        assertThat(NoiseFilter.isNoiseLine("Terminal-ID: 52847196")).isTrue()
-        assertThat(NoiseFilter.isNoiseLine("TSE-Start: 2026-09-27T18:41:12")).isTrue()
     }
 
     @Test
-    fun `a fiscal label alone drops nothing, it only needs a code shape beside it`() {
+    fun `a label word never makes a line noise, receipt ids are left to the model`() {
+        assertThat(NoiseFilter.isNoiseLine("Terminal-ID: 52847196")).isFalse()
+        assertThat(NoiseFilter.isNoiseLine("Trace-Nr.: 004217")).isFalse()
+        assertThat(NoiseFilter.isNoiseLine("TSE-Start: 2026-09-27T18:41:12")).isFalse()
         assertThat(NoiseFilter.isNoiseLine("Terminal-ID:")).isFalse()
         assertThat(NoiseFilter.isNoiseLine("Signatur des Ausstellers")).isFalse()
-        assertThat(NoiseFilter.isNoiseLine("Zertifikat gültig bis Ende 2027")).isFalse()
-        // the same digits without the label are an ordinary reference
         assertThat(NoiseFilter.isNoiseLine("Kundennummer: 52847196")).isFalse()
     }
 

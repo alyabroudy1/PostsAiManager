@@ -28,8 +28,8 @@ class ExtractionBenchmarkTest {
         interpreter.forEach { s ->
             println(
                 String.format(
-                    Locale.ROOT, "BENCHMARK interpreter[%s] docs=%d fieldMatch=%.3f roles=%.3f hallucination=%.3f extrasPerDoc=%.2f calibration=%s",
-                    s.variant, s.docs, s.fieldMatch, s.rolesMatch, s.hallucination, s.extrasPerDoc, s.calibration,
+                    Locale.ROOT, "BENCHMARK interpreter[%s] docs=%d shownNoise=%d fieldMatch=%.3f roles=%.3f hallucination=%.3f extrasPerDoc=%.2f calibration=%s",
+                    s.variant, s.docs, s.shownNoise, s.fieldMatch, s.rolesMatch, s.hallucination, s.extrasPerDoc, s.calibration,
                 ),
             )
         }

@@ -1,6 +1,9 @@
 package com.postsaimanager.core.domain.benchmark
 
 import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
+import com.postsaimanager.core.domain.extraction.v2.Letters
+import com.postsaimanager.core.domain.extraction.v2.Oracle
+import com.postsaimanager.core.domain.extraction.v2.Prepared
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Result
@@ -90,9 +93,48 @@ class ScriptedInterpreter(private val recording: Recording) : DocumentInterprete
     }
 }
 
+/**
+ * Output-level noise: how many manifest `not_facts` values reach what the user sees. Slots are always
+ * shown; an extra is shown unless its final confidence is below [HIDDEN_BELOW] (behind "Show all").
+ */
+object ShownNoise {
+    /** Mirrors `ExtractedPresentation.HIDDEN_BELOW` in :feature:documents. */
+    const val HIDDEN_BELOW = 0.5f
+
+    private val DIGITS = Regex("\\b\\d{5,}\\b")
+
+    fun count(result: ExtractionV2Result, notFacts: String?): Int {
+        val noise = notFacts?.let { DIGITS.findAll(it).map { r -> r.value }.toSet() }.orEmpty()
+        if (noise.isEmpty()) return 0
+        val shown = result.slots.values + result.slotLists.values.flatten() +
+            result.extras.filter { it.value.confidence >= HIDDEN_BELOW }.map { it.value }
+        return shown.count { v ->
+            val text = ExtractionBenchmark.squash(v.normalized) + " " + ExtractionBenchmark.squash(v.value)
+            noise.any { text.contains(it) }
+        }
+    }
+}
+
+/** The oracle model (answers what the manifest says) through the real pipeline, for the letters that have one. */
+object OracleRuns {
+    fun shownNoise(m: ManifestDoc): Int? {
+        val letter = Letters.all.firstOrNull { it.id == m.key } ?: return null
+        val result = runBlocking {
+            ExtractionV2Pipeline().run(
+                letter.pages,
+                com.postsaimanager.core.domain.extraction.v2.ScriptedInterpreter(Oracle.structured(letter, Prepared(letter.pages)).json, Oracle.text(letter)),
+                4096,
+            )
+        }
+        return ShownNoise.count(result, m.notFacts)
+    }
+}
+
 class InterpreterScore(
     val variant: String,
     val docs: Int,
+    /** Manifest `not_facts` values in the user-visible fields of the recorded runs. Gated at 0 in spirit; reported here. */
+    val shownNoise: Int = 0,
     /** Manifest facts the deterministic stage found, that the result also holds (normalised value equal), over those facts. */
     val fieldMatch: Double,
     /** Sender and every addressee right, over documents with known roles. */
@@ -128,6 +170,7 @@ object InterpreterMetrics {
         var given = 0
         var bad = 0
         var extras = 0
+        var shownNoise = 0
         var scored = 0
         var roleDocs = 0
         var roleRight = 0
@@ -159,6 +202,7 @@ object InterpreterMetrics {
             bad += result.diagnostics.rejections.size
             given += result.diagnostics.rejections.size
             extras += result.extras.size
+            shownNoise += ShownNoise.count(result, m.notFacts)
 
             for (v in values.filter { it.slot?.kind != SlotKind.ACTION }) {
                 val key = when { v.aiConfidence < 0.5f -> LOW; v.aiConfidence < 0.8f -> MID; else -> HIGH }
@@ -182,6 +226,7 @@ object InterpreterMetrics {
         return InterpreterScore(
             variant = variant,
             docs = scored,
+            shownNoise = shownNoise,
             fieldMatch = r(matched, expectedFound),
             rolesMatch = r(roleRight, roleDocs),
             hallucination = if (given == 0) 0.0 else bad.toDouble() / given,
@@ -202,11 +247,11 @@ object InterpreterMetrics {
             sb.appendLine("No recordings (src/test/resources/benchmark/recordings/<key>.<variant>.json), nothing scored.")
             return sb.toString()
         }
-        sb.appendLine("| variant | docs | field match | roles | hallucination | extras/doc | calibration (accuracy, n) |")
-        sb.appendLine("|---|---|---|---|---|---|---|")
+        sb.appendLine("| variant | docs | shown noise | field match | roles | hallucination | extras/doc | calibration (accuracy, n) |")
+        sb.appendLine("|---|---|---|---|---|---|---|---|")
         for (s in scores) {
             sb.appendLine(
-                "| ${s.variant} | ${s.docs} | ${pct(s.fieldMatch)} | ${pct(s.rolesMatch)} | ${pct(s.hallucination)} | " +
+                "| ${s.variant} | ${s.docs} | ${s.shownNoise} | ${pct(s.fieldMatch)} | ${pct(s.rolesMatch)} | ${pct(s.hallucination)} | " +
                     String.format(Locale.ROOT, "%.2f", s.extrasPerDoc) + " | " +
                     s.calibration.entries.joinToString(", ") { "${it.key}: ${pct(it.value.first)} (${it.value.second})" } + " |",
             )
