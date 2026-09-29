@@ -51,9 +51,8 @@ class MergeExtractionUseCase @Inject constructor() {
     }
 
     /**
-     * @param preserveConfirmed for the background reprocess: a machine value the user confirmed is kept
-     *   like one they wrote (a differing new reading is flagged, not applied), where a normal run
-     *   replaces it and drops the confirmation.
+     * Every run, first or manual reprocess, treats a value the user confirmed like one they wrote:
+     * a differing new reading is flagged for review, never applied over it.
      */
     operator fun invoke(
         existing: List<ExtractedData>,
@@ -61,12 +60,9 @@ class MergeExtractionUseCase @Inject constructor() {
         engineVersion: String,
         now: Long,
         newId: (String) -> String,
-        preserveConfirmed: Boolean = false,
     ): Outcome {
-        // A value a person authored, and (for a background reprocess) one they confirmed: both stand,
-        // and a differing new reading is flagged instead of replacing them.
-        fun ExtractedData.isProtected() =
-            source == ValueSource.USER || (preserveConfirmed && isConfirmed)
+        // A value a person authored or confirmed stands; a differing new reading is flagged instead.
+        fun ExtractedData.isProtected() = source == ValueSource.USER || isConfirmed
 
         // Slot identity, not row identity. Ids are regenerated on every extraction run, so
         // matching by id would make every run look entirely new. See [pair] for how a stored row

@@ -153,28 +153,12 @@ class MergeExtractionUseCaseTest {
         }
 
         @Test
-        @DisplayName("confirmation does not carry over to a different value")
-        fun `a confirmed value that changes is no longer confirmed`() {
-            val confirmed = field("date", "31.01.2026", isConfirmed = true)
-            val fresh = field("date", "28.02.2026")
-
-            val merged = run(listOf(confirmed), listOf(fresh)).toPersist.single()
-
-            // The user confirmed the old reading. They have not seen this one.
-            assertThat(merged.fieldValue).isEqualTo("28.02.2026")
-            assertThat(merged.isConfirmed).isFalse()
-        }
-
-        @Test
-        @DisplayName("a background reprocess keeps a confirmed machine value and flags the new reading")
-        fun `preserveConfirmed protects a confirmed machine value`() {
+        @DisplayName("a normal run keeps a confirmed machine value and flags the new reading")
+        fun `a confirmed machine value is protected`() {
             val confirmed = field("date", "31.01.2026", isConfirmed = true).copy(updatedAt = 5L)
             val fresh = field("date", "28.02.2026")
 
-            val result = merge(
-                listOf(confirmed), listOf(fresh),
-                engineVersion = "v2", now = now, newId = newId, preserveConfirmed = true,
-            )
+            val result = run(listOf(confirmed), listOf(fresh))
             val merged = result.toPersist.single()
 
             assertThat(merged.fieldValue).isEqualTo("31.01.2026")
@@ -185,14 +169,11 @@ class MergeExtractionUseCaseTest {
         }
 
         @Test
-        @DisplayName("a background reprocess does not delete a confirmed value the new reading dropped")
-        fun `preserveConfirmed keeps a confirmed value the extractor no longer finds`() {
+        @DisplayName("a run does not delete a confirmed value the new reading dropped")
+        fun `a confirmed value the extractor no longer finds is kept`() {
             val confirmed = field("date", "31.01.2026", isConfirmed = true)
 
-            val result = merge(
-                listOf(confirmed), emptyList(),
-                engineVersion = "v2", now = now, newId = newId, preserveConfirmed = true,
-            )
+            val result = run(listOf(confirmed), emptyList())
 
             assertThat(result.idsToDelete).isEmpty()
             assertThat(result.toPersist.single().fieldValue).isEqualTo("31.01.2026")

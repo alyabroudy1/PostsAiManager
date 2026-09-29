@@ -339,8 +339,6 @@ class DocumentProcessingPipeline @Inject constructor(
                     engineVersion = engineVersion,
                     now = now,
                     newId = { UuidGenerator.generate() },
-                    // A background reprocess also leaves values the user confirmed alone.
-                    preserveConfirmed = reprocess,
                 )
 
                 merged.idsToDelete.forEach { documentDao.deleteExtractedField(it) }
