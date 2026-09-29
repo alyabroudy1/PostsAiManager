@@ -230,10 +230,34 @@ class CandidateExtractorTest {
     }
 
     @Test
-    fun `BIC needs its label`() {
+    fun `a labelled BIC is found and the label is a hint`() {
         val set = one("BIC: COBADEFFXXX", "BEISPIELMARKT", "SWIFT DEUTDEFF")
         assertThat(set.filter { it.kind == CandidateKind.BIC }.map { it.normalized })
             .containsExactly("COBADEFFXXX", "DEUTDEFF")
+    }
+
+    @Test
+    fun `a BIC is found by its shape when its country is the country of an IBAN on the page, with no label`() {
+        val set = one("IBAN: DE89 3704 0044 0532 0130 00", "COBADEFFXXX", "Empfänger Muster GmbH  DEUTDEFF")
+        val bics = set.filter { it.kind == CandidateKind.BIC }
+        assertThat(bics.map { it.normalized }).containsExactly("COBADEFFXXX", "DEUTDEFF").inOrder()
+        assertThat(bics.all { it.attrs["shape"] == "true" }).isTrue()
+        // Any language around it, or none.
+        val ar = one("IBAN DE89 3704 0044 0532 0130 00", "رمز البنك COBADEFFXXX")
+        assertThat(ar.single { it.kind == CandidateKind.BIC }.normalized).isEqualTo("COBADEFFXXX")
+    }
+
+    @Test
+    fun `a BIC-shaped word without an IBAN of the same country on the page is not a BIC`() {
+        // No IBAN at all.
+        assertThat(one("COBADEFFXXX", "BEISPIELMARKT").filter { it.kind == CandidateKind.BIC }).isEmpty()
+        // An IBAN of another country.
+        assertThat(one("IBAN: NL91 ABNA 0417 1643 00", "COBADEFFXXX").filter { it.kind == CandidateKind.BIC }).isEmpty()
+        // The IBAN is on another page.
+        val split = run(page("IBAN: DE89 3704 0044 0532 0130 00"), page("COBADEFFXXX"))
+        assertThat(split.ofKind(CandidateKind.BIC)).isEmpty()
+        // A word of the right length whose 5th and 6th letters are no IBAN country.
+        assertThat(one("IBAN: DE89 3704 0044 0532 0130 00", "BEISPIEL").filter { it.kind == CandidateKind.BIC }).isEmpty()
     }
 
     // ── references ──────────────────────────────────────────────────────────────
