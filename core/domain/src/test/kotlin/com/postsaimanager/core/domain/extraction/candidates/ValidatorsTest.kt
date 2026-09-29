@@ -202,6 +202,15 @@ class ValidatorsTest {
     }
 
     @Test
+    fun `a fiscal label alone drops nothing, it only needs a code shape beside it`() {
+        assertThat(NoiseFilter.isNoiseLine("Terminal-ID:")).isFalse()
+        assertThat(NoiseFilter.isNoiseLine("Signatur des Ausstellers")).isFalse()
+        assertThat(NoiseFilter.isNoiseLine("Zertifikat gültig bis Ende 2027")).isFalse()
+        // the same digits without the label are an ordinary reference
+        assertThat(NoiseFilter.isNoiseLine("Kundennummer: 52847196")).isFalse()
+    }
+
+    @Test
     fun `ordinary lines and IBANs are not noise`() {
         assertThat(NoiseFilter.isNoiseLine("Bon-Nr.: 4711   Kasse: 03   Bediener: 017")).isFalse()
         assertThat(NoiseFilter.isNoiseLine("IBAN: DE02120300000000202051")).isFalse()

@@ -352,12 +352,16 @@ object ReferenceValidator {
 
 /**
  * Keeps OCR noise from becoming facts: TSE signatures, serial numbers, terminal and trace
- * ids, barcode digit runs. Applied to whole lines before any candidate is looked for.
+ * ids, barcode digit runs. Applied to whole lines before any candidate is looked for. Shape decides
+ * (long base64/hex/random tokens, digit runs, machine timestamps); label words are only a hint.
  */
 object NoiseFilter {
 
-    /** Lines that *start* with one of these labels carry payment-terminal or fiscal noise. */
-    private val NOISE_LABEL = Regex(
+    /**
+     * A hint only, never a rule: a line that *starts* with one of these words is likelier to carry
+     * payment-terminal or fiscal noise, so a bare code on it counts as noise ([isNoiseLine]).
+     */
+    private val LABEL_HINT = Regex(
         "^\\s*(?:TSE\\b|Seriennummer|Serien-?Nr|Serial\\b|Signatur|Transaktionsnummer|Transaktions-?Nr|" +
             "Terminal-?ID|Trace-?Nr|Genehmigungs-?Nr|Beleg-?Nr|Signaturzähler|Sig\\.?-?Alg|Folge-?Nr|PAN\\b|" +
             "Gläubiger-?(?:ID|Identifikationsnummer)|Prüfwert|Zertifikat)",
@@ -381,6 +385,28 @@ object NoiseFilter {
         return hasLetter && (t.any { it.isDigit() } || t.any { it == '+' || it == '/' || it == '=' })
     }
 
-    fun isNoiseLine(line: String): Boolean =
-        NOISE_LABEL.containsMatchIn(line) || line.split(Regex("\\s+")).any { isNoiseToken(it) }
+    /**
+     * A shape decides, never a word. A line is noise when one of its tokens has a machine shape
+     * ([isNoiseToken]), or when a line that opens with a fiscal/terminal label word also carries a
+     * bare code (see [isBareCode]). The label alone drops nothing: "Beleg-Nr." with a word after it
+     * stays, and a line without any such label is judged by its tokens only.
+     */
+    fun isNoiseLine(line: String): Boolean {
+        val tokens = line.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (tokens.any { isNoiseToken(it) }) return true
+        return LABEL_HINT.containsMatchIn(line) && tokens.any { isBareCode(it) }
+    }
+
+    /**
+     * A machine timestamp, a run of at least six digits, or a letters-and-digits code: the value part
+     * of a terminal, trace or signature line.
+     */
+    private fun isBareCode(token: String): Boolean {
+        val t = token.trim(',', ';', ':', '(', ')', '"', '\'')
+        if (t.length < MIN_HINTED_DIGITS) return false
+        return t.all { it.isDigit() } || ISO_TIMESTAMP.matches(t) || (t.any { it.isDigit() } && t.any { it.isLetter() })
+    }
+
+    private const val MIN_HINTED_DIGITS = 6
+    private val ISO_TIMESTAMP = Regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2})?$")
 }
