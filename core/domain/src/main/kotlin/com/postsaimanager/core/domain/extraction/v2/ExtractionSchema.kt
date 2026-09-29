@@ -95,11 +95,15 @@ object Slots {
 
     // ── type-specific ──
     val FEE = SlotKey("fee", SlotKind.AMOUNT, "Fee", expects = setOf("FEE", "OTHER"))
-    val NEW_AMOUNT = SlotKey("new_amount", SlotKind.AMOUNT, "New Amount", expects = PAYABLE + setOf("INSTALMENT", "ADVANCE", "OTHER"))
+    val NEW_AMOUNT = SlotKey(
+        "new_amount", SlotKind.AMOUNT, "New Amount", Canonical.AMOUNT, PAYABLE + setOf("INSTALMENT", "ADVANCE", "OTHER"),
+    )
     val PREVIOUS_AMOUNT = SlotKey("previous_amount", SlotKind.AMOUNT, "Previous Amount", expects = setOf("PREVIOUS", "OTHER"))
-    val PROOF_AMOUNT = SlotKey("proof_amount", SlotKind.AMOUNT, "Amount Paid", expects = PAYABLE + "OTHER")
+    val PROOF_AMOUNT = SlotKey("proof_amount", SlotKind.AMOUNT, "Amount Paid", Canonical.AMOUNT, PAYABLE + "OTHER")
 
-    val OBJECTION_DEADLINE = SlotKey("objection_deadline", SlotKind.DEADLINE, "Objection Deadline", expects = DUE + "OTHER")
+    val OBJECTION_DEADLINE = SlotKey(
+        "objection_deadline", SlotKind.DEADLINE, "Objection Deadline", Canonical.DEADLINE, DUE + "OTHER",
+    )
     val ORIGINAL_DUE_DATE = SlotKey("original_due_date", SlotKind.DATE, "Original Due Date", expects = DUE + "OTHER")
     val EFFECTIVE_DATE = SlotKey("effective_date", SlotKind.DATE, "Effective Date", expects = setOf("EFFECTIVE_FROM", "EVENT", "OTHER"))
     val CONTRACT_END = SlotKey(
@@ -108,8 +112,8 @@ object Slots {
     )
     val EVENT_DATE = SlotKey("event_date", SlotKind.DATE, "Event Date", expects = setOf("EVENT", "APPOINTMENT", "OTHER"))
     val APPOINTMENT = SlotKey("appointment", SlotKind.DATE, "Appointment", expects = setOf("APPOINTMENT", "EVENT"))
-    val SENT_DATE = SlotKey("sent_date", SlotKind.DATE, "Sent Date", expects = setOf("LETTER_DATE"))
-    val PROOF_DATE = SlotKey("proof_date", SlotKind.DATE, "Payment Date", expects = setOf("LETTER_DATE", "EVENT", "OTHER"))
+    val SENT_DATE = SlotKey("sent_date", SlotKind.DATE, "Sent Date", Canonical.DOCUMENT_DATE, setOf("LETTER_DATE"))
+    val PROOF_DATE = SlotKey("proof_date", SlotKind.DATE, "Payment Date", Canonical.DOCUMENT_DATE, setOf("LETTER_DATE", "EVENT", "OTHER"))
 
     val INVOICE_NO = SlotKey("invoice_no", SlotKind.REFERENCE, "Invoice Number")
     val CONTRACT_NO = SlotKey("contract_no", SlotKind.REFERENCE, "Contract Number")

@@ -130,7 +130,7 @@ class ExtractionV2Pipeline(
  */
 object FoundValues {
 
-    private const val MAX_FOUND = 16
+    private const val MAX_FOUND = 24
 
     private val KINDS = listOf(
         CandidateKind.DATE, CandidateKind.DATETIME, CandidateKind.AMOUNT, CandidateKind.IBAN,

@@ -102,9 +102,13 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         val parties = result.parties
         val out = mutableListOf<RecognisedEntity>()
         val emitted = mutableSetOf<String>()
+        val named = mutableSetOf<String>()
 
         fun add(name: String, kind: EntityKind, role: EntityRole, relation: String, confidence: Float) {
             if (name.isBlank() || !emitted.add("$role:${name.lowercase()}")) return
+            // Someone already listed as the sender or a recipient is not listed again as "mentioned".
+            if (role == EntityRole.MENTIONED && name.lowercase() in named) return
+            named += name.lowercase()
             out += RecognisedEntity(name.trim(), kind, role, relation, confidence.coerceIn(0f, 1f))
         }
 

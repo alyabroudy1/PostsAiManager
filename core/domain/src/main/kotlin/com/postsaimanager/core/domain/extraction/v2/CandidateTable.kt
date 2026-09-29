@@ -6,8 +6,8 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
 
 /**
  * One candidate as the model is offered it. Identical values found several times (a total in the
- * table and again in the payment sentence) are offered once, under the first id, with every place
- * it was seen listed.
+ * table and again in the payment sentence) are offered once, with every place it was seen listed;
+ * the id is that of the occurrence that passed its checks, else the first.
  */
 class OfferedRow(val candidate: Candidate, val nearLabels: List<String>, val pages: List<Int>)
 
@@ -78,7 +78,9 @@ object CandidateTable {
         for (c in eligible) merged.getOrPut(key(c)) { mutableListOf() }.add(c)
         val rows = merged.values.map { group ->
             OfferedRow(
-                candidate = group.first(),
+                // The occurrence that passed its checks stands for the group: "64,98" in a table
+                // cell and "64,98 €" in a sentence are one value, and only the second has a currency.
+                candidate = group.firstOrNull { it.validation.isValid } ?: group.first(),
                 nearLabels = group.map { it.label }.filter { it.isNotBlank() }.distinct(),
                 pages = group.map { it.page }.distinct().sorted(),
             )

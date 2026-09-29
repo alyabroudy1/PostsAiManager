@@ -984,7 +984,7 @@ internal object Letters {
             ExpParty(PartyRole.ADDRESSEE, "إيريكا موستيرمان", quote = "إيريكا موستيرمان"),
         ),
         subject = "الموضوع تذكير بسداد الفاتورة رقم ٠٤١٧ لسنة ٢٠٢٦",
-        manifest = ManifestRoles("Al-Mithal Services GmbH"),
+        manifest = ManifestRoles("Al-Mithal Services GmbH", addressees = listOf("إيريكا موستيرمان")),
     )
 
     val all: List<Letter> = listOf(invoice, tax, english, receipt, degraded, arabic, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10)
