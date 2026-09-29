@@ -6,6 +6,7 @@ import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.FactKind
+import com.postsaimanager.core.model.FieldProvenance
 import com.postsaimanager.core.model.RecognisedFact
 
 /**
@@ -37,7 +38,16 @@ object UnderstandingToFields {
     ): List<ExtractedData> {
         val fields = mutableListOf<ExtractedData>()
 
-        fun add(name: String, value: String, type: ExtractedFieldType, confidence: Float) {
+        // [slotKey] is the value's stable identity (see ExtractedData.slotKey); the rest of the
+        // provenance is stored as extraction reported it, next to the final confidence.
+        fun add(
+            name: String,
+            value: String,
+            type: ExtractedFieldType,
+            confidence: Float,
+            provenance: FieldProvenance?,
+            slotKey: String? = provenance?.slotKey,
+        ) {
             if (value.isBlank()) return
             fields += ExtractedData(
                 id = newId("$documentId#$name"),
@@ -46,6 +56,13 @@ object UnderstandingToFields {
                 fieldValue = value.trim(),
                 fieldType = type,
                 confidence = confidence.coerceIn(0f, 1f),
+                pageNumber = provenance?.page,
+                slotKey = slotKey,
+                role = provenance?.role,
+                origin = provenance?.origin,
+                aiConfidence = provenance?.aiConfidence,
+                evidence = provenance?.evidence,
+                bbox = provenance?.bbox,
             )
         }
 
@@ -63,19 +80,23 @@ object UnderstandingToFields {
                         ExtractedFieldType.PERSON_NAME
                     },
                     confidence = sender.confidence,
+                    provenance = sender.provenance,
+                    // One sender slot whether the name or the organisation field carries it, so a
+                    // re-read that changes the kind renames the row instead of orphaning it.
+                    slotKey = SLOT_SENDER,
                 )
             }
 
         understanding.entities
             .firstOrNull { it.role == EntityRole.RECIPIENT }
-            ?.let { add(RECEIVER_NAME, it.name, ExtractedFieldType.PERSON_NAME, it.confidence) }
+            ?.let { add(RECEIVER_NAME, it.name, ExtractedFieldType.PERSON_NAME, it.confidence, it.provenance, SLOT_ADDRESSEE) }
 
         understanding.entities
             .firstOrNull { it.role == EntityRole.SENDER_CONTACT }
-            ?.let { add(CONTACT_PERSON, it.name, ExtractedFieldType.PERSON_NAME, it.confidence) }
+            ?.let { add(CONTACT_PERSON, it.name, ExtractedFieldType.PERSON_NAME, it.confidence, it.provenance, SLOT_CONTACT) }
 
         if (understanding.subject.isNotBlank()) {
-            add(SUBJECT, understanding.subject, ExtractedFieldType.SUBJECT, 0.9f)
+            add(SUBJECT, understanding.subject, ExtractedFieldType.SUBJECT, 0.9f, null, SLOT_SUBJECT)
         }
 
         // Two facts can share a label — a letter quoting several dates, say. The slot is
@@ -85,7 +106,7 @@ object UnderstandingToFields {
             .groupBy { canonicalLabel(it) }
             .forEach { (label, candidates) ->
                 val best = candidates.maxBy { it.confidence }
-                add(label, best.value, typeOf(best.kind), best.confidence)
+                add(label, best.value, typeOf(best.kind), best.confidence, best.provenance)
             }
 
         return fields
@@ -129,4 +150,10 @@ object UnderstandingToFields {
     const val DOCUMENT_DATE = "Document Date"
     const val AMOUNT = "Amount"
     const val IBAN = "IBAN"
+
+    // Slot keys of the values that are people or the subject rather than schema slots.
+    const val SLOT_SENDER = "sender"
+    const val SLOT_ADDRESSEE = "addressee"
+    const val SLOT_CONTACT = "contact"
+    const val SLOT_SUBJECT = "subject"
 }

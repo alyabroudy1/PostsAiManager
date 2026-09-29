@@ -33,13 +33,16 @@ object SelectionPrompt {
           the addressee), CARE_OF (a person or household whose address is only used as a mailbox),
           SUBJECT_PERSON (who the letter is about, for example a child when the parents are addressed).
           id is a name candidate id, or the name copied exactly from the letter when there is no candidate.
-          k is PERSON, AUTHORITY, COMPANY or OTHER. rel is GUARDIAN_OF when the addressee acts for the subject
-          person, HOUSEHOLD when a family or household is addressed, otherwise NONE.
+          A name candidate does not say whether it is a person or an organisation, and a prefix such as a
+          routing or "care of" abbreviation is only a hint: you decide k and r. k is PERSON, AUTHORITY, COMPANY
+          or OTHER. rel is GUARDIAN_OF when the addressee acts for the subject person (for example the letter is
+          addressed to the parents of a child), HOUSEHOLD when a family or household is addressed, otherwise NONE.
           The sender and the addressee are never the same party.
         - s: the value fields. id is the candidate that fills the field and r says what the value is; write
           "NONE" when the letter has no such value. Never write a date, an amount or a number yourself.
-          Decide from what the letter says, not from the order of the table. For a period given in words (for
-          example "within one month") write {"rule": the words copied from the letter, "r": ..., "c": ...}.
+          Decide from what the letter says, not from the order of the table. A deadline that is only a period in
+          words (for example "within one month", "innerhalb von 14 Tagen") has no candidate: write
+          {"rule": the words copied exactly from the letter, "r": ..., "c": ...}.
         - x: up to ${StructuredGrammar.MAX_EXTRAS} other meaningful details that no field covers (a meter number,
           a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...).
           lb is the label as printed, k a short English snake_case key, id a candidate id or NONE, v the text
@@ -57,14 +60,14 @@ object SelectionPrompt {
         [info-block] Datum: 02.03.2026
         [body] Der Ausflug am 20.03.2026 kostet 12,00 € pro Kind. Bitte bis 10.03.2026 zurückgeben. Mia Beispiel nimmt teil. Klasse 2a.
         CANDIDATES
-        O1: Grundschule Am Waldweg [letterhead] p.1
-        P1: Familie Beispiel [address-field] p.1
+        M1: Grundschule Am Waldweg [letterhead] p.1
+        M2: Familie Beispiel [address-field] p.1
         D1: 02.03.2026 (near: "Datum") p.1
         D2: 20.03.2026 p.1
         D3: 10.03.2026 p.1
         A1: 12,00 € p.1
         ANSWER
-        {"type":"school","tc":"HIGH","lang":"de","parties":[{"r":"SENDER","id":"O1","k":"AUTHORITY","rel":"NONE","c":"HIGH"},{"r":"ADDRESSEE","id":"P1","k":"PERSON","rel":"HOUSEHOLD","c":"HIGH"},{"r":"SUBJECT_PERSON","id":"Mia Beispiel","k":"PERSON","rel":"NONE","c":"MEDIUM"}],"s":{"letter_date":{"id":"D1","r":"LETTER_DATE","c":"HIGH"},"total":{"id":"A1","r":"FEE","c":"HIGH"},"due_date":{"id":"D3","r":"DEADLINE","c":"HIGH"},"iban":"NONE","reference":"NONE","customer_no":"NONE","event_date":{"id":"D2","r":"EVENT","c":"HIGH"}},"x":[{"lb":"Klasse","k":"school_class","id":"NONE","v":"2a","c":"MEDIUM"}]}
+        {"type":"school","tc":"HIGH","lang":"de","parties":[{"r":"SENDER","id":"M1","k":"AUTHORITY","rel":"NONE","c":"HIGH"},{"r":"ADDRESSEE","id":"M2","k":"PERSON","rel":"HOUSEHOLD","c":"HIGH"},{"r":"SUBJECT_PERSON","id":"Mia Beispiel","k":"PERSON","rel":"NONE","c":"MEDIUM"}],"s":{"letter_date":{"id":"D1","r":"LETTER_DATE","c":"HIGH"},"total":{"id":"A1","r":"FEE","c":"HIGH"},"due_date":{"id":"D3","r":"DEADLINE","c":"HIGH"},"iban":"NONE","reference":"NONE","customer_no":"NONE","event_date":{"id":"D2","r":"EVENT","c":"HIGH"}},"x":[{"lb":"Klasse","k":"school_class","id":"NONE","v":"2a","c":"MEDIUM"}]}
     """.trimIndent()
 
     fun system(schema: ExtractionSchema, withExample: Boolean): String {

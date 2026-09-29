@@ -53,6 +53,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.common.extensions.toFormattedDate
 import com.postsaimanager.core.designsystem.component.PamEmptyState
+import com.postsaimanager.core.designsystem.component.documentDisplayTitle
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
@@ -247,7 +248,7 @@ private fun DocumentListItem(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = document.title,
+                    text = documentDisplayTitle(document),
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

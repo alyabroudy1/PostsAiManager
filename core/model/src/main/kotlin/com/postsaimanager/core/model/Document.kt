@@ -34,8 +34,40 @@ data class Document(
      * documentation/07-document-pipeline.md, "Deleting documents".
      */
     val deletedAt: Long? = null,
+    /** The document type id the model chose (`bill`, `authority_tax`, ...), null before a model read it. */
+    val extractionType: String? = null,
+    /** The model's own confidence in [extractionType]. */
+    val extractionTypeConfidence: Float? = null,
+    /** Which extractor version wrote this document's machine values; drives reprocessing on a version bump. */
+    val extractorVersion: String? = null,
+    /** A person chose [title]; extraction must not replace it. */
+    val isUserTitle: Boolean = false,
+    /** Up to three questions the model suggested for this document's chat, in the letter's language. */
+    val suggestedQuestions: List<String> = emptyList(),
+    /** The model's one- or two-sentence summary, shown marked as an AI summary. */
+    val summary: String? = null,
+    /**
+     * When [title] is a default the app wrote rather than words the model or a person chose, the code
+     * of that title (`scanned_pages`) with its [titleArgs] (the page count). The UI renders the
+     * localised sentence from the code; [title] keeps the English text as a fallback for places that
+     * cannot resolve resources (search, file names). Null once the title is real words.
+     */
+    val titleCode: String? = null,
+    val titleArgs: List<String> = emptyList(),
 ) {
     val isTrashed: Boolean get() = deletedAt != null
+
+    /**
+     * The title to show. A default the app wrote is rendered by [scannedPages] (the UI's localised
+     * plural) from its code and page count; anything else, or a code this build does not know, is
+     * [title] as stored.
+     */
+    fun displayTitle(scannedPages: (count: Int) -> String): String {
+        if (titleCode == DocumentTitleCodes.SCANNED_PAGES) {
+            titleArgs.firstOrNull()?.toIntOrNull()?.let { return scannedPages(it) }
+        }
+        return title
+    }
 }
 
 /**

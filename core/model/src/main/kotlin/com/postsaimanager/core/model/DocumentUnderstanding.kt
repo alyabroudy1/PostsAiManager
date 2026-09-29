@@ -49,6 +49,23 @@ data class RecognisedEntity(
     /** Free text, e.g. "spouse of the recipient". Empty when there is none. */
     val relation: String = "",
     val confidence: Float,
+    val provenance: FieldProvenance? = null,
+)
+
+/**
+ * Where a value came from and what it filled, carried from extraction to storage unchanged: the slot
+ * key, the model's role word, how it was obtained, the model's own confidence (the value's
+ * `confidence` is the final one), and the evidence with its page and position.
+ */
+@Serializable
+data class FieldProvenance(
+    val slotKey: String? = null,
+    val role: String? = null,
+    val origin: String? = null,
+    val aiConfidence: Float? = null,
+    val evidence: String? = null,
+    val page: Int? = null,
+    val bbox: TextBounds? = null,
 )
 
 /** What kind of fact a value is, so the app knows what it can do with it. */
@@ -90,6 +107,7 @@ data class RecognisedFact(
     val value: String,
     val kind: FactKind,
     val confidence: Float,
+    val provenance: FieldProvenance? = null,
 )
 
 /**

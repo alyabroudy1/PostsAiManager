@@ -6,106 +6,118 @@ import java.io.File
 import java.util.Locale
 
 /**
- * Scores the on-device recordings of the vision spike (workstream H): text only (`t`), text plus
- * page-1 image (`ti`), image only (`i`). Skipped when no recordings exist. Writes
- * `build/reports/vision-variants.md`.
- *
- * Recordings hold invented letters only (`src/test/resources/benchmark/recordings/<key>.<variant>.json`);
- * the phone run that produced them is `VisionBenchmarkTest` in `:core:ai:local` androidTest.
+ * Scores the on-device recordings of the vision spike (workstream H) on the documents recorded for
+ * every variant found: `t` text only, `ti` text + page-1 image, `i` image only, and any other
+ * variant name (for example `t-2b`, a larger text model). Skipped without recordings. Writes
+ * `build/reports/vision-variants.md`. See [VisionReplay] for how each kind is replayed.
  */
 class VisionVariantsTest {
 
-    private val variants = listOf("t" to "text only", "ti" to "text + page-1 image", "i" to "image only")
-
-    private fun fmt(v: Double) = String.format(Locale.ROOT, "%.3f", v)
+    private fun f3(v: Double) = String.format(Locale.ROOT, "%.3f", v)
 
     @Test
     fun `scores the recorded variants`() {
         val dir = File("src/test/resources/benchmark/recordings")
-        assumeTrue(dir.isDirectory && dir.list().orEmpty().any { it.endsWith(".t.json") || it.endsWith(".ti.json") || it.endsWith(".i.json") }, "no vision recordings")
-        val loaded = BenchmarkFixtures.load()
-        val docs = loaded.docs.filter { !it.first.web }
-        val report = ExtractionBenchmark.run(docs)
+        val names = dir.list().orEmpty().filter { it.endsWith(".json") }
+        assumeTrue(names.isNotEmpty(), "no recordings")
+        val docs = BenchmarkFixtures.load().docs.filter { !it.first.web }
+        val replay = VisionReplay(dir, docs)
+        val det = docs.associate { (m, f) -> m.key to ExtractionBenchmark.score(m, f) }
         val manifests = docs.associate { it.first.key to it.first }
-        val fixtures = docs.associate { it.first.key to it.second }
-        val results = report.docs.associateBy { it.key }
 
-        val sb = StringBuilder("# Vision variants (real model on phone, invented letters)\n\n")
-        val perVariant = variants.associate { (v, _) -> v to RecordedVariant(dir, v, fixtures, manifests) }
+        val variants = names.map { it.removeSuffix(".json").substringAfterLast('.') }.distinct().sorted()
+        val keys = docs.map { it.first.key }.filter { k -> variants.all { File(dir, "$k.$it.json").exists() } }
+        assumeTrue(keys.isNotEmpty(), "no document recorded for all variants: $variants")
 
-        // Only documents recorded for every variant present are comparable.
-        val present = variants.map { it.first }.filter { v -> docs.any { File(dir, "${it.first.key}.$v.json").exists() } }
-        val keys = docs.map { it.first.key }.filter { k -> present.all { File(dir, "$k.$it.json").exists() } }
-        sb.appendLine("Documents scored (recorded for all of ${present.joinToString()}): ${keys.size} - ${keys.joinToString()}\n")
+        val sb = StringBuilder("# Vision variants (real model on the phone, invented letters)\n\n")
+        sb.appendLine("Documents recorded for all of ${variants.joinToString()}: ${keys.size} (${keys.joinToString()})\n")
 
-        sb.appendLine("## Summary\n")
-        sb.appendLine("| variant | fieldMatch (right/answered) | recall (right/expected) | rolesMatch | hallucination | extras/doc | ok answers | mean s/letter | calibration (bucket: accuracy) |")
-        sb.appendLine("|---|---|---|---|---|---|---|---|---|")
-        class Row(val right: Int, val asked: Int, val expected: Int)
-        val rows = mutableMapOf<String, Row>()
-        for (v in present) {
-            val interp = perVariant.getValue(v)
-            val pairs = keys.map { results.getValue(it) to manifests.getValue(it) }
-            val s = InterpreterMetrics.score(pairs, interp) ?: continue
-            var right = 0
-            var asked = 0
-            var expected = 0
-            for ((res, _) in pairs) {
-                val out = interp.replay(res.key)!!.doc
-                for (f in res.facts) {
-                    expected++
-                    val a = out.fields[f.exp.field.substringBefore(' ')] ?: continue
-                    asked++
-                    if (ExtractionBenchmark.squash(a) == ExtractionBenchmark.squash(f.exp.norm)) right++
+        class Tally(val variant: String) {
+            var expected = 0; var right = 0; var foundExpected = 0; var foundRight = 0
+            var given = 0; var bad = 0; var extras = 0; var roleDocs = 0; var roleRight = 0
+            var ok = 0; var ms = 0L; var docs = 0
+            val buckets = linkedMapOf("LOW" to (0 to 0), "MEDIUM" to (0 to 0), "HIGH" to (0 to 0))
+        }
+
+        val perDoc = linkedMapOf<String, MutableMap<String, String>>()
+        val tallies = variants.associateWith { Tally(it) }
+        for (v in variants) {
+            val t = tallies.getValue(v)
+            for (k in keys) {
+                val out = replay.outcome(k, v) ?: continue
+                val m = manifests.getValue(k)
+                val d = det.getValue(k)
+                t.docs++
+                if (out.parsed) t.ok++
+                t.ms += out.call1Ms
+                var docRight = 0
+                for (fact in d.facts) {
+                    t.expected++
+                    val hit = out.values.any { Expectations.matchesValue(it.normalized, fact.exp) }
+                    if (hit) { t.right++; docRight++ }
+                    if (fact.found) { t.foundExpected++; if (hit) t.foundRight++ }
                 }
+                val candNorms = d.candidateSet.candidates.map { ExtractionBenchmark.squash(it.normalized) }.toSet()
+                var docBad = out.rejected
+                t.given += out.values.size + out.rejected
+                t.bad += out.rejected
+                for (x in out.values) {
+                    val isBad = !x.grounded && ExtractionBenchmark.squash(x.normalized) !in candNorms
+                    if (isBad) { t.bad++; docBad++ }
+                    val b = when { x.confidence < 0.5 -> "LOW"; x.confidence < 0.8 -> "MEDIUM"; else -> "HIGH" }
+                    val ok = d.facts.any { Expectations.matchesValue(x.normalized, it.exp) }
+                    val (n, kk) = t.buckets.getValue(b)
+                    t.buckets[b] = (n + 1) to (kk + if (ok) 1 else 0)
+                }
+                t.extras += out.extras
+                var roleOk: Boolean? = null
+                if (m.roles.addressees.isNotEmpty() || m.senderName != null) {
+                    t.roleDocs++
+                    fun fits(name: String, exp: String) =
+                        ExtractionBenchmark.squash(name).contains(ExtractionBenchmark.squash(exp.substringBefore(',')))
+                    val s = m.senderName == null || out.sender?.let { fits(it, m.senderName!!) } == true
+                    val a = m.roles.addressees.all { e -> out.addressees.any { fits(it, e) } }
+                    roleOk = s && a
+                    if (roleOk) t.roleRight++
+                }
+                perDoc.getOrPut(k) { linkedMapOf() }[v] =
+                    "$docRight/${d.facts.size} ${roleOk?.let { if (it) "roles-ok" else "roles-no" } ?: "-"} bad=$docBad ${out.call1Ms / 1000}s"
             }
-            rows[v] = Row(right, asked, expected)
-            val replays = keys.map { interp.replay(it)!! }
+        }
+
+        fun r(a: Int, b: Int) = if (b == 0) 0.0 else a.toDouble() / b
+        sb.appendLine("## Summary\n")
+        sb.appendLine("| variant | recall (right/all expected) | field match (of facts code found) | roles | hallucination | extras/doc | parsed | mean call-1 s | calibration (accuracy, n) |")
+        sb.appendLine("|---|---|---|---|---|---|---|---|---|")
+        for (t in tallies.values) {
             sb.appendLine(
-                "| $v (${variants.first { it.first == v }.second}) | ${fmt(s.fieldMatch)} ($right/$asked) | ${fmt(right.toDouble() / expected)} ($right/$expected) | " +
-                    "${fmt(s.rolesMatch)} | ${fmt(s.hallucination)} | ${String.format(Locale.ROOT, "%.2f", s.extrasPerDoc)} | " +
-                    "${replays.count { it.parsed }}/${replays.size} | ${String.format(Locale.ROOT, "%.1f", replays.map { it.call1Ms }.average() / 1000)} | " +
-                    "${s.calibration.entries.joinToString { "${it.key}: ${fmt(it.value)}" }} |",
+                "| ${t.variant} | ${f3(r(t.right, t.expected))} (${t.right}/${t.expected}) | ${f3(r(t.foundRight, t.foundExpected))} (${t.foundRight}/${t.foundExpected}) | " +
+                    "${f3(r(t.roleRight, t.roleDocs))} (${t.roleRight}/${t.roleDocs}) | ${f3(r(t.bad, t.given))} (${t.bad}/${t.given}) | " +
+                    "${String.format(Locale.ROOT, "%.2f", t.extras.toDouble() / t.docs)} | ${t.ok}/${t.docs} | " +
+                    "${String.format(Locale.ROOT, "%.1f", t.ms / 1000.0 / t.docs)} | " +
+                    t.buckets.entries.joinToString(", ") { "${it.key}: ${f3(r(it.value.second, it.value.first))} (${it.value.first})" } + " |",
             )
         }
 
-        sb.appendLine("\n## Per document (right/expected facts; roles ok; hallucinated answers; call-1 seconds)\n")
-        sb.appendLine("| doc | expected | " + present.joinToString(" | ") { "$it right" } + " | " + present.joinToString(" | ") { "$it roles" } + " | " + present.joinToString(" | ") { "$it halluc" } + " | " + present.joinToString(" | ") { "$it s" } + " |")
-        sb.appendLine("|---|---|" + "---|".repeat(present.size * 4))
-        for (k in keys) {
-            val res = results.getValue(k)
-            val m = manifests.getValue(k)
-            val cells = present.map { v ->
-                val r = perVariant.getValue(v).replay(k)!!
-                val right = res.facts.count { f -> r.doc.fields[f.exp.field.substringBefore(' ')]?.let { ExtractionBenchmark.squash(it) == ExtractionBenchmark.squash(f.exp.norm) } == true }
-                val roleOk = InterpreterMetrics.score(listOf(res to m), perVariant.getValue(v))?.rolesMatch
-                val text = ExtractionBenchmark.squash(res.layout.plainText())
-                val cand = res.candidateSet.candidates.map { ExtractionBenchmark.squash(it.normalized) }.toSet()
-                val halluc = r.doc.fields.values.count { x ->
-                    !x.isNullOrBlank() && ExtractionBenchmark.squash(x) !in cand && !text.contains(ExtractionBenchmark.squash(x))
-                }
-                arrayOf("$right", if (roleOk == null) "-" else if (roleOk >= 1.0) "ok" else "no", "$halluc", String.format(Locale.ROOT, "%.0f", r.call1Ms / 1000.0))
-            }
-            sb.appendLine("| $k | ${res.facts.size} | " + (0..3).joinToString(" | ") { i -> cells.joinToString(" | ") { it[i] } } + " |")
-        }
+        sb.appendLine("\n## Per document (facts right / expected, roles, hallucinated answers, call-1 seconds)\n")
+        sb.appendLine("| doc | " + variants.joinToString(" | ") + " |")
+        sb.appendLine("|---|" + "---|".repeat(variants.size))
+        for ((k, cells) in perDoc) sb.appendLine("| $k | " + variants.joinToString(" | ") { cells[it] ?: "-" } + " |")
 
-        sb.appendLine("\n## Per field kind (right/expected)\n")
-        sb.appendLine("| kind | expected | " + present.joinToString(" | ") + " |")
-        sb.appendLine("|---|---|" + "---|".repeat(present.size))
-        val kinds = keys.flatMap { results.getValue(it).facts }.map { it.exp.kind }.distinct().sortedBy { it.name }
+        sb.appendLine("\n## Per fact kind (right / expected)\n")
+        sb.appendLine("| kind | expected | " + variants.joinToString(" | ") + " |")
+        sb.appendLine("|---|---|" + "---|".repeat(variants.size))
+        val kinds = keys.flatMap { det.getValue(it).facts }.map { it.exp.kindName }.distinct().sorted()
         for (kind in kinds) {
-            val cells = present.map { v ->
-                var right = 0
-                for (k in keys) {
-                    val out = perVariant.getValue(v).replay(k)!!.doc
-                    right += results.getValue(k).facts.count { f ->
-                        f.exp.kind == kind &&
-                            out.fields[f.exp.field.substringBefore(' ')]?.let { ExtractionBenchmark.squash(it) == ExtractionBenchmark.squash(f.exp.norm) } == true
+            val total = keys.sumOf { k -> det.getValue(k).facts.count { it.exp.kindName == kind } }
+            val cells = variants.map { v ->
+                keys.sumOf { k ->
+                    val out = replay.outcome(k, v)
+                    det.getValue(k).facts.count { f ->
+                        f.exp.kindName == kind && out?.values?.any { Expectations.matchesValue(it.normalized, f.exp) } == true
                     }
                 }
-                right
             }
-            val total = keys.sumOf { k -> results.getValue(k).facts.count { it.exp.kind == kind } }
             sb.appendLine("| $kind | $total | " + cells.joinToString(" | ") + " |")
         }
 

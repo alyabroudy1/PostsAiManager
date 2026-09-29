@@ -80,9 +80,46 @@ class ExtractionV2AdapterTest {
     }
 
     @Test
-    fun `the summary becomes the Content Preview field`() {
-        val f = fields(understand(Letters.n1))
-        assertThat(f.single { it.fieldName == "Content Preview" }.fieldValue).contains("64,98")
+    fun `the summary is the document's, not a field`() {
+        val u = understand(Letters.n1)
+        assertThat(u.summary).contains("64,98")
+        assertThat(fields(u).map { it.fieldName }).doesNotContain("Content Preview")
+    }
+
+    @Test
+    fun `every stored field carries its slot key, role, origin, both confidences, evidence and page`() {
+        val result = read(Letters.n1)
+        val f = fields(adapter.adapt(result)).associateBy { it.slotKey }
+        val total = f.getValue("total")
+        assertThat(total.fieldName).isEqualTo("Amount")
+        assertThat(total.origin).isEqualTo("MODEL_CHOICE")
+        assertThat(total.role).isNotNull()
+        assertThat(total.aiConfidence).isNotNull()
+        // The final confidence is never above the model's own.
+        assertThat(total.confidence).isAtMost(total.aiConfidence!!)
+        assertThat(total.evidence).isNotEmpty()
+        assertThat(total.pageNumber).isNotNull()
+        assertThat(total.bbox).isNotNull()
+        assertThat(f.keys).containsAtLeast("due_date", "letter_date", "iban", "sender", "addressee", "subject")
+        // What is stored is what the verifier produced, straight through.
+        assertThat(total.confidence).isEqualTo(result.slots.getValue(Slots.TOTAL).confidence)
+        assertThat(total.aiConfidence).isEqualTo(result.slots.getValue(Slots.TOTAL).aiConfidence)
+    }
+
+    @Test
+    fun `the sender is one slot whether it is a name or an organisation, and extras are keyed by their printed label`() {
+        val f = fields(understand(Letters.n6))
+        assertThat(f.single { it.slotKey == "sender" }.fieldName).isIn(listOf("Sender Organization", "Sender Name"))
+        val extra = f.single { it.fieldName == "Geleistete Vorauszahlungen" }
+        assertThat(extra.slotKey).isEqualTo("x:geleistete_vorauszahlungen")
+    }
+
+    @Test
+    fun `found values are marked as found and have no slot`() {
+        val bare = runBlocking { pipeline.run(Letters.n1.pages, null, 4096) }
+        val stored = fields(adapter.adapt(bare))
+        assertThat(stored).isNotEmpty()
+        assertThat(stored.all { it.origin == "FOUND" && it.slotKey == null }).isTrue()
     }
 
     @Test

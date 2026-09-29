@@ -1,0 +1,104 @@
+<resources>
+    <!--
+        Labels are rendered from keys: a field's slot key (`slot_<key>`), a document's type id
+        (`doctype_<id>`), a timeline event's code. English only for now; the same names in
+        values-de and values-ar localise the screen without touching data or code.
+    -->
+
+    <!-- Summary card -->
+    <string name="card_from">From</string>
+    <string name="card_for">For</string>
+    <string name="card_type">Type</string>
+    <string name="card_amount">Amount</string>
+    <string name="card_due">Due</string>
+    <string name="card_ai_summary">AI summary</string>
+    <string name="card_worth_checking">Worth checking</string>
+
+    <!-- Sections -->
+    <string name="section_details">Details</string>
+    <string name="section_other_details">Other details</string>
+    <string name="section_other_details_count">Other details (%1$d)</string>
+    <string name="other_details_show_all">Show all (%1$d more)</string>
+    <string name="other_details_show_fewer">Show fewer</string>
+    <string name="group_parties">People and organisations</string>
+    <string name="group_money">Money</string>
+    <string name="group_dates">Dates</string>
+    <string name="group_references">References</string>
+    <string name="group_text">Text</string>
+
+    <!-- Fields -->
+    <string name="field_worth_checking">Worth checking.</string>
+    <string name="field_confidence">%1$d%% confidence</string>
+    <string name="field_you_set_this">You set this</string>
+
+    <!-- Slot labels, keyed by slot key -->
+    <string name="slot_sender">Sender</string>
+    <string name="slot_addressee">Receiver</string>
+    <string name="slot_contact">Contact person</string>
+    <string name="slot_subject">Subject</string>
+    <string name="slot_letter_date">Document date</string>
+    <string name="slot_total">Amount</string>
+    <string name="slot_due_date">Deadline</string>
+    <string name="slot_iban">IBAN</string>
+    <string name="slot_reference">Reference</string>
+    <string name="slot_customer_no">Customer number</string>
+    <string name="slot_fee">Fee</string>
+    <string name="slot_new_amount">New amount</string>
+    <string name="slot_previous_amount">Previous amount</string>
+    <string name="slot_proof_amount">Amount paid</string>
+    <string name="slot_objection_deadline">Objection deadline</string>
+    <string name="slot_original_due_date">Original due date</string>
+    <string name="slot_effective_date">Effective date</string>
+    <string name="slot_contract_end">Contract end</string>
+    <string name="slot_event_date">Event date</string>
+    <string name="slot_appointment">Appointment</string>
+    <string name="slot_sent_date">Sent date</string>
+    <string name="slot_proof_date">Payment date</string>
+    <string name="slot_invoice_no">Invoice number</string>
+    <string name="slot_contract_no">Contract number</string>
+    <string name="slot_policy_no">Policy number</string>
+    <string name="slot_case_no">Case number</string>
+    <string name="slot_tax_no">Tax number</string>
+    <string name="slot_receipt_no">Receipt number</string>
+    <string name="slot_proof_reference">Payment reference</string>
+    <string name="slot_recipient_org">Sent to</string>
+    <string name="slot_proof_recipient">Paid to</string>
+    <string name="slot_cited_references">Cited references</string>
+    <string name="slot_action_kind">Action</string>
+
+    <!-- Document types, keyed by type id -->
+    <string name="doctype_bill">Bill</string>
+    <string name="doctype_reminder_dunning">Payment reminder</string>
+    <string name="doctype_authority_tax">Authority or tax letter</string>
+    <string name="doctype_health">Health</string>
+    <string name="doctype_insurance_contract">Insurance or contract</string>
+    <string name="doctype_school">School</string>
+    <string name="doctype_receipt">Receipt</string>
+    <string name="doctype_info_no_action">Information</string>
+    <string name="doctype_outgoing_letter">Letter you sent</string>
+    <string name="doctype_payment_proof">Proof of payment</string>
+    <string name="doctype_other">Other</string>
+
+    <!-- Partial read -->
+    <plurals name="extraction_partial_notice">
+        <item quantity="one">Only the first %1$d of %2$d page was read by the assistant — check the rest yourself.</item>
+        <item quantity="other">Only the first %1$d of %2$d pages were read by the assistant — check the rest yourself.</item>
+    </plurals>
+
+    <!-- Timeline, keyed by event code -->
+    <plurals name="timeline_ocr_done">
+        <item quantity="one">Text extracted from %1$d page</item>
+        <item quantity="other">Text extracted from %1$d pages</item>
+    </plurals>
+    <string name="timeline_ocr_confidence">Average confidence: %1$d%%</string>
+    <plurals name="timeline_fields_extracted">
+        <item quantity="one">Extracted %1$d field</item>
+        <item quantity="other">Extracted %1$d fields</item>
+    </plurals>
+    <plurals name="timeline_review_flagged">
+        <item quantity="one">%1$d field needs your review</item>
+        <item quantity="other">%1$d fields need your review</item>
+    </plurals>
+    <string name="timeline_review_flagged_detail">A new reading differs from your version: %1$s</string>
+    <string name="timeline_processing_failed">Processing failed</string>
+</resources>

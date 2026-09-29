@@ -12,13 +12,13 @@ import com.postsaimanager.core.model.TextBounds
 enum class CandidateKind {
     DATE,
     DATETIME,
-    RELATIVE_DEADLINE,
     AMOUNT,
     IBAN,
     BIC,
     REFERENCE,
-    PERSON_NAME,
-    ORG_NAME,
+
+    /** A name-shaped line. Person, company or authority is the model's decision, not the code's. */
+    NAME,
     PHONE,
     EMAIL,
 }
@@ -46,8 +46,9 @@ enum class ReferenceSubtype {
 }
 
 /**
- * What the nearest label says the value *is*. Covers amounts, dates and relative
- * deadlines; references use [ReferenceSubtype] instead.
+ * What the nearest label *says* the value is, in words of a few languages. A HINT for the
+ * model's "near" column and for tests: no code decides validity, a letter date or a triple from
+ * it. References use [ReferenceSubtype] instead.
  */
 enum class LabelKind {
     // amounts
@@ -123,8 +124,7 @@ data class BlockKey(val page: Int, val index: Int)
  *   grammar can reference candidates by id. Prefix per kind; number in reading order.
  * @property raw The text as printed.
  * @property normalized Canonical form: ISO date "2026-09-28", datetime "2026-11-12T09:30",
- *   amount "1284.50 EUR", compact IBAN, ISO duration "P14D" for relative deadlines, the
- *   reference with collapsed spaces, the stripped name.
+ *   amount "1284.50 EUR", compact IBAN, the reference with collapsed spaces, the stripped name.
  * @property page 1-based page number.
  * @property bbox Bounds of the OCR block the value sits in (null when the input had none).
  * @property evidence The source line the value was read from.
@@ -133,7 +133,8 @@ data class BlockKey(val page: Int, val index: Int)
  * @property labelKind What that label means, when it is one we know.
  * @property subtype For [CandidateKind.REFERENCE] only.
  * @property attrs Kind-specific extras: amounts carry `cents`, `currency`,
- *   `currencyExplicit`; relative deadlines carry `n`, `unit`, `anchor`; names carry `zone`.
+ *   `currencyExplicit`, and `triple` when they belong to a consistent a + b = c set; names carry
+ *   `zone` and, when a routing prefix was cut off by shape, `prefix`.
  */
 data class Candidate(
     val id: String,

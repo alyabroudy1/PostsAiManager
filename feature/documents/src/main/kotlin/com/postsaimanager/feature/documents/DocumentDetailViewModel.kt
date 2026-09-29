@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.util.UuidGenerator
+import com.postsaimanager.core.domain.applock.ExternalFlowGuard
+import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.DocumentProcessor
@@ -45,9 +47,31 @@ class DocumentDetailViewModel @Inject constructor(
     private val profileMatchingService: ProfileMatchingService,
     private val entityProposalService: EntityProposalService,
     private val documentExporter: DocumentExporter,
+    private val externalFlowGuard: ExternalFlowGuard,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
+
+    private var externalFlow: ExternalFlowToken? = null
+
+    /**
+     * Called just before the share sheet or another app is launched from this screen, so coming back
+     * does not trigger the app lock. Pair with [onExternalLaunchFinished] when the launch fails.
+     */
+    fun onExternalLaunching(reason: String) {
+        externalFlowGuard.finish(externalFlow)
+        externalFlow = externalFlowGuard.expect(reason)
+    }
+
+    /** The launch failed or its result came back: the protection is no longer needed. */
+    fun onExternalLaunchFinished() {
+        externalFlowGuard.finish(externalFlow)
+        externalFlow = null
+    }
+
+    override fun onCleared() {
+        externalFlowGuard.finish(externalFlow)
+    }
 
     private val _selectedTab = MutableStateFlow(DetailTab.PAGES)
     val selectedTab: StateFlow<DetailTab> = _selectedTab.asStateFlow()

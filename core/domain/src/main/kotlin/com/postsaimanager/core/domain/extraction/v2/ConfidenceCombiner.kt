@@ -63,6 +63,9 @@ object ConfidenceCombiner {
         const val QUOTE_NORMALIZED = 0.55f
         const val QUOTE_EXACT = 0.6f
         const val UNCHECKED = 0.6f
+
+        /** A value read with OCR character-confusion repair (o/O for 0, I/l for 1): plausible, not printed as such. */
+        const val REPAIRED = 0.6f
         const val GUESS = 0.65f
     }
 

@@ -1,29 +1,39 @@
 package com.postsaimanager.core.domain.benchmark
 
-import com.postsaimanager.core.domain.extraction.candidates.BlockKey
-import com.postsaimanager.core.domain.extraction.candidates.BlockZone
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateExtractor
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
-import com.postsaimanager.core.domain.extraction.layout.LayoutLine
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterLayoutAnalyzer
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
+import com.postsaimanager.core.domain.extraction.v2.BlockZones
 import java.io.File
 import java.util.Locale
 
-/** One fact the manifest says is on the letter, reduced to what the deterministic stage can be judged on. */
+/**
+ * One fact the manifest says is on the letter, reduced to what the deterministic stage can be judged on.
+ *
+ * A null [kind] is a relative deadline. Code no longer proposes those (the model quotes the rule and code
+ * verifies the quote), so the deterministic stage is judged on whether the rule's words survived OCR.
+ */
 data class Expectation(
     val doc: String,
     val field: String,
-    val kind: CandidateKind,
+    val kind: CandidateKind?,
     /** Normalised like [Candidate.normalized]: ISO date, "1284.50 EUR", compact IBAN, reference, "P14D". */
     val norm: String,
     val page: Int,
     /** The value as a reader sees it, to check whether OCR got it at all. */
     val rawToken: String,
-)
+) {
+    /** Metric and table name of the fact's kind. */
+    val kindName: String get() = kind?.name ?: RELATIVE_RULE
+
+    companion object {
+        const val RELATIVE_RULE = "RELATIVE_RULE"
+    }
+}
 
 enum class MissCause(val text: String) {
     /** The printed value is not in the OCR text of its page (misread, split beyond repair, not read at all). */
@@ -68,8 +78,8 @@ class BenchmarkReport(val docs: List<DocResult>) {
         val facts = ds.flatMap { it.facts }
         fun rate(fs: List<FactResult>) = if (fs.isEmpty()) 1.0 else fs.count { it.found }.toDouble() / fs.size
         out["recall.all"] = rate(facts)
-        for (k in CandidateKind.entries) {
-            val fs = facts.filter { it.exp.kind == k }
+        for (k in CandidateKind.entries.map { it.name } + Expectation.RELATIVE_RULE) {
+            val fs = facts.filter { it.exp.kindName == k }
             if (fs.isNotEmpty()) out["recall.$k"] = rate(fs)
         }
         out["noise.hits"] = ds.sumOf { it.noiseHits.size }.toDouble()
@@ -92,14 +102,18 @@ object ExtractionBenchmark {
         val pageBlocks = f.pages.map { it.blocks }
         // Same deterministic chain the pipeline runs: layout zones first, candidates second (names use the zones).
         val layout = LetterLayoutAnalyzer.analyze(pageBlocks)
-        val zones = blockZones(layout, pageBlocks)
+        val zones = BlockZones.of(pageBlocks, layout)
         val set = CandidateExtractor.extract(pageBlocks, zones)
 
         val expectations = Expectations.of(m)
         val pageText = f.pages.associate { p -> p.pageNumber to squash(p.blocks.joinToString("\n") { it.text }) }
         val facts = expectations.map { e ->
             val hit = set.candidates.firstOrNull { it.page == e.page && Expectations.matches(it, e) }
-            if (hit != null) {
+            if (e.kind == null) {
+                // A relative rule is quoted by the model; the stage before it must only keep the words readable.
+                val inOcr = pageText[e.page]?.contains(squash(e.rawToken)) == true
+                FactResult(e, inOcr, if (inOcr) null else MissCause.NOT_IN_OCR, null)
+            } else if (hit != null) {
                 FactResult(e, true, null, hit)
             } else {
                 val other = set.candidates.any { Expectations.matches(it, e) }
@@ -147,41 +161,11 @@ object ExtractionBenchmark {
         )
     }
 
-    /**
-     * Maps the layout stage's per-line zones back onto OCR blocks (the extractor wants block keys).
-     * A block gets the zone most of its lines were given; ties prefer the address field.
-     */
-    fun blockZones(layout: LetterLayout, pageBlocks: List<List<com.postsaimanager.core.model.OcrBlock>>): Map<BlockKey, BlockZone> {
-        val out = HashMap<BlockKey, BlockZone>()
-        pageBlocks.forEachIndexed { p, blocks ->
-            val lines: List<LayoutLine> = layout.page(p + 1)?.lines.orEmpty().filter { !it.isNoise }
-            val byText = lines.groupBy { squash(it.text) }
-            blocks.forEachIndexed { i, b ->
-                val zs = b.text.split('\n').mapNotNull { l -> byText[squash(l)]?.firstOrNull()?.zone }
-                val mapped = zs.mapNotNull {
-                    when (it) {
-                        LetterZone.ADDRESS_FIELD -> BlockZone.ADDRESS_FIELD
-                        LetterZone.LETTERHEAD -> BlockZone.LETTERHEAD
-                        LetterZone.RETURN_ADDRESS_LINE -> BlockZone.RETURN_ADDRESS
-                        else -> null
-                    }
-                }
-                if (mapped.isNotEmpty() && mapped.size * 2 >= zs.size) {
-                    val counts = mapped.groupingBy { it }.eachCount()
-                    val best = counts.maxOf { it.value }
-                    val pick = if (counts[BlockZone.ADDRESS_FIELD] == best) BlockZone.ADDRESS_FIELD else counts.filterValues { it == best }.keys.first()
-                    out[BlockKey(p + 1, i)] = pick
-                }
-            }
-        }
-        return out
-    }
-
     fun squash(s: String): String = s.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
 
     // ── Scoreboard ──
 
-    fun scoreboard(report: BenchmarkReport, skipped: List<String>): String {
+    fun scoreboard(report: BenchmarkReport, skipped: List<String>, interpreterSection: String = ""): String {
         val sb = StringBuilder()
         fun pct(v: Double) = String.format(Locale.ROOT, "%.1f%%", v * 100)
         sb.appendLine("# Extraction benchmark (real phone OCR)\n")
@@ -215,7 +199,7 @@ object ExtractionBenchmark {
         sb.appendLine(byCause.entries.joinToString(", ") { "${it.key?.text}: ${it.value}" } + "\n")
         sb.appendLine("| doc | page | field | kind | expected | cause |\n|---|---|---|---|---|---|")
         for ((d, f) in misses) {
-            sb.appendLine("| ${d.key}${if (d.web) " (web)" else ""} | ${f.exp.page} | ${f.exp.field} | ${f.exp.kind} | ${f.exp.norm} | ${f.cause?.text} |")
+            sb.appendLine("| ${d.key}${if (d.web) " (web)" else ""} | ${f.exp.page} | ${f.exp.field} | ${f.exp.kindName} | ${f.exp.norm} | ${f.cause?.text} |")
         }
         sb.appendLine()
 
@@ -239,14 +223,15 @@ object ExtractionBenchmark {
         sb.appendLine("## Extra candidates (not matched to a manifest fact), per kind\n")
         val extras = report.docs.flatMap { it.extrasByKind.entries }.groupBy({ it.key }, { it.value }).mapValues { it.value.sum() }
         sb.appendLine(extras.entries.joinToString(", ") { "${it.key}: ${it.value}" } + "\n")
+        if (interpreterSection.isNotEmpty()) sb.appendLine(interpreterSection)
         if (skipped.isNotEmpty()) sb.appendLine("Skipped (no fixture): ${skipped.joinToString()}")
         return sb.toString()
     }
 
-    fun writeScoreboard(report: BenchmarkReport, skipped: List<String>): File {
+    fun writeScoreboard(report: BenchmarkReport, skipped: List<String>, interpreterSection: String = ""): File {
         val f = File("build/benchmark/scoreboard.md")
         f.parentFile.mkdirs()
-        f.writeText(scoreboard(report, skipped))
+        f.writeText(scoreboard(report, skipped, interpreterSection))
         return f
     }
 }
@@ -277,7 +262,7 @@ object Expectations {
         val out = mutableListOf<Expectation>()
         for (e in m.expected) {
             val name = e.field.substringBefore(' ').trim()
-            val add = { kind: CandidateKind, norm: String, raw: String ->
+            val add = { kind: CandidateKind?, norm: String, raw: String ->
                 out += Expectation(m.key, e.field, kind, norm, e.page, raw)
             }
             when {
@@ -297,8 +282,8 @@ object Expectations {
                             }
                         }
                     } else if (name == "deadline") {
-                        Regex("(\\d+) Tage").find(e.value)?.let { add(CandidateKind.RELATIVE_DEADLINE, "P${it.groupValues[1]}D", it.value) }
-                            ?: if (e.value.contains("eines Monats")) add(CandidateKind.RELATIVE_DEADLINE, "P1M", "eines Monats") else Unit
+                        Regex("(\\d+) Tage").find(e.value)?.let { add(null, "P${it.groupValues[1]}D", it.value) }
+                            ?: if (e.value.contains("eines Monats")) add(null, "P1M", "eines Monats") else Unit
                     }
                 }
             }
@@ -330,15 +315,20 @@ object Expectations {
         }
     }
 
-    fun matches(c: Candidate, e: Expectation): Boolean {
+    fun matches(c: Candidate, e: Expectation): Boolean = when (e.kind) {
+        CandidateKind.DATE -> (c.kind == CandidateKind.DATE || c.kind == CandidateKind.DATETIME) && matchesValue(c.normalized, e)
+        null -> false
+        else -> c.kind == e.kind && matchesValue(c.normalized, e)
+    }
+
+    /** Whether a normalised value (a candidate's or a verified slot's) is the expected one; the value's kind is not checked. */
+    fun matchesValue(normalized: String, e: Expectation): Boolean {
         fun sq(s: String) = ExtractionBenchmark.squash(s)
         return when (e.kind) {
-            CandidateKind.DATE -> (c.kind == CandidateKind.DATE || c.kind == CandidateKind.DATETIME) && c.normalized.startsWith(e.norm)
-            CandidateKind.DATETIME -> c.kind == CandidateKind.DATETIME && c.normalized == e.norm
+            CandidateKind.DATE -> normalized.startsWith(e.norm)
             CandidateKind.AMOUNT ->
-                c.kind == CandidateKind.AMOUNT && (c.normalized == e.norm || c.normalized.substringBefore(' ') == e.norm.substringBefore(' ') && !e.norm.contains(' '))
-            CandidateKind.REFERENCE -> c.kind == CandidateKind.REFERENCE && sq(c.normalized) == sq(e.norm)
-            else -> c.kind == e.kind && sq(c.normalized) == sq(e.norm)
+                normalized == e.norm || normalized.substringBefore(' ') == e.norm.substringBefore(' ') && !e.norm.contains(' ')
+            else -> if (e.kind == CandidateKind.DATETIME) normalized == e.norm else sq(normalized) == sq(e.norm)
         }
     }
 }

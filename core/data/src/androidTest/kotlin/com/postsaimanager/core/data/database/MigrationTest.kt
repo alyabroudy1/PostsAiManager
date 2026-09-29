@@ -627,6 +627,93 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate13To14_addsTheExtractionColumnsAndKeepsEveryRow() {
+        helper.createDatabase(TEST_DB, 13).apply {
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite,
+                     createdAt, modifiedAt, syncStatus)
+                VALUES ('doc-1', 'Scanned 3 page(s)', 'EXTRACTED', 'CAMERA', 3, 0, 1, 1, 'LOCAL'),
+                       ('doc-2', 'Nordlicht Mobilfunk: Zahlungserinnerung', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL')
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO extracted_data
+                    (id, documentId, fieldName, fieldValue, fieldType, confidence, pageNumber,
+                     isConfirmed, source, machineValue, machineConfidence, deletedByUser,
+                     hasUnreviewedMachineChange, engineVersion, updatedAt)
+                VALUES ('f1', 'doc-2', 'Amount', '64,98 EUR', 'OTHER', 0.9, 1,
+                        1, 'USER', '64,98 EUR', 0.9, 0, 0, 'extraction-v2-1', 5)
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO timeline_events
+                    (id, documentId, eventType, title, description, data, referenceId,
+                     referenceType, createdAt)
+                VALUES ('t1', 'doc-1', 'TEXT_EXTRACTED', 'Text extracted from 3 page(s)',
+                        'Average confidence: 91%', NULL, NULL, NULL, 2)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 14, true, PamMigrations.MIGRATION_13_14,
+        )
+
+        // Extracted values keep everything; the new columns read as "an older extractor wrote it".
+        db.query(
+            "SELECT fieldValue, source, isConfirmed, engineVersion, slotKey, role, origin, " +
+                "aiConfidence, evidence, bbox FROM extracted_data WHERE id = 'f1'",
+        ).use { c ->
+            assertTrue("the field was lost in migration", c.moveToFirst())
+            assertEquals("64,98 EUR", c.getString(0))
+            assertEquals("USER", c.getString(1))
+            assertEquals(1, c.getInt(2))
+            assertEquals("extraction-v2-1", c.getString(3))
+            for (i in 4..9) assertTrue("column $i should be NULL", c.isNull(i))
+        }
+
+        // Documents: everything survives, the flags default to "not a person's title", and the
+        // scanner's default title becomes a code with its page count. A real title is left alone.
+        db.query(
+            "SELECT title, isUserTitle, extractionType, extractionTypeConfidence, extractorVersion, " +
+                "suggestedQuestions, summary, titleCode, titleArgs FROM documents ORDER BY id",
+        ).use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Scanned 3 page(s)", c.getString(0))
+            assertEquals(0, c.getInt(1))
+            for (i in 2..6) assertTrue("column $i should be NULL", c.isNull(i))
+            assertEquals("scanned_pages", c.getString(7))
+            assertEquals("[\"3\"]", c.getString(8))
+            assertTrue(c.moveToNext())
+            assertEquals("Nordlicht Mobilfunk: Zahlungserinnerung", c.getString(0))
+            assertTrue(c.isNull(7))
+            assertTrue(c.isNull(8))
+        }
+
+        // Old events keep their sentences and simply have no code.
+        db.query("SELECT title, description, code, args FROM timeline_events WHERE id = 't1'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Text extracted from 3 page(s)", c.getString(0))
+            assertEquals("Average confidence: 91%", c.getString(1))
+            assertTrue(c.isNull(2))
+            assertTrue(c.isNull(3))
+        }
+
+        // The new columns are writable.
+        db.execSQL("UPDATE extracted_data SET slotKey = 'total', aiConfidence = 0.7 WHERE id = 'f1'")
+        db.query("SELECT slotKey, aiConfidence FROM extracted_data WHERE id = 'f1'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("total", c.getString(0))
+            assertEquals(0.7f, c.getFloat(1), 0.0001f)
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

@@ -1,0 +1,7 @@
+<resources>
+    <!-- The default title of a scanned document, until extraction gives it a real one. -->
+    <plurals name="document_title_scanned_pages">
+        <item quantity="one">Scanned %d page</item>
+        <item quantity="other">Scanned %d pages</item>
+    </plurals>
+</resources>

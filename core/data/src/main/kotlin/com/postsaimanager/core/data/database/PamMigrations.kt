@@ -361,6 +361,57 @@ object PamMigrations {
         }
     }
 
+    /**
+     * Persist and display what extraction v2 reads (Phase 1, workstream E). Purely additive: every
+     * new column is nullable (or defaults to false), so existing rows read as "an older extractor
+     * wrote this" and nothing is rewritten.
+     *
+     * - `extracted_data`: the slot the value fills (`slotKey`, the identity a re-read is matched
+     *   by), the model's `role` word, `origin`, the model's own `aiConfidence` next to the final
+     *   `confidence`, the `evidence` text and its `bbox` (JSON). The extractor version is the
+     *   existing `engineVersion`; the page is the existing `pageNumber`.
+     * - `documents`: the model's type and its confidence, the extractor version, whether the title
+     *   is a person's, the three suggested chat questions and the summary (JSON / text), and the
+     *   title as a code with arguments while it is still an app default ("Scanned N pages").
+     * - `timeline_events`: `code` and `args` (JSON), so an event is stored as data and rendered from
+     *   string resources; rows without a code keep showing their stored title and description.
+     */
+    val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `slotKey` TEXT")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `role` TEXT")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `origin` TEXT")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `aiConfidence` REAL")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `evidence` TEXT")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `bbox` TEXT")
+
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `extractionType` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `extractionTypeConfidence` REAL")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `extractorVersion` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `isUserTitle` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `suggestedQuestions` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `summary` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `titleCode` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `titleArgs` TEXT")
+
+            db.execSQL("ALTER TABLE `timeline_events` ADD COLUMN `code` TEXT")
+            db.execSQL("ALTER TABLE `timeline_events` ADD COLUMN `args` TEXT")
+
+            // A default title the scanner wrote ("Scanned 3 page(s)") becomes a code with its page
+            // count, so it can be shown in the user's language. The stored title stays as the
+            // English fallback. Only the exact default shape is converted; anything else was
+            // written by the model or a person.
+            db.execSQL(
+                """
+                UPDATE `documents`
+                SET `titleCode` = 'scanned_pages',
+                    `titleArgs` = '["' || CAST(`pageCount` AS TEXT) || '"]'
+                WHERE `title` = 'Scanned ' || CAST(`pageCount` AS TEXT) || ' page(s)'
+                """.trimIndent(),
+            )
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -374,5 +425,6 @@ object PamMigrations {
         MIGRATION_10_11,
         MIGRATION_11_12,
         MIGRATION_12_13,
+        MIGRATION_13_14,
     )
 }

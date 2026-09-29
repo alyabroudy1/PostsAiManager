@@ -286,8 +286,8 @@ fun ChatScreen(
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 5.2: starter questions this app's own data can actually answer — see
-                // ChatViewModel.suggestedQuestions / SuggestedChatQuestions.
+                // 5.2: starter questions the model wrote for the document — see
+                // ChatViewModel.suggestedQuestions / ObserveSuggestedQuestionsUseCase.
                 suggestedQuestions.forEach { suggestion ->
                     Surface(
                         onClick = {

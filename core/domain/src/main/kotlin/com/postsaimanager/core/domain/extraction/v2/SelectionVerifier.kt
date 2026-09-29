@@ -177,6 +177,7 @@ class SelectionVerifier(
             usedCandidateIds += c.id
             val checks = mutableListOf<Check>()
             checks += validationCheck(effectiveValidation(c, slot), c.kind)
+            checks += repairCheck(c)
             checks += roleCheck(slot, role)
             checks += dateOrderCheck(slot, c)
             checks += amountConsistencyCheck(slot, c)
@@ -202,8 +203,14 @@ class SelectionVerifier(
                 return null
             }
             val ai = ConfidenceCombiner.aiScore(aiWord)
-            val combined = ConfidenceCombiner.combine(ai, listOf(quoteCheck(verified.match), roleCheck(slot, role)))
-            return quotedSlotValue(slot, q, ai, combined, verified.match, role)
+            // A period in words: once the quote is in the letter, read its number and unit if it has them.
+            val period = RelativePeriod.parse(q)
+            val checks = mutableListOf(quoteCheck(verified.match), roleCheck(slot, role))
+            if (period != null && !period.plausible) {
+                checks += Check.Cap(Caps.INVALID, "failed a check: implausible period ${period.n}")
+            }
+            val combined = ConfidenceCombiner.combine(ai, checks)
+            return quotedSlotValue(slot, q, ai, combined, verified.match, role, normalized = period?.iso ?: q)
         }
 
         private fun quotedSlotValue(
@@ -213,8 +220,9 @@ class SelectionVerifier(
             combined: ConfidenceCombiner.Combined,
             match: QuoteMatch,
             role: String? = null,
+            normalized: String = q,
         ) = SlotValue(
-            slot = slot, candidateId = null, value = q, normalized = q, page = pageOf(q), bbox = null,
+            slot = slot, candidateId = null, value = q, normalized = normalized, page = pageOf(q), bbox = null,
             evidence = q, origin = SlotOrigin.MODEL_QUOTED, aiConfidence = ai, confidence = combined.final,
             validation = Validation.Unchecked, blocked = combined.blocked, notes = combined.notes,
             quoteMatch = match, role = role,
@@ -251,13 +259,21 @@ class SelectionVerifier(
             else -> Check.Pass
         }
 
+        /** A value whose OCR character confusion was repaired is capped: what is stored is not exactly what was printed. */
+        private fun repairCheck(c: Candidate): Check =
+            if (c.attrs["repaired"] == null) {
+                Check.Pass
+            } else {
+                Check.Cap(Caps.REPAIRED, "read with an OCR character repair (${c.raw.trim()} -> ${c.normalized})", blocking = false)
+            }
+
         private fun roleCheck(slot: SlotKey, role: String?): Check {
             if (role == null || slot.expects.isEmpty() || role in slot.expects) return Check.Pass
             return Check.Cap(Caps.ROLE_MISMATCH, "the model calls this $role but put it in ${slot.json}")
         }
 
         private fun dateOrderCheck(slot: SlotKey, c: Candidate): Check {
-            if (slot.kind != SlotKind.DEADLINE || c.kind == CandidateKind.RELATIVE_DEADLINE) return Check.Pass
+            if (slot.kind != SlotKind.DEADLINE) return Check.Pass
             val letter = anchor ?: return Check.Pass
             val d = parseDate(c.normalized) ?: return Check.Pass
             if (!d.isBefore(letter)) return Check.Pass
@@ -280,7 +296,7 @@ class SelectionVerifier(
             for (n in amounts) for (v in amounts) {
                 if (n == v) continue
                 for (g in amounts) {
-                    if (g == n || g == v || !AmountConsistency.netPlusVatEqualsGross(n, v, g)) continue
+                    if (g == n || g == v || !AmountConsistency.isNetVatGross(n, v, g)) continue
                     if (g == cents) isGross = true
                     if (cents == n || cents == v) isPart = true
                 }
@@ -323,7 +339,7 @@ class SelectionVerifier(
                 val value = resolveName(rp.id.trim(), rp.confidence, expected, role.name) ?: continue
                 val c = value.candidateId?.let { ctx.offered.get(it) }
                 val kind = PartyKind.entries.firstOrNull { it.name == rp.kind?.trim()?.uppercase() }
-                    ?: if (c?.kind == CandidateKind.ORG_NAME) PartyKind.COMPANY else PartyKind.PERSON
+                    ?: PartyKind.OTHER // the grammar always makes the model say it; code never guesses a kind
                 val relation = PartyRelation.entries.firstOrNull { it.name == rp.relation?.trim()?.uppercase() } ?: PartyRelation.NONE
                 val party = Party(role, kind, relation, value.copy(role = role.name))
                 if (parties.none { it.role == party.role && sameParty(it, party) }) parties += party
@@ -335,7 +351,7 @@ class SelectionVerifier(
         private fun resolveName(ref: String, aiWord: String?, expectedZones: Set<String>?, label: String): SlotValue? {
             val c = ctx.offered.get(ref)
             if (c != null) {
-                if (c.kind != CandidateKind.PERSON_NAME && c.kind != CandidateKind.ORG_NAME) {
+                if (c.kind != CandidateKind.NAME) {
                     rejections += "$label: $ref is a ${c.kind}, not a name"
                     return null
                 }
@@ -478,7 +494,7 @@ class SelectionVerifier(
                     return null
                 }
                 used += id
-                val checks = listOf(validationCheck(effectiveValidation(c, null, pastYears = 10), c.kind))
+                val checks = listOf(validationCheck(effectiveValidation(c, null, pastYears = 10), c.kind), repairCheck(c))
                 return build(null, c, x.confidence, null, checks)
             }
             val q = x.value.trim()

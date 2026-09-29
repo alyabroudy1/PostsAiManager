@@ -16,6 +16,10 @@ import com.postsaimanager.core.testing.testDocument
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import io.mockk.verifyOrder
+import com.postsaimanager.core.domain.applock.ExternalFlowGuard
+import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -45,6 +49,12 @@ class DocumentDetailViewModelTest {
         every { pendingProposals(any()) } returns flowOf(emptyList())
     }
     private val documentExporter = mockk<DocumentExporter>()
+    private val token1 = mockk<ExternalFlowToken>()
+    private val token2 = mockk<ExternalFlowToken>()
+    private val externalFlowGuard = mockk<ExternalFlowGuard>(relaxed = true) {
+        every { expect("share-pdf") } returns token1
+        every { expect("open-in-another-app") } returns token2
+    }
 
     private fun viewModel(documentId: String = "d1") = DocumentDetailViewModel(
         savedStateHandle = SavedStateHandle(mapOf("documentId" to documentId)),
@@ -55,6 +65,7 @@ class DocumentDetailViewModelTest {
         profileMatchingService = profileMatchingService,
         entityProposalService = entityProposalService,
         documentExporter = documentExporter,
+        externalFlowGuard = externalFlowGuard,
     )
 
     @Nested
@@ -112,6 +123,41 @@ class DocumentDetailViewModelTest {
             assertThat(documentProcessor.enqueueCalls).hasSize(1)
             assertThat(documentProcessor.enqueueCalls.single())
                 .isEqualTo(FakeDocumentProcessor.EnqueueCall("d1", force = true))
+        }
+    }
+
+    @Nested
+    @DisplayName("External flows (share PDF, open in another app)")
+    inner class ExternalFlows {
+
+        @Test
+        @DisplayName("expect before the launch, finish when it fails")
+        fun `a failed launch ends the protection`() {
+            documentRepository.seed(testDocument(id = "d1", status = DocumentStatus.EXTRACTED))
+            val vm = viewModel("d1")
+
+            vm.onExternalLaunching("share-pdf")
+            verify(exactly = 1) { externalFlowGuard.expect("share-pdf") }
+            verify(exactly = 0) { externalFlowGuard.finish(token1) }
+
+            vm.onExternalLaunchFinished()
+            verify(exactly = 1) { externalFlowGuard.finish(token1) }
+        }
+
+        @Test
+        @DisplayName("a second launch first ends the previous one's protection")
+        fun `flows do not leak`() {
+            documentRepository.seed(testDocument(id = "d1", status = DocumentStatus.EXTRACTED))
+            val vm = viewModel("d1")
+
+            vm.onExternalLaunching("share-pdf")
+            vm.onExternalLaunching("open-in-another-app")
+
+            verifyOrder {
+                externalFlowGuard.expect("share-pdf")
+                externalFlowGuard.finish(token1)
+                externalFlowGuard.expect("open-in-another-app")
+            }
         }
     }
 

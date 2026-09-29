@@ -5,6 +5,7 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
+import com.postsaimanager.core.domain.usecase.ObserveSuggestedQuestionsUseCase
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.testing.FakeDocumentChunkRepository
@@ -43,6 +44,7 @@ class ChatViewModelPreviewTest {
         resetInferenceSettings = mockk(relaxed = true),
         unblockGpu = mockk(relaxed = true),
         getDocumentPreview = GetDocumentPreviewUseCase(documents, FakeDocumentChunkRepository()),
+        observeSuggestedQuestions = ObserveSuggestedQuestionsUseCase(documents),
     )
 
     private fun seedThreePages() {

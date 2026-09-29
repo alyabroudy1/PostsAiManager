@@ -67,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -78,8 +79,10 @@ import com.postsaimanager.core.common.extensions.toRelativeTime
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
+import com.postsaimanager.core.designsystem.component.documentDisplayTitle
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
+import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.EntityProposal
@@ -153,7 +156,7 @@ fun DocumentDetailScreen(
         topBar = {
             PamTopAppBar(
                 title = when (val state = uiState) {
-                    is DocumentDetailUiState.Success -> state.document.title
+                    is DocumentDetailUiState.Success -> documentDisplayTitle(state.document)
                     else -> "Document"
                 },
                 onNavigateBack = onNavigateBack,
@@ -209,7 +212,7 @@ fun DocumentDetailScreen(
                 // e.g. when opened from Recently deleted or via a citation/deep link.
                 state is DocumentDetailUiState.Success && state.document.isTrashed ->
                     TrashedDocumentState(
-                        title = state.document.title,
+                        title = documentDisplayTitle(state.document),
                         onRestore = viewModel::restoreDocument,
                     )
                 state is DocumentDetailUiState.Success -> DocumentDetailContent(
@@ -234,6 +237,10 @@ fun DocumentDetailScreen(
                     onChatClick = { onChatClick(state.document.id) },
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSharePdf = { viewModel.generatePdf() },
+                    externalLaunch = ExternalLaunch(
+                        expect = viewModel::onExternalLaunching,
+                        finish = viewModel::onExternalLaunchFinished,
+                    ),
                     onDelete = { viewModel.moveToTrash(onDeleted) },
                 )
             }
@@ -293,6 +300,7 @@ private fun DocumentDetailContent(
     onAcceptProposal: (EntityProposal) -> Unit,
     onDismissProposal: (EntityProposal) -> Unit,
     onSharePdf: () -> File?,
+    externalLaunch: ExternalLaunch,
     onChatClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
@@ -370,8 +378,9 @@ private fun DocumentDetailContent(
         }
 
         when (selectedTab) {
-            DetailTab.PAGES -> PagesTab(state.pages, onSharePdf, initialPage)
+            DetailTab.PAGES -> PagesTab(state.pages, onSharePdf, externalLaunch, initialPage)
             DetailTab.EXTRACTED -> ExtractedTemplateTab(
+                document = state.document,
                 data = state.extractedData,
                 language = state.document.language,
                 extractionPagesRead = state.document.extractionPagesRead,
@@ -537,7 +546,12 @@ private fun ProcessingState.Running.toDisplayMessage(): String = when (stage) {
 // ═══════════════════════════════════════════════════════════
 
 @Composable
-private fun PagesTab(pages: List<DocumentPage>, onSharePdf: () -> File?, initialPage: Int? = null) {
+private fun PagesTab(
+    pages: List<DocumentPage>,
+    onSharePdf: () -> File?,
+    externalLaunch: ExternalLaunch,
+    initialPage: Int? = null,
+) {
     if (pages.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No pages scanned yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -578,14 +592,14 @@ private fun PagesTab(pages: List<DocumentPage>, onSharePdf: () -> File?, initial
                 ) {
                     // Share as PDF
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        FilledTonalIconButton(onClick = { sharePdf(context, onSharePdf) }) {
+                        FilledTonalIconButton(onClick = { sharePdf(context, onSharePdf, externalLaunch) }) {
                             Icon(PamIcons.Pdf, contentDescription = "Share PDF", modifier = Modifier.size(20.dp))
                         }
                         Text("Share PDF", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     // Open / Download
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        FilledTonalIconButton(onClick = { openPageImage(context, page) }) {
+                        FilledTonalIconButton(onClick = { openPageImage(context, page, externalLaunch) }) {
                             Icon(PamIcons.Gallery, contentDescription = "Open", modifier = Modifier.size(20.dp))
                         }
                         Text("Open", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -635,7 +649,15 @@ private fun getFileUri(context: Context, path: String): Uri? {
     } catch (_: Exception) { null }
 }
 
-private fun sharePdf(context: Context, generatePdf: () -> File?) {
+/**
+ * The screen's side of [com.postsaimanager.core.domain.applock.ExternalFlowGuard]: say a trip out of
+ * the app is about to happen ([expect]), and say it did not (or has ended) ([finish]). The pattern is
+ * expect, then launch, then finish when the launch fails or a result comes back; a return from the
+ * background consumes the protection by itself.
+ */
+private class ExternalLaunch(val expect: (reason: String) -> Unit, val finish: () -> Unit)
+
+private fun sharePdf(context: Context, generatePdf: () -> File?, external: ExternalLaunch) {
     val pdfFile = generatePdf()
     if (pdfFile != null && pdfFile.exists()) {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", pdfFile)
@@ -644,22 +666,33 @@ private fun sharePdf(context: Context, generatePdf: () -> File?) {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(shareIntent, "Share document as PDF"))
+        // The share sheet sends the user to another app and back: the app lock must not treat the
+        // return as an ordinary background.
+        external.expect("share-pdf")
+        try {
+            context.startActivity(Intent.createChooser(shareIntent, "Share document as PDF"))
+        } catch (_: Exception) {
+            external.finish()
+            Toast.makeText(context, "Unable to open the share sheet", Toast.LENGTH_SHORT).show()
+        }
     } else {
         Toast.makeText(context, "Failed to generate PDF", Toast.LENGTH_SHORT).show()
     }
 }
 
-private fun openPageImage(context: Context, page: DocumentPage) {
+private fun openPageImage(context: Context, page: DocumentPage, external: ExternalLaunch) {
     val uri = getFileUri(context, page.imagePath)
     if (uri != null) {
         val viewIntent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "image/*")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+        // Opening the page in another app is a trip out and back, like the share sheet.
+        external.expect("open-in-another-app")
         try {
             context.startActivity(viewIntent)
         } catch (_: Exception) {
+            external.finish()
             Toast.makeText(context, "No app found to open images", Toast.LENGTH_SHORT).show()
         }
     } else {
@@ -679,6 +712,7 @@ private fun copyOcrText(context: Context, page: DocumentPage) {
 
 @Composable
 private fun ExtractedTemplateTab(
+    document: Document,
     data: List<ExtractedData>,
     language: String?,
     /** See [com.postsaimanager.core.model.Document.extractionPagesRead] (5.4). */
@@ -720,18 +754,14 @@ private fun ExtractedTemplateTab(
                 }
             }
         } else {
-            // 5.3: within each section, the fields worth a look — low confidence, or the
-            // extractor now disagreeing with a value the user set (`needsReview`) — sort
-            // first. `sortedByDescending` is stable, so fields that tie (both needing review,
-            // or both not) keep their original relative order; only the needs-review split
-            // itself reorders anything.
-            val sortedData = data.sortedByDescending { it.needsReview }
-            val senderFields = sortedData.filter { it.fieldName.startsWith("Sender") }
-            val receiverFields = sortedData.filter { it.fieldName.startsWith("Receiver") }
-            val metadataFields = sortedData.filter { it.fieldType in listOf(ExtractedFieldType.DATE, ExtractedFieldType.SUBJECT, ExtractedFieldType.REFERENCE_NUMBER, ExtractedFieldType.DEADLINE) }
-            val financialFields = sortedData.filter { it.fieldType == ExtractedFieldType.IBAN || it.fieldName == "Amount" }
-            val contactFields = sortedData.filter { it.fieldType in listOf(ExtractedFieldType.EMAIL, ExtractedFieldType.PHONE) && !it.fieldName.startsWith("Sender") && !it.fieldName.startsWith("Receiver") }
-            val contentFields = sortedData.filter { it.fieldType == ExtractedFieldType.TEXT }
+            // The summary card first, then every field under "Details" grouped by what it is, then
+            // the open extras the model found under "Other details" (collapsed). See
+            // ExtractedPresenter for the grouping and for which extras start hidden.
+            var showAllExtras by remember { mutableStateOf(false) }
+            var extrasExpanded by remember { mutableStateOf(false) }
+            val presentation = remember(document, data, showAllExtras) {
+                ExtractedPresenter.present(document, data, showAllExtras)
+            }
 
             LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 // Language + retry header
@@ -756,8 +786,10 @@ private fun ExtractedTemplateTab(
                 ) {
                     item {
                         Text(
-                            "Only the first $extractionPagesRead of $extractionTotalPages pages " +
-                                "were read by the assistant — check the rest yourself.",
+                            LocalContext.current.resources.getQuantityString(
+                                R.plurals.extraction_partial_notice, extractionTotalPages,
+                                extractionPagesRead, extractionTotalPages,
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 4.dp),
@@ -803,34 +835,55 @@ private fun ExtractedTemplateTab(
                     }
                 }
 
+                // ── The document at a glance ──
+                if (!presentation.summary.isEmpty) {
+                    item { SummaryCardView(presentation.summary) }
+                }
+
                 // ── Extracted Data Sections ──
                 // Above the fields, so what needs attention is seen before the scroll
                 // rather than found during it.
                 item { ReviewSummary(data, onConfirmAll) }
 
-                if (senderFields.isNotEmpty()) {
-                    item { SectionHeader("📤 Sender") }
-                    items(senderFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
+                if (presentation.details.isNotEmpty()) {
+                    item { SectionHeader(stringResource(R.string.section_details)) }
                 }
-                if (receiverFields.isNotEmpty()) {
-                    item { SectionHeader("📥 Receiver") }
-                    items(receiverFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
+                presentation.details.forEach { section ->
+                    item(key = "group-${section.group}") {
+                        Text(
+                            stringResource(groupTitle(section.group)),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+                    items(section.fields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
                 }
-                if (metadataFields.isNotEmpty()) {
-                    item { SectionHeader("📋 Document Info") }
-                    items(metadataFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
-                }
-                if (financialFields.isNotEmpty()) {
-                    item { SectionHeader("💰 Financial") }
-                    items(financialFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
-                }
-                if (contactFields.isNotEmpty()) {
-                    item { SectionHeader("📞 Contact") }
-                    items(contactFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
-                }
-                if (contentFields.isNotEmpty()) {
-                    item { SectionHeader("📝 Content") }
-                    items(contentFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
+
+                if (presentation.extraCount > 0) {
+                    item(key = "other-details") {
+                        OtherDetailsHeader(
+                            count = presentation.extraCount,
+                            expanded = extrasExpanded,
+                            onToggle = { extrasExpanded = !extrasExpanded },
+                        )
+                    }
+                    if (extrasExpanded) {
+                        items(presentation.extras, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
+                        if (presentation.hiddenExtras > 0) {
+                            item(key = "extras-show-all") {
+                                TextButton(onClick = { showAllExtras = true }) {
+                                    Text(stringResource(R.string.other_details_show_all, presentation.hiddenExtras))
+                                }
+                            }
+                        } else if (showAllExtras) {
+                            item(key = "extras-show-fewer") {
+                                TextButton(onClick = { showAllExtras = false }) {
+                                    Text(stringResource(R.string.other_details_show_fewer))
+                                }
+                            }
+                        }
+                    }
                 }
                 item { Spacer(modifier = Modifier.height(72.dp)) }
             }
@@ -1099,6 +1152,92 @@ private fun SectionHeader(title: String) {
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
+private fun groupTitle(group: DetailGroup): Int = when (group) {
+    DetailGroup.PARTIES -> R.string.group_parties
+    DetailGroup.MONEY -> R.string.group_money
+    DetailGroup.DATES -> R.string.group_dates
+    DetailGroup.REFERENCES -> R.string.group_references
+    DetailGroup.TEXT -> R.string.group_text
+}
+
+/**
+ * The document at a glance: from, for, type, amount, due and the AI's summary, marked as the AI's.
+ * A line the checks flagged carries the "Worth checking" marker.
+ */
+@Composable
+private fun SummaryCardView(card: SummaryCard) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            card.from?.let { SummaryRow(stringResource(R.string.card_from), it) }
+            card.forWhom?.let { SummaryRow(stringResource(R.string.card_for), it) }
+            card.typeId?.let { id ->
+                val typeName = SlotLabels.type(id)?.let { stringResource(it) } ?: id
+                SummaryRow(stringResource(R.string.card_type), CardLine(typeName, worthChecking = false))
+            }
+            card.amount?.let { SummaryRow(stringResource(R.string.card_amount), it) }
+            card.due?.let { SummaryRow(stringResource(R.string.card_due), it) }
+            card.aiSummary?.let { summary ->
+                if (card.from != null || card.forWhom != null || card.typeId != null || card.amount != null || card.due != null) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                Text(
+                    stringResource(R.string.card_ai_summary),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(summary, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryRow(label: String, line: CardLine) {
+    Row(verticalAlignment = Alignment.Top) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(64.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(line.value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            if (line.worthChecking) {
+                Text(
+                    stringResource(R.string.card_worth_checking),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OtherDetailsHeader(count: Int, expanded: Boolean, onToggle: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(top = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.section_other_details_count, count),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                if (expanded) "−" else "+",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
 /**
  * One extracted field.
  *
@@ -1134,14 +1273,21 @@ private fun FieldCard(field: ExtractedData, onConfirm: (String) -> Unit, onEdit:
         Column(modifier = Modifier.padding(12.dp).clickable { onEdit(field) }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(field.fieldName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    // The label is rendered from the slot key; a name the person typed, or an
+                    // extra's label as the letter printed it, is shown as stored.
+                    Text(
+                        SlotLabels.labelFor(field)?.let { stringResource(it) } ?: field.fieldName,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(field.fieldValue, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         // Confidence is the extractor's opinion of its own reading. Once a
                         // person has set the value it says nothing, so it is not shown.
-                        if (isUsers) "You set this" else "${(field.confidence * 100).toInt()}% confidence",
+                        if (isUsers) stringResource(R.string.field_you_set_this)
+                        else stringResource(R.string.field_confidence, (field.confidence * 100).toInt()),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1175,7 +1321,7 @@ private fun FieldCard(field: ExtractedData, onConfirm: (String) -> Unit, onEdit:
             } else if (field.needsReview) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    "Low confidence — worth checking.",
+                    stringResource(R.string.field_worth_checking),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer,
                 )
@@ -1420,6 +1566,30 @@ private fun EntityProposal.question(): String = when (entityRole) {
 // Timeline Tab
 // ═══════════════════════════════════════════════════════════
 
+/** A field label key ([ExtractedData.labelKey]) in the user's language: a slot's string, else the name as it was stored. */
+@Composable
+private fun labelText(key: String): String {
+    val res = SlotLabels.slot(key)
+    return if (res != null) stringResource(res) else key
+}
+
+/** The title and the optional second line of a timeline entry, worded from string resources. */
+@Composable
+private fun timelineLines(text: TimelineText): Pair<String, String?> {
+    val resources = LocalContext.current.resources
+    return when (text) {
+        is TimelineText.OcrDone -> resources.getQuantityString(R.plurals.timeline_ocr_done, text.pages, text.pages) to
+            text.confidencePercent?.let { stringResource(R.string.timeline_ocr_confidence, it) }
+        is TimelineText.FieldsExtracted -> resources.getQuantityString(R.plurals.timeline_fields_extracted, text.count, text.count) to
+            text.labelKeys.map { labelText(it) }.joinToString(", ").ifBlank { null }
+        is TimelineText.ReviewFlagged -> resources.getQuantityString(R.plurals.timeline_review_flagged, text.count, text.count) to
+            text.labelKeys.map { labelText(it) }.joinToString(", ").takeIf { it.isNotBlank() }
+                ?.let { stringResource(R.string.timeline_review_flagged_detail, it) }
+        is TimelineText.ProcessingFailed -> stringResource(R.string.timeline_processing_failed) to text.detail
+        is TimelineText.Stored -> text.title to text.description
+    }
+}
+
 @Composable
 private fun TimelineTab(events: List<TimelineEvent>) {
     if (events.isEmpty()) {
@@ -1434,8 +1604,9 @@ private fun TimelineTab(events: List<TimelineEvent>) {
                 Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(event.title, style = MaterialTheme.typography.titleSmall)
-                    event.description?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    val (title, description) = timelineLines(event.toText())
+                    Text(title, style = MaterialTheme.typography.titleSmall)
+                    description?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     Text(event.createdAt.toRelativeTime(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                 }
             }

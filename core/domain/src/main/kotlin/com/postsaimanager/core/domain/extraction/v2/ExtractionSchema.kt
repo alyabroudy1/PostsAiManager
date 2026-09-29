@@ -22,8 +22,8 @@ enum class SlotKind(vararg val candidates: CandidateKind) {
     /** Answered as `{"id":"D1","r":<date role>,"c":..}`. */
     DATE(CandidateKind.DATE, CandidateKind.DATETIME),
 
-    /** A date, a relative period the code found, or a period the model quotes as a rule. */
-    DEADLINE(CandidateKind.DATE, CandidateKind.DATETIME, CandidateKind.RELATIVE_DEADLINE),
+    /** A date, or a period in words the model quotes as a rule (`{"rule":"...","r":..,"c":..}`), verified by [RelativePeriod]. */
+    DEADLINE(CandidateKind.DATE, CandidateKind.DATETIME),
     IBAN(CandidateKind.IBAN),
 
     /** A reference or identifier: an invoice, customer, contract, case or meter number. */
@@ -33,7 +33,7 @@ enum class SlotKind(vararg val candidates: CandidateKind) {
     REFERENCE_LIST(CandidateKind.REFERENCE),
 
     /** A person or organisation: a name candidate id, or a verified quote. */
-    NAME(CandidateKind.PERSON_NAME, CandidateKind.ORG_NAME),
+    NAME(CandidateKind.NAME),
 
     /** One of [SlotKey.ACTIONS]; not a value from the page. */
     ACTION,
@@ -134,9 +134,20 @@ object Slots {
  *
  * @property slots the universal [Slots.CORE] followed by the type's own slots.
  * @property legacy what the app's stored document type becomes.
+ * @property actionable the letter asks something of its reader (pay, answer, sign, attend), so the
+ *   questions the model suggested for it are worth offering where no document is open. A property of
+ *   the type, not a judgement about any one letter's text.
  */
-data class DocType(val id: String, val slots: List<SlotKey>, val legacy: DocumentType) {
+data class DocType(
+    val id: String,
+    val slots: List<SlotKey>,
+    val legacy: DocumentType,
+    val actionable: Boolean = false,
+) {
     override fun toString() = id
+
+    /** The same type, marked as one that asks something of its reader. */
+    fun asksSomething(): DocType = copy(actionable = true)
 
     companion object {
         /** A type with the universal core plus [specific] slots. */
@@ -162,19 +173,21 @@ class ExtractionSchema(val types: List<DocType>) {
     fun legacyType(id: String?): DocumentType? = type(id)?.legacy
 
     companion object {
-        val BILL = DocType.of("bill", DocumentType.INVOICE, Slots.INVOICE_NO)
+        val BILL = DocType.of("bill", DocumentType.INVOICE, Slots.INVOICE_NO).asksSomething()
         val REMINDER_DUNNING = DocType.of(
             "reminder_dunning", DocumentType.INVOICE, Slots.INVOICE_NO, Slots.FEE, Slots.ORIGINAL_DUE_DATE,
-        )
+        ).asksSomething()
         val AUTHORITY_TAX = DocType.of(
             "authority_tax", DocumentType.OFFICIAL_LETTER, Slots.OBJECTION_DEADLINE, Slots.CASE_NO, Slots.TAX_NO,
-        )
+        ).asksSomething()
+
+        /** Not actionable for the all-documents chat on purpose: health letters stay out of it (workstream G). */
         val HEALTH = DocType.of("health", DocumentType.NOTICE, Slots.APPOINTMENT)
         val INSURANCE_CONTRACT = DocType.of(
             "insurance_contract", DocumentType.CONTRACT,
             Slots.NEW_AMOUNT, Slots.PREVIOUS_AMOUNT, Slots.EFFECTIVE_DATE, Slots.CONTRACT_END, Slots.POLICY_NO, Slots.CONTRACT_NO,
-        )
-        val SCHOOL = DocType.of("school", DocumentType.NOTICE, Slots.EVENT_DATE)
+        ).asksSomething()
+        val SCHOOL = DocType.of("school", DocumentType.NOTICE, Slots.EVENT_DATE).asksSomething()
         val RECEIPT = DocType.of("receipt", DocumentType.RECEIPT, Slots.RECEIPT_NO)
         val INFO_NO_ACTION = DocType.of("info_no_action", DocumentType.NOTICE, Slots.EFFECTIVE_DATE)
 

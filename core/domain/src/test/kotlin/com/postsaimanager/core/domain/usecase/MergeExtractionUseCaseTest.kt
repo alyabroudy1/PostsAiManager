@@ -32,8 +32,11 @@ class MergeExtractionUseCaseTest {
         isConfirmed: Boolean = false,
         deletedByUser: Boolean = false,
         flagged: Boolean = false,
+        slotKey: String? = null,
+        id: String = "id-$name",
     ) = ExtractedData(
-        id = "id-$name",
+        slotKey = slotKey,
+        id = id,
         documentId = "doc-1",
         fieldName = name,
         fieldValue = value,
@@ -316,6 +319,147 @@ class MergeExtractionUseCaseTest {
             val deleted = merge.applyUserDelete(field("bogus", "nonsense"), now)
 
             assertThat(deleted.deletedByUser).isTrue()
+        }
+    }
+
+    @Nested
+    @DisplayName("Matching a fresh reading to a stored row")
+    inner class Matching {
+
+        @Test
+        fun `a slot key match wins over the name, so a reworded field is the same row`() {
+            val stored = field("Amount", "64,98 €", slotKey = "total", id = "row-1")
+            val fresh = field("Total due", "70,00 €", slotKey = "total", id = "new-1")
+
+            val outcome = run(listOf(stored), listOf(fresh))
+
+            assertThat(outcome.idsToDelete).isEmpty()
+            val row = outcome.toPersist.single()
+            assertThat(row.id).isEqualTo("row-1")
+            assertThat(row.fieldName).isEqualTo("Total due")
+            assertThat(row.fieldValue).isEqualTo("70,00 €")
+            assertThat(row.slotKey).isEqualTo("total")
+        }
+
+        @Test
+        fun `the sender changing from a name to an organisation renames the row`() {
+            val stored = field("Sender Name", "Nordlicht", slotKey = "sender", id = "row-s")
+            val fresh = field("Sender Organization", "Nordlicht Mobilfunk GmbH", slotKey = "sender", id = "new-s")
+
+            val outcome = run(listOf(stored), listOf(fresh))
+
+            assertThat(outcome.toPersist.single().id).isEqualTo("row-s")
+            assertThat(outcome.toPersist.single().fieldName).isEqualTo("Sender Organization")
+            assertThat(outcome.idsToDelete).isEmpty()
+        }
+
+        @Test
+        fun `a row stored before slot keys is matched by name and gains its slot key`() {
+            val stored = field("Deadline", "01.10.2026", id = "row-d")
+            val fresh = field("Deadline", "15.10.2026", slotKey = "due_date", id = "new-d")
+
+            val row = run(listOf(stored), listOf(fresh)).toPersist.single()
+
+            assertThat(row.id).isEqualTo("row-d")
+            assertThat(row.slotKey).isEqualTo("due_date")
+            assertThat(row.fieldValue).isEqualTo("15.10.2026")
+        }
+
+        @Test
+        fun `an extra whose printed label changed but whose value is the same is a rename, not a delete and a create`() {
+            val stored = field("Zaehlernummer", "1EMH0012345678", slotKey = "x:zaehlernummer", id = "row-x")
+            val fresh = field("Zähler-Nr.", "1EMH0012345678", slotKey = "x:zahler_nr", id = "new-x")
+
+            val outcome = run(listOf(stored), listOf(fresh))
+
+            assertThat(outcome.idsToDelete).isEmpty()
+            val row = outcome.toPersist.single()
+            assertThat(row.id).isEqualTo("row-x")
+            assertThat(row.fieldName).isEqualTo("Zähler-Nr.")
+            assertThat(row.slotKey).isEqualTo("x:zahler_nr")
+        }
+
+        @Test
+        fun `the value match only applies to a lone machine row, never when two rows share the value`() {
+            val a = field("Alpha", "12,00", slotKey = "x:alpha", id = "row-a")
+            val b = field("Beta", "12,00", slotKey = "x:beta", id = "row-b")
+            val fresh = field("Gamma", "12,00", slotKey = "x:gamma", id = "new-g")
+
+            val outcome = run(listOf(a, b), listOf(fresh))
+
+            assertThat(outcome.idsToDelete).containsExactly("row-a", "row-b")
+            assertThat(outcome.toPersist.map { it.id }).containsExactly("new-g")
+        }
+
+        @Test
+        fun `a rename that would take another stored row's name keeps the old name`() {
+            val stored = field("Sender Name", "Nordlicht", slotKey = "sender", id = "row-s")
+            val other = field("Sender Organization", "Something the user typed", source = ValueSource.USER, id = "row-u")
+            val fresh = field("Sender Organization", "Nordlicht GmbH", slotKey = "sender", id = "new-s")
+
+            val outcome = run(listOf(stored, other), listOf(fresh))
+
+            assertThat(outcome.toPersist.map { it.fieldName }).containsNoDuplicates()
+            assertThat(outcome.toPersist.single { it.id == "row-s" }.fieldName).isEqualTo("Sender Name")
+        }
+
+        @Test
+        fun `a user row is not renamed or re-valued by a value match or a slot match`() {
+            val mine = field(
+                "Amount", "70,00 €", source = ValueSource.USER, machineValue = "64,98 €", slotKey = "total", id = "row-m",
+            ).copy(role = "USER_ROLE", origin = null, aiConfidence = null)
+            val fresh = field("Total due", "80,00 €", slotKey = "total", id = "new-m")
+
+            val row = run(listOf(mine), listOf(fresh)).toPersist.single()
+
+            assertThat(row.id).isEqualTo("row-m")
+            assertThat(row.fieldName).isEqualTo("Amount")
+            assertThat(row.fieldValue).isEqualTo("70,00 €")
+            assertThat(row.source).isEqualTo(ValueSource.USER)
+            assertThat(row.slotKey).isEqualTo("total")
+            assertThat(row.role).isEqualTo("USER_ROLE")
+            // The disagreement is flagged, as before; the value is not touched.
+            assertThat(row.machineValue).isEqualTo("80,00 €")
+            assertThat(row.hasUnreviewedMachineChange).isTrue()
+        }
+
+        @Test
+        fun `a user row is never taken as a rename target for a same-valued machine reading`() {
+            val mine = field("My note", "12,00", source = ValueSource.USER, machineValue = null, id = "row-m")
+            val fresh = field("Fee", "12,00", slotKey = "fee", id = "new-f")
+
+            val outcome = run(listOf(mine), listOf(fresh))
+
+            assertThat(outcome.toPersist.map { it.id }).containsExactly("row-m", "new-f")
+            assertThat(outcome.toPersist.single { it.id == "row-m" }.fieldName).isEqualTo("My note")
+        }
+
+        @Test
+        fun `both the model's confidence and the final one are stored, with the evidence`() {
+            val stored = field("Amount", "1", slotKey = "total", id = "row-1")
+            val fresh = field("Amount", "2", confidence = 0.4f, slotKey = "total", id = "new-1").copy(
+                aiConfidence = 0.9f, evidence = "Gesamt 2", role = "TOTAL_DUE", origin = "MODEL_CHOICE",
+            )
+
+            val row = run(listOf(stored), listOf(fresh)).toPersist.single()
+
+            assertThat(row.confidence).isEqualTo(0.4f)
+            assertThat(row.aiConfidence).isEqualTo(0.9f)
+            assertThat(row.evidence).isEqualTo("Gesamt 2")
+            assertThat(row.origin).isEqualTo("MODEL_CHOICE")
+            assertThat(row.machineConfidence).isEqualTo(0.4f)
+        }
+
+        @Test
+        fun `a deleted field stays deleted and is matched by its slot key too`() {
+            val tomb = field("Amount", "1", slotKey = "total", deletedByUser = true, id = "row-t")
+            val fresh = field("Total due", "2", slotKey = "total", id = "new-t")
+
+            val outcome = run(listOf(tomb), listOf(fresh))
+
+            assertThat(outcome.toPersist.single().id).isEqualTo("row-t")
+            assertThat(outcome.toPersist.single().deletedByUser).isTrue()
+            assertThat(outcome.toPersist.single().fieldName).isEqualTo("Amount")
         }
     }
 }
