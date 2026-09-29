@@ -149,6 +149,14 @@ interface AiEngine {
      */
     fun sendChatMessage(userText: String, request: AiRequest): Flow<String>
 
+    /**
+     * True when the most recent [generate]/[sendChatMessage] stopped because it reached its
+     * token cap rather than an end-of-generation token — the reply is cut off mid-thought.
+     * Read once, right after the stream completes. Defaults to false for engines that cannot
+     * tell.
+     */
+    suspend fun lastReplyHitLimit(): Boolean = false
+
     /** Appends [answer] (thinking-stripped) to the open chat session's history. See [sendChatMessage]. */
     suspend fun commitChatReply(answer: String)
 
@@ -230,6 +238,11 @@ data class AiRequest(
     val temperature: Float = SamplingConfig().temperature,
     val topK: Int = SamplingConfig().topK,
     val topP: Float = SamplingConfig().topP,
+    /**
+     * Presence penalty over the tokens already generated in this reply (0 = off). Only sees
+     * generated tokens, not the prompt — see llama_jni.cpp's buildSamplerChain.
+     */
+    val presencePenalty: Float = SamplingConfig().presencePenalty,
     val seed: Long? = SamplingConfig().seed,
     val grammar: String? = null,
     /**

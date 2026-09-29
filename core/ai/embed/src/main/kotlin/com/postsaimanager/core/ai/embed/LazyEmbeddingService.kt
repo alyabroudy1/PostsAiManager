@@ -4,6 +4,8 @@ import android.util.Log
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.EmbeddingService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -56,6 +58,9 @@ class LazyEmbeddingService @Inject constructor(
     override val dimensions: Int get() = delegate.dimensions
 
     override val isReady: Boolean get() = delegate.isReady || (!loadFailed && files.arePresent())
+
+    /** [isReady] checks files on disk, so callers that may be on Main go through here. */
+    override suspend fun checkReady(): Boolean = withContext(Dispatchers.IO) { isReady }
 
     override suspend fun embed(text: String): PamResult<FloatArray> {
         ensureLoaded()?.let { return it }

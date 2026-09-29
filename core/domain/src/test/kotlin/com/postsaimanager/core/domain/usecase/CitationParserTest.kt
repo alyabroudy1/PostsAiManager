@@ -117,11 +117,23 @@ class CitationParserTest {
     }
 
     @Test
-    fun `preserves the order of labelled, not the order citations appear in the answer`() {
+    fun `cited passages are ordered by first mention in the answer`() {
         val result = CitationParser.pick(
             "First [p.3], but really see [p.1].",
             labelled("p.1", "p.2", "p.3"),
         )
-        assertThat(result).containsExactly(0, 2).inOrder()
+        assertThat(result).containsExactly(2, 0).inOrder()
+    }
+
+    @Test
+    fun `stripMarkers removes citation brackets and the space before them`() {
+        assertThat(CitationParser.stripMarkers("Zahlbar bis 03.11. [p.6]. Siehe auch [S. 2] und [Bescheid, p.4]."))
+            .isEqualTo("Zahlbar bis 03.11.. Siehe auch und.")
+    }
+
+    @Test
+    fun `stripMarkers leaves other brackets and text alone`() {
+        val text = "Betrag [in EUR]: 12,00\n  - eingerueckt [x]"
+        assertThat(CitationParser.stripMarkers(text)).isEqualTo(text)
     }
 }

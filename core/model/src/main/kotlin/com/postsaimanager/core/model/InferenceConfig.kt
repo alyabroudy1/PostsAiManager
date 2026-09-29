@@ -261,6 +261,8 @@ data class SamplingConfig(
     val temperature: Float = 0.7f,
     val topK: Int = 40,
     val topP: Float = 0.9f,
+    /** Presence penalty over the current reply's own tokens; 0 disables it. */
+    val presencePenalty: Float = 0f,
     /** Null means llama.cpp picks a random seed (`LLAMA_DEFAULT_SEED`). */
     val seed: Long? = null,
 )

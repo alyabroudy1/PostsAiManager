@@ -22,6 +22,13 @@ interface EmbeddingService {
     /** True once a model is available; false means retrieval degrades to keyword search. */
     val isReady: Boolean
 
+    /**
+     * [isReady] for callers that may be on the main thread. An implementation whose
+     * [isReady] touches the disk overrides this to do that off-thread; the default suits
+     * one that only reads memory.
+     */
+    suspend fun checkReady(): Boolean = isReady
+
     suspend fun embed(text: String): PamResult<FloatArray>
 
     /**

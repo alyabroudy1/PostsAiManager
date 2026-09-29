@@ -217,6 +217,7 @@ internal class LocalAiEngine @Inject constructor(
                 temperature = temperature,
                 topK = request.topK,
                 topP = request.topP,
+                presencePenalty = request.presencePenalty,
                 // null means "no seed requested"; the JNI layer treats negative as that.
                 seed = request.seed ?: -1L,
                 grammar = grammar,
@@ -293,6 +294,8 @@ internal class LocalAiEngine @Inject constructor(
 
         return mutex.withLock {
             withContext(ioDispatcher) {
+                // Re-checked under the lock so a racing second caller joins the first's prime.
+                if (sessionConversationId == conversationId) return@withContext false
                 if (!LlamaNative.openChatSession(current, systemPrompt)) return@withContext false
                 if (history.isNotEmpty()) {
                     val primed = LlamaNative.primeChatSession(
@@ -320,6 +323,7 @@ internal class LocalAiEngine @Inject constructor(
                 temperature = request.temperature,
                 topK = request.topK,
                 topP = request.topP,
+                presencePenalty = request.presencePenalty,
                 seed = request.seed ?: -1L,
                 grammar = request.grammar,
                 noThink = !request.thinkingEnabled,
@@ -338,6 +342,12 @@ internal class LocalAiEngine @Inject constructor(
             }
         }
     }.flowOn(ioDispatcher)
+
+    override suspend fun lastReplyHitLimit(): Boolean {
+        val current = handle
+        if (current == 0L) return false
+        return mutex.withLock { withContext(ioDispatcher) { LlamaNative.lastReplyHitLimit(current) } }
+    }
 
     override suspend fun commitChatReply(answer: String) {
         val current = handle

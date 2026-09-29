@@ -351,6 +351,16 @@ object PamMigrations {
         }
     }
 
+    /**
+     * Marks a reply that ran into its token cap ("Answer was cut off") as distinct from one
+     * the user stopped. Additive with default 0: every existing message reads as not cut off.
+     */
+    val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `messages` ADD COLUMN `cutOff` INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -363,5 +373,6 @@ object PamMigrations {
         MIGRATION_9_10,
         MIGRATION_10_11,
         MIGRATION_11_12,
+        MIGRATION_12_13,
     )
 }

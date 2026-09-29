@@ -103,6 +103,7 @@ class InferenceService : Service() {
             temperature: Float,
             topK: Int,
             topP: Float,
+            presencePenalty: Float,
             seed: Long,
             grammar: String?,
             callback: ITokenCallback?,
@@ -116,7 +117,7 @@ class InferenceService : Service() {
             executor.execute {
                 try {
                     val started = LlamaNative.startGeneration(
-                        handle, prompt, maxTokens, temperature, topK, topP, seed, grammar,
+                        handle, prompt, maxTokens, temperature, topK, topP, presencePenalty, seed, grammar,
                     )
                     if (!started) {
                         callback.onError("The prompt could not be tokenised.")
@@ -148,6 +149,11 @@ class InferenceService : Service() {
             cancelled.set(true)
         }
 
+        override fun lastReplyHitLimit(): Boolean {
+            if (handle == 0L) return false
+            return submit { LlamaNative.lastReplyHitLimit(handle) } ?: false
+        }
+
         override fun openChatSession(systemPrompt: String?): Boolean {
             if (handle == 0L) return false
             return submit { LlamaNative.openChatSession(handle, systemPrompt.orEmpty()) } ?: false
@@ -170,6 +176,7 @@ class InferenceService : Service() {
             temperature: Float,
             topK: Int,
             topP: Float,
+            presencePenalty: Float,
             seed: Long,
             grammar: String?,
             noThink: Boolean,
@@ -184,7 +191,7 @@ class InferenceService : Service() {
             executor.execute {
                 try {
                     val started = LlamaNative.sendChatMessage(
-                        handle, userText, maxTokens, temperature, topK, topP, seed, grammar, noThink,
+                        handle, userText, maxTokens, temperature, topK, topP, presencePenalty, seed, grammar, noThink,
                         thinkingBudgetTokens,
                     )
                     if (!started) {

@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.postsaimanager.core.designsystem.component.ConfigSpecItem
 import com.postsaimanager.core.designsystem.component.ReloadHint
+import com.postsaimanager.core.domain.usecase.ChatTurn
 import com.postsaimanager.core.model.ConfigSpec
 import com.postsaimanager.core.model.InstalledModelSummary
 import com.postsaimanager.core.model.ModelLoadState
@@ -52,6 +53,7 @@ fun ModelHeaderChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isPrimingConversation: Boolean = false,
+    isWaitingForDocument: Boolean = false,
 ) {
     val activeModel = state.installedModels.firstOrNull { it.id == state.activeModelId }
     Surface(
@@ -64,16 +66,22 @@ fun ModelHeaderChip(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            LoadStateDot(state.loadState, isPrimingConversation = isPrimingConversation)
+            LoadStateDot(
+                state.loadState,
+                isPrimingConversation = isPrimingConversation,
+                isWaitingForDocument = isWaitingForDocument,
+            )
             Spacer(modifier = Modifier.width(8.dp))
             Column {
                 Text(
-                    text = activeModel?.name ?: "No model",
+                    // The installed-model list can lag behind while the engine is busy reading a
+                    // document; "No model" would then be a false claim.
+                    text = activeModel?.name ?: if (isWaitingForDocument) "Assistant" else "No model",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = modelHeaderSubtitle(state.loadState, isPrimingConversation),
+                    text = modelHeaderSubtitle(state.loadState, isPrimingConversation, isWaitingForDocument),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -90,9 +98,13 @@ fun ModelHeaderChip(
 }
 
 @Composable
-private fun LoadStateDot(loadState: ModelLoadState, isPrimingConversation: Boolean = false) {
+private fun LoadStateDot(
+    loadState: ModelLoadState,
+    isPrimingConversation: Boolean = false,
+    isWaitingForDocument: Boolean = false,
+) {
     when {
-        showsHeaderSpinner(loadState, isPrimingConversation) ->
+        showsHeaderSpinner(loadState, isPrimingConversation, isWaitingForDocument) ->
             CircularProgressIndicator(
                 modifier = Modifier.size(14.dp),
                 strokeWidth = 2.dp,
@@ -127,17 +139,28 @@ private fun LoadStateDot(loadState: ModelLoadState, isPrimingConversation: Boole
  * "Loading model…" and only the prefill half — the model is resident, or has not registered
  * a load yet — says "Preparing conversation…". A failed load is never masked by either.
  */
-internal fun modelHeaderSubtitle(loadState: ModelLoadState, isPrimingConversation: Boolean): String = when {
-    loadState is ModelLoadState.Loading -> "Loading model…"
+internal fun modelHeaderSubtitle(
+    loadState: ModelLoadState,
+    isPrimingConversation: Boolean,
+    isWaitingForDocument: Boolean = false,
+): String = when {
     loadState is ModelLoadState.Failed -> loadStateSubtitle(loadState)
+    // The engine is busy reading a document: the chat cannot start until that finishes, and
+    // "Not loaded" / "Loading model…" would leave the wait unexplained.
+    isWaitingForDocument -> ChatTurn.PreparingModel.WAITING_FOR_DOCUMENT
+    loadState is ModelLoadState.Loading -> "Loading model…"
     isPrimingConversation -> "Preparing conversation…"
     else -> loadStateSubtitle(loadState)
 }
 
 /** The header shows a spinner exactly while the subtitle describes work in progress. */
-internal fun showsHeaderSpinner(loadState: ModelLoadState, isPrimingConversation: Boolean): Boolean =
-    loadState is ModelLoadState.Loading ||
-        (isPrimingConversation && loadState !is ModelLoadState.Failed)
+internal fun showsHeaderSpinner(
+    loadState: ModelLoadState,
+    isPrimingConversation: Boolean,
+    isWaitingForDocument: Boolean = false,
+): Boolean =
+    loadState !is ModelLoadState.Failed &&
+        (loadState is ModelLoadState.Loading || isPrimingConversation || isWaitingForDocument)
 
 private fun loadStateSubtitle(loadState: ModelLoadState): String = when (loadState) {
     ModelLoadState.Idle -> "Not loaded"

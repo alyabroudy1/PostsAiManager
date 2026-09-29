@@ -15,7 +15,7 @@ private fun drain(
     maxTokens: Int,
     grammar: String?,
 ): String {
-    if (!LlamaNative.startGeneration(handle, prompt, maxTokens, 0.0f, 40, 0.9f, -1L, grammar)) return ""
+    if (!LlamaNative.startGeneration(handle, prompt, maxTokens, 0.0f, 40, 0.9f, 0.0f, -1L, grammar)) return ""
     val sb = StringBuilder()
     try {
         while (true) sb.append(LlamaNative.nextToken(handle) ?: break)

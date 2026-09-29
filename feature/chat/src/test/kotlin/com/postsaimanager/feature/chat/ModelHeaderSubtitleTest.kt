@@ -48,6 +48,37 @@ class ModelHeaderSubtitleTest {
     }
 
     @Test
+    @DisplayName("waiting behind a document read says so, whatever the load state")
+    fun `waiting for a document`() {
+        val waiting = "Waiting for a document to finish reading…"
+        assertThat(modelHeaderSubtitle(ModelLoadState.Idle, false, isWaitingForDocument = true)).isEqualTo(waiting)
+        assertThat(modelHeaderSubtitle(loading, true, isWaitingForDocument = true)).isEqualTo(waiting)
+        assertThat(modelHeaderSubtitle(ready, true, isWaitingForDocument = true)).isEqualTo(waiting)
+        assertThat(showsHeaderSpinner(ModelLoadState.Idle, false, isWaitingForDocument = true)).isTrue()
+    }
+
+    @Test
+    @DisplayName("a failed load is still reported while a document is being read")
+    fun `failed beats waiting`() {
+        assertThat(modelHeaderSubtitle(failed, false, isWaitingForDocument = true)).isEqualTo("Failed to load")
+        assertThat(showsHeaderSpinner(failed, false, isWaitingForDocument = true)).isFalse()
+    }
+
+    @Test
+    @DisplayName("ui state is waiting when the pre-warm found the engine busy or a send carries the busy reason")
+    fun `ui state waiting flag`() {
+        assertThat(ChatUiState().isWaitingForDocument).isFalse()
+        assertThat(ChatUiState(primeWaitingForDocument = true).isWaitingForDocument).isTrue()
+        assertThat(
+            ChatUiState(
+                isProcessing = true,
+                statusText = com.postsaimanager.core.domain.usecase.ChatTurn.PreparingModel.WAITING_FOR_DOCUMENT,
+            ).isWaitingForDocument,
+        ).isTrue()
+        assertThat(ChatUiState(isProcessing = true, statusText = "Loading model…").isWaitingForDocument).isFalse()
+    }
+
+    @Test
     @DisplayName("the spinner tracks the subtitle: loading or priming only")
     fun `spinner`() {
         assertThat(showsHeaderSpinner(loading, false)).isTrue()

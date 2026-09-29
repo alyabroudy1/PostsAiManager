@@ -16,6 +16,9 @@ import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import com.postsaimanager.core.domain.usecase.CitationParser
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,7 +34,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -107,8 +109,8 @@ fun ChatScreen(
     documentId: String?,
     onNavigateBack: () -> Unit,
     onManageModelsClick: () -> Unit = {},
-    /** A citation chip was tapped (4.3) — navigate to that source's document, at its page
-     * when the destination can cheaply jump there. */
+    /** "Open document" in the citation preview — navigate to that source's full document
+     * detail, at the page being previewed. Tapping a chip itself only opens the preview. */
     onSourceClick: (ChatSource) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = hiltViewModel(),
@@ -116,6 +118,7 @@ fun ChatScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val modelSheetState by viewModel.modelSheetState.collectAsStateWithLifecycle()
     val suggestedQuestions by viewModel.suggestedQuestions.collectAsStateWithLifecycle()
+    val preview by viewModel.preview.collectAsStateWithLifecycle()
     var inputText by rememberSaveable { mutableStateOf("") }
     var showModelSheet by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -188,6 +191,19 @@ fun ChatScreen(
         listState.scrollToItem(0)
     }
 
+    // Layered over the chat, not navigated to: the transcript (and `listState`) underneath
+    // stays composed, so closing returns to exactly where the user was reading.
+    preview?.let { state ->
+        CitationPreviewDialog(
+            state = state,
+            onClose = viewModel::closePreview,
+            onOpenDocument = { source ->
+                viewModel.closePreview()
+                onSourceClick(source)
+            },
+        )
+    }
+
     if (showModelSheet) {
         ModelConfigBottomSheet(
             state = modelSheetState,
@@ -215,6 +231,7 @@ fun ChatScreen(
                         onClick = { showModelSheet = true },
                         modifier = Modifier.padding(end = 8.dp),
                         isPrimingConversation = uiState.isPrimingConversation,
+                        isWaitingForDocument = uiState.isWaitingForDocument,
                     )
                 },
             )
@@ -368,7 +385,7 @@ fun ChatScreen(
                             message = message,
                             documentChat = documentId != null,
                             onRetry = { viewModel.retryMessage(message) },
-                            onSourceClick = onSourceClick,
+                            onSourceClick = viewModel::openPreview,
                             onCopy = { copyToClipboard(message.text) },
                             onRegenerate = { viewModel.regenerate() },
                             isLatestAssistantReply = !message.isUser &&
@@ -466,6 +483,7 @@ private fun ChatInputBar(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChatBubble(
     message: ChatMessage,
@@ -536,7 +554,14 @@ private fun ChatBubble(
                     // Renders live for the streaming bubble too — the parser recovers from
                     // an unbalanced `**`/code fence mid-stream rather than throwing.
                     MarkdownText(
-                        text = message.text,
+                        // Raw "[p.6]" markers are noise once the chips carry the same
+                        // information; the live bubble (no id yet) is stripped too, so text
+                        // does not reflow when the chips appear.
+                        text = if (message.sources.isNotEmpty() || message.id.isEmpty()) {
+                            CitationParser.stripMarkers(message.text)
+                        } else {
+                            message.text
+                        },
                         modifier = Modifier.padding(12.dp),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodyMedium,
@@ -549,11 +574,14 @@ private fun ChatBubble(
         // reply with something to show (a streaming bubble, built from `ChatMessage(text=…)`
         // with no `id`, never has sources yet; see the streaming-bubble call site above).
         if (!isUser && message.sources.isNotEmpty()) {
-            Row(
+            // A wrapping FlowRow, never a clipped horizontal scroller, and above the
+            // copy/regenerate row below.
+            FlowRow(
                 modifier = Modifier
-                    .padding(start = 40.dp, top = 4.dp)
-                    .horizontalScroll(rememberScrollState()),
+                    .fillMaxWidth()
+                    .padding(start = 40.dp, top = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 message.sources.forEach { source ->
                     SourceChip(source = source, documentChat = documentChat, onClick = { onSourceClick(source) })
@@ -579,7 +607,7 @@ private fun ChatBubble(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Stopped",
+                    text = if (message.cutOff) "Answer was cut off" else "Stopped",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -651,7 +679,7 @@ private fun SourceChip(source: ChatSource, documentChat: Boolean, onClick: () ->
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         modifier = Modifier
-            .height(28.dp)
+            .heightIn(min = 28.dp)
             .semantics {
                 contentDescription = if (source.pageNumber != null) {
                     "Source: page ${source.pageNumber} of ${source.title ?: "this document"}"

@@ -32,7 +32,8 @@ namespace {
 // fixed constants rather than a fraction of n_ctx — they only ever bind in the edge case of
 // a conversation already hard up against its context window.
 constexpr int kMinReplyTokens = 32;          // never offer less than this to answer with at all.
-constexpr int kMinAnswerReserveTokens = 256; // thinking may never eat into this much of the reply.
+constexpr int kOverflowReserveTokens = 1024; // history is trimmed to leave room for this much reply.
+constexpr int kMinAnswerReserveTokens = 512; // thinking may never eat into this much of the reply.
 
 // What Qwen3.5's own chat template appends to the generation prompt for enable_thinking=true
 // / false. Rendered here rather than by llama_chat_apply_template (which can't pass the flag).
@@ -77,6 +78,11 @@ struct PamSession {
     int  generated = 0;
     int  maxTokens = 0;
     bool finished  = true;
+    // True when the last generation ended by reaching maxTokens rather than by an
+    // end-of-generation token (a "length" finish). Reset at the start of every generation.
+    bool hitLengthCap = false;
+    // Trailing bytes of an incomplete multi-byte character carried to the next token — see nextToken().
+    std::string pendingUtf8;
     // Wall-clock start of the current generation (set by startGeneration/sendChatMessage),
     // used to log total decode tok/s once generation ends — see nextToken().
     std::chrono::steady_clock::time_point generationStart{};
@@ -165,6 +171,74 @@ std::string tokenToPiece(const llama_vocab *vocab, llama_token token) {
     n = llama_token_to_piece(vocab, token, large.data(), (int32_t) large.size(), 0, true);
     if (n < 0) return {};
     return std::string(large.data(), n);
+}
+
+/**
+ * Length of the longest prefix of [s] that ends on a UTF-8 character boundary — i.e. [s]
+ * without a trailing, still-incomplete multi-byte sequence.
+ */
+size_t completeUtf8Prefix(const std::string &s) {
+    const size_t n = s.size();
+    for (size_t back = 1; back <= 3 && back <= n; ++back) {
+        const unsigned char c = (unsigned char) s[n - back];
+        if ((c & 0xC0) == 0x80) continue; // continuation byte: keep looking for its lead byte.
+        const size_t need = c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : c >= 0xC0 ? 2 : 1;
+        return need > back ? n - back : n;
+    }
+    return n;
+}
+
+/**
+ * Builds a jstring from UTF-8 via UTF-16 (`NewString`) instead of `NewStringUTF`, which
+ * wants *Modified* UTF-8 and rejects 4-byte sequences (emoji) as well as stray bytes. Invalid
+ * input becomes U+FFFD rather than a process abort.
+ */
+jstring utf8ToJString(JNIEnv *env, const std::string &s) {
+    std::u16string out;
+    out.reserve(s.size());
+    size_t i = 0;
+    const size_t n = s.size();
+    while (i < n) {
+        const unsigned char c = (unsigned char) s[i];
+        uint32_t cp = 0xFFFD;
+        size_t len = 1;
+        if (c < 0x80) {
+            cp = c;
+        } else if (c >= 0xC2 && c < 0xE0) {
+            len = 2;
+        } else if (c >= 0xE0 && c < 0xF0) {
+            len = 3;
+        } else if (c >= 0xF0 && c < 0xF5) {
+            len = 4;
+        }
+        if (len > 1) {
+            if (i + len <= n) {
+                uint32_t value = c & (0xFF >> (len + 1));
+                bool ok = true;
+                for (size_t k = 1; k < len; ++k) {
+                    const unsigned char cc = (unsigned char) s[i + k];
+                    if ((cc & 0xC0) != 0x80) { ok = false; break; }
+                    value = (value << 6) | (cc & 0x3F);
+                }
+                if (ok && value <= 0x10FFFF && !(value >= 0xD800 && value <= 0xDFFF)) {
+                    cp = value;
+                } else {
+                    len = 1;
+                }
+            } else {
+                len = 1;
+            }
+        }
+        if (cp >= 0x10000) {
+            cp -= 0x10000;
+            out.push_back((char16_t) (0xD800 + (cp >> 10)));
+            out.push_back((char16_t) (0xDC00 + (cp & 0x3FF)));
+        } else {
+            out.push_back((char16_t) cp);
+        }
+        i += len;
+    }
+    return env->NewString(reinterpret_cast<const jchar *>(out.data()), (jsize) out.size());
 }
 
 /**
@@ -399,7 +473,7 @@ bool verifyKvConsistency(PamSession *session, const char *where) {
 
 /** Builds the sampler chain shared by the raw one-shot path and the chat-session path. */
 llama_sampler *buildSamplerChain(const llama_vocab *vocab, float temperature, int topK, float topP,
-                                  jlong seed, const std::string &grammarStd) {
+                                  float presencePenalty, jlong seed, const std::string &grammarStd) {
     llama_sampler *chain = llama_sampler_chain_init(llama_sampler_chain_default_params());
 
     // The grammar goes first so it filters the candidate set before any probabilistic
@@ -417,6 +491,13 @@ llama_sampler *buildSamplerChain(const llama_vocab *vocab, float temperature, in
     if (temperature <= 0.0f) {
         llama_sampler_chain_add(chain, llama_sampler_init_greedy());
     } else {
+        // Presence penalty (Qwen3.5 recommends 1.5-2.0 for chat) discourages re-emitting
+        // tokens already in this reply. It only sees tokens sampled in this reply (the last
+        // 256), not the prompt, so it cannot by itself stop copying from earlier turns.
+        if (presencePenalty != 0.0f) {
+            llama_sampler_chain_add(chain, llama_sampler_init_penalties(
+                    llama_vocab_n_tokens(vocab), /* penalty_last_n */ 256, /* repeat */ 1.0f, /* freq */ 0.0f, presencePenalty));
+        }
         llama_sampler_chain_add(chain, llama_sampler_init_top_k(topK));
         llama_sampler_chain_add(chain, llama_sampler_init_top_p(topP, 1));
         llama_sampler_chain_add(chain, llama_sampler_init_temp(temperature));
@@ -791,7 +872,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_lastLoadDevices(JNIEnv *env, j
 JNIEXPORT jboolean JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
         JNIEnv *env, jobject, jlong handle, jstring prompt, jint maxTokens,
-        jfloat temperature, jint topK, jfloat topP, jlong seed, jstring grammar) {
+        jfloat temperature, jint topK, jfloat topP, jfloat presencePenalty, jlong seed, jstring grammar) {
 
     auto *session = reinterpret_cast<PamSession *>(handle);
     if (session == nullptr) return JNI_FALSE;
@@ -824,7 +905,9 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
         return JNI_FALSE;
     }
 
-    session->chain = buildSamplerChain(vocab, temperature, topK, topP, seed, grammarStd);
+    session->chain = buildSamplerChain(vocab, temperature, topK, topP, presencePenalty, seed, grammarStd);
+    session->hitLengthCap = false;
+    session->pendingUtf8.clear();
 
     // Feed the prompt in n_batch-sized pieces.
     //
@@ -885,6 +968,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_nextToken(JNIEnv *env, jobject
     }
 
     if (session->generated >= session->maxTokens) {
+        session->hitLengthCap = true;
         releaseChain(session);
         return nullptr;
     }
@@ -917,7 +1001,22 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_nextToken(JNIEnv *env, jobject
     session->batch     = llama_batch_get_one(&session->lastToken, 1);
     session->generated++;
 
-    return env->NewStringUTF(piece.c_str());
+    // A token can end in the middle of a multi-byte character (German umlauts, emoji are
+    // often split across tokens). Handing those bytes to NewStringUTF is invalid Modified
+    // UTF-8: CheckJNI aborts the whole :inference process on it. Only complete characters
+    // go out; the tail waits for the next token.
+    std::string out = session->pendingUtf8 + piece;
+    const size_t complete = completeUtf8Prefix(out);
+    session->pendingUtf8 = out.substr(complete);
+    out.resize(complete);
+    return utf8ToJString(env, out);
+}
+
+/** True when the last generation stopped at its token cap rather than at an end-of-generation token. */
+JNIEXPORT jboolean JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_lastReplyHitLimit(JNIEnv *, jobject, jlong handle) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    return (session != nullptr && session->hitLengthCap) ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT void JNICALL
@@ -1039,7 +1138,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_primeChatSession(
 JNIEXPORT jboolean JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
         JNIEnv *env, jobject, jlong handle, jstring userText, jint maxTokens,
-        jfloat temperature, jint topK, jfloat topP, jlong seed, jstring grammar, jboolean noThink,
+        jfloat temperature, jint topK, jfloat topP, jfloat presencePenalty, jlong seed, jstring grammar, jboolean noThink,
         jint thinkingBudgetTokens) {
 
     auto *session = reinterpret_cast<PamSession *>(handle);
@@ -1089,10 +1188,14 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
     int nPast = (int) llama_memory_seq_pos_max(mem, 0) + 1;
     int diffTokens = currentDiffTokenCount();
 
-    if (nPast + diffTokens + (int) maxTokens > nCtx) {
-        LOGI("pam_llama: context overflow (n_past=%d diff=%d max=%d n_ctx=%d) — dropping oldest turns",
-             nPast, diffTokens, (int) maxTokens, nCtx);
-        while (nPast + diffTokens + (int) maxTokens > nCtx && dropOldestChatTurn(session)) {
+    // History is only dropped to leave room for a normal-sized reply, not for the largest
+    // thinking+answer cap: when the window is tight below that, the thinking budget shrinks
+    // instead (see resolvedMaxTokens below) and the answer still keeps kMinAnswerReserveTokens.
+    const int overflowReserve = std::min((int) maxTokens, kOverflowReserveTokens);
+    if (nPast + diffTokens + overflowReserve > nCtx) {
+        LOGI("pam_llama: context overflow (n_past=%d diff=%d reserve=%d n_ctx=%d) — dropping oldest turns",
+             nPast, diffTokens, overflowReserve, nCtx);
+        while (nPast + diffTokens + overflowReserve > nCtx && dropOldestChatTurn(session)) {
             llama_memory_clear(mem, true);
             session->chatPrevLen = 0;
             formatted = renderChatHistory(session, /* addAssistant */ true);
@@ -1171,7 +1274,9 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
          thinkingOpen ? "inside <think>" : "after an empty <think></think>",
          prefillTokens, session->thinkingBudgetTokens, resolvedMaxTokens);
 
-    session->chain = buildSamplerChain(vocab, temperature, topK, topP, seed, grammarStd);
+    session->chain = buildSamplerChain(vocab, temperature, topK, topP, presencePenalty, seed, grammarStd);
+    session->hitLengthCap = false;
+    session->pendingUtf8.clear();
     session->generated = 0;
     session->maxTokens = resolvedMaxTokens;
     session->finished  = false;
