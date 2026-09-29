@@ -1,7 +1,6 @@
 package com.postsaimanager.core.model
 
 import kotlinx.serialization.Serializable
-import java.io.File
 
 /**
  * Everything llama.cpp needs to load a model and sample from it.
@@ -68,15 +67,14 @@ data class InferenceConfig(
          *   ceiling. What this computes is how much of it the device can actually afford.
          */
         /**
-         * @param coreMaxFreqsKHz defaults to a live [readCoreMaxFreqsKHz] read; overridable
-         *   so tests can supply a fixed, deterministic reading instead of depending on
-         *   whatever the test machine's own `/sys/devices/system/cpu` happens to report (or,
-         *   off Linux/Android, does not report at all).
+         * @param coreMaxFreqsKHz each core's max frequency as read by the caller (this type
+         *   stays free of IO). Empty, the default, means unknown: threadsBatch falls back to
+         *   the generation thread count.
          */
         fun defaults(
             deviceCapability: DeviceCapability,
             catalogedContextTokens: Int,
-            coreMaxFreqsKHz: List<Long> = readCoreMaxFreqsKHz(),
+            coreMaxFreqsKHz: List<Long> = emptyList(),
         ): InferenceConfig {
             val threads = defaultThreadCount()
             return InferenceConfig(
@@ -102,7 +100,7 @@ data class InferenceConfig(
          *
          * @param coreMaxFreqsKHz each logical core's max scaling frequency, in any order —
          *   this only ever counts them, never assumes an ordering or a specific core index.
-         *   Typically [readCoreMaxFreqsKHz]'s result.
+         *   Read by the caller from the platform.
          * @return null when the input does not look like a real big.LITTLE reading (fewer
          *   than 2 cores, or every core reporting the same frequency, e.g. a device that
          *   hides cpufreq, an emulator, or a read failure) — the caller falls back to
@@ -118,23 +116,6 @@ data class InferenceConfig(
 
             val performanceCores = freqs.count { it > minFreq * PERFORMANCE_CORE_THRESHOLD }
             return performanceCores.takeIf { it in 1 until freqs.size }?.coerceAtLeast(2)
-        }
-
-        /**
-         * Reads each online CPU's max scaling frequency from sysfs
-         * (`/sys/devices/system/cpu/cpuN/cpufreq/cpuinfo_max_freq`, in kHz — the standard
-         * Linux cpufreq interface, present on essentially every Android device; this project
-         * has no prior reader of it). Missing/unreadable entries are simply skipped, not
-         * substituted with a guess — [performanceCoreThreadCount] already treats a too-short
-         * or too-uniform result as "unknown" and falls back safely.
-         */
-        fun readCoreMaxFreqsKHz(): List<Long> {
-            val cpuDir = File("/sys/devices/system/cpu")
-            val cpuDirs = cpuDir.listFiles { file -> file.name.matches(CPU_DIR_REGEX) } ?: return emptyList()
-            return cpuDirs.mapNotNull { dir ->
-                File(dir, "cpufreq/cpuinfo_max_freq").takeIf { it.canRead() }
-                    ?.let { runCatching { it.readText().trim().toLong() }.getOrNull() }
-            }
         }
 
         /**
@@ -204,8 +185,6 @@ data class InferenceConfig(
          * without depending on exact model numbers, which vary chip to chip).
          */
         private const val PERFORMANCE_CORE_THRESHOLD = 1.15
-
-        private val CPU_DIR_REGEX = Regex("cpu[0-9]+")
     }
 }
 

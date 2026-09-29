@@ -65,7 +65,7 @@ class CatalogActiveModelProviderTest {
     }
 
     private fun provider(deviceCapability: DeviceCapabilityChecker) =
-        CatalogActiveModelProvider(installedStore, deviceCapability, settings, engine)
+        CatalogActiveModelProvider(installedStore, deviceCapability, settings, engine, CpuTopology())
 
     /** Fluctuates the RAM tier around the 1.5 GB `affordableContext` threshold on demand. */
     private fun flakyDeviceCapability(availableRamBytesSequence: List<Long>): DeviceCapabilityChecker {

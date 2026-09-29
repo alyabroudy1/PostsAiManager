@@ -30,6 +30,7 @@ class CatalogActiveModelProvider @Inject constructor(
     private val deviceCapability: DeviceCapabilityChecker,
     private val inferenceSettingsRepository: InferenceSettingsRepository,
     private val aiEngine: AiEngine,
+    private val cpuTopology: CpuTopology,
 ) : ActiveModelProvider {
 
     override suspend fun activeModelPath(): String? {
@@ -68,6 +69,7 @@ class CatalogActiveModelProvider @Inject constructor(
         val defaults = InferenceConfig.defaults(
             device,
             model?.contextTokens ?: DEFAULT_CONTEXT_TOKENS,
+            cpuTopology.coreMaxFreqsKHz(),
         )
         val schema = inferenceConfigSchema(device, backendSpec(model), defaults)
         return if (model?.filePath != null && isGpuBlocked(model.filePath)) {
@@ -114,13 +116,13 @@ class CatalogActiveModelProvider @Inject constructor(
      * who deliberately picked a smaller (or larger, up to this ceiling) window should see that
      * choice honoured rather than silently overwritten by the tier that happened to be sticky.
      */
-    private fun stickyDefaults(
+    private suspend fun stickyDefaults(
         device: DeviceCapability,
         catalogedContextTokens: Int,
         modelId: String?,
         overrides: InferenceOverrides,
     ): InferenceConfig {
-        val fresh = InferenceConfig.defaults(device, catalogedContextTokens)
+        val fresh = InferenceConfig.defaults(device, catalogedContextTokens, cpuTopology.coreMaxFreqsKHz())
         if (overrides.contextTokens != null) return fresh
         val ready = aiEngine.state.value
         if (ready is ModelLoadState.Ready && ready.modelId == modelId) {
