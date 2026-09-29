@@ -101,6 +101,11 @@ fun DocumentDetailScreen(
     onNavigateBack: () -> Unit,
     onChatClick: (String) -> Unit,
     /**
+     * Called once the document has been moved to the trash. The caller navigates away and
+     * owns the "moved to Recently deleted / Undo" snackbar, so it outlives this screen.
+     */
+    onDeleted: (documentId: String) -> Unit,
+    /**
      * A 1-based page to land on, e.g. from a chat citation chip (4.3) — jumps straight to the
      * Pages tab at that page instead of wherever the user last left this document. Null opens
      * on whatever [viewModel] would show anyway (the Pages tab by default).
@@ -118,12 +123,7 @@ fun DocumentDetailScreen(
     val pendingConfirmAllUndo by viewModel.pendingConfirmAllUndo.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showOverflowMenu by remember { mutableStateOf(false) }
-    // Set right when "Delete" is tapped; the trash write itself already happened (see
-    // onDelete below) — this just drives the confirmation snackbar and, once it resolves,
-    // the navigate-back. Kept separate from `uiState.document.isTrashed` so a document that
-    // was *already* trashed when this screen opened (e.g. a stale citation) renders the
-    // permanent "This document was deleted" state below instead of this transient one.
-    var pendingTrashUndo by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(false) }
 
     // A citation chip always means "show me that page" — even if the user was last looking
     // at a different tab (Extracted, Timeline) when they left this document.
@@ -140,30 +140,12 @@ fun DocumentDetailScreen(
         val result = snackbarHostState.showSnackbar(
             message = if (count == 1) "1 field confirmed" else "$count fields confirmed",
             actionLabel = "Undo",
-            duration = SnackbarDuration.Short,
+            duration = SnackbarDuration.Long,
         )
         if (result == SnackbarResult.ActionPerformed) {
             viewModel.undoConfirmAll()
         } else {
             viewModel.dismissConfirmAllUndo()
-        }
-    }
-
-    // The write already happened when "Delete" was tapped (optimistic, like Confirm-all's
-    // undo above) — this just shows the confirmation and, once it resolves one way or the
-    // other, leaves the screen. Undo restores in place rather than re-navigating anywhere.
-    LaunchedEffect(pendingTrashUndo) {
-        if (!pendingTrashUndo) return@LaunchedEffect
-        val result = snackbarHostState.showSnackbar(
-            message = "Document moved to Recently deleted",
-            actionLabel = "Undo",
-            duration = SnackbarDuration.Long,
-        )
-        if (result == SnackbarResult.ActionPerformed) {
-            viewModel.restoreDocument()
-            pendingTrashUndo = false
-        } else {
-            onNavigateBack()
         }
     }
 
@@ -176,7 +158,7 @@ fun DocumentDetailScreen(
                 },
                 onNavigateBack = onNavigateBack,
                 actions = {
-                    if (uiState is DocumentDetailUiState.Success && !pendingTrashUndo) {
+                    if (uiState is DocumentDetailUiState.Success) {
                         IconButton(onClick = { showOverflowMenu = true }) {
                             Icon(PamIcons.More, contentDescription = "More options")
                         }
@@ -185,8 +167,7 @@ fun DocumentDetailScreen(
                                 text = { Text("Delete") },
                                 onClick = {
                                     showOverflowMenu = false
-                                    viewModel.moveToTrash()
-                                    pendingTrashUndo = true
+                                    viewModel.moveToTrash(onDeleted)
                                 },
                             )
                         }
@@ -195,6 +176,20 @@ fun DocumentDetailScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        // A Scaffold slot (not a Box overlay inside the tab) so snackbars are laid out above it.
+        floatingActionButton = {
+            val state = uiState
+            if (state is DocumentDetailUiState.Success && !state.document.isTrashed &&
+                selectedTab == DetailTab.EXTRACTED
+            ) {
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Icon(PamIcons.Add, contentDescription = "Add field")
+                }
+            }
+        },
         modifier = modifier,
     ) { innerPadding ->
         AnimatedContent(
@@ -211,9 +206,7 @@ fun DocumentDetailScreen(
                     PamErrorState(message = "This document no longer exists.", icon = PamIcons.Error)
                 // A trashed document reaches Success too (GetDocumentDetailUseCase doesn't
                 // filter it out) — rendered as its own state rather than the normal content,
-                // whether the user got here by deleting it just now (pendingTrashUndo, above
-                // the snackbar) or by opening a citation/deep link to something already
-                // trashed.
+                // e.g. when opened from Recently deleted or via a citation/deep link.
                 state is DocumentDetailUiState.Success && state.document.isTrashed ->
                     TrashedDocumentState(
                         title = state.document.title,
@@ -230,7 +223,7 @@ fun DocumentDetailScreen(
                     onProcess = { force -> viewModel.startProcessing(force) },
                     onConfirmField = viewModel::confirmField,
                     onConfirmAllFields = viewModel::confirmAllFields,
-                    onAddField = viewModel::addField,
+                    onAddClick = { showAddDialog = true },
                     onUpdateField = viewModel::updateField,
                     onDeleteField = viewModel::deleteField,
                     onLinkProfile = viewModel::linkSuggestionToProfile,
@@ -241,13 +234,20 @@ fun DocumentDetailScreen(
                     onChatClick = { onChatClick(state.document.id) },
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSharePdf = { viewModel.generatePdf() },
-                    onDelete = {
-                        viewModel.moveToTrash()
-                        pendingTrashUndo = true
-                    },
+                    onDelete = { viewModel.moveToTrash(onDeleted) },
                 )
             }
         }
+    }
+
+    if (showAddDialog) {
+        AddFieldDialog(
+            onDismiss = { showAddDialog = false },
+            onAdd = { name, value, type ->
+                viewModel.addField(name, value, type)
+                showAddDialog = false
+            },
+        )
     }
 
     // Profile creation sheet
@@ -284,7 +284,7 @@ private fun DocumentDetailContent(
     onProcess: (force: Boolean) -> Unit,
     onConfirmField: (String) -> Unit,
     onConfirmAllFields: () -> Unit,
-    onAddField: (String, String, ExtractedFieldType) -> Unit,
+    onAddClick: () -> Unit,
     onUpdateField: (String, String, String) -> Unit,
     onDeleteField: (String) -> Unit,
     onLinkProfile: (ProfileSuggestion) -> Unit,
@@ -380,7 +380,7 @@ private fun DocumentDetailContent(
                 entityProposals = entityProposals,
                 onConfirm = onConfirmField,
                 onConfirmAll = onConfirmAllFields,
-                onAdd = onAddField,
+                onAddClick = onAddClick,
                 onUpdate = onUpdateField,
                 onDelete = onDeleteField,
                 onLinkProfile = onLinkProfile,
@@ -397,7 +397,7 @@ private fun DocumentDetailContent(
 
 /**
  * Shown instead of the normal detail content for a document that is currently in the trash —
- * whether the user just deleted it (behind the confirmation snackbar) or arrived here via a
+ * whether it was restored-from or opened via Recently deleted, or arrived here via a
  * citation chip/deep link into something already trashed. Restoring here brings back the
  * normal content in place, with no navigation.
  */
@@ -688,7 +688,7 @@ private fun ExtractedTemplateTab(
     entityProposals: List<EntityProposal>,
     onConfirm: (String) -> Unit,
     onConfirmAll: () -> Unit,
-    onAdd: (String, String, ExtractedFieldType) -> Unit,
+    onAddClick: () -> Unit,
     onUpdate: (String, String, String) -> Unit,
     onDelete: (String) -> Unit,
     onLinkProfile: (ProfileSuggestion) -> Unit,
@@ -698,7 +698,6 @@ private fun ExtractedTemplateTab(
     onDismissProposal: (EntityProposal) -> Unit,
     onReprocess: () -> Unit,
 ) {
-    var showAddDialog by remember { mutableStateOf(false) }
     var editingField by remember { mutableStateOf<ExtractedData?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -714,7 +713,7 @@ private fun ExtractedTemplateTab(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("Process the document or add data manually", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = { showAddDialog = true }) {
+                Button(onClick = onAddClick) {
                     Icon(PamIcons.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Add Manually")
@@ -836,19 +835,8 @@ private fun ExtractedTemplateTab(
                 item { Spacer(modifier = Modifier.height(72.dp)) }
             }
         }
-
-        FloatingActionButton(
-            onClick = { showAddDialog = true },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ) {
-            Icon(PamIcons.Add, contentDescription = "Add field")
-        }
     }
 
-    if (showAddDialog) {
-        AddFieldDialog(onDismiss = { showAddDialog = false }, onAdd = { name, value, type -> onAdd(name, value, type); showAddDialog = false })
-    }
     editingField?.let { field ->
         EditFieldDialog(field = field, onDismiss = { editingField = null }, onSave = { name, value -> onUpdate(field.id, name, value); editingField = null })
     }

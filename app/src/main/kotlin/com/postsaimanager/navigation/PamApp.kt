@@ -9,11 +9,17 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
+import com.postsaimanager.feature.documents.DocumentUndoViewModel
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -37,6 +43,11 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 fun PamApp() {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
+    // App-level scope and host: the "moved to Recently deleted / Undo" snackbar has to
+    // outlive the detail screen that triggered it, so it is shown here, on the screen
+    // the user lands on.
+    val scope = rememberCoroutineScope()
+    val undoViewModel: DocumentUndoViewModel = hiltViewModel()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -109,7 +120,10 @@ fun PamApp() {
             }
 
             composable("trash") {
-                TrashScreen(onNavigateBack = { navController.popBackStack() })
+                TrashScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onDocumentClick = { id -> navController.navigate("document/$id") },
+                )
             }
 
             // ── Detail destinations ──
@@ -130,6 +144,18 @@ fun PamApp() {
                     onNavigateBack = { navController.popBackStack() },
                     onChatClick = { docId ->
                         navController.navigate("chat?documentId=$docId")
+                    },
+                    onDeleted = { docId ->
+                        navController.popBackStack()
+                        scope.launch {
+                            snackbarHostState.currentSnackbarData?.dismiss()
+                            val result = snackbarHostState.showSnackbar(
+                                message = "Document moved to Recently deleted",
+                                actionLabel = "Undo",
+                                duration = SnackbarDuration.Long,
+                            )
+                            if (result == SnackbarResult.ActionPerformed) undoViewModel.restore(docId)
+                        }
                     },
                     initialPage = page.takeIf { it != NO_INITIAL_PAGE },
                 )

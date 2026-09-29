@@ -49,6 +49,7 @@ import com.postsaimanager.core.model.Document
 @Composable
 fun TrashScreen(
     onNavigateBack: () -> Unit,
+    onDocumentClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TrashViewModel = hiltViewModel(),
 ) {
@@ -86,6 +87,7 @@ fun TrashScreen(
                 items(state.documents, key = { it.id }) { document ->
                     TrashListItem(
                         document = document,
+                        onClick = { onDocumentClick(document.id) },
                         onRestore = { viewModel.restore(document.id) },
                         onDeletePermanently = { confirmDeleteId = document.id },
                     )
@@ -132,11 +134,13 @@ fun TrashScreen(
 @Composable
 private fun TrashListItem(
     document: Document,
+    onClick: () -> Unit,
     onRestore: () -> Unit,
     onDeletePermanently: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
+        onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),

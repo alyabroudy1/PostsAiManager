@@ -332,12 +332,15 @@ class DocumentDetailViewModel @Inject constructor(
 
     /**
      * Moves this document to the trash (overflow menu "Delete", and the FAILED banner's
-     * delete). Does not navigate itself — `DocumentDetailScreen` shows the "moved to Recently
-     * deleted / Undo" snackbar first and navigates back once it resolves, same shape as the
-     * documents-list swipe-to-delete.
+     * delete), then calls [onDone] with its id. The caller navigates back and shows the
+     * "moved to Recently deleted / Undo" snackbar — waiting for the write first, since
+     * leaving the screen clears this ViewModel's scope.
      */
-    fun moveToTrash() {
-        viewModelScope.launch { documentRepository.moveToTrash(documentId) }
+    fun moveToTrash(onDone: (String) -> Unit) {
+        viewModelScope.launch {
+            documentRepository.moveToTrash(documentId)
+            onDone(documentId)
+        }
     }
 
     /** Restores this document — used from the "This document was deleted" state. */
