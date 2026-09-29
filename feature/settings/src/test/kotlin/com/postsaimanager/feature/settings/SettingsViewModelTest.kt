@@ -3,17 +3,24 @@ package com.postsaimanager.feature.settings
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamError
+import com.postsaimanager.core.domain.applock.AppLockState
+import com.postsaimanager.core.testing.FakeMonotonicClock
+import com.postsaimanager.core.domain.applock.DeviceAuthAvailability
+import com.postsaimanager.core.domain.applock.DeviceAuthPurpose
+import com.postsaimanager.core.domain.applock.DeviceAuthResult
 import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.UpdateInferenceSettingUseCase
 import com.postsaimanager.core.model.AppTheme
 import com.postsaimanager.core.model.UserPreferences
 import com.postsaimanager.core.testing.FakeActiveModelProvider
+import com.postsaimanager.core.testing.FakeDeviceAuthenticator
 import com.postsaimanager.core.testing.FakeInferenceSettingsRepository
 import com.postsaimanager.core.testing.FakeUserPreferencesRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 
@@ -30,12 +37,15 @@ class SettingsViewModelTest {
     private val repo = FakeUserPreferencesRepository()
     private val models = FakeActiveModelProvider()
     private val inferenceSettingsRepo = FakeInferenceSettingsRepository()
+    private val authenticator = FakeDeviceAuthenticator()
 
     private fun viewModel(userPreferencesRepository: FakeUserPreferencesRepository = repo) = SettingsViewModel(
         userPreferencesRepository = userPreferencesRepository,
         observeInferenceSettings = ObserveInferenceSettingsUseCase(models, inferenceSettingsRepo),
         updateInferenceSetting = UpdateInferenceSettingUseCase(inferenceSettingsRepo),
         resetInferenceSettings = ResetInferenceSettingsUseCase(inferenceSettingsRepo),
+        deviceAuthenticator = authenticator,
+        externalFlowGuard = AppLockState(FakeMonotonicClock()),
     )
 
     @Test
@@ -86,6 +96,121 @@ class SettingsViewModelTest {
         assertThat(repo.current.notificationsEnabled).isFalse()
         assertThat(repo.current.biometricEnabled).isTrue()
         assertThat(repo.current.defaultLanguage).isEqualTo("de")
+    }
+
+    @Nested
+    @DisplayName("app lock toggle")
+    inner class AppLockToggle {
+
+        @Test
+        fun `is off by default`() {
+            assertThat(repo.current.biometricEnabled).isFalse()
+            assertThat(repo.current.appLockTimeoutMinutes).isEqualTo(1)
+        }
+
+        @Test
+        fun `turning on authenticates first and then persists`() = runTest {
+            val vm = viewModel()
+
+            vm.setBiometricEnabled(true)
+
+            assertThat(authenticator.prompts).containsExactly(DeviceAuthPurpose.ENABLE_APP_LOCK)
+            assertThat(repo.current.biometricEnabled).isTrue()
+            assertThat(vm.appLockNotice.value).isNull()
+        }
+
+        @Test
+        fun `a cancelled prompt leaves the lock off without an error`() = runTest {
+            authenticator.result = DeviceAuthResult.Cancelled
+            val vm = viewModel()
+
+            vm.setBiometricEnabled(true)
+
+            assertThat(repo.current.biometricEnabled).isFalse()
+            assertThat(vm.appLockNotice.value).isNull()
+        }
+
+        @Test
+        fun `a failed prompt leaves the lock off and says so`() = runTest {
+            authenticator.result = DeviceAuthResult.Failed
+            val vm = viewModel()
+
+            vm.setBiometricEnabled(true)
+
+            assertThat(repo.current.biometricEnabled).isFalse()
+            assertThat(vm.appLockNotice.value).isEqualTo(AppLockNotice.AuthenticationFailed)
+        }
+
+        @Test
+        fun `nothing enrolled explains itself, never prompts, and leaves the lock off`() = runTest {
+            authenticator.availability = DeviceAuthAvailability.NOT_ENROLLED
+            val vm = viewModel()
+
+            vm.setBiometricEnabled(true)
+
+            assertThat(authenticator.prompts).isEmpty()
+            assertThat(repo.current.biometricEnabled).isFalse()
+            assertThat(vm.appLockNotice.value).isEqualTo(AppLockNotice.NotEnrolled)
+        }
+
+        @Test
+        fun `no usable authenticator is reported separately from not enrolled`() = runTest {
+            authenticator.availability = DeviceAuthAvailability.UNAVAILABLE
+            val vm = viewModel()
+
+            vm.setBiometricEnabled(true)
+
+            assertThat(authenticator.prompts).isEmpty()
+            assertThat(vm.appLockNotice.value).isEqualTo(AppLockNotice.Unavailable)
+        }
+
+        @Test
+        fun `the notice can be dismissed`() = runTest {
+            authenticator.availability = DeviceAuthAvailability.NOT_ENROLLED
+            val vm = viewModel()
+            vm.setBiometricEnabled(true)
+
+            vm.dismissAppLockNotice()
+
+            assertThat(vm.appLockNotice.value).isNull()
+        }
+
+        @Test
+        fun `turning off needs no authentication`() = runTest {
+            val repo = FakeUserPreferencesRepository(UserPreferences(biometricEnabled = true))
+            val vm = viewModel(repo)
+
+            vm.setBiometricEnabled(false)
+
+            assertThat(authenticator.prompts).isEmpty()
+            assertThat(repo.current.biometricEnabled).isFalse()
+        }
+
+        @Test
+        fun `turning off works even when nothing is enrolled any more`() = runTest {
+            authenticator.availability = DeviceAuthAvailability.NOT_ENROLLED
+            val repo = FakeUserPreferencesRepository(UserPreferences(biometricEnabled = true))
+            val vm = viewModel(repo)
+
+            vm.setBiometricEnabled(false)
+
+            assertThat(repo.current.biometricEnabled).isFalse()
+            assertThat(vm.appLockNotice.value).isNull()
+        }
+
+        @Test
+        fun `timeout accepts only the offered options`() = runTest {
+            val vm = viewModel()
+
+            vm.setAppLockTimeoutMinutes(15)
+            assertThat(repo.current.appLockTimeoutMinutes).isEqualTo(15)
+
+            vm.setAppLockTimeoutMinutes(0)
+            assertThat(repo.current.appLockTimeoutMinutes).isEqualTo(0)
+
+            vm.setAppLockTimeoutMinutes(7)
+            assertThat(repo.current.appLockTimeoutMinutes).isEqualTo(0)
+        }
     }
 
     @Test

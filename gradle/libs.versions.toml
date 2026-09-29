@@ -78,6 +78,7 @@ konsist = "0.17.3"
 # AndroidX
 coreKtx = "1.15.0"
 appcompat = "1.7.0"
+biometric = "1.1.0"
 material = "1.12.0"
 
 [libraries]
@@ -160,6 +161,8 @@ firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashly
 # AndroidX
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycleCompose" }
 
 # Testing
 junit5-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "junit5" }

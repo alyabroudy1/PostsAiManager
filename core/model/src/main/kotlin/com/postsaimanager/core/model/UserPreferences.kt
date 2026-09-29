@@ -12,7 +12,16 @@ data class UserPreferences(
     val defaultLanguage: String = "de",
     val notificationsEnabled: Boolean = true,
     val selectedAiModelId: String? = null,
+    /**
+     * Whether the optional app lock is on. Named for the first authenticator it shipped with;
+     * what it gates is "biometric or device PIN/pattern" — see `AppLockState`.
+     */
     val biometricEnabled: Boolean = false,
+    /**
+     * How long the app may sit in the background before the lock applies again. One of
+     * [AppLockTimeouts.OPTIONS_MINUTES].
+     */
+    val appLockTimeoutMinutes: Int = AppLockTimeouts.DEFAULT_MINUTES,
     /**
      * Whether the app has already asked the user, once, for the runtime `POST_NOTIFICATIONS`
      * permission (API 33+) — see `ScannerViewModel`. Tracked separately from
@@ -21,6 +30,12 @@ data class UserPreferences(
      */
     val notificationPermissionRequested: Boolean = false,
 )
+
+/** The grace periods the app lock offers. 0 means "lock every time the app leaves the screen". */
+object AppLockTimeouts {
+    const val DEFAULT_MINUTES = 1
+    val OPTIONS_MINUTES: List<Int> = listOf(0, 1, 5, 15)
+}
 
 @Serializable
 enum class AppTheme {

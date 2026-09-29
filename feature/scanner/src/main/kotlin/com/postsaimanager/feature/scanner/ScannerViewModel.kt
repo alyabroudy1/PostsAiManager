@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.util.UuidGenerator
+import com.postsaimanager.core.domain.applock.ExternalFlowGuard
+import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.UserPreferencesRepository
@@ -27,7 +29,31 @@ class ScannerViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val documentProcessor: DocumentProcessor,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val externalFlowGuard: ExternalFlowGuard,
 ) : ViewModel() {
+
+    private var scanFlow: ExternalFlowToken? = null
+    private var permissionFlow: ExternalFlowToken? = null
+
+    /**
+     * Called just before ML Kit's scanner takes over the screen, so coming back from it — however
+     * long the scan took, up to the guard's grace window — does not trigger the app lock.
+     */
+    fun onScanLaunching() {
+        externalFlowGuard.finish(scanFlow)
+        scanFlow = externalFlowGuard.expect("document-scanner")
+    }
+
+    /** Called just before the OS notification-permission dialog is shown. */
+    fun onNotificationPermissionRequestLaunching() {
+        externalFlowGuard.finish(permissionFlow)
+        permissionFlow = externalFlowGuard.expect("notification-permission")
+    }
+
+    override fun onCleared() {
+        externalFlowGuard.finish(scanFlow)
+        externalFlowGuard.finish(permissionFlow)
+    }
 
     private val _uiState = MutableStateFlow<ScannerUiState>(ScannerUiState.Idle)
     val uiState: StateFlow<ScannerUiState> = _uiState.asStateFlow()
@@ -36,6 +62,7 @@ class ScannerViewModel @Inject constructor(
      * Called when ML Kit Document Scanner returns scanned page URIs.
      */
     fun onScanComplete(pageUris: List<Uri>) {
+        finishScanFlow()
         if (pageUris.isEmpty()) {
             _uiState.value = ScannerUiState.Error(PamError.ScanCancelled())
             return
@@ -110,16 +137,25 @@ class ScannerViewModel @Inject constructor(
      * on the next scan would be the nag this task exists to avoid.
      */
     fun onNotificationPermissionResolved() {
+        externalFlowGuard.finish(permissionFlow)
+        permissionFlow = null
         viewModelScope.launch { userPreferencesRepository.setNotificationPermissionRequested(true) }
     }
 
     /** The user dismissed ML Kit's scanner UI without scanning anything — not an error. */
     fun onScanCancelled() {
+        finishScanFlow()
         _uiState.value = ScannerUiState.Cancelled
+    }
+
+    private fun finishScanFlow() {
+        externalFlowGuard.finish(scanFlow)
+        scanFlow = null
     }
 
     /** The scanner intent itself could not be launched (e.g. Play Services unavailable). */
     fun onScanLaunchFailed() {
+        finishScanFlow()
         _uiState.value = ScannerUiState.Error(PamError.ScannerUnavailable())
     }
 

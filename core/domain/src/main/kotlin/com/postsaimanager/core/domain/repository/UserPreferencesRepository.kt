@@ -16,6 +16,7 @@ interface UserPreferencesRepository {
     suspend fun setNotificationsEnabled(enabled: Boolean): PamResult<Unit>
     suspend fun setAiModelId(modelId: String?): PamResult<Unit>
     suspend fun setBiometricEnabled(enabled: Boolean): PamResult<Unit>
+    suspend fun setAppLockTimeoutMinutes(minutes: Int): PamResult<Unit>
 
     /** Records that the OS `POST_NOTIFICATIONS` prompt has been shown once — see
      * [UserPreferences.notificationPermissionRequested]. */

@@ -1,5 +1,10 @@
 package com.postsaimanager.feature.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,12 +35,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.designsystem.component.ConfigSpecItem
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.model.AppLockTimeouts
 import com.postsaimanager.core.model.AppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,6 +57,9 @@ fun SettingsScreen(
     val inferenceSettings by viewModel.inferenceSettings.collectAsStateWithLifecycle()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showLockTimeoutDialog by remember { mutableStateOf(false) }
+    val appLockNotice by viewModel.appLockNotice.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = { PamTopAppBar(title = "Settings") },
@@ -142,11 +152,19 @@ fun SettingsScreen(
             SettingsSectionHeader("Security")
             SettingsSwitchItem(
                 icon = PamIcons.Settings,
-                title = "Biometric lock",
-                subtitle = "Require fingerprint or face to open app",
+                title = "App lock",
+                subtitle = "Ask for your fingerprint, face, PIN or pattern to open the app",
                 checked = prefs.biometricEnabled,
                 onCheckedChange = viewModel::setBiometricEnabled,
             )
+            if (prefs.biometricEnabled) {
+                SettingsClickItem(
+                    icon = PamIcons.Settings,
+                    title = "Lock after",
+                    subtitle = lockTimeoutLabel(prefs.appLockTimeoutMinutes),
+                    onClick = { showLockTimeoutDialog = true },
+                )
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -191,6 +209,60 @@ fun SettingsScreen(
         )
     }
 
+    if (showLockTimeoutDialog) {
+        val options = AppLockTimeouts.OPTIONS_MINUTES
+        ChoiceDialog(
+            title = "Lock after",
+            options = options.map(::lockTimeoutLabel),
+            selectedIndex = options.indexOf(prefs.appLockTimeoutMinutes).coerceAtLeast(0),
+            onSelect = { index ->
+                viewModel.setAppLockTimeoutMinutes(options[index])
+                showLockTimeoutDialog = false
+            },
+            onDismiss = { showLockTimeoutDialog = false },
+        )
+    }
+
+    appLockNotice?.let { notice ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissAppLockNotice,
+            title = { Text("App lock is not available yet") },
+            text = {
+                Text(
+                    when (notice) {
+                        AppLockNotice.NotEnrolled ->
+                            "This phone has no screen lock or fingerprint/face set up, so there is " +
+                                "nothing to unlock the app with. Set one up in the system " +
+                                "security settings, then come back and turn App lock on."
+                        AppLockNotice.Unavailable ->
+                            "This device cannot check your fingerprint, face or screen lock right " +
+                                "now, so App lock cannot be turned on."
+                        AppLockNotice.AuthenticationFailed ->
+                            "Your identity could not be confirmed, so App lock stays off. Try again."
+                    },
+                )
+            },
+            confirmButton = {
+                if (notice == AppLockNotice.NotEnrolled) {
+                    TextButton(
+                        onClick = {
+                            viewModel.dismissAppLockNotice()
+                            viewModel.onOpeningSecuritySettings()
+                            if (!openSecuritySettings(context)) viewModel.onSecuritySettingsLaunchFailed()
+                        },
+                    ) { Text("Open security settings") }
+                } else {
+                    TextButton(onClick = viewModel::dismissAppLockNotice) { Text("OK") }
+                }
+            },
+            dismissButton = if (notice == AppLockNotice.NotEnrolled) {
+                { TextButton(onClick = viewModel::dismissAppLockNotice) { Text("Not now") } }
+            } else {
+                null
+            },
+        )
+    }
+
     // Language dialog
     if (showLanguageDialog) {
         val languages = listOf("German" to "de", "Arabic" to "ar", "English" to "en")
@@ -205,6 +277,45 @@ fun SettingsScreen(
             onDismiss = { showLanguageDialog = false },
         )
     }
+}
+
+private const val BIOMETRIC_STRONG_OR_DEVICE_CREDENTIAL = 0x0000000F or 0x00008000
+
+private fun lockTimeoutLabel(minutes: Int): String = when (minutes) {
+    0 -> "Immediately"
+    1 -> "After 1 minute"
+    else -> "After $minutes minutes"
+}
+
+/**
+ * Sends the user to where a screen lock or biometric can be set up. Android 11+ has a direct
+ * enrolment screen; older versions get the general security page, and a device with neither
+ * (rare OEM builds) falls back to the top-level settings rather than doing nothing.
+ */
+private fun openSecuritySettings(context: Context): Boolean {
+    val intents = buildList {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            add(
+                Intent(Settings.ACTION_BIOMETRIC_ENROLL).putExtra(
+                    Settings.EXTRA_BIOMETRIC_AUTHENTICATORS_ALLOWED,
+                    // BiometricManager.Authenticators.BIOMETRIC_STRONG | DEVICE_CREDENTIAL,
+                    // spelled out so this module needs no androidx.biometric dependency.
+                    BIOMETRIC_STRONG_OR_DEVICE_CREDENTIAL,
+                ),
+            )
+        }
+        add(Intent(Settings.ACTION_SECURITY_SETTINGS))
+        add(Intent(Settings.ACTION_SETTINGS))
+    }
+    for (intent in intents) {
+        try {
+            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return true
+        } catch (_: ActivityNotFoundException) {
+            // Try the next, more general, screen.
+        }
+    }
+    return false
 }
 
 @Composable

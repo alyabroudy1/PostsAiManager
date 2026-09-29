@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">Posts AI Manager</string>
+
+    <!-- App lock -->
+    <string name="applock_locked_message">Locked</string>
+    <string name="applock_unlock">Unlock</string>
+    <string name="applock_prompt_unlock_title">Unlock Posts AI Manager</string>
+    <string name="applock_prompt_unlock_subtitle">Use your fingerprint, face, PIN or pattern</string>
+    <string name="applock_prompt_enable_title">Turn on App lock</string>
+    <string name="applock_prompt_enable_subtitle">Confirm it is you before locking the app</string>
 </resources>
