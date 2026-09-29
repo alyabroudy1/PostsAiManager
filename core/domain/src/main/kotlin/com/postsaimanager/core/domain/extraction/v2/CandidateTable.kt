@@ -42,13 +42,11 @@ object CandidateTable {
 
     private const val CAP_AMOUNTS = 20
     private const val CAP_DATES = 20
-    private const val CAP_RELATIVE = 4
     private const val CAP_IBANS = 4
     private const val CAP_REFERENCES = 14
     private const val CAP_NAMES = 10
     private const val CAP_CONTACTS = 4
     private const val CAP_BIC = 2
-    private val PERSON_OR_ORG = setOf(CandidateKind.PERSON_NAME, CandidateKind.ORG_NAME)
 
     fun build(set: CandidateSet): OfferedCandidates {
         val offered = mutableListOf<OfferedRow>()
@@ -60,9 +58,8 @@ object CandidateTable {
             if (cut > 0) dropped[kinds.first()] = cut
         }
 
-        add(CAP_NAMES, CandidateKind.PERSON_NAME, CandidateKind.ORG_NAME)
+        add(CAP_NAMES, CandidateKind.NAME)
         add(CAP_DATES, CandidateKind.DATE, CandidateKind.DATETIME)
-        add(CAP_RELATIVE, CandidateKind.RELATIVE_DEADLINE)
         add(CAP_AMOUNTS, CandidateKind.AMOUNT)
         add(CAP_IBANS, CandidateKind.IBAN)
         add(CAP_REFERENCES, CandidateKind.REFERENCE)
@@ -88,7 +85,7 @@ object CandidateTable {
         }
         if (rows.size <= cap) return rows to 0
 
-        if (PERSON_OR_ORG.any { it in kinds }) {
+        if (CandidateKind.NAME in kinds) {
             // Names matter on page 1 (letterhead, address field, footer): no spreading over the pages,
             // just the ones the layout placed in a zone before the ones found by shape alone.
             val keep = rows.withIndex()
@@ -121,8 +118,7 @@ object CandidateTable {
     }
 
     private fun key(c: Candidate): String = when (c.kind) {
-        CandidateKind.PERSON_NAME, CandidateKind.ORG_NAME -> "n:" + c.normalized.lowercase()
-        CandidateKind.RELATIVE_DEADLINE -> "r:" + c.raw.lowercase()
+        CandidateKind.NAME -> "n:" + c.normalized.lowercase()
         else -> "${c.kind}:${c.normalized}"
     }
 }

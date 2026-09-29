@@ -158,8 +158,13 @@ class SelectionVerifierTest {
 
         @Test
         fun `a due date before the letter date is capped at 0_5 and reported`() {
+            // Code found no letter date (no label decides one); the date the model chose anchors the check.
             val original = id(n1, CandidateKind.DATE, "2026-08-19")
-            val v = verify(n1, answer(type = "reminder_dunning", slots = slot("due_date", original, "DUE_DATE")))
+            val letterDate = id(n1, CandidateKind.DATE, "2026-09-25")
+            val v = verify(
+                n1,
+                answer(type = "reminder_dunning", slots = slot("letter_date", letterDate, "LETTER_DATE") + "," + slot("due_date", original, "DUE_DATE")),
+            )
             assertThat(v.slots.getValue(Slots.DUE_DATE).confidence).isAtMost(Caps.DATE_ORDER)
             assertThat(v.diagnostics.conflicts.single()).contains("before the letter date")
         }
@@ -378,7 +383,15 @@ class SelectionVerifierTest {
         @Test
         fun `an extra that points at a candidate is kept, with its page and validation`() {
             val prev = id(n1, CandidateKind.DATE, "2026-08-05")
-            val r = verify(n1, answer(extras = extra("Rechnung vom", prev, key = "previous_invoice_date")))
+            val letterDate = id(n1, CandidateKind.DATE, "2026-09-25")
+            val r = verify(
+                n1,
+                answer(
+                    type = "reminder_dunning",
+                    slots = slot("letter_date", letterDate, "LETTER_DATE"),
+                    extras = extra("Rechnung vom", prev, key = "previous_invoice_date"),
+                ),
+            )
             val x = r.extras.single()
             assertThat(x.label).isEqualTo("Rechnung vom")
             assertThat(x.key).isEqualTo("previous_invoice_date")
@@ -512,21 +525,29 @@ class SelectionVerifierTest {
 
     @Nested
     inner class Deadlines {
-        @Test
-        fun `a relative deadline the code found can be chosen by id`() {
-            val rel = id(n1, CandidateKind.RELATIVE_DEADLINE, "P14D")
-            val r = verify(n1, answer(type = "reminder_dunning", slots = slot("due_date", rel, "DUE_DATE")))
-            assertThat(r.slots.getValue(Slots.DUE_DATE).normalized).isEqualTo("P14D")
-        }
+        private fun rule(quote: String) = """"due_date":{"rule":"$quote","r":"DUE_DATE","c":"HIGH"}"""
 
         @Test
         fun `a period the model quotes as a rule is verified against the letter`() {
-            val ok = verify(n1, answer(type = "reminder_dunning", slots = """"due_date":{"rule":"innerhalb von 14 Tagen","r":"DUE_DATE","c":"HIGH"}"""))
-            assertThat(ok.slots.getValue(Slots.DUE_DATE).origin).isEqualTo(SlotOrigin.MODEL_QUOTED)
-            assertThat(ok.slots.getValue(Slots.DUE_DATE).confidence).isAtMost(Caps.QUOTE_EXACT)
+            val ok = verify(n1, answer(type = "reminder_dunning", slots = rule("innerhalb von 14 Tagen")))
+            val v = ok.slots.getValue(Slots.DUE_DATE)
+            assertThat(v.origin).isEqualTo(SlotOrigin.MODEL_QUOTED)
+            assertThat(v.confidence).isAtMost(Caps.QUOTE_EXACT)
+            // The quote holds a number and a unit, so it is read as an ISO period.
+            assertThat(v.normalized).isEqualTo("P14D")
+            assertThat(v.value).isEqualTo("innerhalb von 14 Tagen")
 
-            val bad = verify(n1, answer(type = "reminder_dunning", slots = """"due_date":{"rule":"within six weeks","r":"DUE_DATE","c":"HIGH"}"""))
+            val bad = verify(n1, answer(type = "reminder_dunning", slots = rule("within six weeks")))
             assertThat(bad.slots).doesNotContainKey(Slots.DUE_DATE)
+        }
+
+        @Test
+        fun `a quoted period without digits is kept as the quote and nothing more is claimed`() {
+            val tax = Prepared(Letters.tax.pages)
+            val r = verify(tax, answer(type = "authority_tax", slots = """"objection_deadline":{"rule":"innerhalb eines Monats","r":"DEADLINE","c":"HIGH"}"""))
+            val v = r.slots.getValue(Slots.OBJECTION_DEADLINE)
+            assertThat(v.origin).isEqualTo(SlotOrigin.MODEL_QUOTED)
+            assertThat(v.normalized).isEqualTo("innerhalb eines Monats")
         }
     }
 }

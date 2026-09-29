@@ -8,9 +8,10 @@ internal class LabelRule(val kind: LabelKind, pattern: String) {
 }
 
 /**
- * Finds the label nearest to a value. Rules are plain phrase patterns; when several match the
- * one ending closest to the value wins, and at the same end the longer phrase wins (so
- * "zahlbar bis" beats "bis", "offener Gesamtbetrag" beats "Gesamtbetrag").
+ * Finds the label nearest to a value, for the "near" hint shown to the model. The phrases (German,
+ * English, some Arabic) are hints only: a value exists, is valid and is chosen without any label,
+ * and a letter in another language simply has an empty hint. When several rules match the one
+ * ending closest to the value wins, and at the same end the longer phrase wins.
  */
 internal object LabelDetector {
 
@@ -56,13 +57,6 @@ internal object LabelDetector {
         LabelKind.EVENT_DATE to "\\p{L}*ausflug|Veranstaltung|Reise|Abfahrt|event|Feier|Sommerfest",
         LabelKind.PERIOD to "\\p{L}*zeitraum|period",
         LabelKind.REFERENCED_DATE to "vom|dated",
-    )
-
-    /** For relative deadlines: what the sentence before the phrase is about. */
-    val RELATIVE_RULES: List<LabelRule> = rules(
-        LabelKind.DUE_DATE to "zahlbar|zahlen|\u00FCberweis\\p{L}*|zahlung|pay\\p{L}*",
-        LabelKind.OBJECTION to "Einspruch|Widerspruch|objection|appeal|Klage",
-        LabelKind.DEADLINE to "Frist|deadline|antworten|reply|r\u00FCckmeldung|melden",
     )
 
     /** The rule match ending nearest the end of [text]; null when none. */

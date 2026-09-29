@@ -6,7 +6,6 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateKind.DATE
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind.IBAN
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind.PHONE
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind.REFERENCE
-import com.postsaimanager.core.domain.extraction.candidates.CandidateKind.RELATIVE_DEADLINE
 import com.postsaimanager.core.domain.extraction.candidates.LabelKind.*
 import com.postsaimanager.core.domain.extraction.candidates.ReferenceSubtype.*
 import org.junit.jupiter.api.DynamicTest
@@ -109,7 +108,6 @@ class ManifestCoverageTest {
                 r("tax_number", "123/456/78901", TAX_NO, 1, "Steuernummer"),
                 a("amount (Nachzahlung)", "2317.00 EUR", 1, "Nachzahlung", TOTAL_DUE),
                 d("letter_date", "2026-09-24", 1, null, LETTER_DATE),
-                Fact("deadline (Einspruch)", RELATIVE_DEADLINE, "P1M", 6, "Einspruch", setOf(OBJECTION)),
                 d("due_date (Zahlung)", "2026-11-03", 6, "fällig am", DUE_DATE),
                 i("DE89370400440532013000", 6),
                 a("festgesetzte Einkommensteuer", "9817.00 EUR", 3, "Einkommensteuer", TAX_ASSESSED),
@@ -250,7 +248,6 @@ class ManifestCoverageTest {
                 a("amount (offen inkl. Mahngebühr)", "64.98 EUR", 1, "offenen Betrag", TOTAL_DUE),
                 a("amount (offener Gesamtbetrag, table)", "64.98 EUR", 1, "Offener Gesamtbetrag", TOTAL_DUE),
                 a("fee", "5.00 EUR", 1, "Mahngebühr", FEE),
-                Fact("deadline (14 Tage nach Zugang)", RELATIVE_DEADLINE, "P14D", 1, "zahlbar", setOf(DUE_DATE)),
                 i("DE02120300000000202051"),
                 Fact("phone", PHONE, "0800 555 0199", 1, "Telefon"),
             ),
@@ -509,10 +506,17 @@ class ManifestCoverageTest {
         }
 
     @Test
-    fun `letter date is inferred for every document`() {
+    fun `no letter date is inferred, but it is offered among the date candidates for every document`() {
         for (doc in cases) {
             val set = run(*doc.pages.toTypedArray())
-            assertThat(set.letterDate?.toString()).isEqualTo(doc.letter)
+            assertThat(set.letterDate).isNull()
+            if (doc.letter != null) {
+                assertThat(
+                    set.candidates.any {
+                        (it.kind == DATE || it.kind == CandidateKind.DATETIME) && it.page == 1 && it.normalized.startsWith(doc.letter)
+                    },
+                ).isTrue()
+            }
         }
     }
 
