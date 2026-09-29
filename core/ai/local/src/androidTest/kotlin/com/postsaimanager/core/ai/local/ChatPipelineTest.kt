@@ -14,7 +14,10 @@ import com.postsaimanager.core.model.AiConversation
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.MessageRole
+import com.postsaimanager.core.domain.usecase.RetrieveChunksUseCase
+import com.postsaimanager.core.testing.FakeDocumentChunkRepository
 import com.postsaimanager.core.testing.FakeDocumentRepository
+import com.postsaimanager.core.testing.FakeEmbeddingService
 import com.postsaimanager.core.testing.FakeProfileRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -76,6 +79,11 @@ class ChatPipelineTest {
 
         override suspend fun deleteConversation(id: String): PamResult<Unit> =
             PamResult.Success(Unit)
+
+        override suspend fun deleteMessage(id: String): PamResult<Unit> {
+            messages.value = messages.value.filterNot { it.id == id }
+            return PamResult.Success(Unit)
+        }
     }
 
     private class StubActiveModel(private val path: String?) : ActiveModelProvider {
@@ -95,6 +103,9 @@ class ChatPipelineTest {
     private fun contextUseCase() =
         BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository())
 
+    private fun retrieveChunksUseCase() =
+        RetrieveChunksUseCase(FakeDocumentChunkRepository(), FakeEmbeddingService())
+
     private fun requireModel() {
         assumeTrue("No model at ${modelFile.path}", modelFile.exists())
         assumeTrue("Native library unavailable", LlamaNative.ensureLoaded())
@@ -106,7 +117,7 @@ class ChatPipelineTest {
 
         val repo = RecordingConversationRepository()
         val engine = LocalAiEngine(Dispatchers.IO)
-        val useCase = SendChatMessageUseCase(repo, engine, StubActiveModel(modelFile.absolutePath), contextUseCase())
+        val useCase = SendChatMessageUseCase(repo, engine, StubActiveModel(modelFile.absolutePath), contextUseCase(), retrieveChunksUseCase())
 
         try {
             val turns = useCase(
@@ -156,7 +167,7 @@ class ChatPipelineTest {
     fun withNoModelInstalledItReportsAnActionableFailure() = runBlocking {
         val repo = RecordingConversationRepository()
         val engine = LocalAiEngine(Dispatchers.IO)
-        val useCase = SendChatMessageUseCase(repo, engine, StubActiveModel(null), contextUseCase())
+        val useCase = SendChatMessageUseCase(repo, engine, StubActiveModel(null), contextUseCase(), retrieveChunksUseCase())
 
         val turns = useCase("conv-2", null, "Hello").toList()
         val failure = turns.filterIsInstance<ChatTurn.Failed>().single()
@@ -178,7 +189,7 @@ class ChatPipelineTest {
 
         val repo = RecordingConversationRepository()
         val engine = LocalAiEngine(Dispatchers.IO)
-        val useCase = SendChatMessageUseCase(repo, engine, StubActiveModel(modelFile.absolutePath), contextUseCase())
+        val useCase = SendChatMessageUseCase(repo, engine, StubActiveModel(modelFile.absolutePath), contextUseCase(), retrieveChunksUseCase())
 
         try {
             useCase("conv-3", "doc-3", "First question.").toList()
