@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.candidates.Validation
+import com.postsaimanager.core.domain.extraction.candidates.page
 import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner.Caps
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -224,8 +225,45 @@ class SelectionVerifierTest {
 
     @Nested
     inner class Parties {
-        private fun party(role: String, id: String, kind: String = "PERSON", rel: String = "NONE", c: String = "HIGH") =
-            "{\"r\":\"$role\",\"id\":\"$id\",\"k\":\"$kind\",\"rel\":\"$rel\",\"c\":\"$c\"}"
+        private fun party(role: String, id: String, kind: String = "PERSON", rel: String = "NONE", c: String = "HIGH", n: String? = null) =
+            "{\"r\":\"$role\",\"id\":\"$id\",${n?.let { "\"n\":\"$it\"," } ?: ""}\"k\":\"$kind\",\"rel\":\"$rel\",\"c\":\"$c\"}"
+
+        /** A page whose name lines keep their form of address, in three languages. */
+        private val honorifics = Prepared(
+            listOf(page("Stadtwerke Beispiel GmbH", "Herrn Max Mustermann", "Mrs Erika Beispiel", "السيد أحمد علي").blocks),
+        )
+
+        private fun nameId(p: Prepared, raw: String) = p.offered.rows.map { it.candidate }.first { it.kind == CandidateKind.NAME && it.raw == raw }.id
+
+        @Test
+        fun `a name candidate keeps its form of address and the model's own name replaces it once its words are found there`() {
+            for ((printed, model) in listOf("Herrn Max Mustermann" to "Max Mustermann", "Mrs Erika Beispiel" to "Erika Beispiel", "السيد أحمد علي" to "أحمد علي")) {
+                val id = nameId(honorifics, printed)
+                val r = verify(honorifics, answer(parties = party("ADDRESSEE", id, n = model)))
+                val p = r.parties.addressees.single()
+                assertThat(p.name).isEqualTo(model)
+                assertThat(p.value.candidateId).isEqualTo(id)
+                assertThat(p.value.evidence).isEqualTo(printed)
+                assertThat(r.diagnostics.rejections).isEmpty()
+            }
+        }
+
+        @Test
+        fun `without a model name, or with one that is not in the printed line, the printed line is kept`() {
+            val id = nameId(honorifics, "Herrn Max Mustermann")
+            val none = verify(honorifics, answer(parties = party("ADDRESSEE", id)))
+            assertThat(none.parties.addressees.single().name).isEqualTo("Herrn Max Mustermann")
+            val invented = verify(honorifics, answer(parties = party("ADDRESSEE", id, n = "Moritz Musterfrau")))
+            assertThat(invented.parties.addressees.single().name).isEqualTo("Herrn Max Mustermann")
+            assertThat(invented.diagnostics.rejections.single()).contains("Moritz Musterfrau")
+        }
+
+        @Test
+        fun `a reordered model name is accepted because its words are all in the line`() {
+            val id = nameId(honorifics, "Herrn Max Mustermann")
+            val r = verify(honorifics, answer(parties = party("ADDRESSEE", id, n = "Mustermann Max")))
+            assertThat(r.parties.addressees.single().name).isEqualTo("Mustermann Max")
+        }
 
         private val sender get() = n1.findName("Nordlicht Mobilfunk GmbH")!!.id
         private val addressee get() = n1.findName("Erika Mustermann")!!.id

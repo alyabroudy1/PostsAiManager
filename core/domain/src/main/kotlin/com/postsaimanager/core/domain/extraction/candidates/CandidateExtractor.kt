@@ -126,10 +126,6 @@ private object P {
     val PHONE_UNTER =Regex("(?<![\\p{L}\\d])unter\\s+(?:der\\s+Nummer\\s+)?(\\+?\\d[\\d ()/\\-]{6,20}\\d)", RegexOption.IGNORE_CASE)
 
     // ── names ──
-    val SALUTATION = Regex(
-        "^(?:Herrn\\s+und\\s+Frau|Herr\\s+und\\s+Frau|Herrn|Herr|Frau|Fr\\.|Hr\\.|Fr\u00E4ulein|Eheleute|Mr\\.?|Mrs\\.?|Ms\\.?|Miss|Mx\\.?)(?=\\s|$)\\s*",
-        RegexOption.IGNORE_CASE,
-    )
     /**
      * A routing prefix by shape: leading abbreviation tokens such as "z. Hd." or "c/o" (short letters
      * ended by a full stop, or two letters around a slash). Only removed from the name; the words are
@@ -143,7 +139,6 @@ private object P {
             "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\\.?,?$",
     )
     val PLACE_COMMA = Regex("^\\p{L}[\\p{L}.\\- ]{1,40},\\s*$")
-    val CONNECTORS = setOf("und", "&", "+", "von", "van", "de", "der", "zu", "zur", "vom", "el", "al", "bin", "ibn", "and")
 }
 
 /** Reference label rules; the first rule to claim a value span wins. */
@@ -737,11 +732,6 @@ private class Run(
 
     // Names -------------------------------------------------------------------------------
 
-    private fun stripSalutation(s: String): Pair<String, Boolean> {
-        val m = P.SALUTATION.find(s) ?: return s to false
-        return s.substring(m.range.last + 1).trim() to true
-    }
-
     /** A line of an address block that is not a name: a postcode line, a street with a number, or no letters. */
     private fun looksLikeAddressLine(t: String): Boolean =
         P.POSTAL.containsMatchIn(t) || P.STREET_SHAPE.matches(t) || t.any { it.isDigit() } || t.none { it.isLetter() }
@@ -769,30 +759,28 @@ private class Run(
         add(line, range, CandidateKind.NAME, value, value, label = label, attrs = attrs)
     }
 
-    /** A name candidate from an address-field line: shape only, routing prefix and honorific removed. */
+    /**
+     * A name candidate from an address-field line: shape only. The line stays whole (a form of address
+     * such as "Herrn" or "Mrs" is part of it); only a routing prefix is cut off by its shape and kept as
+     * the hint. The model returns the party's normalised name and code checks it against this text.
+     */
     private fun nameDraft(line: SourceLine, name: String, extra: Map<String, String>, minWords: Int = 2): Boolean {
         val trimmed = name.trim().trimEnd(',', ';')
-        val (afterRoute, prefix) = stripRoutingPrefix(trimmed)
-        val (stripped, sal) = stripSalutation(afterRoute)
-        if (stripped.isBlank() || !nameShape(stripped, minWords)) return false
-        val start = line.text.indexOf(stripped).coerceAtLeast(0)
-        val range = start until (start + stripped.length)
-        val attrs = extra + listOfNotNull(
-            if (sal) "salutation" to "true" else null,
-            if (prefix != null) "prefix" to prefix else null,
-        )
-        addName(line, range, stripped, prefix.orEmpty(), attrs)
+        val (text, prefix) = stripRoutingPrefix(trimmed)
+        if (text.isBlank() || !nameShape(text, minWords)) return false
+        val start = line.text.indexOf(text).coerceAtLeast(0)
+        val range = start until (start + text.length)
+        val attrs = extra + listOfNotNull(if (prefix != null) "prefix" to prefix else null)
+        addName(line, range, text, prefix.orEmpty(), attrs)
         return true
     }
 
-    /** Words only: no digit, no `@`, no web address, 1..6 words, at most 60 characters. Any script. */
+    /** Words only: no digit, no `@`, no web address, 1..6 words, at most 60 characters. Any script, no word list. */
     private fun nameShape(s: String, minWords: Int): Boolean {
         if (s.length !in 2..60 || s.any { it.isDigit() } || s.contains('@') || s.contains("://") || s.contains("www.", true)) return false
         if (s.any { it in ":;!?" }) return false
         val words = s.split(Regex("\\s+")).filter { it.isNotEmpty() }
-        val real = words.filter { it.lowercase() !in P.CONNECTORS }
-        if (words.size !in 1..6 || real.isEmpty() || words.last().lowercase() in P.CONNECTORS) return false
-        if (s.endsWith(',')) return false
+        if (words.size !in 1..6 || s.endsWith(',')) return false
         return words.size >= minWords
     }
 
@@ -833,11 +821,10 @@ private class Run(
         }
     }
 
-    /** "Familie Beispiel": [combined] is the two one-word lines joined; the salutation, if any, is stripped. */
+    /** "Familie Beispiel": [combined] is the two one-word lines joined, kept whole. */
     private fun nameDraftJoined(line: SourceLine, combined: String, extra: Map<String, String>): Boolean {
-        val (stripped, sal) = stripSalutation(combined)
-        if (stripped.isBlank() || !nameShape(stripped, 1)) return false
-        addName(line, 0 until line.text.length, stripped, "", if (sal) extra + ("salutation" to "true") else extra)
+        if (combined.isBlank() || !nameShape(combined, 1)) return false
+        addName(line, 0 until line.text.length, combined, "", extra)
         return true
     }
 
@@ -859,20 +846,19 @@ private class Run(
         val words = t.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (words.size !in 1..6) return
         if (t.endsWith('.') && words.last().length > 4) return
-        val (afterRoute, prefix) = stripRoutingPrefix(t)
-        val (stripped, sal) = stripSalutation(afterRoute)
-        if (stripped.isBlank() || stripped.length < 3) return
+        val (text, prefix) = stripRoutingPrefix(t)
+        if (text.isBlank() || text.length < 3) return
         val zoneAttr = line.zone?.let { mapOf("zone" to it.name) } ?: emptyMap()
         val attrs = zoneAttr + ("shape" to "true")
         val range = 0 until t.length
-        // One neutral candidate; a single word is a weaker guess. Person, company or authority is the model's call.
-        val single = stripped.split(Regex("\\s+")).size < 2 && !sal
+        // One neutral candidate, the whole line; a single word is a weaker guess. Person, company or
+        // authority, and the name without any form of address, are the model's call.
+        val single = text.split(Regex("\\s+")).size < 2
         val flags = listOfNotNull(
-            if (sal) "salutation" to "true" else null,
             if (single) "guess" to "true" else null,
             if (prefix != null) "prefix" to prefix else null,
         )
-        addName(line, range, stripped, prefix.orEmpty(), attrs + flags)
+        addName(line, range, text, prefix.orEmpty(), attrs + flags)
     }
 
     // ── labels ────────────────────────────────────────────────────────────────────────

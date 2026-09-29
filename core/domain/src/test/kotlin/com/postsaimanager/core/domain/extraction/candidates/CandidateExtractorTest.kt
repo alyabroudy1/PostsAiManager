@@ -303,7 +303,8 @@ class CandidateExtractorTest {
     fun `a routing prefix is cut off by its shape and kept as the hint, kind is not decided`() {
         val set = run(page("@ADDR Mustermann Consulting GmbH", "@ADDR z. Hd. Frau Erika Mustermann", "@ADDR Gewerbering 4", "@ADDR 54321 Beispieldorf"))
         val names = set.ofKind(CandidateKind.NAME)
-        assertThat(names.map { it.normalized }).containsExactly("Mustermann Consulting GmbH", "Erika Mustermann").inOrder()
+        // The form of address stays: what the person is called is the model's normalised name to give.
+        assertThat(names.map { it.normalized }).containsExactly("Mustermann Consulting GmbH", "Frau Erika Mustermann").inOrder()
         assertThat(names[1].label).contains("Hd")
         assertThat(names[1].attrs["prefix"]).isEqualTo("z. Hd.")
         // Whether this person is the routing contact is not recorded here; that is the model's `r`.
@@ -323,7 +324,7 @@ class CandidateExtractorTest {
     fun `routing lines are found without zone hints, from their shape`() {
         val set = run(page("Mustermann Consulting GmbH", "z. Hd. Herrn Dr. Max Beispiel", "c/o Firma Test GmbH"))
         assertThat(set.ofKind(CandidateKind.NAME).map { it.normalized })
-            .containsExactly("Mustermann Consulting GmbH", "Dr. Max Beispiel", "Firma Test GmbH").inOrder()
+            .containsExactly("Mustermann Consulting GmbH", "Herrn Dr. Max Beispiel", "Firma Test GmbH").inOrder()
     }
 
     @Test
@@ -342,8 +343,19 @@ class CandidateExtractorTest {
         assertThat(fr.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Famille Exemple")
         val ar = run(page("@ADDR عائلة", "@ADDR موستيرمان"))
         assertThat(ar.ofKind(CandidateKind.NAME)).hasSize(1)
+    }
+
+    @Test
+    fun `a name keeps its whole line, no form of address and no connecting word is cut or needed`() {
         val herrn = run(page("@ADDR Herrn und Frau", "@ADDR Max und Erika Mustermann"))
-        assertThat(herrn.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Max und Erika Mustermann")
+        assertThat(herrn.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Herrn und Frau", "Max und Erika Mustermann").inOrder()
+        val lines = listOf(
+            "Herrn Max Mustermann", "Mrs Erika Beispiel", "Madame Claire Exemple", "Señor Juan Ejemplo",
+            "السيد أحمد علي", "Maria de la Cruz", "Mustermann & Söhne", "Jan van der Berg",
+        )
+        val set = run(page(*lines.map { "@ADDR $it" }.toTypedArray()))
+        assertThat(set.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactlyElementsIn(lines).inOrder()
+        assertThat(set.candidates.none { it.attrs["salutation"] != null }).isTrue()
     }
 
     @Test
@@ -352,7 +364,8 @@ class CandidateExtractorTest {
         assertThat(inline.ofKind(CandidateKind.NAME).single().normalized).isEqualTo("Erziehungsberechtigte von Adam Mustermann")
         assertThat(inline.candidates.none { it.attrs["guardianOf"] != null }).isTrue()
         val split = run(page("@ADDR Erziehungsberechtigte von", "@ADDR Adam Mustermann"))
-        assertThat(split.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Adam Mustermann")
+        // Both lines are offered whole (no connecting word decides): reading them as a guardian is the model's job.
+        assertThat(split.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Erziehungsberechtigte von", "Adam Mustermann").inOrder()
     }
 
     @Test

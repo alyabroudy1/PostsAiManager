@@ -336,7 +336,7 @@ class SelectionVerifier(
                     in addressSide -> addresseeZones
                     else -> null
                 }
-                val value = resolveName(rp.id.trim(), rp.confidence, expected, role.name) ?: continue
+                val value = resolveName(rp.id.trim(), rp.confidence, expected, role.name)?.let { withModelName(it, rp.name, role.name) } ?: continue
                 val c = value.candidateId?.let { ctx.offered.get(it) }
                 val kind = PartyKind.entries.firstOrNull { it.name == rp.kind?.trim()?.uppercase() }
                     ?: PartyKind.OTHER // the grammar always makes the model say it; code never guesses a kind
@@ -345,6 +345,22 @@ class SelectionVerifier(
                 if (parties.none { it.role == party.role && sameParty(it, party) }) parties += party
             }
             return Parties(applyRoleConflicts(parties))
+        }
+
+        /**
+         * The candidate keeps the whole printed line ("Herrn Max Mustermann"); the model gives the party's
+         * name as it would write it in [modelName]. It replaces the printed text only when its words are
+         * found in that text (token overlap, so a dropped form of address or a reordering passes and an
+         * invented name does not); otherwise the printed line stays and the rejection is recorded.
+         */
+        private fun withModelName(value: SlotValue, modelName: String?, label: String): SlotValue {
+            val name = modelName?.trim().orEmpty()
+            if (name.isEmpty() || QuoteVerifier.fold(name) == QuoteVerifier.fold(value.value)) return value
+            if (QuoteVerifier.verify(name, value.value) == null) {
+                rejections += "$label: the name '${name.take(40)}' is not in '${value.value.take(40)}', the printed name is kept"
+                return value
+            }
+            return value.copy(value = name, normalized = name)
         }
 
         /** [ref] is a name candidate id, or a quoted name; the answer is dropped when it is neither. */

@@ -26,7 +26,7 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
  * 450 tokens for a typical letter).
  * ```
  * {"type":"bill","tc":"HIGH","lang":"de",
- *  "parties":[{"r":"SENDER","id":"M1","k":"COMPANY","rel":"NONE","c":"HIGH"}, ...],
+ *  "parties":[{"r":"SENDER","id":"M1","n":"Stadtwerke Beispiel","k":"COMPANY","rel":"NONE","c":"HIGH"}, ...],
  *  "s":{"letter_date":{"id":"D1","r":"LETTER_DATE","c":"HIGH"},"total":{"id":"A3","r":"TOTAL_DUE","c":"HIGH"},
  *       "iban":{"id":"I1","c":"HIGH"},"reference":"NONE", ...},
  *  "x":[{"lb":"Zählernummer","k":"meter_number","id":"N4","v":"","c":"MEDIUM"}]}
@@ -37,6 +37,9 @@ object StructuredGrammar {
     const val NONE = "NONE"
     const val MAX_QUOTE_CHARS = 100
     const val MAX_PARTIES = 6
+
+    /** A party's `n`: the name as the model writes it (no form of address), checked against the chosen candidate's text. */
+    const val MAX_PARTY_NAME_CHARS = 60
 
     /** How many open-metadata entries the model may add, to bound decode time. */
     const val MAX_EXTRAS = 6
@@ -72,8 +75,9 @@ object StructuredGrammar {
 
         rules["parties"] = "\"[\" ws (party (ws \",\" ws party){0,${MAX_PARTIES - 1}})? ws \"]\""
         rules["party"] = GrammarSyntax.obj(
-            "r" to "prole", "id" to "nameref", "k" to "pkind", "rel" to "prel", "c" to "conf",
+            "r" to "prole", "id" to "nameref", "n" to "pname", "k" to "pkind", "rel" to "prel", "c" to "conf",
         )
+        rules["pname"] = GrammarSyntax.string(0, MAX_PARTY_NAME_CHARS)
         rules["prole"] = GrammarSyntax.enumRule(PARTY_ROLES)
         rules["pkind"] = GrammarSyntax.enumRule(PARTY_KINDS)
         rules["prel"] = GrammarSyntax.enumRule(PARTY_RELATIONS)

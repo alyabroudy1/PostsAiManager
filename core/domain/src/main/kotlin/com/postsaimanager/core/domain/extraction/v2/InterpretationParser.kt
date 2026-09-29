@@ -35,6 +35,7 @@ object InterpretationParser {
             RawParty(
                 role = o.str("r") ?: return@mapNotNull null,
                 id = o.str("id") ?: return@mapNotNull null,
+                name = o.str("n")?.trim()?.ifEmpty { null },
                 kind = o.str("k"),
                 relation = o.str("rel"),
                 confidence = o.str("c"),
