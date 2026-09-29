@@ -48,7 +48,6 @@ class DocumentProcessingPipelineTest {
 
     private val pipeline = DocumentProcessingPipeline(
         ocrService = mockk(relaxed = true),
-        entityExtractor = EntityExtractor(),
         indexDocument = mockk<IndexDocumentUseCase>(relaxed = true),
         mergeExtraction = MergeExtractionUseCase(),
         aiExtraction = mockk<AiExtractionUseCase>(relaxed = true),

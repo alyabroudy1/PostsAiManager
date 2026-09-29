@@ -13,7 +13,9 @@ package com.postsaimanager.core.domain.extraction.v2
  * records when the model did not read the letter, and they are not on that scale:
  * - [FOUND_VALUES] is a run with no model, which is re-derived as soon as one is installed by the
  *   ordinary fingerprint logic, and re-reading it with no model would only produce it again;
- * - [PATTERNS] is the pre-v2 pattern extractor (and its last-resort fallback), which any model run beats.
+ * - `entity-extractor-1` is the stamp of the pre-v2 pattern extractor, which no longer exists. Nothing
+ *   writes it now, but documents stored with it remain, and [isOutdated] treats it (like any stamp that
+ *   is not on the model scale) as older than every model version.
  */
 object ExtractorVersion {
     /** What a model-read document is stamped with today. */
@@ -21,9 +23,6 @@ object ExtractorVersion {
 
     /** No model read the document: only values found by code. */
     const val FOUND_VALUES = "found-values-1"
-
-    /** The pattern extractor, the last resort for a document from which nothing else could be read. */
-    const val PATTERNS = "entity-extractor-1"
 
     private const val MODEL_PREFIX = "extraction-v2-"
     private const val FOUND_PREFIX = "found-values-"

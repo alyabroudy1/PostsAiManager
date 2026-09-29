@@ -29,9 +29,10 @@ class ExtractorVersionTest {
     }
 
     @Test
-    @DisplayName("the pattern extractor's stamp and unknown stamps are outdated")
+    @DisplayName("the retired pattern extractor's stored stamp and unknown stamps are outdated")
     fun patternsAndUnknownAreOutdated() {
-        assertThat(ExtractorVersion.isOutdated(ExtractorVersion.PATTERNS)).isTrue()
+        // A stored value: documents written before the pattern extractor was removed still carry it.
+        assertThat(ExtractorVersion.isOutdated("entity-extractor-1")).isTrue()
         assertThat(ExtractorVersion.isOutdated("something-else")).isTrue()
     }
 

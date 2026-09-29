@@ -57,7 +57,6 @@ class DocumentReprocessPipelineTest {
 
     private val pipeline = DocumentProcessingPipeline(
         ocrService = ocrService,
-        entityExtractor = EntityExtractor(),
         indexDocument = indexDocument,
         mergeExtraction = MergeExtractionUseCase(),
         aiExtraction = aiExtraction,

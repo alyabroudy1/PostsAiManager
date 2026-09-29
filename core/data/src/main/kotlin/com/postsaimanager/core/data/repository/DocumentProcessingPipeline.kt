@@ -69,7 +69,6 @@ import javax.inject.Singleton
 @Singleton
 class DocumentProcessingPipeline @Inject constructor(
     private val ocrService: OcrService,
-    private val entityExtractor: EntityExtractor,
     private val indexDocument: IndexDocumentUseCase,
     private val mergeExtraction: MergeExtractionUseCase,
     private val aiExtraction: AiExtractionUseCase,
@@ -243,14 +242,11 @@ class DocumentProcessingPipeline @Inject constructor(
                     documentId = documentId, stage = ProcessingStage.UNDERSTAND, progress = 0.7f,
                 )
 
-                val combinedText = ocrResults.joinToString("\n\n") { it.fullText }
-
                 // Read by the model when one is installed: it decides the type, what every
                 // value means and who is who, and code verifies what it answered (see
                 // AiExtractionUseCase). With no model, or an answer that cannot be read, the
                 // result is only the values code found, marked "found" and low confidence,
-                // with no guessed roles. The pattern extractor is the last resort, for a
-                // document from which nothing at all could be read.
+                // with no guessed roles (ExtractionV2Adapter is their single owner).
                 val allBlocks = ocrResults.flatMap { it.blocks }
                 val understanding = aiExtraction(
                     allBlocks,
@@ -299,21 +295,18 @@ class DocumentProcessingPipeline @Inject constructor(
                         fields = fields,
                     )
                 } else {
+                    // Nothing could be read (no layout to read from): no value is invented.
                     if (understanding is PamResult.Error) {
-                        Log.i(TAG, "model unavailable, using patterns: " +
-                            understanding.error.userMessage)
+                        Log.i(TAG, "nothing read for $documentId: " + understanding.error.userMessage)
                     }
-                    entityExtractor.extract(documentId, combinedText, null)
+                    ExtractionResult(documentId = documentId, language = null, fields = emptyList())
                 }
 
                 // Part of the Understand stage's fingerprint. Switching between the two
                 // re-derives machine values without re-reading a page — and without
-                // touching anything the user decided.
-                val engineVersion = when {
-                    usedModel -> AI_ENGINE_VERSION
-                    usedV2 -> FOUND_VALUES_VERSION
-                    else -> EXTRACTOR_VERSION
-                }
+                // touching anything the user decided. A run the model did not read (values
+                // found by code, or nothing) is stamped as such.
+                val engineVersion = if (usedModel) AI_ENGINE_VERSION else FOUND_VALUES_VERSION
 
                 // Step 5: Merge the extraction into what is already stored.
                 //
@@ -628,7 +621,6 @@ private const val OCR_CONCURRENCY = 2
 
 // The versions a run stamps come from ExtractorVersion (core:domain) — the one place they are bumped,
 // and the one the background reprocess compares against. Part of the Understand stage's fingerprint.
-private const val EXTRACTOR_VERSION = ExtractorVersion.PATTERNS
 private const val AI_ENGINE_VERSION = ExtractorVersion.CURRENT
 private const val FOUND_VALUES_VERSION = ExtractorVersion.FOUND_VALUES
 
