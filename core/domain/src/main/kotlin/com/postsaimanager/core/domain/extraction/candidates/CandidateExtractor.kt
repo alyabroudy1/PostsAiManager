@@ -132,7 +132,7 @@ private object P {
         RegexOption.IGNORE_CASE,
     )
     val PHONE_VALUE = Regex("^\\s*(\\+?\\d[\\d ()/\\-]{5,20}\\d)\\s*$")
-    val PHONE_UNTER =Regex("(?<![\\p{L}\\d])unter\\s+(?:der\\s+Nummer\\s+)?(\\+?\\d[\\d ()/\\-]{6,20}\\d)", RegexOption.IGNORE_CASE)
+    val PHONE_UNTER = Regex("(?<![\\p{L}\\d])unter\\s+(?:der\\s+Nummer\\s+)?(\\+?\\d[\\d ()/\\-]{6,20}\\d)", RegexOption.IGNORE_CASE)
 
     // ── names ──
     val SALUTATION = Regex(
