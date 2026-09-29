@@ -14,6 +14,7 @@ import com.postsaimanager.core.domain.repository.UserPreferencesRepository
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.DocumentTitleCodes
 import com.postsaimanager.core.model.SourceType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,7 +91,11 @@ class ScannerViewModel @Inject constructor(
 
             val document = Document(
                 id = documentId,
+                // The English text is only the fallback; the code and count are what the UI renders
+                // in the user's language, until extraction gives the document a real title.
                 title = "Scanned ${pageUris.size} page(s)",
+                titleCode = DocumentTitleCodes.SCANNED_PAGES,
+                titleArgs = listOf(pageUris.size.toString()),
                 status = DocumentStatus.NEW,
                 sourceType = SourceType.CAMERA,
                 pageCount = pageUris.size,

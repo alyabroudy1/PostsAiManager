@@ -102,6 +102,8 @@ class DocumentProcessingPipelineTest {
         // The machine-readable reason the detail screen's FAILED banner branches on, to offer
         // Delete instead of a pointless Try again.
         assertThat(event.data).isEqualTo("no_pages")
+        // Stored as data: a code the UI renders in the user's language.
+        assertThat(event.code).isEqualTo(com.postsaimanager.core.model.TimelineCodes.PROCESSING_FAILED)
     }
 
     @Test

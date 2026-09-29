@@ -32,6 +32,7 @@ import com.postsaimanager.core.model.ExtractionResult
 import com.postsaimanager.core.model.FactKind
 import com.postsaimanager.core.model.ProcessingStage
 import com.postsaimanager.core.model.ProcessingState
+import com.postsaimanager.core.model.TimelineCodes
 import com.postsaimanager.core.model.TimelineEvent
 import com.postsaimanager.core.model.TimelineEventType
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -193,17 +194,21 @@ class DocumentProcessingPipeline @Inject constructor(
                     documentDao.insertPages(updatedPages)
                 }
 
-                // Log OCR event
+                // Log OCR event: a code and its numbers, rendered by the UI in the user's language.
+                // The English title and description stay as the fallback for a reader that cannot
+                // resolve the code (and are what older rows have).
+                val ocrPercent = ocrResults.map { it.confidence }.takeIf { it.isNotEmpty() }
+                    ?.average()?.let { Math.round(it * 100).toInt() }
                 timelineRepository.recordEvent(
                     TimelineEvent(
                         id = UuidGenerator.generate(),
                         documentId = documentId,
                         eventType = TimelineEventType.TEXT_EXTRACTED,
                         title = "Text extracted from ${pages.size} page(s)",
-                        description = "Average confidence: ${
-                            ocrResults.map { it.confidence }.average().let { "%.0f%%".format(it * 100) }
-                        }",
+                        description = ocrPercent?.let { "Average confidence: $it%" },
                         createdAt = System.currentTimeMillis(),
+                        code = TimelineCodes.OCR_DONE,
+                        args = listOfNotNull(pages.size.toString(), ocrPercent?.toString()),
                     )
                 )
 
@@ -321,6 +326,8 @@ class DocumentProcessingPipeline @Inject constructor(
                             description = "A new reading differs from your version: " +
                                 merged.newlyFlagged.joinToString(", "),
                             createdAt = now,
+                            code = TimelineCodes.REVIEW_FLAGGED,
+                            args = listOf(merged.newlyFlagged.size.toString()) + merged.newlyFlaggedKeys,
                         )
                     )
                 }
@@ -423,6 +430,9 @@ class DocumentProcessingPipeline @Inject constructor(
                         title = "Extracted ${extraction.fields.size} field(s)",
                         description = extraction.fields.joinToString(", ") { it.fieldName },
                         createdAt = System.currentTimeMillis(),
+                        code = TimelineCodes.FIELDS_EXTRACTED,
+                        args = listOf(extraction.fields.size.toString()) +
+                            extraction.fields.map { it.labelKey },
                     )
                 )
 
@@ -510,6 +520,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     description = detail,
                     data = reasonCode,
                     createdAt = System.currentTimeMillis(),
+                    code = TimelineCodes.PROCESSING_FAILED,
                 )
             )
         }

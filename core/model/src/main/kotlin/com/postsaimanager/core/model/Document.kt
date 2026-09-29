@@ -56,6 +56,18 @@ data class Document(
     val titleArgs: List<String> = emptyList(),
 ) {
     val isTrashed: Boolean get() = deletedAt != null
+
+    /**
+     * The title to show. A default the app wrote is rendered by [scannedPages] (the UI's localised
+     * plural) from its code and page count; anything else, or a code this build does not know, is
+     * [title] as stored.
+     */
+    fun displayTitle(scannedPages: (count: Int) -> String): String {
+        if (titleCode == DocumentTitleCodes.SCANNED_PAGES) {
+            titleArgs.firstOrNull()?.toIntOrNull()?.let { return scannedPages(it) }
+        }
+        return title
+    }
 }
 
 /**

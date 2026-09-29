@@ -45,9 +45,9 @@ class MergeExtractionUseCase @Inject constructor() {
         val newlyFlagged: List<String>
             get() = toPersist.filter { it.hasUnreviewedMachineChange }.map { it.fieldName }
 
-        /** [newlyFlagged] by slot key where there is one, for the UI to render a label from. */
+        /** [newlyFlagged] as label keys ([ExtractedData.labelKey]), for the UI to render labels from. */
         val newlyFlaggedKeys: List<String>
-            get() = toPersist.filter { it.hasUnreviewedMachineChange }.map { it.slotKey ?: it.fieldName }
+            get() = toPersist.filter { it.hasUnreviewedMachineChange }.map { it.labelKey }
     }
 
     operator fun invoke(

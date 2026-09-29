@@ -30,10 +30,10 @@ object TimelineCodes {
     /** args: page count, average OCR confidence in percent (empty when no page produced text). */
     const val OCR_DONE = "ocr_done"
 
-    /** args: number of fields, then the slot keys or names of those fields. */
+    /** args: number of fields, then their label keys (`ExtractedData.labelKey`). */
     const val FIELDS_EXTRACTED = "fields_extracted"
 
-    /** args: number of fields, then the slot keys or names that now differ from the user's version. */
+    /** args: number of fields, then their label keys that now differ from the user's version. */
     const val REVIEW_FLAGGED = "review_flagged"
 
     /** data carries the machine reason (`no_pages`, `error`); description carries the raw detail. */

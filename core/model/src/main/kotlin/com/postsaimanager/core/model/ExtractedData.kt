@@ -80,6 +80,16 @@ data class ExtractedData(
     /** Where on [pageNumber] the evidence sits, in the page's own scale-free coordinates. */
     val bbox: TextBounds? = null,
 ) {
+    /** True for an open extra: something the model found that no fixed slot covers, keyed by its printed label. */
+    val isExtra: Boolean get() = slotKey?.startsWith(EXTRA_KEY_PREFIX) == true
+
+    /**
+     * What a screen or a log entry renders a label from: the slot key of a fixed slot (a string
+     * resource per key), else [fieldName] (an extra keeps the label the letter printed; a person's
+     * or an older row has only its name).
+     */
+    val labelKey: String get() = slotKey?.takeUnless { it.startsWith(EXTRA_KEY_PREFIX) } ?: fieldName
+
     /**
      * Worth the user's eye.
      *
@@ -95,6 +105,9 @@ data class ExtractedData(
                 )
 
     companion object {
+        /** [slotKey]s of open extras start with this, followed by the folded printed label. */
+        const val EXTRA_KEY_PREFIX = "x:"
+
         /**
          * Below this, a machine value is flagged for review ("worth checking").
          *
