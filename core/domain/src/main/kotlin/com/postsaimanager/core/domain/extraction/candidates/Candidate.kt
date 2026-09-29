@@ -96,7 +96,8 @@ sealed interface Validation {
 
 /**
  * Where a block sits in the DIN 5008 letter, when a layout stage knows. Workstream B
- * produces these; the extractor works without them and only uses them for names.
+ * produces these; the extractor works without them. The zone is a hint carried on a name
+ * candidate: names are also found from their shape alone (see [CandidateExtractor]).
  */
 enum class BlockZone {
     /** The window-envelope recipient block. */
@@ -107,6 +108,9 @@ enum class BlockZone {
 
     /** The small single-line sender above the address field (Rücksendeangabe). */
     RETURN_ADDRESS,
+
+    /** Bottom-of-page small print; often names the sender again. */
+    FOOTER,
 }
 
 /** Identifies one OCR block: 1-based [page], 0-based [index] within that page's block list. */

@@ -7,9 +7,13 @@ import java.time.LocalDate
  * Deterministic candidate finder.
  *
  * Reads OCR blocks (page aware) and proposes every date, amount, IBAN, BIC, reference, phone,
- * e-mail and (when the layout stage tells us where the address field is) name it can see, each
- * with its page, bbox, evidence line, nearest label and a validation verdict. It never decides
- * which candidate fills which slot.
+ * e-mail, identifier and name it can see, each with its page, bbox, evidence line, nearest text
+ * and a validation verdict. It never decides which candidate fills which slot.
+ *
+ * Existence is decided by shape, never by a word in any language: an identifier is a token of
+ * digits mixed with letters or separators, a name is a short line of words without digits in the
+ * top half of page 1 or in a footer. Labels (Kundennummer, Aktenzeichen ...) and the layout zone
+ * only add hints (a subtype, a nearby text, a zone) to a candidate that exists anyway.
  *
  * Pure Kotlin: no Android, no I/O. Safe to run in JVM tests and in a worker.
  */
@@ -132,6 +136,10 @@ private object P {
         RegexOption.IGNORE_CASE,
     )
     val PHONE_VALUE = Regex("^\\s*(\\+?\\d[\\d ()/\\-]{5,20}\\d)\\s*$")
+    /** A run of letters and digits, 4 to 30 characters, that may contain `- / _ .` inside. */
+    val IDENTIFIER = Regex(
+        "(?<![\\p{L}\\p{Nd}])[\\p{L}\\p{Nd}][\\p{L}\\p{Nd}\\-/_.]{2,28}[\\p{L}\\p{Nd}](?![\\p{L}\\p{Nd}])",
+    )
     val PHONE_UNTER = Regex("(?<![\\p{L}\\d])unter\\s+(?:der\\s+Nummer\\s+)?(\\+?\\d[\\d ()/\\-]{6,20}\\d)", RegexOption.IGNORE_CASE)
 
     // ── names ──
@@ -257,6 +265,9 @@ private class Run(
     private val lines = ArrayList<SourceLine>()
     private val drafts = ArrayList<Draft>()
 
+    /** Shape-only names are looked for above this height on page 1 (fraction of the page). */
+    private val TOP_HALF = 0.5f
+
     fun execute(): CandidateSet {
         buildLines()
         for ((i, line) in lines.withIndex()) {
@@ -376,7 +387,50 @@ private class Run(
         findAmounts(line, mask)
         findPhones(line, mask)
         findEmails(line, mask)
+        findIdentifiers(line, mask)
         findNames(line)
+    }
+
+    // Identifiers ----------------------------------------------------------------
+    //
+    // A token that looks like an identifier (digits mixed with letters or separators, or a long
+    // run of digits) is a candidate whatever the words next to it say. The text to its left is
+    // kept as a hint only, so a label in any language, or none, makes no difference to whether
+    // the value is offered; the labelled rules above only add a subtype.
+
+    private fun findIdentifiers(line: SourceLine, mask: Mask) {
+        val text = line.text
+        for (m in P.IDENTIFIER.findAll(text)) {
+            if (!mask.free(m.range)) continue
+            val token = m.value
+            if (!looksLikeIdentifier(token)) continue
+            val before = text.substring(0, m.range.first).trim().trimEnd(':', '.', ' ')
+            val hint = before.split(Regex("\\s+")).filter { it.isNotEmpty() }.takeLast(3).joinToString(" ").ifEmpty {
+                if (m.range.first == 0) rowNeighbour(line, left = true)?.takeLast(40)?.trim()?.trimEnd(':', '.', ' ').orEmpty() else ""
+            }
+            mask.add(m.range)
+            add(
+                line, m.range, CandidateKind.REFERENCE, token, token, label = hint,
+                subtype = ReferenceSubtype.OTHER, attrs = mapOf("shape" to "true"),
+            )
+        }
+    }
+
+    private fun looksLikeIdentifier(token: String): Boolean {
+        val digits = token.count { it.isDigit() }
+        if (digits < 3 || token.length !in 4..30) return false
+        val pureDigits = digits == token.length
+        val hasLetter = token.any { it.isLetter() }
+        val hasSeparator = token.any { it in "-/_." }
+        // a run of digits alone must be long: a postcode, a year or a house number is not an identifier
+        if (pureDigits && token.length < 6) return false
+        if (!pureDigits && !hasLetter && !hasSeparator) return false
+        // decimals, times, dates and year-month pairs are values of their own
+        if (Regex("^\\d+[.,]\\d+$").matches(token) || Regex("^\\d{1,2}[:.]\\d{2}$").matches(token)) return false
+        if (Regex("^\\d{1,2}\\.\\d{1,2}\\.\\d{2,4}$").matches(token) || Regex("^\\d{4}-\\d{2}(-\\d{2})?$").matches(token)) return false
+        // a token of only separators between digit groups, such as a phone number, is not one identifier
+        if (!hasLetter && Regex("^\\d+([./-]\\d+){3,}$").matches(token)) return false
+        return true
     }
 
     // IBAN ---------------------------------------------------------------------
@@ -790,7 +844,39 @@ private class Run(
                     add(line, 0 until t.length, CandidateKind.ORG_NAME, t, t, attrs = zoneAttr + ("guess" to "true"))
                 }
             }
-            null -> Unit
+            BlockZone.FOOTER -> shapeName(line, footer = true)
+            null -> shapeName(line, footer = false)
+        }
+    }
+
+    /**
+     * A name found from its shape alone: a short line of words with no digit, no `@` and no web
+     * address, that is not a sentence or a label (it does not end in `, : ; ! ?`, nor in a full stop
+     * unless the last word is an abbreviation such as "Ltd."). On page 1 that means the top half of
+     * the page; in a footer any line. Capitalisation is not required, so scripts without case work.
+     *
+     * The zone, when there is one, only travels along as a hint: which of these is the sender and
+     * which the addressee is for the model to say.
+     */
+    private fun shapeName(line: SourceLine, footer: Boolean) {
+        val b = line.block?.bounds ?: return
+        if (!footer && !(line.page == 1 && b.top < TOP_HALF)) return
+        val t = line.text.trim()
+        if (t.length !in 3..60 || t.any { it.isDigit() } || t.contains('@') || t.contains("://") || t.contains("www.", true)) return
+        if (t.contains(':') || t.last() in ",;!?") return
+        val words = t.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (words.size !in 1..6) return
+        if (t.endsWith('.') && words.last().length > 4) return
+        val (stripped, sal) = stripSalutation(t)
+        if (stripped.isBlank() || stripped.length < 3) return
+        val zoneAttr = line.zone?.let { mapOf("zone" to it.name) } ?: emptyMap()
+        val attrs = zoneAttr + ("shape" to "true")
+        val range = 0 until t.length
+        when {
+            isOrg(stripped) -> add(line, range, CandidateKind.ORG_NAME, stripped, stripped, attrs = attrs)
+            stripped.split(Regex("\\s+")).size >= 2 || sal ->
+                add(line, range, CandidateKind.PERSON_NAME, stripped, stripped, attrs = if (sal) attrs + ("salutation" to "true") else attrs)
+            else -> add(line, range, CandidateKind.ORG_NAME, stripped, stripped, attrs = attrs + ("guess" to "true"))
         }
     }
 

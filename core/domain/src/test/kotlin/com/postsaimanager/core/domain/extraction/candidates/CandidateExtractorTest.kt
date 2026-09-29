@@ -283,9 +283,35 @@ class CandidateExtractorTest {
     }
 
     @Test
-    fun `body sentences are not names without zone hints`() {
-        val set = one("Sehr geehrte Frau Mustermann,", "Erika Mustermann", "Mustermann Consulting GmbH")
-        assertThat(set.filter { it.kind == CandidateKind.PERSON_NAME || it.kind == CandidateKind.ORG_NAME }).isEmpty()
+    fun `names come from their shape, sentences and labels do not`() {
+        val set = one(
+            "Sehr geehrte Frau Mustermann,", "Erika Mustermann", "Mustermann Consulting GmbH",
+            "Bitte überweisen Sie den Betrag bis morgen.", "Datum: heute", "Zahlungsziel 14 Tage",
+        )
+        val names = set.filter { it.kind == CandidateKind.PERSON_NAME || it.kind == CandidateKind.ORG_NAME }.map { it.normalized }
+        assertThat(names).containsExactly("Erika Mustermann", "Mustermann Consulting GmbH").inOrder()
+        assertThat(set.filter { it.normalized == "Erika Mustermann" }.single().attrs["shape"]).isEqualTo("true")
+    }
+
+    @Test
+    fun `a name is found in a script without capitals`() {
+        val set = one("السيدة إيريكا موستيرمان", "شركة المثال للخدمات المحدودة")
+        assertThat(set.count { it.kind == CandidateKind.PERSON_NAME || it.kind == CandidateKind.ORG_NAME }).isEqualTo(2)
+    }
+
+    @Test
+    fun `an identifier is offered whatever the words next to it say`() {
+        val set = one("Vorgang 9981-2277 läuft", "reference AB-2026-10-4471", "المرجع X7Q-4432-19")
+        val ids = set.filter { it.kind == CandidateKind.REFERENCE }.map { it.normalized }
+        assertThat(ids).containsAtLeast("9981-2277", "AB-2026-10-4471", "X7Q-4432-19")
+        assertThat(set.first { it.normalized == "9981-2277" }.attrs["shape"]).isEqualTo("true")
+        assertThat(set.first { it.normalized == "9981-2277" }.label).isEqualTo("Vorgang")
+    }
+
+    @Test
+    fun `postcodes, years, times and decimals are not identifiers`() {
+        val ids = one("12345 Beispielstadt", "im Jahr 2026", "um 18:42", "Fläche 68,5 m²", "Nr. 42").filter { it.kind == CandidateKind.REFERENCE }
+        assertThat(ids).isEmpty()
     }
 
     // ── not_facts of receipt-noise-1p ───────────────────────────────────────────

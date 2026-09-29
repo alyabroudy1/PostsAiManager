@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.extraction.layout
 
+import com.postsaimanager.core.domain.extraction.candidates.OcrText
 import com.postsaimanager.core.domain.usecase.DocumentLayout
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.TextBounds
@@ -45,6 +46,7 @@ object LetterLayoutAnalyzer {
     /** One list of blocks per page, in page order. */
     fun analyze(pages: List<List<OcrBlock>>): LetterLayout {
         val work = pages.mapIndexed { i, blocks -> toLines(blocks, i + 1) }
+        for (lines in work) if (isRightToLeft(lines)) lines.forEach { it.mirror = true }
         flagNoise(work)
         work.forEachIndexed { i, lines -> classify(lines, isFirstPage = i == 0) }
         return LetterLayout(
@@ -70,14 +72,19 @@ object LetterLayoutAnalyzer {
         var zone: LetterZone = LetterZone.BODY
         var noise: NoiseKind? = null
         var assigned = false
+
+        /** True on a right-to-left page: geometry is read as if the page were flipped, so the address field is on the left again. */
+        var mirror = false
         val cy get() = bounds.centerY
-        val left get() = bounds.left
+        val left get() = if (mirror) 1f - bounds.right else bounds.left
     }
 
     private fun toLines(blocks: List<OcrBlock>, page: Int): List<Work> {
         val out = mutableListOf<Work>()
         for (block in DocumentLayout.readingOrder(blocks)) {
-            val lines = block.text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+            // Normalised the same way the candidate extractor reads the text (Arabic-Indic digits
+            // become western digits, odd spaces become spaces), so every stage sees the same characters.
+            val lines = OcrText.normalizeChars(block.text).lines().map { it.trim() }.filter { it.isNotEmpty() }
             val n = lines.size
             val b = block.bounds
             lines.forEachIndexed { i, text ->
@@ -217,7 +224,7 @@ object LetterLayoutAnalyzer {
         // 2. Info block: right-hand labelled lines.
         val yLo = if (fieldTop != null && !usedPrior) fieldTop - 0.02f else INFO_FALLBACK_START
         val candidates = clean.filter { !it.assigned && it.left >= INFO_COLUMN_MIN }
-        val labels = candidates.filter { it.cy in yLo..INFO_END && INFO_LABEL.containsMatchIn(it.text) }
+        val labels = candidates.filter { it.cy in yLo..INFO_END && isInfoLabel(it.text) }
         var infoBottom: Float? = null
         if (labels.isNotEmpty()) {
             val top = labels.minOf { it.bounds.top } - 0.01f
@@ -249,9 +256,9 @@ object LetterLayoutAnalyzer {
             l.left < RETURN_MAX_LEFT &&
             l.bounds.width <= 0.65f &&
             t.length in 15..120 &&
-            RETURN_SEPARATOR.containsMatchIn(t) &&
-            PLZ5.containsMatchIn(t) &&
-            STREET_NUMBER.containsMatchIn(t)
+            // two strong separators and a digit, or a separator, a digit run and a street number
+            ((STRONG_SEPARATOR.findAll(t).count() >= 2 && t.any { it.isDigit() }) ||
+                (RETURN_SEPARATOR.containsMatchIn(t) && DIGIT_RUN.containsMatchIn(t) && STREET_NUMBER.containsMatchIn(t)))
     }
 
     /** Lines stacked under [anchor] (same left edge, small gaps) up to and including "PLZ Ort" (+ country). */
@@ -262,27 +269,27 @@ object LetterLayoutAnalyzer {
         for (l in pool.filter { it !== anchor && it.cy > anchor.cy }.sortedBy { it.cy }) {
             if (out.size >= MAX_ADDRESS_LINES) break
             if (l.cy - prev.cy > MAX_LINE_GAP || abs(l.left - anchor.left) > MAX_LEFT_DRIFT) break
-            if (INFO_LABEL.containsMatchIn(l.text) || SALUTATION_LETTER.containsMatchIn(l.text)) break
+            if (isInfoLabel(l.text) || SALUTATION_LETTER.containsMatchIn(l.text)) break
             if (sawPlz) {
                 if (COUNTRY.matches(l.text)) out += l
                 break
             }
             out += l
             prev = l
-            if (PLZ_ORT.matches(l.text)) sawPlz = true
+            if (isPostcodeLine(l.text)) sawPlz = true
         }
         return out
     }
 
     /** No Rücksendeangabe: find a "PLZ Ort" line on the left and walk up over the lines stacked above it. */
     private fun fallbackField(pool: List<Work>): List<Work> {
-        for (p in pool.filter { it.cy in FALLBACK_PLZ_MIN_Y..FALLBACK_PLZ_MAX_Y && PLZ_ORT.matches(it.text) }) {
+        for (p in pool.filter { it.cy in FALLBACK_PLZ_MIN_Y..FALLBACK_PLZ_MAX_Y && isPostcodeLine(it.text) }) {
             val chain = mutableListOf(p)
             var prev = p
             for (l in pool.filter { it.cy < p.cy }.sortedByDescending { it.cy }) {
                 if (chain.size >= MAX_ADDRESS_LINES) break
                 if (prev.cy - l.cy > MAX_LINE_GAP || abs(l.left - p.left) > MAX_LEFT_DRIFT) break
-                if (INFO_LABEL.containsMatchIn(l.text)) break
+                if (isInfoLabel(l.text)) break
                 chain.add(0, l)
                 prev = l
             }
@@ -310,7 +317,8 @@ object LetterLayoutAnalyzer {
             }
             return
         }
-        val salutation = cands.firstOrNull { it.cy < SUBJECT_MAX_Y + 0.15f && SALUTATION_LETTER.containsMatchIn(it.text) } ?: return
+        val salutation = cands.firstOrNull { it.cy < SUBJECT_MAX_Y + 0.15f && SALUTATION_LETTER.containsMatchIn(it.text) }
+            ?: return isolatedSubject(cands)
         val before = cands.filter { it.cy < salutation.cy }
         val last = before.lastOrNull() ?: return
         if (salutation.cy - last.cy > SALUTATION_GAP) return
@@ -323,9 +331,24 @@ object LetterLayoutAnalyzer {
         chain.forEach { set(it, LetterZone.SUBJECT) }
     }
 
+    /**
+     * No "Betreff" and no salutation found: the subject is the first line below the address and
+     * info blocks that stands apart (a clear gap after it), is short and is not a sentence.
+     */
+    private fun isolatedSubject(cands: List<Work>) {
+        for ((i, l) in cands.withIndex()) {
+            if (l.cy >= SUBJECT_MAX_Y) return
+            val next = cands.getOrNull(i + 1) ?: return
+            val t = l.text.trim()
+            if (next.cy - l.cy < ISOLATED_GAP || t.length > 120 || t.last() in ".!?؟") continue
+            set(l, LetterZone.SUBJECT)
+            return
+        }
+    }
+
     private fun markPayment(clean: List<Work>) {
         val sorted = clean.sortedBy { it.cy }
-        val hits = sorted.indices.filter { !sorted[it].assigned && PAYMENT.containsMatchIn(sorted[it].text) }.toMutableSet()
+        val hits = sorted.indices.filter { !sorted[it].assigned && (PAYMENT.containsMatchIn(sorted[it].text) || PAYMENT_SHAPE.containsMatchIn(sorted[it].text)) }.toMutableSet()
         val withNeighbours = hits.toMutableSet()
         for (i in hits) {
             for (j in listOf(i - 1, i + 1)) {
@@ -345,8 +368,30 @@ object LetterLayoutAnalyzer {
     private val BASE64 = Regex("[A-Za-z0-9+/=_-]+")
     private val IBAN_TOKEN = Regex("[A-Z]{2}\\d{2}[A-Z0-9]{10,30}")
 
-    private val PLZ5 = Regex("(?<!\\d)\\d{5}(?!\\d)")
-    private val PLZ_ORT = Regex("(?:[A-Z]{1,2}-)?\\d{5}\\s+\\p{L}.{1,40}")
+    // Shapes first; the German patterns below are extra hints, never gates.
+    private val DIGIT_RUN = Regex("(?<!\\d)\\d{4,6}(?!\\d)")
+    private val ALNUM_POSTCODE = Regex("\\b[A-Z]{1,2}\\d[A-Z\\d]?\\s?\\d[A-Z]{2}\\b")
+    private val STRONG_SEPARATOR = Regex("[·•|]|\\s[-–—]\\s")
+    private val COLON_LABEL = Regex("^\\s*\\p{L}[\\p{L} .\\-/]{1,28}:(\\s.*)?$")
+    /** An account number in any language: two letters, two digits, then groups. Amounts alone are not payment sections. */
+    private val PAYMENT_SHAPE = Regex("(?<![A-Za-z0-9])[A-Z]{2}\\d{2}(?:\\s?[A-Z0-9]{2,4}){3,}")
+
+    /** A short line holding a 4 to 6 digit run (postcode) or an alphanumeric postcode, with letters. */
+    private fun isPostcodeLine(t: String) =
+        t.length in 4..45 && t.any { it.isLetter() } && (DIGIT_RUN.containsMatchIn(t) || ALNUM_POSTCODE.containsMatchIn(t))
+
+    private fun isInfoLabel(t: String) = INFO_LABEL.containsMatchIn(t) || COLON_LABEL.matches(t)
+
+    /** More than half of the letters are in a right-to-left script. */
+    private fun isRightToLeft(lines: List<Work>): Boolean {
+        var rtl = 0
+        var letters = 0
+        for (l in lines) for (ch in l.text) if (ch.isLetter()) {
+            letters++
+            if (ch in '֐'..'ࣿ' || ch in 'יִ'..'﷿' || ch in 'ﹰ'..'﻿') rtl++
+        }
+        return letters > 0 && rtl * 2 > letters
+    }
     private val STREET_NUMBER = Regex("\\p{L}[\\p{L}.\\-]*\\s*\\d{1,4}\\s?[a-zA-Z]?(?![\\d\\p{L}])")
     private val RETURN_SEPARATOR = Regex("[·•|]|\\s[-–]\\s|,")
     private val COUNTRY = Regex("(deutschland|germany|österreich|austria|schweiz|switzerland|luxemburg|niederlande)", IGNORE)
@@ -357,7 +402,11 @@ object LetterLayoutAnalyzer {
     )
     private val SALUTATION_LETTER = Regex("^(sehr geehrte[rn]?|guten tag|liebe[rn]?|hallo|dear)(?![\\p{L}])", IGNORE)
     private val BETREFF = Regex("^(betreff|betr\\.?|betrifft)(?![\\p{L}])", IGNORE)
-    private val DATE_ONLY = Regex("(?:\\p{L}[\\p{L} .\\-]*,\\s*)?(?:den\\s+)?\\d{1,2}\\.\\s?\\d{1,2}\\.\\s?\\d{2,4}", IGNORE)
+    private val DATE_ONLY = Regex(
+        "(?:\\p{L}[\\p{L} .\\-]{0,25}[:,]?\\s*)?(?:den\\s+)?(?:\\d{1,2}\\.\\s?\\d{1,2}\\.\\s?\\d{2,4}|\\d{4}-\\d{2}-\\d{2}|" +
+            "\\d{1,2}(?:st|nd|rd|th)?\\s+\\p{L}{3,10}\\.?,?\\s+\\d{4}|\\p{L}{3,10}\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?,?\\s+\\d{4})",
+        IGNORE,
+    )
 
     private val INFO_LABEL = Regex(
         "^\\s*(?:ihr(?:e)?\\s+(?:zeichen|nachricht)|unser(?:e)?\\s+zeichen|ansprechpartner|sachbearbeiter|bearbeiter|" +
@@ -400,5 +449,6 @@ object LetterLayoutAnalyzer {
     private const val SUBJECT_MAX_Y = 0.60f
     private const val SUBJECT_LINE_GAP = 0.03f
     private const val SALUTATION_GAP = 0.06f
+    private const val ISOLATED_GAP = 0.025f
     private const val PAYMENT_NEIGHBOUR_GAP = 0.035f
 }

@@ -299,7 +299,7 @@ class SelectionVerifier(
 
         // ── parties ──────────────────────────────────────────────────────────────
 
-        private val senderZones = setOf("LETTERHEAD", "RETURN_ADDRESS")
+        private val senderZones = setOf("LETTERHEAD", "RETURN_ADDRESS", "FOOTER")
         private val addresseeZones = setOf("ADDRESS_FIELD")
         private val addressSide = setOf(PartyRole.ADDRESSEE, PartyRole.CO_ADDRESSEE, PartyRole.ROUTING, PartyRole.CARE_OF)
 

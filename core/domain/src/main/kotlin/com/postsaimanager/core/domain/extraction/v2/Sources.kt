@@ -38,7 +38,7 @@ object BlockZones {
         for ((pi, blocks) in pages.withIndex()) {
             val lines = layout.page(pi + 1)?.lines.orEmpty().groupBy { it.text }
             for ((bi, block) in blocks.withIndex()) {
-                val texts = block.text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                val texts = com.postsaimanager.core.domain.extraction.candidates.OcrText.normalizeChars(block.text).lines().map { it.trim() }.filter { it.isNotEmpty() }
                 val zones = texts.mapIndexedNotNull { j, text ->
                     val b = block.bounds
                     val top = b.top + b.height * j / texts.size
@@ -60,6 +60,7 @@ object BlockZones {
         LetterZone.LETTERHEAD -> BlockZone.LETTERHEAD
         LetterZone.RETURN_ADDRESS_LINE -> BlockZone.RETURN_ADDRESS
         LetterZone.ADDRESS_FIELD -> BlockZone.ADDRESS_FIELD
+        LetterZone.FOOTER -> BlockZone.FOOTER
         else -> null
     }
 }

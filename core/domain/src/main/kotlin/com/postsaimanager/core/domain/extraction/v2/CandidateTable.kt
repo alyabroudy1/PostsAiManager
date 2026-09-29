@@ -48,6 +48,7 @@ object CandidateTable {
     private const val CAP_NAMES = 10
     private const val CAP_CONTACTS = 4
     private const val CAP_BIC = 2
+    private val PERSON_OR_ORG = setOf(CandidateKind.PERSON_NAME, CandidateKind.ORG_NAME)
 
     fun build(set: CandidateSet): OfferedCandidates {
         val offered = mutableListOf<OfferedRow>()
@@ -80,18 +81,35 @@ object CandidateTable {
             OfferedRow(
                 // The occurrence that passed its checks stands for the group: "64,98" in a table
                 // cell and "64,98 €" in a sentence are one value, and only the second has a currency.
-                candidate = group.firstOrNull { it.validation.isValid } ?: group.first(),
+                candidate = group.firstOrNull { it.validation.isValid } ?: group.firstOrNull { it.attrs["zone"] != null } ?: group.first(),
                 nearLabels = group.map { it.label }.filter { it.isNotBlank() }.distinct(),
                 pages = group.map { it.page }.distinct().sorted(),
             )
         }
         if (rows.size <= cap) return rows to 0
 
+        if (PERSON_OR_ORG.any { it in kinds }) {
+            // Names matter on page 1 (letterhead, address field, footer): no spreading over the pages,
+            // just the ones the layout placed in a zone before the ones found by shape alone.
+            val keep = rows.withIndex()
+                .sortedWith(
+                    compareBy(
+                        { it.value.candidate.attrs["zone"] == null },
+                        { it.value.candidate.attrs["shape"] != null },
+                        { it.index },
+                    ),
+                )
+                .take(cap).map { it.index }.toSet()
+            return rows.filterIndexed { i, _ -> i in keep } to (rows.size - keep.size)
+        }
+
         // Round-robin over the pages, so no page is starved; within a page, passing values first.
         val byPage = rows.withIndex()
             .groupBy { it.value.pages.first() }
             .toSortedMap()
-            .mapValues { (_, list) -> list.sortedWith(compareBy({ it.value.candidate.validation.isInvalid }, { it.index })).toMutableList() }
+            .mapValues { (_, list) ->
+                list.sortedWith(compareBy({ it.value.candidate.validation.isInvalid }, { it.index })).toMutableList()
+            }
         val keep = mutableSetOf<Int>()
         while (keep.size < cap && byPage.values.any { it.isNotEmpty() }) {
             for (list in byPage.values) {
