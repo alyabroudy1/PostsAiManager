@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.benchmark
 
+import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner
 import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.Letters
 import com.postsaimanager.core.domain.extraction.v2.Oracle
@@ -95,19 +96,17 @@ class ScriptedInterpreter(private val recording: Recording) : DocumentInterprete
 
 /**
  * Output-level noise: how many manifest `not_facts` values reach what the user sees. Slots are always
- * shown; an extra is shown unless its final confidence is below [HIDDEN_BELOW] (behind "Show all").
+ * shown; an extra is shown unless its final confidence is below [ConfidenceCombiner.HIDDEN_BELOW]
+ * (behind "Show all"), the same constant the screen reads.
  */
 object ShownNoise {
-    /** Mirrors `ExtractedPresentation.HIDDEN_BELOW` in :feature:documents. */
-    const val HIDDEN_BELOW = 0.5f
-
     private val DIGITS = Regex("\\b\\d{5,}\\b")
 
     fun count(result: ExtractionV2Result, notFacts: String?): Int {
         val noise = notFacts?.let { DIGITS.findAll(it).map { r -> r.value }.toSet() }.orEmpty()
         if (noise.isEmpty()) return 0
         val shown = result.slots.values + result.slotLists.values.flatten() +
-            result.extras.filter { it.value.confidence >= HIDDEN_BELOW }.map { it.value }
+            result.extras.filter { it.value.confidence >= ConfidenceCombiner.HIDDEN_BELOW }.map { it.value }
         return shown.count { v ->
             val text = ExtractionBenchmark.squash(v.normalized) + " " + ExtractionBenchmark.squash(v.value)
             noise.any { text.contains(it) }
@@ -205,7 +204,12 @@ object InterpreterMetrics {
             shownNoise += ShownNoise.count(result, m.notFacts)
 
             for (v in values.filter { it.slot?.kind != SlotKind.ACTION }) {
-                val key = when { v.aiConfidence < 0.5f -> LOW; v.aiConfidence < 0.8f -> MID; else -> HIGH }
+                // The model's own word is one of LOW, MEDIUM, HIGH (or UNKNOWN when it wrote none): bucketed by the same numbers.
+                val key = when {
+                    v.aiConfidence < ConfidenceCombiner.UNKNOWN -> LOW
+                    v.aiConfidence < ConfidenceCombiner.HIGH -> MID
+                    else -> HIGH
+                }
                 val (n, k) = buckets.getValue(key)
                 val ok = expectations.any { Expectations.matchesValue(v.normalized, it) }
                 buckets[key] = (n + 1) to (k + if (ok) 1 else 0)

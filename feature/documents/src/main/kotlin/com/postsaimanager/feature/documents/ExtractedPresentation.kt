@@ -1,5 +1,6 @@
 package com.postsaimanager.feature.documents
 
+import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.SlotKind
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
@@ -39,7 +40,7 @@ data class DetailSection(val group: DetailGroup, val fields: List<ExtractedData>
  * @property details fields grouped by what they are (people, money, dates, references, text), each
  *   group in the document type's slot order, empty groups left out.
  * @property extras open metadata the model found ("Other details"), shown collapsed. Extras the model
- *   was unsure of ([ExtractedPresentation.HIDDEN_BELOW]) are left out until [showAllExtras].
+ *   was unsure of ([ConfidenceCombiner.HIDDEN_BELOW]) are left out until [showAllExtras].
  * @property hiddenExtras how many extras are hidden behind "Show all".
  */
 data class ExtractedPresentation(
@@ -50,11 +51,6 @@ data class ExtractedPresentation(
     val showAllExtras: Boolean,
 ) {
     val extraCount: Int get() = extras.size + hiddenExtras
-
-    companion object {
-        /** A machine extra below this final confidence is hidden behind "Show all" (the model said LOW, or a check capped it). */
-        const val HIDDEN_BELOW = 0.5f
-    }
 }
 
 /** Builds an [ExtractedPresentation] from a document and its stored fields. Pure. */
@@ -88,7 +84,7 @@ object ExtractedPresenter {
     }
 
     private fun isHidden(extra: ExtractedData): Boolean =
-        extra.source == ValueSource.MACHINE && !extra.isConfirmed && extra.confidence < ExtractedPresentation.HIDDEN_BELOW
+        extra.source == ValueSource.MACHINE && !extra.isConfirmed && extra.confidence < ConfidenceCombiner.HIDDEN_BELOW
 
     /** People and the subject keep this order ahead of the type's own slots. */
     private val fixedOrder = listOf(
