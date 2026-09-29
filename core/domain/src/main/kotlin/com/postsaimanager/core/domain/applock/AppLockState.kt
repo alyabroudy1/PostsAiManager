@@ -38,12 +38,16 @@ fun interface MonotonicClock {
  *   with no stamp is ignored, and a stamp only counts once.
  * - **Toggling the lock in Settings** never locks the user out of the screen they are on:
  *   turning it on required a fresh authentication a moment ago, turning it off needs none.
+ * - **App-initiated trips out of the app** (scanner, permission dialog, share sheet, settings)
+ *   are announced through [ExternalFlowGuard] and do not lock on return, even at timeout 0,
+ *   for at most [EXTERNAL_FLOW_GRACE_MINUTES]. The return consumes the tokens; an unrelated
+ *   background after that locks as usual.
  * - Background work is unaffected: nothing here touches WorkManager.
  */
 @Singleton
 class AppLockState @Inject constructor(
     private val clock: MonotonicClock,
-) {
+) : ExternalFlowGuard {
 
     /** What the UI needs to know. */
     data class Snapshot(
@@ -66,6 +70,10 @@ class AppLockState @Inject constructor(
     // Guarded by `this`, like every write to [state].
     private var timeoutMillis = 0L
     private var backgroundedAt: Long? = null
+
+    /** Token id -> the elapsed time after which it no longer excuses a return. */
+    private val externalFlows = mutableMapOf<Long, Long>()
+    private var nextFlowId = 0L
 
     /** Feeds in the stored preferences. Called on every change, and once at cold start. */
     @Synchronized
@@ -92,10 +100,32 @@ class AppLockState @Inject constructor(
     fun onForegrounded() {
         val since = backgroundedAt ?: return
         backgroundedAt = null
+        val now = clock.elapsedMillis()
+        // Returning consumes every outstanding flow. It only excuses the trip if one was still
+        // inside its grace window; past that the normal timeout rule decides.
+        val excused = externalFlows.values.any { expiresAt -> now <= expiresAt }
+        externalFlows.clear()
         val current = state.value
-        if (current.enabled && clock.elapsedMillis() - since >= timeoutMillis) {
+        if (!excused && current.enabled && now - since >= timeoutMillis) {
             state.value = current.copy(locked = true)
         }
+    }
+
+    /**
+     * See [ExternalFlowGuard]. The token's protection lasts [EXTERNAL_FLOW_GRACE_MINUTES] from now.
+     */
+    @Synchronized
+    override fun expect(reason: String): ExternalFlowToken {
+        val now = clock.elapsedMillis()
+        externalFlows.values.removeAll { expiresAt -> expiresAt < now }
+        val token = ExternalFlowToken(nextFlowId++, reason)
+        externalFlows[token.id] = now + EXTERNAL_FLOW_GRACE_MINUTES * MILLIS_PER_MINUTE
+        return token
+    }
+
+    @Synchronized
+    override fun finish(token: ExternalFlowToken?) {
+        if (token != null) externalFlows.remove(token.id)
     }
 
     /** The user has just authenticated successfully. */
@@ -105,7 +135,10 @@ class AppLockState @Inject constructor(
         if (current.settingsKnown) state.value = current.copy(locked = false)
     }
 
-    private companion object {
-        const val MILLIS_PER_MINUTE = 60_000L
+    companion object {
+        /** How long an [expect]ed external flow may keep the app unlocked on return. */
+        const val EXTERNAL_FLOW_GRACE_MINUTES = 10L
+
+        private const val MILLIS_PER_MINUTE = 60_000L
     }
 }

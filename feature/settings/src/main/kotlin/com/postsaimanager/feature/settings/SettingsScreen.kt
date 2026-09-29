@@ -247,7 +247,8 @@ fun SettingsScreen(
                     TextButton(
                         onClick = {
                             viewModel.dismissAppLockNotice()
-                            openSecuritySettings(context)
+                            viewModel.onOpeningSecuritySettings()
+                            if (!openSecuritySettings(context)) viewModel.onSecuritySettingsLaunchFailed()
                         },
                     ) { Text("Open security settings") }
                 } else {
@@ -291,7 +292,7 @@ private fun lockTimeoutLabel(minutes: Int): String = when (minutes) {
  * enrolment screen; older versions get the general security page, and a device with neither
  * (rare OEM builds) falls back to the top-level settings rather than doing nothing.
  */
-private fun openSecuritySettings(context: Context) {
+private fun openSecuritySettings(context: Context): Boolean {
     val intents = buildList {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             add(
@@ -309,11 +310,12 @@ private fun openSecuritySettings(context: Context) {
     for (intent in intents) {
         try {
             context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            return
+            return true
         } catch (_: ActivityNotFoundException) {
             // Try the next, more general, screen.
         }
     }
+    return false
 }
 
 @Composable

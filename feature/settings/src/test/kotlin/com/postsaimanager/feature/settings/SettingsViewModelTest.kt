@@ -3,6 +3,8 @@ package com.postsaimanager.feature.settings
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamError
+import com.postsaimanager.core.domain.applock.AppLockState
+import com.postsaimanager.core.testing.FakeMonotonicClock
 import com.postsaimanager.core.domain.applock.DeviceAuthAvailability
 import com.postsaimanager.core.domain.applock.DeviceAuthPurpose
 import com.postsaimanager.core.domain.applock.DeviceAuthResult
@@ -43,6 +45,7 @@ class SettingsViewModelTest {
         updateInferenceSetting = UpdateInferenceSettingUseCase(inferenceSettingsRepo),
         resetInferenceSettings = ResetInferenceSettingsUseCase(inferenceSettingsRepo),
         deviceAuthenticator = authenticator,
+        externalFlowGuard = AppLockState(FakeMonotonicClock()),
     )
 
     @Test

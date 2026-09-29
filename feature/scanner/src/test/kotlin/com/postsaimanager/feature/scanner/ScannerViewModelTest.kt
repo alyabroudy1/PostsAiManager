@@ -26,10 +26,57 @@ class ScannerViewModelTest {
     private val documentProcessor = FakeDocumentProcessor()
     private val userPreferencesRepository = FakeUserPreferencesRepository()
 
-    private fun viewModel() = ScannerViewModel(repo, documentProcessor, userPreferencesRepository)
+    private val clock = com.postsaimanager.core.testing.FakeMonotonicClock()
+    private val appLock = com.postsaimanager.core.domain.applock.AppLockState(clock)
+
+    private fun viewModel() = ScannerViewModel(repo, documentProcessor, userPreferencesRepository, appLock)
 
     /** Uri.toString() isn't stubbed by the Android jar in a plain JVM test. */
     private fun uri(value: String): Uri = mockk<Uri>().also { every { it.toString() } returns value }
+
+    private fun leaveAndReturn() {
+        appLock.onBackgrounded()
+        clock.advanceMinutes(2)
+        appLock.onForegrounded()
+    }
+
+    @Test
+    fun `returning from the scanner does not lock the app, even at timeout zero`() = runTest {
+        appLock.applySettings(enabled = true, timeoutMinutes = 0)
+        appLock.unlock()
+        val vm = viewModel()
+
+        vm.onScanLaunching()
+        leaveAndReturn()
+
+        assertThat(appLock.snapshot.value.locked).isFalse()
+    }
+
+    @Test
+    fun `a cancelled scan ends the protection`() = runTest {
+        appLock.applySettings(enabled = true, timeoutMinutes = 0)
+        appLock.unlock()
+        val vm = viewModel()
+
+        vm.onScanLaunching()
+        vm.onScanCancelled()
+        leaveAndReturn()
+
+        assertThat(appLock.snapshot.value.locked).isTrue()
+    }
+
+    @Test
+    fun `resolving the permission dialog ends its protection`() = runTest {
+        appLock.applySettings(enabled = true, timeoutMinutes = 0)
+        appLock.unlock()
+        val vm = viewModel()
+
+        vm.onNotificationPermissionRequestLaunching()
+        vm.onNotificationPermissionResolved()
+        leaveAndReturn()
+
+        assertThat(appLock.snapshot.value.locked).isTrue()
+    }
 
     @Test
     fun `a successful scan enqueues processing for the new document`() = runTest {

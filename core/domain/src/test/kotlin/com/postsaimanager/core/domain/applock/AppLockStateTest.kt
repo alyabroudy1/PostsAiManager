@@ -189,6 +189,138 @@ class AppLockStateTest {
     }
 
     @Nested
+    @DisplayName("external flows")
+    inner class ExternalFlows {
+
+        private fun unlockedAtTimeoutZero() {
+            lock.applySettings(true, 0)
+            lock.unlock()
+        }
+
+        @Test
+        fun `a token suppresses the lock on return within the grace window, even at timeout zero`() {
+            unlockedAtTimeoutZero()
+
+            lock.expect("scanner")
+            awayFor(AppLockState.EXTERNAL_FLOW_GRACE_MINUTES)
+
+            assertThat(locked).isFalse()
+        }
+
+        @Test
+        fun `past the grace window the lock applies as usual`() {
+            unlockedAtTimeoutZero()
+
+            lock.expect("scanner")
+            awayFor(AppLockState.EXTERNAL_FLOW_GRACE_MINUTES + 1)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `the window counts from expect, not from going to the background`() {
+            unlockedAtTimeoutZero()
+
+            lock.expect("scanner")
+            clock.advanceMinutes(AppLockState.EXTERNAL_FLOW_GRACE_MINUTES - 1)
+            awayFor(2)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `no token means normal behaviour`() {
+            unlockedAtTimeoutZero()
+
+            awayFor(0)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `the return consumes the token so an unrelated background then locks`() {
+            unlockedAtTimeoutZero()
+            lock.expect("scanner")
+            awayFor(1)
+            assertThat(locked).isFalse()
+
+            awayFor(0)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `finishing a flow that never left the app ends its protection`() {
+            unlockedAtTimeoutZero()
+            val token = lock.expect("permission")
+
+            lock.finish(token)
+            awayFor(1)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `finishing twice or with null is harmless`() {
+            unlockedAtTimeoutZero()
+            val token = lock.expect("permission")
+
+            lock.finish(token)
+            lock.finish(token)
+            lock.finish(null)
+            awayFor(1)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `nested flows - finishing the inner one keeps the outer one protecting`() {
+            unlockedAtTimeoutZero()
+            lock.expect("scanner")
+            val inner = lock.expect("permission")
+
+            lock.finish(inner)
+            awayFor(1)
+
+            assertThat(locked).isFalse()
+        }
+
+        @Test
+        fun `nested flows - one return consumes them all`() {
+            unlockedAtTimeoutZero()
+            lock.expect("scanner")
+            lock.expect("permission")
+            awayFor(1)
+            assertThat(locked).isFalse()
+
+            awayFor(0)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `an expired flow does not shelter a later flow's neighbour`() {
+            unlockedAtTimeoutZero()
+            lock.expect("old")
+            clock.advanceMinutes(AppLockState.EXTERNAL_FLOW_GRACE_MINUTES + 5)
+
+            awayFor(1)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `a token does not unlock an already locked app`() {
+            lock.applySettings(true, 0)
+            lock.expect("scanner")
+
+            awayFor(1)
+
+            assertThat(locked).isTrue()
+        }
+    }
+
+    @Nested
     @DisplayName("toggling in Settings")
     inner class Toggling {
 

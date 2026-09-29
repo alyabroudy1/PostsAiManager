@@ -6,6 +6,8 @@ import com.postsaimanager.core.domain.applock.DeviceAuthAvailability
 import com.postsaimanager.core.domain.applock.DeviceAuthPurpose
 import com.postsaimanager.core.domain.applock.DeviceAuthResult
 import com.postsaimanager.core.domain.applock.DeviceAuthenticator
+import com.postsaimanager.core.domain.applock.ExternalFlowGuard
+import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.repository.UserPreferencesRepository
 import com.postsaimanager.core.domain.usecase.InferenceSettingsUiState
 import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
@@ -45,7 +47,28 @@ class SettingsViewModel @Inject constructor(
     private val updateInferenceSetting: UpdateInferenceSettingUseCase,
     private val resetInferenceSettings: ResetInferenceSettingsUseCase,
     private val deviceAuthenticator: DeviceAuthenticator,
+    private val externalFlowGuard: ExternalFlowGuard,
 ) : ViewModel() {
+
+    private var securitySettingsFlow: ExternalFlowToken? = null
+
+    /**
+     * Call just before sending the user to the system's security/enrolment settings, so coming
+     * back does not lock them out. Pair with [onSecuritySettingsLaunchFailed] if nothing opened.
+     */
+    fun onOpeningSecuritySettings() {
+        externalFlowGuard.finish(securitySettingsFlow)
+        securitySettingsFlow = externalFlowGuard.expect("security-settings")
+    }
+
+    fun onSecuritySettingsLaunchFailed() {
+        externalFlowGuard.finish(securitySettingsFlow)
+        securitySettingsFlow = null
+    }
+
+    override fun onCleared() {
+        externalFlowGuard.finish(securitySettingsFlow)
+    }
 
     private val _appLockNotice = MutableStateFlow<AppLockNotice?>(null)
 
