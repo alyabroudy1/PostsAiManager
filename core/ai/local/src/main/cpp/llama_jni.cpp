@@ -13,6 +13,7 @@
 #include <android/log.h>
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <string>
 #include <vector>
 #include <set>
@@ -71,6 +72,14 @@ struct PamSession {
 
     // ── per-generation state ─────────────────────────────────────────────────
     llama_sampler *chain = nullptr;
+    // The grammar sampler, when the request carries a grammar. Deliberately NOT part of [chain]:
+    // nextToken() samples first and checks only the chosen token against it (see
+    // sampleUnderGrammar), which is what keeps constrained decoding near unconstrained speed.
+    llama_sampler *grammar = nullptr;
+    // Scratch candidate array (one entry per vocabulary token), reused by sampleUnderGrammar.
+    std::vector<llama_token_data> candidates;
+    // How many sampled tokens the grammar rejected in this generation (each cost a full-vocabulary pass).
+    int grammarRejections = 0;
     // Must outlive the batch: llama_batch_get_one stores a pointer into this.
     std::vector<llama_token> promptTokens;
     llama_token lastToken = 0;
@@ -251,6 +260,10 @@ void logGenerationEnd(const PamSession *session) {
     const double ms = elapsedMs(session->generationStart);
     LOGI("pam_llama: decode tokens=%d ms=%.1f %s",
          session->generated, ms, tokensPerSecondText(session->generated, ms).c_str());
+    if (session->grammar != nullptr) {
+        LOGI("pam_llama: grammar-constrained: %d of %d sampled tokens were rejected by the grammar and resampled",
+             session->grammarRejections, session->generated);
+    }
 }
 
 void releaseChain(PamSession *session) {
@@ -258,6 +271,10 @@ void releaseChain(PamSession *session) {
         logGenerationEnd(session);
         llama_sampler_free(session->chain);
         session->chain = nullptr;
+    }
+    if (session->grammar != nullptr) {
+        llama_sampler_free(session->grammar);
+        session->grammar = nullptr;
     }
     session->finished = true;
 }
@@ -471,20 +488,24 @@ bool verifyKvConsistency(PamSession *session, const char *where) {
     return false;
 }
 
-/** Builds the sampler chain shared by the raw one-shot path and the chat-session path. */
+/**
+ * Builds the sampler chain shared by the raw one-shot path and the chat-session path.
+ *
+ * The grammar sampler, if the request has a grammar and it parses, is returned through
+ * [grammarOut] and is NOT in the chain: [sampleUnderGrammar] applies it. (Applied first in the
+ * chain, it masked all ~150k vocabulary tokens on every token and cost about as much as the
+ * model's own forward pass; see that function.) [grammarOut] is null when there is no grammar.
+ */
 llama_sampler *buildSamplerChain(const llama_vocab *vocab, float temperature, int topK, float topP,
-                                  float presencePenalty, jlong seed, const std::string &grammarStd) {
+                                  float presencePenalty, jlong seed, const std::string &grammarStd,
+                                  llama_sampler **grammarOut) {
     llama_sampler *chain = llama_sampler_chain_init(llama_sampler_chain_default_params());
 
-    // The grammar goes first so it filters the candidate set before any probabilistic
-    // sampler runs. Placed afterwards, the constraint could be sampled around.
+    *grammarOut = nullptr;
     if (!grammarStd.empty()) {
-        llama_sampler *grammarSampler =
-                llama_sampler_init_grammar(vocab, grammarStd.c_str(), "root");
-        if (grammarSampler == nullptr) {
+        *grammarOut = llama_sampler_init_grammar(vocab, grammarStd.c_str(), "root");
+        if (*grammarOut == nullptr) {
             LOGE("grammar failed to parse — continuing unconstrained");
-        } else {
-            llama_sampler_chain_add(chain, grammarSampler);
         }
     }
 
@@ -506,6 +527,57 @@ llama_sampler *buildSamplerChain(const llama_vocab *vocab, float temperature, in
         llama_sampler_chain_add(chain, llama_sampler_init_dist(resolvedSeed));
     }
     return chain;
+}
+
+/**
+ * Picks the next token under [PamSession::grammar], the way llama.cpp's own
+ * `common_sampler_sample` does (grammar_first = false):
+ *  1. run the ordinary chain (greedy, or top-k/top-p/temperature) on the raw logits;
+ *  2. check only that one token against the grammar (a one-candidate array, cheap);
+ *  3. if it is valid, take it; only if the grammar rejects it, apply the grammar to the full
+ *     candidate array and run the chain again over what is left.
+ * The result is the same token grammar-first would give, but step 3 is rare (a few percent of
+ * tokens for a JSON answer), where grammar-first masked the whole vocabulary on every token.
+ *
+ * Then advances the grammar (and the chain's history samplers) with the token chosen. The
+ * rejected first choice is never accepted anywhere. Must not be used with [llama_sampler_sample],
+ * which would accept the token a second time.
+ *
+ * @return the token, or the end-of-sequence token when the grammar leaves no valid token at all.
+ */
+llama_token sampleUnderGrammar(PamSession *session, const llama_vocab *vocab) {
+    const int32_t nVocab = llama_vocab_n_tokens(vocab);
+    if ((int32_t) session->candidates.size() != nVocab) session->candidates.resize(nVocab);
+
+    auto fill = [&](llama_token_data_array *array) {
+        const float *logits = llama_get_logits_ith(session->ctx, -1);
+        for (llama_token id = 0; id < nVocab; ++id) session->candidates[id] = {id, logits[id], 0.0f};
+        *array = {session->candidates.data(), (size_t) nVocab, -1, false};
+    };
+
+    llama_token_data_array all;
+    fill(&all);
+    llama_sampler_apply(session->chain, &all);
+    llama_token id = all.data[all.selected].id;
+
+    llama_token_data single = {id, 1.0f, 0.0f};
+    llama_token_data_array singleArray = {&single, 1, -1, false};
+    llama_sampler_apply(session->grammar, &singleArray);
+    if (singleArray.data[0].logit == -INFINITY) {
+        session->grammarRejections++;
+        fill(&all);
+        llama_sampler_apply(session->grammar, &all);
+        llama_sampler_apply(session->chain, &all);
+        if (all.data[all.selected].logit == -INFINITY) {
+            LOGE("grammar allows no token here — ending the reply");
+            return llama_vocab_eos(vocab);
+        }
+        id = all.data[all.selected].id;
+    }
+
+    llama_sampler_accept(session->grammar, id);
+    llama_sampler_accept(session->chain, id);
+    return id;
 }
 
 /**
@@ -905,7 +977,9 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
         return JNI_FALSE;
     }
 
-    session->chain = buildSamplerChain(vocab, temperature, topK, topP, presencePenalty, seed, grammarStd);
+    session->chain = buildSamplerChain(vocab, temperature, topK, topP, presencePenalty, seed, grammarStd,
+                                       &session->grammar);
+    session->grammarRejections = 0;
     session->hitLengthCap = false;
     session->pendingUtf8.clear();
 
@@ -985,9 +1059,14 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_nextToken(JNIEnv *env, jobject
     if (forced) {
         next = session->forcedCloseTokens[session->forcedCloseIndex++];
     } else {
-        // llama_sampler_sample() samples *and accepts* — calling llama_sampler_accept again
-        // would advance the grammar state twice per token and abort the process.
-        next = llama_sampler_sample(session->chain, session->ctx, -1);
+        if (session->grammar != nullptr) {
+            // Sample first, check only the chosen token against the grammar; accepts it too.
+            next = sampleUnderGrammar(session, vocab);
+        } else {
+            // llama_sampler_sample() samples *and accepts* — calling llama_sampler_accept again
+            // would advance the sampler state twice per token.
+            next = llama_sampler_sample(session->chain, session->ctx, -1);
+        }
         if (llama_vocab_is_eog(vocab, next)) {
             releaseChain(session);
             return nullptr;
@@ -1274,7 +1353,9 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
          thinkingOpen ? "inside <think>" : "after an empty <think></think>",
          prefillTokens, session->thinkingBudgetTokens, resolvedMaxTokens);
 
-    session->chain = buildSamplerChain(vocab, temperature, topK, topP, presencePenalty, seed, grammarStd);
+    session->chain = buildSamplerChain(vocab, temperature, topK, topP, presencePenalty, seed, grammarStd,
+                                       &session->grammar);
+    session->grammarRejections = 0;
     session->hitLengthCap = false;
     session->pendingUtf8.clear();
     session->generated = 0;
