@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -38,7 +40,12 @@ sealed interface ChatTurn {
      *   today, only "waiting behind an in-flight document read" (see [AiEngine.isBusy]). Null
      *   is the common case and renders the default text.
      */
-    data class PreparingModel(val reason: String? = null) : ChatTurn
+    data class PreparingModel(val reason: String? = null) : ChatTurn {
+        companion object {
+            /** [reason] when the engine is busy with another caller (a document being read). */
+            const val WAITING_FOR_DOCUMENT = "Waiting for a document to finish reading…"
+        }
+    }
 
     /**
      * The engine's chat session for this conversation is about to be (re)primed — a full
@@ -320,7 +327,9 @@ class SendChatMessageUseCase @Inject constructor(
         // (see AiEngine.ensureChatSession's KDoc and documentation/02-architecture.md §5.3).
         // Cheap to call on every send, same as `engine.load` above: a no-op when this
         // conversation's session is already primed and valid.
-        engine.ensureChatSession(conversationId, grounding, buildHistory(priorTurns, contextTokens, grounding))
+        primeMutex.withLock {
+            engine.ensureChatSession(conversationId, grounding, buildHistory(priorTurns, contextTokens, grounding))
+        }
 
         // 4.1/4.2: fold retrieved passages into *this turn's* text only — never into
         // `grounding` above, which must stay stable across turns. `sentText` is what the
@@ -369,15 +378,7 @@ class SendChatMessageUseCase @Inject constructor(
             // session's own history plus `sentText`; only the sampling/thinking fields
             // matter. `sentText` is `text` with any retrieved passages prefixed (4.1/4.2) —
             // see the class KDoc's "Retrieval-augmented grounding".
-            engine.sendChatMessage(
-                sentText,
-                AiRequest(
-                    prompt = "",
-                    maxTokens = replyMaxTokens(thinkingEffort),
-                    thinkingEnabled = thinkingEffort != ThinkingEffort.OFF,
-                    thinkingBudgetTokens = thinkingBudgetTokens(thinkingEffort),
-                ),
-            )
+            engine.sendChatMessage(sentText, ChatReplyBudget.request(thinkingEffort, contextTokens))
                 .collect { token -> apply(parser.consume(token)).forEach { emit(it) } }
             apply(parser.finish()).forEach { emit(it) }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -458,6 +459,24 @@ class SendChatMessageUseCase @Inject constructor(
             )
             engine.discardPendingReply()
             emit(ChatTurn.Failed(RAN_OUT_OF_ROOM_WHILE_THINKING, ChatErrorAction.RETRY))
+            return@flow
+        }
+
+        // The reply ended by reaching its token cap, not by EOS: it stops mid-thought. Same
+        // incomplete/Retry path as a stopped reply (never committed to the session, never
+        // replayed into a prompt), but flagged cutOff so the UI says "Answer was cut off".
+        if (engine.lastReplyHitLimit()) {
+            val cutOffMessage = persistAssistant(
+                conversationId,
+                answerBuilder.toString(),
+                thinkingBuilder.toString(),
+                thinkingDurationMs,
+                incomplete = true,
+                cutOff = true,
+                sources = sources.toMessageSources(),
+            )
+            engine.discardPendingReply()
+            emit(ChatTurn.Complete(cutOffMessage, sources = sources))
             return@flow
         }
 
@@ -562,28 +581,47 @@ class SendChatMessageUseCase @Inject constructor(
      * A no-op, not an error, when nothing is installed or the load fails — same as
      * [PreloadActiveModelUseCase], which this replaces at that call site.
      */
-    suspend fun primeConversation(conversationId: String, documentId: String?) {
+    suspend fun primeConversation(
+        conversationId: String,
+        documentId: String?,
+        /** Called once [AiEngine.load] returned — i.e. once any wait behind a document read is over. */
+        onLoadFinished: () -> Unit = {},
+    ) {
         val activeModelPath = activeModelProvider.activeModelPath() ?: return
         val config = activeModelProvider.activeModelConfig()
         val loaded = engine.load(activeModelPath, config)
+        onLoadFinished()
         if (loaded is PamResult.Error) return
 
-        // Same ground truth invoke() re-checks after load — a config change during load can
-        // still require a (re)prime even if this conversation looked primed a moment ago.
-        if (engine.isChatSessionPrimed(conversationId)) return
+        // Serialised with the send path's own ensureChatSession call and re-checked under
+        // the lock, so a send that raced this prime (both waiting behind an in-flight
+        // document read, say) joins it instead of priming the same conversation twice.
+        primeMutex.withLock {
+            // Same ground truth invoke() re-checks after load — a config change during load
+            // can still require a (re)prime even if this conversation looked primed a
+            // moment ago.
+            if (engine.isChatSessionPrimed(conversationId)) return
 
-        val chatContext = buildChatContext(documentId, config.contextTokens)
-        val priorTurns = conversationRepository.getMessages(conversationId).first()
-        val contextTokens = when (val state = engine.state.value) {
-            is ModelLoadState.Ready -> state.config.contextTokens
-            else -> config.contextTokens
+            val chatContext = buildChatContext(documentId, config.contextTokens)
+            // A trailing user message is a turn a concurrent send has just persisted and is
+            // about to append itself (or an orphan): replaying it here would put it in the
+            // session twice.
+            val priorTurns = conversationRepository.getMessages(conversationId).first()
+                .let { turns -> if (turns.lastOrNull()?.role == MessageRole.USER) turns.dropLast(1) else turns }
+            val contextTokens = when (val state = engine.state.value) {
+                is ModelLoadState.Ready -> state.config.contextTokens
+                else -> config.contextTokens
+            }
+            engine.ensureChatSession(
+                conversationId,
+                chatContext.text,
+                buildHistory(priorTurns, contextTokens, chatContext.text),
+            )
         }
-        engine.ensureChatSession(
-            conversationId,
-            chatContext.text,
-            buildHistory(priorTurns, contextTokens, chatContext.text),
-        )
     }
+
+    /** See [primeConversation]. */
+    private val primeMutex = Mutex()
 
     /**
      * Prior turns of this conversation, as history the model can see — user text and
@@ -722,6 +760,7 @@ class SendChatMessageUseCase @Inject constructor(
         thinking: String,
         thinkingDurationMs: Long?,
         incomplete: Boolean = false,
+        cutOff: Boolean = false,
         sources: List<MessageSource> = emptyList(),
     ): AiMessage {
         val message = AiMessage(
@@ -733,6 +772,7 @@ class SendChatMessageUseCase @Inject constructor(
             thinking = thinking.ifBlank { null },
             thinkingDurationMs = thinkingDurationMs,
             incomplete = incomplete,
+            cutOff = cutOff,
             sources = sources,
         )
         conversationRepository.addMessage(message)
@@ -746,28 +786,6 @@ class SendChatMessageUseCase @Inject constructor(
 
     private fun elapsedMs(startNanos: Long): Long =
         (System.nanoTime() - startNanos) / NANOS_PER_MILLI
-
-    /**
-     * A **cap**, not a promise — `llama_jni.cpp`'s `sendChatMessage` clamps it further to
-     * whatever still fits in the context window after this turn's prompt (see its KDoc,
-     * "Reply budget"). [MAX_REPLY_TOKENS] just bounds runaway/looping output; EOS normally
-     * ends a reply well before it, thinking or not — same reasoning OpenAI's
-     * `max_completion_tokens` and Anthropic's `max_tokens` use.
-     */
-    private fun replyMaxTokens(@Suppress("UNUSED_PARAMETER") thinkingEffort: ThinkingEffort): Int =
-        MAX_REPLY_TOKENS
-
-    /**
-     * The reasoning trace's own sub-budget, inside [replyMaxTokens] — see
-     * `AiRequest.thinkingBudgetTokens`'s KDoc and `llama_jni.cpp`'s forced `</think>` close.
-     * 0 for [ThinkingEffort.OFF] disables the forced-close machinery outright (nothing to
-     * force-close when `/no_think` already means no `<think>` block is expected at all).
-     */
-    private fun thinkingBudgetTokens(thinkingEffort: ThinkingEffort): Int = when (thinkingEffort) {
-        ThinkingEffort.OFF -> 0
-        ThinkingEffort.LOW -> THINKING_BUDGET_LOW
-        ThinkingEffort.HIGH -> THINKING_BUDGET_HIGH
-    }
 
     private companion object {
         /**
@@ -801,7 +819,7 @@ class SendChatMessageUseCase @Inject constructor(
         const val HISTORY_TRIM_TARGET_RATIO = 0.6
 
         /** [ChatTurn.PreparingModel.reason] when the engine is busy with another caller. */
-        const val BUSY_REASON = "Waiting for a document to finish reading…"
+        const val BUSY_REASON = ChatTurn.PreparingModel.WAITING_FOR_DOCUMENT
 
         const val NANOS_PER_MILLI = 1_000_000L
         const val NO_ANSWER_PRODUCED =
@@ -811,17 +829,6 @@ class SendChatMessageUseCase @Inject constructor(
         const val RAN_OUT_OF_ROOM_WHILE_THINKING =
             "The model ran out of room while thinking. Try again, or set Thinking to Off " +
                 "for faster answers."
-
-        /** See [replyMaxTokens]'s doc. */
-        const val MAX_REPLY_TOKENS = 1024
-
-        /**
-         * [ThinkingEffort.LOW]/[ThinkingEffort.HIGH]'s requested reasoning sub-budgets, in
-         * tokens, before [replyMaxTokens] and the native `kMinAnswerReserveTokens` floor
-         * clamp them further — see [thinkingBudgetTokens]'s doc.
-         */
-        const val THINKING_BUDGET_LOW = 256
-        const val THINKING_BUDGET_HIGH = 1024
 
         /**
          * How many passages [RetrieveChunksUseCase] is asked for per turn (4.1/4.2). A

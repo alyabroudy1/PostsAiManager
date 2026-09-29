@@ -172,9 +172,13 @@ internal object LlamaNative {
         temperature: Float,
         topK: Int,
         topP: Float,
+        presencePenalty: Float,
         seed: Long,
         grammar: String?,
     ): Boolean
+
+    /** True when the last generation stopped at its token cap rather than at end-of-generation. */
+    external fun lastReplyHitLimit(handle: Long): Boolean
 
     /** @return the next token's text, or null when generation is complete. */
     external fun nextToken(handle: Long): String?
@@ -238,6 +242,7 @@ internal object LlamaNative {
         temperature: Float,
         topK: Int,
         topP: Float,
+        presencePenalty: Float,
         seed: Long,
         grammar: String?,
         noThink: Boolean,

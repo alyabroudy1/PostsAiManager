@@ -163,6 +163,11 @@ class FakeAiEngine(
         failAfterResponse?.let { throw it }
     }
 
+    /** What [lastReplyHitLimit] reports — set to simulate a reply that reached its token cap. */
+    var hitLimit: Boolean = false
+
+    override suspend fun lastReplyHitLimit(): Boolean = hitLimit
+
     override suspend fun commitChatReply(answer: String) {
         committedReplies += answer
     }

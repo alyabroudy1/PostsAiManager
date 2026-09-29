@@ -592,6 +592,41 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate12To13_cutOffColumnIsAdditiveAndFalseForExistingMessages() {
+        helper.createDatabase(TEST_DB, 12).apply {
+            execSQL(
+                """
+                INSERT INTO conversations
+                    (id, documentId, aiModelId, modelType, title, lastMessageAt,
+                     messageCount, isActive, createdAt)
+                VALUES ('conv-1', NULL, NULL, 'LOCAL', 'Chat', 1, 1, 1, 1)
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO messages
+                    (id, conversationId, role, content, mediaType, mediaPath, toolCallId,
+                     toolName, toolArgs, toolResult, isStreaming, createdAt, thinking,
+                     thinkingDurationMs, incomplete)
+                VALUES ('m1', 'conv-1', 'ASSISTANT', 'Stopped text', 'TEXT', NULL, NULL, NULL,
+                        NULL, NULL, 0, 1, NULL, NULL, 1)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 13, true, PamMigrations.MIGRATION_12_13,
+        )
+
+        db.query("SELECT incomplete, cutOff FROM messages WHERE id = 'm1'").use { cursor ->
+            assertTrue("the message was lost in migration", cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(0))
+            assertEquals("a pre-existing message must not read as cut off", 0, cursor.getInt(1))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

@@ -18,7 +18,7 @@ private fun drain(
     temperature: Float,
     grammar: String?,
 ): String {
-    if (!LlamaNative.startGeneration(handle, prompt, maxTokens, temperature, 40, 0.9f, -1L, grammar)) return ""
+    if (!LlamaNative.startGeneration(handle, prompt, maxTokens, temperature, 40, 0.9f, 0.0f, -1L, grammar)) return ""
     val sb = StringBuilder()
     try {
         while (true) sb.append(LlamaNative.nextToken(handle) ?: break)

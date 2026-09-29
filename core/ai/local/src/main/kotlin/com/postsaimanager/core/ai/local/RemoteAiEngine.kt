@@ -369,6 +369,7 @@ class RemoteAiEngine @Inject constructor(
                     request.temperature,
                     request.topK,
                     request.topP,
+                    request.presencePenalty,
                     request.seed ?: -1L,
                     request.grammar,
                     callback,
@@ -422,6 +423,10 @@ class RemoteAiEngine @Inject constructor(
         // context that had just been wiped out from under it. See engineMutex's doc.
         return engineMutex.withLock {
             withContext(ioDispatcher) {
+                // Re-checked under the lock: a second caller (prime-on-open racing a send)
+                // that passed the unlocked check above while the first was still priming must
+                // join that prime rather than decode the whole conversation a second time.
+                if (sessionConversationId == conversationId) return@withContext false
                 val remote = connect() ?: return@withContext false
                 val opened = runCatching { remote.openChatSession(systemPrompt) }.getOrDefault(false)
                 if (!opened) return@withContext false
@@ -482,6 +487,7 @@ class RemoteAiEngine @Inject constructor(
                     request.temperature,
                     request.topK,
                     request.topP,
+                    request.presencePenalty,
                     request.seed ?: -1L,
                     request.grammar,
                     !request.thinkingEnabled,
@@ -507,6 +513,11 @@ class RemoteAiEngine @Inject constructor(
             deathWatch.cancel()
             runCatching { remote.cancelGeneration() }
         }
+    }
+
+    override suspend fun lastReplyHitLimit(): Boolean = withContext(ioDispatcher) {
+        val remote = service ?: return@withContext false
+        runCatching { remote.lastReplyHitLimit() }.getOrDefault(false)
     }
 
     override suspend fun commitChatReply(answer: String) = engineMutex.withLock {

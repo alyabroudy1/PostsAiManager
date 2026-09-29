@@ -36,11 +36,15 @@ interface IInferenceService {
         float temperature,
         int topK,
         float topP,
+        float presencePenalty,
         long seed,
         String grammar,
         ITokenCallback callback);
 
     void cancelGeneration();
+
+    /** True when the last generation stopped at its token cap (not at end-of-generation). */
+    boolean lastReplyHitLimit();
 
     /** Opens a standing chat session — see `LlamaNative.openChatSession`. */
     boolean openChatSession(String systemPrompt);
@@ -55,6 +59,7 @@ interface IInferenceService {
         float temperature,
         int topK,
         float topP,
+        float presencePenalty,
         long seed,
         String grammar,
         boolean noThink,

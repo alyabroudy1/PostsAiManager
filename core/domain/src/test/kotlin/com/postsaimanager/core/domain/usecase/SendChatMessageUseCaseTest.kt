@@ -16,6 +16,7 @@ import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.testChunk
 import com.postsaimanager.core.testing.testDocument
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -190,21 +191,96 @@ class SendChatMessageUseCaseTest {
     }
 
     @Test
-    @DisplayName("every thinking effort level requests the same reply cap")
-    fun `reply cap is independent of thinking effort`() = runTest {
+    @DisplayName("the reply cap grows with the thinking budget so the answer always keeps 512+ tokens")
+    fun `reply cap leaves the answer its share`() = runTest {
+        engine.response = "hi"
+
+        for (effort in ThinkingEffort.entries) {
+            sendChatMessage("conv-1", documentId = null, text = effort.name, thinkingEffort = effort).toList()
+            val request = engine.lastRequest!!
+            assertThat(request.maxTokens - request.thinkingBudgetTokens)
+                .isAtLeast(ChatReplyBudget.MIN_ANSWER_TOKENS)
+        }
+        sendChatMessage("conv-1", documentId = null, text = "h", thinkingEffort = ThinkingEffort.HIGH).toList()
+        assertThat(engine.lastRequest!!.maxTokens).isEqualTo(1024 + 768)
+    }
+
+    @Test
+    @DisplayName("chat requests use the Qwen3.5 model-card sampling for the mode, with presence penalty")
+    fun `chat sampling is per mode`() = runTest {
         engine.response = "hi"
 
         sendChatMessage("conv-1", documentId = null, text = "a", thinkingEffort = ThinkingEffort.OFF).toList()
-        val offMaxTokens = engine.lastRequest!!.maxTokens
+        with(engine.lastRequest!!) {
+            assertThat(temperature).isEqualTo(1.0f)
+            assertThat(topP).isEqualTo(1.0f)
+            assertThat(topK).isEqualTo(20)
+            assertThat(presencePenalty).isEqualTo(2.0f)
+        }
 
         sendChatMessage("conv-1", documentId = null, text = "b", thinkingEffort = ThinkingEffort.HIGH).toList()
-        val highMaxTokens = engine.lastRequest!!.maxTokens
+        with(engine.lastRequest!!) {
+            assertThat(topP).isEqualTo(0.95f)
+            assertThat(presencePenalty).isEqualTo(1.5f)
+        }
+    }
 
-        // The reply cap is the answer/output budget, sized independently of thinking effort
-        // (M1) — the thinking budget is a *sub*-budget inside it, never a separate addend, so
-        // a higher thinking effort never grows the ceiling native clamps against.
-        assertThat(offMaxTokens).isEqualTo(highMaxTokens)
-        assertThat(offMaxTokens).isEqualTo(1024)
+    @Test
+    @DisplayName("a reply that ends at its token cap is kept but marked cut off, and not committed")
+    fun `cap-hit reply is marked cut off`() = runTest {
+        engine.response = "The answer starts well but"
+        engine.hitLimit = true
+
+        val turns = sendChatMessage("conv-1", documentId = null, text = "hello").toList()
+
+        val message = turns.filterIsInstance<ChatTurn.Complete>().single().message
+        assertThat(message.incomplete).isTrue()
+        assertThat(message.cutOff).isTrue()
+        assertThat(message.content).isEqualTo("The answer starts well but")
+        assertThat(engine.committedReplies).isEmpty()
+        assertThat(engine.discardedReplies).hasSize(1)
+    }
+
+    @Test
+    @DisplayName("a reply that ends normally is neither incomplete nor cut off")
+    fun `normal reply is not cut off`() = runTest {
+        engine.response = "Done."
+        engine.hitLimit = false
+
+        val message = sendChatMessage("conv-1", documentId = null, text = "hello").toList()
+            .filterIsInstance<ChatTurn.Complete>().single().message
+
+        assertThat(message.incomplete).isFalse()
+        assertThat(message.cutOff).isFalse()
+        assertThat(engine.committedReplies).containsExactly("Done.")
+    }
+
+    @Test
+    @DisplayName("priming twice at once decodes the conversation once")
+    fun `concurrent primes join`() = runTest {
+        engine.response = "hi"
+
+        val a = async { sendChatMessage.primeConversation("conv-1", documentId = null) }
+        val b = async { sendChatMessage.primeConversation("conv-1", documentId = null) }
+        a.await()
+        b.await()
+
+        assertThat(engine.ensureChatSessionCalls).hasSize(1)
+    }
+
+    @Test
+    @DisplayName("a pending user message is not replayed into the prime")
+    fun `prime skips a pending trailing user message`() = runTest {
+        conversations.addMessage(
+            AiMessage(
+                id = "u1", conversationId = "conv-1", role = MessageRole.USER,
+                content = "pending question", createdAt = 1,
+            ),
+        )
+
+        sendChatMessage.primeConversation("conv-1", documentId = null)
+
+        assertThat(engine.lastSessionHistory).isEmpty()
     }
 
     @Test

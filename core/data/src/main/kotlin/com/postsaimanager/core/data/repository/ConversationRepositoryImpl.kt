@@ -157,6 +157,7 @@ class ConversationRepositoryImpl @Inject constructor(
         thinking = row.message.thinking,
         thinkingDurationMs = row.message.thinkingDurationMs,
         incomplete = row.message.incomplete,
+        cutOff = row.message.cutOff,
         sources = row.sources.map(::toDomain),
     )
 
@@ -176,6 +177,7 @@ class ConversationRepositoryImpl @Inject constructor(
         thinking = model.thinking,
         thinkingDurationMs = model.thinkingDurationMs,
         incomplete = model.incomplete,
+        cutOff = model.cutOff,
     )
 
     private fun toDomain(entity: MessageSourceEntity) = MessageSource(

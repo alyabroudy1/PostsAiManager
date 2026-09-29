@@ -360,6 +360,8 @@ data class MessageEntity(
     val thinkingDurationMs: Long? = null,
     /** See [com.postsaimanager.core.model.AiMessage.incomplete]. */
     val incomplete: Boolean = false,
+    /** See [com.postsaimanager.core.model.AiMessage.cutOff]. */
+    val cutOff: Boolean = false,
 )
 
 /**

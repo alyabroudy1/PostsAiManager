@@ -62,6 +62,11 @@ data class AiMessage(
      */
     val incomplete: Boolean = false,
     /**
+     * With [incomplete]: the reply was not stopped or crashed but ran into its token cap and
+     * was cut off mid-answer. The UI says "Answer was cut off" instead of "Stopped".
+     */
+    val cutOff: Boolean = false,
+    /**
      * The passages, if any, that were injected into this turn's prompt and grounded the
      * answer (4.1/4.2 retrieval mode) — empty for a user message, for a reply generated
      * outside retrieval mode (the whole document already sat in the grounding), and for a
