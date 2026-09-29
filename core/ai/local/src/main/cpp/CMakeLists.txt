@@ -121,6 +121,14 @@ endif()
 
 add_subdirectory(${LLAMA_DIR} ${CMAKE_CURRENT_BINARY_DIR}/llama.cpp EXCLUDE_FROM_ALL)
 
+# libmtmd (multimodal: vision encoder + image tokenisation) from the vendored tools/mtmd.
+# Added directly rather than via LLAMA_BUILD_TOOLS, which would also configure every CLI tool.
+# Video support (ffmpeg subprocess) is force-disabled: not usable on a phone.
+set(MTMD_VIDEO OFF CACHE BOOL "" FORCE)
+# tools/mtmd/CMakeLists.txt reads this from llama.cpp's root scope (not visible here).
+set(LLAMA_INSTALL_VERSION 0.0.0)
+add_subdirectory(${LLAMA_DIR}/tools/mtmd ${CMAKE_CURRENT_BINARY_DIR}/mtmd EXCLUDE_FROM_ALL)
+
 # ggml-vulkan.cpp includes <vulkan/vulkan.hpp>, the Vulkan-Hpp C++ bindings. The NDK
 # sysroot only ships the plain C header (vulkan/vulkan.h) — vulkan.hpp is header-only
 # and pulls in nothing but vulkan.h itself, so it is safe to take it from the host
@@ -136,11 +144,13 @@ add_library(pam_llama SHARED llama_jni.cpp)
 target_include_directories(pam_llama PRIVATE
     ${LLAMA_DIR}/include
     ${LLAMA_DIR}/ggml/include
+    ${LLAMA_DIR}/tools/mtmd
 )
 
 find_library(log-lib log)
 
 target_link_libraries(pam_llama
     llama
+    mtmd
     ${log-lib}
 )

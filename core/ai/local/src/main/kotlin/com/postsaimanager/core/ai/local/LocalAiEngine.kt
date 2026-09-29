@@ -210,18 +210,40 @@ internal class LocalAiEngine @Inject constructor(
         sessionConversationId = null
 
         mutex.withLock {
-            val started = LlamaNative.startGeneration(
-                handle = current,
-                prompt = prompt,
-                maxTokens = maxTokens,
-                temperature = temperature,
-                topK = request.topK,
-                topP = request.topP,
-                presencePenalty = request.presencePenalty,
-                // null means "no seed requested"; the JNI layer treats negative as that.
-                seed = request.seed ?: -1L,
-                grammar = grammar,
-            )
+            val started = if (request.imagePaths.isEmpty()) {
+                LlamaNative.startGeneration(
+                    handle = current,
+                    prompt = prompt,
+                    maxTokens = maxTokens,
+                    temperature = temperature,
+                    topK = request.topK,
+                    topP = request.topP,
+                    presencePenalty = request.presencePenalty,
+                    // null means "no seed requested"; the JNI layer treats negative as that.
+                    seed = request.seed ?: -1L,
+                    grammar = grammar,
+                )
+            } else {
+                val projector = visionPath
+                    ?: throw IllegalStateException("No vision projector is loaded")
+                if (!LlamaNative.hasVision(current) &&
+                    !LlamaNative.loadVision(current, projector, InferenceConfig.defaultThreadCount())
+                ) {
+                    throw IllegalStateException("The vision projector could not be attached")
+                }
+                LlamaNative.startVisionGeneration(
+                    handle = current,
+                    prompt = prompt,
+                    imagePaths = request.imagePaths.toTypedArray(),
+                    maxTokens = maxTokens,
+                    temperature = temperature,
+                    topK = request.topK,
+                    topP = request.topP,
+                    presencePenalty = request.presencePenalty,
+                    seed = request.seed ?: -1L,
+                    grammar = grammar,
+                )
+            }
             if (!started) {
                 throw IllegalArgumentException("Prompt produced no tokens")
             }
@@ -241,6 +263,33 @@ internal class LocalAiEngine @Inject constructor(
             }
         }
     }.flowOn(ioDispatcher)
+
+    /** The projector requested with [loadVision]; re-attached lazily after a model reload. */
+    @Volatile
+    private var visionPath: String? = null
+
+    override val supportsVision: Boolean get() = visionPath != null
+
+    override suspend fun loadVision(mmprojPath: String): PamResult<Unit> = mutex.withLock {
+        withContext(ioDispatcher) {
+            val current = handle
+            if (current == 0L) {
+                return@withContext PamResult.Error(PamError.ModelNotLoaded("Load a model before its vision projector."))
+            }
+            if (!File(mmprojPath).exists()) return@withContext PamResult.Error(PamError.FileNotFound(mmprojPath))
+            if (!LlamaNative.loadVision(current, mmprojPath, InferenceConfig.defaultThreadCount())) {
+                return@withContext PamResult.Error(PamError.InferenceError("Could not load the vision projector"))
+            }
+            visionPath = mmprojPath
+            PamResult.Success(Unit)
+        }
+    }
+
+    override suspend fun lastVisionStats(): String {
+        val current = handle
+        if (current == 0L) return ""
+        return mutex.withLock { withContext(ioDispatcher) { LlamaNative.lastVisionStats(current) } }
+    }
 
     /** Convenience wrapper: collects [generate] into one string. */
     suspend fun generateOnce(

@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.ai
 
+import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.ConfigSpec
@@ -157,6 +158,27 @@ interface AiEngine {
      */
     suspend fun lastReplyHitLimit(): Boolean = false
 
+    /**
+     * Optional capability: image input. True once a vision projector was attached with
+     * [loadVision] for the resident model; [generate] then honours [AiRequest.imagePaths].
+     * Off by default — nothing in the app attaches a projector yet (Phase 1 vision spike).
+     */
+    val supportsVision: Boolean get() = false
+
+    /**
+     * Attaches the multimodal projector at [mmprojPath] (an app-readable file) to the resident
+     * model. Must be called after [load]; a later reload of the model keeps the request and
+     * re-attaches lazily on the next image [generate]. Default: unsupported.
+     */
+    suspend fun loadVision(mmprojPath: String): PamResult<Unit> =
+        PamResult.Error(PamError.InferenceError("Vision is not supported by this engine"))
+
+    /**
+     * Diagnostics of the last image [generate]: image token count and encode/decode timings,
+     * as `key=value` pairs. Empty when there was none.
+     */
+    suspend fun lastVisionStats(): String = ""
+
     /** Appends [answer] (thinking-stripped) to the open chat session's history. See [sendChatMessage]. */
     suspend fun commitChatReply(answer: String)
 
@@ -263,7 +285,19 @@ data class AiRequest(
      * false, and by the one-shot [AiEngine.generate] path, same as [thinkingEnabled] itself.
      */
     val thinkingBudgetTokens: Int = 0,
-)
+    /**
+     * Images to evaluate together with [prompt], as absolute paths of app-owned files (the
+     * inference process must be able to read them). [prompt] must contain [IMAGE_MARKER]
+     * once per image, where the image belongs. Only [AiEngine.generate] on an engine with
+     * [AiEngine.supportsVision] honours them; empty (the default) is the text-only path.
+     */
+    val imagePaths: List<String> = emptyList(),
+) {
+    companion object {
+        /** Placeholder for one image in [prompt] (libmtmd's default media marker). */
+        const val IMAGE_MARKER = "<__media__>"
+    }
+}
 
 data class AiCapabilities(
     val supportsGrammar: Boolean,

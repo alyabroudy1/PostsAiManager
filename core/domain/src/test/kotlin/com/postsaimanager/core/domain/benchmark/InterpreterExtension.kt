@@ -1,7 +1,7 @@
 package com.postsaimanager.core.domain.benchmark
 
 import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
-import com.postsaimanager.core.domain.usecase.LetterLayout
+import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull

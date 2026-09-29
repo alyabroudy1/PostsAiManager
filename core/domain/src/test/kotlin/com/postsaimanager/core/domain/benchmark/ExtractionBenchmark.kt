@@ -6,10 +6,10 @@ import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateExtractor
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
-import com.postsaimanager.core.domain.usecase.LayoutLine
-import com.postsaimanager.core.domain.usecase.LetterLayout
-import com.postsaimanager.core.domain.usecase.LetterLayoutAnalyzer
-import com.postsaimanager.core.domain.usecase.LetterZone
+import com.postsaimanager.core.domain.extraction.layout.LayoutLine
+import com.postsaimanager.core.domain.extraction.layout.LetterLayout
+import com.postsaimanager.core.domain.extraction.layout.LetterLayoutAnalyzer
+import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import java.io.File
 import java.util.Locale
 

@@ -177,6 +177,37 @@ internal object LlamaNative {
         grammar: String?,
     ): Boolean
 
+    /** Attaches the multimodal projector (mmproj GGUF) to the model behind [handle]; false on failure. */
+    external fun loadVision(handle: Long, mmprojPath: String, threads: Int): Boolean
+
+    external fun freeVision(handle: Long)
+
+    external fun hasVision(handle: Long): Boolean
+
+    /** libmtmd's media marker: what the prompt of [startVisionGeneration] holds once per image. */
+    external fun visionMarker(): String
+
+    /** `imageTokens=.. encodeMs=.. imageDecodeMs=.. textTokens=.. textDecodeMs=.. nPast=..` of the last vision prompt. */
+    external fun lastVisionStats(handle: Long): String
+
+    /**
+     * Like [startGeneration], but [prompt] holds one [visionMarker] per entry of [imagePaths]
+     * (files readable by this process). Images are encoded and evaluated with the text;
+     * tokens are pulled with [nextToken] as usual. Needs [loadVision] first.
+     */
+    external fun startVisionGeneration(
+        handle: Long,
+        prompt: String,
+        imagePaths: Array<String>,
+        maxTokens: Int,
+        temperature: Float,
+        topK: Int,
+        topP: Float,
+        presencePenalty: Float,
+        seed: Long,
+        grammar: String?,
+    ): Boolean
+
     /** True when the last generation stopped at its token cap rather than at end-of-generation. */
     external fun lastReplyHitLimit(handle: Long): Boolean
 

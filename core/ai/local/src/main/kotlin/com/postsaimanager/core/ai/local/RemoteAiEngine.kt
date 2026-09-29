@@ -298,6 +298,33 @@ class RemoteAiEngine @Inject constructor(
 
     override fun generate(request: AiRequest): Flow<String> = engineMutex.serialised(generateFlow(request))
 
+    /** The projector requested with [loadVision]; re-attached lazily after a model reload or crash. */
+    @Volatile
+    private var visionPath: String? = null
+
+    override val supportsVision: Boolean get() = visionPath != null
+
+    override suspend fun loadVision(mmprojPath: String): PamResult<Unit> = engineMutex.withLock {
+        withContext(ioDispatcher) {
+            val remote = connect() ?: return@withContext PamResult.Error(
+                PamError.ModelNotLoaded("Could not reach the AI engine."),
+            )
+            if (!File(mmprojPath).exists()) return@withContext PamResult.Error(PamError.FileNotFound(mmprojPath))
+            val ok = runCatching {
+                remote.loadVision(mmprojPath, InferenceConfig.defaultThreadCount())
+            }.getOrDefault(false)
+            if (!ok) {
+                return@withContext PamResult.Error(PamError.InferenceError("Could not load the vision projector"))
+            }
+            visionPath = mmprojPath
+            PamResult.Success(Unit)
+        }
+    }
+
+    override suspend fun lastVisionStats(): String = withContext(ioDispatcher) {
+        runCatching { service?.lastVisionStats().orEmpty() }.getOrDefault("")
+    }
+
     private fun generateFlow(request: AiRequest): Flow<String> = callbackFlow {
         // `callbackFlow`'s producer block runs in the collector's context — a plain
         // `Dispatchers.Main.immediate` for anything reached from `viewModelScope.launch` —
@@ -363,17 +390,37 @@ class RemoteAiEngine @Inject constructor(
 
         val started = withContext(ioDispatcher) {
             runCatching {
-                remote.startGeneration(
-                    request.prompt,
-                    request.maxTokens,
-                    request.temperature,
-                    request.topK,
-                    request.topP,
-                    request.presencePenalty,
-                    request.seed ?: -1L,
-                    request.grammar,
-                    callback,
-                )
+                if (request.imagePaths.isEmpty()) {
+                    remote.startGeneration(
+                        request.prompt,
+                        request.maxTokens,
+                        request.temperature,
+                        request.topK,
+                        request.topP,
+                        request.presencePenalty,
+                        request.seed ?: -1L,
+                        request.grammar,
+                        callback,
+                    )
+                } else {
+                    // The projector dies with the model (reload, crash, memory-pressure
+                    // unload): re-attach it lazily from the remembered path.
+                    val projector = visionPath
+                    val attached = projector != null &&
+                        (remote.hasVision() || remote.loadVision(projector, InferenceConfig.defaultThreadCount()))
+                    attached && remote.startVisionGeneration(
+                        request.prompt,
+                        request.imagePaths.toTypedArray(),
+                        request.maxTokens,
+                        request.temperature,
+                        request.topK,
+                        request.topP,
+                        request.presencePenalty,
+                        request.seed ?: -1L,
+                        request.grammar,
+                        callback,
+                    )
+                }
             }.getOrDefault(false)
         }
 

@@ -41,6 +41,27 @@ interface IInferenceService {
         String grammar,
         ITokenCallback callback);
 
+    /** Attaches the multimodal projector — see `LlamaNative.loadVision`. */
+    boolean loadVision(String mmprojPath, int threads);
+
+    boolean hasVision();
+
+    /** Diagnostics of the last image generation — see `LlamaNative.lastVisionStats`. */
+    String lastVisionStats();
+
+    /** Like [startGeneration] with images; [prompt] holds one media marker per path. */
+    boolean startVisionGeneration(
+        String prompt,
+        in String[] imagePaths,
+        int maxTokens,
+        float temperature,
+        int topK,
+        float topP,
+        float presencePenalty,
+        long seed,
+        String grammar,
+        ITokenCallback callback);
+
     void cancelGeneration();
 
     /** True when the last generation stopped at its token cap (not at end-of-generation). */

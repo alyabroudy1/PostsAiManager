@@ -145,6 +145,59 @@ class InferenceService : Service() {
             return true
         }
 
+        override fun loadVision(mmprojPath: String?, threads: Int): Boolean {
+            if (handle == 0L || mmprojPath == null || !File(mmprojPath).exists()) return false
+            return submit { LlamaNative.loadVision(handle, mmprojPath, threads) } ?: false
+        }
+
+        override fun hasVision(): Boolean =
+            handle != 0L && (submit { LlamaNative.hasVision(handle) } ?: false)
+
+        override fun lastVisionStats(): String =
+            if (handle == 0L) "" else (submit { LlamaNative.lastVisionStats(handle) } ?: "")
+
+        override fun startVisionGeneration(
+            prompt: String?,
+            imagePaths: Array<out String>?,
+            maxTokens: Int,
+            temperature: Float,
+            topK: Int,
+            topP: Float,
+            presencePenalty: Float,
+            seed: Long,
+            grammar: String?,
+            callback: ITokenCallback?,
+        ): Boolean {
+            if (handle == 0L || prompt == null || imagePaths == null || callback == null) return false
+
+            cancelled.set(false)
+            val paths = Array(imagePaths.size) { imagePaths[it] }
+            executor.execute {
+                try {
+                    val started = LlamaNative.startVisionGeneration(
+                        handle, prompt, paths, maxTokens, temperature, topK, topP, presencePenalty, seed, grammar,
+                    )
+                    if (!started) {
+                        callback.onError("The images or prompt could not be evaluated.")
+                        return@execute
+                    }
+                    while (!cancelled.get()) {
+                        val token = LlamaNative.nextToken(handle) ?: break
+                        callback.onToken(token)
+                    }
+                    LlamaNative.stopGeneration(handle)
+                    callback.onComplete()
+                } catch (e: RemoteException) {
+                    Log.w(TAG, "client disconnected during vision generation", e)
+                    runCatching { LlamaNative.stopGeneration(handle) }
+                } catch (e: Throwable) {
+                    Log.e(TAG, "vision generation failed", e)
+                    runCatching { callback.onError(e.message ?: "Generation failed.") }
+                }
+            }
+            return true
+        }
+
         override fun cancelGeneration() {
             cancelled.set(true)
         }

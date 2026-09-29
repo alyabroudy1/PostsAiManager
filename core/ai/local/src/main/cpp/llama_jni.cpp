@@ -21,6 +21,8 @@
 
 #include "llama.h"
 #include "ggml-backend.h"
+#include "mtmd.h"
+#include "mtmd-helper.h"
 
 #define LOG_TAG "pam_llama"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
@@ -68,6 +70,15 @@ struct ChatTurn {
 struct PamSession {
     llama_model   *model = nullptr;
     llama_context *ctx   = nullptr;
+
+    // ── vision (optional; see loadVision) ────────────────────────────────────
+    // libmtmd context bound to [model]; null when no mmproj is loaded.
+    mtmd_context *mtmd = nullptr;
+    // True right after a vision prompt was evaluated with logits for its last token: the
+    // first nextToken() must sample from them instead of decoding session->batch.
+    bool logitsReady = false;
+    // "imageTokens=.. encodeMs=.. ..." for the last vision prompt — see lastVisionStats.
+    std::string lastVisionStats;
 
     // ── per-generation state ─────────────────────────────────────────────────
     llama_sampler *chain = nullptr;
@@ -260,6 +271,7 @@ void releaseChain(PamSession *session) {
         session->chain = nullptr;
     }
     session->finished = true;
+    session->logitsReady = false;
 }
 
 /**
@@ -269,6 +281,7 @@ void releaseChain(PamSession *session) {
  */
 void destroySession(PamSession *session) {
     releaseChain(session);
+    if (session->mtmd)  mtmd_free(session->mtmd);
     if (session->ctx)   llama_free(session->ctx);
     if (session->model) llama_model_free(session->model);
     delete session;
@@ -948,6 +961,198 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
 }
 
 /**
+ * Loads the multimodal projector (mmproj GGUF) for the model behind [handle]. Optional: a
+ * session without it stays text-only and every other entry point is unchanged. Replaces a
+ * previously loaded projector. The vision encoder always runs on CPU here (use_gpu=false),
+ * matching the text model on this build.
+ */
+JNIEXPORT jboolean JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_loadVision(
+        JNIEnv *env, jobject, jlong handle, jstring mmprojPath, jint threads) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr || session->model == nullptr) return JNI_FALSE;
+    const std::string path = jstringToStd(env, mmprojPath);
+
+    if (session->mtmd != nullptr) {
+        mtmd_free(session->mtmd);
+        session->mtmd = nullptr;
+    }
+    mtmd_context_params params = mtmd_context_params_default();
+    params.use_gpu       = false;
+    params.print_timings = false;
+    params.n_threads     = threads;
+    params.warmup        = false;
+    const auto start = std::chrono::steady_clock::now();
+    session->mtmd = mtmd_init_from_file(path.c_str(), session->model, params);
+    if (session->mtmd == nullptr) {
+        LOGE("pam_llama: failed to load mmproj %s", path.c_str());
+        return JNI_FALSE;
+    }
+    if (!mtmd_support_vision(session->mtmd)) {
+        LOGE("pam_llama: mmproj has no vision support");
+        mtmd_free(session->mtmd);
+        session->mtmd = nullptr;
+        return JNI_FALSE;
+    }
+    LOGI("pam_llama: mmproj loaded in %.0f ms: %s", elapsedMs(start), path.c_str());
+    return JNI_TRUE;
+}
+
+JNIEXPORT void JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_freeVision(JNIEnv *, jobject, jlong handle) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr || session->mtmd == nullptr) return;
+    mtmd_free(session->mtmd);
+    session->mtmd = nullptr;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_hasVision(JNIEnv *, jobject, jlong handle) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    return (session != nullptr && session->mtmd != nullptr) ? JNI_TRUE : JNI_FALSE;
+}
+
+/** The media marker [startVisionGeneration] expects once per image in the prompt. */
+JNIEXPORT jstring JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_visionMarker(JNIEnv *env, jobject) {
+    return env->NewStringUTF(mtmd_default_marker());
+}
+
+/** "imageTokens=N encodeMs=.. imageDecodeMs=.. textTokens=N textDecodeMs=.." of the last vision prompt. */
+JNIEXPORT jstring JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_lastVisionStats(JNIEnv *env, jobject, jlong handle) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    return env->NewStringUTF(session == nullptr ? "" : session->lastVisionStats.c_str());
+}
+
+/**
+ * Like startGeneration(), but [prompt] contains one media marker per entry of [imagePaths]
+ * (files readable by this process). The images are decoded/resized by mtmd, encoded by the
+ * vision tower and evaluated together with the text; tokens are then pulled with the
+ * normal nextToken() with the same sampler chain (grammar included).
+ */
+JNIEXPORT jboolean JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_startVisionGeneration(
+        JNIEnv *env, jobject, jlong handle, jstring prompt, jobjectArray imagePaths, jint maxTokens,
+        jfloat temperature, jint topK, jfloat topP, jfloat presencePenalty, jlong seed, jstring grammar) {
+
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr || session->mtmd == nullptr) return JNI_FALSE;
+
+    releaseChain(session);
+    llama_memory_clear(llama_get_memory(session->ctx), true);
+    session->chatHistory.clear();
+    session->chatPrevLen = 0;
+    session->trackThinking = false;
+    session->lastVisionStats.clear();
+
+    const std::string promptStd  = jstringToStd(env, prompt);
+    const std::string grammarStd = jstringToStd(env, grammar);
+    const llama_vocab *vocab = llama_model_get_vocab(session->model);
+
+    std::vector<mtmd_bitmap *> bitmaps;
+    auto freeBitmaps = [&]() { for (auto *b : bitmaps) mtmd_bitmap_free(b); bitmaps.clear(); };
+    const jsize nImages = imagePaths == nullptr ? 0 : env->GetArrayLength(imagePaths);
+    for (jsize i = 0; i < nImages; i++) {
+        auto *jpath = static_cast<jstring>(env->GetObjectArrayElement(imagePaths, i));
+        const std::string p = jstringToStd(env, jpath);
+        env->DeleteLocalRef(jpath);
+        mtmd_helper_bitmap_wrapper w = mtmd_helper_bitmap_init_from_file(session->mtmd, p.c_str(), false);
+        if (w.bitmap == nullptr) {
+            LOGE("pam_llama: cannot load image %s", p.c_str());
+            freeBitmaps();
+            return JNI_FALSE;
+        }
+        bitmaps.push_back(w.bitmap);
+    }
+
+    mtmd_input_text text{};
+    text.text          = promptStd.c_str();
+    text.text_len      = promptStd.size();
+    text.add_special   = true;
+    text.parse_special = true;
+
+    mtmd_input_chunks *chunks = mtmd_input_chunks_init();
+    std::vector<const mtmd_bitmap *> bitmapPtrs(bitmaps.begin(), bitmaps.end());
+    const int32_t tok = mtmd_tokenize(session->mtmd, chunks, &text, bitmapPtrs.data(), bitmapPtrs.size());
+    freeBitmaps();
+    if (tok != 0) {
+        LOGE("pam_llama: mtmd_tokenize failed (%d)", tok);
+        mtmd_input_chunks_free(chunks);
+        return JNI_FALSE;
+    }
+
+    const int nBatch = (int) llama_n_batch(session->ctx);
+    const size_t nChunks = mtmd_input_chunks_size(chunks);
+    llama_pos nPast = 0;
+    long imageTokens = 0, textTokens = 0;
+    double encodeMs = 0, imageDecodeMs = 0, textDecodeMs = 0;
+    bool ok = true;
+    for (size_t i = 0; i < nChunks && ok; i++) {
+        const mtmd_input_chunk *chunk = mtmd_input_chunks_get(chunks, i);
+        const bool last = (i + 1 == nChunks);
+        if (mtmd_input_chunk_get_type(chunk) == MTMD_INPUT_CHUNK_TYPE_IMAGE) {
+            imageTokens += (long) mtmd_input_chunk_get_n_tokens(chunk);
+            const auto t0 = std::chrono::steady_clock::now();
+            if (mtmd_encode_chunk(session->mtmd, chunk) != 0) {
+                LOGE("pam_llama: image encode failed");
+                ok = false;
+                break;
+            }
+            encodeMs += elapsedMs(t0);
+            const auto t1 = std::chrono::steady_clock::now();
+            llama_pos newPast = nPast;
+            if (mtmd_helper_decode_image_chunk(session->mtmd, session->ctx, chunk,
+                    mtmd_get_output_embd(session->mtmd), nPast, 0, nBatch, &newPast,
+                    nullptr, nullptr) != 0) {
+                LOGE("pam_llama: image decode failed");
+                ok = false;
+                break;
+            }
+            nPast = newPast;
+            imageDecodeMs += elapsedMs(t1);
+        } else {
+            textTokens += (long) mtmd_input_chunk_get_n_tokens(chunk);
+            const auto t0 = std::chrono::steady_clock::now();
+            llama_pos newPast = nPast;
+            if (mtmd_helper_eval_chunk_single(session->mtmd, session->ctx, chunk, nPast, 0, nBatch,
+                    last, &newPast) != 0) {
+                LOGE("pam_llama: text chunk decode failed");
+                ok = false;
+                break;
+            }
+            nPast = newPast;
+            textDecodeMs += elapsedMs(t0);
+        }
+    }
+    const bool lastIsText = nChunks > 0 &&
+            mtmd_input_chunk_get_type(mtmd_input_chunks_get(chunks, nChunks - 1)) != MTMD_INPUT_CHUNK_TYPE_IMAGE;
+    mtmd_input_chunks_free(chunks);
+    if (!ok || !lastIsText) {
+        if (ok) LOGE("pam_llama: vision prompt must end with text (logits)");
+        llama_memory_clear(llama_get_memory(session->ctx), true);
+        return JNI_FALSE;
+    }
+
+    char stats[192];
+    snprintf(stats, sizeof(stats),
+             "imageTokens=%ld encodeMs=%.0f imageDecodeMs=%.0f textTokens=%ld textDecodeMs=%.0f nPast=%d",
+             imageTokens, encodeMs, imageDecodeMs, textTokens, textDecodeMs, (int) nPast);
+    session->lastVisionStats = stats;
+    LOGI("pam_llama: vision prompt %s", stats);
+
+    session->chain = buildSamplerChain(vocab, temperature, topK, topP, presencePenalty, seed, grammarStd);
+    session->hitLengthCap = false;
+    session->pendingUtf8.clear();
+    session->generated = 0;
+    session->maxTokens = maxTokens;
+    session->finished  = false;
+    session->logitsReady = true;
+    session->generationStart = std::chrono::steady_clock::now();
+    return JNI_TRUE;
+}
+
+/**
  * @return the next token's text, or null when generation is complete.
  *
  * Normally samples one token from [PamSession::chain]. But when a thinking-budget forced
@@ -973,7 +1178,10 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_nextToken(JNIEnv *env, jobject
         return nullptr;
     }
 
-    if (llama_decode(session->ctx, session->batch) != 0) {
+    if (session->logitsReady) {
+        // A vision prompt was already evaluated (logits for its last token are live).
+        session->logitsReady = false;
+    } else if (llama_decode(session->ctx, session->batch) != 0) {
         LOGE("decode failed at token %d", session->generated);
         releaseChain(session);
         return nullptr;
