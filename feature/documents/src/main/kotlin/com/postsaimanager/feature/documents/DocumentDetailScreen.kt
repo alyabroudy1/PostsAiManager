@@ -127,6 +127,18 @@ fun DocumentDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+
+    (uiState as? DocumentDetailUiState.Success)?.document?.takeIf { showRenameDialog }?.let { document ->
+        RenameDocumentDialog(
+            currentTitle = documentDisplayTitle(document),
+            onDismiss = { showRenameDialog = false },
+            onSave = { title ->
+                showRenameDialog = false
+                viewModel.renameDocument(title)
+            },
+        )
+    }
 
     // A citation chip always means "show me that page" — even if the user was last looking
     // at a different tab (Extracted, Timeline) when they left this document.
@@ -166,6 +178,13 @@ fun DocumentDetailScreen(
                             Icon(PamIcons.More, contentDescription = "More options")
                         }
                         DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_rename)) },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    showRenameDialog = true
+                                },
+                            )
                             DropdownMenuItem(
                                 text = { Text("Delete") },
                                 onClick = {
@@ -1119,6 +1138,30 @@ private fun AddFieldDialog(onDismiss: () -> Unit, onAdd: (String, String, Extrac
         },
         confirmButton = { Button(onClick = { onAdd(fieldName.trim(), fieldValue.trim(), selectedType) }, enabled = fieldName.isNotBlank() && fieldValue.isNotBlank()) { Text("Add") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun RenameDocumentDialog(currentTitle: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var title by remember { mutableStateOf(currentTitle) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rename_title)) },
+        text = {
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text(stringResource(R.string.rename_label)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            Button(onClick = { onSave(title.trim()) }, enabled = title.isNotBlank()) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
 

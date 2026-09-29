@@ -124,6 +124,16 @@ class FakeDocumentRepository : DocumentRepository {
         PamResult.Success(Unit)
     }
 
+    override suspend fun renameDocument(id: String, title: String): PamResult<Unit> = guard {
+        val trimmed = title.trim()
+        if (trimmed.isNotEmpty()) {
+            documents.value = documents.value.map {
+                if (it.id == id) it.copy(title = trimmed, isUserTitle = true, titleCode = null, titleArgs = emptyList()) else it
+            }
+        }
+        PamResult.Success(Unit)
+    }
+
     override suspend fun updateDocumentStatus(
         id: String,
         status: DocumentStatus,

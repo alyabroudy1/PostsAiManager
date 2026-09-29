@@ -160,6 +160,51 @@ class DocumentReprocessPipelineTest {
         assertThat(event.args).containsExactly("entity-extractor-1", ExtractorVersion.CURRENT).inOrder()
     }
 
+    private suspend fun titleAfterRun(doc: DocumentEntity, reprocess: Boolean): DocumentEntity {
+        coEvery { documentDao.getById("doc-1") } returns doc
+        coEvery { aiExtraction(any(), any(), any()) } returns
+            PamResult.Success(understanding().copy(title = "Nordlicht Mahnung"))
+        pipeline.processDocument("doc-1", reprocess = reprocess)
+        val updated = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(updated)) }
+        return updated.captured
+    }
+
+    @Test
+    @DisplayName("a reprocess does not rename a document that already has a model title")
+    fun reprocessKeepsTheStoredTitle() = runTest(dispatcher) {
+        val after = titleAfterRun(extractedDoc.copy(extractionType = "bill"), reprocess = true)
+        assertThat(after.title).isEqualTo("Letter")
+    }
+
+    @Test
+    @DisplayName("the model's title replaces the default title, on a scan and on a reprocess alike")
+    fun defaultTitleIsReplaced() = runTest(dispatcher) {
+        val after = titleAfterRun(
+            extractedDoc.copy(extractionType = "bill", titleCode = "scanned_pages", titleArgs = "[\"2\"]"),
+            reprocess = true,
+        )
+        assertThat(after.title).isEqualTo("Nordlicht Mahnung")
+        assertThat(after.titleCode).isNull()
+    }
+
+    @Test
+    @DisplayName("the first model reading takes the title")
+    fun firstReadingTakesTheTitle() = runTest(dispatcher) {
+        val after = titleAfterRun(extractedDoc.copy(extractionType = null), reprocess = false)
+        assertThat(after.title).isEqualTo("Nordlicht Mahnung")
+    }
+
+    @Test
+    @DisplayName("a title a person set is never replaced")
+    fun userTitleIsNeverReplaced() = runTest(dispatcher) {
+        val after = titleAfterRun(
+            extractedDoc.copy(isUserTitle = true, titleCode = "scanned_pages", extractionType = null),
+            reprocess = false,
+        )
+        assertThat(after.title).isEqualTo("Letter")
+    }
+
     @Test
     @DisplayName("a failure keeps the EXTRACTED status and the old data, and is recorded for one retry")
     fun failureKeepsStatusAndData() = runTest(dispatcher) {

@@ -5,6 +5,13 @@
         values-de and values-ar localise the screen without touching data or code.
     -->
 
+    <!-- Renaming a document -->
+    <string name="action_rename">Rename</string>
+    <string name="rename_title">Rename document</string>
+    <string name="rename_label">Title</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+
     <!-- Summary card -->
     <string name="card_from">From</string>
     <string name="card_for">For</string>

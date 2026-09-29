@@ -76,6 +76,13 @@ interface DocumentDao {
     @Query("UPDATE documents SET isFavorite = NOT isFavorite WHERE id = :id")
     suspend fun toggleFavorite(id: String)
 
+    /** A person's title: kept by extraction from now on, and no longer a default with a code. */
+    @Query(
+        "UPDATE documents SET title = :title, isUserTitle = 1, titleCode = NULL, titleArgs = NULL, " +
+            "modifiedAt = :modifiedAt WHERE id = :id",
+    )
+    suspend fun renameByUser(id: String, title: String, modifiedAt: Long = System.currentTimeMillis())
+
     @Query("UPDATE documents SET status = :status, modifiedAt = :modifiedAt WHERE id = :id")
     suspend fun updateStatus(id: String, status: String, modifiedAt: Long = System.currentTimeMillis())
 

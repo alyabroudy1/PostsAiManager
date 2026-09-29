@@ -21,6 +21,7 @@ import com.postsaimanager.core.data.mapper.JsonColumns
 import com.postsaimanager.core.data.worker.DocumentProcessingWorker
 import com.postsaimanager.core.data.worker.ReprocessDocumentWorker
 import com.postsaimanager.core.domain.document.DocumentProcessor
+import com.postsaimanager.core.domain.document.DocumentTitlePolicy
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.domain.repository.DocumentRepository
@@ -417,14 +418,15 @@ class DocumentProcessingPipeline @Inject constructor(
                     return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
                 }
                 if (doc != null) {
-                    // A person's title is never replaced. Otherwise the model's title wins, and
-                    // the pattern fallback's subject only replaces a default title (one still
-                    // carrying its code), as before. A real title clears the default's code.
-                    val newTitle = when {
-                        doc.isUserTitle || extraction.subject == null -> null
-                        usedV2 -> extraction.subject
-                        doc.titleCode != null -> extraction.subject
-                        else -> null
+                    // The model's title replaces a default title, or the title at the first model
+                    // reading; never a person's, and never on a later reprocess (DocumentTitlePolicy).
+                    // A real title clears the default's code.
+                    val newTitle = extraction.subject?.takeIf {
+                        usedV2 && DocumentTitlePolicy.modelTitleMayReplace(
+                            isUserTitle = doc.isUserTitle,
+                            titleCode = doc.titleCode,
+                            modelHasRead = doc.extractionType != null,
+                        )
                     }
                     documentDao.update(
                         doc.copy(

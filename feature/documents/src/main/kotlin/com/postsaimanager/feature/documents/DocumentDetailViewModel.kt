@@ -351,6 +351,10 @@ class DocumentDetailViewModel @Inject constructor(
         return documentExporter.exportPdf(paths, "PAM_$title")?.let(::File)
     }
 
+    // ── Title ──
+    /** The person's own title: kept from now on, never replaced by a later reading. */
+    fun renameDocument(title: String) { viewModelScope.launch { documentRepository.renameDocument(documentId, title) } }
+
     // ── Favorites ──
     fun toggleFavorite() { viewModelScope.launch { documentRepository.toggleFavorite(documentId) } }
 

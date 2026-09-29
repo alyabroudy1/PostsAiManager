@@ -235,6 +235,18 @@ class DocumentRepositoryImpl @Inject constructor(
             }
         }
 
+    override suspend fun renameDocument(id: String, title: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            val trimmed = title.trim()
+            if (trimmed.isEmpty()) return@withContext PamResult.Success(Unit)
+            try {
+                documentDao.renameByUser(id, trimmed)
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
     override suspend fun updateDocumentStatus(id: String, status: DocumentStatus): PamResult<Unit> =
         withContext(ioDispatcher) {
             try {

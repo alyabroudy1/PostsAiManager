@@ -22,6 +22,14 @@ interface DocumentRepository {
     suspend fun createDocument(document: Document, pages: List<DocumentPage>): PamResult<Document>
     suspend fun updateDocument(document: Document): PamResult<Unit>
     suspend fun toggleFavorite(id: String): PamResult<Unit>
+
+    /**
+     * A person renames [id]: the title becomes [title] (trimmed; a blank one changes nothing) and is
+     * marked as theirs (`isUserTitle`), so extraction never replaces it; a default title's code is
+     * cleared, since the words are now real. One targeted write, so it cannot lose a race with
+     * processing the way a whole-document update could.
+     */
+    suspend fun renameDocument(id: String, title: String): PamResult<Unit>
     suspend fun updateDocumentStatus(id: String, status: DocumentStatus): PamResult<Unit>
     suspend fun confirmExtractedField(fieldId: String): PamResult<Unit>
 
