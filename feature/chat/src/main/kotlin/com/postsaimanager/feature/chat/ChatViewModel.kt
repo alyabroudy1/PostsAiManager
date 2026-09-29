@@ -8,6 +8,8 @@ import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.usecase.ChatErrorAction
 import com.postsaimanager.core.domain.usecase.ChatTurn
+import com.postsaimanager.core.domain.usecase.DocumentPreview
+import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
 import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.ObserveInstalledModelsUseCase
 import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
@@ -50,7 +52,44 @@ class ChatViewModel @Inject constructor(
     private val updateInferenceSetting: UpdateInferenceSettingUseCase,
     private val resetInferenceSettings: ResetInferenceSettingsUseCase,
     private val unblockGpu: UnblockGpuUseCase,
+    private val getDocumentPreview: GetDocumentPreviewUseCase,
 ) : ViewModel() {
+
+    private val _preview = MutableStateFlow<CitationPreviewState?>(null)
+
+    /** The in-chat page preview opened from a citation chip, or null while it is closed. */
+    val preview: StateFlow<CitationPreviewState?> = _preview.asStateFlow()
+
+    private var previewJob: Job? = null
+
+    /** A citation chip was tapped: load that document's pages and show them at the cited one. */
+    fun openPreview(source: ChatSource) {
+        if (source.documentDeleted) return
+        previewJob?.cancel()
+        _preview.value = CitationPreviewState(source = source, loading = true)
+        previewJob = viewModelScope.launch {
+            val loaded = getDocumentPreview(source.documentId, source.chunkId)
+            // Closed (or replaced) while loading: do not resurrect it.
+            if (_preview.value?.source != source) return@launch
+            _preview.value = if (loaded == null) {
+                CitationPreviewState(source = source, loading = false, unavailable = true)
+            } else {
+                CitationPreviewState(
+                    source = source,
+                    loading = false,
+                    preview = loaded,
+                    initialPageIndex = loaded.pages
+                        .indexOfFirst { it.pageNumber == source.pageNumber }
+                        .coerceAtLeast(0),
+                )
+            }
+        }
+    }
+
+    fun closePreview() {
+        previewJob?.cancel()
+        _preview.value = null
+    }
 
     private val documentId: String? = savedStateHandle["documentId"]
 
@@ -221,6 +260,7 @@ class ChatViewModel @Inject constructor(
             documentId = source.documentId,
             pageNumber = source.pageNumber,
             title = title,
+            chunkId = source.chunkId,
             documentDeleted = document == null || document.isTrashed,
         )
     }
@@ -556,4 +596,17 @@ data class ChatSource(
      * these: there is nowhere left to navigate a tap to.
      */
     val documentDeleted: Boolean = false,
+    /** The retrieved passage behind this chip, so the preview can highlight it on its page. */
+    val chunkId: String? = null,
+)
+
+/** The page preview opened from a citation chip. */
+data class CitationPreviewState(
+    val source: ChatSource,
+    val loading: Boolean = false,
+    /** The document is gone (or has no pages) — nothing to preview. */
+    val unavailable: Boolean = false,
+    val preview: DocumentPreview? = null,
+    /** Index into [DocumentPreview.pages] of the cited page. */
+    val initialPageIndex: Int = 0,
 )

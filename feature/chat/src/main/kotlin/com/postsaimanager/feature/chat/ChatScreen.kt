@@ -109,8 +109,8 @@ fun ChatScreen(
     documentId: String?,
     onNavigateBack: () -> Unit,
     onManageModelsClick: () -> Unit = {},
-    /** A citation chip was tapped (4.3) — navigate to that source's document, at its page
-     * when the destination can cheaply jump there. */
+    /** "Open document" in the citation preview — navigate to that source's full document
+     * detail, at the page being previewed. Tapping a chip itself only opens the preview. */
     onSourceClick: (ChatSource) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = hiltViewModel(),
@@ -118,6 +118,7 @@ fun ChatScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val modelSheetState by viewModel.modelSheetState.collectAsStateWithLifecycle()
     val suggestedQuestions by viewModel.suggestedQuestions.collectAsStateWithLifecycle()
+    val preview by viewModel.preview.collectAsStateWithLifecycle()
     var inputText by rememberSaveable { mutableStateOf("") }
     var showModelSheet by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -188,6 +189,19 @@ fun ChatScreen(
         if (uiState.lastSentAt == 0L) return@LaunchedEffect
         followBottom = true
         listState.scrollToItem(0)
+    }
+
+    // Layered over the chat, not navigated to: the transcript (and `listState`) underneath
+    // stays composed, so closing returns to exactly where the user was reading.
+    preview?.let { state ->
+        CitationPreviewDialog(
+            state = state,
+            onClose = viewModel::closePreview,
+            onOpenDocument = { source ->
+                viewModel.closePreview()
+                onSourceClick(source)
+            },
+        )
     }
 
     if (showModelSheet) {
@@ -371,7 +385,7 @@ fun ChatScreen(
                             message = message,
                             documentChat = documentId != null,
                             onRetry = { viewModel.retryMessage(message) },
-                            onSourceClick = onSourceClick,
+                            onSourceClick = viewModel::openPreview,
                             onCopy = { copyToClipboard(message.text) },
                             onRegenerate = { viewModel.regenerate() },
                             isLatestAssistantReply = !message.isUser &&

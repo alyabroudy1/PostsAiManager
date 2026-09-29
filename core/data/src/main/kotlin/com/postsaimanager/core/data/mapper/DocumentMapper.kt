@@ -13,6 +13,9 @@ import com.postsaimanager.core.model.FieldRevision
 import com.postsaimanager.core.model.ValueSource
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.SourceType
+import com.postsaimanager.core.model.OcrBlock
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 /**
@@ -65,7 +68,24 @@ class DocumentMapper @Inject constructor() {
         ocrConfidence = entity.ocrConfidence,
         width = entity.width,
         height = entity.height,
+        ocrBlocks = decodeBlocks(entity.ocrBlocks),
     )
+
+    private fun decodeBlocks(json: String?): List<OcrBlock> {
+        if (json.isNullOrBlank()) return emptyList()
+        return runCatching { blockJson.decodeFromString(blockListSerializer, json) }
+            .getOrDefault(emptyList())
+    }
+
+    private fun encodeBlocks(blocks: List<OcrBlock>): String? {
+        if (blocks.isEmpty()) return null
+        return runCatching { blockJson.encodeToString(blockListSerializer, blocks) }.getOrNull()
+    }
+
+    private companion object {
+        val blockJson = Json { ignoreUnknownKeys = true }
+        val blockListSerializer = ListSerializer(OcrBlock.serializer())
+    }
 
     fun pageToEntity(domain: DocumentPage): DocumentPageEntity = DocumentPageEntity(
         id = domain.id,
@@ -77,6 +97,7 @@ class DocumentMapper @Inject constructor() {
         ocrConfidence = domain.ocrConfidence,
         width = domain.width,
         height = domain.height,
+        ocrBlocks = encodeBlocks(domain.ocrBlocks),
     )
 
     fun extractedDataToDomain(entity: ExtractedDataEntity): ExtractedData = ExtractedData(

@@ -47,6 +47,9 @@ dependencies {
     // Navigation
     implementation(libs.navigation.compose)
 
+    // Page images in the citation preview
+    implementation(libs.coil.compose)
+
     // Coroutines
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
