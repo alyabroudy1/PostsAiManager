@@ -3,8 +3,10 @@ package com.postsaimanager.core.domain.usecase
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.testing.FakeDocumentChunkRepository
+import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeEmbeddingService
 import com.postsaimanager.core.testing.testChunk
+import com.postsaimanager.core.testing.testDocument
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -21,7 +23,10 @@ class RetrieveChunksUseCaseTest {
 
     private val repo = FakeDocumentChunkRepository()
     private val embedder = FakeEmbeddingService()
-    private val useCase = RetrieveChunksUseCase(repo, embedder)
+    private val documents = FakeDocumentRepository().apply {
+        (0..19).forEach { seed(testDocument(id = "d$it")) }
+    }
+    private val useCase = RetrieveChunksUseCase(repo, embedder, ObserveChatVisibleDocumentsUseCase(documents))
 
     // Orthogonal-ish vectors so "related" and "unrelated" are unambiguous.
     private val appealTopic = floatArrayOf(1f, 0f, 0f, 0f)
@@ -164,6 +169,36 @@ class RetrieveChunksUseCaseTest {
             val result = useCase("Widerspruch", documentId = "d2")
 
             assertThat(result.chunks.map { it.chunk.documentId }.distinct()).containsExactly("d2")
+        }
+
+        @Test
+        fun `the all-documents corpus leaves out health letters and trashed documents`() = runTest {
+            documents.seed(
+                testDocument(id = "health", extractionType = "health"),
+                testDocument(id = "bill", extractionType = "bill"),
+                testDocument(id = "gone", deletedAt = 1L),
+            )
+            repo.seed(
+                testChunk("h", documentId = "health", text = "Widerspruch Diagnose", embedding = appealTopic),
+                testChunk("b", documentId = "bill", text = "Widerspruch Rechnung", embedding = appealTopic),
+                testChunk("t", documentId = "gone", text = "Widerspruch gelöscht", embedding = appealTopic),
+            )
+            embedder.register("Widerspruch", appealTopic)
+
+            val result = useCase("Widerspruch")
+
+            assertThat(result.chunks.map { it.chunk.id }).containsExactly("b")
+        }
+
+        @Test
+        fun `a health letter stays fully searchable in its own document chat`() = runTest {
+            documents.seed(testDocument(id = "health", extractionType = "health"))
+            repo.seed(testChunk("h", documentId = "health", text = "Widerspruch Diagnose", embedding = appealTopic))
+            embedder.register("Widerspruch", appealTopic)
+
+            val result = useCase("Widerspruch", documentId = "health")
+
+            assertThat(result.chunks.map { it.chunk.id }).containsExactly("h")
         }
     }
 

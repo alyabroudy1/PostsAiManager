@@ -46,6 +46,7 @@ data class RetrievedChunk(
 class RetrieveChunksUseCase @Inject constructor(
     private val chunkRepository: DocumentChunkRepository,
     private val embeddingService: EmbeddingService,
+    private val chatVisibleDocuments: ObserveChatVisibleDocumentsUseCase,
 ) {
 
     data class Result(
@@ -64,7 +65,9 @@ class RetrieveChunksUseCase @Inject constructor(
         val corpus = if (documentId != null) {
             chunkRepository.getForDocument(documentId)
         } else {
-            chunkRepository.getAll()
+            // The all-documents corpus: only documents the chat may see (no health letters).
+            val visibleIds = chatVisibleDocuments.current().mapTo(HashSet()) { it.id }
+            chunkRepository.getAll().filter { it.documentId in visibleIds }
         }
         if (corpus.isEmpty()) return Result(emptyList(), false)
 

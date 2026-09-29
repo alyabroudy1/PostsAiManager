@@ -205,7 +205,9 @@ fun testDocument(
     createdAt: Long = 0L,
     deletedAt: Long? = null,
     extractorVersion: String? = null,
+    extractionType: String? = null,
 ) = Document(
+    extractionType = extractionType,
     id = id,
     title = title,
     status = status,

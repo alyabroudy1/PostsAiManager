@@ -14,6 +14,7 @@ import com.postsaimanager.core.model.AiConversation
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.MessageRole
+import com.postsaimanager.core.domain.usecase.ObserveChatVisibleDocumentsUseCase
 import com.postsaimanager.core.domain.usecase.RetrieveChunksUseCase
 import com.postsaimanager.core.testing.FakeDocumentChunkRepository
 import com.postsaimanager.core.testing.FakeDocumentRepository
@@ -104,7 +105,11 @@ class ChatPipelineTest {
         BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository())
 
     private fun retrieveChunksUseCase() =
-        RetrieveChunksUseCase(FakeDocumentChunkRepository(), FakeEmbeddingService())
+        RetrieveChunksUseCase(
+            FakeDocumentChunkRepository(),
+            FakeEmbeddingService(),
+            ObserveChatVisibleDocumentsUseCase(FakeDocumentRepository()),
+        )
 
     private fun requireModel() {
         assumeTrue("No model at ${modelFile.path}", modelFile.exists())
