@@ -243,6 +243,11 @@ class InferenceService : Service() {
             return submit { LlamaNative.promptAsk(handle, question, grammar, maxTokens) }
         }
 
+        override fun promptScore(continuations: Array<String>?, yes: String?, no: String?): DoubleArray? {
+            if (handle == 0L || continuations == null || yes == null || no == null) return null
+            return submit { LlamaNative.promptScore(handle, continuations, yes, no) }
+        }
+
         override fun promptClose() {
             if (handle == 0L) return
             submit { LlamaNative.promptClose(handle) }

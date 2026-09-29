@@ -288,6 +288,16 @@ internal object LlamaNative {
      */
     external fun promptAsk(handle: Long, question: String, grammar: String?, maxTokens: Int): String?
 
+    /**
+     * Label-free scoring after the open prompt session's prefix: for each of [continuations] decodes it,
+     * reads the logits at its last position, returns `logit(yes) - logit(no)` (the first token of each of
+     * the two words) and rolls back to the prefix. One forward pass per continuation, no generation.
+     *
+     * @return one log-odds per continuation, or null when the session was lost (re-open and retry), a
+     *   word does not tokenise, a continuation did not fit, decoding failed or [promptCancel] was called.
+     */
+    external fun promptScore(handle: Long, continuations: Array<String>, yes: String, no: String): DoubleArray?
+
     /** Stops a running [promptAsk] between tokens. Callable from any thread; not tied to a handle. */
     external fun promptCancel()
 

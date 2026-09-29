@@ -1666,6 +1666,99 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_promptAsk(
     return utf8ToJString(env, out);
 }
 
+/** First token of [s] (special tokens not parsed, no BOS), or -1 when it tokenises to nothing. */
+static llama_token firstTokenOf(const llama_vocab *vocab, const std::string &s) {
+    if (s.empty()) return -1;
+    std::vector<llama_token> toks(16);
+    const int n = llama_tokenize(vocab, s.c_str(), (int32_t) s.size(), toks.data(), (int32_t) toks.size(),
+                                 /* addSpecial */ false, /* parseSpecial */ false);
+    return n > 0 ? toks[0] : -1;
+}
+
+/**
+ * Label-free scoring after the open prefix. For each of [continuations]: decodes it after the prefix,
+ * reads the logits at the last position, takes log-odds = logit([yes]) - logit([no]) (the log-odds of
+ * the two answer tokens against each other, whatever else the model might say), and rolls back to the
+ * prefix, so every continuation starts from the same state. No sampling, no grammar, no generation:
+ * one forward pass per continuation. [yes] and [no] are text; the first token of each is used.
+ *
+ * @return one log-odds value per continuation, or null when the session was lost (re-open and retry),
+ *   a token is missing, a continuation did not fit, decoding failed or [promptCancel] was called.
+ */
+JNIEXPORT jdoubleArray JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_promptScore(
+        JNIEnv *env, jobject, jlong handle, jobjectArray continuations, jstring yes, jstring no) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr || session->model == nullptr || !session->promptOpen) return nullptr;
+
+    g_promptCancel.store(false);
+    releaseChain(session);
+    llama_memory_t mem = llama_get_memory(session->ctx);
+    const llama_vocab *vocab = llama_model_get_vocab(session->model);
+    const int nCtx = (int) llama_n_ctx(session->ctx);
+
+    if ((llama_pos) llama_memory_seq_pos_max(mem, 0) + 1 != session->promptPos) {
+        LOGE("pam_llama: prompt session lost before scoring (n_past=%d, prefix=%d)",
+             (int) llama_memory_seq_pos_max(mem, 0) + 1, (int) session->promptPos);
+        session->promptOpen = false;
+        return nullptr;
+    }
+
+    const llama_token yesTok = firstTokenOf(vocab, jstringToStd(env, yes));
+    const llama_token noTok = firstTokenOf(vocab, jstringToStd(env, no));
+    if (yesTok < 0 || noTok < 0) {
+        LOGE("pam_llama: promptScore: the yes/no words do not tokenise");
+        return nullptr;
+    }
+
+    auto rollback = [&]() -> bool {
+        if (!rollbackTo(session, session->promptPos, session->promptCheckpoint) ||
+            (llama_pos) llama_memory_seq_pos_max(mem, 0) + 1 != session->promptPos) {
+            LOGE("pam_llama: prompt rollback failed while scoring — closing the session");
+            llama_memory_clear(mem, true);
+            session->promptOpen = false;
+            return false;
+        }
+        return true;
+    };
+
+    const jsize count = env->GetArrayLength(continuations);
+    std::vector<double> scores((size_t) count, 0.0);
+    const auto start = std::chrono::steady_clock::now();
+    int totalTokens = 0;
+    for (jsize i = 0; i < count; ++i) {
+        if (g_promptCancel.load()) return nullptr;
+        auto js = (jstring) env->GetObjectArrayElement(continuations, i);
+        const std::string text = jstringToStd(env, js);
+        env->DeleteLocalRef(js);
+
+        int tokens = 0;
+        if (!decodeIntoSession(session, text, /* addSpecial */ false, /* leaveRemainderForSampling */ false, &tokens) ||
+            tokens <= 0) {
+            rollback();
+            return nullptr;
+        }
+        if ((int) session->promptPos + tokens >= nCtx) {
+            rollback();
+            return nullptr;
+        }
+        totalTokens += tokens;
+        const float *logits = llama_get_logits_ith(session->ctx, -1);
+        if (logits == nullptr) {
+            rollback();
+            return nullptr;
+        }
+        scores[(size_t) i] = (double) logits[yesTok] - (double) logits[noTok];
+        if (!rollback()) return nullptr;
+    }
+    LOGI("pam_llama: prompt score continuations=%d tokens=%d total_ms=%.1f", (int) count, totalTokens, elapsedMs(start));
+
+    jdoubleArray out = env->NewDoubleArray(count);
+    if (out == nullptr) return nullptr;
+    env->SetDoubleArrayRegion(out, 0, count, scores.data());
+    return out;
+}
+
 /** Stops a running [promptAsk] between tokens (it then returns null). Callable from any thread. */
 JNIEXPORT void JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_promptCancel(JNIEnv *, jobject) {

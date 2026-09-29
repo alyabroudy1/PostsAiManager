@@ -31,6 +31,13 @@ class InterpretationRequest(
     /** The letter as the model should read it, already within budget. */
     val layoutText: String,
     val offered: OfferedCandidates,
+    /**
+     * The zoned layout the text was made from, for interpreters that read the letter zone by zone
+     * (`ZoneInterpreter`); the others ignore it.
+     */
+    val layout: LetterLayout? = null,
+    /** Width over height of the first page when known, for the layout template match; null otherwise. */
+    val pageAspect: Float? = null,
 )
 
 /** What call 2 is given: the letter again (the engine starts every call from an empty cache) and what call 1 decided. */
@@ -118,6 +125,11 @@ data class RawParty(
      * Used only when its words are found in the text of the chosen candidate or quote.
      */
     val name: String? = null,
+    /**
+     * Set by an interpreter that read the letter by zones when the answer contradicts what the zone
+     * usually holds (a name outside the address field as addressee). Allowed, but the verifier caps it.
+     */
+    val zoneNote: String? = null,
 )
 
 /** One value slot as the model wrote it, never checked yet. */
@@ -129,6 +141,8 @@ data class RawSlot(
     val rule: String? = null,
     val ids: List<String> = emptyList(),
     val confidence: String? = null,
+    /** Like [RawParty.zoneNote]: the answer contradicts the zone's hint. */
+    val zoneNote: String? = null,
 )
 
 /**

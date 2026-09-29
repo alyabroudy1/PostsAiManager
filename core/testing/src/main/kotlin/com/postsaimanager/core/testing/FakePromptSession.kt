@@ -83,6 +83,24 @@ class FakePromptSession : PromptSession {
         return if (answer == null) PamResult.Error(PamError.InferenceError("the fake failed this question")) else PamResult.Success(answer)
     }
 
+    /** Scores a continuation; the default gives every continuation 0.0. */
+    var scorer: (continuation: String) -> Double = { 0.0 }
+
+    /** Every batch of continuations [score] received, in order. */
+    val scored = mutableListOf<List<String>>()
+
+    override suspend fun score(continuations: List<String>, yes: String, no: String): PamResult<List<Double>> {
+        val head = prefix ?: return PamResult.Error(PamError.InferenceError("no prompt session is open"))
+        if (state == null) {
+            state = head
+            prefixDecodes++
+        }
+        scored += continuations
+        // Each continuation starts from the prefix and is rolled back: the state is the prefix afterwards.
+        stateAtAsk += continuations.map { state.orEmpty() }
+        return PamResult.Success(continuations.map(scorer))
+    }
+
     override suspend fun close() {
         closes++
         prefix = null

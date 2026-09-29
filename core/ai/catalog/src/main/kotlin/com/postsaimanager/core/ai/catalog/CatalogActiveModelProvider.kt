@@ -46,6 +46,8 @@ class CatalogActiveModelProvider @Inject constructor(
         return installedStore.extractionModel()?.filePath
     }
 
+    override suspend fun extractionModelId(): String? = installedStore.extractionModel()?.descriptorId
+
     /**
      * Sizes context, threads and the rest of [InferenceConfig] to what the device can
      * currently afford — see [InferenceConfig.defaults] for the heuristics, which used to

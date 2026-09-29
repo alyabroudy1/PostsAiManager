@@ -4,11 +4,9 @@ import com.postsaimanager.core.ai.local.RemoteAiEngine
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.v2.InterpreterFactory
-import com.postsaimanager.core.domain.extraction.v2.InterpreterMode
-import com.postsaimanager.core.domain.extraction.v2.ModeInterpreterFactory
+import com.postsaimanager.core.domain.extraction.zones.ProfileInterpreterFactory
 import dagger.Binds
 import dagger.Module
-import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -36,14 +34,5 @@ abstract class LocalAiModule {
     abstract fun bindPromptSession(impl: RemoteAiEngine): PromptSession
 
     @Binds
-    abstract fun bindInterpreterFactory(impl: ModeInterpreterFactory): InterpreterFactory
-
-    companion object {
-        /**
-         * How documents are read: the single big call or the questionnaire. One flag, kept until the
-         * on-device benchmark decides between them (see documentation of the questionnaire interpreter).
-         */
-        @Provides
-        fun provideInterpreterMode(): InterpreterMode = InterpreterMode.SINGLE_CALL
-    }
+    abstract fun bindInterpreterFactory(impl: ProfileInterpreterFactory): InterpreterFactory
 }

@@ -619,6 +619,32 @@ class RemoteAiEngine @Inject constructor(
             }
         }
 
+    override suspend fun score(continuations: List<String>, yes: String, no: String): PamResult<List<Double>> =
+        engineMutex.withLock {
+            withContext(ioDispatcher) {
+                val remote = service ?: connect()
+                    ?: return@withContext PamResult.Error(PamError.ModelNotLoaded("Could not reach the AI engine."))
+                val prefix = promptPrefix
+                    ?: return@withContext PamResult.Error(PamError.InferenceError("no prompt session is open"))
+                if (continuations.isEmpty()) return@withContext PamResult.Success(emptyList())
+                val array = continuations.toTypedArray()
+                withCancelHook({ runCatching { remote.cancelGeneration() } }) {
+                    var scores = runCatching { remote.promptScore(array, yes, no) }.getOrNull()
+                    if (scores == null && coroutineContext.isActive) {
+                        Log.i(TAG, "prompt session lost while scoring — reading the prefix again")
+                        if (openLocked(prefix) is PamResult.Success) {
+                            scores = runCatching { remote.promptScore(array, yes, no) }.getOrNull()
+                        }
+                    }
+                    if (scores == null) {
+                        PamResult.Error(PamError.InferenceError("the continuations could not be scored"))
+                    } else {
+                        PamResult.Success(scores.toList())
+                    }
+                }
+            }
+        }
+
     override suspend fun close() = engineMutex.withLock {
         withContext(ioDispatcher) {
             if (promptPrefix == null) return@withContext

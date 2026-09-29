@@ -3,6 +3,9 @@ package com.postsaimanager.core.domain.benchmark
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
+import com.postsaimanager.core.domain.extraction.zones.ScoringProfile
+import com.postsaimanager.core.domain.extraction.zones.ZoneInterpreter
+import com.postsaimanager.core.domain.extraction.zones.ZoneScoringInterpreter
 import com.postsaimanager.core.domain.extraction.v2.QuestionnaireInterpreter
 import com.postsaimanager.core.domain.extraction.v2.QuestionnairePrompt
 import com.postsaimanager.core.testing.FakeAiEngine
@@ -239,12 +242,34 @@ internal class ReplayPromptSession(private val recording: Recording, private val
 
     override suspend fun ask(question: String, grammar: String, maxTokens: Int): PamResult<String> {
         // The live question text is followed by the chat template's closing of the turn; the recorded one is not.
-        val text = question.removePrefix("\n\n")
-        val at = recording.asks.indices.firstOrNull { it !in used && text.startsWith(recording.asks[it].question) }
+        // Zone questions list their candidates with ids in the text: compared without them, so ids that moved still match.
+        val text = withoutIds(question.removePrefix("\n\n"))
+        val at = recording.asks.indices.firstOrNull { it !in used && !recording.asks[it].name.startsWith("score:") && text.startsWith(withoutIds(recording.asks[it].question)) }
             ?: return PamResult.Error(PamError.InferenceError("no recorded answer for this question"))
         used += at
         val answer = recording.asks[at].answer ?: return PamResult.Error(PamError.InferenceError("the recorded question failed"))
         return PamResult.Success(IdRemap.inAnswer(answer, remap))
+    }
+
+    /** A recorded scored batch (`score:*`): its questions in order, its answer the comma-separated scores. */
+    override suspend fun score(continuations: List<String>, yes: String, no: String): PamResult<List<Double>> {
+        val live = continuations.map { withoutIds(it.removePrefix("\n\n")) }
+        val at = recording.asks.indices.firstOrNull { i ->
+            val a = recording.asks[i]
+            if (i in used || !a.name.startsWith("score:")) return@firstOrNull false
+            val questions = a.question.split(SCORE_SEPARATOR).map { withoutIds(it) }
+            questions.size == live.size && questions.indices.all { live[it].startsWith(questions[it]) }
+        } ?: return PamResult.Error(PamError.InferenceError("no recorded scores for this batch"))
+        used += at
+        val answer = recording.asks[at].answer ?: return PamResult.Error(PamError.InferenceError("the recorded batch failed"))
+        return PamResult.Success(answer.split(',').map { it.trim().toDouble() })
+    }
+
+    private fun withoutIds(text: String) = ID_TOKEN.replace(text, "#")
+
+    private companion object {
+        val ID_TOKEN = Regex("\\b[A-Z]{1,2}\\d{1,3}\\b")
+        const val SCORE_SEPARATOR = "\n@@\n"
     }
 
     override suspend fun close() = Unit
@@ -279,6 +304,39 @@ internal class QuestionnaireReplay(private val recording: Recording) : DocumentI
 
     override suspend fun writeText(request: TextRequest): TextOutcome =
         (inner ?: create(null)).writeText(request)
+}
+
+/**
+ * Replays a zone recording (`zones`, or `zonesscoring` when [scoring] is given) through the real
+ * [ZoneInterpreter] / [ZoneScoringInterpreter]: the same template match, zones, questions and parsing as
+ * on the device, with the model's answers (or raw scores) coming from the recording. Scoring decisions are
+ * made here with [scoring], so thresholds can be tuned on the recorded scores without a device.
+ */
+internal class ZoneReplay(private val recording: Recording, private val scoring: ScoringProfile?) : DocumentInterpreter {
+    private var inner: DocumentInterpreter? = null
+    private val engine = FakeAiEngine()
+
+    override val maxAnswerTokens: Int = QuestionnairePrompt.QUESTION_RESERVE_TOKENS
+    override val maxTextTokens: Int = QuestionnairePrompt.QUESTION_RESERVE_TOKENS
+
+    private fun create(offered: OfferedCandidates?): DocumentInterpreter {
+        val remap = offered?.let { IdRemap.between(recording.candidates, it) } ?: emptyMap()
+        val session = ReplayPromptSession(recording, remap)
+        return if (scoring != null) {
+            ZoneScoringInterpreter(engine, session, contextTokens = recording.contextTokens, profile = scoring)
+        } else {
+            ZoneInterpreter(engine, session, contextTokens = recording.contextTokens)
+        }
+    }
+
+    override fun promptOverheadChars(offered: OfferedCandidates): Int = create(null).promptOverheadChars(offered)
+
+    override fun textOverheadChars(): Int = create(null).textOverheadChars()
+
+    override suspend fun interpret(request: InterpretationRequest): InterpretationOutcome =
+        create(request.offered).also { inner = it }.interpret(request)
+
+    override suspend fun writeText(request: TextRequest): TextOutcome = (inner ?: create(null)).writeText(request)
 }
 
 /**
@@ -343,6 +401,8 @@ class InterpreterScore(
     val questionsPerDoc: Double? = null,
     val answerTokensPerQuestion: Double? = null,
     val prefixSeconds: Double? = null,
+    /** How often the choice was the first candidate shown, per question and per zone (see [FirstCandidateShare]). */
+    val first: FirstShareReport? = null,
 )
 
 object InterpreterMetrics {
@@ -355,7 +415,17 @@ object InterpreterMetrics {
     fun scoreAll(docs: List<Pair<ManifestDoc, Fixture>>, dir: File): List<InterpreterScore> =
         Recordings.load(dir).groupBy { it.variant }.mapNotNull { (variant, recs) -> score(variant, docs, recs) }
 
-    fun score(variant: String, docs: List<Pair<ManifestDoc, Fixture>>, recordings: List<Recording>): InterpreterScore? {
+    /** The variants of the zone experiment: `zones`, `zonesscoring`, and either with a model suffix (`zonesscoring2b`). */
+    const val ZONES_VARIANT = "zones"
+    const val SCORING_VARIANT = "zonesscoring"
+
+    /** @param scoring the abstain thresholds the scoring variants are decided with (the recordings hold raw scores). */
+    fun score(
+        variant: String,
+        docs: List<Pair<ManifestDoc, Fixture>>,
+        recordings: List<Recording>,
+        scoring: ScoringProfile = ScoringProfile(),
+    ): InterpreterScore? {
         val byKey = recordings.associateBy { it.key }
         var expectedFound = 0
         var matched = 0
@@ -379,8 +449,16 @@ object InterpreterMetrics {
             val rec = byKey[m.key] ?: continue
             val det = ExtractionBenchmark.score(m, f)
             val pages = f.pages.map { it.blocks }
-            val replay: DocumentInterpreter = if (rec.isQuestionnaire) QuestionnaireReplay(rec) else ScriptedInterpreter(rec)
-            val result = runBlocking { ExtractionV2Pipeline().run(pages, replay, rec.contextTokens) }
+            val replay: DocumentInterpreter = when {
+                rec.variant.startsWith(SCORING_VARIANT) -> ZoneReplay(rec, scoring)
+                rec.variant.startsWith(ZONES_VARIANT) -> ZoneReplay(rec, null)
+                rec.isQuestionnaire -> QuestionnaireReplay(rec)
+                else -> ScriptedInterpreter(rec)
+            }
+            val first = f.pages.firstOrNull()?.takeIf { it.height > 0 }
+            val result = runBlocking {
+                ExtractionV2Pipeline().run(pages, replay, rec.contextTokens, first?.let { it.width.toFloat() / it.height })
+            }
             scored++
             rec.cost.wallMs?.let { wallMs += it; walls++ }
             if (rec.isQuestionnaire) {
@@ -447,6 +525,7 @@ object InterpreterMetrics {
             questionsPerDoc = if (asked == 0) null else asked.toDouble() / scored,
             answerTokensPerQuestion = if (answersCounted == 0) null else answerTokens.toDouble() / answersCounted,
             prefixSeconds = if (prefixes == 0) null else prefixMs / 1000.0 / prefixes,
+            first = FirstCandidateShare.of(recordings.filter { r -> docs.any { it.first.key == r.key } }),
         )
     }
 
@@ -462,8 +541,8 @@ object InterpreterMetrics {
             sb.appendLine("No recordings (src/test/resources/benchmark/recordings/<key>.<variant>.json), nothing scored.")
             return sb.toString()
         }
-        sb.appendLine("| variant | docs | shown noise | field match | roles | hallucination | extras/doc | calibration (accuracy, n) | s/doc | questions/doc, tok/answer, prefix s |")
-        sb.appendLine("|---|---|---|---|---|---|---|---|---|---|")
+        sb.appendLine("| variant | docs | shown noise | field match | roles | hallucination | extras/doc | calibration (accuracy, n) | s/doc | questions/doc, tok/answer, prefix s | first-candidate share |")
+        sb.appendLine("|---|---|---|---|---|---|---|---|---|---|---|")
         for (s in scores) {
             fun num(v: Double?, fmt: String) = if (v == null) "-" else String.format(Locale.ROOT, fmt, v)
             sb.appendLine(
@@ -471,7 +550,8 @@ object InterpreterMetrics {
                     String.format(Locale.ROOT, "%.2f", s.extrasPerDoc) + " | " +
                     s.calibration.entries.joinToString(", ") { "${it.key}: ${pct(it.value.first)} (${it.value.second})" } + " | " +
                     num(s.secondsPerDoc, "%.1f") + " | " +
-                    (if (s.questionsPerDoc == null) "-" else "${num(s.questionsPerDoc, "%.1f")}, ${num(s.answerTokensPerQuestion, "%.1f")}, ${num(s.prefixSeconds, "%.1f")}") + " |",
+                    (if (s.questionsPerDoc == null) "-" else "${num(s.questionsPerDoc, "%.1f")}, ${num(s.answerTokensPerQuestion, "%.1f")}, ${num(s.prefixSeconds, "%.1f")}") + " | " +
+                    (s.first?.overall?.text() ?: "-") + " |",
             )
         }
         return sb.toString()

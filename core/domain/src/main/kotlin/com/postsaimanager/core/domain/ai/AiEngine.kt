@@ -326,6 +326,12 @@ interface ActiveModelProvider {
     suspend fun extractionModelConfig(): InferenceConfig
 
     /**
+     * The catalogue id of the extraction model (`AiModelDescriptor.id`), which picks its reading strategy
+     * (`ModelProfiles`); null when unknown or side-loaded, and the strategy that needs no measurement is used.
+     */
+    suspend fun extractionModelId(): String? = null
+
+    /**
      * The user-editable settings for the active model on this device — see
      * [com.postsaimanager.core.model.inferenceConfigSchema].
      *

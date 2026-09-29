@@ -38,7 +38,7 @@ class AiExtractionUseCase @Inject constructor(
     private val engine: AiEngine,
     private val activeModelProvider: ActiveModelProvider,
     /** Which interpreter reads the letter (single call or questionnaire); the default is the single call. */
-    private val interpreters: InterpreterFactory = InterpreterFactory { contextTokens ->
+    private val interpreters: InterpreterFactory = InterpreterFactory { contextTokens, _ ->
         ModelDocumentInterpreter(engine, contextTokens = contextTokens)
     },
 ) {
@@ -89,7 +89,7 @@ class AiExtractionUseCase @Inject constructor(
     private suspend fun loadedInterpreter(config: InferenceConfig): DocumentInterpreter? {
         val path = activeModelProvider.extractionModelPath() ?: return null
         if (engine.load(path, config) is PamResult.Error) return null
-        return interpreters.create(config.contextTokens)
+        return interpreters.create(config.contextTokens, activeModelProvider.extractionModelId())
     }
 
     private fun pages(blocks: List<OcrBlock>, counts: List<Int>): List<List<OcrBlock>> {

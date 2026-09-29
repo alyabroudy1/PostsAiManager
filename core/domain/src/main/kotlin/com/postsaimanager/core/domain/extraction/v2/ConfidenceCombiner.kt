@@ -64,6 +64,9 @@ object ConfidenceCombiner {
         const val INCONSISTENT = 0.4f
         const val ZONE_MISMATCH = 0.4f
 
+        /** The answer contradicts the hint of the zone it was asked on: allowed, but worth checking. */
+        const val ZONE_HINT = 0.5f
+
         /** A phone, e-mail or BIC the model was not HIGH sure of: kept, but below [HIDDEN_BELOW]. */
         const val WEAK_KIND = 0.45f
 

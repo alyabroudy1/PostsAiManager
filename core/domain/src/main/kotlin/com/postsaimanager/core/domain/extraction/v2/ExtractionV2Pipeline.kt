@@ -26,11 +26,13 @@ class ExtractionV2Pipeline(
      * @param pages OCR blocks per page, page 1 first.
      * @param interpreter the model, or null when no model is available.
      * @param contextTokens the window the model is loaded with; the letter is budgeted against it.
+     * @param pageAspect width over height of page 1 when the caller knows it (only the layout template match uses it).
      */
     suspend fun run(
         pages: List<List<OcrBlock>>,
         interpreter: DocumentInterpreter?,
         contextTokens: Int,
+        pageAspect: Float? = null,
     ): ExtractionV2Result {
         val layout = layoutReader.read(pages)
         val candidates = candidateSource.find(pages, layout)
@@ -40,7 +42,7 @@ class ExtractionV2Pipeline(
         val description = fitLayout(layout, interpreter, offered, contextTokens)
         val total = if (description.isComplete) description.text.length else layout.describe().text.length
 
-        val outcome = interpreter.interpret(InterpretationRequest(description.text, offered))
+        val outcome = interpreter.interpret(InterpretationRequest(description.text, offered, layout, pageAspect))
         if (outcome is InterpretationOutcome.Failed) {
             return foundOnly(
                 candidates, offered, modelCalled = true, error = outcome.reason,

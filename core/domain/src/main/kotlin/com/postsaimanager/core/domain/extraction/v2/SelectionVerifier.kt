@@ -71,7 +71,7 @@ class SelectionVerifier(
                         }
                         if (values.isNotEmpty()) lists[slot] = values
                     } else {
-                        slotValue(slot, answer)?.let { slots[slot] = it }
+                        slotValue(slot, answer)?.let { slots[slot] = withZoneNote(it, answer.zoneNote) }
                     }
                 }
                 raw.slots.keys.filter { key -> docType.slots.none { it.json == key } }.forEach {
@@ -347,6 +347,7 @@ class SelectionVerifier(
                     else -> null
                 }
                 var value = resolveName(rp.id.trim(), rp.confidence, expected, role.name)?.let { withModelName(it, rp.name, role.name) } ?: continue
+                value = withZoneNote(value, rp.zoneNote)
                 // A second SENDER is the model contradicting itself. The AI is not overruled: the value is
                 // kept, capped below the visibility threshold (hidden by default) and noted, never dropped.
                 // The first SENDER stays the sender (Parties.sender).
@@ -365,6 +366,17 @@ class SelectionVerifier(
                 if (parties.none { it.role == party.role && sameParty(it, party) }) parties += party
             }
             return Parties(applyRoleConflicts(parties))
+        }
+
+        /**
+         * An answer that contradicts the hint of its zone (see [RawParty.zoneNote]) is kept, noted and
+         * capped so that it shows as worth checking; the AI is not overruled.
+         */
+        private fun withZoneNote(value: SlotValue, note: String?): SlotValue {
+            if (note == null) return value
+            val combined = ConfidenceCombiner.combine(value.confidence, listOf(Check.Cap(Caps.ZONE_HINT, note)))
+            conflicts += note
+            return value.copy(confidence = combined.final, blocked = true, notes = value.notes + combined.notes)
         }
 
         /**

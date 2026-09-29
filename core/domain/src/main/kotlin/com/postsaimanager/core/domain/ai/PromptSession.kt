@@ -48,6 +48,22 @@ interface PromptSession {
      */
     suspend fun ask(question: String, grammar: String, maxTokens: Int): PamResult<String>
 
+    /**
+     * Label-free scoring: for each of [continuations] (text that follows the prefix, like [ask]'s
+     * question, including whatever closes the user turn and opens the assistant's), decodes it after
+     * the prefix, reads the model's next-token logits at its last position and returns
+     * `logit(yes) - logit(no)`, the log-odds of the [yes] word against the [no] word (the first token
+     * of each). Rolls back to the prefix after every continuation, so scores are independent of each
+     * other and of their order. No generation, no grammar: one forward pass each. A caller shows no
+     * option labels and picks by argmax with its own abstain threshold.
+     *
+     * Same sharing rules as [ask]: a lost state is repaired by re-decoding the prefix once.
+     *
+     * @return one score per continuation, in order; an error when the model or session is missing or
+     *   a continuation does not fit.
+     */
+    suspend fun score(continuations: List<String>, yes: String, no: String): PamResult<List<Double>>
+
     /** Drops the session. Safe to call when none is open. */
     suspend fun close()
 
