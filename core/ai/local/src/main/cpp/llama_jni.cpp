@@ -34,6 +34,11 @@ namespace {
 constexpr int kMinReplyTokens = 32;          // never offer less than this to answer with at all.
 constexpr int kMinAnswerReserveTokens = 256; // thinking may never eat into this much of the reply.
 
+// What Qwen3.5's own chat template appends to the generation prompt for enable_thinking=true
+// / false. Rendered here rather than by llama_chat_apply_template (which can't pass the flag).
+const std::string kThinkOpenPrefill = "<think>\n";
+const std::string kThinkClosedPrefill = "<think>\n\n</think>\n\n";
+
 /**
  * CMakeLists.txt builds this library with `-march=armv8.2-a+dotprod+fp16` (see its
  * comment) rather than true runtime dispatch, which means the whole .so — not just a
@@ -94,6 +99,11 @@ struct PamSession {
     // sendChatMessage and consumed by discardPendingReply — see its doc.
     llama_pos replyStartPos = -1;
 
+    // Recurrent-state snapshot taken at replyStartPos — see rollbackToReplyStart(). Only
+    // populated for hybrid/recurrent models (Qwen3.5 is one), whose state cannot be trimmed
+    // token-by-token with llama_memory_seq_rm.
+    std::vector<uint8_t> replyCheckpoint;
+
     // ── thinking-budget forced close ─────────────────────────────────────────
     //
     // Without this, a turn's maxTokens is spent on thinking + answer combined, and a small
@@ -125,6 +135,17 @@ double tokensPerSecond(int tokens, double ms) {
     return ms > 0.001 ? (double) tokens / (ms / 1000.0) : 0.0;
 }
 
+/**
+ * A "tok/s=..." log fragment, or "tok/s=n/a" when the interval is too short to mean anything
+ * (a sub-millisecond timing divided into a token count prints absurd rates like 340496).
+ */
+std::string tokensPerSecondText(int tokens, double ms) {
+    if (ms < 1.0) return "tok_s=n/a";
+    char buf[32];
+    snprintf(buf, sizeof(buf), "tok_s=%.1f", tokensPerSecond(tokens, ms));
+    return buf;
+}
+
 std::string jstringToStd(JNIEnv *env, jstring value) {
     if (value == nullptr) return {};
     const char *chars = env->GetStringUTFChars(value, nullptr);
@@ -154,8 +175,8 @@ std::string tokenToPiece(const llama_vocab *vocab, llama_token token) {
 void logGenerationEnd(const PamSession *session) {
     if (session->generated <= 0) return;
     const double ms = elapsedMs(session->generationStart);
-    LOGI("pam_llama: decode tokens=%d ms=%.1f tok_s=%.1f",
-         session->generated, ms, tokensPerSecond(session->generated, ms));
+    LOGI("pam_llama: decode tokens=%d ms=%.1f %s",
+         session->generated, ms, tokensPerSecondText(session->generated, ms).c_str());
 }
 
 void releaseChain(PamSession *session) {
@@ -293,6 +314,63 @@ bool decodeIntoSession(PamSession *session, const std::string &text, bool addSpe
         session->batch = llama_batch_get_one(session->promptTokens.data() + consumed, total - consumed);
     }
     return true;
+}
+
+/**
+ * True for models whose memory has a recurrent component (Mamba/RWKV and hybrids such as
+ * Qwen3.5's gated delta-net layers). That state is a running summary of every token so far,
+ * so it cannot be trimmed back to an earlier position: `llama_memory_seq_rm(seq, p0, -1)` with
+ * p0 > 0 returns false and changes nothing (see llama-memory-recurrent.cpp, seq_rm).
+ */
+bool hasRecurrentState(const PamSession *session) {
+    return llama_model_is_hybrid(session->model) || llama_model_is_recurrent(session->model);
+}
+
+/** Snapshots the recurrent state at the current position — llama-server's checkpoint recipe. */
+void takeReplyCheckpoint(PamSession *session) {
+    session->replyCheckpoint.clear();
+    if (!hasRecurrentState(session)) return;
+    const size_t size = llama_state_seq_get_size_ext(session->ctx, 0, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+    std::vector<uint8_t> data(size);
+    if (size == 0 ||
+        llama_state_seq_get_data_ext(session->ctx, data.data(), size, 0, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) != size) {
+        LOGE("pam_llama: could not checkpoint the recurrent state (size=%zu)", size);
+        return;
+    }
+    session->replyCheckpoint = std::move(data);
+}
+
+/**
+ * Drops the KV cache back to [pos] — where the open reply began. Attention-only models just
+ * trim; recurrent/hybrid ones first restore the checkpoint [takeReplyCheckpoint] took at
+ * that position, then trim the attention cells beyond it (llama-server does the same).
+ * @return false if the rollback could not be done, in which case nothing can be trusted.
+ */
+bool rollbackToReplyStart(PamSession *session, llama_pos pos) {
+    llama_memory_t mem = llama_get_memory(session->ctx);
+    if (hasRecurrentState(session)) {
+        if (session->replyCheckpoint.empty()) return false;
+        if (llama_state_seq_set_data_ext(session->ctx, session->replyCheckpoint.data(),
+                                         session->replyCheckpoint.size(), 0,
+                                         LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == 0) {
+            return false;
+        }
+    }
+    return llama_memory_seq_rm(mem, 0, pos, -1);
+}
+
+/**
+ * The KV cache can no longer be trusted to match [PamSession::chatHistory] (a rollback or a
+ * re-decode failed part-way). Clears it and zeroes [PamSession::chatPrevLen] while keeping
+ * the history, so the next [sendChatMessage] renders and decodes the whole conversation
+ * again — a slow turn, but never one built on a stale cache.
+ */
+void invalidateKvCache(PamSession *session, const char *why) {
+    LOGE("pam_llama: %s — invalidating the KV cache; the next turn re-primes from history", why);
+    llama_memory_clear(llama_get_memory(session->ctx), true);
+    session->chatPrevLen = 0;
+    session->replyStartPos = -1;
+    session->replyCheckpoint.clear();
 }
 
 /** Builds the sampler chain shared by the raw one-shot path and the chat-session path. */
@@ -753,8 +831,8 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
     session->batch = llama_batch_get_one(session->promptTokens.data() + consumed,
                                          total - consumed);
     const double promptMs = elapsedMs(decodeStart);
-    LOGI("pam_llama: one-shot prompt tokens=%d prompt_eval_ms=%.1f prompt_eval_tok_s=%.1f",
-         total, promptMs, tokensPerSecond(total, promptMs));
+    LOGI("pam_llama: one-shot prompt tokens=%d prompt_eval_ms=%.1f prompt_eval_%s",
+         total, promptMs, tokensPerSecondText(total, promptMs).c_str());
     session->generated = 0;
     session->maxTokens = maxTokens;
     session->finished  = false;
@@ -847,6 +925,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_openChatSession(
     session->chatHistory.clear();
     session->chatPrevLen = 0;
     session->replyStartPos = -1;
+    session->replyCheckpoint.clear();
 
     const std::string sys = jstringToStd(env, systemPrompt);
     if (!sys.empty()) {
@@ -901,8 +980,8 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_primeChatSession(
     }
     session->chatPrevLen = (int) formatted.size();
     const double primeMs = elapsedMs(start);
-    LOGI("pam_llama: session primed turns=%d tokens=%d ms=%.1f tok_s=%.1f",
-         (int) count, tokenCount, primeMs, tokensPerSecond(tokenCount, primeMs));
+    LOGI("pam_llama: session primed turns=%d tokens=%d ms=%.1f %s",
+         (int) count, tokenCount, primeMs, tokensPerSecondText(tokenCount, primeMs).c_str());
     return JNI_TRUE;
 }
 
@@ -911,11 +990,11 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_primeChatSession(
  * with an open assistant turn, and decodes only what is new since the last turn was
  * committed (see the class doc). Tokens are then pulled via the existing [nextToken].
  *
- * If [noThink] is set, `/no_think` is appended to the user turn — the practical way to
- * disable Qwen3/3.5 reasoning without a chat-template kwarg llama.cpp's
- * `llama_chat_apply_template` has no way to pass (see documentation/02-architecture.md §5.3
- * on why this, rather than an `enable_thinking` flag, is what actually works against the
- * template baked into the GGUF).
+ * The reply is started with the same suffix Qwen3.5's template gives its generation prompt:
+ * `<think>\n` when thinking is on (so it always begins inside a think block and the budget
+ * always applies), `<think>\n\n</think>\n\n` when [noThink] is set. llama.cpp's
+ * `llama_chat_apply_template` cannot pass the template's `enable_thinking` flag, and Qwen3.5
+ * has no `/no_think` soft switch, so the suffix is decoded explicitly.
  *
  * On overflow (this turn would not fit in `n_ctx`) the oldest non-system turns are dropped
  * and the remaining history is fully re-decoded once — the one legitimate full re-decode
@@ -955,8 +1034,11 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
     session->forcedCloseTokens.clear();
     session->forcedCloseIndex = 0;
 
+    // Qwen3.5 has no `/no_think` soft switch — thinking is chosen by what the generation
+    // prompt ends with (its Jinja template appends `<think>\n` or `<think>\n\n</think>\n\n`).
+    // llama_chat_apply_template cannot pass enable_thinking, so the same suffix is decoded
+    // explicitly below; see kThinkOpenPrefill / kThinkClosedPrefill.
     std::string userStd = jstringToStd(env, userText);
-    if (noThink == JNI_TRUE) userStd += " /no_think";
     const std::string grammarStd = jstringToStd(env, grammar);
 
     session->chatHistory.push_back({"user", userStd});
@@ -998,42 +1080,62 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
     const std::string diff = formatted.substr(from);
     const bool isFirst = llama_memory_seq_pos_max(mem, 0) == -1;
 
+    // The user turn + open assistant tag are decoded in full *here* (not lazily by the first
+    // nextToken), so the position and recurrent state captured below are exactly "right
+    // before this reply" — the point a stop or a thinking rewind must return to.
     int tokenCount = 0;
     const auto start = std::chrono::steady_clock::now();
-    if (!decodeIntoSession(session, diff, isFirst, /* leaveRemainderForSampling */ true, &tokenCount)) {
+    if (!decodeIntoSession(session, diff, isFirst, /* leaveRemainderForSampling */ false, &tokenCount)) {
+        invalidateKvCache(session, "sendChatMessage: prompt decode failed");
         return JNI_FALSE;
     }
     const double promptMs = elapsedMs(start);
-    LOGI("pam_llama: session decode new_tokens=%d n_past=%d prompt_eval_ms=%.1f prompt_eval_tok_s=%.1f",
-         tokenCount, nPast, promptMs, tokensPerSecond(tokenCount, promptMs));
+    LOGI("pam_llama: session decode new_tokens=%d n_past=%d prompt_eval_ms=%.1f prompt_eval_%s",
+         tokenCount, nPast, promptMs, tokensPerSecondText(tokenCount, promptMs).c_str());
 
     // Marks "up to the open assistant turn" as decoded; commitChatReply() extends this once
     // the generated content is known, without decoding anything more (see its doc).
     session->chatPrevLen = (int) formatted.size();
 
-    // Everything decoded from here on (the [nextToken] calls that follow) is this reply's
-    // own tokens — the position discardPendingReply() rolls back to if the turn is never
-    // committed. See its doc and PamSession::replyStartPos.
+    // Everything decoded from here on (the thinking prefill and the [nextToken] calls that
+    // follow) is this reply's own — the position discardPendingReply()/commitChatReply()
+    // roll back to. Recurrent models need their state saved at this exact point too.
     session->replyStartPos = (llama_pos) llama_memory_seq_pos_max(mem, 0) + 1;
+    takeReplyCheckpoint(session);
+
+    // Thinking on: the reply starts *inside* an open think block, so both detectors (native
+    // and the Kotlin ThinkingStreamParser) begin in thinking and the budget always applies,
+    // however the model would have opened its answer. Off: an empty, closed block.
+    const bool thinkingOpen = noThink == JNI_FALSE;
+    const std::string &prefill = thinkingOpen ? kThinkOpenPrefill : kThinkClosedPrefill;
+    // Its final chunk is left un-decoded for nextToken's first call to sample from.
+    int prefillTokens = 0;
+    if (!decodeIntoSession(session, prefill, /* addSpecial */ false,
+                           /* leaveRemainderForSampling */ true, &prefillTokens) || prefillTokens <= 0) {
+        invalidateKvCache(session, "sendChatMessage: thinking prefill failed");
+        return JNI_FALSE;
+    }
 
     // The real per-turn ceiling: never more than what was requested, never more than what
-    // still fits after this turn's prompt (nPast has already advanced past the just-decoded
-    // diff, via replyStartPos above), floored so a near-full context still gets *something*
-    // to answer with rather than 0.
-    const int nPastAfterPrompt = (int) session->replyStartPos;
+    // still fits after this turn's prompt, floored so a near-full context still gets
+    // *something* to answer with rather than 0.
+    const int nPastAfterPrompt = (int) session->replyStartPos + prefillTokens;
     const int fitsInContext = std::max(kMinReplyTokens, nCtx - nPastAfterPrompt);
     const int resolvedMaxTokens = std::min((int) maxTokens, fitsInContext);
 
     // thinkingBudgetTokens is a sub-budget *inside* resolvedMaxTokens, never eating into the
-    // last kMinAnswerReserveTokens of it — see this function's doc.
-    const bool thinkingRequested = noThink == JNI_FALSE && thinkingBudgetTokens > 0;
-    session->trackThinking = thinkingRequested;
-    session->thinkingBudgetTokens = thinkingRequested
-            ? std::max(0, std::min((int) thinkingBudgetTokens, resolvedMaxTokens - kMinAnswerReserveTokens))
+    // last kMinAnswerReserveTokens of it — see this function's doc. Even a squeezed-out
+    // budget stays at 1 rather than 0: the block is already open, so the forced close must
+    // still be able to fire.
+    session->sawThinkOpen = thinkingOpen;
+    session->inThinking = thinkingOpen;
+    session->thinkingBudgetTokens = (thinkingOpen && thinkingBudgetTokens > 0)
+            ? std::max(1, std::min((int) thinkingBudgetTokens, resolvedMaxTokens - kMinAnswerReserveTokens))
             : 0;
-    // A budget of 0 (context left almost no room at all) means "don't bother tracking" —
-    // forcing a close on the very first thinking token would be pointless busywork.
-    if (session->thinkingBudgetTokens <= 0) session->trackThinking = false;
+    session->trackThinking = session->thinkingBudgetTokens > 0;
+    LOGI("pam_llama: reply starts %s (prefill=%d tokens, thinking budget=%d, max=%d)",
+         thinkingOpen ? "inside <think>" : "after an empty <think></think>",
+         prefillTokens, session->thinkingBudgetTokens, resolvedMaxTokens);
 
     session->chain = buildSamplerChain(vocab, temperature, topK, topP, seed, grammarStd);
     session->generated = 0;
@@ -1087,10 +1189,16 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_commitChatReply(
     session->replyStartPos = -1;
     session->sawThinkOpen = false;
 
-    if (!hadThinking || replyStartPos < 0) return;
+    if (!hadThinking || replyStartPos < 0) {
+        session->replyCheckpoint.clear();
+        return;
+    }
 
-    llama_memory_t mem = llama_get_memory(session->ctx);
-    llama_memory_seq_rm(mem, 0, replyStartPos, -1);
+    if (!rollbackToReplyStart(session, replyStartPos)) {
+        invalidateKvCache(session, "commitChatReply: could not rewind the thinking trace");
+        return;
+    }
+    session->replyCheckpoint.clear();
 
     const std::string closingDiff =
             formatted.substr(std::min((size_t) replyOpenTextLen, formatted.size()));
@@ -1103,8 +1211,8 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_commitChatReply(
         LOGI("pam_llama: rewound thinking trace, re-decoded clean turn tokens=%d ms=%.1f",
              tokenCount, elapsedMs(start));
     } else {
-        LOGE("pam_llama: failed to re-decode the clean turn after rewinding thinking — "
-             "the next turn's diff may now be based on a stale KV cache");
+        // A stale KV would silently corrupt every later turn; start over instead.
+        invalidateKvCache(session, "commitChatReply: failed to re-decode the clean turn");
     }
 }
 
@@ -1122,10 +1230,13 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_discardPendingReply(JNIEnv *, 
     if (session == nullptr || session->replyStartPos < 0) return;
 
     releaseChain(session);
-    llama_memory_t mem = llama_get_memory(session->ctx);
-    llama_memory_seq_rm(mem, 0, session->replyStartPos, -1);
-    LOGI("pam_llama: discardPendingReply removed tokens from n_past=%d onward", (int) session->replyStartPos);
-    session->replyStartPos = -1;
+    if (rollbackToReplyStart(session, session->replyStartPos)) {
+        LOGI("pam_llama: discardPendingReply removed tokens from n_past=%d onward", (int) session->replyStartPos);
+        session->replyStartPos = -1;
+        session->replyCheckpoint.clear();
+    } else {
+        invalidateKvCache(session, "discardPendingReply: rollback failed");
+    }
 }
 
 /** Drops the standing chat session — its KV cache and history — e.g. on a conversation switch. */
@@ -1135,6 +1246,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_resetChatSession(JNIEnv *, job
     if (session == nullptr) return;
     releaseChain(session);
     session->replyStartPos = -1;
+    session->replyCheckpoint.clear();
     llama_memory_clear(llama_get_memory(session->ctx), true);
     session->chatHistory.clear();
     session->chatPrevLen = 0;

@@ -329,7 +329,9 @@ class SendChatMessageUseCase @Inject constructor(
         // persisted verbatim on the assistant reply (4.3), see [persistAssistant].
         val (sentText, sources) = withPassages(text, retrieved, documentId, contextTokens)
 
-        val parser = ThinkingStreamParser()
+        // With thinking on, the engine starts the reply inside an already-open `<think>` block
+        // (see llama_jni.cpp's sendChatMessage), so the stream never carries the opening tag.
+        val parser = ThinkingStreamParser(startInThinking = thinkingEffort != ThinkingEffort.OFF)
         val thinkingBuilder = StringBuilder()
         val answerBuilder = StringBuilder()
         var thinkingStartNanos: Long? = null

@@ -139,4 +139,71 @@ class ThinkingStreamParserTest {
         val parser = ThinkingStreamParser()
         assertThat(parser.consume("")).isEmpty()
     }
+
+    // ── streams that begin inside an already-open think block ────────────────────────────
+
+    @Test
+    @DisplayName("startInThinking: text before </think> is thinking even without an opening tag")
+    fun `start in thinking without an open tag`() {
+        val parser = ThinkingStreamParser(startInThinking = true)
+        val segments = consumeAll(parser, listOf("The user asks", " about tax.", "\n</think>", "\n\nIt is 1.48."))
+
+        assertThat(thinkingText(segments)).isEqualTo("The user asks about tax.\n")
+        assertThat(answerText(segments)).isEqualTo("It is 1.48.")
+    }
+
+    @Test
+    @DisplayName("startInThinking: a closing tag split across chunks still ends the thinking")
+    fun `start in thinking with split close tag`() {
+        val parser = ThinkingStreamParser(startInThinking = true)
+        val segments = consumeAll(parser, listOf("reasoning</", "thi", "nk", ">", "answer"))
+
+        assertThat(thinkingText(segments)).isEqualTo("reasoning")
+        assertThat(answerText(segments)).isEqualTo("answer")
+    }
+
+    @Test
+    @DisplayName("startInThinking: a repeated <think> at the very start is swallowed, split or not")
+    fun `start in thinking swallows a redundant open tag`() {
+        val whole = consumeAll(ThinkingStreamParser(startInThinking = true), listOf("<think>\nhmm</think>ok"))
+        assertThat(thinkingText(whole)).isEqualTo("\nhmm")
+        assertThat(answerText(whole)).isEqualTo("ok")
+
+        val split = consumeAll(
+            ThinkingStreamParser(startInThinking = true),
+            listOf("\n", "<", "thi", "nk>", "hmm", "</think>", "ok"),
+        )
+        assertThat(thinkingText(split)).isEqualTo("hmm")
+        assertThat(answerText(split)).isEqualTo("ok")
+    }
+
+    @Test
+    @DisplayName("startInThinking: text that merely starts with '<' is not mistaken for the tag")
+    fun `start in thinking keeps a lookalike prefix`() {
+        val segments = consumeAll(
+            ThinkingStreamParser(startInThinking = true),
+            listOf("<", "b>bold</b> so", "</think>", "done"),
+        )
+
+        assertThat(thinkingText(segments)).isEqualTo("<b>bold</b> so")
+        assertThat(answerText(segments)).isEqualTo("done")
+    }
+
+    @Test
+    @DisplayName("startInThinking: an immediate </think> yields an empty thought and a clean answer")
+    fun `start in thinking with an empty block`() {
+        val segments = consumeAll(ThinkingStreamParser(startInThinking = true), listOf("\n\n</think>\n\n", "Answer."))
+
+        assertThat(thinkingText(segments).isBlank()).isTrue()
+        assertThat(answerText(segments)).isEqualTo("Answer.")
+    }
+
+    @Test
+    @DisplayName("startInThinking: a stream that never closes is all thinking")
+    fun `start in thinking never closed`() {
+        val segments = consumeAll(ThinkingStreamParser(startInThinking = true), listOf("still ", "thinking"))
+
+        assertThat(thinkingText(segments)).isEqualTo("still thinking")
+        assertThat(answerText(segments)).isEmpty()
+    }
 }

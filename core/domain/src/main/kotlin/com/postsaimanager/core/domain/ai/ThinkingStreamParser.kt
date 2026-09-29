@@ -47,13 +47,24 @@ sealed interface StreamSegment {
  *  - Whitespace immediately after `</think>` (the newline(s) models conventionally emit
  *    before the answer) is trimmed once, so the answer does not start with a blank line.
  *
+ * ### Streams that begin inside a think block
+ *
+ * Qwen3.5's generation prompt itself ends with `<think>\n` (the on-device engine decodes that
+ * suffix when thinking is on), so the model's first generated token is already reasoning and
+ * `<think>` never appears in the stream. Pass `startInThinking = true` for such a turn: the
+ * parser starts in the thinking state and only `</think>` ends it. A redundant `<think>` the
+ * model repeats at the very start is swallowed rather than shown as reasoning text.
+ *
  * One instance per generation — it is stateful and not thread-safe.
  */
-class ThinkingStreamParser {
+class ThinkingStreamParser(startInThinking: Boolean = false) {
 
     private enum class Mode { BEFORE_THINK, IN_THINK, AFTER_THINK }
 
-    private var mode = Mode.BEFORE_THINK
+    private var mode = if (startInThinking) Mode.IN_THINK else Mode.BEFORE_THINK
+
+    /** True until the first non-whitespace thinking text is seen — see [dropRedundantOpenTag]. */
+    private var atThinkingStart = startInThinking
     private val pending = StringBuilder()
     private var trimAnswerLeadingWhitespace = false
 
@@ -83,6 +94,7 @@ class ThinkingStreamParser {
 
     private fun process(out: MutableList<StreamSegment>) {
         while (true) {
+            if (mode == Mode.IN_THINK && atThinkingStart && !dropRedundantOpenTag()) return
             when (mode) {
                 Mode.BEFORE_THINK -> if (!consumeUntilTag(OPEN_TAG, Mode.IN_THINK, ::asAnswer, out)) return
                 Mode.IN_THINK -> if (!consumeUntilTag(CLOSE_TAG, Mode.AFTER_THINK, ::asThinking, out)) return
@@ -95,6 +107,27 @@ class ThinkingStreamParser {
                 }
             }
         }
+    }
+
+    /**
+     * At the start of a stream that began inside a think block, removes a leading `<think>`
+     * (after optional whitespace). Returns false while the buffer is still too short to tell
+     * whether it is one — the caller waits for more input.
+     */
+    private fun dropRedundantOpenTag(): Boolean {
+        val text = pending.toString()
+        val lead = text.length - text.trimStart().length
+        val rest = text.substring(lead)
+        if (rest.isEmpty()) return false
+        if (rest.startsWith(OPEN_TAG)) {
+            pending.setLength(0)
+            pending.append(rest.substring(OPEN_TAG.length))
+            atThinkingStart = false
+            return true
+        }
+        if (OPEN_TAG.startsWith(rest)) return false // could still become "<think>"
+        atThinkingStart = false
+        return true
     }
 
     /**
