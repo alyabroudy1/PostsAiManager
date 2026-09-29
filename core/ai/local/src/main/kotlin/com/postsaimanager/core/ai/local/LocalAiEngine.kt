@@ -9,12 +9,15 @@ import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.InferenceCrash
+import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -54,7 +57,7 @@ import javax.inject.Inject
  */
 internal class LocalAiEngine @Inject constructor(
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
-) : AiEngine {
+) : AiEngine, PromptSession {
 
     private val mutex = Mutex()
 
@@ -366,6 +369,66 @@ internal class LocalAiEngine @Inject constructor(
         val current = handle
         if (current == 0L) return
         mutex.withLock { withContext(ioDispatcher) { LlamaNative.resetChatSession(current) } }
+    }
+
+    // ── PromptSession — the in-process twin of RemoteAiEngine's (see its KDoc) ──────────
+
+    @Volatile
+    private var promptPrefix: String? = null
+
+    override suspend fun open(prefix: String): PamResult<Int> = mutex.withLock {
+        withContext(ioDispatcher) { openLocked(prefix) }
+    }
+
+    /** Caller must hold [mutex]. */
+    private fun openLocked(prefix: String): PamResult<Int> {
+        val current = handle
+        if (current == 0L) return PamResult.Error(PamError.ModelNotLoaded("No model is loaded."))
+        sessionConversationId = null
+        val tokens = LlamaNative.promptOpen(current, prefix)
+        return when {
+            tokens >= 0 -> {
+                promptPrefix = prefix
+                PamResult.Success(tokens)
+            }
+            tokens == -2 -> PamResult.Error(PamError.InferenceError("the letter is too long for the model's context window"))
+            else -> PamResult.Error(PamError.InferenceError("the model could not read the letter"))
+        }
+    }
+
+    override suspend fun ask(question: String, grammar: String, maxTokens: Int): PamResult<String> = mutex.withLock {
+        withContext(ioDispatcher) {
+            val current = handle
+            if (current == 0L) return@withContext PamResult.Error(PamError.ModelNotLoaded("No model is loaded."))
+            val prefix = promptPrefix
+                ?: return@withContext PamResult.Error(PamError.InferenceError("no prompt session is open"))
+            withCancelHook({ LlamaNative.promptCancel() }) {
+                var answer = LlamaNative.promptAsk(current, question, grammar, maxTokens)
+                if (answer == null && coroutineContext.isActive) {
+                    if (openLocked(prefix) is PamResult.Success) {
+                        answer = LlamaNative.promptAsk(current, question, grammar, maxTokens)
+                    }
+                }
+                if (answer == null) PamResult.Error(PamError.InferenceError("the question could not be answered")) else PamResult.Success(answer)
+            }
+        }
+    }
+
+    override suspend fun close() {
+        val current = handle
+        if (current == 0L || promptPrefix == null) return
+        mutex.withLock {
+            withContext(ioDispatcher) {
+                promptPrefix = null
+                LlamaNative.promptClose(current)
+            }
+        }
+    }
+
+    override suspend fun countTokens(text: String): Int? {
+        val current = handle
+        if (current == 0L) return null
+        return mutex.withLock { withContext(ioDispatcher) { LlamaNative.countTokens(current, text) } }.takeIf { it >= 0 }
     }
 
     override suspend fun unload() = coordinator.unload()

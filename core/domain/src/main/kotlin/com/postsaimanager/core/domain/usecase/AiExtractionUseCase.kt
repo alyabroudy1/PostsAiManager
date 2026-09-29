@@ -6,6 +6,7 @@ import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
+import com.postsaimanager.core.domain.extraction.v2.InterpreterFactory
 import com.postsaimanager.core.domain.extraction.v2.ModelDocumentInterpreter
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.InferenceConfig
@@ -36,6 +37,10 @@ import javax.inject.Inject
 class AiExtractionUseCase @Inject constructor(
     private val engine: AiEngine,
     private val activeModelProvider: ActiveModelProvider,
+    /** Which interpreter reads the letter (single call or questionnaire); the default is the single call. */
+    private val interpreters: InterpreterFactory = InterpreterFactory { contextTokens ->
+        ModelDocumentInterpreter(engine, contextTokens = contextTokens)
+    },
 ) {
 
     private val pipeline = ExtractionV2Pipeline()
@@ -84,7 +89,7 @@ class AiExtractionUseCase @Inject constructor(
     private suspend fun loadedInterpreter(config: InferenceConfig): DocumentInterpreter? {
         val path = activeModelProvider.extractionModelPath() ?: return null
         if (engine.load(path, config) is PamResult.Error) return null
-        return ModelDocumentInterpreter(engine, contextTokens = config.contextTokens)
+        return interpreters.create(config.contextTokens)
     }
 
     private fun pages(blocks: List<OcrBlock>, counts: List<Int>): List<List<OcrBlock>> {

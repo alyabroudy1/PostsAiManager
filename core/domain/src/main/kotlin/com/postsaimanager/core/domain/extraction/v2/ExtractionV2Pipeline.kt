@@ -4,6 +4,8 @@ import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
 import com.postsaimanager.core.domain.extraction.candidates.OcrText
+import com.postsaimanager.core.domain.extraction.layout.LayoutDescription
+import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.model.OcrBlock
 
 /**
@@ -35,8 +37,7 @@ class ExtractionV2Pipeline(
         val offered = CandidateTable.build(candidates)
         if (interpreter == null) return foundOnly(candidates, offered, modelCalled = false, error = "no model is available")
 
-        val budget = budgetChars(contextTokens, interpreter.maxAnswerTokens, interpreter.promptOverheadChars(offered))
-        val description = layout.describe(budget)
+        val description = fitLayout(layout, interpreter, offered, contextTokens)
         val total = if (description.isComplete) description.text.length else layout.describe().text.length
 
         val outcome = interpreter.interpret(InterpretationRequest(description.text, offered))
@@ -71,6 +72,45 @@ class ExtractionV2Pipeline(
                 textError = (textOutcome as? TextOutcome.Failed)?.reason,
             ),
         )
+    }
+
+    /**
+     * The letter as the model reads it, within the window. From the tokenizer's own count when the
+     * interpreter offers one (see [DocumentInterpreter.countTokens]): the description is measured and
+     * the character budget corrected a few times until it fits without wasting room. Otherwise from
+     * the [CHARS_PER_TOKEN] estimate.
+     */
+    private suspend fun fitLayout(
+        layout: LetterLayout,
+        interpreter: DocumentInterpreter,
+        offered: OfferedCandidates,
+        contextTokens: Int,
+    ): LayoutDescription {
+        val estimate = budgetChars(contextTokens, interpreter.maxAnswerTokens, interpreter.promptOverheadChars(offered))
+        val overhead = interpreter.promptOverheadTokens(offered)
+        if (overhead == null || interpreter.countTokens("") == null) return layout.describe(estimate)
+
+        val available = contextTokens - interpreter.maxAnswerTokens - overhead
+        var chars = estimate
+        var best: LayoutDescription? = null
+        var bestTokens = 0
+        repeat(FIT_ROUNDS) {
+            val description = layout.describe(chars)
+            val tokens = interpreter.countTokens(description.text) ?: return layout.describe(estimate)
+            if (tokens <= available) {
+                if (best == null || tokens > bestTokens) {
+                    best = description
+                    bestTokens = tokens
+                }
+                // Complete, or close enough to the limit that another round cannot gain a whole run.
+                if (description.isComplete || tokens >= available * FIT_ENOUGH) return description
+                chars = (chars * available.toDouble() / tokens.coerceAtLeast(1)).toInt() + 1
+            } else {
+                chars = (chars * available.toDouble() / tokens * FIT_SHRINK).toInt()
+            }
+            chars = chars.coerceAtLeast(MIN_LAYOUT_CHARS)
+        }
+        return best ?: layout.describe(MIN_LAYOUT_CHARS)
     }
 
     private fun foundOnly(
@@ -110,13 +150,18 @@ class ExtractionV2Pipeline(
 
     companion object {
         /**
-         * A deliberately conservative 2.5 characters per token. The engine does not expose a token
-         * count, so this is an estimate; German compounds, numbers and Arabic script tokenise worse
+         * A deliberately conservative 2.5 characters per token, used only when the interpreter cannot
+         * count tokens itself ([DocumentInterpreter.countTokens]; the questionnaire can, through
+         * `PromptSession.countTokens`). German compounds, numbers and Arabic script tokenise worse
          * than English, and an overflow silently drops the start of the prompt (the instructions).
-         * Replace with a measured count if the AiEngine port ever offers one.
          */
         const val CHARS_PER_TOKEN = 2.5
         const val MIN_LAYOUT_CHARS = 1024
+
+        /** How many times the measured fit corrects the character budget, and how close to the limit is close enough. */
+        private const val FIT_ROUNDS = 4
+        private const val FIT_ENOUGH = 0.92
+        private const val FIT_SHRINK = 0.97
 
         /** Characters left for the letter once the answer and the fixed prompt have taken their share of the window. */
         fun budgetChars(contextTokens: Int, answerTokens: Int, overheadChars: Int): Int =

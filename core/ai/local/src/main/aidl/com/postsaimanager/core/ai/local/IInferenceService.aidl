@@ -78,6 +78,25 @@ interface IInferenceService {
     /** Drops the standing chat session — see `LlamaNative.resetChatSession`. */
     void resetChatSession();
 
+    /**
+     * Opens a prompt session: decodes [prefix] once — see `LlamaNative.promptOpen`. Returns the
+     * prefix's token count, or a negative number on failure.
+     */
+    int promptOpen(String prefix);
+
+    /**
+     * Answers one question of the open prompt session under [grammar] and rolls back to the prefix —
+     * see `LlamaNative.promptAsk`. Blocking. Null when the session was lost, the question did not
+     * fit, or [cancelGeneration] stopped it.
+     */
+    String promptAsk(String question, String grammar, int maxTokens);
+
+    /** Drops the prompt session — see `LlamaNative.promptClose`. */
+    void promptClose();
+
+    /** [text] in tokens for the loaded model, or -1 with no model — see `LlamaNative.countTokens`. */
+    int countTokens(String text);
+
     void unloadModel();
 
     /**

@@ -1,0 +1,371 @@
+{
+ "key": "N1-mahnung-telco-qr-1p",
+ "interpreter": "questionnaire2",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Position",
+   "normalized": "Position",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Nordlicht Mobilfunk GmbH",
+   "normalized": "Nordlicht Mobilfunk GmbH",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "BIC COBADEFFXXX",
+   "normalized": "BIC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Rechnung vom",
+   "normalized": "Rechnung vom",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Team Forderungen",
+   "normalized": "Team Forderungen",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "Fällig am",
+   "normalized": "Fällig am",
+   "page": 1
+  },
+  {
+   "id": "M9",
+   "kind": "NAME",
+   "raw": "Betrag €",
+   "normalized": "Betrag €",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "05.08.2026",
+   "normalized": "2026-08-05",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "19.08.2026",
+   "normalized": "2026-08-19",
+   "page": 1
+  },
+  {
+   "id": "D4",
+   "kind": "DATE",
+   "raw": "25.09.2026",
+   "normalized": "2026-09-25",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "64,98€",
+   "normalized": "64.98 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "59,98",
+   "normalized": "59.98 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "5,00",
+   "normalized": "5.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE02 1203 0000 0000 2020 51",
+   "normalized": "DE02120300000000202051",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "2026-08-771204",
+   "normalized": "2026-08-771204",
+   "page": 1
+  },
+  {
+   "id": "N5",
+   "kind": "REFERENCE",
+   "raw": "4402917",
+   "normalized": "4402917",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "FIB-Mahn 4402917 4402917",
+   "normalized": "FIB-Mahn 4402917 4402917",
+   "page": 1
+  },
+  {
+   "id": "N8",
+   "kind": "REFERENCE",
+   "raw": "DEO00000000",
+   "normalized": "DE000000000",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "0800 555 0100",
+   "normalized": "0800 555 0100",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "0800 555 0199",
+   "normalized": "0800 555 0199",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "service@nordlicht-mobil.example",
+   "normalized": "service@nordlicht-mobil.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "type: insurance_contract de HIGH\nsender: M1 PERSON \"Erika Mustermann\" HIGH\naddressee: M2 PERSON HOUSEHOLD \"Erika Mustermann\" HIGH\nsubject_person: \"NONE\" PERSON \"Erika Mustermann\" HIGH\ncontact: M1 PERSON \"Erika Mustermann\" HIGH\ncare_of: M1 PERSON \"Erika Mustermann\" HIGH\nslot:letter_date: D1 OTHER LOW\nslot:total: A1 TOTAL_DUE HIGH\nslot:due_date: RULE \"14\" LETTER_DATE HIGH\nslot:iban: I1 HIGH\nslot:reference: N1 HIGH\nslot:customer_no: N1 HIGH\nslot:new_amount: A1 TOTAL_DUE HIGH\nslot:previous_amount: A1 OTHER HIGH\nslot:effective_date: D1 EFFECTIVE_FROM HIGH\nslot:contract_end: D1 OTHER LOW\nslot:policy_no: N1 HIGH\nslot:contract_no: N1 HIGH\nextras: N5 \"Kd 4402917\" english_key \"4402917\" HIGH",
+ "call1Ms": 52564,
+ "call2Ms": 7356,
+ "layoutTextChars": 2045,
+ "call2": "text:title: \"Nordlicht Mobilfunk GmbH\"\ntext:subject: \"Rechnung vom\"\ntext:summary: \"NEVER\"\ntext:questions: \"1. Which amount is the total amount of the letter? 2. What is the deadline for payment? 3. Who is the recipient of the letter?\" \">(1) 64,98€ (near: \" \">(2) 19.08.2026 (near: \"",
+ "prefixTokens": 1868,
+ "prefixMs": 14567,
+ "asks": [
+  {
+   "name": "type",
+   "question": "QUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "insurance_contract de HIGH",
+   "ms": 2674,
+   "questionTokens": 213,
+   "answerTokens": 4
+  },
+  {
+   "name": "sender",
+   "question": "QUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Erika Mustermann [address-field] p.1\nM2: Position p.1\nM3: Nordlicht Mobilfunk GmbH [footer] p.1\nM4: BIC COBADEFFXXX [footer] p.1\nM6: Rechnung vom p.1\nM7: Team Forderungen p.1\nM8: Fällig am p.1\nM9: Betrag € p.1",
+   "answer": "M1 PERSON \"Erika Mustermann\" HIGH",
+   "ms": 1878,
+   "questionTokens": 139,
+   "answerTokens": 10
+  },
+  {
+   "name": "addressee",
+   "question": "QUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Erika Mustermann [address-field] p.1\nM2: Position p.1\nM3: Nordlicht Mobilfunk GmbH [footer] p.1\nM4: BIC COBADEFFXXX [footer] p.1\nM6: Rechnung vom p.1\nM7: Team Forderungen p.1\nM8: Fällig am p.1\nM9: Betrag € p.1",
+   "answer": "M2 PERSON HOUSEHOLD \"Erika Mustermann\" HIGH",
+   "ms": 2828,
+   "questionTokens": 203,
+   "answerTokens": 13
+  },
+  {
+   "name": "subject_person",
+   "question": "QUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Erika Mustermann [address-field] p.1\nM2: Position p.1\nM3: Nordlicht Mobilfunk GmbH [footer] p.1\nM4: BIC COBADEFFXXX [footer] p.1\nM6: Rechnung vom p.1\nM7: Team Forderungen p.1\nM8: Fällig am p.1\nM9: Betrag € p.1",
+   "answer": "\"NONE\" PERSON \"Erika Mustermann\" HIGH",
+   "ms": 2285,
+   "questionTokens": 173,
+   "answerTokens": 11
+  },
+  {
+   "name": "contact",
+   "question": "QUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Erika Mustermann [address-field] p.1\nM2: Position p.1\nM3: Nordlicht Mobilfunk GmbH [footer] p.1\nM4: BIC COBADEFFXXX [footer] p.1\nM6: Rechnung vom p.1\nM7: Team Forderungen p.1\nM8: Fällig am p.1\nM9: Betrag € p.1",
+   "answer": "M1 PERSON \"Erika Mustermann\" HIGH",
+   "ms": 1842,
+   "questionTokens": 147,
+   "answerTokens": 10
+  },
+  {
+   "name": "care_of",
+   "question": "QUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Erika Mustermann [address-field] p.1\nM2: Position p.1\nM3: Nordlicht Mobilfunk GmbH [footer] p.1\nM4: BIC COBADEFFXXX [footer] p.1\nM6: Rechnung vom p.1\nM7: Team Forderungen p.1\nM8: Fällig am p.1\nM9: Betrag € p.1",
+   "answer": "M1 PERSON \"Erika Mustermann\" HIGH",
+   "ms": 2069,
+   "questionTokens": 164,
+   "answerTokens": 10
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "QUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nD1: 05.08.2026 (near: \"vom\") p.1\nD2: 19.08.2026 (near: \"fällig\" | \"vom\") p.1\nD4: 25.09.2026 (near: \"Datum\") p.1",
+   "answer": "D1 OTHER LOW",
+   "ms": 1964,
+   "questionTokens": 156,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:total",
+   "question": "QUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE\nOPTIONS:\nA1: 64,98€ (near: \"offenen Betrag\" | \"Offener Gesamtbetrag\") p.1\nA2: 59,98 p.1\nA3: 5,00 p.1",
+   "answer": "A1 TOTAL_DUE HIGH",
+   "ms": 1838,
+   "questionTokens": 142,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:due_date",
+   "question": "QUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nD1: 05.08.2026 (near: \"vom\") p.1\nD2: 19.08.2026 (near: \"fällig\" | \"vom\") p.1\nD4: 25.09.2026 (near: \"Datum\") p.1",
+   "answer": "RULE \"14\" LETTER_DATE HIGH",
+   "ms": 1964,
+   "questionTokens": 175,
+   "answerTokens": 8
+  },
+  {
+   "name": "slot:iban",
+   "question": "QUESTION: Which IBAN is the account the reader should pay to?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nI1: DE02 1203 0000 0000 2020 51 (near: \"IBAN\") p.1",
+   "answer": "I1 HIGH",
+   "ms": 976,
+   "questionTokens": 74,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:reference",
+   "question": "QUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: 2026-08-771204 (near: \"Rechnung\" | \"RE\") p.1\nN5: 4402917 (near: \"Kd\" | \"FIB-Mahn\" | \"Zeichen: Kundennummer. Ansprechpartner\") p.1\nN6: 000000 (near: \"AG Beispielstadt HRB\") p.1\nN7: FIB-Mahn 4402917 4402917 (near: \"Unser Zeichen\") p.1\nN8: DEO00000000 (near: \"USt-IdNr\") p.1",
+   "answer": "N1 HIGH",
+   "ms": 2110,
+   "questionTokens": 203,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "QUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: 2026-08-771204 (near: \"Rechnung\" | \"RE\") p.1\nN5: 4402917 (near: \"Kd\" | \"FIB-Mahn\" | \"Zeichen: Kundennummer. Ansprechpartner\") p.1\nN6: 000000 (near: \"AG Beispielstadt HRB\") p.1\nN7: FIB-Mahn 4402917 4402917 (near: \"Unser Zeichen\") p.1\nN8: DEO00000000 (near: \"USt-IdNr\") p.1",
+   "answer": "N1 HIGH",
+   "ms": 2030,
+   "questionTokens": 196,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:new_amount",
+   "question": "QUESTION: Which amount is the new price, premium or instalment that applies from now on?\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE\nOPTIONS:\nA1: 64,98€ (near: \"offenen Betrag\" | \"Offener Gesamtbetrag\") p.1\nA2: 59,98 p.1\nA3: 5,00 p.1",
+   "answer": "A1 TOTAL_DUE HIGH",
+   "ms": 1665,
+   "questionTokens": 129,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:previous_amount",
+   "question": "QUESTION: Which amount is the previous price or premium, the one that applied before the change?\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE\nOPTIONS:\nA1: 64,98€ (near: \"offenen Betrag\" | \"Offener Gesamtbetrag\") p.1\nA2: 59,98 p.1\nA3: 5,00 p.1",
+   "answer": "A1 OTHER HIGH",
+   "ms": 1539,
+   "questionTokens": 129,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:effective_date",
+   "question": "QUESTION: From which date does the change or the news in this letter take effect?\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nD1: 05.08.2026 (near: \"vom\") p.1\nD2: 19.08.2026 (near: \"fällig\" | \"vom\") p.1\nD4: 25.09.2026 (near: \"Datum\") p.1",
+   "answer": "D1 EFFECTIVE_FROM HIGH",
+   "ms": 1582,
+   "questionTokens": 143,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:contract_end",
+   "question": "QUESTION: On which date does the contract end or can it be terminated?\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nD1: 05.08.2026 (near: \"vom\") p.1\nD2: 19.08.2026 (near: \"fällig\" | \"vom\") p.1\nD4: 25.09.2026 (near: \"Datum\") p.1",
+   "answer": "D1 OTHER LOW",
+   "ms": 1835,
+   "questionTokens": 141,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:policy_no",
+   "question": "QUESTION: Which number is the insurance policy number?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: 2026-08-771204 (near: \"Rechnung\" | \"RE\") p.1\nN5: 4402917 (near: \"Kd\" | \"FIB-Mahn\" | \"Zeichen: Kundennummer. Ansprechpartner\") p.1\nN6: 000000 (near: \"AG Beispielstadt HRB\") p.1\nN7: FIB-Mahn 4402917 4402917 (near: \"Unser Zeichen\") p.1\nN8: DEO00000000 (near: \"USt-IdNr\") p.1",
+   "answer": "N1 HIGH",
+   "ms": 2022,
+   "questionTokens": 190,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:contract_no",
+   "question": "QUESTION: Which number is the contract number?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: 2026-08-771204 (near: \"Rechnung\" | \"RE\") p.1\nN5: 4402917 (near: \"Kd\" | \"FIB-Mahn\" | \"Zeichen: Kundennummer. Ansprechpartner\") p.1\nN6: 000000 (near: \"AG Beispielstadt HRB\") p.1\nN7: FIB-Mahn 4402917 4402917 (near: \"Unser Zeichen\") p.1\nN8: DEO00000000 (near: \"USt-IdNr\") p.1",
+   "answer": "N1 HIGH",
+   "ms": 1972,
+   "questionTokens": 189,
+   "answerTokens": 3
+  },
+  {
+   "name": "extras",
+   "question": "QUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "N5 \"Kd 4402917\" english_key \"4402917\" HIGH",
+   "ms": 2792,
+   "questionTokens": 122,
+   "answerTokens": 26
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this insurance contract: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Nordlicht Mobilfunk GmbH\"",
+   "ms": 872,
+   "questionTokens": 51,
+   "answerTokens": 7
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Rechnung vom\"",
+   "ms": 757,
+   "questionTokens": 31,
+   "answerTokens": 6
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"NEVER\"",
+   "ms": 732,
+   "questionTokens": 51,
+   "answerTokens": 4
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"1. Which amount is the total amount of the letter? 2. What is the deadline for payment? 3. Who is the recipient of the letter?\" \">(1) 64,98€ (near: \" \">(2) 19.08.2026 (near: \"",
+   "ms": 4944,
+   "questionTokens": 61,
+   "answerTokens": 68
+  }
+ ],
+ "wallMs": 60349,
+ "model": "text.gguf"
+}

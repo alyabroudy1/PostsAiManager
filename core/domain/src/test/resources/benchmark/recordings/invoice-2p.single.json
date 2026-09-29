@@ -1,0 +1,218 @@
+{
+ "key": "invoice-2p",
+ "interpreter": "single",
+ "pages": 2,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Musterfirma GmbH",
+   "normalized": "Musterfirma GmbH",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Pos. Beschreibung",
+   "normalized": "Pos. Beschreibung",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Konzeption Webportal",
+   "normalized": "Konzeption Webportal",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "Menge",
+   "normalized": "Menge",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Einzelpreis € Gesamt €",
+   "normalized": "Einzelpreis € Gesamt €",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "28.09.2026",
+   "normalized": "2026-09-28",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "15.10.2026",
+   "normalized": "2026-10-15",
+   "page": 2
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "95,00",
+   "normalized": "95.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "149,90",
+   "normalized": "149.90 EUR",
+   "page": 1
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "29,00",
+   "normalized": "29.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A5",
+   "kind": "AMOUNT",
+   "raw": "380,00",
+   "normalized": "380.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A6",
+   "kind": "AMOUNT",
+   "raw": "285,00",
+   "normalized": "285.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A9",
+   "kind": "AMOUNT",
+   "raw": "18,50 €",
+   "normalized": "18.50 EUR",
+   "page": 2
+  },
+  {
+   "id": "A10",
+   "kind": "AMOUNT",
+   "raw": "1.079,41 €",
+   "normalized": "1079.41 EUR",
+   "page": 2
+  },
+  {
+   "id": "A11",
+   "kind": "AMOUNT",
+   "raw": "39,00",
+   "normalized": "39.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A13",
+   "kind": "AMOUNT",
+   "raw": "93,51",
+   "normalized": "93.51 EUR",
+   "page": 2
+  },
+  {
+   "id": "A14",
+   "kind": "AMOUNT",
+   "raw": "1.284,50 €",
+   "normalized": "1284.50 EUR",
+   "page": 2
+  },
+  {
+   "id": "A15",
+   "kind": "AMOUNT",
+   "raw": "66,00",
+   "normalized": "66.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A17",
+   "kind": "AMOUNT",
+   "raw": "37,00",
+   "normalized": "37.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A21",
+   "kind": "AMOUNT",
+   "raw": "205,09",
+   "normalized": "205.09 EUR",
+   "page": 2
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 2
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "RE-2026-0815",
+   "normalized": "RE-2026-0815",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "KD-40417",
+   "normalized": "KD-40417",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "DE000000000",
+   "normalized": "DE000000000",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 567890",
+   "normalized": "01234 567890",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "info@musterfirma.example",
+   "normalized": "info@musterfirma.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 2
+  }
+ ],
+ "call1": "{\"type\":\"outgoing_letter\",\"tc\":\"HIGH\",\"lang\":\"de\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M1\",\"n\":\"Musterfirma GmbH\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M2\",\"n\":\"Erika Mustermann\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Pos. Beschreibung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M4\",\"n\":\"Konzeption Webportal\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M5\",\"n\":\"Menge\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M6\",\"n\":\"Einzelpreis € Gesamt €\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D1\",\"n\":\"28.09.2026\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D3\",\"n\":\"15.10.2026\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A1\",\"n\":\"95,00\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A3\",\"n\":\"149,90\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A4\",\"n\":\"29,00\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A5\",\"n\":\"380,00\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A6\",\"n\":\"285,00\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A9\",\"n\":\"18,50 €\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A10\",\"n\":\"1.079,41 €\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A11\",\"n\":\"39,00\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A13\",\"n\":\"93,51\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A14\",\"n\":\"1.284,50 €\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A15\",\"n\":\"66,00\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"",
+ "call1Ms": 71859,
+ "call2Ms": 19569,
+ "layoutTextChars": 2489,
+ "call2": "{\"other\": \"letter\", \"title\": \"Accounting Letter\", \"subject\": \"Hosting September 2026 \/ 1 \/ 4\", \"summary\": \"Musterfirma GmbH offers hosting services for September 2026 and requests payment of €1,284.50 due by 15.10.2026.\", \"qs\": [\"Who is the sender?\", \"What is the purpose of the letter?\", \"How is the payment due?\"]}",
+ "wallMs": 91639,
+ "model": "text.gguf"
+}

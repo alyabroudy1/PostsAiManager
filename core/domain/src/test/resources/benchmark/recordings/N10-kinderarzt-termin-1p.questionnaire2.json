@@ -1,0 +1,262 @@
+{
+ "key": "N10-kinderarzt-termin-1p",
+ "interpreter": "questionnaire2",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Kinder- und Jugendarztpraxis Beispiel",
+   "normalized": "Kinder- und Jugendarztpraxis Beispiel",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Erziehungsberechtigte von",
+   "normalized": "Erziehungsberechtigte von",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Adam Mustermann",
+   "normalized": "Adam Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Terminerinnerung für Adam Mustermann",
+   "normalized": "Terminerinnerung für Adam Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Anna Beispiel",
+   "normalized": "Anna Beispiel",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Beispiel",
+   "normalized": "Beispiel",
+   "page": 1
+  },
+  {
+   "id": "DT1",
+   "kind": "DATETIME",
+   "raw": "12.11.2026 um 09:30",
+   "normalized": "2026-11-12T09:30",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "25.09.2026",
+   "normalized": "2026-09-25",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "512345",
+   "normalized": "512345",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "00-12",
+   "normalized": "00-12",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "15-00-17",
+   "normalized": "15-00-17",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 700 20",
+   "normalized": "01234 700 20",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "praxis@kinderarzt-beispiel.example",
+   "normalized": "praxis@kinderarzt-beispiel.example",
+   "page": 1
+  }
+ ],
+ "call1": "type: insurance_contract de HIGH\nsender: M1 AUTHORITY \"Kinder- und Jugendarztpraxis Beispiel\" HIGH\naddressee: M3 PERSON HOUSEHOLD \"Adam Mustermann\" HIGH\nsubject_person: \"NONE\" PERSON \"Kind\" HIGH\ncontact: M3 AUTHORITY \"Adam Mustermann\" HIGH\ncare_of: M2 PERSON \"Erziehungsberechtigte von\" HIGH\nslot:letter_date: D1 LETTER_DATE HIGH\nslot:due_date: RULE \"24\" DEADLINE HIGH\nslot:reference: N1 HIGH\nslot:customer_no: N1 HIGH\nslot:effective_date: D1 EFFECTIVE_FROM HIGH\nslot:contract_end: D1 DEADLINE HIGH\nslot:policy_no: N1 HIGH\nslot:contract_no: N1 HIGH\nextras: M4 \"Terminerinnerung für Adam Mustermann\" pertainly \"Terminerinnerung für Adam Mustermann\" HIGH",
+ "call1Ms": 48832,
+ "call2Ms": 14259,
+ "layoutTextChars": 1255,
+ "call2": "text:title: \"KINDER- UND JUGENDARTZPRAXIS BEISPEL \/ GESUNDSWEG 512345 BEISPEILSTADT\"\ntext:subject: \"TERMINERINNERUNG FÜR ADAM MUSTERMANN\"\ntext:summary: \"Dear Adam Mustermann, we would like to remind you of the upcoming appointment for your child Adam Mustermann on Thursday, November 12, 2026 at 09:30. Please bring your insurance card. If you cannot attend the appointment, please call at least 24 hours in advance at 01234 700 20 to be able to reschedule.\"\ntext:questions: \"12,00 € p.1\" \"24 Stunden vorher p.1\" \"01234 700 20 p.1\"",
+ "prefixTokens": 1276,
+ "prefixMs": 13203,
+ "asks": [
+  {
+   "name": "type",
+   "question": "QUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "insurance_contract de HIGH",
+   "ms": 3046,
+   "questionTokens": 213,
+   "answerTokens": 4
+  },
+  {
+   "name": "sender",
+   "question": "QUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Kinder- und Jugendarztpraxis Beispiel [letterhead] p.1\nM2: Erziehungsberechtigte von [address-field] p.1\nM3: Adam Mustermann [address-field] p.1\nM4: Terminerinnerung für Adam Mustermann p.1\nM6: Anna Beispiel (near: \"Dr. med.\") [footer] p.1\nM7: Beispiel (near: \"Dr. A.\") p.1",
+   "answer": "M1 AUTHORITY \"Kinder- und Jugendarztpraxis Beispiel\" HIGH",
+   "ms": 2882,
+   "questionTokens": 148,
+   "answerTokens": 16
+  },
+  {
+   "name": "addressee",
+   "question": "QUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Kinder- und Jugendarztpraxis Beispiel [letterhead] p.1\nM2: Erziehungsberechtigte von [address-field] p.1\nM3: Adam Mustermann [address-field] p.1\nM4: Terminerinnerung für Adam Mustermann p.1\nM6: Anna Beispiel (near: \"Dr. med.\") [footer] p.1\nM7: Beispiel (near: \"Dr. A.\") p.1",
+   "answer": "M3 PERSON HOUSEHOLD \"Adam Mustermann\" HIGH",
+   "ms": 3348,
+   "questionTokens": 212,
+   "answerTokens": 12
+  },
+  {
+   "name": "subject_person",
+   "question": "QUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Kinder- und Jugendarztpraxis Beispiel [letterhead] p.1\nM2: Erziehungsberechtigte von [address-field] p.1\nM3: Adam Mustermann [address-field] p.1\nM4: Terminerinnerung für Adam Mustermann p.1\nM6: Anna Beispiel (near: \"Dr. med.\") [footer] p.1\nM7: Beispiel (near: \"Dr. A.\") p.1",
+   "answer": "\"NONE\" PERSON \"Kind\" HIGH",
+   "ms": 3046,
+   "questionTokens": 182,
+   "answerTokens": 8
+  },
+  {
+   "name": "contact",
+   "question": "QUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Kinder- und Jugendarztpraxis Beispiel [letterhead] p.1\nM2: Erziehungsberechtigte von [address-field] p.1\nM3: Adam Mustermann [address-field] p.1\nM4: Terminerinnerung für Adam Mustermann p.1\nM6: Anna Beispiel (near: \"Dr. med.\") [footer] p.1\nM7: Beispiel (near: \"Dr. A.\") p.1",
+   "answer": "M3 AUTHORITY \"Adam Mustermann\" HIGH",
+   "ms": 2768,
+   "questionTokens": 156,
+   "answerTokens": 10
+  },
+  {
+   "name": "care_of",
+   "question": "QUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Kinder- und Jugendarztpraxis Beispiel [letterhead] p.1\nM2: Erziehungsberechtigte von [address-field] p.1\nM3: Adam Mustermann [address-field] p.1\nM4: Terminerinnerung für Adam Mustermann p.1\nM6: Anna Beispiel (near: \"Dr. med.\") [footer] p.1\nM7: Beispiel (near: \"Dr. A.\") p.1",
+   "answer": "M2 PERSON \"Erziehungsberechtigte von\" HIGH",
+   "ms": 2744,
+   "questionTokens": 173,
+   "answerTokens": 12
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "QUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nDT1: 12.11.2026 um 09:30 p.1\nD1: 25.09.2026 p.1",
+   "answer": "D1 LETTER_DATE HIGH",
+   "ms": 1811,
+   "questionTokens": 123,
+   "answerTokens": 5
+  },
+  {
+   "name": "slot:due_date",
+   "question": "QUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nDT1: 12.11.2026 um 09:30 p.1\nD1: 25.09.2026 p.1",
+   "answer": "RULE \"24\" DEADLINE HIGH",
+   "ms": 2347,
+   "questionTokens": 142,
+   "answerTokens": 8
+  },
+  {
+   "name": "slot:reference",
+   "question": "QUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: 512345 (near: \"Gesundheitsweg\") p.1\nN2: 00-12 (near: \"Mo-Fr 8\") p.1\nN3: 15-00-17 (near: \"Mo, Di, Do\") p.1",
+   "answer": "N1 HIGH",
+   "ms": 1791,
+   "questionTokens": 115,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "QUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: 512345 (near: \"Gesundheitsweg\") p.1\nN2: 00-12 (near: \"Mo-Fr 8\") p.1\nN3: 15-00-17 (near: \"Mo, Di, Do\") p.1",
+   "answer": "N1 HIGH",
+   "ms": 1688,
+   "questionTokens": 108,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:effective_date",
+   "question": "QUESTION: From which date does the change or the news in this letter take effect?\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nDT1: 12.11.2026 um 09:30 p.1\nD1: 25.09.2026 p.1",
+   "answer": "D1 EFFECTIVE_FROM HIGH",
+   "ms": 1819,
+   "questionTokens": 110,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:contract_end",
+   "question": "QUESTION: On which date does the contract end or can it be terminated?\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nDT1: 12.11.2026 um 09:30 p.1\nD1: 25.09.2026 p.1",
+   "answer": "D1 DEADLINE HIGH",
+   "ms": 1817,
+   "questionTokens": 108,
+   "answerTokens": 5
+  },
+  {
+   "name": "slot:policy_no",
+   "question": "QUESTION: Which number is the insurance policy number?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: 512345 (near: \"Gesundheitsweg\") p.1\nN2: 00-12 (near: \"Mo-Fr 8\") p.1\nN3: 15-00-17 (near: \"Mo, Di, Do\") p.1",
+   "answer": "N1 HIGH",
+   "ms": 1563,
+   "questionTokens": 102,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:contract_no",
+   "question": "QUESTION: Which number is the contract number?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: 512345 (near: \"Gesundheitsweg\") p.1\nN2: 00-12 (near: \"Mo-Fr 8\") p.1\nN3: 15-00-17 (near: \"Mo, Di, Do\") p.1",
+   "answer": "N1 HIGH",
+   "ms": 1474,
+   "questionTokens": 101,
+   "answerTokens": 3
+  },
+  {
+   "name": "extras",
+   "question": "QUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "M4 \"Terminerinnerung für Adam Mustermann\" pertainly \"Terminerinnerung für Adam Mustermann\" HIGH",
+   "ms": 3382,
+   "questionTokens": 122,
+   "answerTokens": 26
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this insurance contract: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"KINDER- UND JUGENDARTZPRAXIS BEISPEL \/ GESUNDSWEG 512345 BEISPEILSTADT\"",
+   "ms": 3082,
+   "questionTokens": 51,
+   "answerTokens": 37
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"TERMINERINNERUNG FÜR ADAM MUSTERMANN\"",
+   "ms": 1444,
+   "questionTokens": 31,
+   "answerTokens": 14
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Dear Adam Mustermann, we would like to remind you of the upcoming appointment for your child Adam Mustermann on Thursday, November 12, 2026 at 09:30. Please bring your insurance card. If you cannot attend the appointment, please call at least 24 hours in advance at 01234 700 20 to be able to reschedule.\"",
+   "ms": 6468,
+   "questionTokens": 51,
+   "answerTokens": 87
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"12,00 € p.1\" \"24 Stunden vorher p.1\" \"01234 700 20 p.1\"",
+   "ms": 3235,
+   "questionTokens": 61,
+   "answerTokens": 37
+  }
+ ],
+ "wallMs": 63248,
+ "model": "text.gguf"
+}

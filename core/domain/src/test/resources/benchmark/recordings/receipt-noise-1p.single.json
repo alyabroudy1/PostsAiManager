@@ -1,0 +1,316 @@
+{
+ "key": "receipt-noise-1p",
+ "interpreter": "single",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Spülmittel Spülmittel",
+   "normalized": "Spülmittel Spülmittel",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "BEISPIELMARKT",
+   "normalized": "BEISPIELMARKT",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "SUMME EUR",
+   "normalized": "SUMME EUR",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Kartenzahlung girocard",
+   "normalized": "Kartenzahlung girocard",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "Netto MwSt Brutto",
+   "normalized": "Netto MwSt Brutto",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Kartenzahlung",
+   "normalized": "Kartenzahlung",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Umtausch nur mit Kassenbon",
+   "normalized": "Umtausch nur mit Kassenbon",
+   "page": 1
+  },
+  {
+   "id": "DT1",
+   "kind": "DATETIME",
+   "raw": "27.09.2026 18:42",
+   "normalized": "2026-09-27T18:42",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "27.09.2026",
+   "normalized": "2026-09-27",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "19,15",
+   "normalized": "19.15 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "1,34",
+   "normalized": "1.34 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "2,50",
+   "normalized": "2.50 EUR",
+   "page": 1
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "0,48",
+   "normalized": "0.48 EUR",
+   "page": 1
+  },
+  {
+   "id": "A5",
+   "kind": "AMOUNT",
+   "raw": "7£",
+   "normalized": "7.00 GBP",
+   "page": 1
+  },
+  {
+   "id": "A6",
+   "kind": "AMOUNT",
+   "raw": "1,19",
+   "normalized": "1.19 EUR",
+   "page": 1
+  },
+  {
+   "id": "A7",
+   "kind": "AMOUNT",
+   "raw": "3,29",
+   "normalized": "3.29 EUR",
+   "page": 1
+  },
+  {
+   "id": "A8",
+   "kind": "AMOUNT",
+   "raw": "1,51",
+   "normalized": "1.51 EUR",
+   "page": 1
+  },
+  {
+   "id": "A9",
+   "kind": "AMOUNT",
+   "raw": "2,49",
+   "normalized": "2.49 EUR",
+   "page": 1
+  },
+  {
+   "id": "A10",
+   "kind": "AMOUNT",
+   "raw": "2,19",
+   "normalized": "2.19 EUR",
+   "page": 1
+  },
+  {
+   "id": "A11",
+   "kind": "AMOUNT",
+   "raw": "2,04",
+   "normalized": "2.04 EUR",
+   "page": 1
+  },
+  {
+   "id": "A12",
+   "kind": "AMOUNT",
+   "raw": "0,79",
+   "normalized": "0.79 EUR",
+   "page": 1
+  },
+  {
+   "id": "A13",
+   "kind": "AMOUNT",
+   "raw": "6,99",
+   "normalized": "6.99 EUR",
+   "page": 1
+  },
+  {
+   "id": "A14",
+   "kind": "AMOUNT",
+   "raw": "1,49",
+   "normalized": "1.49 EUR",
+   "page": 1
+  },
+  {
+   "id": "A16",
+   "kind": "AMOUNT",
+   "raw": "23,47",
+   "normalized": "23.47 EUR",
+   "page": 1
+  },
+  {
+   "id": "A17",
+   "kind": "AMOUNT",
+   "raw": "20,49",
+   "normalized": "20.49 EUR",
+   "page": 1
+  },
+  {
+   "id": "A18",
+   "kind": "AMOUNT",
+   "raw": "2,98",
+   "normalized": "2.98 EUR",
+   "page": 1
+  },
+  {
+   "id": "Z1",
+   "kind": "NUMBER",
+   "raw": "1,79 EUR",
+   "normalized": "1.79",
+   "page": 1
+  },
+  {
+   "id": "Z2",
+   "kind": "NUMBER",
+   "raw": "3,99 EUR",
+   "normalized": "3.99",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "750g",
+   "normalized": "750g",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "250g",
+   "normalized": "250g",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "DE000000000",
+   "normalized": "DE000000000",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "500g",
+   "normalized": "500g",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "52847196",
+   "normalized": "52847196",
+   "page": 1
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "004217",
+   "normalized": "004217",
+   "page": 1
+  },
+  {
+   "id": "N8",
+   "kind": "REFERENCE",
+   "raw": "918274",
+   "normalized": "918274",
+   "page": 1
+  },
+  {
+   "id": "N9",
+   "kind": "REFERENCE",
+   "raw": "b40928b5b7a",
+   "normalized": "b40928b5b7a",
+   "page": 1
+  },
+  {
+   "id": "N10",
+   "kind": "REFERENCE",
+   "raw": "767c76fb008f86bebb2",
+   "normalized": "767c76fb008f86bebb2",
+   "page": 1
+  },
+  {
+   "id": "N11",
+   "kind": "REFERENCE",
+   "raw": "3c6f5da2",
+   "normalized": "3c6f5da2",
+   "page": 1
+  },
+  {
+   "id": "N12",
+   "kind": "REFERENCE",
+   "raw": "cec255404e4",
+   "normalized": "cec255404e4",
+   "page": 1
+  },
+  {
+   "id": "N13",
+   "kind": "REFERENCE",
+   "raw": "1049233",
+   "normalized": "1049233",
+   "page": 1
+  },
+  {
+   "id": "N14",
+   "kind": "REFERENCE",
+   "raw": "ecdsa-plain-SHA256",
+   "normalized": "ecdsa-plain-SHA256",
+   "page": 1
+  },
+  {
+   "id": "N15",
+   "kind": "REFERENCE",
+   "raw": "234567",
+   "normalized": "234567",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 998877",
+   "normalized": "01234 998877",
+   "page": 1
+  }
+ ],
+ "call1": "{\"type\":\"outgoing_letter\",\"tc\":\"MEDIUM\",\"lang\":\"de\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M2\",\"n\":\"BEISPIELMARKT\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M3\",\"n\":\"SUMME EUR\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"DT1\",\"n\":\"27.09.2026 18:42\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"ROUTING\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"CARE_OF\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"}],\"s\":{\"letter_date\":{\"id\":\"DT1\",\"r\":\"LETTER_DATE\",\"c\":\"HIGH\"},\"total\":{\"id\":\"A1\",\"r\":\"FEE\",\"c\":\"HIGH\"},\"due_date\":{\"id\":\"DT1\",\"r\":\"DEADLINE\",\"c\":\"HIGH\"},\"iban\":\"NONE\",\"reference\":\"NONE\",\"customer_no\":\"NONE\",\"recipient_org\":\"NONE\",\"sent_date\":\"NONE\",\"action_kind\":\"NONE\",\"cited_references\":\"NONE\"},\"x\":[{\"lb\":\"Kasse\",\"k\":\"kasse\",\"id\":\"NONE\",\"v\":\"03\",\"c\":\"MEDIUM\"},{\"lb\":\"TSE-Signatur\",\"k\":\"tse_signature\",\"id\":\"NONE\",\"v\":\"\/\",\"c\":\"MEDIUM\"},{\"lb\":\"Sig.-Alg.\",\"k\":\"sig_alg\",\"id\":\"NONE\",\"v\":\"ecdsa-plain-SHA256\",\"c\":\"MEDIUM\"},{\"lb\":\"Transaktionsnummer\",\"k\":\"trans_num\",\"id\":\"NONE\",\"v\":\"1049233\",\"c\":\"MEDIUM\"},{\"lb\":\"Bon-Nr.\",\"k\":\"bon_nr\",\"id\":\"NONE\",\"v\":\"4711\",\"c\":\"MEDIUM\"},{\"lb\":\"Kasse\",\"k\":\"kasse\",\"id\":\"NONE\",\"v\":\"03\",\"c\":\"MEDIUM\"},{\"lb\":\"Bediener\",\"k\":\"bediener\",\"id\":\"NONE\",\"v\":\"017\",\"c\":\"MEDIUM\"},{\"lb\":\"TSE-Start\",\"k\":\"tse_start\",\"id\":\"NONE\",\"v\":\"2026-09-27T18:41:12\",\"c\":\"MEDIUM\"},{\"lb\":\"TSE-Stop\",\"k\":\"tse_stop\",\"id\":\"NONE\",\"v\":\"2026-09-27T18:42:07\",\"c\":\"MEDIUM\"},{\"lb\":\"7£6a6fO\",\"k\":\"tse_signature\",\"id\":\"NONE\",\"v\":\"fb2 3c6f5da2 cec255404e4 fb4\",\"c\":\"MEDIUM\"},{\"lb\":\"fb2 3c",
+ "call1Ms": 80250,
+ "call2Ms": 13099,
+ "layoutTextChars": 1189,
+ "call2": "{\"other\": \"outgoing_letter\", \"title\": \"Payment Confirmation\", \"subject\": \"Zahlung EREFOLGT\", \"summary\": \"This is a payment confirmation letter from Beispielmarkt confirming a transaction with girocard, including details like the transaction number, date, and account number.\", \"qs\": [\"Who is the sender?\", \"What is the transaction number?\", \"What is the account number?\"]}",
+ "wallMs": 94313,
+ "model": "text.gguf"
+}

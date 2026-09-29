@@ -63,6 +63,16 @@ interface DocumentInterpreter {
     /** Characters the fixed part of call 2's prompt will cost. */
     fun textOverheadChars(): Int
 
+    /**
+     * The fixed part of the prompt in tokens, counted by the model's own tokenizer; null (the default)
+     * when the interpreter cannot count, and the pipeline budgets the letter from the character estimate.
+     * When both this and [countTokens] answer, the letter is fitted by measured tokens instead.
+     */
+    suspend fun promptOverheadTokens(offered: OfferedCandidates): Int? = null
+
+    /** [text] in tokens by the model's own tokenizer, or null when it cannot be counted. */
+    suspend fun countTokens(text: String): Int? = null
+
     suspend fun interpret(request: InterpretationRequest): InterpretationOutcome
 
     suspend fun writeText(request: TextRequest): TextOutcome

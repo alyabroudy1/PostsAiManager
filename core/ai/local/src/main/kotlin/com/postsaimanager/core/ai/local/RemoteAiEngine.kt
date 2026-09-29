@@ -15,12 +15,15 @@ import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.InferenceCrash
+import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.isActive
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -64,7 +67,7 @@ import kotlin.coroutines.resume
 class RemoteAiEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
-) : AiEngine {
+) : AiEngine, PromptSession {
 
     @Volatile
     private var service: IInferenceService? = null
@@ -547,6 +550,89 @@ class RemoteAiEngine @Inject constructor(
             val remote = service ?: return@withContext
             runCatching { remote.resetChatSession() }
             Unit
+        }
+    }
+
+    // ── PromptSession: read once, ask many short questions ───────────────────────────────
+
+    /**
+     * The open prompt session's prefix, kept here so that a lost KV state (a chat turn or a one-shot
+     * generation ran between two questions, or the process was restarted) is repaired by decoding it
+     * again instead of failing the question. Null when no session is open.
+     */
+    @Volatile
+    private var promptPrefix: String? = null
+
+    /**
+     * Each call below takes [engineMutex] for its own duration only, so a chat turn can run between two
+     * questions of one session; see [PromptSession]'s KDoc for what that costs (one re-read of the prefix).
+     */
+    override suspend fun open(prefix: String): PamResult<Int> = engineMutex.withLock {
+        withContext(ioDispatcher) { openLocked(prefix) }
+    }
+
+    private suspend fun openLocked(prefix: String): PamResult<Int> {
+        val remote = connect() ?: return PamResult.Error(PamError.ModelNotLoaded("Could not reach the AI engine."))
+        if (!remote.isReady && coordinator.ensureLoaded().let { it == null || it is PamResult.Error }) {
+            return PamResult.Error(PamError.ModelNotLoaded("No model is loaded."))
+        }
+        // Reading the prefix takes the KV cache over from any primed chat session, like a one-shot generate().
+        sessionConversationId = null
+        val tokens = runCatching { remote.promptOpen(prefix) }.getOrDefault(-1)
+        return when {
+            tokens >= 0 -> {
+                promptPrefix = prefix
+                Log.i(TAG, "prompt session opened: $tokens prefix tokens")
+                PamResult.Success(tokens)
+            }
+            tokens == -2 -> PamResult.Error(PamError.InferenceError("the letter is too long for the model's context window"))
+            else -> PamResult.Error(PamError.InferenceError("the model could not read the letter"))
+        }
+    }
+
+    override suspend fun ask(question: String, grammar: String, maxTokens: Int): PamResult<String> =
+        engineMutex.withLock {
+            withContext(ioDispatcher) {
+                val remote = service ?: connect()
+                    ?: return@withContext PamResult.Error(PamError.ModelNotLoaded("Could not reach the AI engine."))
+                val prefix = promptPrefix
+                    ?: return@withContext PamResult.Error(PamError.InferenceError("no prompt session is open"))
+
+                // A coroutine cancelled mid-answer stops the native loop instead of leaving it to run out.
+                withCancelHook({ runCatching { remote.cancelGeneration() } }) {
+                    val started = System.nanoTime()
+                    var answer = runCatching { remote.promptAsk(question, grammar, maxTokens) }.getOrNull()
+                    if (answer == null && coroutineContext.isActive) {
+                        // Lost: something else used the KV cache since the last question. Read the prefix again, once.
+                        Log.i(TAG, "prompt session lost — reading the prefix again")
+                        if (openLocked(prefix) is PamResult.Success) {
+                            answer = runCatching { remote.promptAsk(question, grammar, maxTokens) }.getOrNull()
+                        }
+                    }
+                    Log.i(TAG, "ask: ${(System.nanoTime() - started) / 1_000_000} ms, ${answer?.length ?: -1} chars")
+                    if (answer == null) {
+                        PamResult.Error(PamError.InferenceError("the question could not be answered"))
+                    } else {
+                        PamResult.Success(answer)
+                    }
+                }
+            }
+        }
+
+    override suspend fun close() = engineMutex.withLock {
+        withContext(ioDispatcher) {
+            if (promptPrefix == null) return@withContext
+            promptPrefix = null
+            val remote = service ?: return@withContext
+            runCatching { remote.promptClose() }
+            Unit
+        }
+    }
+
+    override suspend fun countTokens(text: String): Int? = engineMutex.withLock {
+        withContext(ioDispatcher) {
+            val remote = service ?: return@withContext null
+            runCatching { remote.countTokens(text) }.getOrNull()?.takeIf { it >= 0 }
         }
     }
 

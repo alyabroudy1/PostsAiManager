@@ -1,0 +1,224 @@
+{
+ "key": "N8-info-bank-noaction-1p",
+ "interpreter": "questionnaire2",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Beispielbank eG",
+   "normalized": "Beispielbank eG",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Max Mustermann",
+   "normalized": "Max Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Informationen zu unserem neuen Kundenportal",
+   "normalized": "Informationen zu unserem neuen Kundenportal",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "BIC COBADEFFXXX",
+   "normalized": "BIC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "01.11.2026",
+   "normalized": "2026-11-01",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "21.09.2026",
+   "normalized": "2026-09-21",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "7788123",
+   "normalized": "7788123",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 400 0",
+   "normalized": "01234 400 0",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "01234 400 55",
+   "normalized": "01234 400 55",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "kundenservice@belspielbank.example",
+   "normalized": "kundenservice@belspielbank.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "type: info_no_action de HIGH\nsender: M1 PERSON \"Beispielbank eG\" HIGH\naddressee: M2 PERSON HOUSEHOLD \"Max Mustermann\" HIGH\nsubject_person: M3 PERSON \"Informationen zu unserem neuen Kundenportal\" HIGH\ncontact: M2 PERSON \"Max Mustermann\" HIGH\ncare_of: M2 PERSON \"Max Mustermann\" HIGH\nslot:letter_date: D1 LETTER_DATE HIGH\nslot:due_date: D2 DEADLINE HIGH\nslot:reference: N1 HIGH\nslot:customer_no: N1 HIGH\nslot:effective_date: D1 EFFECTIVE_FROM HIGH\nextras: M5 \"BIC COBADEFFXXX\" medium \"BIC COBADEFFXXX\" HIGH",
+ "call1Ms": 49551,
+ "call2Ms": 8015,
+ "layoutTextChars": 1509,
+ "call2": "text:title: \"BEISPEL BANK E.G. \/ BANKING SERVICE\"\ntext:subject: \"Informationen zu unserem neuen Kundenportal\"\ntext:summary: \"YOUR LETTER IS A REQUEST TO PAY\"\ntext:questions: \"Informationen zu unserem neuen Kundenportal\" \"01.11.2026\" \"21.09.2026\"",
+ "prefixTokens": 1252,
+ "prefixMs": 18024,
+ "asks": [
+  {
+   "name": "type",
+   "question": "QUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "info_no_action de HIGH",
+   "ms": 3458,
+   "questionTokens": 213,
+   "answerTokens": 5
+  },
+  {
+   "name": "sender",
+   "question": "QUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Beispielbank eG [letterhead] p.1\nM2: Max Mustermann [address-field] p.1\nM3: Informationen zu unserem neuen Kundenportal p.1\nM5: BIC COBADEFFXXX [footer] p.1",
+   "answer": "M1 PERSON \"Beispielbank eG\" HIGH",
+   "ms": 2293,
+   "questionTokens": 105,
+   "answerTokens": 11
+  },
+  {
+   "name": "addressee",
+   "question": "QUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Beispielbank eG [letterhead] p.1\nM2: Max Mustermann [address-field] p.1\nM3: Informationen zu unserem neuen Kundenportal p.1\nM5: BIC COBADEFFXXX [footer] p.1",
+   "answer": "M2 PERSON HOUSEHOLD \"Max Mustermann\" HIGH",
+   "ms": 2902,
+   "questionTokens": 169,
+   "answerTokens": 12
+  },
+  {
+   "name": "subject_person",
+   "question": "QUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Beispielbank eG [letterhead] p.1\nM2: Max Mustermann [address-field] p.1\nM3: Informationen zu unserem neuen Kundenportal p.1\nM5: BIC COBADEFFXXX [footer] p.1",
+   "answer": "M3 PERSON \"Informationen zu unserem neuen Kundenportal\" HIGH",
+   "ms": 2814,
+   "questionTokens": 139,
+   "answerTokens": 13
+  },
+  {
+   "name": "contact",
+   "question": "QUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Beispielbank eG [letterhead] p.1\nM2: Max Mustermann [address-field] p.1\nM3: Informationen zu unserem neuen Kundenportal p.1\nM5: BIC COBADEFFXXX [footer] p.1",
+   "answer": "M2 PERSON \"Max Mustermann\" HIGH",
+   "ms": 2573,
+   "questionTokens": 113,
+   "answerTokens": 9
+  },
+  {
+   "name": "care_of",
+   "question": "QUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Beispielbank eG [letterhead] p.1\nM2: Max Mustermann [address-field] p.1\nM3: Informationen zu unserem neuen Kundenportal p.1\nM5: BIC COBADEFFXXX [footer] p.1",
+   "answer": "M2 PERSON \"Max Mustermann\" HIGH",
+   "ms": 3323,
+   "questionTokens": 130,
+   "answerTokens": 9
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "QUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nD1: 01.11.2026 (near: \"Ab dem\") p.1\nD2: 21.09.2026 p.1",
+   "answer": "D1 LETTER_DATE HIGH",
+   "ms": 1942,
+   "questionTokens": 123,
+   "answerTokens": 5
+  },
+  {
+   "name": "slot:due_date",
+   "question": "QUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nD1: 01.11.2026 (near: \"Ab dem\") p.1\nD2: 21.09.2026 p.1",
+   "answer": "D2 DEADLINE HIGH",
+   "ms": 2686,
+   "questionTokens": 142,
+   "answerTokens": 5
+  },
+  {
+   "name": "slot:reference",
+   "question": "QUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: 7788123 (near: \"Kundennummer\") p.1",
+   "answer": "N1 HIGH",
+   "ms": 1907,
+   "questionTokens": 66,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "QUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: 7788123 (near: \"Kundennummer\") p.1",
+   "answer": "N1 HIGH",
+   "ms": 1522,
+   "questionTokens": 59,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:effective_date",
+   "question": "QUESTION: From which date does the change or the news in this letter take effect?\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nD1: 01.11.2026 (near: \"Ab dem\") p.1\nD2: 21.09.2026 p.1",
+   "answer": "D1 EFFECTIVE_FROM HIGH",
+   "ms": 2438,
+   "questionTokens": 110,
+   "answerTokens": 6
+  },
+  {
+   "name": "extras",
+   "question": "QUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "M5 \"BIC COBADEFFXXX\" medium \"BIC COBADEFFXXX\" HIGH",
+   "ms": 3627,
+   "questionTokens": 122,
+   "answerTokens": 22
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this info no action: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"BEISPEL BANK E.G. \/ BANKING SERVICE\"",
+   "ms": 1921,
+   "questionTokens": 52,
+   "answerTokens": 14
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Informationen zu unserem neuen Kundenportal\"",
+   "ms": 1238,
+   "questionTokens": 31,
+   "answerTokens": 9
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"YOUR LETTER IS A REQUEST TO PAY\"",
+   "ms": 1445,
+   "questionTokens": 51,
+   "answerTokens": 9
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Informationen zu unserem neuen Kundenportal\" \"01.11.2026\" \"21.09.2026\"",
+   "ms": 3380,
+   "questionTokens": 61,
+   "answerTokens": 33
+  }
+ ],
+ "wallMs": 57701,
+ "model": "text.gguf"
+}
