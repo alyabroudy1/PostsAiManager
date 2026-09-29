@@ -1,6 +1,8 @@
 package com.postsaimanager.core.data.repository
 
 import com.postsaimanager.core.common.util.UuidGenerator
+import com.postsaimanager.core.domain.extraction.candidates.IbanValidator
+import com.postsaimanager.core.domain.extraction.candidates.LegacyEntityPatterns
 import com.postsaimanager.core.model.DocumentType
 import com.postsaimanager.core.model.ExtractedContact
 import com.postsaimanager.core.model.ExtractedData
@@ -407,111 +409,27 @@ class EntityExtractor @Inject constructor() {
             .find(fullText)?.groupValues?.get(1)?.trim()
     }
 
-    private fun extractReferenceNumbers(text: String): List<Pair<String, String>> {
-        val results = mutableListOf<Pair<String, String>>()
-        val patterns = listOf(
-            // These four capture to end-of-line and are then narrowed by
-            // [cleanReferenceValue]. The previous character class included `\s` *and*
-            // letters and was greedy, so it ran straight past the value into the body
-            // text ("Aktenzeichen: AB123 Sehr geehrte Damen und…").
-            Regex("(?i)(?:aktenzeichen|az\\.?)\\s*[:.]?\\s*([^\\r\\n]{3,60})") to "File Reference (Aktenzeichen)",
-            Regex("(?i)(?:geschäftszeichen|gz\\.?)\\s*[:.]?\\s*([^\\r\\n]{3,60})") to "Business Reference",
-            Regex("(?i)(?:unser zeichen|uns\\.?\\s*z(?:eichen)?)\\s*[:.]?\\s*([^\\r\\n]{3,60})") to "Our Reference",
-            Regex("(?i)(?:ihr zeichen)\\s*[:.]?\\s*([^\\r\\n]{3,60})") to "Your Reference",
-            Regex("(?i)(?:kunden[\\-\\s]?nr\\.?|kundennummer)\\s*[:.]?\\s*([A-Za-z0-9\\-]{3,20})") to "Customer Number",
-            Regex("(?i)(?:vertrags[\\-\\s]?nr\\.?|vertragsnummer)\\s*[:.]?\\s*([A-Za-z0-9\\-]{3,20})") to "Contract Number",
-            Regex("(?i)(?:rechnungs[\\-\\s]?nr\\.?|rechnungsnummer)\\s*[:.]?\\s*([A-Za-z0-9\\-]{3,20})") to "Invoice Number",
-            Regex("(?i)(?:steuer[\\-\\s]?nr\\.?|steuernummer)\\s*[:.]?\\s*([0-9/\\-]{5,20})") to "Tax Number",
-            Regex("(?i)(?:steuer[\\-\\s]?id|steueridentifikationsnummer)\\s*[:.]?\\s*(\\d{11})") to "Tax ID",
-            Regex("(?i)(?:versicherungs[\\-\\s]?nr\\.?)\\s*[:.]?\\s*([A-Za-z0-9\\-]{3,20})") to "Insurance Number",
-        )
-        for ((regex, label) in patterns) {
-            regex.find(text)?.let { match ->
-                val value = cleanReferenceValue(match.groupValues[1])
-                if (value.isNotBlank()) results.add(label to value)
-            }
-        }
-        return results
-    }
+    // The regexes below moved to core:domain (extraction.candidates.LegacyEntityPatterns);
+    // this class keeps thin delegates so its behaviour and tests are unchanged until the
+    // extraction v2 pipeline replaces it.
+    private fun extractReferenceNumbers(text: String): List<Pair<String, String>> =
+        LegacyEntityPatterns.referenceNumbers(text)
 
-    /**
-     * Trims a captured reference down to the identifier itself.
-     *
-     * A reference number is a run of alphanumeric tokens, possibly separated by single
-     * spaces ("BG 1234/5678"). Prose begins at the first purely alphabetic word of three
-     * or more characters — that is where the value ends.
-     */
-    internal fun cleanReferenceValue(raw: String): String {
-        val tokens = raw.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
-        val kept = tokens.takeWhile { token ->
-            token.any { it.isDigit() } || token.length <= 2 || token.any { !it.isLetter() }
-        }
-        return kept.joinToString(" ").trim().trimEnd('.', ',', ';', ':', '-')
-    }
+    internal fun cleanReferenceValue(raw: String): String = LegacyEntityPatterns.cleanReferenceValue(raw)
 
     // ═══════════════════════════════════════════════════════════
     // Financial & Deadline Extraction
     // ═══════════════════════════════════════════════════════════
 
-    /**
-     * Extracts IBANs from any country and validates each with the ISO 13616 mod-97
-     * checksum.
-     *
-     * The previous pattern permitted digits only after the check digits, so every IBAN
-     * with letters in the BBAN — Dutch, French, British and most others — was silently
-     * dropped. The checksum replaces the old length-only filter and removes false
-     * positives outright.
-     */
-    private fun extractIbans(text: String): List<String> =
-        Regex("\\b[A-Z]{2}\\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,3})?\\b")
-            .findAll(text)
-            .map { it.value.replace(Regex("\\s"), "").uppercase() }
-            .filter(::isValidIban)
-            .toList()
-            .distinct()
+    /** IBANs from any country, mod-97 validated (see [LegacyEntityPatterns.ibans]). */
+    private fun extractIbans(text: String): List<String> = LegacyEntityPatterns.ibans(text)
 
-    /** ISO 13616 mod-97 check: rotate the first four characters to the end, map letters to numbers, expect remainder 1. */
-    internal fun isValidIban(iban: String): Boolean {
-        if (iban.length !in 15..34) return false
-        val rearranged = iban.substring(4) + iban.substring(0, 4)
-        var remainder = 0
-        for (ch in rearranged) {
-            val chunk = when {
-                ch.isDigit() -> (ch - '0').toString()
-                ch in 'A'..'Z' -> (ch - 'A' + 10).toString()
-                else -> return false
-            }
-            for (d in chunk) remainder = (remainder * 10 + (d - '0')) % 97
-        }
-        return remainder == 1
-    }
+    /** ISO 13616 mod-97 check (see [IbanValidator.hasValidChecksum]). */
+    internal fun isValidIban(iban: String): Boolean = IbanValidator.hasValidChecksum(iban)
 
-    private fun extractAmounts(text: String): List<String> {
-        // German format: 1.234,56 € or EUR 1.234,56 or 1234,56€
-        val amounts = Regex("(?:EUR|€)\\s*([\\d.]+,\\d{2})|([\\d.]+,\\d{2})\\s*(?:EUR|€)", RegexOption.IGNORE_CASE)
-            .findAll(text)
-            .map { match ->
-                val raw = (match.groupValues[1].ifBlank { match.groupValues[2] })
-                "$raw €"
-            }
-            .toList().distinct()
-        return amounts.take(5) // Max 5 amounts
-    }
+    private fun extractAmounts(text: String): List<String> = LegacyEntityPatterns.euroAmounts(text)
 
-    private fun extractDeadlines(text: String): List<String> {
-        val results = mutableListOf<String>()
-        val patterns = listOf(
-            Regex("(?i)(?:frist|bis zum|spätestens|deadline|bis spätestens)\\s*[:.]?\\s*(\\d{1,2}\\.\\d{1,2}\\.\\d{4})"),
-            Regex("(?i)(?:frist|bis zum|spätestens)\\s*[:.]?\\s*(\\d{1,2}\\.\\s*(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\\s*\\d{4})"),
-            Regex("(?i)(?:innerhalb von|within|binnen)\\s+(\\d+)\\s+(?:Tagen?|Wochen?|Monaten?|days?|weeks?|months?)"),
-        )
-        for (regex in patterns) {
-            regex.findAll(text).forEach { match ->
-                results.add(match.groupValues[1].trim())
-            }
-        }
-        return results.distinct().take(3)
-    }
+    private fun extractDeadlines(text: String): List<String> = LegacyEntityPatterns.deadlines(text)
 
     // ═══════════════════════════════════════════════════════════
     // Content Extraction
@@ -526,25 +444,9 @@ class EntityExtractor @Inject constructor() {
     // Shared Patterns
     // ═══════════════════════════════════════════════════════════
 
-    /**
-     * The old final class `[\w.]+` was greedy and included `.`, so a sentence-ending
-     * period was swallowed into the address ("info@example.com."). Requiring every dot
-     * to be followed by label characters fixes it and still supports multi-part domains
-     * such as `co.uk`.
-     */
-    private fun extractEmails(text: String): List<String> =
-        Regex("[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+")
-            .findAll(text).map { it.value }.toList().distinct()
+    private fun extractEmails(text: String): List<String> = LegacyEntityPatterns.emails(text)
 
-    private fun extractPhoneNumbers(text: String): List<String> {
-        val patterns = listOf(
-            Regex("(?i)(?:tel\\.?|telefon|fon|phone|mobil)\\s*[:.]?\\s*([+\\d\\s\\-/()]{8,})"),
-            Regex("(?i)(?:fax)\\s*[:.]?\\s*([+\\d\\s\\-/()]{8,})"),
-        )
-        return patterns.flatMap { regex ->
-            regex.findAll(text).map { it.groupValues[1].trim() }
-        }.distinct()
-    }
+    private fun extractPhoneNumbers(text: String): List<String> = LegacyEntityPatterns.phoneNumbers(text)
 
     // ═══════════════════════════════════════════════════════════
     // Document Classification
