@@ -68,6 +68,76 @@ class ParserTruncationTest {
         assertThat(raw.extras.single().value).isEqualTo("12345")
     }
 
+    // ── an answer cut off at the token limit is closed at its last complete element ──────────────
+
+    private val head = """{"type":"bill","tc":"HIGH","lang":"de","parties":[${party(1)},${party(2)}],"""
+    private val slotA = """"amount":{"id":"N1","r":"PAYABLE","c":"HIGH"}"""
+    private val slotB = """"due_date":{"id":"D1","r":"DEADLINE","c":"HIGH"}"""
+
+    @Test
+    fun `cut mid-party keeps the complete parties and marks the answer truncated`() {
+        val raw = call1("""{"type":"bill","tc":"HIGH","lang":"de","parties":[${party(1)},{"r":"SENDER","id":"M2","n":"Stad""")
+        assertThat(raw.truncated).isTrue()
+        assertThat(raw.parties.map { it.id }).containsExactly("M1")
+        assertThat(raw.slots).isEmpty()
+    }
+
+    @Test
+    fun `cut mid-slot keeps the parties and the complete slots`() {
+        val raw = call1("""$head"s":{$slotA,"due_date":{"id":"D1","r":"DEAD""")
+        assertThat(raw.truncated).isTrue()
+        assertThat(raw.parties).hasSize(2)
+        assertThat(raw.slots.keys).containsExactly("amount")
+    }
+
+    @Test
+    fun `cut mid-extra keeps the complete extras`() {
+        val raw = call1("""$head"s":{$slotA,$slotB},"x":[${extra(1)},{"lb":"Zähler","k":"meter","id":"NONE","v":"12""")
+        assertThat(raw.truncated).isTrue()
+        assertThat(raw.slots.keys).containsExactly("amount", "due_date")
+        assertThat(raw.extras.map { it.label }).containsExactly("L1")
+    }
+
+    @Test
+    fun `cut mid-string drops the partial string and what depends on it`() {
+        val raw = call1("""$head"s":{$slotA,"due_date":{"id":"D1","r":"DEADLINE","c":"HI""")
+        assertThat(raw.truncated).isTrue()
+        assertThat(raw.slots.keys).containsExactly("amount")
+    }
+
+    @Test
+    fun `cut right after a key is not mistaken for a value`() {
+        val raw = call1("""$head"s":{$slotA,"due_date"""")
+        assertThat(raw.slots.keys).containsExactly("amount")
+    }
+
+    @Test
+    fun `a salvaged answer never claims HIGH confidence`() {
+        val raw = call1("""$head"s":{$slotA,"due_date":{"id":""")
+        assertThat(raw.typeConfidence).isEqualTo("MEDIUM")
+        assertThat(raw.parties.map { it.confidence }).containsExactly("MEDIUM", "MEDIUM")
+        assertThat(raw.slots.getValue("amount").confidence).isEqualTo("MEDIUM")
+    }
+
+    @Test
+    fun `a complete answer is not marked truncated and keeps its confidence`() {
+        val raw = call1("""$head"s":{$slotA},"x":[]}""")
+        assertThat(raw.truncated).isFalse()
+        assertThat(raw.typeConfidence).isEqualTo("HIGH")
+        assertThat(raw.slots.getValue("amount").confidence).isEqualTo("HIGH")
+    }
+
+    @Test
+    fun `an answer cut before its type is still unparseable`() {
+        assertThat(InterpretationParser.parse("""{"tc":"HIGH","lang":"d""")).isInstanceOf(InterpretationParser.Parsed.Bad::class.java)
+    }
+
+    @Test
+    fun `a party name is cut to 60 characters`() {
+        val raw = call1("""{"type":"bill","parties":[{"r":"SENDER","id":"M1","n":"${"x".repeat(200)}","k":"COMPANY","rel":"NONE","c":"HIGH"}],"s":{},"x":[]}""")
+        assertThat(raw.parties.single().name).hasLength(StructuredGrammar.MAX_PARTY_NAME_CHARS)
+    }
+
     @Test
     fun `call 2 text fields and questions are cut to their limits`() {
         val text = """{"other":"${"o".repeat(90)}","title":"${"t".repeat(200)}","subject":"${"s".repeat(400)}",""" +

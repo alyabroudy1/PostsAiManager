@@ -90,8 +90,8 @@ class ModelDocumentInterpreter(
         /**
          * Call 1: type, up to six parties, a dozen slots with confidence, up to six extras. About
          * 350-450 tokens for a typical letter (see the pipeline test that measures it); headroom
-         * for a longer one. An answer cut off at this limit is unparseable and extraction degrades
-         * to found values.
+         * for a longer one. An answer cut off at this limit is closed at its last complete element
+         * (see [InterpretationParser]) and its confidences are capped.
          */
         const val MAX_ANSWER_TOKENS = 640
 

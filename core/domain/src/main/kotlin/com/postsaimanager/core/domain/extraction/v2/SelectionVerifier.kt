@@ -103,6 +103,7 @@ class SelectionVerifier(
                     textError = ctx.textError,
                     rawAnswer = ctx.rawAnswer,
                     rawText = ctx.rawText,
+                    truncated = raw.truncated,
                     rejections = rejections,
                     conflicts = conflicts,
                     layoutCharsSent = ctx.layoutCharsSent,

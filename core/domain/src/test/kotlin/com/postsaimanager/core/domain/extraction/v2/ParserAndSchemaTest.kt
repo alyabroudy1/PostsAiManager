@@ -49,7 +49,7 @@ class ParserAndSchemaTest {
     @Test
     fun `garbage and a cut-off answer are reported, not thrown`() {
         assertThat(InterpretationParser.parse("no json here")).isInstanceOf(InterpretationParser.Parsed.Bad::class.java)
-        assertThat(InterpretationParser.parse("""{"type":"bill","tc":"HI""")).isInstanceOf(InterpretationParser.Parsed.Bad::class.java)
+        assertThat(InterpretationParser.parse("""{"tc":"HI""")).isInstanceOf(InterpretationParser.Parsed.Bad::class.java)
         assertThat(InterpretationParser.parse("""{"tc":"HIGH"}""")).isInstanceOf(InterpretationParser.Parsed.Bad::class.java)
     }
 

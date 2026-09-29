@@ -211,9 +211,16 @@ class AiExtractionUseCaseTest {
         }
 
         @Test
-        fun `a structured answer cut off at the token limit gives the found values`() = runTest {
-            engine.response = """{"type":"bill","tc":"HIGH","lang":"de","parties":[{"r":"SENDER","id":"O1","k":"COMP"""
+        fun `a structured answer cut off before its type gives the found values`() = runTest {
+            engine.response = """{"tc":"HIGH","lang":"de","parties":[{"r":"SENDER","id":"O1","k":"COMP"""
             assertFoundOnly((extract(blocks, pageBlockCounts = counts) as PamResult.Success).data)
+        }
+
+        @Test
+        fun `a structured answer cut off after its type is salvaged, not discarded`() = runTest {
+            engine.response = """{"type":"bill","tc":"HIGH","lang":"de","parties":[{"r":"SENDER","id":"O1","k":"COMP"""
+            val u = (extract(blocks, pageBlockCounts = counts) as PamResult.Success).data
+            assertThat(u.modelUsed).isTrue()
         }
 
         @Test

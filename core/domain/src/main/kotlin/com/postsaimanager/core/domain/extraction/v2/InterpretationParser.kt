@@ -25,10 +25,26 @@ object InterpretationParser {
         class Bad(val reason: String) : Parsed<Nothing>
     }
 
-    /** Call 1's answer. */
+    /**
+     * Call 1's answer. An answer cut off at the token limit is not thrown away: it is closed at the
+     * last complete element (see [salvage]), read like any other, and marked
+     * [RawInterpretation.truncated] with every HIGH confidence lowered to MEDIUM.
+     */
     fun parse(text: String): Parsed<RawInterpretation> {
-        val root = objectOf(text) ?: return Parsed.Bad("no valid JSON object in the answer")
+        objectOf(text)?.let { return read(it, truncated = false) }
+        val root = salvage(text) ?: return Parsed.Bad("no valid JSON object in the answer")
+        return read(root, truncated = true)
+    }
+
+    /** A salvaged answer is never more than this confident: part of what the model meant is missing. */
+    private const val CAP_WORD = "MEDIUM"
+
+    private fun capped(word: String?, truncated: Boolean): String? =
+        if (truncated && word?.trim()?.uppercase() == "HIGH") CAP_WORD else word
+
+    private fun read(root: JsonObject, truncated: Boolean): Parsed<RawInterpretation> {
         val type = root.str("type") ?: return Parsed.Bad("answer has no type")
+        fun JsonObject.conf() = capped(str("c"), truncated)
 
         val parties = root.array("parties").mapNotNull { el ->
             val o = el as? JsonObject ?: return@mapNotNull null
@@ -38,7 +54,7 @@ object InterpretationParser {
                 name = o.str("n", StructuredGrammar.MAX_PARTY_NAME_CHARS)?.trim()?.ifEmpty { null },
                 kind = o.str("k"),
                 relation = o.str("rel"),
-                confidence = o.str("c"),
+                confidence = o.conf(),
             )
         }.take(StructuredGrammar.MAX_PARTIES)
 
@@ -50,7 +66,7 @@ object InterpretationParser {
                 role = o.str("r"),
                 rule = o.str("rule", StructuredGrammar.MAX_QUOTE_CHARS),
                 ids = o.array("ids").mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.take(StructuredGrammar.MAX_REF_IDS),
-                confidence = o.str("c"),
+                confidence = o.conf(),
             )
         }
 
@@ -61,20 +77,69 @@ object InterpretationParser {
                 key = o.str("k", StructuredGrammar.MAX_EXTRA_KEY_CHARS).orEmpty(),
                 id = o.str("id") ?: StructuredGrammar.NONE,
                 value = o.str("v", StructuredGrammar.MAX_EXTRA_VALUE_CHARS).orEmpty(),
-                confidence = o.str("c"),
+                confidence = o.conf(),
             )
         }.take(StructuredGrammar.MAX_EXTRAS)
 
         return Parsed.Ok(
             RawInterpretation(
                 type = type,
-                typeConfidence = root.str("tc"),
+                typeConfidence = capped(root.str("tc"), truncated),
                 language = root.str("lang"),
                 parties = parties,
                 slots = slots,
                 extras = extras,
+                truncated = truncated,
             ),
         )
+    }
+
+    /**
+     * Closes a cut-off answer at its last complete element: a whole party, slot or extra, or a whole
+     * top-level member. Whatever came after (a half-written party, slot, extra or string) is dropped.
+     * A cut point is only used when the closed text really parses, so a cut right after an object key
+     * or comma never yields a broken answer.
+     */
+    private fun salvage(text: String): JsonObject? {
+        val start = text.indexOf('{')
+        if (start < 0) return null
+        val body = text.substring(start)
+        val open = ArrayList<Char>()
+        val cuts = ArrayList<Pair<Int, String>>() // end of a complete element, and what closes the open containers there
+        var inString = false
+        var escaped = false
+        fun closers() = open.reversed().joinToString("") { if (it == '{') "}" else "]" }
+        for ((i, c) in body.withIndex()) {
+            if (inString) {
+                when {
+                    escaped -> escaped = false
+                    c == '\\' -> escaped = true
+                    c == '"' -> {
+                        inString = false
+                        if (open.size <= 2) cuts += (i + 1) to closers() // a string value (a key is filtered by the parse check)
+                    }
+                }
+                continue
+            }
+            when (c) {
+                '"' -> inString = true
+                '{', '[' -> open += c
+                '}', ']' -> {
+                    if (open.isEmpty()) return null
+                    open.removeAt(open.lastIndex)
+                    if (open.size in 1..2) cuts += (i + 1) to closers()
+                }
+            }
+        }
+        for ((end, closing) in cuts.asReversed()) {
+            val root = try {
+                json.parseToJsonElement(body.substring(0, end) + closing).jsonObject
+            } catch (e: Exception) {
+                continue
+            }
+            if (root["type"] != null) return root
+        }
+        return null
     }
 
     /** Call 2's answer. */

@@ -44,7 +44,7 @@ class ExtractionV2PipelineTest {
 
         @Test
         fun `when the structured call fails there is no second call and only found values remain`() = runTest {
-            val model = ScriptedInterpreter("""{"type":"bill","tc":"HI""", Oracle.text(Letters.n1))
+            val model = ScriptedInterpreter("""{"tc":"HI""", Oracle.text(Letters.n1))
             val r = pipeline.run(Letters.n1.pages, model, 4096)
             assertThat(model.textCalls).isEqualTo(0)
             assertThat(r.diagnostics.modelUsed).isFalse()

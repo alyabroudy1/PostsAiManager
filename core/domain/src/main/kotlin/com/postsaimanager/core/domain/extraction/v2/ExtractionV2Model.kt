@@ -150,6 +150,8 @@ data class Diagnostics(
     val textError: String? = null,
     val rawAnswer: String? = null,
     val rawText: String? = null,
+    /** The structured answer hit the token cap and was closed at its last complete element; its confidences are capped. */
+    val truncated: Boolean = false,
     /** Answers that were dropped: an id outside the offered set, an id of the wrong kind, a quote that is not in the text. */
     val rejections: List<String> = emptyList(),
     /** Role conflicts and failed consistency checks. Each forces the affected values to needs-review. */

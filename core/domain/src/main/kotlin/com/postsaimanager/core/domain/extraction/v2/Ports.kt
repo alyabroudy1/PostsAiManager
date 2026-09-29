@@ -144,6 +144,8 @@ data class RawInterpretation(
     val parties: List<RawParty>,
     val slots: Map<String, RawSlot>,
     val extras: List<RawExtra> = emptyList(),
+    /** The answer was cut off at the token limit and closed at its last complete element. */
+    val truncated: Boolean = false,
 )
 
 /** Call 2's answer, parsed but not trusted. */
