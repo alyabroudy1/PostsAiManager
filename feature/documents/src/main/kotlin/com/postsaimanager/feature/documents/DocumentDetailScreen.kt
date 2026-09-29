@@ -1586,6 +1586,8 @@ private fun timelineLines(text: TimelineText): Pair<String, String?> {
             text.labelKeys.map { labelText(it) }.joinToString(", ").takeIf { it.isNotBlank() }
                 ?.let { stringResource(R.string.timeline_review_flagged_detail, it) }
         is TimelineText.ProcessingFailed -> stringResource(R.string.timeline_processing_failed) to text.detail
+        is TimelineText.Reprocessed -> stringResource(R.string.timeline_reprocessed) to null
+        is TimelineText.ReprocessFailed -> stringResource(R.string.timeline_reprocess_failed) to null
         is TimelineText.Stored -> text.title to text.description
     }
 }

@@ -19,6 +19,7 @@ import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.data.mapper.JsonColumns
 import com.postsaimanager.core.data.worker.DocumentProcessingWorker
+import com.postsaimanager.core.data.worker.ReprocessDocumentWorker
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
@@ -112,13 +113,32 @@ class DocumentProcessingPipeline @Inject constructor(
         Unit
     }
 
-    override fun cancel(documentId: String) {
-        workManager.cancelUniqueWork(DocumentProcessingWorker.workName(documentId))
+    override suspend fun enqueueReprocess(documentId: String) = withContext(ioDispatcher) {
+        // KEEP: work already pending for this document (from an earlier start) is left alone.
+        // Its own unique names, never `process-document-<id>`, so it cannot join, replace or be
+        // replaced by a scan; the status is not touched, so the UI never shows it.
+        ReprocessDocumentWorker.requests(documentId).forEach { (name, request) ->
+            workManager.enqueueUniqueWork(name, ExistingWorkPolicy.KEEP, request)
+        }
+        Unit
     }
 
-    override suspend fun processDocument(documentId: String): PamResult<ExtractionResult> =
+    override fun cancel(documentId: String) {
+        workManager.cancelUniqueWork(DocumentProcessingWorker.workName(documentId))
+        workManager.cancelUniqueWork(ReprocessDocumentWorker.chargingWorkName(documentId))
+        workManager.cancelUniqueWork(ReprocessDocumentWorker.idleWorkName(documentId))
+    }
+
+    override suspend fun processDocument(
+        documentId: String,
+        reprocess: Boolean,
+    ): PamResult<ExtractionResult> =
         processingMutex.withLock {
         withContext(ioDispatcher) {
+            // A background reprocess is invisible: its progress goes to a state nobody observes, so
+            // the UI shows no spinner and no notification for a letter that is already done.
+            val state: MutableStateFlow<ProcessingState> =
+                if (reprocess) MutableStateFlow(ProcessingState.Idle) else _processingState
             try {
                 // A document trashed after this run was enqueued but before it started: stop
                 // before anything is written. Not a failure — same treatment as a
@@ -128,15 +148,16 @@ class DocumentProcessingPipeline @Inject constructor(
                     return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
                 }
 
-                // Step 1: Mark as processing
-                _processingState.value = ProcessingState.Running(documentId, ProcessingStage.READ, 0f)
-                documentDao.updateStatus(documentId, DocumentStatus.PROCESSING.name)
+                // Step 1: Mark as processing. Not for a reprocess: the document stays EXTRACTED
+                // throughout, so a failure or a kill leaves it exactly as it was.
+                state.value = ProcessingState.Running(documentId, ProcessingStage.READ, 0f)
+                if (!reprocess) documentDao.updateStatus(documentId, DocumentStatus.PROCESSING.name)
 
                 // Step 2: Get pages
                 val pages = documentDao.getPages(documentId)
                 if (pages.isEmpty()) {
                     val detail = "No pages found for document"
-                    failDocument(documentId, REASON_NO_PAGES, detail)
+                    failDocument(documentId, REASON_NO_PAGES, detail, reprocess)
                     return@withContext PamResult.Error(PamError.OcrFailed(detail = detail))
                 }
 
@@ -156,7 +177,7 @@ class DocumentProcessingPipeline @Inject constructor(
                             ocrSemaphore.withPermit {
                                 val ocrResult = ocrService.recognizeText(page.imagePath).getOrNull()
                                 val completed = completedPages.incrementAndGet()
-                                _processingState.value = ProcessingState.Running(
+                                state.value = ProcessingState.Running(
                                     documentId = documentId,
                                     stage = ProcessingStage.READ,
                                     progress = completed.toFloat() / pages.size * 0.6f,
@@ -200,21 +221,24 @@ class DocumentProcessingPipeline @Inject constructor(
                 // resolve the code (and are what older rows have).
                 val ocrPercent = ocrResults.map { it.confidence }.takeIf { it.isNotEmpty() }
                     ?.average()?.let { Math.round(it * 100).toInt() }
-                timelineRepository.recordEvent(
-                    TimelineEvent(
-                        id = UuidGenerator.generate(),
-                        documentId = documentId,
-                        eventType = TimelineEventType.TEXT_EXTRACTED,
-                        title = "Text extracted from ${pages.size} page(s)",
-                        description = ocrPercent?.let { "Average confidence: $it%" },
-                        createdAt = System.currentTimeMillis(),
-                        code = TimelineCodes.OCR_DONE,
-                        args = listOfNotNull(pages.size.toString(), ocrPercent?.toString()),
+                // A reprocess adds one event of its own at the end instead of repeating the scan's.
+                if (!reprocess) {
+                    timelineRepository.recordEvent(
+                        TimelineEvent(
+                            id = UuidGenerator.generate(),
+                            documentId = documentId,
+                            eventType = TimelineEventType.TEXT_EXTRACTED,
+                            title = "Text extracted from ${pages.size} page(s)",
+                            description = ocrPercent?.let { "Average confidence: $it%" },
+                            createdAt = System.currentTimeMillis(),
+                            code = TimelineCodes.OCR_DONE,
+                            args = listOfNotNull(pages.size.toString(), ocrPercent?.toString()),
+                        )
                     )
-                )
+                }
 
                 // Step 4: Entity extraction (with built-in language detection)
-                _processingState.value = ProcessingState.Running(
+                state.value = ProcessingState.Running(
                     documentId = documentId, stage = ProcessingStage.UNDERSTAND, progress = 0.7f,
                 )
 
@@ -241,6 +265,16 @@ class DocumentProcessingPipeline @Inject constructor(
                     (read.entities.isNotEmpty() || read.facts.isNotEmpty() || read.documentType.isNotBlank())
                 // The model itself ran and its answer was used.
                 val usedModel = usedV2 && read?.modelUsed == true
+
+                // A background reprocess exists to read a letter better. Without the model it
+                // could only replace an earlier reading with values merely found by code, so it
+                // stops here with the old data untouched (recorded, retried once later).
+                if (reprocess && !usedModel) {
+                    failDocument(documentId, REASON_NO_MODEL, "The model did not read the document", reprocess)
+                    return@withContext PamResult.Error(
+                        PamError.ExtractionFailed(detail = "The model did not read the document"),
+                    )
+                }
 
                 val extraction = if (usedV2 && read != null) {
                     val fields = UnderstandingToFields.invoke(
@@ -288,7 +322,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 // guess from a person's decision. MergeExtractionUseCase keeps user values,
                 // honours deletions, and flags the cases where extraction now disagrees
                 // instead of picking a winner.
-                _processingState.value = ProcessingState.Running(
+                state.value = ProcessingState.Running(
                     documentId = documentId,
                     stage = ProcessingStage.UNDERSTAND,
                     progress = 0.9f,
@@ -305,6 +339,8 @@ class DocumentProcessingPipeline @Inject constructor(
                     engineVersion = engineVersion,
                     now = now,
                     newId = { UuidGenerator.generate() },
+                    // A background reprocess also leaves values the user confirmed alone.
+                    preserveConfirmed = reprocess,
                 )
 
                 merged.idsToDelete.forEach { documentDao.deleteExtractedField(it) }
@@ -340,7 +376,10 @@ class DocumentProcessingPipeline @Inject constructor(
                 // anyway. Wrapped the same way indexing is: a document the user scanned is
                 // complete without this, so a failure here is logged and the document
                 // proceeds exactly as if no entities had been found.
-                if (understanding is PamResult.Success && usedModel) {
+                // Not on a background reprocess: profiles and their proposals ("is this the same
+                // person?") are questions for the user, and an update nobody asked for must not
+                // raise new ones. What the merge flags is all a reprocess surfaces.
+                if (understanding is PamResult.Success && usedModel && !reprocess) {
                     runCatching {
                         entityProfileLinker.process(documentId, understanding.data)
                     }.onSuccess { outcome ->
@@ -376,7 +415,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 // is the race DocumentRepositoryImpl's moveToTrash KDoc points back to.
                 val doc = documentDao.getById(documentId)
                 if (doc?.deletedAt != null) {
-                    _processingState.value = ProcessingState.Completed(documentId)
+                    state.value = ProcessingState.Completed(documentId)
                     return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
                 }
                 if (doc != null) {
@@ -419,22 +458,35 @@ class DocumentProcessingPipeline @Inject constructor(
                     )
                 }
 
-                // Step 6: Mark as extracted
-                documentDao.updateStatus(documentId, DocumentStatus.EXTRACTED.name)
+                // Step 6: Mark as extracted (a reprocess never left it, so nothing to write).
+                if (!reprocess) documentDao.updateStatus(documentId, DocumentStatus.EXTRACTED.name)
 
-                // Log extraction event
+                // Log extraction event. A reprocess records one quiet event of its own — a code and
+                // the two versions, not English text — in place of the scan's "extracted N fields".
                 timelineRepository.recordEvent(
-                    TimelineEvent(
-                        id = UuidGenerator.generate(),
-                        documentId = documentId,
-                        eventType = TimelineEventType.ENTITIES_EXTRACTED,
-                        title = "Extracted ${extraction.fields.size} field(s)",
-                        description = extraction.fields.joinToString(", ") { it.fieldName },
-                        createdAt = System.currentTimeMillis(),
-                        code = TimelineCodes.FIELDS_EXTRACTED,
-                        args = listOf(extraction.fields.size.toString()) +
-                            extraction.fields.map { it.labelKey },
-                    )
+                    if (reprocess) {
+                        TimelineEvent(
+                            id = UuidGenerator.generate(),
+                            documentId = documentId,
+                            eventType = TimelineEventType.ENTITIES_EXTRACTED,
+                            title = "Read again with a newer version",
+                            createdAt = System.currentTimeMillis(),
+                            code = TimelineCodes.REPROCESSED,
+                            args = listOf(doc?.extractorVersion.orEmpty(), engineVersion),
+                        )
+                    } else {
+                        TimelineEvent(
+                            id = UuidGenerator.generate(),
+                            documentId = documentId,
+                            eventType = TimelineEventType.ENTITIES_EXTRACTED,
+                            title = "Extracted ${extraction.fields.size} field(s)",
+                            description = extraction.fields.joinToString(", ") { it.fieldName },
+                            createdAt = System.currentTimeMillis(),
+                            code = TimelineCodes.FIELDS_EXTRACTED,
+                            args = listOf(extraction.fields.size.toString()) +
+                                extraction.fields.map { it.labelKey },
+                        )
+                    }
                 )
 
                 // Step 7: Make it searchable.
@@ -446,7 +498,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 // IndexDocumentUseCase degrades internally too: with no embedding model
                 // installed it stores the chunks as text, and keyword search still finds
                 // them.
-                _processingState.value = ProcessingState.Running(
+                state.value = ProcessingState.Running(
                     documentId = documentId, stage = ProcessingStage.INDEX, progress = 0.95f,
                 )
                 // Per page, not the joined `combinedText` — so a chunk never straddles a
@@ -470,7 +522,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     )
                 }
 
-                _processingState.value = ProcessingState.Completed(documentId)
+                state.value = ProcessingState.Completed(documentId)
                 PamResult.Success(extraction)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // A cancellation is not a failure — WorkManager REPLACE (Reprocess),
@@ -485,7 +537,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 val detail = e.message ?: "Pipeline failed"
-                failDocument(documentId, REASON_ERROR, detail)
+                failDocument(documentId, REASON_ERROR, detail, reprocess)
                 PamResult.Error(PamError.ExtractionFailed(detail = detail, cause = e))
             }
         }
@@ -507,7 +559,34 @@ class DocumentProcessingPipeline @Inject constructor(
      *   screen to branch on, `detail` human-readable for its description), so the FAILED
      *   banner can say something more useful than "something went wrong".
      */
-    private suspend fun failDocument(documentId: String, reasonCode: String, detail: String) {
+    private suspend fun failDocument(
+        documentId: String,
+        reasonCode: String,
+        detail: String,
+        reprocess: Boolean = false,
+    ) {
+        if (reprocess) {
+            // A background re-read of a finished letter never marks it FAILED: it keeps its old
+            // data and status. Only a quiet timeline row is left, and counted so a later start
+            // retries once and then stops.
+            Log.w(TAG, "reprocess failed for $documentId ($reasonCode): $detail")
+            runCatching {
+                timelineRepository.recordEvent(
+                    TimelineEvent(
+                        id = UuidGenerator.generate(),
+                        documentId = documentId,
+                        eventType = TimelineEventType.ENTITIES_EXTRACTED,
+                        title = "Update skipped",
+                        description = detail,
+                        data = reasonCode,
+                        createdAt = System.currentTimeMillis(),
+                        code = TimelineCodes.REPROCESS_FAILED,
+                        args = listOf(reasonCode),
+                    )
+                )
+            }
+            return
+        }
         Log.w(TAG, "processing failed for $documentId ($reasonCode): $detail")
         _processingState.value = ProcessingState.Failed(documentId, detail)
         runCatching { documentDao.updateStatus(documentId, DocumentStatus.FAILED.name) }
@@ -539,6 +618,7 @@ private const val TAG = "DocProcessing"
  */
 private const val REASON_NO_PAGES = "no_pages"
 private const val REASON_ERROR = "error"
+private const val REASON_NO_MODEL = "no_model"
 
 /** The chat offers at most this many of the model's suggested questions. */
 private const val MAX_SUGGESTED_QUESTIONS = 3

@@ -166,6 +166,39 @@ class MergeExtractionUseCaseTest {
         }
 
         @Test
+        @DisplayName("a background reprocess keeps a confirmed machine value and flags the new reading")
+        fun `preserveConfirmed protects a confirmed machine value`() {
+            val confirmed = field("date", "31.01.2026", isConfirmed = true).copy(updatedAt = 5L)
+            val fresh = field("date", "28.02.2026")
+
+            val result = merge(
+                listOf(confirmed), listOf(fresh),
+                engineVersion = "v2", now = now, newId = newId, preserveConfirmed = true,
+            )
+            val merged = result.toPersist.single()
+
+            assertThat(merged.fieldValue).isEqualTo("31.01.2026")
+            assertThat(merged.isConfirmed).isTrue()
+            assertThat(merged.machineValue).isEqualTo("28.02.2026")
+            assertThat(merged.hasUnreviewedMachineChange).isTrue()
+            assertThat(result.newlyFlagged).containsExactly("date")
+        }
+
+        @Test
+        @DisplayName("a background reprocess does not delete a confirmed value the new reading dropped")
+        fun `preserveConfirmed keeps a confirmed value the extractor no longer finds`() {
+            val confirmed = field("date", "31.01.2026", isConfirmed = true)
+
+            val result = merge(
+                listOf(confirmed), emptyList(),
+                engineVersion = "v2", now = now, newId = newId, preserveConfirmed = true,
+            )
+
+            assertThat(result.idsToDelete).isEmpty()
+            assertThat(result.toPersist.single().fieldValue).isEqualTo("31.01.2026")
+        }
+
+        @Test
         fun `an unchanged value keeps its confirmation and its timestamp`() {
             val confirmed = field("date", "31.01.2026", isConfirmed = true).copy(updatedAt = 5L)
             val merged = run(listOf(confirmed), listOf(field("date", "31.01.2026")))

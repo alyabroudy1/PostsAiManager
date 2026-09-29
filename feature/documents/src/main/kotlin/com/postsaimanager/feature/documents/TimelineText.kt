@@ -13,6 +13,11 @@ sealed interface TimelineText {
     data class FieldsExtracted(val count: Int, val labelKeys: List<String>) : TimelineText
     data class ReviewFlagged(val count: Int, val labelKeys: List<String>) : TimelineText
     data class ProcessingFailed(val detail: String?) : TimelineText
+    /** A finished letter was quietly re-read by a newer extractor; [reason]-free, just the fact. */
+    data object Reprocessed : TimelineText
+
+    /** A background re-read did not finish; the letter kept its data. [reason] is a machine code. */
+    data class ReprocessFailed(val reason: String?) : TimelineText
     data class Stored(val title: String, val description: String?) : TimelineText
 }
 
@@ -34,6 +39,8 @@ fun TimelineEvent.toText(): TimelineText {
         }
         // The raw detail is an exception message or a reason in English; it stays as a diagnostic under the title.
         TimelineCodes.PROCESSING_FAILED -> TimelineText.ProcessingFailed(description)
+        TimelineCodes.REPROCESSED -> TimelineText.Reprocessed
+        TimelineCodes.REPROCESS_FAILED -> TimelineText.ReprocessFailed(args.firstOrNull())
         else -> stored
     }
 }

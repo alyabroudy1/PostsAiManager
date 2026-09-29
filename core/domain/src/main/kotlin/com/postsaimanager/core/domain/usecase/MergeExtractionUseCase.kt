@@ -50,13 +50,24 @@ class MergeExtractionUseCase @Inject constructor() {
             get() = toPersist.filter { it.hasUnreviewedMachineChange }.map { it.labelKey }
     }
 
+    /**
+     * @param preserveConfirmed for the background reprocess: a machine value the user confirmed is kept
+     *   like one they wrote (a differing new reading is flagged, not applied), where a normal run
+     *   replaces it and drops the confirmation.
+     */
     operator fun invoke(
         existing: List<ExtractedData>,
         extracted: List<ExtractedData>,
         engineVersion: String,
         now: Long,
         newId: (String) -> String,
+        preserveConfirmed: Boolean = false,
     ): Outcome {
+        // A value a person authored, and (for a background reprocess) one they confirmed: both stand,
+        // and a differing new reading is flagged instead of replacing them.
+        fun ExtractedData.isProtected() =
+            source == ValueSource.USER || (preserveConfirmed && isConfirmed)
+
         // Slot identity, not row identity. Ids are regenerated on every extraction run, so
         // matching by id would make every run look entirely new. See [pair] for how a stored row
         // finds its fresh reading.
@@ -101,7 +112,7 @@ class MergeExtractionUseCase @Inject constructor() {
                     }
                 }
 
-                current.source == ValueSource.USER -> {
+                current.isProtected() -> {
                     if (fresh == null) {
                         // The extractor no longer finds it, but a person put it there.
                         // Keeping it is the whole point of tracking who authored a value.

@@ -101,4 +101,6 @@
     </plurals>
     <string name="timeline_review_flagged_detail">A new reading differs from your version: %1$s</string>
     <string name="timeline_processing_failed">Processing failed</string>
+    <string name="timeline_reprocessed">Read again with the latest version</string>
+    <string name="timeline_reprocess_failed">Automatic update skipped; your data is unchanged</string>
 </resources>

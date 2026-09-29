@@ -46,8 +46,9 @@ class DocumentTrashRepositoryTest {
 
     private inner class NoOpDocumentProcessor : DocumentProcessor {
         override val processingState = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
-        override suspend fun processDocument(documentId: String): PamResult<ExtractionResult> =
+        override suspend fun processDocument(documentId: String, reprocess: Boolean): PamResult<ExtractionResult> =
             PamResult.Success(ExtractionResult(documentId = documentId, language = null, fields = emptyList()))
+        override suspend fun enqueueReprocess(documentId: String) = Unit
         override suspend fun enqueue(documentId: String, force: Boolean) = Unit
         override fun cancel(documentId: String) { cancelledIds += documentId }
     }

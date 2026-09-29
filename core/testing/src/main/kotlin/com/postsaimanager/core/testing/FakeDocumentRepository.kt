@@ -204,6 +204,7 @@ fun testDocument(
     isFavorite: Boolean = false,
     createdAt: Long = 0L,
     deletedAt: Long? = null,
+    extractorVersion: String? = null,
 ) = Document(
     id = id,
     title = title,
@@ -213,4 +214,5 @@ fun testDocument(
     createdAt = createdAt,
     modifiedAt = createdAt,
     deletedAt = deletedAt,
+    extractorVersion = extractorVersion,
 )

@@ -43,6 +43,14 @@ class TimelineTextTest {
     }
 
     @Test
+    fun `background re-read events are read from their codes`() {
+        assertThat(event(TimelineCodes.REPROCESSED, listOf("extraction-v2-1", "extraction-v2-2")).toText())
+            .isEqualTo(TimelineText.Reprocessed)
+        assertThat(event(TimelineCodes.REPROCESS_FAILED, listOf("no_model")).toText())
+            .isEqualTo(TimelineText.ReprocessFailed("no_model"))
+    }
+
+    @Test
     fun `a row written before events were data shows the sentence it was stored with`() {
         assertThat(event(null, title = "Extracted 4 field(s)", description = "Amount, IBAN").toText())
             .isEqualTo(TimelineText.Stored("Extracted 4 field(s)", "Amount, IBAN"))

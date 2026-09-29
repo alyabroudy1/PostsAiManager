@@ -31,10 +31,16 @@ class FakeDocumentProcessor : DocumentProcessor {
         _processingState.value = state
     }
 
-    override suspend fun processDocument(documentId: String): PamResult<ExtractionResult> =
+    val reprocessCalls = mutableListOf<String>()
+
+    override suspend fun processDocument(documentId: String, reprocess: Boolean): PamResult<ExtractionResult> =
         processResult ?: PamResult.Success(
             ExtractionResult(documentId = documentId, language = null, fields = emptyList()),
         )
+
+    override suspend fun enqueueReprocess(documentId: String) {
+        reprocessCalls += documentId
+    }
 
     override suspend fun enqueue(documentId: String, force: Boolean) {
         enqueueCalls += EnqueueCall(documentId, force)

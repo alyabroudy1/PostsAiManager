@@ -26,7 +26,17 @@ interface DocumentProcessor {
      * schedules from [enqueue] — a feature should never call this directly, or processing
      * stops the moment the user leaves the screen.
      */
-    suspend fun processDocument(documentId: String): PamResult<ExtractionResult>
+    suspend fun processDocument(documentId: String, reprocess: Boolean = false): PamResult<ExtractionResult>
+
+    /**
+     * Schedules a quiet, low-priority re-read of an already finished document by the current
+     * extractor (see `ReprocessOutdatedDocumentsUseCase`). Separate unique work
+     * (`reprocess-document-<id>`), only while the device is charging or idle and the battery is not
+     * low, so it never competes with a new scan; joins work already pending for the same document.
+     * Unlike [enqueue] it leaves the document's status alone: the user sees no progress and no
+     * failure, and a document that fails to re-read keeps its earlier data.
+     */
+    suspend fun enqueueReprocess(documentId: String)
 
     /**
      * Schedules [documentId] to be processed in the background, surviving navigation and
@@ -42,7 +52,7 @@ interface DocumentProcessor {
     suspend fun enqueue(documentId: String, force: Boolean = false)
 
     /**
-     * Cancels any queued or running work for [documentId] — called when the document itself
+     * Cancels any queued or running work for [documentId] (a scan and a background re-read alike) — called when the document itself
      * is deleted, so a stale worker does not resurrect rows a delete just removed.
      */
     fun cancel(documentId: String)
