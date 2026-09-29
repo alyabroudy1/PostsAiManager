@@ -24,6 +24,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -44,20 +45,34 @@ import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.ProcessingStage
+import com.postsaimanager.core.model.ProcessingState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onDocumentClick: (String) -> Unit,
     onScanClick: () -> Unit,
+    onAskAcrossDocumentsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val processingState by viewModel.processingState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
-            PamTopAppBar(title = "Posts AI Manager")
+            PamTopAppBar(
+                title = "Posts AI Manager",
+                actions = {
+                    IconButton(onClick = onAskAcrossDocumentsClick) {
+                        Icon(
+                            imageVector = PamIcons.AiChat,
+                            contentDescription = "Ask about your documents",
+                        )
+                    }
+                },
+            )
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -94,6 +109,7 @@ fun HomeScreen(
                 )
                 is HomeUiState.Success -> DocumentList(
                     documents = state.recentDocuments,
+                    processingState = processingState,
                     onDocumentClick = onDocumentClick,
                 )
             }
@@ -104,6 +120,7 @@ fun HomeScreen(
 @Composable
 private fun DocumentList(
     documents: List<Document>,
+    processingState: ProcessingState,
     onDocumentClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -123,6 +140,8 @@ private fun DocumentList(
         items(documents, key = { it.id }) { document ->
             DocumentCard(
                 document = document,
+                runningState = (processingState as? ProcessingState.Running)
+                    ?.takeIf { it.documentId == document.id },
                 onClick = { onDocumentClick(document.id) },
             )
         }
@@ -132,6 +151,8 @@ private fun DocumentList(
 @Composable
 private fun DocumentCard(
     document: Document,
+    /** Non-null only when this document is the one currently being read/understood. */
+    runningState: ProcessingState.Running?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -170,7 +191,7 @@ private fun DocumentCard(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    StatusChip(status = document.status)
+                    StatusChip(status = document.status, runningState = runningState)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = document.createdAt.toRelativeTime(),
@@ -194,17 +215,35 @@ private fun DocumentCard(
 }
 
 @Composable
-private fun StatusChip(status: DocumentStatus) {
+private fun StatusChip(status: DocumentStatus, runningState: ProcessingState.Running? = null) {
     val (label, color) = when (status) {
         DocumentStatus.NEW -> "New" to MaterialTheme.colorScheme.primary
-        DocumentStatus.PROCESSING -> "Processing" to MaterialTheme.colorScheme.tertiary
+        DocumentStatus.QUEUED -> "Queued" to MaterialTheme.colorScheme.tertiary
+        // Real progress when it is cheaply available (see HomeViewModel.processingState),
+        // a plain "Processing" otherwise — e.g. another document is running instead.
+        DocumentStatus.PROCESSING -> (runningState?.toShortLabel() ?: "Processing") to
+            MaterialTheme.colorScheme.tertiary
         DocumentStatus.EXTRACTED -> "Extracted" to MaterialTheme.colorScheme.secondary
         DocumentStatus.REVIEWED -> "Reviewed" to MaterialTheme.colorScheme.primary
         DocumentStatus.ARCHIVED -> "Archived" to MaterialTheme.colorScheme.outline
+        DocumentStatus.FAILED -> "Failed" to MaterialTheme.colorScheme.error
     }
     Text(
         text = label,
         style = MaterialTheme.typography.labelSmall,
         color = color,
     )
+}
+
+/** Kept terse — this shares a single-line chip with a relative timestamp, not a whole banner. */
+private fun ProcessingState.Running.toShortLabel(): String = when (stage) {
+    ProcessingStage.READ -> if (currentPage != null && totalPages != null) {
+        "Page $currentPage/$totalPages"
+    } else {
+        "Reading…"
+    }
+    ProcessingStage.UNDERSTAND -> "Analysing…"
+    ProcessingStage.LINK -> "Matching…"
+    ProcessingStage.INDEX -> "Indexing…"
+    ProcessingStage.CAPTURE -> "Preparing…"
 }

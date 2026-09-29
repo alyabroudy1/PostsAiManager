@@ -410,10 +410,14 @@ class EntityExtractor @Inject constructor() {
     private fun extractReferenceNumbers(text: String): List<Pair<String, String>> {
         val results = mutableListOf<Pair<String, String>>()
         val patterns = listOf(
-            Regex("(?i)(?:aktenzeichen|az\\.?)\\s*[:.]?\\s*([A-Za-z0-9\\-/\\.\\s]{3,30})") to "File Reference (Aktenzeichen)",
-            Regex("(?i)(?:geschäftszeichen|gz\\.?)\\s*[:.]?\\s*([A-Za-z0-9\\-/\\.\\s]{3,30})") to "Business Reference",
-            Regex("(?i)(?:unser zeichen|uns\\.?\\s*z(?:eichen)?)\\s*[:.]?\\s*([A-Za-z0-9\\-/\\.\\s]{3,30})") to "Our Reference",
-            Regex("(?i)(?:ihr zeichen)\\s*[:.]?\\s*([A-Za-z0-9\\-/\\.\\s]{3,30})") to "Your Reference",
+            // These four capture to end-of-line and are then narrowed by
+            // [cleanReferenceValue]. The previous character class included `\s` *and*
+            // letters and was greedy, so it ran straight past the value into the body
+            // text ("Aktenzeichen: AB123 Sehr geehrte Damen und…").
+            Regex("(?i)(?:aktenzeichen|az\\.?)\\s*[:.]?\\s*([^\\r\\n]{3,60})") to "File Reference (Aktenzeichen)",
+            Regex("(?i)(?:geschäftszeichen|gz\\.?)\\s*[:.]?\\s*([^\\r\\n]{3,60})") to "Business Reference",
+            Regex("(?i)(?:unser zeichen|uns\\.?\\s*z(?:eichen)?)\\s*[:.]?\\s*([^\\r\\n]{3,60})") to "Our Reference",
+            Regex("(?i)(?:ihr zeichen)\\s*[:.]?\\s*([^\\r\\n]{3,60})") to "Your Reference",
             Regex("(?i)(?:kunden[\\-\\s]?nr\\.?|kundennummer)\\s*[:.]?\\s*([A-Za-z0-9\\-]{3,20})") to "Customer Number",
             Regex("(?i)(?:vertrags[\\-\\s]?nr\\.?|vertragsnummer)\\s*[:.]?\\s*([A-Za-z0-9\\-]{3,20})") to "Contract Number",
             Regex("(?i)(?:rechnungs[\\-\\s]?nr\\.?|rechnungsnummer)\\s*[:.]?\\s*([A-Za-z0-9\\-]{3,20})") to "Invoice Number",
@@ -423,22 +427,64 @@ class EntityExtractor @Inject constructor() {
         )
         for ((regex, label) in patterns) {
             regex.find(text)?.let { match ->
-                val value = match.groupValues[1].trim()
+                val value = cleanReferenceValue(match.groupValues[1])
                 if (value.isNotBlank()) results.add(label to value)
             }
         }
         return results
     }
 
+    /**
+     * Trims a captured reference down to the identifier itself.
+     *
+     * A reference number is a run of alphanumeric tokens, possibly separated by single
+     * spaces ("BG 1234/5678"). Prose begins at the first purely alphabetic word of three
+     * or more characters — that is where the value ends.
+     */
+    internal fun cleanReferenceValue(raw: String): String {
+        val tokens = raw.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val kept = tokens.takeWhile { token ->
+            token.any { it.isDigit() } || token.length <= 2 || token.any { !it.isLetter() }
+        }
+        return kept.joinToString(" ").trim().trimEnd('.', ',', ';', ':', '-')
+    }
+
     // ═══════════════════════════════════════════════════════════
     // Financial & Deadline Extraction
     // ═══════════════════════════════════════════════════════════
 
+    /**
+     * Extracts IBANs from any country and validates each with the ISO 13616 mod-97
+     * checksum.
+     *
+     * The previous pattern permitted digits only after the check digits, so every IBAN
+     * with letters in the BBAN — Dutch, French, British and most others — was silently
+     * dropped. The checksum replaces the old length-only filter and removes false
+     * positives outright.
+     */
     private fun extractIbans(text: String): List<String> =
-        Regex("[A-Z]{2}\\d{2}[\\s]?(?:\\d{4}[\\s]?){4}\\d{0,4}")
-            .findAll(text).map { it.value.replace(Regex("\\s"), "") }
-            .filter { it.length in 18..34 }
-            .toList().distinct()
+        Regex("\\b[A-Z]{2}\\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,3})?\\b")
+            .findAll(text)
+            .map { it.value.replace(Regex("\\s"), "").uppercase() }
+            .filter(::isValidIban)
+            .toList()
+            .distinct()
+
+    /** ISO 13616 mod-97 check: rotate the first four characters to the end, map letters to numbers, expect remainder 1. */
+    internal fun isValidIban(iban: String): Boolean {
+        if (iban.length !in 15..34) return false
+        val rearranged = iban.substring(4) + iban.substring(0, 4)
+        var remainder = 0
+        for (ch in rearranged) {
+            val chunk = when {
+                ch.isDigit() -> (ch - '0').toString()
+                ch in 'A'..'Z' -> (ch - 'A' + 10).toString()
+                else -> return false
+            }
+            for (d in chunk) remainder = (remainder * 10 + (d - '0')) % 97
+        }
+        return remainder == 1
+    }
 
     private fun extractAmounts(text: String): List<String> {
         // German format: 1.234,56 € or EUR 1.234,56 or 1234,56€
@@ -480,8 +526,14 @@ class EntityExtractor @Inject constructor() {
     // Shared Patterns
     // ═══════════════════════════════════════════════════════════
 
+    /**
+     * The old final class `[\w.]+` was greedy and included `.`, so a sentence-ending
+     * period was swallowed into the address ("info@example.com."). Requiring every dot
+     * to be followed by label characters fixes it and still supports multi-part domains
+     * such as `co.uk`.
+     */
     private fun extractEmails(text: String): List<String> =
-        Regex("[\\w.+-]+@[\\w-]+\\.[\\w.]+")
+        Regex("[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+")
             .findAll(text).map { it.value }.toList().distinct()
 
     private fun extractPhoneNumbers(text: String): List<String> {

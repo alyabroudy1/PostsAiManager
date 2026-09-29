@@ -3,13 +3,19 @@ package com.postsaimanager.core.data.mapper
 import com.postsaimanager.core.data.database.entity.DocumentEntity
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
+import com.postsaimanager.core.data.database.entity.FieldRevisionEntity
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.DocumentType
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.FieldRevision
+import com.postsaimanager.core.model.ValueSource
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.SourceType
+import com.postsaimanager.core.model.OcrBlock
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 /**
@@ -30,6 +36,9 @@ class DocumentMapper @Inject constructor() {
         isFavorite = entity.isFavorite,
         createdAt = entity.createdAt,
         modifiedAt = entity.modifiedAt,
+        extractionPagesRead = entity.extractionPagesRead,
+        extractionTotalPages = entity.extractionTotalPages,
+        deletedAt = entity.deletedAt,
     )
 
     fun toEntity(domain: Document): DocumentEntity = DocumentEntity(
@@ -44,6 +53,9 @@ class DocumentMapper @Inject constructor() {
         isFavorite = domain.isFavorite,
         createdAt = domain.createdAt,
         modifiedAt = domain.modifiedAt,
+        extractionPagesRead = domain.extractionPagesRead,
+        extractionTotalPages = domain.extractionTotalPages,
+        deletedAt = domain.deletedAt,
     )
 
     fun pageToDomain(entity: DocumentPageEntity): DocumentPage = DocumentPage(
@@ -56,7 +68,24 @@ class DocumentMapper @Inject constructor() {
         ocrConfidence = entity.ocrConfidence,
         width = entity.width,
         height = entity.height,
+        ocrBlocks = decodeBlocks(entity.ocrBlocks),
     )
+
+    private fun decodeBlocks(json: String?): List<OcrBlock> {
+        if (json.isNullOrBlank()) return emptyList()
+        return runCatching { blockJson.decodeFromString(blockListSerializer, json) }
+            .getOrDefault(emptyList())
+    }
+
+    private fun encodeBlocks(blocks: List<OcrBlock>): String? {
+        if (blocks.isEmpty()) return null
+        return runCatching { blockJson.encodeToString(blockListSerializer, blocks) }.getOrNull()
+    }
+
+    private companion object {
+        val blockJson = Json { ignoreUnknownKeys = true }
+        val blockListSerializer = ListSerializer(OcrBlock.serializer())
+    }
 
     fun pageToEntity(domain: DocumentPage): DocumentPageEntity = DocumentPageEntity(
         id = domain.id,
@@ -68,6 +97,7 @@ class DocumentMapper @Inject constructor() {
         ocrConfidence = domain.ocrConfidence,
         width = domain.width,
         height = domain.height,
+        ocrBlocks = encodeBlocks(domain.ocrBlocks),
     )
 
     fun extractedDataToDomain(entity: ExtractedDataEntity): ExtractedData = ExtractedData(
@@ -79,5 +109,54 @@ class DocumentMapper @Inject constructor() {
         confidence = entity.confidence,
         pageNumber = entity.pageNumber,
         isConfirmed = entity.isConfirmed,
+        source = runCatching { ValueSource.valueOf(entity.source) }
+            .getOrDefault(ValueSource.MACHINE),
+        machineValue = entity.machineValue,
+        machineConfidence = entity.machineConfidence,
+        deletedByUser = entity.deletedByUser,
+        hasUnreviewedMachineChange = entity.hasUnreviewedMachineChange,
+        engineVersion = entity.engineVersion,
+        updatedAt = entity.updatedAt,
+    )
+
+    fun extractedDataToEntity(domain: ExtractedData): ExtractedDataEntity = ExtractedDataEntity(
+        id = domain.id,
+        documentId = domain.documentId,
+        fieldName = domain.fieldName,
+        fieldValue = domain.fieldValue,
+        fieldType = domain.fieldType.name,
+        confidence = domain.confidence,
+        pageNumber = domain.pageNumber,
+        isConfirmed = domain.isConfirmed,
+        source = domain.source.name,
+        machineValue = domain.machineValue,
+        machineConfidence = domain.machineConfidence,
+        deletedByUser = domain.deletedByUser,
+        hasUnreviewedMachineChange = domain.hasUnreviewedMachineChange,
+        engineVersion = domain.engineVersion,
+        updatedAt = domain.updatedAt,
+    )
+
+    fun revisionToEntity(domain: FieldRevision) = FieldRevisionEntity(
+        id = domain.id,
+        documentId = domain.documentId,
+        fieldName = domain.fieldName,
+        value = domain.value,
+        source = domain.source.name,
+        confidence = domain.confidence,
+        engineVersion = domain.engineVersion,
+        createdAt = domain.createdAt,
+    )
+
+    fun revisionToDomain(entity: FieldRevisionEntity) = FieldRevision(
+        id = entity.id,
+        documentId = entity.documentId,
+        fieldName = entity.fieldName,
+        value = entity.value,
+        source = runCatching { ValueSource.valueOf(entity.source) }
+            .getOrDefault(ValueSource.MACHINE),
+        confidence = entity.confidence,
+        engineVersion = entity.engineVersion,
+        createdAt = entity.createdAt,
     )
 }

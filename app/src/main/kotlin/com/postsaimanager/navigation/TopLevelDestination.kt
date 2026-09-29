@@ -36,10 +36,6 @@ enum class TopLevelDestination(
         label = "Settings",
         route = "settings",
     ),
-    PARSER(
-        selectedIcon = PamIcons.AiModel,
-        unselectedIcon = PamIcons.AiModel, // Assuming no outlined variant exists
-        label = "Parser",
-        route = "parser",
-    ),
+    // PARSER removed 2026-08-07 — Arabic syntax analysis is out of scope.
+    // The freed fifth slot is reserved for ASSISTANT (Phase 10.4.2).
 }

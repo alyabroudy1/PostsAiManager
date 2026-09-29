@@ -9,6 +9,9 @@ import com.postsaimanager.core.common.dispatcher.Dispatcher
 import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.usecase.DocumentLayout
+import com.postsaimanager.core.model.TextBounds
+import com.postsaimanager.core.model.OcrBlock
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -26,7 +29,16 @@ class OcrService @Inject constructor(
     @ApplicationContext private val context: Context,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) {
-    private val textRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    // Lazy, not eager: constructing this calls TextRecognition.getClient(), which requires ML
+    // Kit's ContentProvider-based init to have already run — true in the main process, never in
+    // `:inference` (see PostsAiManagerApp's class KDoc). OcrService itself is only ever *used*
+    // from the main process's document pipeline, but Dagger still builds every @Inject
+    // constructor's field initialisers as soon as something reaches this class in the graph —
+    // deferring the actual TextRecognition.getClient() call to first real use means a stray
+    // graph reference (a Lazy<...> some future change forgets to gate, a test harness touching
+    // this module) fails only if OCR is actually attempted, not merely because this object was
+    // constructed.
+    private val textRecognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
 
     /**
      * Run OCR on a single image URI and return the extracted text with confidence.
@@ -40,7 +52,11 @@ class OcrService @Inject constructor(
                 suspendCancellableCoroutine<PamResult<OcrResult>> { continuation ->
                     textRecognizer.process(image)
                         .addOnSuccessListener { visionText ->
-                            val fullText = visionText.text
+                            // Replaced below with a reading-order rendering; ML Kit's own
+                            // `text` concatenates blocks in an unspecified order, which
+                            // interleaves side-by-side columns.
+                            @Suppress("UNUSED_VARIABLE")
+                            val rawText = visionText.text
                             val confidence = if (visionText.textBlocks.isNotEmpty()) {
                                 visionText.textBlocks
                                     .flatMap { it.lines }
@@ -49,13 +65,35 @@ class OcrService @Inject constructor(
                                     .toFloat()
                             } else 0f
 
-                            val blocks = visionText.textBlocks.map { block ->
-                                TextBlock(
+                            // Normalised against the image, so the layout describes the
+                            // same letter whether it was photographed at 8 or 12 MP.
+                            val pageWidth = image.width.toFloat().takeIf { it > 0f } ?: 1f
+                            val pageHeight = image.height.toFloat().takeIf { it > 0f } ?: 1f
+
+                            val blocks = visionText.textBlocks.mapNotNull { block ->
+                                // ML Kit may return a block without a box. Dropping it here
+                                // would lose text; a full-page box is the honest fallback —
+                                // it says "somewhere on this page", which is true.
+                                val box = block.boundingBox
+                                val bounds = if (box != null) {
+                                    TextBounds(
+                                        left = (box.left / pageWidth).coerceIn(0f, 1f),
+                                        top = (box.top / pageHeight).coerceIn(0f, 1f),
+                                        right = (box.right / pageWidth).coerceIn(0f, 1f),
+                                        bottom = (box.bottom / pageHeight).coerceIn(0f, 1f),
+                                    )
+                                } else {
+                                    TextBounds(0f, 0f, 1f, 1f)
+                                }
+
+                                OcrBlock(
                                     text = block.text,
+                                    bounds = bounds,
                                     confidence = block.lines
                                         .mapNotNull { it.confidence }
                                         .average()
-                                        .toFloat(),
+                                        .toFloat()
+                                        .takeIf { !it.isNaN() } ?: 0f,
                                     language = block.recognizedLanguage,
                                 )
                             }
@@ -63,7 +101,10 @@ class OcrService @Inject constructor(
                             continuation.resume(
                                 PamResult.Success(
                                     OcrResult(
-                                        fullText = fullText,
+                                        // Reading order, so the address block and the
+                                        // reference block beside it stay whole instead of
+                                        // interleaving line by line.
+                                        fullText = DocumentLayout.plainText(blocks),
                                         confidence = confidence,
                                         blocks = blocks,
                                         detectedLanguage = visionText.textBlocks
@@ -100,12 +141,8 @@ class OcrService @Inject constructor(
 data class OcrResult(
     val fullText: String,
     val confidence: Float,
-    val blocks: List<TextBlock>,
+    val blocks: List<OcrBlock>,
     val detectedLanguage: String?,
 )
 
-data class TextBlock(
-    val text: String,
-    val confidence: Float,
-    val language: String?,
-)
+

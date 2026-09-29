@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,11 +48,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,9 +75,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.postsaimanager.core.common.extensions.toRelativeTime
-import com.postsaimanager.core.data.repository.MatchType
-import com.postsaimanager.core.data.repository.ProcessingState
-import com.postsaimanager.core.data.repository.ProfileSuggestion
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
@@ -79,9 +82,17 @@ import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.EntityProposal
+import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.ValueSource
 import com.postsaimanager.core.model.ExtractedFieldType
+import com.postsaimanager.core.model.MatchType
+import com.postsaimanager.core.model.ProcessingStage
+import com.postsaimanager.core.model.ProcessingState
+import com.postsaimanager.core.model.ProfileSuggestion
 import com.postsaimanager.core.model.TimelineEvent
+import com.postsaimanager.core.model.TimelineEventType
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,6 +100,17 @@ import java.io.File
 fun DocumentDetailScreen(
     onNavigateBack: () -> Unit,
     onChatClick: (String) -> Unit,
+    /**
+     * Called once the document has been moved to the trash. The caller navigates away and
+     * owns the "moved to Recently deleted / Undo" snackbar, so it outlives this screen.
+     */
+    onDeleted: (documentId: String) -> Unit,
+    /**
+     * A 1-based page to land on, e.g. from a chat citation chip (4.3) — jumps straight to the
+     * Pages tab at that page instead of wherever the user last left this document. Null opens
+     * on whatever [viewModel] would show anyway (the Pages tab by default).
+     */
+    initialPage: Int? = null,
     modifier: Modifier = Modifier,
     viewModel: DocumentDetailViewModel = hiltViewModel(),
 ) {
@@ -97,6 +119,35 @@ fun DocumentDetailScreen(
     val processingState by viewModel.processingProgress.collectAsStateWithLifecycle()
     val profileSuggestions by viewModel.profileSuggestions.collectAsStateWithLifecycle()
     val editingProfileSuggestion by viewModel.editingProfileSuggestion.collectAsStateWithLifecycle()
+    val entityProposals by viewModel.entityProposals.collectAsStateWithLifecycle()
+    val pendingConfirmAllUndo by viewModel.pendingConfirmAllUndo.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    // A citation chip always means "show me that page" — even if the user was last looking
+    // at a different tab (Extracted, Timeline) when they left this document.
+    LaunchedEffect(initialPage) {
+        if (initialPage != null) viewModel.selectTab(DetailTab.PAGES)
+    }
+
+    // 5.3: "Confirm all" offers a cheap undo — the Snackbar itself both shows and resolves
+    // it, so there is nothing to reconcile if the screen is left before it times out (the
+    // ViewModel still holds the undo state; only its Snackbar is gone).
+    LaunchedEffect(pendingConfirmAllUndo) {
+        val confirmed = pendingConfirmAllUndo ?: return@LaunchedEffect
+        val count = confirmed.size
+        val result = snackbarHostState.showSnackbar(
+            message = if (count == 1) "1 field confirmed" else "$count fields confirmed",
+            actionLabel = "Undo",
+            duration = SnackbarDuration.Long,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.undoConfirmAll()
+        } else {
+            viewModel.dismissConfirmAllUndo()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -106,7 +157,38 @@ fun DocumentDetailScreen(
                     else -> "Document"
                 },
                 onNavigateBack = onNavigateBack,
+                actions = {
+                    if (uiState is DocumentDetailUiState.Success) {
+                        IconButton(onClick = { showOverflowMenu = true }) {
+                            Icon(PamIcons.More, contentDescription = "More options")
+                        }
+                        DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    viewModel.moveToTrash(onDeleted)
+                                },
+                            )
+                        }
+                    }
+                },
             )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        // A Scaffold slot (not a Box overlay inside the tab) so snackbars are laid out above it.
+        floatingActionButton = {
+            val state = uiState
+            if (state is DocumentDetailUiState.Success && !state.document.isTrashed &&
+                selectedTab == DetailTab.EXTRACTED
+            ) {
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Icon(PamIcons.Add, contentDescription = "Add field")
+                }
+            }
         },
         modifier = modifier,
     ) { innerPadding ->
@@ -116,29 +198,56 @@ fun DocumentDetailScreen(
             label = "detail_content",
             modifier = Modifier.padding(innerPadding),
         ) { state ->
-            when (state) {
-                is DocumentDetailUiState.Loading -> PamLoadingState()
-                is DocumentDetailUiState.Error -> PamErrorState(message = state.message, icon = PamIcons.Error)
-                is DocumentDetailUiState.Success -> DocumentDetailContent(
+            when {
+                state is DocumentDetailUiState.Loading -> PamLoadingState()
+                state is DocumentDetailUiState.Error ->
+                    PamErrorState(message = state.message, icon = PamIcons.Error)
+                state is DocumentDetailUiState.NotFound ->
+                    PamErrorState(message = "This document no longer exists.", icon = PamIcons.Error)
+                // A trashed document reaches Success too (GetDocumentDetailUseCase doesn't
+                // filter it out) — rendered as its own state rather than the normal content,
+                // e.g. when opened from Recently deleted or via a citation/deep link.
+                state is DocumentDetailUiState.Success && state.document.isTrashed ->
+                    TrashedDocumentState(
+                        title = state.document.title,
+                        onRestore = viewModel::restoreDocument,
+                    )
+                state is DocumentDetailUiState.Success -> DocumentDetailContent(
                     state = state,
                     selectedTab = selectedTab,
+                    initialPage = initialPage,
                     processingState = processingState,
                     profileSuggestions = profileSuggestions,
+                    entityProposals = entityProposals,
                     onTabSelected = viewModel::selectTab,
-                    onProcess = viewModel::startProcessing,
+                    onProcess = { force -> viewModel.startProcessing(force) },
                     onConfirmField = viewModel::confirmField,
-                    onAddField = viewModel::addField,
+                    onConfirmAllFields = viewModel::confirmAllFields,
+                    onAddClick = { showAddDialog = true },
                     onUpdateField = viewModel::updateField,
                     onDeleteField = viewModel::deleteField,
                     onLinkProfile = viewModel::linkSuggestionToProfile,
                     onCreateProfile = viewModel::openProfileCreation,
                     onDismissSuggestion = viewModel::dismissSuggestion,
+                    onAcceptProposal = viewModel::acceptProposal,
+                    onDismissProposal = viewModel::dismissProposal,
                     onChatClick = { onChatClick(state.document.id) },
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSharePdf = { viewModel.generatePdf() },
+                    onDelete = { viewModel.moveToTrash(onDeleted) },
                 )
             }
         }
+    }
+
+    if (showAddDialog) {
+        AddFieldDialog(
+            onDismiss = { showAddDialog = false },
+            onAdd = { name, value, type ->
+                viewModel.addField(name, value, type)
+                showAddDialog = false
+            },
+        )
     }
 
     // Profile creation sheet
@@ -164,59 +273,83 @@ fun DocumentDetailScreen(
 private fun DocumentDetailContent(
     state: DocumentDetailUiState.Success,
     selectedTab: DetailTab,
+    initialPage: Int?,
     processingState: ProcessingState,
     profileSuggestions: List<ProfileSuggestion>,
+    entityProposals: List<EntityProposal>,
     onTabSelected: (DetailTab) -> Unit,
-    onProcess: () -> Unit,
+    /** `force = true` restarts a document that is already `EXTRACTED`/`REVIEWED`, or retries
+     * one that `FAILED`; `false` is used only for the auto-enqueue done by the ViewModel on
+     * open, which this Composable never triggers directly. */
+    onProcess: (force: Boolean) -> Unit,
     onConfirmField: (String) -> Unit,
-    onAddField: (String, String, ExtractedFieldType) -> Unit,
+    onConfirmAllFields: () -> Unit,
+    onAddClick: () -> Unit,
     onUpdateField: (String, String, String) -> Unit,
     onDeleteField: (String) -> Unit,
     onLinkProfile: (ProfileSuggestion) -> Unit,
     onCreateProfile: (ProfileSuggestion) -> Unit,
     onDismissSuggestion: (ProfileSuggestion) -> Unit,
+    onAcceptProposal: (EntityProposal) -> Unit,
+    onDismissProposal: (EntityProposal) -> Unit,
     onSharePdf: () -> File?,
     onChatClick: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        if (processingState is ProcessingState.Running) {
-            ProcessingBanner(processingState)
+        // A document starts processing itself the moment it is captured — there is no
+        // mandatory button here any more. What shows is honest status: queued, running (with
+        // real progress), or a failure with a retry — see documentation/07-document-pipeline.md
+        // §7-§8.
+        when {
+            processingState is ProcessingState.Running && processingState.documentId == state.document.id ->
+                ProcessingBanner(processingState)
+            state.document.status == DocumentStatus.QUEUED -> QueuedBanner()
+            state.document.status == DocumentStatus.FAILED ->
+                FailedBanner(
+                    // Latest, not first: a document can be reprocessed after a first failure,
+                    // so the most recent PROCESSING_FAILED event is the one that actually
+                    // explains the current FAILED status.
+                    reason = state.timeline
+                        .filter { it.eventType == TimelineEventType.PROCESSING_FAILED }
+                        .maxByOrNull { it.createdAt },
+                    onRetry = { onProcess(true) },
+                    onDelete = onDelete,
+                )
         }
 
-        // Action row
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        // Action row — nothing to act on yet while a document is new, queued or running.
+        if (state.document.status != DocumentStatus.NEW &&
+            state.document.status != DocumentStatus.QUEUED &&
+            state.document.status != DocumentStatus.PROCESSING
         ) {
-            when {
-                state.document.status == DocumentStatus.NEW -> {
-                    Button(onClick = onProcess, modifier = Modifier.weight(1f)) {
-                        Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Process Document")
-                    }
-                }
-                else -> {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (state.document.status != DocumentStatus.FAILED) {
                     FilledTonalButton(onClick = onChatClick, modifier = Modifier.weight(1f)) {
                         Icon(PamIcons.AiChat, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Ask AI")
                     }
-                    OutlinedButton(onClick = onProcess) {
+                    OutlinedButton(onClick = { onProcess(true) }) {
                         Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Re-extract")
+                        Text("Reprocess")
                     }
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
-            }
-            IconButton(onClick = onToggleFavorite) {
-                Icon(
-                    imageVector = if (state.document.isFavorite) PamIcons.Favorite else PamIcons.FavoriteOutlined,
-                    contentDescription = "Toggle favorite",
-                    tint = if (state.document.isFavorite) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                IconButton(onClick = onToggleFavorite) {
+                    Icon(
+                        imageVector = if (state.document.isFavorite) PamIcons.Favorite else PamIcons.FavoriteOutlined,
+                        contentDescription = "Toggle favorite",
+                        tint = if (state.document.isFavorite) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
@@ -237,32 +370,166 @@ private fun DocumentDetailContent(
         }
 
         when (selectedTab) {
-            DetailTab.PAGES -> PagesTab(state.pages, onSharePdf)
+            DetailTab.PAGES -> PagesTab(state.pages, onSharePdf, initialPage)
             DetailTab.EXTRACTED -> ExtractedTemplateTab(
                 data = state.extractedData,
                 language = state.document.language,
+                extractionPagesRead = state.document.extractionPagesRead,
+                extractionTotalPages = state.document.extractionTotalPages,
                 profileSuggestions = profileSuggestions,
+                entityProposals = entityProposals,
                 onConfirm = onConfirmField,
-                onAdd = onAddField,
+                onConfirmAll = onConfirmAllFields,
+                onAddClick = onAddClick,
                 onUpdate = onUpdateField,
                 onDelete = onDeleteField,
                 onLinkProfile = onLinkProfile,
                 onCreateProfile = onCreateProfile,
                 onDismissSuggestion = onDismissSuggestion,
-                onReprocess = onProcess,
+                onAcceptProposal = onAcceptProposal,
+                onDismissProposal = onDismissProposal,
+                onReprocess = { onProcess(true) },
             )
             DetailTab.TIMELINE -> TimelineTab(state.timeline)
         }
     }
 }
 
+/**
+ * Shown instead of the normal detail content for a document that is currently in the trash —
+ * whether it was restored-from or opened via Recently deleted, or arrived here via a
+ * citation chip/deep link into something already trashed. Restoring here brings back the
+ * normal content in place, with no navigation.
+ */
+@Composable
+private fun TrashedDocumentState(title: String, onRestore: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            PamIcons.Delete,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(48.dp),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("This document was deleted", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            "\"$title\" is in Recently deleted.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onRestore) { Text("Restore") }
+    }
+}
+
 @Composable
 private fun ProcessingBanner(state: ProcessingState.Running) {
     Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer).padding(16.dp)) {
-        Text(state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Text(state.toDisplayMessage(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
         Spacer(modifier = Modifier.height(8.dp))
-        LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
+        // UNDERSTAND has no meaningful fraction: the pipeline freezes `progress` between
+        // 0.7 and 0.9 for however long the on-device model takes, which is unbounded and
+        // varies wildly with document length and device speed. A determinate bar that stops
+        // moving reads as stuck; an indeterminate one reads as "still working" — which is
+        // the truth. Every other stage does report real, moving progress and keeps the
+        // determinate bar.
+        if (state.stage == ProcessingStage.UNDERSTAND) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        } else {
+            LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
+        }
     }
+}
+
+@Composable
+private fun QueuedBanner() {
+    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(16.dp)) {
+        Text(
+            "Waiting to be read…",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * `reason` is the latest `PROCESSING_FAILED` timeline event, when one was recorded — a
+ * document that failed before this task's fix (or whose `failDocument` write itself failed)
+ * has none, and falls back to the generic message. A no-pages document can never be read by
+ * retrying it: the pages that would need OCR were never saved, so "Try again" would just fail
+ * the same way again. Delete (or re-scanning) is the only way out — see
+ * `DocumentProcessingPipeline.failDocument`'s `REASON_NO_PAGES`.
+ */
+@Composable
+private fun FailedBanner(reason: TimelineEvent?, onRetry: () -> Unit, onDelete: () -> Unit) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val isNoPages = reason?.data == "no_pages"
+
+    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).padding(16.dp)) {
+        Text(
+            if (isNoPages) {
+                "This document has no pages. Delete it or scan it again."
+            } else {
+                reason?.description ?: "Something went wrong while reading this document."
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        if (isNoPages) {
+            OutlinedButton(onClick = { showDeleteConfirm = true }) {
+                Icon(PamIcons.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Delete")
+            }
+        } else {
+            OutlinedButton(onClick = onRetry) {
+                Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Try again")
+            }
+        }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete this document?") },
+            text = { Text("It has no pages to read, so nothing can be recovered from it.") },
+            confirmButton = {
+                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            },
+        )
+    }
+}
+
+/**
+ * Turns the data layer's structured progress into the English a user reads.
+ *
+ * `ProcessingState` carries a stage and numbers only — never a sentence (see its doc comment
+ * in `:core:model`). Deciding what that sentence says is a presentation concern, so it lives
+ * here rather than in `DocumentProcessingPipeline`. Kept as plain Kotlin rather than
+ * `stringResource` for now: localisation is a separate, deliberately deferred task, not
+ * something to introduce as a side effect of this boundary fix.
+ */
+private fun ProcessingState.Running.toDisplayMessage(): String = when (stage) {
+    ProcessingStage.CAPTURE -> "Preparing document..."
+    ProcessingStage.READ -> if (currentPage != null && totalPages != null) {
+        "OCR: Page $currentPage/$totalPages"
+    } else {
+        "Starting OCR..."
+    }
+    ProcessingStage.UNDERSTAND -> "Understanding the letter — this can take a minute"
+    ProcessingStage.LINK -> "Matching profiles..."
+    ProcessingStage.INDEX -> "Indexing for search..."
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -270,14 +537,18 @@ private fun ProcessingBanner(state: ProcessingState.Running) {
 // ═══════════════════════════════════════════════════════════
 
 @Composable
-private fun PagesTab(pages: List<DocumentPage>, onSharePdf: () -> File?) {
+private fun PagesTab(pages: List<DocumentPage>, onSharePdf: () -> File?, initialPage: Int? = null) {
     if (pages.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No pages scanned yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
-    val pagerState = rememberPagerState(pageCount = { pages.size })
+    // A citation's page number is 1-based (how a reader talks about a document); the pager
+    // is 0-indexed, and clamped in case the citation is stale (the document was re-scanned
+    // with fewer pages since).
+    val startPage = initialPage?.minus(1)?.coerceIn(0, pages.size - 1) ?: 0
+    val pagerState = rememberPagerState(initialPage = startPage, pageCount = { pages.size })
     val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -410,21 +681,27 @@ private fun copyOcrText(context: Context, page: DocumentPage) {
 private fun ExtractedTemplateTab(
     data: List<ExtractedData>,
     language: String?,
+    /** See [com.postsaimanager.core.model.Document.extractionPagesRead] (5.4). */
+    extractionPagesRead: Int?,
+    extractionTotalPages: Int?,
     profileSuggestions: List<ProfileSuggestion>,
+    entityProposals: List<EntityProposal>,
     onConfirm: (String) -> Unit,
-    onAdd: (String, String, ExtractedFieldType) -> Unit,
+    onConfirmAll: () -> Unit,
+    onAddClick: () -> Unit,
     onUpdate: (String, String, String) -> Unit,
     onDelete: (String) -> Unit,
     onLinkProfile: (ProfileSuggestion) -> Unit,
     onCreateProfile: (ProfileSuggestion) -> Unit,
     onDismissSuggestion: (ProfileSuggestion) -> Unit,
+    onAcceptProposal: (EntityProposal) -> Unit,
+    onDismissProposal: (EntityProposal) -> Unit,
     onReprocess: () -> Unit,
 ) {
-    var showAddDialog by remember { mutableStateOf(false) }
     var editingField by remember { mutableStateOf<ExtractedData?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (data.isEmpty() && profileSuggestions.isEmpty()) {
+        if (data.isEmpty() && profileSuggestions.isEmpty() && entityProposals.isEmpty()) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -436,19 +713,25 @@ private fun ExtractedTemplateTab(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("Process the document or add data manually", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = { showAddDialog = true }) {
+                Button(onClick = onAddClick) {
                     Icon(PamIcons.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Add Manually")
                 }
             }
         } else {
-            val senderFields = data.filter { it.fieldName.startsWith("Sender") }
-            val receiverFields = data.filter { it.fieldName.startsWith("Receiver") }
-            val metadataFields = data.filter { it.fieldType in listOf(ExtractedFieldType.DATE, ExtractedFieldType.SUBJECT, ExtractedFieldType.REFERENCE_NUMBER, ExtractedFieldType.DEADLINE) }
-            val financialFields = data.filter { it.fieldType == ExtractedFieldType.IBAN || it.fieldName == "Amount" }
-            val contactFields = data.filter { it.fieldType in listOf(ExtractedFieldType.EMAIL, ExtractedFieldType.PHONE) && !it.fieldName.startsWith("Sender") && !it.fieldName.startsWith("Receiver") }
-            val contentFields = data.filter { it.fieldType == ExtractedFieldType.TEXT }
+            // 5.3: within each section, the fields worth a look — low confidence, or the
+            // extractor now disagreeing with a value the user set (`needsReview`) — sort
+            // first. `sortedByDescending` is stable, so fields that tie (both needing review,
+            // or both not) keep their original relative order; only the needs-review split
+            // itself reorders anything.
+            val sortedData = data.sortedByDescending { it.needsReview }
+            val senderFields = sortedData.filter { it.fieldName.startsWith("Sender") }
+            val receiverFields = sortedData.filter { it.fieldName.startsWith("Receiver") }
+            val metadataFields = sortedData.filter { it.fieldType in listOf(ExtractedFieldType.DATE, ExtractedFieldType.SUBJECT, ExtractedFieldType.REFERENCE_NUMBER, ExtractedFieldType.DEADLINE) }
+            val financialFields = sortedData.filter { it.fieldType == ExtractedFieldType.IBAN || it.fieldName == "Amount" }
+            val contactFields = sortedData.filter { it.fieldType in listOf(ExtractedFieldType.EMAIL, ExtractedFieldType.PHONE) && !it.fieldName.startsWith("Sender") && !it.fieldName.startsWith("Receiver") }
+            val contentFields = sortedData.filter { it.fieldType == ExtractedFieldType.TEXT }
 
             LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 // Language + retry header
@@ -461,6 +744,39 @@ private fun ExtractedTemplateTab(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Re-extract", style = MaterialTheme.typography.labelSmall)
                         }
+                    }
+                }
+
+                // 5.4: the assistant did not see the whole document — a long letter's layout
+                // had to be cut to fit the extraction budget. Subtle (a caption, not a
+                // warning colour) because it is informational, not something wrong with the
+                // extraction that already happened.
+                if (extractionPagesRead != null && extractionTotalPages != null &&
+                    extractionPagesRead < extractionTotalPages
+                ) {
+                    item {
+                        Text(
+                            "Only the first $extractionPagesRead of $extractionTotalPages pages " +
+                                "were read by the assistant — check the rest yourself.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        )
+                    }
+                }
+
+                // ── Entity Proposals — found in the document, but not something the app
+                // decides on its own (see EntityLinkingUseCase). Above the profile-matching
+                // suggestions below: these are the ones still waiting on a person, so they
+                // are seen first rather than after scrolling past what already matched.
+                if (entityProposals.isNotEmpty()) {
+                    item { EntityProposalsSummary(entityProposals) }
+                    items(entityProposals, key = { it.id }) { proposal ->
+                        EntityProposalCard(
+                            proposal = proposal,
+                            onAccept = { onAcceptProposal(proposal) },
+                            onDismiss = { onDismissProposal(proposal) },
+                        )
                     }
                 }
 
@@ -488,6 +804,10 @@ private fun ExtractedTemplateTab(
                 }
 
                 // ── Extracted Data Sections ──
+                // Above the fields, so what needs attention is seen before the scroll
+                // rather than found during it.
+                item { ReviewSummary(data, onConfirmAll) }
+
                 if (senderFields.isNotEmpty()) {
                     item { SectionHeader("📤 Sender") }
                     items(senderFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
@@ -515,19 +835,8 @@ private fun ExtractedTemplateTab(
                 item { Spacer(modifier = Modifier.height(72.dp)) }
             }
         }
-
-        FloatingActionButton(
-            onClick = { showAddDialog = true },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ) {
-            Icon(PamIcons.Add, contentDescription = "Add field")
-        }
     }
 
-    if (showAddDialog) {
-        AddFieldDialog(onDismiss = { showAddDialog = false }, onAdd = { name, value, type -> onAdd(name, value, type); showAddDialog = false })
-    }
     editingField?.let { field ->
         EditFieldDialog(field = field, onDismiss = { editingField = null }, onSave = { name, value -> onUpdate(field.id, name, value); editingField = null })
     }
@@ -790,34 +1099,320 @@ private fun SectionHeader(title: String) {
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
+/**
+ * One extracted field.
+ *
+ * Three states are visually distinct, because they mean different things to the person
+ * reading them:
+ *
+ *  - **Needs review** — the extractor was unsure, or now disagrees with the value here.
+ *    Outlined in the error colour: it is the only state that is asking for something.
+ *  - **Yours / confirmed** — you wrote or accepted this. The machine will not change it.
+ *  - **Machine, confident** — plain. Most fields, and they should recede.
+ */
 @Composable
 private fun FieldCard(field: ExtractedData, onConfirm: (String) -> Unit, onEdit: (ExtractedData) -> Unit, onDelete: (String) -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
+    val isUsers = field.source == ValueSource.USER
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = if (field.isConfirmed) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow),
+        border = if (field.needsReview) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+        } else {
+            null
+        },
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                field.needsReview -> MaterialTheme.colorScheme.errorContainer
+                isUsers || field.isConfirmed -> MaterialTheme.colorScheme.secondaryContainer
+                else -> MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        ),
     ) {
-        Row(modifier = Modifier.padding(12.dp).clickable { onEdit(field) }, verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(field.fieldName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(field.fieldValue, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                Spacer(modifier = Modifier.height(2.dp))
-                Text("${(field.confidence * 100).toInt()}% confidence", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Box {
-                IconButton(onClick = { showMenu = true }) { Icon(PamIcons.More, contentDescription = "More", modifier = Modifier.size(20.dp)) }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text("Edit") }, onClick = { showMenu = false; onEdit(field) }, leadingIcon = { Icon(PamIcons.Edit, null, Modifier.size(18.dp)) })
-                    if (!field.isConfirmed) {
-                        DropdownMenuItem(text = { Text("Confirm") }, onClick = { showMenu = false; onConfirm(field.id) }, leadingIcon = { Icon(PamIcons.Favorite, null, Modifier.size(18.dp)) })
+        Column(modifier = Modifier.padding(12.dp).clickable { onEdit(field) }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(field.fieldName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(field.fieldValue, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        // Confidence is the extractor's opinion of its own reading. Once a
+                        // person has set the value it says nothing, so it is not shown.
+                        if (isUsers) "You set this" else "${(field.confidence * 100).toInt()}% confidence",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Box {
+                    IconButton(onClick = { showMenu = true }) { Icon(PamIcons.More, contentDescription = "More", modifier = Modifier.size(20.dp)) }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(text = { Text("Edit") }, onClick = { showMenu = false; onEdit(field) }, leadingIcon = { Icon(PamIcons.Edit, null, Modifier.size(18.dp)) })
+                        if (!field.isConfirmed) {
+                            DropdownMenuItem(text = { Text("Confirm") }, onClick = { showMenu = false; onConfirm(field.id) }, leadingIcon = { Icon(PamIcons.Favorite, null, Modifier.size(18.dp)) })
+                        }
+                        DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; onDelete(field.id) },
+                            leadingIcon = { Icon(PamIcons.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) })
                     }
-                    DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; onDelete(field.id) },
-                        leadingIcon = { Icon(PamIcons.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) })
+                }
+            }
+
+            // The disagreement, spelled out. "This changed" would not be enough for anyone
+            // to decide anything — the previous reading is what makes it actionable.
+            if (field.hasUnreviewedMachineChange && field.machineValue != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "The document now reads \"${field.machineValue}\" here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { onConfirm(field.id) }) { Text("Keep mine") }
+                    TextButton(onClick = { onEdit(field) }) { Text("Review") }
+                }
+            } else if (field.needsReview) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "Low confidence — worth checking.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * A count of what wants attention, above the fields, plus "Confirm all" (5.3) when there is
+ * anything left to confirm.
+ *
+ * Without the count, a low-confidence field is only found by scrolling and noticing a colour
+ * — fine for three fields, useless for a document with twenty. Without "Confirm all", clearing
+ * a document with many machine-confident fields means tapping Confirm on each one individually
+ * even though most of them are not in question at all.
+ */
+@Composable
+private fun ReviewSummary(fields: List<ExtractedData>, onConfirmAll: () -> Unit) {
+    val needing = fields.count { it.needsReview }
+    val unconfirmed = fields.count { !it.isConfirmed && !it.deletedByUser }
+    if (needing == 0 && unconfirmed == 0) return
+
+    // "Confirm all" stays available even with low-confidence fields among them — it just
+    // asks once first, rather than being hidden or requiring them to be resolved individually.
+    var showLowConfidencePrompt by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (needing > 0) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        ),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            if (needing > 0) {
+                Text(
+                    if (needing == 1) "1 field is worth checking" else "$needing fields are worth checking",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "The extractor was unsure, or the document now reads differently. " +
+                        "Your corrections are kept when a document is processed again.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+            if (unconfirmed > 0) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = if (needing > 0) 8.dp else 0.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(
+                        onClick = { if (needing > 0) showLowConfidencePrompt = true else onConfirmAll() },
+                    ) {
+                        Text(if (unconfirmed == 1) "Confirm 1 field" else "Confirm all $unconfirmed fields")
+                    }
                 }
             }
         }
+    }
+
+    if (showLowConfidencePrompt) {
+        AlertDialog(
+            onDismissRequest = { showLowConfidencePrompt = false },
+            title = { Text("Confirm anyway?") },
+            text = {
+                Text(
+                    if (needing == 1) {
+                        "1 field is worth checking — confirm anyway?"
+                    } else {
+                        "$needing fields are worth checking — confirm anyway?"
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showLowConfidencePrompt = false; onConfirmAll() }) {
+                    Text("Confirm all")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLowConfidencePrompt = false }) { Text("Cancel") }
+            },
+        )
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Entity Proposals — people/organisations the model found but would not act on alone
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * A count of what is waiting on a person's answer, above the individual questions.
+ *
+ * Mirrors [ReviewSummary]'s reasoning: without a total, "is this me?" for the recipient and
+ * "add Layla?" for a mentioned spouse are each found only by scrolling — fine for one entity,
+ * easy to miss for several.
+ */
+@Composable
+private fun EntityProposalsSummary(proposals: List<EntityProposal>) {
+    if (proposals.isEmpty()) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        ),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(
+                if (proposals.size == 1) "1 thing found in this document needs your answer"
+                else "${proposals.size} things found in this document need your answer",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "The app will not create a profile for any of these on its own.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+        }
+    }
+}
+
+/**
+ * One [EntityProposal], asked in words rather than shown as raw data — never
+ * "Entity proposal: Layla (MENTIONED, 0.95)". See [EntityProposal.question] and
+ * [EntityLinkingUseCase][com.postsaimanager.core.domain.usecase.EntityLinkingUseCase]'s class
+ * doc for why the app asks instead of deciding here.
+ *
+ * Answering either way is final: accepting creates and links the profile, dismissing tells
+ * the app not to ask about this entity on this document again (see `EntityProposalService`).
+ * There is no third "later" option, because [pendingProposals][
+ * com.postsaimanager.core.domain.document.EntityProposalService.pendingProposals] already
+ * keeps the question on screen until one of these two is pressed.
+ */
+@Composable
+private fun EntityProposalCard(
+    proposal: EntityProposal,
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val isRecipient = proposal.entityRole == EntityRole.RECIPIENT
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(proposal.question(), style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onAccept, modifier = Modifier.weight(1f)) {
+                    Text(
+                        when {
+                            isRecipient -> "Yes, that's me"
+                            // A known profile is on file — accepting links to it, not a
+                            // second row for the same person/organisation, so the button
+                            // must not promise "profile" as if one will be made.
+                            proposal.existingProfileId != null -> "Link profile"
+                            else -> "Add profile"
+                        },
+                    )
+                }
+                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                    Text(if (isRecipient) "No, someone else" else "Not now")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The plain-English question for one [EntityProposal].
+ *
+ * [EntityRole] decides the shape of the sentence, exactly as it decides the shape of the
+ * underlying decision in `EntityLinkingUseCase` — a `RECIPIENT` proposal is never "add a
+ * profile for this name", it is "is this you?", because that is the one thing the app is
+ * actually unsure about (see that class's doc on `ProfileType.USER_SELF`). A `MENTIONED`
+ * proposal states what the document said and mentions the relation whenever the model
+ * supplied one, since "spouse of the recipient" is what makes the entity meaningful rather
+ * than an unexplained name.
+ *
+ * [existingProfileId] shifts the closing question from creating to linking for the same
+ * reason the button does (see [EntityProposalCard]) — a plausible match was already found,
+ * so "add them as a contact?" would describe a profile the app is not actually about to
+ * make. `RECIPIENT` is unaffected: "is this you?" already asks about identity, not creation,
+ * so it reads correctly whether accepting links or creates.
+ */
+private fun EntityProposal.question(): String = when (entityRole) {
+    EntityRole.RECIPIENT ->
+        "This document is addressed to \"$entityName\". Is this you?"
+
+    EntityRole.MENTIONED -> if (relation.isNotBlank()) {
+        "\"$entityName\" is mentioned in this document, as $relation. " +
+            if (existingProfileId != null) {
+                "Link them to the existing profile?"
+            } else {
+                "Add them as a profile?"
+            }
+    } else {
+        "\"$entityName\" is mentioned in this document. " +
+            if (existingProfileId != null) {
+                "Link them to the existing profile?"
+            } else {
+                "Add them as a profile?"
+            }
+    }
+
+    EntityRole.SENDER_CONTACT -> if (organization != null) {
+        "\"$entityName\" signed this document on behalf of $organization. " +
+            if (existingProfileId != null) {
+                "Link them to the existing contact?"
+            } else {
+                "Add them as a contact?"
+            }
+    } else {
+        "\"$entityName\" signed this document, but it is not clear yet who sent it. " +
+            if (existingProfileId != null) {
+                "Link them to the existing contact anyway?"
+            } else {
+                "Add them as a contact anyway?"
+            }
+    }
+
+    EntityRole.SENDER -> if (existingProfileId != null) {
+        "\"$entityName\" appears to have sent this document. Link them to the existing profile?"
+    } else {
+        "\"$entityName\" appears to have sent this document. Add a profile for them?"
     }
 }
 

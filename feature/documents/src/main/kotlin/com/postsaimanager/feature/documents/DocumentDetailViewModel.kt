@@ -5,26 +5,31 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.util.UuidGenerator
-import com.postsaimanager.core.data.repository.DocumentProcessingPipeline
-import com.postsaimanager.core.data.repository.MatchType
-import com.postsaimanager.core.data.repository.ProcessingState
-import com.postsaimanager.core.data.repository.ProfileMatcher
-import com.postsaimanager.core.data.repository.ProfileSuggestion
-import com.postsaimanager.core.data.util.PdfGenerator
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
+import com.postsaimanager.core.domain.document.DocumentExporter
+import com.postsaimanager.core.domain.document.DocumentProcessor
+import com.postsaimanager.core.domain.document.EntityCoverageFilter
+import com.postsaimanager.core.domain.document.EntityProposalService
 import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
+import com.postsaimanager.core.domain.document.ProfileMatchingService
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
+import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.EntityProposal
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
+import com.postsaimanager.core.model.MatchType
+import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileRole
+import com.postsaimanager.core.model.ProfileSuggestion
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -36,9 +41,10 @@ class DocumentDetailViewModel @Inject constructor(
     getDocumentDetailUseCase: GetDocumentDetailUseCase,
     private val documentRepository: DocumentRepository,
     private val profileRepository: ProfileRepository,
-    private val processingPipeline: DocumentProcessingPipeline,
-    private val profileMatcher: ProfileMatcher,
-    private val pdfGenerator: PdfGenerator,
+    private val documentProcessor: DocumentProcessor,
+    private val profileMatchingService: ProfileMatchingService,
+    private val entityProposalService: EntityProposalService,
+    private val documentExporter: DocumentExporter,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
@@ -49,8 +55,46 @@ class DocumentDetailViewModel @Inject constructor(
     private val _processingProgress = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     val processingProgress: StateFlow<ProcessingState> = _processingProgress.asStateFlow()
 
+    /**
+     * Every field-based suggestion `ProfileMatchingService` produced, before
+     * [EntityCoverageFilter] removes the ones the entity path already covers — see
+     * [profileSuggestions]. Kept separate so [linkSuggestionToProfile] and friends, which
+     * update this list by identity, are not fighting the filtered view over what "the list"
+     * means.
+     */
     private val _profileSuggestions = MutableStateFlow<List<ProfileSuggestion>>(emptyList())
-    val profileSuggestions: StateFlow<List<ProfileSuggestion>> = _profileSuggestions.asStateFlow()
+
+    /**
+     * Entities the app found but would not act on automatically — see
+     * [EntityProposalService]. Document-scoped and answered here, not a global inbox: see
+     * [EntityProposal]'s class doc.
+     */
+    val entityProposals: StateFlow<List<EntityProposal>> =
+        entityProposalService.pendingProposals(documentId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Field-based suggestions actually worth showing: [EntityCoverageFilter] drops any that
+     * ask about a person [entityProposals] already asks about, or that a profile the entity
+     * path linked to this document already covers (task 7.14.11d — a Jobcenter letter used to
+     * be able to put up two differently-worded cards asking about the same Jobcenter).
+     *
+     * Combined here, in the ViewModel, rather than behind a new domain port: the two inputs
+     * ([entityProposalService.pendingProposals] and [profileRepository.getProfilesForDocument])
+     * are already domain-level flows this ViewModel holds a reference to for other reasons, and
+     * the actual dedupe rule is [EntityCoverageFilter] — a pure, independently-tested function
+     * in `:core:domain`. A new port here would only wrap the same two calls this class already
+     * makes, without moving any decision out of the ViewModel.
+     */
+    val profileSuggestions: StateFlow<List<ProfileSuggestion>> = combine(
+        _profileSuggestions,
+        entityProposals,
+        profileRepository.getProfilesForDocument(documentId),
+    ) { suggestions, proposals, linkedProfiles ->
+        EntityCoverageFilter.apply(
+            suggestions, proposals, linkedProfiles.map { (profile, _) -> profile },
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Holds the suggestion that triggered profile creation — shown in ProfileEditSheet */
     private val _editingProfileSuggestion = MutableStateFlow<ProfileSuggestion?>(null)
@@ -65,16 +109,44 @@ class DocumentDetailViewModel @Inject constructor(
                 initialValue = DocumentDetailUiState.Loading,
             )
 
+    /** Guards the auto-enqueue below so opening a `NEW` document does not re-enqueue on
+     * every recomposition — `enqueue` is idempotent via `ExistingWorkPolicy.KEEP` anyway,
+     * but there is no reason to keep hitting Room and WorkManager on every emission. */
+    private var autoEnqueued = false
+
     init {
         viewModelScope.launch {
-            processingPipeline.processingState.collect { state ->
-                _processingProgress.value = state
-                if (state is ProcessingState.Completed) runProfileMatching()
+            documentProcessor.processingState.collect { state ->
+                // The pipeline's processingState is one flow for "whichever document last
+                // started" (see DocumentProcessor's doc comment) — without this filter, a
+                // second document processing in the background would flash its progress on
+                // this screen too.
+                val documentIdOfState = when (state) {
+                    is ProcessingState.Running -> state.documentId
+                    is ProcessingState.Completed -> state.documentId
+                    is ProcessingState.Failed -> state.documentId
+                    ProcessingState.Idle -> null
+                }
+                if (documentIdOfState == documentId) {
+                    _processingProgress.value = state
+                    if (state is ProcessingState.Completed) runProfileMatching()
+                }
             }
         }
         viewModelScope.launch {
             uiState.collect { state ->
-                if (state is DocumentDetailUiState.Success && state.extractedData.isNotEmpty() && _profileSuggestions.value.isEmpty()) {
+                if (state !is DocumentDetailUiState.Success) return@collect
+
+                // A document becomes searchable because it was captured, not because
+                // someone opened it (documentation/07-document-pipeline.md §7) — but a
+                // legacy or otherwise-untouched NEW document still needs a first push, and
+                // opening its detail screen is that push.
+                if (state.document.status == DocumentStatus.NEW && !autoEnqueued) {
+                    autoEnqueued = true
+                    documentProcessor.enqueue(documentId)
+                }
+
+                if (state.extractedData.isNotEmpty() && _profileSuggestions.value.isEmpty()) {
                     runProfileMatching()
                 }
             }
@@ -84,11 +156,11 @@ class DocumentDetailViewModel @Inject constructor(
     private suspend fun runProfileMatching() {
         val state = uiState.value
         if (state is DocumentDetailUiState.Success) {
-            val suggestions = profileMatcher.matchProfiles(documentId, state.extractedData)
+            val suggestions = profileMatchingService.matchProfiles(documentId, state.extractedData)
             _profileSuggestions.value = suggestions
             // Auto-link exact matches
             suggestions.filter { it.matchType == MatchType.EXACT_MATCH && !it.isAutoLinked }.forEach { suggestion ->
-                profileMatcher.linkExistingProfile(suggestion)
+                profileMatchingService.linkExistingProfile(suggestion)
                 _profileSuggestions.value = _profileSuggestions.value.map {
                     if (it === suggestion) it.copy(isAutoLinked = true) else it
                 }
@@ -100,15 +172,58 @@ class DocumentDetailViewModel @Inject constructor(
     fun selectTab(tab: DetailTab) { _selectedTab.value = tab }
 
     // ── Processing ──
-    fun startProcessing() {
+    /**
+     * Enqueues background processing for this document. [force] restarts a document that is
+     * already `EXTRACTED`/`REVIEWED` (the detail screen's "Reprocess") or retries one that
+     * `FAILED`; without it, a document already queued or running just keeps going.
+     *
+     * Never runs the pipeline itself — `DocumentProcessor.processDocument` is called only
+     * by `DocumentProcessingWorker`, so processing survives this screen closing.
+     */
+    fun startProcessing(force: Boolean = false) {
         viewModelScope.launch {
             _profileSuggestions.value = emptyList()
-            processingPipeline.processDocument(documentId)
+            documentProcessor.enqueue(documentId, force = force)
         }
     }
 
+    /**
+     * The fields [confirmAllFields] just confirmed, exactly as they were before — non-null
+     * only while an undo is still offered. `DocumentDetailScreen` shows the Snackbar for
+     * this and clears it via [undoConfirmAll]/[dismissUndo] once the Snackbar resolves.
+     */
+    private val _pendingConfirmAllUndo = MutableStateFlow<List<ExtractedData>?>(null)
+    val pendingConfirmAllUndo: StateFlow<List<ExtractedData>?> = _pendingConfirmAllUndo.asStateFlow()
+
     // ── Field CRUD ──
     fun confirmField(fieldId: String) { viewModelScope.launch { documentRepository.confirmExtractedField(fieldId) } }
+
+    /**
+     * "Confirm all" (5.3) — one batched repository call rather than [confirmField] looped
+     * over every remaining field; see [DocumentRepository.confirmAllExtractedFields].
+     * Whether a low-confidence field is among them, and therefore whether the "N fields are
+     * worth checking — confirm anyway?" prompt is needed first, is `DocumentDetailScreen`'s
+     * call to make (it already has [ExtractedData.needsReview] on every field on screen) —
+     * this just performs the confirm once asked to.
+     */
+    fun confirmAllFields() {
+        viewModelScope.launch {
+            val result = documentRepository.confirmAllExtractedFields(documentId)
+            if (result is PamResult.Success && result.data.isNotEmpty()) {
+                _pendingConfirmAllUndo.value = result.data
+            }
+        }
+    }
+
+    /** Reverts the last "Confirm all" to exactly what it was before — the Snackbar's Undo. */
+    fun undoConfirmAll() {
+        val fields = _pendingConfirmAllUndo.value ?: return
+        _pendingConfirmAllUndo.value = null
+        viewModelScope.launch { documentRepository.restoreExtractedFields(fields) }
+    }
+
+    /** The Snackbar timed out or was dismissed without Undo — nothing left to revert. */
+    fun dismissConfirmAllUndo() { _pendingConfirmAllUndo.value = null }
 
     fun addField(name: String, value: String, type: ExtractedFieldType) {
         viewModelScope.launch {
@@ -131,7 +246,7 @@ class DocumentDetailViewModel @Inject constructor(
     // ── Profile linking ──
     fun linkSuggestionToProfile(suggestion: ProfileSuggestion) {
         viewModelScope.launch {
-            profileMatcher.linkExistingProfile(suggestion)
+            profileMatchingService.linkExistingProfile(suggestion)
             _profileSuggestions.value = _profileSuggestions.value.map {
                 if (it.role == suggestion.role && it.existingProfile?.id == suggestion.existingProfile?.id) {
                     it.copy(isAutoLinked = true)
@@ -189,20 +304,48 @@ class DocumentDetailViewModel @Inject constructor(
         _profileSuggestions.value = _profileSuggestions.value.filter { it !== suggestion }
     }
 
+    // ── Entity proposals ──
+    // Both answers are fire-and-forget from the UI's perspective: entityProposals is backed by
+    // the same Room row the service just resolved, so the list updates on its own once the
+    // write lands — there is no local list to reconcile here, unlike profileSuggestions above.
+    fun acceptProposal(proposal: EntityProposal) {
+        viewModelScope.launch { entityProposalService.accept(proposal) }
+    }
+
+    fun dismissProposal(proposal: EntityProposal) {
+        viewModelScope.launch { entityProposalService.dismiss(proposal) }
+    }
+
     // ── PDF generation ──
     fun generatePdf(): File? {
         val state = uiState.value
         if (state !is DocumentDetailUiState.Success) return null
         val paths = state.pages.map { it.imagePath }
         val title = state.document.title.replace(Regex("[^a-zA-Z0-9_-]"), "_").take(50)
-        return pdfGenerator.generatePdf(paths, "PAM_$title")
+        // The port speaks paths, not File — see DocumentExporter's doc comment. The
+        // Composable still wants a File for FileProvider, so the feature re-wraps it here.
+        return documentExporter.exportPdf(paths, "PAM_$title")?.let(::File)
     }
 
     // ── Favorites ──
     fun toggleFavorite() { viewModelScope.launch { documentRepository.toggleFavorite(documentId) } }
 
-    fun deleteDocument(onDeleted: () -> Unit) {
-        viewModelScope.launch { documentRepository.deleteDocument(documentId); onDeleted() }
+    /**
+     * Moves this document to the trash (overflow menu "Delete", and the FAILED banner's
+     * delete), then calls [onDone] with its id. The caller navigates back and shows the
+     * "moved to Recently deleted / Undo" snackbar — waiting for the write first, since
+     * leaving the screen clears this ViewModel's scope.
+     */
+    fun moveToTrash(onDone: (String) -> Unit) {
+        viewModelScope.launch {
+            documentRepository.moveToTrash(documentId)
+            onDone(documentId)
+        }
+    }
+
+    /** Restores this document — used from the "This document was deleted" state. */
+    fun restoreDocument() {
+        viewModelScope.launch { documentRepository.restore(documentId) }
     }
 }
 

@@ -3,11 +3,14 @@
 /local.properties
 /.idea/
 .DS_Store
-/build/
-/*/build/
-/*/*/build/
+# Any depth — the AI subsystem nests modules at core/ai/<name>/, which the old
+# three-level patterns missed.
+**/build/
 captures/
 .externalNativeBuild/
 .cxx/
 *.apk
 *.aab
+
+# Kotlin compiler session files (build noise)
+.kotlin/

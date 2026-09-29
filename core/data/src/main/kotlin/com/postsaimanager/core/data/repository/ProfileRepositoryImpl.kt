@@ -4,7 +4,9 @@ import com.postsaimanager.core.common.dispatcher.Dispatcher
 import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
+import com.postsaimanager.core.data.database.entity.DismissedEntityEntity
 import com.postsaimanager.core.data.database.entity.DocumentProfileLinkEntity
 import com.postsaimanager.core.data.database.entity.ProfileEntity
 import com.postsaimanager.core.domain.repository.ProfileRepository
@@ -20,6 +22,7 @@ import javax.inject.Inject
 
 class ProfileRepositoryImpl @Inject constructor(
     private val profileDao: ProfileDao,
+    private val dismissedEntityDao: DismissedEntityDao,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : ProfileRepository {
 
@@ -74,6 +77,19 @@ class ProfileRepositoryImpl @Inject constructor(
 
     override suspend fun deleteProfile(id: String): PamResult<Unit> = withContext(ioDispatcher) {
         try {
+            // A profile the AI created carries where it came from. Tombstoning that origin
+            // before the row is gone is what stops the next reprocess of the same document
+            // from silently recreating exactly what the user just removed — see
+            // DismissedEntityEntity. A profile the user created by hand has no origin, so
+            // there is nothing to tombstone: nothing machine-driven can bring it back anyway.
+            val entity = profileDao.getById(id)
+            val documentId = entity?.sourceDocumentId
+            val entityName = entity?.sourceEntityName
+            if (documentId != null && entityName != null) {
+                dismissedEntityDao.dismiss(
+                    DismissedEntityEntity(documentId, entityName, System.currentTimeMillis()),
+                )
+            }
             profileDao.deleteById(id)
             PamResult.Success(Unit)
         } catch (e: Exception) { PamResult.Error(PamError.DatabaseError(cause = e)) }
@@ -112,6 +128,7 @@ class ProfileRepositoryImpl @Inject constructor(
         country = entity.country, phone = entity.phone, email = entity.email,
         website = entity.website, reference = entity.reference, notes = entity.notes,
         completionScore = entity.completionScore, avatarPath = entity.avatarPath,
+        sourceDocumentId = entity.sourceDocumentId, sourceEntityName = entity.sourceEntityName,
         createdAt = entity.createdAt, modifiedAt = entity.modifiedAt,
     )
 
@@ -122,6 +139,8 @@ class ProfileRepositoryImpl @Inject constructor(
         country = profile.country, phone = profile.phone, email = profile.email,
         website = profile.website, reference = profile.reference, notes = profile.notes,
         completionScore = profile.completionScore, missingFields = null,
-        avatarPath = profile.avatarPath, createdAt = profile.createdAt, modifiedAt = profile.modifiedAt,
+        avatarPath = profile.avatarPath,
+        sourceDocumentId = profile.sourceDocumentId, sourceEntityName = profile.sourceEntityName,
+        createdAt = profile.createdAt, modifiedAt = profile.modifiedAt,
     )
 }

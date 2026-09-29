@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
+import com.postsaimanager.core.domain.document.DocumentExporter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.FileOutputStream
@@ -18,7 +19,12 @@ import javax.inject.Singleton
 @Singleton
 class PdfGenerator @Inject constructor(
     @ApplicationContext private val context: Context,
-) {
+) : DocumentExporter {
+
+    /** [DocumentExporter]'s port speaks paths, not [File] — see its doc comment for why. */
+    override fun exportPdf(imagePaths: List<String>, outputName: String): String? =
+        generatePdf(imagePaths, outputName)?.absolutePath
+
     /**
      * Generate a PDF from a list of image paths.
      * @return File path of the generated PDF, or null on failure.

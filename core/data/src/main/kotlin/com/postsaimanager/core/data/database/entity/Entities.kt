@@ -20,6 +20,15 @@ data class DocumentEntity(
     @ColumnInfo(index = true) val createdAt: Long,
     @ColumnInfo(index = true) val modifiedAt: Long,
     val syncStatus: String = "LOCAL",
+    /** See [com.postsaimanager.core.model.Document.extractionPagesRead] (5.4). */
+    val extractionPagesRead: Int? = null,
+    val extractionTotalPages: Int? = null,
+    /**
+     * When set, the document is in the trash: hidden from every list, search and chat
+     * retrieval path, but its rows and files are kept so it can be restored. Null means
+     * "not deleted". See documentation/07-document-pipeline.md, "Deleting documents".
+     */
+    val deletedAt: Long? = null,
 )
 
 @Entity(
@@ -42,6 +51,14 @@ data class DocumentPageEntity(
     val processedPath: String?,
     val ocrText: String?,
     val ocrConfidence: Float?,
+    /**
+     * Positioned OCR blocks, JSON-encoded.
+     *
+     * Kept so extraction can re-run without re-reading the page — the expensive stage — and
+     * so a later, layout-aware extractor can use pages that were scanned before it existed.
+     * Text alone cannot be re-derived into positions.
+     */
+    val ocrBlocks: String? = null,
     val width: Int,
     val height: Int,
 )
@@ -70,6 +87,85 @@ data class ProfileEntity(
     val avatarPath: String?,
     @ColumnInfo(index = true) val createdAt: Long,
     val modifiedAt: Long,
+    /** See [com.postsaimanager.core.model.Profile.sourceDocumentId]. */
+    val sourceDocumentId: String? = null,
+    val sourceEntityName: String? = null,
+)
+
+/**
+ * A recognised entity the user has said no to for one document — either by dismissing a
+ * proposal outright, or by deleting a profile [EntityLinkingUseCase] auto-created from it.
+ *
+ * Mirrors `extracted_data.deletedByUser`: without this, [DocumentProcessingPipeline]
+ * re-running on the same document would have no memory of the refusal, and would recreate or
+ * re-propose the exact thing the user just removed on every subsequent scan.
+ *
+ * Keyed by (documentId, entityName) rather than a profile id, because a dismissed *proposal*
+ * never had a profile to key on in the first place.
+ */
+@Entity(
+    tableName = "dismissed_entities",
+    primaryKeys = ["documentId", "entityName"],
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("documentId")],
+)
+data class DismissedEntityEntity(
+    val documentId: String,
+    /** Normalised (trimmed, lower-cased) — see `EntityProfileLinker.normalise`. */
+    val entityName: String,
+    val dismissedAt: Long,
+)
+
+/**
+ * A recognised entity [EntityLinkingUseCase] would not act on automatically, persisted so the
+ * question survives past the process that discovered it — see `EntityProposalService` and
+ * `EntityProposal` in `:core:model`.
+ *
+ * Keyed by a generated [id] rather than (documentId, entityNameKey) directly, because
+ * accepting or dismissing needs to name one row. The uniqueness that stops reprocessing from
+ * duplicating a still-pending proposal is enforced instead by the index on
+ * (documentId, entityNameKey), combined with `OnConflictStrategy.IGNORE` on insert — the
+ * conflicting insert (including its freshly generated id) is dropped, so the original row the
+ * UI may already be showing keeps its id.
+ */
+@Entity(
+    tableName = "entity_proposals",
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index(value = ["documentId", "entityNameKey"], unique = true)],
+)
+data class EntityProposalEntity(
+    @PrimaryKey val id: String,
+    val documentId: String,
+    val entityName: String,
+    /** Normalised (trimmed, lower-cased) — see `EntityProfileLinker.normalise`. */
+    val entityNameKey: String,
+    /** `EntityKind` name. */
+    val kind: String,
+    /** `EntityRole` name — what the entity was doing in the document. */
+    val entityRole: String,
+    val relation: String,
+    /** `ProfileRole` name — what this would be linked as if accepted. */
+    val role: String,
+    /** `ProfileType` name. */
+    val profileType: String,
+    val organization: String?,
+    val existingProfileId: String?,
+    val confidence: Float,
+    val createdAt: Long,
 )
 
 @Entity(
@@ -108,7 +204,11 @@ data class DocumentProfileLinkEntity(
             onDelete = ForeignKey.CASCADE,
         ),
     ],
-    indices = [Index("documentId")],
+    // Unique on the slot, not just indexed on the document. A field is identified by
+    // (documentId, fieldName) so re-extraction can be matched against what is stored;
+    // without the constraint a merge bug would quietly produce duplicate slots and the
+    // next merge would pick between them arbitrarily.
+    indices = [Index(value = ["documentId", "fieldName"], unique = true)],
 )
 data class ExtractedDataEntity(
     @PrimaryKey val id: String,
@@ -119,6 +219,44 @@ data class ExtractedDataEntity(
     val confidence: Float,
     val pageNumber: Int?,
     val isConfirmed: Boolean = false,
+    /** `MACHINE` or `USER`; see `ValueSource`. */
+    val source: String = "MACHINE",
+    val machineValue: String? = null,
+    val machineConfidence: Float? = null,
+    val deletedByUser: Boolean = false,
+    val hasUnreviewedMachineChange: Boolean = false,
+    val engineVersion: String? = null,
+    val updatedAt: Long = 0L,
+)
+
+/**
+ * Append-only history for a field slot.
+ *
+ * Deliberately not indexed by a foreign key to `extracted_data`: rows there are keyed by a
+ * regenerated id and a slot can outlive any particular row. The document is the owning
+ * entity, so the cascade hangs off that.
+ */
+@Entity(
+    tableName = "field_revisions",
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index(value = ["documentId", "fieldName", "createdAt"])],
+)
+data class FieldRevisionEntity(
+    @PrimaryKey val id: String,
+    val documentId: String,
+    val fieldName: String,
+    val value: String,
+    val source: String,
+    val confidence: Float?,
+    val engineVersion: String?,
+    val createdAt: Long,
 )
 
 @Entity(
@@ -217,6 +355,52 @@ data class MessageEntity(
     val toolResult: String?,
     val isStreaming: Boolean = false,
     val createdAt: Long,
+    /** The model's reasoning trace, display-only — see [com.postsaimanager.core.model.AiMessage]. */
+    val thinking: String? = null,
+    val thinkingDurationMs: Long? = null,
+    /** See [com.postsaimanager.core.model.AiMessage.incomplete]. */
+    val incomplete: Boolean = false,
+    /** See [com.postsaimanager.core.model.AiMessage.cutOff]. */
+    val cutOff: Boolean = false,
+)
+
+/**
+ * One passage an assistant [MessageEntity] was grounded on — see
+ * [com.postsaimanager.core.model.MessageSource] for what each field means and why the shape
+ * is this minimal.
+ *
+ * A child table rather than a JSON column on `messages`, matching the rest of this schema's
+ * one-to-many shapes (`field_revisions`, `entity_proposals`, `dismissed_entities`): a message
+ * routinely has 0–4 sources (`SendChatMessageUseCase.RETRIEVAL_LIMIT`), each with its own
+ * FK-checkable `documentId` and a natural, queryable `pageNumber` — exactly the case Room's
+ * relational tooling (`@Relation`, used by [com.postsaimanager.core.data.database.dao
+ * .MessageWithSources]) is for. A JSON blob would give up both: no FK integrity if the
+ * source document is deleted, and every reader would need to deserialise it just to render a
+ * chip.
+ *
+ * No FK to `documents`: a source document can be deleted while the conversation that cited
+ * it survives (chat history is not deleted alongside a document unless its own conversation
+ * is), and the chip this powers already degrades gracefully — see `ChatScreen`'s handling of
+ * a source whose document no longer exists.
+ */
+@Entity(
+    tableName = "message_sources",
+    foreignKeys = [
+        ForeignKey(
+            entity = MessageEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["messageId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("messageId")],
+)
+data class MessageSourceEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val messageId: String,
+    val documentId: String,
+    val pageNumber: Int?,
+    val chunkId: String,
 )
 
 @Entity(
@@ -266,3 +450,66 @@ data class ReminderEntity(
     val isCompleted: Boolean = false,
     val createdAt: Long,
 )
+
+/**
+ * A slice of a document's OCR text with its embedding, for semantic retrieval.
+ *
+ * Chunked rather than whole-document because a 4–8 k context cannot hold a multi-page
+ * letter, and because retrieval is more precise over passages than over whole files.
+ *
+ * [embedding] is a float32 vector serialised little-endian. Stored as a BLOB rather than
+ * in a vector database: a few hundred documents at ~5 chunks each is under a megabyte of
+ * floats, and brute-force cosine over that is sub-millisecond. A vector store would be
+ * infrastructure without a problem to solve.
+ */
+@Entity(
+    tableName = "document_chunks",
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("documentId")],
+)
+data class DocumentChunkEntity(
+    @PrimaryKey val id: String,
+    val documentId: String,
+    val ordinal: Int,
+    val text: String,
+    val embedding: ByteArray?,
+    /** Which model produced [embedding]; vectors from different models are incomparable. */
+    val embeddingModelId: String?,
+    val createdAt: Long,
+    /** Which page this passage came from — null for a chunk indexed before 4.0. */
+    val pageNumber: Int? = null,
+) {
+    // ByteArray uses identity equality, so a data class would compare embeddings by
+    // reference and silently report equal rows as different.
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is DocumentChunkEntity) return false
+        return id == other.id &&
+            documentId == other.documentId &&
+            ordinal == other.ordinal &&
+            text == other.text &&
+            embeddingModelId == other.embeddingModelId &&
+            createdAt == other.createdAt &&
+            pageNumber == other.pageNumber &&
+            (embedding?.contentEquals(other.embedding) ?: (other.embedding == null))
+    }
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + documentId.hashCode()
+        result = 31 * result + ordinal
+        result = 31 * result + text.hashCode()
+        result = 31 * result + (embedding?.contentHashCode() ?: 0)
+        result = 31 * result + (embeddingModelId?.hashCode() ?: 0)
+        result = 31 * result + createdAt.hashCode()
+        result = 31 * result + (pageNumber ?: 0)
+        return result
+    }
+}

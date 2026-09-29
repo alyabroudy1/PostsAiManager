@@ -16,4 +16,6 @@ data class DocumentPage(
     val ocrConfidence: Float? = null,
     val width: Int = 0,
     val height: Int = 0,
+    /** Positioned OCR blocks (normalised bounds); empty when the page has none stored. */
+    val ocrBlocks: List<OcrBlock> = emptyList(),
 )

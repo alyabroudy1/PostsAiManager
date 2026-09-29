@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
@@ -51,6 +52,7 @@ object PamIcons {
     val Back = Icons.AutoMirrored.Filled.ArrowBack
     val Close = Icons.Filled.Close
     val Delete = Icons.Filled.Delete
+    val Restore = Icons.Filled.RestoreFromTrash
     val Edit = Icons.Filled.Edit
     val Search = Icons.Filled.Search
     val Filter = Icons.Filled.FilterList

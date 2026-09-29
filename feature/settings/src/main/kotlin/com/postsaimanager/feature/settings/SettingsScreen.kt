@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.postsaimanager.core.designsystem.component.ConfigSpecItem
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.AppTheme
@@ -41,9 +42,12 @@ import com.postsaimanager.core.model.AppTheme
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
+    onManageModelsClick: () -> Unit = {},
+    onRecentlyDeletedClick: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
+    val inferenceSettings by viewModel.inferenceSettings.collectAsStateWithLifecycle()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
 
@@ -78,6 +82,44 @@ fun SettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // ── AI ──
+            SettingsSectionHeader("AI")
+            SettingsClickItem(
+                icon = PamIcons.AiModel,
+                title = "AI models",
+                subtitle = "Download and manage on-device models",
+                onClick = onManageModelsClick,
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // ── On-device AI ──
+            SettingsSectionHeader("On-device AI")
+            if (inferenceSettings.schema.isEmpty()) {
+                Text(
+                    text = "Install a model to configure it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            } else {
+                inferenceSettings.schema.forEach { spec ->
+                    ConfigSpecItem(
+                        spec = spec,
+                        overrides = inferenceSettings.overrides,
+                        onValueChange = { value -> viewModel.setInferenceSetting(spec.key, value) },
+                    )
+                }
+                SettingsClickItem(
+                    icon = PamIcons.Settings,
+                    title = "Reset to defaults",
+                    subtitle = "Clear every custom AI setting above",
+                    onClick = viewModel::resetInference,
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
             // ── Processing ──
             SettingsSectionHeader("Document Processing")
             SettingsSwitchItem(
@@ -86,6 +128,12 @@ fun SettingsScreen(
                 subtitle = "Run OCR and extraction automatically",
                 checked = prefs.autoProcessAfterScan,
                 onCheckedChange = viewModel::setAutoProcess,
+            )
+            SettingsClickItem(
+                icon = PamIcons.Delete,
+                title = "Recently deleted",
+                subtitle = "Restore or permanently delete documents",
+                onClick = onRecentlyDeletedClick,
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -271,3 +319,4 @@ private fun ChoiceDialog(
         },
     )
 }
+

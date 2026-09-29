@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,9 +31,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,6 +59,8 @@ import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.ProcessingStage
+import com.postsaimanager.core.model.ProcessingState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,11 +71,30 @@ fun DocumentsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val processingState by viewModel.processingState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    // The write already happened when the row was swiped away (optimistic, same shape as the
+    // detail screen's delete) — the id just drives the confirmation snackbar's Undo target.
+    var pendingUndoId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(pendingUndoId) {
+        val id = pendingUndoId ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = "Document moved to Recently deleted",
+            actionLabel = "Undo",
+            duration = SnackbarDuration.Long,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.onRestoreDocument(id)
+        }
+        pendingUndoId = null
+    }
 
     Scaffold(
         topBar = {
             PamTopAppBar(title = "Documents")
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
     ) { innerPadding ->
         Column(
@@ -117,11 +151,20 @@ fun DocumentsScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(state.documents, key = { it.id }) { document ->
-                            DocumentListItem(
-                                document = document,
-                                onClick = { onDocumentClick(document.id) },
-                                onFavoriteClick = { viewModel.onToggleFavorite(document.id) },
-                            )
+                            SwipeToDeleteRow(
+                                onDelete = {
+                                    viewModel.onDeleteDocument(document.id)
+                                    pendingUndoId = document.id
+                                },
+                            ) {
+                                DocumentListItem(
+                                    document = document,
+                                    runningState = (processingState as? ProcessingState.Running)
+                                        ?.takeIf { it.documentId == document.id },
+                                    onClick = { onDocumentClick(document.id) },
+                                    onFavoriteClick = { viewModel.onToggleFavorite(document.id) },
+                                )
+                            }
                         }
                     }
                 }
@@ -130,9 +173,56 @@ fun DocumentsScreen(
     }
 }
 
+/**
+ * Swipe-in-either-direction-to-trash for a single row. `SwipeToDismissBoxValue.StartToEnd`
+ * and `.EndToStart` are both wired to delete — direction isn't semantically meaningful here,
+ * only "the user swiped it away" — matching the platform's usual one-gesture-one-action swipe
+ * pattern. The write is optimistic: dismissal fires [onDelete] immediately rather than waiting
+ * for a confirmation, since the caller's Undo snackbar is the confirmation.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeToDeleteRow(
+    onDelete: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value != SwipeToDismissBoxValue.Settled) onDelete()
+            true
+        },
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 20.dp),
+                contentAlignment = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                    Alignment.CenterEnd
+                } else {
+                    Alignment.CenterStart
+                },
+            ) {
+                Icon(
+                    PamIcons.Delete,
+                    contentDescription = "Delete",
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        },
+    ) {
+        content()
+    }
+}
+
 @Composable
 private fun DocumentListItem(
     document: Document,
+    /** Non-null only when this document is the one currently being read/understood. */
+    runningState: ProcessingState.Running?,
     onClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -164,7 +254,7 @@ private fun DocumentListItem(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${document.status.name.lowercase().replaceFirstChar { it.uppercase() }} · ${document.createdAt.toFormattedDate()}",
+                    text = "${document.statusLabel(runningState)} · ${document.createdAt.toFormattedDate()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -180,4 +270,27 @@ private fun DocumentListItem(
             }
         }
     }
+}
+
+/**
+ * The generic `document.status.name` reads fine for every status ([DocumentStatus.QUEUED]
+ * included — "Queued" needs no special case), except `PROCESSING`: real progress is worth
+ * more than a static word when it is cheaply available, which it is here since [Documents
+ * ViewModel] already surfaces the pipeline's [ProcessingState].
+ */
+private fun Document.statusLabel(runningState: ProcessingState.Running?): String {
+    if (status == DocumentStatus.PROCESSING && runningState != null) {
+        return when (runningState.stage) {
+            ProcessingStage.READ -> if (runningState.currentPage != null && runningState.totalPages != null) {
+                "Reading page ${runningState.currentPage}/${runningState.totalPages}"
+            } else {
+                "Reading…"
+            }
+            ProcessingStage.UNDERSTAND -> "Analysing…"
+            ProcessingStage.LINK -> "Matching profiles…"
+            ProcessingStage.INDEX -> "Indexing…"
+            ProcessingStage.CAPTURE -> "Preparing…"
+        }
+    }
+    return status.name.lowercase().replaceFirstChar { it.uppercase() }
 }

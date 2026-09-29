@@ -2,8 +2,10 @@ package com.postsaimanager.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.GetDocumentsUseCase
 import com.postsaimanager.core.model.Document
+import com.postsaimanager.core.model.ProcessingState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,7 +18,12 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     getDocumentsUseCase: GetDocumentsUseCase,
+    documentProcessor: DocumentProcessor,
 ) : ViewModel() {
+
+    /** See `DocumentsViewModel.processingState` — same idea, for the recent-documents list. */
+    val processingState: StateFlow<ProcessingState> = documentProcessor.processingState
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProcessingState.Idle)
 
     val uiState: StateFlow<HomeUiState> =
         getDocumentsUseCase()

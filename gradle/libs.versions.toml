@@ -1,4 +1,5 @@
 [versions]
+onnxruntime = "1.24.3"
 # Core
 agp = "8.7.3"
 kotlin = "2.1.0"
@@ -45,7 +46,10 @@ mlkitEntityExtraction = "16.0.0-beta5"
 
 # UI
 coil = "3.0.4"
-composeMarkdown = "0.22.0"
+# multiplatform-markdown-renderer-m3: latest release from 0.45.0 down that still declares a
+# kotlin-stdlib runtime requirement matching this project's pinned kotlin = "2.1.0" (0.33.0+
+# requires 2.1.20+); bumping kotlin later can move this forward too.
+composeMarkdown = "0.30.0"
 lottieCompose = "6.6.2"
 
 # Google Services
@@ -68,6 +72,8 @@ turbine = "1.2.0"
 mockk = "1.13.13"
 robolectric = "4.14.1"
 truth = "1.4.4"
+# Latest stable per Maven Central as of 2026-09-18 (no release since Dec 2024 — see report).
+konsist = "0.17.3"
 
 # AndroidX
 coreKtx = "1.15.0"
@@ -75,6 +81,7 @@ appcompat = "1.7.0"
 material = "1.12.0"
 
 [libraries]
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 # Compose BOM
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 compose-ui = { group = "androidx.compose.ui", name = "ui" }
@@ -161,6 +168,7 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
+konsist = { group = "com.lemonappdev", name = "konsist", version.ref = "konsist" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

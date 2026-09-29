@@ -37,4 +37,12 @@ enum class TimelineEventType {
     DOCUMENT_MODIFIED,
     DEADLINE_SET,
     REMINDER_SET,
+
+    /**
+     * A processing run ended without extracting anything — see
+     * [com.postsaimanager.core.model.DocumentStatus.FAILED]. [TimelineEvent.data] carries a
+     * short machine-readable reason code (`"no_pages"`, `"error"`) the detail screen can
+     * branch on; [TimelineEvent.description] carries the human-readable detail.
+     */
+    PROCESSING_FAILED,
 }
