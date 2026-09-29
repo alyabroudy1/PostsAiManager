@@ -1,15 +1,15 @@
 {
   "metrics": {
-    "recall.all": 0.9362,
+    "recall.all": 0.9681,
     "recall.DATE": 0.9737,
     "recall.DATETIME": 1.0000,
-    "recall.RELATIVE_DEADLINE": 1.0000,
     "recall.AMOUNT": 0.9600,
-    "recall.IBAN": 0.8750,
-    "recall.REFERENCE": 0.8500,
+    "recall.IBAN": 1.0000,
+    "recall.REFERENCE": 0.9500,
+    "recall.RELATIVE_RULE": 1.0000,
     "noise.hits": 0.0000,
-    "zone.addressee": 0.9000,
+    "zone.addressee": 1.0000,
     "zone.sender": 1.0000,
-    "leak.senderInAddress": 3.0000
+    "leak.senderInAddress": 0.0000
   }
 }
