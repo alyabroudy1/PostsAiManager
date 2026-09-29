@@ -212,7 +212,9 @@ object LetterLayoutAnalyzer {
         var field: List<Work> = emptyList()
         for (cand in pool.filter { isReturnAddressLine(it, medianHeight) }) {
             val below = collectDown(cand, pool)
-            if (below.size >= 2) {
+            // A real address stack ends in a "PLZ Ort" line; a subject line that happens to look like a
+            // return line has body text under it, which never does.
+            if (below.size >= 2 && below.any { isPostcodeLine(it.text) }) {
                 returnLine = cand
                 field = below
                 break
@@ -221,9 +223,13 @@ object LetterLayoutAnalyzer {
         if (returnLine == null) {
             field = fallbackField(pool)
             // A small line with a digit run directly above the stack is the return-address line, even
-            // when OCR dropped its separators or fused the street and the postcode.
+            // when OCR dropped its separators or fused the street and the postcode. So is a first line
+            // that holds a postcode-like run when the stack ends in a postcode line of its own: an
+            // addressee block has one, so the first line is the sender's address (font size is a weak
+            // signal on a page full of small print).
             val first = field.firstOrNull()
-            if (first != null && field.size >= 3 && first.text.length in 15..120 && isSmallWithDigitRun(first, medianHeight)) {
+            val secondPostcode = first != null && (DIGIT_RUN.containsMatchIn(first.text) || ALNUM_POSTCODE.containsMatchIn(first.text)) && field.drop(1).any { isPostcodeLine(it.text) }
+            if (first != null && field.size >= 3 && first.text.length in 15..120 && (isSmallWithDigitRun(first, medianHeight) || secondPostcode)) {
                 // the stack walk already took it in: it is the small first line of the stack
                 returnLine = first
                 field = field.drop(1)

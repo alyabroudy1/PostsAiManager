@@ -184,6 +184,17 @@ class LayoutKeywordFreeTest {
     }
 
     @Test
+    fun `a fused first line with its own postcode is the return line even at the normal font size`() {
+        val fused = german.returnLine.replace(" · ", " ").replace("Beispielweg 7", "Beispielweg 512345")
+        val w = Words(
+            german.letterhead, fused, german.address, german.info, german.subject, german.salutation, german.body, german.footer, german.closing,
+        )
+        val l = LetterLayoutAnalyzer.analyze(listOf(page(w, smallReturnLine = false)))
+        assertThat(l.zone(LetterZone.RETURN_ADDRESS_LINE).map { it.text }).containsExactly(fused)
+        assertThat(l.zone(LetterZone.ADDRESS_FIELD).map { it.text }).containsExactlyElementsIn(german.address).inOrder()
+    }
+
+    @Test
     fun `without a return line the company line above a routing line stays in the address field`() {
         val address = listOf("Mustermann Consulting GmbH", "z. Hd. Frau Erika Mustermann", "Gewerbering 4", "54321 Beispieldorf")
         val out = mutableListOf<OcrBlock>()
