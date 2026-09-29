@@ -16,7 +16,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -88,7 +91,7 @@ internal fun CitationPreviewDialog(
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             val preview = state.preview
-            Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+            Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))) {
                 if (preview == null) {
                     PreviewHeader(title = state.source.title ?: "Document preview", onClose = onClose)
                     Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -128,15 +131,11 @@ private fun ColumnScope.PreviewPager(
         title = "${preview.title} · Page ${pagerState.currentPage + 1} of ${pages.size}",
         onClose = onClose,
     )
-    HorizontalPager(state = pagerState, modifier = Modifier.weight(1f).fillMaxWidth()) { index ->
-        ZoomablePage(
-            page = pages[index],
-            description = "Page ${index + 1} of ${pages.size} of ${preview.title}",
-        )
-    }
+    // Above the pager, not below it: a Dialog window does not always get navigation-bar
+    // insets, and a bottom button would sit under the 3-button bar.
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.Start,
     ) {
         OutlinedButton(
             onClick = {
@@ -150,6 +149,15 @@ private fun ColumnScope.PreviewPager(
             },
         ) { Text("Open document") }
     }
+    HorizontalPager(
+        state = pagerState,
+        modifier = Modifier.weight(1f).fillMaxWidth().navigationBarsPadding(),
+    ) { index ->
+        ZoomablePage(
+            page = pages[index],
+            description = "Page ${index + 1} of ${pages.size} of ${preview.title}",
+        )
+    }
 }
 
 @Composable
@@ -161,7 +169,7 @@ private fun PreviewHeader(title: String, onClose: () -> Unit) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
