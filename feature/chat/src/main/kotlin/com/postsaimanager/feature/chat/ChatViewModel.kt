@@ -12,10 +12,10 @@ import com.postsaimanager.core.domain.usecase.DocumentPreview
 import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
 import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.ObserveInstalledModelsUseCase
+import com.postsaimanager.core.domain.usecase.ObserveSuggestedQuestionsUseCase
 import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.SelectActiveModelUseCase
 import com.postsaimanager.core.domain.usecase.SendChatMessageUseCase
-import com.postsaimanager.core.domain.usecase.SuggestedChatQuestions
 import com.postsaimanager.core.domain.usecase.UnblockGpuUseCase
 import com.postsaimanager.core.domain.usecase.UpdateInferenceSettingUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
@@ -53,6 +53,7 @@ class ChatViewModel @Inject constructor(
     private val resetInferenceSettings: ResetInferenceSettingsUseCase,
     private val unblockGpu: UnblockGpuUseCase,
     private val getDocumentPreview: GetDocumentPreviewUseCase,
+    private val observeSuggestedQuestions: ObserveSuggestedQuestionsUseCase,
 ) : ViewModel() {
 
     private val _preview = MutableStateFlow<CitationPreviewState?>(null)
@@ -139,24 +140,18 @@ class ChatViewModel @Inject constructor(
     private var generationJob: Job? = null
 
     /**
-     * Starter questions for the empty-conversation state (5.2) — see [SuggestedChatQuestions].
-     * Document chat re-derives these from [DocumentRepository.observeExtractedData] as
-     * extraction fills fields in, so a chat opened right after scanning (no fields yet) picks
-     * up the deadline/amount-specific questions the moment they appear, without the screen
-     * needing to be reopened. Standalone chat has no per-document fields to react to, so it
-     * is computed once.
+     * Starter questions for the empty-conversation state (5.2) — the three the model wrote for the
+     * document while it read it, see [ObserveSuggestedQuestionsUseCase]. A document chat picks them
+     * up the moment extraction stores them; the all-documents chat shows those of the most recent
+     * actionable document, or nothing (there is no static fallback list).
      */
-    val suggestedQuestions: StateFlow<List<String>> = if (documentId != null) {
-        documentRepository.observeExtractedData(documentId)
-            .map { fields -> SuggestedChatQuestions.forDocument(fields) }
+    val suggestedQuestions: StateFlow<List<String>> =
+        (if (documentId != null) observeSuggestedQuestions.forDocument(documentId) else observeSuggestedQuestions.forAllDocuments())
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
                 initialValue = emptyList(),
             )
-    } else {
-        MutableStateFlow(SuggestedChatQuestions.forStandaloneChat()).asStateFlow()
-    }
 
     init {
         restoreHistory()
