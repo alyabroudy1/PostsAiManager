@@ -1,0 +1,99 @@
+{
+ "key": "english-ambiguous-3p",
+ "interpreter": "single",
+ "pages": 3,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Northwind Utilities Ltd.",
+   "normalized": "Northwind Utilities Ltd.",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Mr John Sample",
+   "normalized": "Mr John Sample",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "26 September 2026",
+   "normalized": "2026-09-26",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "10 October 2026",
+   "normalized": "2026-10-10",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "1 November 2026",
+   "normalized": "2026-11-01",
+   "page": 3
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "£142.80",
+   "normalized": "142.80 GBP",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "£57.00",
+   "normalized": "57.00 GBP",
+   "page": 3
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "NU-77120934",
+   "normalized": "NU-77120934",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "NU\/REM\/2026\/03318",
+   "normalized": "NU\/REM\/2026\/03318",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "00000000",
+   "normalized": "00000000",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "0000 000 0000",
+   "normalized": "0000 000 0000",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "help@northwind.example",
+   "normalized": "help@northwind.example",
+   "page": 1
+  }
+ ],
+ "call1": "{\"type\":\"outgoing_letter\",\"tc\":\"HIGH\",\"lang\":\"en\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M1\",\"n\":\"Northwind Utilities Ltd.\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M2\",\"n\":\"Mr John Sample\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"Mia Beispiel\",\"n\":\"Mia Beispiel\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"}],\"s\":{\"letter_date\":{\"id\":\"D1\",\"r\":\"LETTER_DATE\",\"c\":\"HIGH\"},\"total\":{\"id\":\"A1\",\"r\":\"FEE\",\"c\":\"HIGH\"},\"due_date\":{\"id\":\"D2\",\"r\":\"DEADLINE\",\"c\":\"HIGH\"},\"iban\":\"NONE\",\"reference\":\"NONE\",\"customer_no\":\"NONE\",\"recipient_org\":\"NONE\",\"sent_date\":\"NONE\",\"action_kind\":\"NONE\",\"cited_references\":\"NONE\"},\"x\":[{\"lb\":\"Tel\",\"k\":\"tel\",\"id\":\"NONE\",\"v\":\"0000 000 0000\",\"c\":\"MEDIUM\"},{\"lb\":\"help@northwind.example\",\"k\":\"email\",\"id\":\"NONE\",\"v\":\"help@northwind.example\",\"c\":\"MEDIUM\"},{\"lb\":\"00000000\",\"k\":\"phone\",\"id\":\"NONE\",\"v\":\"00000000\",\"c\":\"MEDIUM\"},{\"lb\":\"00000000\",\"k\":\"phone\",\"id\":\"NONE\",\"v\":\"00000000\",\"c\":\"MEDIUM\"},{\"lb\":\"00000000\",\"k\":\"phone\",\"id\":\"NONE\",\"v\":\"00000000\",\"c\":\"MEDIUM\"},{\"lb\":\"00000000\",\"k\":\"phone\",\"id\":\"NONE\",\"v\":\"00000000\",\"c\":\"MEDIUM\"}] }",
+ "call1Ms": 52234,
+ "call2Ms": 21827,
+ "layoutTextChars": 3801,
+ "call2": "{\"other\": \"letter\", \"title\": \"Letter from Northwind Utilities Ltd.\", \"subject\": \"Overdue gas and electricity account\", \"summary\": \"Mr. Sample must reply to this letter by 10 October 2026 to resolve an overdue gas and electricity account balance of £142.80.\", \"qs\": [\"Who is the sender?\", \"What is the deadline for the reply?\", \"How is the payment plan structured?\"]}",
+ "wallMs": 74473,
+ "model": "text.gguf"
+}

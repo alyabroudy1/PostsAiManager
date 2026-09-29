@@ -1,0 +1,295 @@
+{
+ "key": "N6-nebenkosten-3p",
+ "interpreter": "single",
+ "pages": 3,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Mohammad Mustermann",
+   "normalized": "Mohammad Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Kostenart",
+   "normalized": "Kostenart",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Hausverwaltung Beispiel GmbH",
+   "normalized": "Hausverwaltung Beispiel GmbH",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "BIC COBADEFFXXX",
+   "normalized": "BIC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Gesamtkosten Haus € Schlüssel",
+   "normalized": "Gesamtkosten Haus € Schlüssel",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Frau H. Muster",
+   "normalized": "Frau H. Muster",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "Ihr Anteil €",
+   "normalized": "Ihr Anteil €",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "01.01.2025",
+   "normalized": "2025-01-01",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "31.12.2025",
+   "normalized": "2025-12-31",
+   "page": 1
+  },
+  {
+   "id": "D5",
+   "kind": "DATE",
+   "raw": "22.09.2026",
+   "normalized": "2026-09-22",
+   "page": 1
+  },
+  {
+   "id": "D6",
+   "kind": "DATE",
+   "raw": "31.10.2026",
+   "normalized": "2026-10-31",
+   "page": 3
+  },
+  {
+   "id": "D7",
+   "kind": "DATE",
+   "raw": "01.11.2026",
+   "normalized": "2026-11-01",
+   "page": 3
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "2.499,20",
+   "normalized": "2499.20 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "3.425,20",
+   "normalized": "3425.20 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "2.414,16",
+   "normalized": "2414.16 EUR",
+   "page": 1
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "1.497.60",
+   "normalized": "1497.60 EUR",
+   "page": 1
+  },
+  {
+   "id": "A5",
+   "kind": "AMOUNT",
+   "raw": "7.476,80",
+   "normalized": "7476.80 EUR",
+   "page": 1
+  },
+  {
+   "id": "A6",
+   "kind": "AMOUNT",
+   "raw": "312,40",
+   "normalized": "312.40 EUR",
+   "page": 1
+  },
+  {
+   "id": "A7",
+   "kind": "AMOUNT",
+   "raw": "428,15",
+   "normalized": "428.15 EUR",
+   "page": 1
+  },
+  {
+   "id": "A8",
+   "kind": "AMOUNT",
+   "raw": "301,77",
+   "normalized": "301.77 EUR",
+   "page": 1
+  },
+  {
+   "id": "A11",
+   "kind": "AMOUNT",
+   "raw": "1.972,00",
+   "normalized": "1972.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A12",
+   "kind": "AMOUNT",
+   "raw": "1.587,52",
+   "normalized": "1587.52 EUR",
+   "page": 2
+  },
+  {
+   "id": "A13",
+   "kind": "AMOUNT",
+   "raw": "709,28",
+   "normalized": "709.28 EUR",
+   "page": 2
+  },
+  {
+   "id": "A14",
+   "kind": "AMOUNT",
+   "raw": "340,80",
+   "normalized": "340.80 EUR",
+   "page": 2
+  },
+  {
+   "id": "A15",
+   "kind": "AMOUNT",
+   "raw": "688,00",
+   "normalized": "688.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A16",
+   "kind": "AMOUNT",
+   "raw": "246,50",
+   "normalized": "246.50 EUR",
+   "page": 2
+  },
+  {
+   "id": "A17",
+   "kind": "AMOUNT",
+   "raw": "198,44",
+   "normalized": "198.44 EUR",
+   "page": 2
+  },
+  {
+   "id": "A18",
+   "kind": "AMOUNT",
+   "raw": "88,66",
+   "normalized": "88.66 EUR",
+   "page": 2
+  },
+  {
+   "id": "A22",
+   "kind": "AMOUNT",
+   "raw": "220,00 €",
+   "normalized": "220.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A23",
+   "kind": "AMOUNT",
+   "raw": "186,32 €",
+   "normalized": "186.32 EUR",
+   "page": 3
+  },
+  {
+   "id": "A25",
+   "kind": "AMOUNT",
+   "raw": "245,00 €",
+   "normalized": "245.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A27",
+   "kind": "AMOUNT",
+   "raw": "2.640,00",
+   "normalized": "2640.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "Z1",
+   "kind": "NUMBER",
+   "raw": "3.01",
+   "normalized": "3.01",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "BK-2025-0318",
+   "normalized": "BK-2025-0318",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 300 100",
+   "normalized": "01234 300 100",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "01234 300 120",
+   "normalized": "01234 300 120",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "info@hv-beispiel.example",
+   "normalized": "info@hv-beispiel.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "{\"type\":\"authority_tax\",\"tc\":\"MEDIUM\",\"lang\":\"de\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M1\",\"n\":\"Mohammad Mustermann\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M2\",\"n\":\"Kostenart\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Hausverwaltung Beispiel GmbH\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ROUTING\",\"id\":\"M5\",\"n\":\"BIC COBADEFFXXX\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"CARE_OF\",\"id\":\"M6\",\"n\":\"Gesamtkosten Haus € Schlüssel\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M7\",\"n\":\"Frau H. Muster\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M8\",\"n\":\"Ihr Anteil €\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D1\",\"n\":\"01.01.2025\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D2\",\"n\":\"31.12.2025\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D5\",\"n\":\"22.09.2026\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D6\",\"n\":\"31.10.2026\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D7\",\"n\":\"01.11.2026\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A1\",\"n\":\"2.499,20\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A2\",\"n\":\"3.425,20\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A3\",\"n\":\"2.414,16\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A4\",\"n\":\"1.497.60\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A5\",\"n\":\"7.476,80\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A6\",\"n\":\"312,40\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A7\",\"n\":\"428,15\",\"k\":\"OTHER\",\"rel\":\"",
+ "call1Ms": 68767,
+ "call2Ms": 18317,
+ "layoutTextChars": 3127,
+ "call2": "{\"other\": \"letter\", \"title\": \"Business Letter\", \"subject\": \"Beitragsabrechnung\", \"summary\": \"This is a business letter from Hausverwaltung Beispiel GmbH regarding a Betriebskostenabrechnung (business expense reimbursement) for a tenant named Mohammad Mustermann. The letter details the total expenses for the year 2025 and provides payment instructions for the final amount.\", \"qs\": [\"Who is the sender?\", \"What is the purpose of the letter?\", \"How can I pay the remaining balance?\"]}",
+ "wallMs": 87426,
+ "model": "text.gguf"
+}

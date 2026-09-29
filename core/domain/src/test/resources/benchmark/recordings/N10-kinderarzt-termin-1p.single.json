@@ -1,0 +1,106 @@
+{
+ "key": "N10-kinderarzt-termin-1p",
+ "interpreter": "single",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Kinder- und Jugendarztpraxis Beispiel",
+   "normalized": "Kinder- und Jugendarztpraxis Beispiel",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Erziehungsberechtigte von",
+   "normalized": "Erziehungsberechtigte von",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Adam Mustermann",
+   "normalized": "Adam Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Terminerinnerung für Adam Mustermann",
+   "normalized": "Terminerinnerung für Adam Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Anna Beispiel",
+   "normalized": "Anna Beispiel",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Beispiel",
+   "normalized": "Beispiel",
+   "page": 1
+  },
+  {
+   "id": "DT1",
+   "kind": "DATETIME",
+   "raw": "12.11.2026 um 09:30",
+   "normalized": "2026-11-12T09:30",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "25.09.2026",
+   "normalized": "2026-09-25",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "512345",
+   "normalized": "512345",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "00-12",
+   "normalized": "00-12",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "15-00-17",
+   "normalized": "15-00-17",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 700 20",
+   "normalized": "01234 700 20",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "praxis@kinderarzt-beispiel.example",
+   "normalized": "praxis@kinderarzt-beispiel.example",
+   "page": 1
+  }
+ ],
+ "call1": "{\"type\":\"outgoing_letter\",\"tc\":\"HIGH\",\"lang\":\"de\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M1\",\"n\":\"Kinder- und Jugendarztpraxis Beispiel\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M2\",\"n\":\"Erziehungsberechtigte von\",\"k\":\"PERSON\",\"rel\":\"HOUSEHOLD\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Adam Mustermann\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ROUTING\",\"id\":\"M4\",\"n\":\"Terminerinnerung für Adam Mustermann\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"CARE_OF\",\"id\":\"M6\",\"n\":\"Anna Beispiel\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M7\",\"n\":\"Beispiel\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"DT1\",\"n\":\"12.11.2026 um 09:30\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D1\",\"n\":\"25.09.2026\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N1\",\"n\":\"512345\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N2\",\"n\":\"00-12\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N3\",\"n\":\"15-00-17\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"T1\",\"n\":\"01234 700 20\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"E1\",\"n\":\"praxis@kinderarzt-beispiel.example\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"}],\"s\":{\"letter_date\":{\"id\":\"DT1\",\"r\":\"EVENT\",\"c\":\"HIGH\"},\"total\": \"NONE\",\"due_date\":{\"id\":\"D1\",\"r\":\"DEADLINE\",\"c\":\"HIGH\"},\"iban\":\"NONE\",\"reference\":\"NONE\",\"customer_no\":\"NONE\",\"recipient_org\": \"NONE\",\"sent_date\": \"NONE\",\"action_kind\": \"NONE\",\"cited_references\": \"NONE\"},\"x\":[{\"lb\":\"Klasse\",\"k\":\"school_class\",\"id\":\"NONE\",\"v\":\"NONE\",\"c\":\"MEDIUM\"},{\"lb\":\"Telefon\",\"k\":\"phone_number\",\"id\":\"T1\",\"v\":\"01234 700 20\",\"c\":\"MEDIUM\"},{\"lb\":\"Gesundheitsweg\",\"k\":\"street_address\",\"id\":\"NONE\",\"v\":\"512345\",\"c\":\"MEDIUM\"},{\"lb\":\"Beispield",
+ "call1Ms": 62810,
+ "call2Ms": 13388,
+ "layoutTextChars": 1255,
+ "call2": "{\"other\": \"letter\", \"title\": \"Medical Reminder Letter\", \"subject\": \"Terminerinnerung für Adam Mustermann\", \"summary\": \"This is a medical reminder letter from Dr. A. Beispiel asking Adam Mustermann to bring his insurance card to a scheduled appointment on November 12, 2026, and to call the clinic if he cannot attend.\", \"qs\": [\"What should Adam Mustermann do if he cannot attend the appointment?\", \"When should he call the clinic if he cannot attend the appointment?\", \"What is the deadline for calling the clinic if he cannot attend the appointment?\"]}",
+ "wallMs": 76337,
+ "model": "text.gguf"
+}

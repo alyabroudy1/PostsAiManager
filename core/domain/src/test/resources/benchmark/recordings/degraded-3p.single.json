@@ -1,0 +1,162 @@
+{
+ "key": "degraded-3p",
+ "interpreter": "single",
+ "pages": 3,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Stadtwerke Beispielstadt",
+   "normalized": "Stadtwerke Beispielstadt",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Zeitraum",
+   "normalized": "Zeitraum",
+   "page": 2
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "01.12.2026",
+   "normalized": "2026-12-01",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "25.09.2026",
+   "normalized": "2026-09-25",
+   "page": 1
+  },
+  {
+   "id": "D4",
+   "kind": "DATE",
+   "raw": "01.10.2025",
+   "normalized": "2025-10-01",
+   "page": 2
+  },
+  {
+   "id": "D5",
+   "kind": "DATE",
+   "raw": "30.09.2026",
+   "normalized": "2026-09-30",
+   "page": 2
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "89,00 €",
+   "normalized": "89.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "74,00 €",
+   "normalized": "74.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "888,00",
+   "normalized": "888.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "1.068.00",
+   "normalized": "1068.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 2
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "3300 5521 08",
+   "normalized": "3300 5521 08",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "1EMHO000123456",
+   "normalized": "1EMH0000123456",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "DE00Z7Z00000000000",
+   "normalized": "DE00Z7Z00000000000",
+   "page": 1
+  },
+  {
+   "id": "N5",
+   "kind": "REFERENCE",
+   "raw": "2026\/27",
+   "normalized": "2026\/27",
+   "page": 2
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "DEO0ZZZ0000000o000",
+   "normalized": "DE00ZZZ00000000000",
+   "page": 2
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "3-12345",
+   "normalized": "3-12345",
+   "page": 3
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 000111",
+   "normalized": "01234 000111",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "0532 0130 00",
+   "normalized": "0532 0130 00",
+   "page": 2
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "kundenservice@stadtwerke-beispiel.example",
+   "normalized": "kundenservice@stadtwerke-beispiel.example",
+   "page": 1
+  }
+ ],
+ "call1": "{\"type\":\"outgoing_letter\",\"tc\":\"HIGH\",\"lang\":\"de\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M1\",\"n\":\"Stadtwerke Beispielstadt\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M2\",\"n\":\"Erika Mustermann\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Zeitraum\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"ROUTING\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"CARE_OF\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"}],\"s\":{\"letter_date\":{\"id\":\"D1\",\"r\":\"LETTER_DATE\",\"c\":\"HIGH\"},\"total\":{\"id\":\"A1\",\"r\":\"FEE\",\"c\":\"HIGH\"},\"due_date\":{\"id\":\"D3\",\"r\":\"DEADLINE\",\"c\":\"HIGH\"},\"iban\":\"NONE\",\"reference\":\"NONE\",\"customer_no\":\"NONE\",\"recipient_org\":\"NONE\",\"sent_date\":\"NONE\",\"action_kind\":\"NONE\",\"cited_references\":\"NONE\"},\"x\":[{\"lb\":\"Tel\",\"k\":\"tel\",\"id\":\"NONE\",\"v\":\"01234 000111\",\"c\":\"MEDIUM\"},{\"lb\":\"Kundenzentrum\",\"k\":\"kundeservice\",\"id\":\"NONE\",\"v\":\"montags bis freitags von 8 bis 17 Uhr\",\"c\":\"MEDIUM\"},{\"lb\":\"Kunde\",\"k\":\"kunde\",\"id\":\"NONE\",\"v\":\"3300 5521 08\",\"c\":\"MEDIUM\"},{\"lb\":\"Vertragskonto\",\"k\":\"vertragskonto\",\"id\":\"NONE\",\"v\":\"3300 5521 08\",\"c\":\"MEDIUM\"},{\"lb\":\"Zählernummer\",\"k\":\"zhaernummer\",\"id\":\"NONE\",\"v\":\"1EMHO000123456\",\"c\":\"MEDIUM\"},{\"lb\":\"IBAN\",\"k\":\"iban\",\"id\":\"NONE\",\"v\":\"DE89 3704 0044 0532 0130 00\",\"c\":\"MEDIUM\"},{\"lb\":\"Kontoinhaberin\",\"k\":\"kontoinhaberin\",\"id\":\"NONE\",\"v\":\"Erika Mustermann\",\"c\":\"MEDIUM\"},{\"lb\":\"Glaubiger-HD\",\"k\":\"glaeberhd\",\"id\":\"NONE\",\"v\":\"DEO0ZZZ00000000000\",\"c\":\"MEDIUM\"},{\"lb\":\"Zeitraum\",\"k\":\"zeitraum\",\"id\":\"NONE\",\"v\":\"2026\/27\",\"c\":\"MEDIUM\"},{\"lb\":\"Prognose\",\"k\":\"prognose\",\"id\":\"NONE\",\"v\":\"2026\/",
+ "call1Ms": 65515,
+ "call2Ms": 16785,
+ "layoutTextChars": 2371,
+ "call2": "{\"other\": \"letter\", \"title\": \"Letter from Stadtwerke Beispielstadt\", \"subject\": \"Change in electricity bill\", \"summary\": \"The letter informs the reader that the monthly electricity bill will increase by 89.00 € starting from December 1, 2026, and asks for confirmation of the SEPA payment method.\", \"qs\": [\"Who is the sender?\", \"What is the new bill amount?\", \"How should the payment be made?\"]}",
+ "wallMs": 82542,
+ "model": "text.gguf"
+}

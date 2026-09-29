@@ -33,6 +33,19 @@ class ExtractionBenchmarkTest {
                 ),
             )
         }
+        // Per letter and interpreter, so a recording set can be compared letter by letter.
+        val recs = Recordings.load(RECORDINGS)
+        for ((m, f) in loaded.docs) {
+            for ((variant, group) in recs.groupBy { it.variant }) {
+                val s = InterpreterMetrics.score(variant, listOf(m to f), group.filter { it.key == m.key }) ?: continue
+                println(
+                    String.format(
+                        Locale.ROOT, "BENCHMARK letter[%s][%s] fieldMatch=%.3f roles=%.3f hallucination=%.3f extras=%.2f seconds=%s",
+                        m.key, variant, s.fieldMatch, s.rolesMatch, s.hallucination, s.extrasPerDoc, s.secondsPerDoc?.let { "%.1f".format(Locale.ROOT, it) } ?: "-",
+                    ),
+                )
+            }
+        }
         if (System.getProperty("benchmark.writeBaseline") == "true" || System.getenv("BENCHMARK_WRITE_BASELINE") == "true") {
             val f = File("build/benchmark/baseline.candidate.json")
             f.writeText(BaselineFile.render(report.metrics))

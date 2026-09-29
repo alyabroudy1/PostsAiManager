@@ -1,0 +1,218 @@
+{
+ "key": "tax-long-7p",
+ "interpreter": "single",
+ "pages": 7,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Finanzamt Beispielstadt",
+   "normalized": "Finanzamt Beispielstadt",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Festsetzung der Einkommensteuer und Nachzahlung",
+   "normalized": "Festsetzung der Einkommensteuer und Nachzahlung",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "24.09.2026",
+   "normalized": "2026-09-24",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "03.11.2026",
+   "normalized": "2026-11-03",
+   "page": 6
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "2.317,00 €",
+   "normalized": "2317.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "9.817,00 €",
+   "normalized": "9817.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "7.500,00 €",
+   "normalized": "7500.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "46.020,00",
+   "normalized": "46020.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A5",
+   "kind": "AMOUNT",
+   "raw": "2.140,00",
+   "normalized": "2140.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A6",
+   "kind": "AMOUNT",
+   "raw": "43.880,00",
+   "normalized": "43880.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A7",
+   "kind": "AMOUNT",
+   "raw": "4.720,00",
+   "normalized": "4720.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A8",
+   "kind": "AMOUNT",
+   "raw": "260,00",
+   "normalized": "260.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A9",
+   "kind": "AMOUNT",
+   "raw": "38.900,00",
+   "normalized": "38900.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A11",
+   "kind": "AMOUNT",
+   "raw": "1.410,00",
+   "normalized": "1410.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A12",
+   "kind": "AMOUNT",
+   "raw": "44.610,00",
+   "normalized": "44610.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A13",
+   "kind": "AMOUNT",
+   "raw": "3.980,00",
+   "normalized": "3980.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A14",
+   "kind": "AMOUNT",
+   "raw": "0,00",
+   "normalized": "0.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A15",
+   "kind": "AMOUNT",
+   "raw": "40.630,00",
+   "normalized": "40630.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A16",
+   "kind": "AMOUNT",
+   "raw": "10.117,00",
+   "normalized": "10117.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A17",
+   "kind": "AMOUNT",
+   "raw": "300,00",
+   "normalized": "300.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A22",
+   "kind": "AMOUNT",
+   "raw": "1.875,00 €",
+   "normalized": "1875.00 EUR",
+   "page": 4
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 6
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "123\/456\/78901",
+   "normalized": "123\/456\/78901",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "EST-2025-0047118",
+   "normalized": "EST-2025-0047118",
+   "page": 1
+  },
+  {
+   "id": "N11",
+   "kind": "REFERENCE",
+   "raw": "1-12345",
+   "normalized": "1-12345",
+   "page": 7
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "00 00 00",
+   "normalized": "00 00 00",
+   "page": 1
+  },
+  {
+   "id": "T7",
+   "kind": "PHONE",
+   "raw": "01234 555000",
+   "normalized": "01234 555000",
+   "page": 7
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 6
+  }
+ ],
+ "call1": "{\"type\":\"authority_tax\",\"tc\":\"HIGH\",\"lang\":\"de\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M1\",\"n\":\"Finanzamt Beispielstadt\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M2\",\"n\":\"Erika Mustermann\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ROUTING\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"CARE_OF\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Festsetzung der Einkommensteuer und Nachzahlung",
+ "call1Ms": 58379,
+ "call2Ms": 36079,
+ "layoutTextChars": 3451,
+ "call2": "{\"other\": \"letter\", \"title\": \"Einkommensteuerbescheid 2025\", \"subject\": \"Bitte den nachfolgenden Erläuterungen\", \"summary\": \"Sie erhalten einen Einkommensteuerbescheid für das Jahr 2025, der die Festsetzung der Einkommensteuer und Nachzahlung mit Anrechnung von Vorauszahlungen enthält. Bitte beachten Sie, dass bei verspäteter Zahlung ein Säumniszuschlag entsteht.\", \"qs\": [\"Wie berechnet wurde die Festsetzung der Einkommensteuer?\", \"Welche Vorauszahlungen wurden anrechnungsfrei?\", \"Wie wird die Rechtsbehelfsbelehrung für die Zahlungsaufforderung angewendet?\"]}",
+ "wallMs": 95640,
+ "model": "text.gguf"
+}
