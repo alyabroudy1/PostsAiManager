@@ -178,6 +178,7 @@ class SelectionVerifier(
             val checks = mutableListOf<Check>()
             checks += validationCheck(effectiveValidation(c, slot), c.kind)
             checks += repairCheck(c)
+            checks += unnormalizedDateCheck(c)
             checks += roleCheck(slot, role)
             checks += dateOrderCheck(slot, c)
             checks += amountConsistencyCheck(slot, c)
@@ -266,6 +267,17 @@ class SelectionVerifier(
             } else {
                 Check.Cap(Caps.REPAIRED, "read with an OCR character repair (${c.raw.trim()} -> ${c.normalized})", blocking = false)
             }
+
+        /**
+         * A long-form date no locale could read (its month word is unknown, or read two ways) is offered as
+         * printed. It is treated like a quote: its text must be in the letter, and its confidence is capped
+         * like a quote's, because nothing checked that it is a real calendar date.
+         */
+        private fun unnormalizedDateCheck(c: Candidate): Check {
+            if (c.attrs["unnormalized"] == null) return Check.Pass
+            val match = QuoteVerifier.verify(c.raw, ctx.ocrText)?.match ?: QuoteMatch.FUZZY
+            return quoteCheck(match)
+        }
 
         private fun roleCheck(slot: SlotKey, role: String?): Check {
             if (role == null || slot.expects.isEmpty() || role in slot.expects) return Check.Pass
@@ -510,7 +522,9 @@ class SelectionVerifier(
                     return null
                 }
                 used += id
-                val checks = listOf(validationCheck(effectiveValidation(c, null, pastYears = 10), c.kind), repairCheck(c))
+                val checks = listOf(
+                    validationCheck(effectiveValidation(c, null, pastYears = 10), c.kind), repairCheck(c), unnormalizedDateCheck(c),
+                )
                 return build(null, c, x.confidence, null, checks)
             }
             val q = x.value.trim()

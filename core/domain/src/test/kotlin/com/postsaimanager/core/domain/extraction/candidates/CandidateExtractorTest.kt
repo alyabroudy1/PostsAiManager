@@ -42,10 +42,80 @@ class CandidateExtractorTest {
         assertThat(c.attrs["timeOnly"]).isEqualTo("true")
     }
 
+    @TestFactory
+    fun `a long-form date is found by its shape and read with java_time month names, in any language`(): List<DynamicTest> = table(
+        listOf(
+            "Le 26 septembre 2026" to "2026-09-26",
+            "le 1er octobre 2026" to "2026-10-01",
+            "Madrid, 26 de septiembre de 2026" to "2026-09-26",
+            "Roma, 26 settembre 2026" to "2026-09-26",
+            "Ankara, 26 Eylül 2026" to "2026-09-26",
+            "Lisboa, 26 de setembro de 2026" to "2026-09-26",
+            "Москва, 26 сентября 2026" to "2026-09-26",
+            "التاريخ: 26 سبتمبر 2026" to "2026-09-26",
+            "التاريخ: 26 أيلول 2026" to "2026-09-26",
+            "التاريخ: ٢٦ سبتمبر ٢٠٢٦" to "2026-09-26",
+            "26. Sept. 2026" to "2026-09-26",
+            "Okt. 3, 2026" to "2026-10-03",
+            "2026 September 26" to "2026-09-26",
+            "26 Mar 2026" to "2026-03-26",
+        ),
+        { it.first },
+    ) { (line, iso) ->
+        val dates = one(line).filter { it.kind == CandidateKind.DATE }
+        assertThat(dates.map { it.normalized }).contains(iso)
+        assertThat(dates.first { it.normalized == iso }.attrs["unnormalized"]).isNull()
+    }
+
     @Test
-    fun `a bare decimal-dot number after a date is not a time`() {
-        val kinds = one("Datum 12.11.2026 15.10 Stück").map { it.kind }
-        assertThat(kinds).doesNotContain(CandidateKind.DATETIME)
+    fun `a date whose month word no locale reads is kept as printed, quoted and not read`() {
+        val c = one("am 26 Foobar 2026 fällig").single { it.kind == CandidateKind.DATE }
+        assertThat(c.raw).isEqualTo("26 Foobar 2026")
+        assertThat(c.normalized).isEqualTo("26 Foobar 2026")
+        assertThat(c.attrs["unnormalized"]).isEqualTo("true")
+        assertThat(c.validation).isEqualTo(Validation.Unchecked)
+        assertThat(c.id).startsWith("D")
+        // Arabic-Indic digits and a word of another script, no language known.
+        val other = one("تاريخ ٢٦ شهرالمثال ٢٠٢٦").single { it.kind == CandidateKind.DATE }
+        assertThat(other.normalized).isEqualTo("26 شهرالمثال 2026")
+        // A day that cannot be one, or a year that is no year, is not a date shape.
+        assertThat(one("am 45 Foobar 2026", "am 26 Foobar 1234").filter { it.kind == CandidateKind.DATE }).isEmpty()
+    }
+
+    @Test
+    fun `an impossible long-form date is kept invalid like a numeric one`() {
+        val c = one("fällig am 31 September 2026").single { it.kind == CandidateKind.DATE }
+        assertThat(c.normalized).isEqualTo("2026-09-31")
+        assertThat(c.validation).isInstanceOf(Validation.Invalid::class.java)
+    }
+
+    @Test
+    fun `word day year is kept as printed only with the comma, else only when a month reads`() {
+        assertThat(one("Rechnung 12 2026", "Nummer 12 2026").filter { it.kind == CandidateKind.DATE }).isEmpty()
+        assertThat(one("Foobar 12, 2026").single { it.kind == CandidateKind.DATE }.attrs["unnormalized"]).isEqualTo("true")
+        assertThat(one("March 12 2026").single { it.kind == CandidateKind.DATE }.normalized).isEqualTo("2026-03-12")
+    }
+
+    @Test
+    fun `a time behind a date is found by its shape, no word is needed, and money is not a time`() {
+        assertThat(one("Termin 12.11.2026 um 09:30 Uhr").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("2026-11-12T09:30")
+        assertThat(one("Cita 12.11.2026 a las 9:30").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("2026-11-12T09:30")
+        assertThat(one("12.11.2026 09:30").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("2026-11-12T09:30")
+        assertThat(one("موعد 26 سبتمبر 2026 الساعة 14:05").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("2026-09-26T14:05")
+        assertThat(one("Datum 12.11.2026 15.10 Stück").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("2026-11-12T15:10")
+        // Money or a percentage behind the figure, or a second date, is not a time.
+        assertThat(one("Datum 12.11.2026 12.50 EUR").map { it.kind }).doesNotContain(CandidateKind.DATETIME)
+        assertThat(one("Datum 12.11.2026 15.10 %").map { it.kind }).doesNotContain(CandidateKind.DATETIME)
+        assertThat(one("vom 05.08.2026 19.08.2026").filter { it.kind == CandidateKind.DATETIME }).isEmpty()
+        assertThat(one("vom 05.08.2026 19.08.2026").filter { it.kind == CandidateKind.DATE }).hasSize(2)
+    }
+
+    @Test
+    fun `a time of its own is found by its colon shape, a dot time needs a short token behind it`() {
+        assertThat(one("Öffnung 08:00 bis 18:00").filter { it.kind == CandidateKind.DATETIME }.map { it.normalized }).containsExactly("T08:00", "T18:00")
+        assertThat(one("Beginn 9.30 Uhr im Raum 4").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("T09:30")
+        assertThat(one("Gesamt 9.30").filter { it.kind == CandidateKind.DATETIME }).isEmpty()
+        assertThat(one("Preis 9.30 EUR").filter { it.kind == CandidateKind.DATETIME }).isEmpty()
     }
 
     @Test

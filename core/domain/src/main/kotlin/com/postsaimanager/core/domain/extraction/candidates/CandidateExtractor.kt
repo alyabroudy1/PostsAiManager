@@ -56,37 +56,46 @@ private class Draft(var c: Candidate, val line: SourceLine, val start: Int, val 
 private object P {
     /**
      * A currency by shape: any currency sign (Unicode category Sc) or an upper-case ISO 4217 code taken
-     * from the platform's currency data. No currency word ("Euro", "dollars") is looked for.
+     * from the platform's currency data. Currency names are only a hint (see [CurrencyNames]).
      */
     val CURRENCY: String = "\\p{Sc}|(?-i:" + AmountParser.isoCodes.sorted().joinToString("|") + ")"
 
     /** A currency sign or code standing on its own in a cell or line (a table header such as "Betrag in EUR"). */
     val CURRENCY_TOKEN = Regex("(?<![\\p{L}\\p{Nd}])($CURRENCY)(?![\\p{L}\\p{Nd}])")
 
-    val MONTHS: Map<String, Int> = mapOf(
-        "januar" to 1, "january" to 1, "jan" to 1, "februar" to 2, "february" to 2, "feb" to 2,
-        "m\u00E4rz" to 3, "maerz" to 3, "march" to 3, "m\u00E4r" to 3, "mar" to 3, "april" to 4, "apr" to 4,
-        "mai" to 5, "may" to 5, "juni" to 6, "june" to 6, "jun" to 6, "juli" to 7, "july" to 7, "jul" to 7,
-        "august" to 8, "aug" to 8, "september" to 9, "sept" to 9, "sep" to 9, "oktober" to 10, "october" to 10,
-        "okt" to 10, "oct" to 10, "november" to 11, "nov" to 11, "dezember" to 12, "december" to 12, "dez" to 12, "dec" to 12,
-    )
-    private val monthAlt = MONTHS.keys.sortedByDescending { it.length }.joinToString("|")
-
     val ISO_DATE = Regex("(?<![\\d-])(\\d{4})-(\\d{2})-(\\d{2})(?!\\d|-\\d)")
     val NUM_DATE = Regex("(?<![\\d.,/])(\\d{1,2})\\.\\s?(\\d{1,2})\\.\\s?(\\d{4}|\\d{2})(?!\\d|[.,]\\d)")
-    val LONG_DATE = Regex(
-        "(?<![\\d.,])(\\d{1,2})(?:st|nd|rd|th)?\\.?\\s*($monthAlt)\\.?,?\\s*(\\d{4})(?!\\d)",
-        RegexOption.IGNORE_CASE,
-    )
-    val MDY_DATE = Regex(
-        "(?<![\\p{L}\\d])($monthAlt)\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})(?!\\d)",
-        RegexOption.IGNORE_CASE,
-    )
-    val TIME_AFTER = Regex(
-        "^(?:\\s*,)?\\s+(?:(um|at|@|ab|gegen)\\s+)?(\\d{1,2})([:.])(\\d{2})(?::\\d{2})?(?:\\s*(Uhr|h)(?![\\p{L}]))?",
-        RegexOption.IGNORE_CASE,
-    )
-    val TIME_ONLY = Regex("(?<![\\d:.])(\\d{1,2})[:.](\\d{2})\\s*Uhr(?![\\p{L}])", RegexOption.IGNORE_CASE)
+
+    // Long-form dates by shape: a day number, a word and a four-digit year, in any order. Whether the
+    // word is a month, and which, is read afterwards from java.time's names (MonthNames) as a hint.
+    // A short word between the parts ("de", "of", "le", "di") is allowed, whatever it says.
+    private const val ORDINAL = "\\p{L}{0,2}[.\u00BA\u00B0\u00AA]?"
+    private const val WORD = "\\p{L}{3,12}"
+    private const val SMALL = "(?:\\p{L}{1,3}\\s+)?"
+
+    /** 26 September 2026, 26. Sept. 2026, 1er septembre 2026, 26 de septiembre de 2026, 26 Eyl\u00FCl 2026, 26 \u0633\u0628\u062A\u0645\u0628\u0631 2026. */
+    val DAY_FIRST = Regex("(?<![\\d.,/])(\\d{1,2})$ORDINAL\\s*$SMALL($WORD)\\.?,?\\s+$SMALL(\\d{4})(?!\\d)")
+
+    /** October 10, 2026 (the comma after the day is optional). */
+    val WORD_FIRST = Regex("(?<![\\p{L}\\d])($WORD)\\.?\\s+(\\d{1,2})$ORDINAL(,?)\\s+(\\d{4})(?!\\d)")
+
+    /** 2026 September 26. */
+    val YEAR_FIRST = Regex("(?<![\\d.,/])(\\d{4})\\s+($WORD)\\.?\\s+(\\d{1,2})[.\u00BA\u00B0\u00AA]?(?!\\d)")
+
+    /**
+     * A time right behind a date: hours, `:` or `.`, minutes, optional seconds; at most two short
+     * words before it ("um", "at", "a las") or an `@`. No word is required and none is looked for.
+     */
+    val TIME_AFTER = Regex("^(?:\\s*[,;])?\\s+(?:(?:\\p{L}{1,6}\\.?\\s+){0,2}|@\\s*)(\\d{1,2})([:.])(\\d{2})(?::\\d{2})?(?![.,:]?\\d)")
+
+    /** A time of its own: `hh:mm` anywhere, `hh.mm` only when a short token follows (see [Run.findDates]). */
+    val TIME_ONLY = Regex("(?<![\\p{L}\\d:.\\-/_])(\\d{1,2})([:.])(\\d{2})(?::\\d{2})?(?![_/\\-]|[.,:]?\\d)")
+
+    /** A short token right behind a time: a unit such as "Uhr", "h", "pm". Any language; only its shape is looked at. */
+    val SHORT_TOKEN_AFTER = Regex("^\\s?\\p{L}{1,3}(?![\\p{L}])")
+
+    /** Money or a percentage right behind a figure that could be read as a time ("12.50 EUR"): then it is not a time. */
+    val MONEY_OR_PERCENT_AFTER = Regex("^\\s?(?:[%\u2030]|$CURRENCY)(?![\\p{L}])")
 
     /** A number with an optional sign, an optional currency sign or code before or after it. Whether it is money is decided in [Run.findAmounts]. */
     val AMOUNT = Regex(
@@ -518,13 +527,15 @@ private class Run(
             var end = range.last + 1
             var normalized = "%04d-%02d-%02d".format(y, mo, d)
             var kind = CandidateKind.DATE
+            // A time right behind the date, by shape: hh:mm or hh.mm. A dot time is dropped when money or a
+            // percentage follows it ("12.11.2026 12.50 EUR"): that figure is not a time.
             val tm = P.TIME_AFTER.find(text.substring(end))
             if (tm != null) {
-                val hh = tm.groupValues[2].toInt()
-                val mm = tm.groupValues[4].toInt()
-                val sepDot = tm.groupValues[3] == "."
-                val hasWord = tm.groupValues[1].isNotEmpty() || tm.groupValues[5].isNotEmpty()
-                if (hh < 24 && mm < 60 && (!sepDot || hasWord)) {
+                val hh = tm.groupValues[1].toInt()
+                val mm = tm.groupValues[3].toInt()
+                val sepDot = tm.groupValues[2] == "."
+                val rest = text.substring(end + tm.value.length)
+                if (hh < 24 && mm < 60 && !(sepDot && P.MONEY_OR_PERCENT_AFTER.containsMatchIn(rest))) {
                     end += tm.value.length
                     normalized += "T%02d:%02d".format(hh, mm)
                     kind = CandidateKind.DATETIME
@@ -534,24 +545,45 @@ private class Run(
             mask.add(r)
             add(line, r, kind, text.substring(r.first, end).trim(), normalized)
         }
+
+        /** The shape is a date but no locale reads the word as a month (or they disagree): kept as printed, quoted not read. */
+        fun emitRaw(range: IntRange) {
+            if (!mask.free(range)) return
+            mask.add(range)
+            val raw = text.substring(range.first, range.last + 1).trim().replace(Regex("\\s+"), " ")
+            add(line, range, CandidateKind.DATE, raw, raw, attrs = mapOf("unnormalized" to "true"))
+        }
+
+        fun plausible(day: Int, year: Int) = day in 1..31 && year in 1900..2199
+
+        /** A long-form date: read the month word with java.time's names when possible, else keep it as printed. */
+        fun longDate(range: IntRange, day: Int, word: String, year: Int, rawAllowed: Boolean) {
+            if (!plausible(day, year) || !mask.free(range)) return
+            val month = MonthNames.monthOf(word)
+            if (month != null) emit(range, year, month, day) else if (rawAllowed) emitRaw(range)
+        }
         for (m in P.ISO_DATE.findAll(text)) emit(m.range, m.groupValues[1].toInt(), m.groupValues[2].toInt(), m.groupValues[3].toInt())
         for (m in P.NUM_DATE.findAll(text)) {
             val yy = m.groupValues[3]
             val y = if (yy.length == 2) 2000 + yy.toInt() else yy.toInt()
             emit(m.range, y, m.groupValues[2].toInt(), m.groupValues[1].toInt())
         }
-        for (m in P.LONG_DATE.findAll(text)) {
-            val mo = P.MONTHS[m.groupValues[2].lowercase()] ?: continue
-            emit(m.range, m.groupValues[3].toInt(), mo, m.groupValues[1].toInt())
+        // Day, word, year. The word may be a month in any language; when none reads it the date stays as printed.
+        for (m in P.DAY_FIRST.findAll(text)) longDate(m.range, m.groupValues[1].toInt(), m.groupValues[2], m.groupValues[3].toInt(), rawAllowed = true)
+        // Word, day, year: kept as printed only with the comma of "October 10, 2026", else a figure pair after any word would be a date.
+        for (m in P.WORD_FIRST.findAll(text)) {
+            longDate(m.range, m.groupValues[2].toInt(), m.groupValues[1], m.groupValues[4].toInt(), rawAllowed = m.groupValues[3].isNotEmpty())
         }
-        for (m in P.MDY_DATE.findAll(text)) {
-            val mo = P.MONTHS[m.groupValues[1].lowercase()] ?: continue
-            emit(m.range, m.groupValues[3].toInt(), mo, m.groupValues[2].toInt())
-        }
+        for (m in P.YEAR_FIRST.findAll(text)) longDate(m.range, m.groupValues[3].toInt(), m.groupValues[2], m.groupValues[1].toInt(), rawAllowed = false)
+        // A time on its own: hh:mm anywhere, hh.mm only with a short token behind it ("9.30 Uhr") and no money or percent sign.
         for (m in P.TIME_ONLY.findAll(text)) {
             val hh = m.groupValues[1].toInt()
-            val mm = m.groupValues[2].toInt()
+            val mm = m.groupValues[3].toInt()
             if (hh >= 24 || mm >= 60 || !mask.free(m.range)) continue
+            if (m.groupValues[2] == ".") {
+                val rest = text.substring(m.range.last + 1)
+                if (P.MONEY_OR_PERCENT_AFTER.containsMatchIn(rest) || !P.SHORT_TOKEN_AFTER.containsMatchIn(rest)) continue
+            }
             mask.add(m.range)
             add(
                 line, m.range, CandidateKind.DATETIME, m.value, "T%02d:%02d".format(hh, mm),
@@ -1154,6 +1186,7 @@ private class Run(
     private fun parseYmd(normalized: String): Triple<Int, Int, Int>? {
         if (normalized.length < 10 || normalized[0] == 'T') return null
         val p = normalized.substring(0, 10).split('-')
+        if (p.size < 3) return null // a date kept as printed has no ISO form
         return Triple(p[0].toIntOrNull() ?: return null, p[1].toIntOrNull() ?: return null, p[2].toIntOrNull() ?: return null)
     }
 

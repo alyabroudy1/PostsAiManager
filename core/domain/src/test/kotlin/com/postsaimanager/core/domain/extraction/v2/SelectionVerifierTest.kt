@@ -116,6 +116,18 @@ class SelectionVerifierTest {
         }
 
         @Test
+        fun `a date kept as printed is treated as a quote, capped and never flagged`() {
+            val p = Prepared(listOf(page("Datum: 26 Foobar 2026", "Kundennummer: KD-40417").blocks))
+            val c = p.offered.rows.map { it.candidate }.single { it.attrs["unnormalized"] == "true" }
+            val v = verify(p, answer(slots = slot("letter_date", c.id, "LETTER_DATE"))).slots.values.single()
+            assertThat(v.value).isEqualTo("26 Foobar 2026")
+            assertThat(v.aiConfidence).isEqualTo(0.9f)
+            assertThat(v.confidence).isAtMost(Caps.QUOTE_EXACT)
+            assertThat(v.blocked).isFalse()
+            assertThat(v.notes.any { it.contains("quoted") }).isTrue()
+        }
+
+        @Test
         fun `one value seen twice is offered as the occurrence that has a currency`() {
             // 64,98 is a table cell without a currency and again in a sentence with one
             val total = n1.find(CandidateKind.AMOUNT, "64.98 EUR")!!

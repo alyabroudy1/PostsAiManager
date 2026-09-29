@@ -108,7 +108,10 @@ object CandidateTable {
             .groupBy { it.value.pages.first() }
             .toSortedMap()
             .mapValues { (_, list) ->
-                list.sortedWith(compareBy({ it.value.candidate.validation.isInvalid }, { it.index })).toMutableList()
+                // Passing values first; a date kept as printed (no locale read its month) after the ones that were read.
+                list.sortedWith(
+                    compareBy({ it.value.candidate.validation.isInvalid }, { it.value.candidate.attrs["unnormalized"] != null }, { it.index }),
+                ).toMutableList()
             }
         val keep = mutableSetOf<Int>()
         while (keep.size < cap && byPage.values.any { it.isNotEmpty() }) {
