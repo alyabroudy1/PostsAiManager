@@ -80,6 +80,53 @@ class ZonedLetter(
         return Context(cut(at - 1), cut(at), cut(at + 1))
     }
 
+    /** A short look at the zone before and the zone after an ask's zones, in reading order on page 1; either may be absent. */
+    class Glimpse(val before: Pair<LetterZone, String>?, val after: Pair<LetterZone, String>?)
+
+    /**
+     * The last [maxLines] lines of the zone just above the asked [zones] and the first [maxLines] of the one just below,
+     * on page 1 in reading order, each cut to [maxChars]. What this returns is context only: it is not part of the
+     * asked zones and their candidates are never offered with it.
+     */
+    fun glimpse(zones: Collection<LetterZone>, maxLines: Int = GLIMPSE_LINES, maxChars: Int = GLIMPSE_CHARS): Glimpse {
+        val lines = layout.pages.firstOrNull()?.lines.orEmpty().filter { !it.isNoise }
+        val wanted = zones.toSet()
+        val inside = lines.indices.filter { zoneOf(lines[it]) in wanted }
+        if (inside.isEmpty()) return Glimpse(null, null)
+
+        fun take(indices: List<Int>): String? {
+            val picked = ArrayList<String>()
+            var used = 0
+            for (i in indices) {
+                val t = lines[i].text.trim()
+                if (t.isEmpty()) continue
+                if (used + t.length > maxChars && picked.isNotEmpty()) break
+                picked += t.take(maxChars)
+                used += t.length + 3
+                if (picked.size >= maxLines) break
+            }
+            return picked.takeIf { it.isNotEmpty() }?.joinToString(" / ")
+        }
+
+        val start = inside.first()
+        var i = start - 1
+        while (i >= 0 && zoneOf(lines[i]) in wanted) i--
+        val beforeZone = lines.getOrNull(i)?.let { zoneOf(it) }
+        val before = beforeZone?.let { z ->
+            val run = (i downTo 0).takeWhile { zoneOf(lines[it]) == z }.take(maxLines).reversed()
+            take(run)?.let { z to it }
+        }
+
+        var j = inside.last() + 1
+        while (j < lines.size && zoneOf(lines[j]) in wanted) j++
+        val afterZone = lines.getOrNull(j)?.let { zoneOf(it) }
+        val after = afterZone?.let { z ->
+            val run = (j until lines.size).takeWhile { zoneOf(lines[it]) == z }.take(maxLines)
+            take(run)?.let { z to it }
+        }
+        return Glimpse(before, after)
+    }
+
     /** The offered candidates printed in any of [zones], in the table's order. */
     fun candidatesIn(zones: Collection<LetterZone>): OfferedCandidates {
         val wanted = zones.toSet()
@@ -181,6 +228,10 @@ class ZonedLetter(
 
         private const val MAX_RUN_LINES = 8
         private const val CONTEXT_CHARS = 70
+
+        /** How much of the neighbouring zones a glimpse shows: about two lines and 160 characters. */
+        const val GLIMPSE_LINES = 2
+        const val GLIMPSE_CHARS = 160
 
         fun squash(s: String): String = buildString { s.forEach { if (it.isLetterOrDigit()) append(it.lowercaseChar()) } }
     }

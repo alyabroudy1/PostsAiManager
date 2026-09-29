@@ -322,10 +322,12 @@ internal class ZoneReplay(private val recording: Recording, private val scoring:
     private fun create(offered: OfferedCandidates?): DocumentInterpreter {
         val remap = offered?.let { IdRemap.between(recording.candidates, it) } ?: emptyMap()
         val session = ReplayPromptSession(recording, remap)
+        // A variant name with "ctx" in it (zonesctx, zonesscoringctx2b) was recorded with the neighbour glimpse.
+        val ctx = recording.variant.contains("ctx")
         return if (scoring != null) {
-            ZoneScoringInterpreter(engine, session, contextTokens = recording.contextTokens, profile = scoring)
+            ZoneScoringInterpreter(engine, session, contextTokens = recording.contextTokens, profile = scoring, neighbourContext = ctx)
         } else {
-            ZoneInterpreter(engine, session, contextTokens = recording.contextTokens)
+            ZoneInterpreter(engine, session, contextTokens = recording.contextTokens, neighbourContext = ctx)
         }
     }
 
@@ -415,6 +417,20 @@ object InterpreterMetrics {
     fun scoreAll(docs: List<Pair<ManifestDoc, Fixture>>, dir: File): List<InterpreterScore> =
         Recordings.load(dir).groupBy { it.variant }.mapNotNull { (variant, recs) -> score(variant, docs, recs) }
 
+    /** One recording replayed through the real interpreter of its variant, the real pipeline and the verifier. */
+    fun replayResult(rec: Recording, f: Fixture, scoring: ScoringProfile = ScoringProfile()): ExtractionV2Result {
+        val replay: DocumentInterpreter = when {
+            rec.variant.startsWith(SCORING_VARIANT) -> ZoneReplay(rec, scoring)
+            rec.variant.startsWith(ZONES_VARIANT) -> ZoneReplay(rec, null)
+            rec.isQuestionnaire -> QuestionnaireReplay(rec)
+            else -> ScriptedInterpreter(rec)
+        }
+        val first = f.pages.firstOrNull()?.takeIf { it.height > 0 }
+        return runBlocking {
+            ExtractionV2Pipeline().run(f.pages.map { it.blocks }, replay, rec.contextTokens, first?.let { it.width.toFloat() / it.height })
+        }
+    }
+
     /** The variants of the zone experiment: `zones`, `zonesscoring`, and either with a model suffix (`zonesscoring2b`). */
     const val ZONES_VARIANT = "zones"
     const val SCORING_VARIANT = "zonesscoring"
@@ -425,6 +441,14 @@ object InterpreterMetrics {
         docs: List<Pair<ManifestDoc, Fixture>>,
         recordings: List<Recording>,
         scoring: ScoringProfile = ScoringProfile(),
+    ): InterpreterScore? = score(variant, docs, recordings) { scoring }
+
+    /** As above, with the thresholds chosen per letter (cross-fitted tuning: a letter is decided with thresholds tuned on the other fold). */
+    fun score(
+        variant: String,
+        docs: List<Pair<ManifestDoc, Fixture>>,
+        recordings: List<Recording>,
+        scoringFor: (String) -> ScoringProfile,
     ): InterpreterScore? {
         val byKey = recordings.associateBy { it.key }
         var expectedFound = 0
@@ -449,16 +473,7 @@ object InterpreterMetrics {
             val rec = byKey[m.key] ?: continue
             val det = ExtractionBenchmark.score(m, f)
             val pages = f.pages.map { it.blocks }
-            val replay: DocumentInterpreter = when {
-                rec.variant.startsWith(SCORING_VARIANT) -> ZoneReplay(rec, scoring)
-                rec.variant.startsWith(ZONES_VARIANT) -> ZoneReplay(rec, null)
-                rec.isQuestionnaire -> QuestionnaireReplay(rec)
-                else -> ScriptedInterpreter(rec)
-            }
-            val first = f.pages.firstOrNull()?.takeIf { it.height > 0 }
-            val result = runBlocking {
-                ExtractionV2Pipeline().run(pages, replay, rec.contextTokens, first?.let { it.width.toFloat() / it.height })
-            }
+            val result = replayResult(rec, f, scoringFor(rec.key))
             scored++
             rec.cost.wallMs?.let { wallMs += it; walls++ }
             if (rec.isQuestionnaire) {

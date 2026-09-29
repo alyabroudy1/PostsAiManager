@@ -50,6 +50,8 @@ class ZoneScoringInterpreter(
     private val contextTokens: Int,
     private val matcher: TemplateMatcher = TemplateMatcher(),
     private val profile: ScoringProfile = ScoringProfile(),
+    /** As [ZoneInterpreter]'s: a labelled, context-only glimpse of the zones just above and below the one asked about. */
+    private val neighbourContext: Boolean = false,
 ) : DocumentInterpreter {
 
     override val maxAnswerTokens: Int = QuestionnairePrompt.QUESTION_RESERVE_TOKENS
@@ -70,6 +72,9 @@ class ZoneScoringInterpreter(
     private var tail = ""
     private var bodyOpen = false
     private var failures = 0
+
+    /** The zones whose text the open session's prefix holds (none in the header session). */
+    private var inPrefix: Set<LetterZone> = emptySet()
 
     override fun promptOverheadChars(offered: OfferedCandidates): Int = OVERHEAD_CHARS
 
@@ -122,10 +127,11 @@ class ZoneScoringInterpreter(
         val headerParties = partyNames.filter { isHeader(it.first) }
         val headerSlots = Slots.CORE.filter { isHeader(QuestionNames.slot(it.json), it) }
         if (headerParties.isNotEmpty() || headerSlots.isNotEmpty()) {
-            val zones = ZonedLetter.HEADER_ZONES.map { zoned.mapped(it) }.distinct().filter { zoned.hasText(it) }
-            val block = ZonePrompt.zoneBlock(zones, plan::hint, zoned::zoneText, emptySet(), null)
-            val (head, closing) = setup.frame(system, ZonePrompt.HEADER_USER + "\n" + block)
+            // The prefix is the instructions only: each question carries its own zone (and, with neighbour context,
+            // a glimpse of the zones around it), so a zone is judged on its own text and hint.
+            val (head, closing) = setup.frame(system, ZonePrompt.HEADER_USER)
             open(head, closing)
+            inPrefix = emptySet()
             headerParties.forEach { (name, role) -> party(setup, s, name, role) }
             headerSlots.forEach { if (!slot(setup, s, it, widen = false)) deferred += it }
         }
@@ -146,6 +152,7 @@ class ZoneScoringInterpreter(
         }
         if (!opened) throw Abort("the model could not read the letter")
         bodyOpen = true
+        inPrefix = zonesInPrefix.toSet()
 
         val type = scoreType()
         val docType = schema.type(type.first) ?: throw Abort("no document type scored")
@@ -162,6 +169,13 @@ class ZoneScoringInterpreter(
     private fun zonedText(setup: ZoneSetup, zones: List<LetterZone>, budget: Int): String {
         val hints = zones.filter { setup.zoned.hasText(it) }.joinToString("\n") { "ZONE ${it.tag}. HINT: ${setup.plan.hint(it)}" }
         return hints + "\n" + setup.zoned.render(zones, budget)
+    }
+
+    /** The zones a question is about, each with its hint and (unless the session's prefix holds it) its text, and the glimpse when asked for. No candidates: nothing is offered as an option. */
+    private fun block(setup: ZoneSetup, zones: List<LetterZone>): String {
+        val fresh = zones.filter { it !in inPrefix }
+        val glimpse = if (neighbourContext && fresh.isNotEmpty()) setup.zoned.glimpse(fresh).takeIf { it.before != null || it.after != null } else null
+        return ZonePrompt.zoneBlock(zones, setup.plan::hint, setup.zoned::zoneText, inPrefix, candidates = null, glimpse = glimpse)
     }
 
     // ── the type ──
@@ -182,24 +196,28 @@ class ZoneScoringInterpreter(
         val zoned = setup.zoned
         val zones = setup.plan.zones(name).filter { zoned.hasText(it) }
         if (zones.isEmpty()) return
-        val cands = zoned.candidatesIn(zones).rows.map { it.candidate }
-            .filter { it.kind == CandidateKind.NAME && it.id != s.senderId }
+        // Every name of the zone is scored, whatever was decided before: what is scored then does not depend on the
+        // thresholds, which is what lets a recording be re-decided offline. The one exclusion code makes (the sender is
+        // not also the addressee, the routing person or the mailbox) is applied to the choice.
+        val cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME }
         if (cands.isEmpty()) return
         val what = ScoringDescriptions.ofRole(name)
-        val questions = cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), what) }
+        val block = block(setup, zones)
+        val questions = cands.map { block + ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), what) }
         val scores = scoreBatch(name, questions) ?: return
-        val best = scores.indices.maxByOrNull { scores[it] } ?: return
+        val allowed = scores.indices.filter { role == PartyRole.SENDER || cands[it].id != s.senderId }
+        val best = allowed.maxByOrNull { scores[it] } ?: return
         val threshold = profile.threshold(name)
         if (scores[best] <= threshold) return
         val c = cands[best]
         val ctx = zoned.context(c)
         val printed = c.raw.replace('\n', ' ')
 
-        val kinds = scoreBatch("kind:$name", ScoringDescriptions.KINDS.map { (_, statement) -> ZonePrompt.scoringQuestion(printed, ctx, statement) })
+        val kinds = scoreBatch("kind:$name", ScoringDescriptions.KINDS.map { (_, statement) -> block + ZonePrompt.scoringQuestion(printed, ctx, statement) })
         val kind = kinds?.let { ks -> ScoringDescriptions.KINDS[ks.indices.maxByOrNull { ks[it] } ?: 0].first } ?: "OTHER"
         var relation: String? = null
         if (role == PartyRole.ADDRESSEE) {
-            val h = scoreBatch("household", listOf(ZonePrompt.scoringQuestion(printed, ctx, ScoringDescriptions.HOUSEHOLD)))
+            val h = scoreBatch("household", listOf(block + ZonePrompt.scoringQuestion(printed, ctx, ScoringDescriptions.HOUSEHOLD)))
             relation = if (h != null && h.first() > 0.0) "HOUSEHOLD" else "NONE"
         }
         if (role == PartyRole.SENDER) s.senderId = c.id
@@ -226,10 +244,15 @@ class ZoneScoringInterpreter(
         val name = QuestionNames.slot(slot.json)
         val zones = setup.plan.zones(name, slot).filter { zoned.hasText(it) }
         var cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.kind in slot.kind.candidates }
-        if (cands.isEmpty() && widen) cands = zoned.offered.rows.map { it.candidate }.filter { it.kind in slot.kind.candidates }
+        var asked = zones
+        if (cands.isEmpty() && widen) {
+            cands = zoned.offered.rows.map { it.candidate }.filter { it.kind in slot.kind.candidates }
+            asked = cands.flatMap { zoned.zonesOfCandidate(it.id) }.distinct().filter { zoned.hasText(it) }
+        }
         if (cands.isEmpty()) return false
         val what = ScoringDescriptions.ofSlot(slot)
-        val scores = scoreBatch(name, cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), what) }) ?: return true
+        val block = block(setup, asked)
+        val scores = scoreBatch(name, cands.map { block + ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), what) }) ?: return true
         val threshold = profile.threshold(name)
         val order = scores.indices.sortedByDescending { scores[it] }
         val best = order.first()

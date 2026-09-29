@@ -53,16 +53,27 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
         text: (LetterZone) -> String,
         inPrefix: Set<LetterZone>,
         candidates: OfferedCandidates?,
+        glimpse: ZonedLetter.Glimpse? = null,
     ): String = buildString {
         for (zone in zones) {
             append("ZONE ").append(zone.tag).append(". HINT: ").append(hint(zone)).append('\n')
             if (zone in inPrefix) append("(the text of this zone is in the letter above)\n") else append(text(zone)).append('\n')
         }
+        if (glimpse != null) append(glimpseText(glimpse))
         if (candidates != null) {
             append("CANDIDATES IN THESE ZONES\n")
             append(if (candidates.size == 0) "(none)" else SelectionPrompt.table(candidates))
             append('\n')
         }
+    }
+
+    /**
+     * The neighbouring zones' glimpse, labelled with their zone names and marked as context only: it tells the model
+     * what sits around the zone it is deciding on, and nothing in it may be chosen.
+     */
+    fun glimpseText(g: ZonedLetter.Glimpse): String = buildString {
+        g.before?.let { (zone, text) -> append("CONTEXT ONLY, the zone just above (").append(zone.tag).append(", not part of this question): ").append(text).append('\n') }
+        g.after?.let { (zone, text) -> append("CONTEXT ONLY, the zone just below (").append(zone.tag).append(", not part of this question): ").append(text).append('\n') }
     }
 
     /** A statement of what a slot or a role is, for the scoring interpreter's question. */

@@ -54,6 +54,13 @@ class ZoneInterpreter(
     private val contextTokens: Int,
     private val matcher: TemplateMatcher = TemplateMatcher(),
     private val measureTokens: Boolean = false,
+    /**
+     * Also show a short glimpse (about two lines, 160 characters) of the zone just above and the zone just
+     * below, labelled and marked "context only". Their candidates are not offered and not in the grammar, so the
+     * zone's isolation stays intact. Only for zones whose text the question carries itself (the header zones): the
+     * body session already holds the whole body.
+     */
+    private val neighbourContext: Boolean = false,
 ) : DocumentInterpreter {
 
     override val maxAnswerTokens: Int = QuestionnairePrompt.QUESTION_RESERVE_TOKENS
@@ -129,22 +136,18 @@ class ZoneInterpreter(
         val plan = setup.plan
         val zoned = setup.zoned
         val a = Answers()
-        val nameIds = offered.idsOf(CandidateKind.NAME)
 
-        fun party(name: String, withRelation: Boolean, list: Boolean, base: (OfferedCandidates) -> Question, excludeSender: Boolean = false) =
-            Step(name, plan.zones(name), candidates = { it.only(CandidateKind.NAME) }, build = { c ->
-                val q = base(c)
-                // The zone's candidates are what the model is shown; any name id is allowed in the answer, and one
-                // from outside the zone is noted (see [zoneNote]) rather than forbidden.
-                val ids = if (excludeSender) nameIds.filter { it != a.senderId } else nameIds
-                Question(q.name, q.text, QuestionGrammars.party(ids, withRelation, list), q.maxTokens)
-            })
+        // The grammar of a party question is over the zone's own candidates (the model can only choose what it is
+        // shown) plus a written name: a written name that is not in the zone's text is allowed, but noted (see
+        // [zoneNote]) and capped by the verifier, so a hint the model overrules is never a hard rule.
+        fun party(name: String, base: (OfferedCandidates) -> Question) =
+            Step(name, plan.zones(name), candidates = { it.only(CandidateKind.NAME) }, build = { c -> base(c) })
 
-        val sender = party(QuestionNames.SENDER, false, false, { QuestionnairePrompt.sender(it) })
-        val addressee = party(QuestionNames.ADDRESSEE, true, true, { QuestionnairePrompt.addressee(it, a.senderId) }, excludeSender = true)
-        val careOf = party(QuestionNames.CARE_OF, false, false, { QuestionnairePrompt.careOf(it) })
-        val contact = party(QuestionNames.CONTACT, false, false, { QuestionnairePrompt.contactPerson(it) })
-        val subjectPerson = party(QuestionNames.SUBJECT_PERSON, false, true, { QuestionnairePrompt.subjectPerson(it) })
+        val sender = party(QuestionNames.SENDER) { QuestionnairePrompt.sender(it) }
+        val addressee = party(QuestionNames.ADDRESSEE) { QuestionnairePrompt.addressee(it, a.senderId) }
+        val careOf = party(QuestionNames.CARE_OF) { QuestionnairePrompt.careOf(it) }
+        val contact = party(QuestionNames.CONTACT) { QuestionnairePrompt.contactPerson(it) }
+        val subjectPerson = party(QuestionNames.SUBJECT_PERSON) { QuestionnairePrompt.subjectPerson(it) }
         val partySteps = listOf(sender, addressee, careOf, contact, subjectPerson)
 
         fun slotStep(slot: SlotKey) = Step(
@@ -235,7 +238,9 @@ class ZoneInterpreter(
         }
         if (zones.isEmpty()) return false
         val question = step.build(cands) ?: return false
-        val text = ZonePrompt.zoneBlock(zones, setup.plan::hint, zoned::zoneText, inPrefix, cands) + question.text
+        val fresh = zones.filter { it !in inPrefix }
+        val glimpse = if (neighbourContext && fresh.isNotEmpty()) zoned.glimpse(fresh).takeIf { it.before != null || it.after != null } else null
+        val text = ZonePrompt.zoneBlock(zones, setup.plan::hint, zoned::zoneText, inPrefix, cands, glimpse) + question.text
         val answer = ask(question.name, text, question).orEmpty()
         when (step.name) {
             QuestionNames.SENDER -> AnswerReader.parties(answer, withRelation = false).firstOrNull()?.let { addParty(a, PartyRole.SENDER, it, zones, cands, zoned) }

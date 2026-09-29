@@ -54,9 +54,26 @@ class ZoneScoringInterpreterTest {
         val idPattern = Regex("\\b[A-Z]{1,2}\\d{1,3}:")
         assertThat(session.scored).isNotEmpty()
         for (c in session.scored.flatten()) assertThat(idPattern.containsMatchIn(c)).isFalse()
-        // The prefixes carry the zone text and its hint, not a candidate table.
+        // Neither the prefixes nor the questions carry a candidate table; a question carries its zone and the zone's hint.
         for (prefix in session.opens) assertThat(prefix).doesNotContain("CANDIDATES")
-        assertThat(session.opens[0]).contains("ZONE address-field. HINT:")
+        for (c in session.scored.flatten()) assertThat(c).doesNotContain("CANDIDATES")
+        assertThat(session.scored.flatten().any { it.contains("ZONE address-field. HINT:") }).isTrue()
+    }
+
+    @Test
+    fun `the neighbour glimpse is context only and adds no candidate`() {
+        val plain = run { false }.second.scored.flatten()
+        val ctx = FakePromptSession().apply { scorer = { -5.0 }; responder = { _, _ -> "\"text\"" } }.also { s ->
+            runBlocking {
+                ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), s, contextTokens = 4096, neighbourContext = true), 4096)
+            }
+        }.scored.flatten()
+        assertThat(plain.none { it.contains("CONTEXT ONLY") }).isTrue()
+        val withGlimpse = ctx.filter { it.contains("ZONE address-field.") }
+        assertThat(withGlimpse).isNotEmpty()
+        assertThat(withGlimpse.all { it.contains("CONTEXT ONLY, the zone just above (") }).isTrue()
+        // The same candidates are scored either way (the glimpse selects nothing).
+        assertThat(ctx.size).isEqualTo(plain.size)
     }
 
     @Test

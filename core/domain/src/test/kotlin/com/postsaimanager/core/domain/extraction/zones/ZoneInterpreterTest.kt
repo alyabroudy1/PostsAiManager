@@ -76,6 +76,30 @@ class ZoneInterpreterTest {
     }
 
     @Test
+    fun `neighbour context adds a labelled glimpse to header zones only and offers no other candidate`() {
+        val letter = Letters.n1
+        val p = Prepared(letter.pages)
+        val session = FakePromptSession().apply { responder = oracle(letter, p) }
+        runBlocking {
+            ExtractionV2Pipeline().run(letter.pages, ZoneInterpreter(FakeAiEngine(), session, contextTokens = 4096, neighbourContext = true), 4096)
+        }
+        val addressee = session.asks.first { it.question.contains("To whom is the letter addressed") }.question
+        assertThat(addressee).contains("CONTEXT ONLY, the zone just above (")
+        assertThat(addressee).contains("CONTEXT ONLY, the zone just below (")
+        // Nothing of the glimpse is a candidate of this question: the candidate list is unchanged.
+        val plainSession = FakePromptSession().apply { responder = oracle(letter, p) }
+        runBlocking { ExtractionV2Pipeline().run(letter.pages, ZoneInterpreter(FakeAiEngine(), plainSession, contextTokens = 4096), 4096) }
+        fun candidates(q: String) = q.substringAfter("CANDIDATES IN THESE ZONES").substringBefore("QUESTION:")
+        assertThat(candidates(addressee)).isEqualTo(candidates(plainSession.asks.first { it.question.contains("To whom is the letter addressed") }.question))
+        // The body session already holds the body: its questions carry no glimpse.
+        val total = session.asks.first { it.question.contains("main amount of this document") }
+        assertThat(total.question).doesNotContain("CONTEXT ONLY")
+        // The glimpse is short: two lines, 160 characters, per neighbour.
+        val glimpse = addressee.lines().filter { it.startsWith("CONTEXT ONLY") }
+        assertThat(glimpse.all { it.substringAfter("): ").length <= 2 * 160 }).isTrue()
+    }
+
+    @Test
     fun `the header answers are summarised in front of the body`() {
         val (_, _, session) = run(Letters.all.indexOf(Letters.n1))
         assertThat(session.opens[1]).contains("ESTABLISHED FROM THE HEADER")
