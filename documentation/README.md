@@ -102,7 +102,7 @@ ordered the way they are.
 | **RAG / semantic search** | ✅ **Working on device** — ONNX encoder, hybrid RRF retrieval, indexed on scan. Thresholds calibrated from measurement (4/5 paragraph ranking). Model delivery to a real install is the remaining gap |
 | **Escalation & consent gate** | **Not started** |
 | **Chat** | Wired to the local engine; needs a model installed |
-| **Entity understanding** | **Next** — AI reads the document, identifies people and organisations, creates or links profiles. See [08](08-entity-understanding.md) |
+| **Entity understanding** | **Next** — AI reads the document, identifies people and organisations, creates or links profiles. See [07](07-document-pipeline.md) |
 | **Tests** | ✅ **75 passing** across 5 modules; all 17 test-capable. Still no Room or instrumented tests |
 | **Localization** | **`stringResource` used zero times** |
 | `feature:parser` (Arabic) | ✅ Removed — archived at git tag `archive/arabic-parser` |
