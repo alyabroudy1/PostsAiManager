@@ -73,14 +73,7 @@ fun ModelHeaderChip(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    // Pre-warm priming (see ChatViewModel.preWarmModel) only ever runs once
-                    // the model itself has already reached Ready — the chip's own subtitle
-                    // for [ModelLoadState.Loading] still applies during the load half.
-                    text = if (isPrimingConversation && state.loadState is ModelLoadState.Ready) {
-                        "Preparing conversation…"
-                    } else {
-                        loadStateSubtitle(state.loadState)
-                    },
+                    text = modelHeaderSubtitle(state.loadState, isPrimingConversation),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -99,7 +92,7 @@ fun ModelHeaderChip(
 @Composable
 private fun LoadStateDot(loadState: ModelLoadState, isPrimingConversation: Boolean = false) {
     when {
-        loadState is ModelLoadState.Loading || (isPrimingConversation && loadState is ModelLoadState.Ready) ->
+        showsHeaderSpinner(loadState, isPrimingConversation) ->
             CircularProgressIndicator(
                 modifier = Modifier.size(14.dp),
                 strokeWidth = 2.dp,
@@ -128,9 +121,27 @@ private fun LoadStateDot(loadState: ModelLoadState, isPrimingConversation: Boole
     }
 }
 
+/**
+ * The chat header's subtitle. Pre-warm priming ([ChatViewModel.preWarmModel]) spans the model
+ * load *and* the conversation prefill, so the flag alone is not enough: the load half must say
+ * "Loading model…" and only the prefill half — the model is resident, or has not registered
+ * a load yet — says "Preparing conversation…". A failed load is never masked by either.
+ */
+internal fun modelHeaderSubtitle(loadState: ModelLoadState, isPrimingConversation: Boolean): String = when {
+    loadState is ModelLoadState.Loading -> "Loading model…"
+    loadState is ModelLoadState.Failed -> loadStateSubtitle(loadState)
+    isPrimingConversation -> "Preparing conversation…"
+    else -> loadStateSubtitle(loadState)
+}
+
+/** The header shows a spinner exactly while the subtitle describes work in progress. */
+internal fun showsHeaderSpinner(loadState: ModelLoadState, isPrimingConversation: Boolean): Boolean =
+    loadState is ModelLoadState.Loading ||
+        (isPrimingConversation && loadState !is ModelLoadState.Failed)
+
 private fun loadStateSubtitle(loadState: ModelLoadState): String = when (loadState) {
     ModelLoadState.Idle -> "Not loaded"
-    is ModelLoadState.Loading -> "Loading…"
+    is ModelLoadState.Loading -> "Loading model…"
     is ModelLoadState.Ready ->
         "${loadState.config.accelerator.name} · ${loadState.config.contextTokens} ctx"
     is ModelLoadState.Failed -> "Failed to load"
