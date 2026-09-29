@@ -57,20 +57,37 @@ class CandidateExtractorTest {
     // ── relative deadlines ──────────────────────────────────────────────────────
 
     @TestFactory
-    fun `relative deadlines keep number unit and anchor`(): List<DynamicTest> = table(
+    fun `a period in words is not a candidate in any language, the model quotes it`(): List<DynamicTest> = table(
         listOf(
-            listOf("innerhalb von 14 Tagen nach Zugang dieses Schreibens auf das Konto", "P14D", "Zugang dieses Schreibens"),
-            listOf("Einspruch innerhalb eines Monats nach Bekanntgabe des Bescheids beim Amt", "P1M", "Bekanntgabe des Bescheids"),
-            listOf("Bitte antworten Sie binnen 2 Wochen nach Erhalt.", "P2W", "Erhalt"),
-            listOf("within 14 days of the date of this letter", "P14D", "the date of this letter"),
-            listOf("innerhalb einer Woche ab Rechnungsdatum bitte zahlen", "P1W", "Rechnungsdatum"),
+            "innerhalb von 14 Tagen nach Zugang dieses Schreibens auf das Konto",
+            "Einspruch innerhalb eines Monats nach Bekanntgabe des Bescheids beim Amt",
+            "within 14 days of the date of this letter",
+            "dans un délai de 14 jours à compter de la réception",
+            "خلال 30 يوما من تاريخ الاستلام",
         ),
-        { it[0] },
-    ) { (line, iso, anchor) ->
-        val c = one(line).single { it.kind == CandidateKind.RELATIVE_DEADLINE }
-        assertThat(c.normalized).isEqualTo(iso)
-        assertThat(c.attrs["anchor"]).isEqualTo(anchor)
-        assertThat(c.raw).contains(anchor)
+    ) { line ->
+        assertThat(one(line)).isEmpty()
+    }
+
+    @Test
+    fun `no letter date is inferred from a label, so dates stay unchecked until the model chooses one`() {
+        val set = run(page("Datum: 28.09.2026", "Fällig am 12.10.2026", "31.02.2026"))
+        assertThat(set.letterDate).isNull()
+        val dates = set.candidates.filter { it.kind == CandidateKind.DATE }
+        assertThat(dates.map { it.normalized }).containsExactly("2026-09-28", "2026-10-12", "2026-02-31").inOrder()
+        assertThat(dates[0].validation).isEqualTo(Validation.Unchecked)
+        assertThat(dates[1].validation).isEqualTo(Validation.Unchecked)
+        // A calendar impossibility is still caught, whatever the words.
+        assertThat(dates[2].validation).isInstanceOf(Validation.Invalid::class.java)
+    }
+
+    @Test
+    fun `a given letter date range-checks every date the same way, whatever the label`() {
+        val set = run(page("geb. 12.05.1980", "Datum: 28.09.2026", "Fällig 12.10.2026"), letterDate = java.time.LocalDate.of(2026, 9, 28))
+        val byDate = set.candidates.filter { it.kind == CandidateKind.DATE }.associate { it.normalized to it.validation }
+        assertThat(byDate["2026-09-28"]).isEqualTo(Validation.Valid)
+        assertThat(byDate["2026-10-12"]).isEqualTo(Validation.Valid)
+        assertThat(byDate["1980-05-12"]).isInstanceOf(Validation.Invalid::class.java)
     }
 
     // ── amounts ─────────────────────────────────────────────────────────────────
@@ -215,49 +232,59 @@ class CandidateExtractorTest {
     // ── names ───────────────────────────────────────────────────────────────────
 
     @Test
-    fun `z Hd line gives the routing person with the salutation stripped`() {
+    fun `a routing prefix is cut off by its shape and kept as the hint, kind is not decided`() {
         val set = run(page("@ADDR Mustermann Consulting GmbH", "@ADDR z. Hd. Frau Erika Mustermann", "@ADDR Gewerbering 4", "@ADDR 54321 Beispieldorf"))
-        val org = set.ofKind(CandidateKind.ORG_NAME).single()
-        assertThat(org.normalized).isEqualTo("Mustermann Consulting GmbH")
-        val person = set.ofKind(CandidateKind.PERSON_NAME).single()
-        assertThat(person.normalized).isEqualTo("Erika Mustermann")
-        assertThat(person.label).contains("Hd")
-        assertThat(person.attrs["routing"]).isEqualTo("true")
+        val names = set.ofKind(CandidateKind.NAME)
+        assertThat(names.map { it.normalized }).containsExactly("Mustermann Consulting GmbH", "Erika Mustermann").inOrder()
+        assertThat(names[1].label).contains("Hd")
+        assertThat(names[1].attrs["prefix"]).isEqualTo("z. Hd.")
+        // Whether this person is the routing contact is not recorded here; that is the model's `r`.
+        assertThat(names[1].attrs["routing"]).isNull()
     }
 
     @Test
-    fun `c o line is a routing name and the real addressee stays a separate candidate`() {
+    fun `c o prefix is cut off by shape and the real addressee stays a separate candidate`() {
         val set = run(page("@ADDR Herrn", "@ADDR Jonas Mustermann", "@ADDR c/o Familie Beispiel", "@ADDR Beispielgasse 3", "@ADDR 12345 Beispielstadt"))
-        val names = set.ofKind(CandidateKind.PERSON_NAME)
+        val names = set.ofKind(CandidateKind.NAME)
         assertThat(names.map { it.normalized }).containsExactly("Jonas Mustermann", "Familie Beispiel").inOrder()
-        assertThat(names[0].attrs["routing"]).isNull()
+        assertThat(names[0].attrs["prefix"]).isNull()
         assertThat(names[1].label).isEqualTo("c/o")
-        assertThat(names[1].attrs["routing"]).isEqualTo("true")
     }
 
     @Test
-    fun `routing lines are found even without zone hints`() {
-        val set = CandidateExtractor.extractFromText("Mustermann Consulting GmbH\nz. Hd. Herrn Dr. Max Beispiel\nc/o Firma Test GmbH")
-        assertThat(set.ofKind(CandidateKind.PERSON_NAME).map { it.normalized }).containsExactly("Dr. Max Beispiel")
-        assertThat(set.ofKind(CandidateKind.ORG_NAME).map { it.normalized }).containsExactly("Firma Test GmbH")
+    fun `routing lines are found without zone hints, from their shape`() {
+        val set = run(page("Mustermann Consulting GmbH", "z. Hd. Herrn Dr. Max Beispiel", "c/o Firma Test GmbH"))
+        assertThat(set.ofKind(CandidateKind.NAME).map { it.normalized })
+            .containsExactly("Mustermann Consulting GmbH", "Dr. Max Beispiel", "Firma Test GmbH").inOrder()
     }
 
     @Test
-    fun `salutation only lines are not names and family combines with the surname line`() {
+    fun `initials and titles are not mistaken for a routing prefix`() {
+        val set = run(page("@ADDR Dr. Erika Mustermann", "@ADDR J. K. Beispiel", "@ADDR T. Muster"))
+        assertThat(set.ofKind(CandidateKind.NAME).map { it.normalized })
+            .containsExactly("Dr. Erika Mustermann", "J. K. Beispiel", "T. Muster").inOrder()
+    }
+
+    @Test
+    fun `a one-word line under a one-word line is one name, whatever the first word says`() {
         val set = run(page("@ADDR Familie", "@ADDR Mustermann", "@ADDR Musterstraße 12", "@ADDR 54321 Beispieldorf"))
-        assertThat(set.ofKind(CandidateKind.PERSON_NAME).map { it.normalized }).containsExactly("Familie Mustermann")
+        assertThat(set.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Familie Mustermann")
+        // The same shape in another language and another script.
+        val fr = run(page("@ADDR Famille", "@ADDR Exemple", "@ADDR 3 rue de l'Exemple", "@ADDR 75001 Paris"))
+        assertThat(fr.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Famille Exemple")
+        val ar = run(page("@ADDR عائلة", "@ADDR موستيرمان"))
+        assertThat(ar.ofKind(CandidateKind.NAME)).hasSize(1)
         val herrn = run(page("@ADDR Herrn und Frau", "@ADDR Max und Erika Mustermann"))
-        assertThat(herrn.ofKind(CandidateKind.PERSON_NAME).map { it.normalized }).containsExactly("Max und Erika Mustermann")
+        assertThat(herrn.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Max und Erika Mustermann")
     }
 
     @Test
-    fun `guardian addressee`() {
+    fun `a guardian phrase is not interpreted, the whole line is a name for the model to read`() {
         val inline = run(page("@ADDR Erziehungsberechtigte von Adam Mustermann"))
-        assertThat(inline.ofKind(CandidateKind.PERSON_NAME).single().normalized).isEqualTo("Adam Mustermann")
+        assertThat(inline.ofKind(CandidateKind.NAME).single().normalized).isEqualTo("Erziehungsberechtigte von Adam Mustermann")
+        assertThat(inline.candidates.none { it.attrs["guardianOf"] != null }).isTrue()
         val split = run(page("@ADDR Erziehungsberechtigte von", "@ADDR Adam Mustermann"))
-        val p = split.ofKind(CandidateKind.PERSON_NAME).single()
-        assertThat(p.normalized).isEqualTo("Adam Mustermann")
-        assertThat(p.label).contains("Erziehungsberechtigte")
+        assertThat(split.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Adam Mustermann")
     }
 
     @Test
@@ -271,15 +298,26 @@ class CandidateExtractorTest {
                 "@RET Nordlicht Mobilfunk GmbH · Beispielweg 7 · 12345 Beispielstadt",
             ),
         )
-        assertThat(set.ofKind(CandidateKind.ORG_NAME).map { it.normalized }).containsExactly("Nordlicht Mobilfunk GmbH", "Nordlicht Mobilfunk GmbH")
-        assertThat(set.ofKind(CandidateKind.PERSON_NAME)).isEmpty()
+        assertThat(set.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Nordlicht Mobilfunk GmbH", "Nordlicht Mobilfunk GmbH")
+        assertThat(set.candidates.none { it.kind.name.endsWith("_NAME") }).isTrue()
     }
 
     @Test
-    fun `letterhead first line without a legal form is a guessed organisation`() {
-        val set = run(page("@HEAD Beitragsservice Beispiel", "@HEAD Postfach 10 00 00", "@HEAD 50656 Beispielstadt"))
-        val org = set.ofKind(CandidateKind.ORG_NAME).single()
-        assertThat(org.normalized).isEqualTo("Beitragsservice Beispiel")
+    fun `letterhead names come from the shape, in any language, with no organisation word list`() {
+        val de = run(page("@HEAD Beitragsservice Beispiel", "@HEAD Postfach 10 00 00", "@HEAD 50656 Beispielstadt"))
+        assertThat(de.ofKind(CandidateKind.NAME).single().normalized).isEqualTo("Beitragsservice Beispiel")
+        val en = run(page("@HEAD Northwind Utilities Ltd.", "@HEAD 1 Example Road", "@HEAD Exampleton EX2 3PL", "@HEAD Phone: 0800 555 0100"))
+        assertThat(en.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Northwind Utilities Ltd.")
+        val ar = run(page("@HEAD شركة المثال للخدمات", "@HEAD هاتف: 0800 555 0100"))
+        assertThat(ar.ofKind(CandidateKind.NAME)).hasSize(1)
+        // One neutral id prefix for every name; the model's `k` says person, company or authority.
+        assertThat(de.ofKind(CandidateKind.NAME).single().id).startsWith("M")
+    }
+
+    @Test
+    fun `a name looking like a company and one looking like a person get the same kind and prefix`() {
+        val set = run(page("@ADDR Mustermann Consulting GmbH", "@ADDR Erika Mustermann"))
+        assertThat(set.ofKind(CandidateKind.NAME).map { it.id }).containsExactly("M1", "M2").inOrder()
     }
 
     @Test
@@ -288,7 +326,7 @@ class CandidateExtractorTest {
             "Sehr geehrte Frau Mustermann,", "Erika Mustermann", "Mustermann Consulting GmbH",
             "Bitte überweisen Sie den Betrag bis morgen.", "Datum: heute", "Zahlungsziel 14 Tage",
         )
-        val names = set.filter { it.kind == CandidateKind.PERSON_NAME || it.kind == CandidateKind.ORG_NAME }.map { it.normalized }
+        val names = set.filter { it.kind == CandidateKind.NAME }.map { it.normalized }
         assertThat(names).containsExactly("Erika Mustermann", "Mustermann Consulting GmbH").inOrder()
         assertThat(set.filter { it.normalized == "Erika Mustermann" }.single().attrs["shape"]).isEqualTo("true")
     }
@@ -296,7 +334,7 @@ class CandidateExtractorTest {
     @Test
     fun `a name is found in a script without capitals`() {
         val set = one("السيدة إيريكا موستيرمان", "شركة المثال للخدمات المحدودة")
-        assertThat(set.count { it.kind == CandidateKind.PERSON_NAME || it.kind == CandidateKind.ORG_NAME }).isEqualTo(2)
+        assertThat(set.count { it.kind == CandidateKind.NAME }).isEqualTo(2)
     }
 
     @Test
@@ -382,15 +420,55 @@ class CandidateExtractorTest {
     fun `plain text entry point works without bounds`() {
         val set = CandidateExtractor.extractFromText("Datum: 28.09.2026\nGesamtbetrag 1.284,50 €\nIBAN DE89 3704 0044 0532 0130 00")
         assertThat(set.candidates.all { it.bbox == null }).isTrue()
-        assertThat(set.letterDate.toString()).isEqualTo("2026-09-28")
+        // The label is only a hint; no letter date is inferred from it.
+        assertThat(set.letterDate).isNull()
         assertThat(set.ofKind(CandidateKind.AMOUNT).single().labelKind).isEqualTo(LabelKind.GROSS)
     }
 
     @Test
-    fun `birth dates are not range checked`() {
+    fun `with no letter date every real date stays unchecked, a birth date included`() {
         val set = one("Datum: 28.09.2026", "geb. 12.05.1980")
         val birth = set.single { it.normalized == "1980-05-12" }
-        assertThat(birth.labelKind).isEqualTo(LabelKind.BIRTH_DATE)
         assertThat(birth.validation).isEqualTo(Validation.Unchecked)
+        assertThat(set.single { it.normalized == "2026-09-28" }.validation).isEqualTo(Validation.Unchecked)
+    }
+
+    // ── amount triples by arithmetic ─────────────────────────────────────────────
+
+    private fun triples(vararg lines: String) = one(*lines).filter { it.kind == CandidateKind.AMOUNT && it.attrs["triple"] != null }.map { it.normalized }
+
+    @Test
+    fun `a net VAT gross triple is found by arithmetic, with no label at all`() {
+        assertThat(triples("100,00 €", "19,00 €", "119,00 €")).containsExactly("100.00 EUR", "19.00 EUR", "119.00 EUR")
+    }
+
+    @Test
+    fun `the same triple is found in French, English and Arabic wording`() {
+        assertThat(triples("Montant HT 412,00 €", "TVA 20 % 82,40 €", "Total TTC 494,40 €")).hasSize(3)
+        assertThat(triples("Subtotal 250.00 EUR", "Tax 7% 17.50 EUR", "Total 267.50 EUR")).hasSize(3)
+        assertThat(triples("المبلغ 100,00 يورو", "ضريبة 19,00 يورو", "المجموع 119,00 يورو")).hasSize(3)
+    }
+
+    @Test
+    fun `wrong labels do not matter, only the sum and a plausible tax rate do`() {
+        // Labels swapped on purpose: still a consistent triple.
+        assertThat(triples("Brutto 100,00 €", "Netto 19,00 €", "MwSt 119,00 €")).hasSize(3)
+        // Labelled like a triple but the sum is off.
+        assertThat(triples("Netto 100,00 €", "MwSt 19,00 €", "Brutto 121,00 €")).isEmpty()
+    }
+
+    @Test
+    fun `a sum with an implausible tax rate is not a triple`() {
+        // 100 + 60 = 160 adds up, but 60 percent is no tax rate.
+        assertThat(triples("100,00 €", "60,00 €", "160,00 €")).isEmpty()
+        // 30 percent is above the ceiling.
+        assertThat(triples("100,00 €", "30,00 €", "130,00 €")).isEmpty()
+    }
+
+    @Test
+    fun `a triple within one cent of rounding is accepted, across pages it is not`() {
+        assertThat(triples("33,33 €", "6,33 €", "39,67 €")).hasSize(3)
+        val split = run(page("100,00 €", "19,00 €"), page("119,00 €")).candidates.filter { it.attrs["triple"] != null }
+        assertThat(split).isEmpty()
     }
 }

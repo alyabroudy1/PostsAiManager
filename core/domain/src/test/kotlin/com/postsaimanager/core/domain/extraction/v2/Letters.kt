@@ -16,8 +16,18 @@ internal class ManifestRoles(
     val household: Boolean = false,
 )
 
-/** A value the model should choose for a slot; found among the candidates by kind and normalised value. */
-internal class ExpSlot(val slot: SlotKey, val kind: CandidateKind, val norm: String, val role: String? = null)
+/**
+ * A value the model should choose for a slot; found among the candidates by kind and normalised value.
+ * With [quote] the model answers a period in words as `{"rule": quote}` instead of an id, and [norm]
+ * is what the verifier makes of it ("P14D" when the quote has a number and a unit, else the quote).
+ */
+internal class ExpSlot(
+    val slot: SlotKey,
+    val kind: CandidateKind,
+    val norm: String,
+    val role: String? = null,
+    val quote: String? = null,
+)
 
 /** A party the model should name: a name candidate when the text matches one, else a quote. */
 internal class ExpParty(
@@ -113,7 +123,7 @@ internal object Letters {
         slots = listOf(
             ExpSlot(Slots.LETTER_DATE, D, "2026-09-25", "LETTER_DATE"),
             ExpSlot(Slots.TOTAL, CandidateKind.AMOUNT, "64.98 EUR", "TOTAL_DUE"),
-            ExpSlot(Slots.DUE_DATE, CandidateKind.RELATIVE_DEADLINE, "P14D", "DUE_DATE"),
+            ExpSlot(Slots.DUE_DATE, D, "P14D", "DUE_DATE", quote = "innerhalb von 14 Tagen"),
             ExpSlot(Slots.FEE, CandidateKind.AMOUNT, "5.00 EUR", "FEE"),
             ExpSlot(Slots.ORIGINAL_DUE_DATE, D, "2026-08-19", "DUE_DATE"),
             ExpSlot(Slots.IBAN, CandidateKind.IBAN, IBAN2),
@@ -776,7 +786,7 @@ internal object Letters {
             ExpSlot(Slots.LETTER_DATE, D, "2026-09-24", "LETTER_DATE"),
             ExpSlot(Slots.TOTAL, CandidateKind.AMOUNT, "2317.00 EUR", "TOTAL_DUE"),
             ExpSlot(Slots.DUE_DATE, D, "2026-11-03", "DUE_DATE"),
-            ExpSlot(Slots.OBJECTION_DEADLINE, CandidateKind.RELATIVE_DEADLINE, "P1M", "DEADLINE"),
+            ExpSlot(Slots.OBJECTION_DEADLINE, D, "innerhalb eines Monats", "DEADLINE", quote = "innerhalb eines Monats"),
             ExpSlot(Slots.IBAN, CandidateKind.IBAN, IBAN1),
             ExpSlot(Slots.CASE_NO, CandidateKind.REFERENCE, "EST-2025-0047118"),
             ExpSlot(Slots.TAX_NO, CandidateKind.REFERENCE, "123/456/78901"),

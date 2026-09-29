@@ -22,8 +22,8 @@ enum class SlotKind(vararg val candidates: CandidateKind) {
     /** Answered as `{"id":"D1","r":<date role>,"c":..}`. */
     DATE(CandidateKind.DATE, CandidateKind.DATETIME),
 
-    /** A date, a relative period the code found, or a period the model quotes as a rule. */
-    DEADLINE(CandidateKind.DATE, CandidateKind.DATETIME, CandidateKind.RELATIVE_DEADLINE),
+    /** A date, or a period in words the model quotes as a rule (`{"rule":"...","r":..,"c":..}`), verified by [RelativePeriod]. */
+    DEADLINE(CandidateKind.DATE, CandidateKind.DATETIME),
     IBAN(CandidateKind.IBAN),
 
     /** A reference or identifier: an invoice, customer, contract, case or meter number. */
@@ -33,7 +33,7 @@ enum class SlotKind(vararg val candidates: CandidateKind) {
     REFERENCE_LIST(CandidateKind.REFERENCE),
 
     /** A person or organisation: a name candidate id, or a verified quote. */
-    NAME(CandidateKind.PERSON_NAME, CandidateKind.ORG_NAME),
+    NAME(CandidateKind.NAME),
 
     /** One of [SlotKey.ACTIONS]; not a value from the page. */
     ACTION,

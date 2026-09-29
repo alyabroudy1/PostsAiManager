@@ -56,8 +56,9 @@ class GrammarAndPromptTest {
             assertThat(idsIn(r.getValue("iban")).toSet()).isEqualTo(o.idsOf(CandidateKind.IBAN).toSet())
             assertThat(idsIn(r.getValue("ref")).toSet()).isEqualTo(o.idsOf(CandidateKind.REFERENCE).toSet())
             assertThat(idsIn(r.getValue("date")).toSet()).isEqualTo(o.idsOf(CandidateKind.DATE, CandidateKind.DATETIME).toSet())
-            assertThat(idsIn(r.getValue("due")).toSet())
-                .isEqualTo(o.idsOf(CandidateKind.DATE, CandidateKind.DATETIME, CandidateKind.RELATIVE_DEADLINE).toSet())
+            // A deadline is a date id or a quoted rule; no code-found "period" candidate exists any more.
+            assertThat(idsIn(r.getValue("due")).toSet()).isEqualTo(o.idsOf(CandidateKind.DATE, CandidateKind.DATETIME).toSet())
+            assertThat(r.getValue("due")).contains("\\\"rule\\\":")
             for (name in listOf("amt", "date", "due", "iban", "ref")) assertThat(r.getValue(name)).contains("\\\"NONE\\\"")
         }
 
@@ -111,8 +112,10 @@ class GrammarAndPromptTest {
         @Test
         fun `a name may be a candidate id or a quote`() {
             val r = rules(grammar)
-            val names = invoice.offered.idsOf(CandidateKind.PERSON_NAME, CandidateKind.ORG_NAME)
+            val names = invoice.offered.idsOf(CandidateKind.NAME)
             assertThat(names).isNotEmpty()
+            // One neutral prefix for every name candidate.
+            assertThat(names.all { it.startsWith("M") }).isTrue()
             assertThat(idsIn(r.getValue("nameref"))).containsExactlyElementsIn(names)
             assertThat(r.getValue("nameref")).endsWith("quote")
         }

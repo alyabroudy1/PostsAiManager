@@ -95,7 +95,7 @@ class ExtractionV2PipelineTest {
             assertThat(r.needsReview).isTrue()
             val kinds = r.foundValues.map { it.kind }.toSet()
             assertThat(kinds).containsAtLeast(CandidateKind.DATE, CandidateKind.AMOUNT, CandidateKind.IBAN)
-            assertThat(kinds).containsNoneOf(CandidateKind.PERSON_NAME, CandidateKind.ORG_NAME)
+            assertThat(kinds).doesNotContain(CandidateKind.NAME)
         }
 
         @Test

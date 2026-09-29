@@ -185,6 +185,25 @@ object AmountParser {
 object AmountConsistency {
     fun netPlusVatEqualsGross(netCents: Long, vatCents: Long, grossCents: Long): Boolean =
         kotlin.math.abs(netCents + vatCents - grossCents) <= 1
+
+    /** Tax rates worth recognising, in percent (standard, reduced and super-reduced rates in use around the world, up to 27). */
+    private val COMMON_RATES = listOf(
+        0.0, 2.0, 2.5, 3.0, 3.8, 4.0, 5.0, 5.5, 6.0, 7.0, 7.7, 8.0, 8.1, 9.0, 10.0, 12.0, 13.0, 14.0, 15.0, 16.0,
+        17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0, 27.0,
+    )
+
+    /**
+     * The language-neutral net + VAT = gross check: [net] + [vat] = [gross] within one cent, and
+     * [vat] / [net] within rounding of a common rate between 0 and 27 percent. Both amounts positive.
+     * Which of the three is called what in the letter is never looked at.
+     */
+    fun isNetVatGross(netCents: Long, vatCents: Long, grossCents: Long): Boolean {
+        if (netCents <= 0 || vatCents <= 0 || !netPlusVatEqualsGross(netCents, vatCents, grossCents)) return false
+        val rate = 100.0 * vatCents / netCents
+        // one cent of rounding in the VAT moves the rate by 100 / net percentage points
+        val tolerance = 0.05 + 100.0 / netCents
+        return COMMON_RATES.any { kotlin.math.abs(rate - it) <= tolerance }
+    }
 }
 
 /** Shape (and checksum where one exists) per reference subtype. */

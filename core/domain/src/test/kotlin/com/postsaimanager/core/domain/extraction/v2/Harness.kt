@@ -36,8 +36,7 @@ internal class Prepared(val pages: List<List<OcrBlock>>) {
 
     /** A name candidate whose text is [name], ignoring case, spacing and accents. */
     fun findName(name: String): Candidate? = offered.rows.map { it.candidate }.firstOrNull {
-        (it.kind == CandidateKind.PERSON_NAME || it.kind == CandidateKind.ORG_NAME) &&
-            QuoteVerifier.fold(it.raw).trim() == QuoteVerifier.fold(name).trim()
+        it.kind == CandidateKind.NAME && QuoteVerifier.fold(it.raw).trim() == QuoteVerifier.fold(name).trim()
     }
 }
 
@@ -101,8 +100,8 @@ internal object Oracle {
                 buildJsonObject {
                     for (slot in letter.type.slots) {
                         val exp = letter.slots.firstOrNull { it.slot == slot }
-                        val cand = exp?.let { p.find(it.kind, it.norm) }
-                        if (exp != null && cand == null) missing += "${slot.json}=${exp.norm}"
+                        val cand = exp?.takeIf { it.quote == null }?.let { p.find(it.kind, it.norm) }
+                        if (exp != null && exp.quote == null && cand == null) missing += "${slot.json}=${exp.norm}"
                         put(slot.json, slotValue(slot, exp, cand))
                     }
                 },
@@ -149,6 +148,14 @@ internal object Oracle {
     }
 
     private fun slotValue(slot: SlotKey, exp: ExpSlot?, cand: Candidate?): JsonElement {
+        // A period in words has no candidate: the model quotes it as a rule.
+        if (exp?.quote != null) {
+            return buildJsonObject {
+                put("rule", exp.quote)
+                put("r", exp.role ?: "OTHER")
+                put("c", "HIGH")
+            }
+        }
         if (exp == null || cand == null) return JsonPrimitive("NONE")
         return buildJsonObject {
             put("id", cand.id)

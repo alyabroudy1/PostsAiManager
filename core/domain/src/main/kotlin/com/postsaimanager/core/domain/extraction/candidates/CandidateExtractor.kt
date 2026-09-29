@@ -12,8 +12,11 @@ import java.time.LocalDate
  *
  * Existence is decided by shape, never by a word in any language: an identifier is a token of
  * digits mixed with letters or separators, a name is a short line of words without digits in the
- * top half of page 1 or in a footer. Labels (Kundennummer, Aktenzeichen ...) and the layout zone
- * only add hints (a subtype, a nearby text, a zone) to a candidate that exists anyway.
+ * top half of page 1 or in a footer (one neutral [CandidateKind.NAME], person or company is the
+ * model's call). Labels (Kundennummer, Aktenzeichen ...) and the layout zone only add hints (a
+ * subtype, a nearby text, a zone) to a candidate that exists anyway. A period in words ("within a
+ * month") is not found here at all: the model quotes it and the verifier checks the quote. Amount
+ * triples are found by arithmetic. No letter date is inferred from a label.
  *
  * Pure Kotlin: no Android, no I/O. Safe to run in JVM tests and in a worker.
  */
@@ -21,12 +24,9 @@ object CandidateExtractor {
 
     /**
      * @param pages OCR blocks per page (page 1 first).
-     * @param zones optional layout hints per block (workstream B); names are only proposed from
-     *   blocks tagged [BlockZone.ADDRESS_FIELD], [BlockZone.LETTERHEAD] or
-     *   [BlockZone.RETURN_ADDRESS], plus explicit routing lines (z. Hd., c/o, Erziehungsberechtigte
-     *   von) wherever they appear.
-     * @param letterDate the letter's date when already known; otherwise it is inferred from a
-     *   labelled date ("Datum:", "Rechnungsdatum", "Ort, 26 September 2026") to range-check the others.
+     * @param zones optional layout hints per block; they travel along on name candidates as a hint.
+     * @param letterDate the letter's date when the caller knows it, to range-check the other dates;
+     *   otherwise dates stay unchecked here and the verifier anchors on the date the model chose.
      */
     fun extract(
         pages: List<List<OcrBlock>>,
@@ -81,29 +81,6 @@ private object P {
     )
     val TIME_ONLY = Regex("(?<![\\d:.])(\\d{1,2})[:.](\\d{2})\\s*Uhr(?![\\p{L}])", RegexOption.IGNORE_CASE)
 
-    private const val NUMBER_WORDS =
-        "einem|einer|eines|einen|ein|zwei|drei|vier|f\u00FCnf|sechs|sieben|acht|neun|zehn|zw\u00F6lf|" +
-            "one|two|three|four|five|six|seven|eight|nine|ten|twelve"
-    val RELATIVE = Regex(
-        "(?:innerhalb\\s+(?:von\\s+|eines\\s+|einer\\s+|der\\s+)?|binnen\\s+(?:eines\\s+|einer\\s+)?|" +
-            "within\\s+(?:a\\s+|an\\s+)?|nach\\s+Ablauf\\s+von\\s+|sp\u00E4testens\\s+nach\\s+)" +
-            "(\\d+|$NUMBER_WORDS)\\s+" +
-            "(Werktag(?:es|e|en)?|Arbeitstag(?:es|e|en)?|Tag(?:es|e|en)?|Woche[n]?|Monat(?:s|e|en)?|Jahr(?:es|e|en)?|" +
-            "working\\s+days?|business\\s+days?|days?|weeks?|months?|years?)(?![\\p{L}])",
-        RegexOption.IGNORE_CASE,
-    )
-    val ANCHOR = Regex("^\\s+(?:nach|ab|seit|following|after|from|of)\\s+(.{2,80})", RegexOption.IGNORE_CASE)
-    val ANCHOR_STOP = Regex(
-        "\\s+(?:auf|bei|beim|an|per|schriftlich|und|oder|bitte|unter|gem\u00E4\u00DF|zu|to|at|by|and|or|mit|im|in)\\b|[.,;:]",
-        RegexOption.IGNORE_CASE,
-    )
-    val NUMBER_WORD_VALUES = mapOf(
-        "ein" to 1, "einem" to 1, "einer" to 1, "eines" to 1, "einen" to 1, "one" to 1, "zwei" to 2, "two" to 2,
-        "drei" to 3, "three" to 3, "vier" to 4, "four" to 4, "f\u00FCnf" to 5, "five" to 5, "sechs" to 6, "six" to 6,
-        "sieben" to 7, "seven" to 7, "acht" to 8, "eight" to 8, "neun" to 9, "nine" to 9, "zehn" to 10, "ten" to 10,
-        "zw\u00F6lf" to 12, "twelve" to 12,
-    )
-
     val AMOUNT = Regex(
         "(?<![\\p{L}\\d.,])((?<=^|[\\s(:])[-\\u2212])?(?:($EUR)\\s?)?" +
             "(\\d{1,3}(?:[.,\\u2019']\\d{3})+(?:[.,]\\d{2})?|\\d+(?:[.,]\\d{2})?)(,-{1,2})?(?!\\d)" +
@@ -147,23 +124,13 @@ private object P {
         "^(?:Herrn\\s+und\\s+Frau|Herr\\s+und\\s+Frau|Herrn|Herr|Frau|Fr\\.|Hr\\.|Fr\u00E4ulein|Eheleute|Mr\\.?|Mrs\\.?|Ms\\.?|Miss|Mx\\.?)(?=\\s|$)\\s*",
         RegexOption.IGNORE_CASE,
     )
-    val ROUTE_ZHD = Regex("^(z\\.?\\s?Hd\\.?|z\\.?\\s?H\\.|zu\\s+H\u00E4nden(?:\\s+von)?|zH|Attn\\.?:?|Attention:?)\\s+(.+)$", RegexOption.IGNORE_CASE)
-    val ROUTE_CO = Regex("^(c/o|c\\.o\\.)\\s+(.+)$", RegexOption.IGNORE_CASE)
-    val ROUTE_GUARDIAN = Regex(
-        "^((?:Erziehungsberechtigte[rn]?|Eltern|Vormund|Betreuer(?:in)?|Sorgeberechtigte[rn]?)\\s+(?:von|des|der))\\s+(.+)$",
-        RegexOption.IGNORE_CASE,
-    )
-    val ORG_WORDS = Regex(
-        "(?<![\\p{L}])(?:GmbH|mbH|AG|KG|OHG|GbR|UG|e\\.\\s?V\\.|eG|SE|Ltd\\.?|Inc\\.?|LLC|Co\\.|Corp\\.?|Stiftung|Verband|Verein|" +
-            "Universit\u00E4t|Hochschule|Grundschule|Schule|Finanzamt|Stadtwerke|Versicherung(?:en)?|Bank|Sparkasse|Amt|Amtsgericht|" +
-            "Praxis|Kanzlei|Hausverwaltung|Verwaltung|Beitragsservice|Jobcenter|Gemeinde|Stadt|Kreis|Ministerium|Kammer|" +
-            "Krankenkasse|Kasse|Klinikum|Krankenhaus|Beh\u00F6rde|Utilities|Services|Partner|Consulting|Mobilfunk|Institut|Agentur|Gesellschaft|Company|Firma)" +
-            "(?![\\p{L}])",
-        RegexOption.IGNORE_CASE,
-    )
-    val STREET = Regex(
-        "(?i)^(?:.*(?:stra\u00DFe|strasse|str\\.|weg|platz|allee|gasse|ring|damm|ufer|street|road|lane|avenue)\\s*\\d+\\s*[a-z]?|.*\\s\\d+\\s?[a-z]?)$",
-    )
+    /**
+     * A routing prefix by shape: leading abbreviation tokens such as "z. Hd." or "c/o" (short letters
+     * ended by a full stop, or two letters around a slash). Only removed from the name; the words are
+     * kept as the candidate's hint. Whether the person is a routing contact is the model's decision.
+     */
+    val ROUTING_TOKEN = Regex("^(?:\\p{L}{1,3}\\.|\\p{L}{1,3}/\\p{L}{1,3}\\.?|\\p{L}{1,4}\\.?:)$")
+    val STREET_SHAPE = Regex("^.*\\p{L}\\.?\\s*\\d+\\s?\\p{L}?$")
     val POSTAL = Regex("^(?:[A-Z]{1,2}[- ])?\\d{4,5}\\s+\\p{L}")
     val WEEKDAY = Regex(
         "(?i)^(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonnabend|Sonntag|Mo|Di|Mi|Do|Fr|Sa|So|" +
@@ -268,6 +235,9 @@ private class Run(
     /** Shape-only names are looked for above this height on page 1 (fraction of the page). */
     private val TOP_HALF = 0.5f
 
+    /** With a letter date given, a date may lie this far before it; the same for every date, no label decides. */
+    private val GIVEN_LETTER_PAST_YEARS = 10L
+
     fun execute(): CandidateSet {
         buildLines()
         for ((i, line) in lines.withIndex()) {
@@ -276,7 +246,7 @@ private class Run(
         }
         drafts.sortWith(compareBy({ it.line.order }, { it.start }))
         labelDrafts()
-        val letter = givenLetterDate ?: inferLetterDate()
+        val letter = givenLetterDate
         validateDates(letter)
         markTriples()
         return CandidateSet(assignIds(), letter)
@@ -381,7 +351,6 @@ private class Run(
         val mask = Mask()
         findIbans(line, next, mask)
         findDates(line, mask)
-        findRelativeDeadlines(line, mask)
         findBics(line, mask)
         findReferences(line, next, mask)
         findAmounts(line, mask)
@@ -553,50 +522,9 @@ private class Run(
         }
     }
 
-    // Relative deadlines -----------------------------------------------------------
-
-    private fun findRelativeDeadlines(line: SourceLine, mask: Mask) {
-        val text = line.text
-        for (m in P.RELATIVE.findAll(text)) {
-            if (!mask.free(m.range)) continue
-            val nWord = m.groupValues[1].lowercase()
-            val n = nWord.toIntOrNull() ?: P.NUMBER_WORD_VALUES[nWord] ?: continue
-            val unitWord = m.groupValues[2].lowercase()
-            val (unit, letter) = when {
-                unitWord.startsWith("werktag") || unitWord.startsWith("arbeitstag") ||
-                    unitWord.startsWith("working") || unitWord.startsWith("business") -> "DAY" to 'D'
-                unitWord.startsWith("tag") || unitWord.startsWith("day") -> "DAY" to 'D'
-                unitWord.startsWith("woche") || unitWord.startsWith("week") -> "WEEK" to 'W'
-                unitWord.startsWith("monat") || unitWord.startsWith("month") -> "MONTH" to 'M'
-                else -> "YEAR" to 'Y'
-            }
-            var endIdx = m.range.last + 1
-            var anchor = ""
-            P.ANCHOR.find(text.substring(endIdx))?.let { am ->
-                var a = am.groupValues[1]
-                P.ANCHOR_STOP.find(a)?.let { stop -> a = a.substring(0, stop.range.first) }
-                a = a.trim().take(60).trim()
-                if (a.isNotEmpty()) {
-                    anchor = a
-                    endIdx += am.value.indexOf(a) + a.length
-                }
-            }
-            val r = m.range.first until endIdx
-            mask.add(r)
-            val working = unitWord.startsWith("werktag") || unitWord.startsWith("arbeitstag") ||
-                unitWord.startsWith("working") || unitWord.startsWith("business")
-            add(
-                line, r, CandidateKind.RELATIVE_DEADLINE, text.substring(r.first, endIdx).trim(), "P$n$letter",
-                validation = if (n in 1..730) Validation.Valid else Validation.Invalid("implausible period $n"),
-                attrs = buildMap {
-                    put("n", n.toString())
-                    put("unit", unit)
-                    put("anchor", anchor)
-                    if (working) put("workingDays", "true")
-                },
-            )
-        }
-    }
+    // Relative deadlines are not found here. A period given in words ("within one month") is
+    // quoted by the model as a rule and verified against the letter afterwards (see
+    // extraction.v2.RelativePeriod); no phrase in any language decides that one exists.
 
     // BIC -------------------------------------------------------------------------
 
@@ -763,90 +691,103 @@ private class Run(
         return s.substring(m.range.last + 1).trim() to true
     }
 
-    private fun isOrg(s: String) = P.ORG_WORDS.containsMatchIn(s)
+    /** A line of an address block that is not a name: a postcode line, a street with a number, or no letters. */
+    private fun looksLikeAddressLine(t: String): Boolean =
+        P.POSTAL.containsMatchIn(t) || P.STREET_SHAPE.matches(t) || t.any { it.isDigit() } || t.none { it.isLetter() }
 
-    private fun looksLikePerson(s: String, salutationSeen: Boolean): Boolean {
-        if (s.length > 60 || s.any { it.isDigit() } || s.isBlank()) return false
-        val tokens = s.split(Regex("\\s+")).filter { it.isNotEmpty() }
-        val words = tokens.filter { it.lowercase() !in P.CONNECTORS }
-        if (words.isEmpty() || tokens.last().lowercase() in P.CONNECTORS) return false
-        if (!words.all { w -> w[0].isUpperCase() && w.all { it.isLetter() || it in "'\u2019.-" } }) return false
-        return words.size >= 2 || salutationSeen
+    /**
+     * Removes a routing prefix by shape ("z. Hd.", "c/o", "Attn:"): two or more short abbreviations
+     * ended by a full stop, or a slash abbreviation, or a short word with a colon. Returns the rest
+     * and the prefix, or the line and null. The prefix stays as the candidate's hint; whether the
+     * person is a routing contact is for the model to say.
+     */
+    private fun stripRoutingPrefix(s: String): Pair<String, String?> {
+        val tokens = s.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        var n = 0
+        while (n < tokens.size - 1 && P.ROUTING_TOKEN.matches(tokens[n])) n++
+        if (n == 0) return s to null
+        val run = tokens.subList(0, n)
+        val isRouting = run.any { it.contains('/') || it.endsWith(':') } ||
+            (n >= 2 && run.any { it.trimEnd('.').length >= 2 })
+        if (!isRouting) return s to null
+        return tokens.drop(n).joinToString(" ") to run.joinToString(" ")
     }
 
-    private fun looksLikeAddressLine(t: String): Boolean =
-        P.POSTAL.containsMatchIn(t) || P.STREET.matches(t) || t.startsWith("Postfach", true) ||
-            Regex("(?i)^\\d+\\.?\\s*(?:OG|Etage|Stock)\\b.*").matches(t) || t.none { it.isLetter() }
+    /** One neutral name candidate: its kind (person, company, authority) is the model's to decide. */
+    private fun addName(line: SourceLine, range: IntRange, value: String, label: String, attrs: Map<String, String>) {
+        add(line, range, CandidateKind.NAME, value, value, label = label, attrs = attrs)
+    }
 
-    private fun nameDraft(line: SourceLine, name: String, label: String, extra: Map<String, String>): Boolean {
-        val (stripped, sal) = stripSalutation(name.trim().trimEnd(',', ';'))
-        if (stripped.isBlank()) return false
+    /** A name candidate from an address-field line: shape only, routing prefix and honorific removed. */
+    private fun nameDraft(line: SourceLine, name: String, extra: Map<String, String>, minWords: Int = 2): Boolean {
+        val trimmed = name.trim().trimEnd(',', ';')
+        val (afterRoute, prefix) = stripRoutingPrefix(trimmed)
+        val (stripped, sal) = stripSalutation(afterRoute)
+        if (stripped.isBlank() || !nameShape(stripped, minWords)) return false
         val start = line.text.indexOf(stripped).coerceAtLeast(0)
         val range = start until (start + stripped.length)
-        val attrs = if (sal) extra + ("salutation" to "true") else extra
-        return when {
-            isOrg(stripped) -> {
-                add(line, range, CandidateKind.ORG_NAME, stripped, stripped, label = label, attrs = attrs)
-                true
-            }
-            looksLikePerson(stripped, sal) -> {
-                add(line, range, CandidateKind.PERSON_NAME, stripped, stripped, label = label, attrs = attrs)
-                true
-            }
-            else -> false
-        }
+        val attrs = extra + listOfNotNull(
+            if (sal) "salutation" to "true" else null,
+            if (prefix != null) "prefix" to prefix else null,
+        )
+        addName(line, range, stripped, prefix.orEmpty(), attrs)
+        return true
+    }
+
+    /** Words only: no digit, no `@`, no web address, 1..6 words, at most 60 characters. Any script. */
+    private fun nameShape(s: String, minWords: Int): Boolean {
+        if (s.length !in 2..60 || s.any { it.isDigit() } || s.contains('@') || s.contains("://") || s.contains("www.", true)) return false
+        if (s.any { it in ":;!?" }) return false
+        val words = s.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val real = words.filter { it.lowercase() !in P.CONNECTORS }
+        if (words.size !in 1..6 || real.isEmpty() || words.last().lowercase() in P.CONNECTORS) return false
+        if (s.endsWith(',')) return false
+        return words.size >= minWords
     }
 
     private fun findNames(line: SourceLine) {
         val t = line.text
         val zoneAttr = line.zone?.let { mapOf("zone" to it.name) } ?: emptyMap()
-        // explicit routing lines, in any zone
-        P.ROUTE_ZHD.find(t)?.let { if (nameDraft(line, it.groupValues[2], collapse(it.groupValues[1]), zoneAttr + ("routing" to "true"))) return }
-        P.ROUTE_CO.find(t)?.let { if (nameDraft(line, it.groupValues[2], "c/o", zoneAttr + ("routing" to "true"))) return }
-        P.ROUTE_GUARDIAN.find(t)?.let {
-            if (nameDraft(line, it.groupValues[2], collapse(it.groupValues[1]), zoneAttr + ("guardianOf" to "true"))) return
-        }
         when (line.zone) {
             BlockZone.ADDRESS_FIELD -> {
                 if (looksLikeAddressLine(t)) return
-                // "Familie" / "Herrn" on the line above lets a single surname stand as a name.
+                // A one-word line under a one-word line ("Familie" / "Beispiel", "Herrn" / "Mustermann")
+                // is one name; by shape, whatever the first word says.
                 val prev = lines.getOrNull(line.order - 1)
                     ?.takeIf { it.page == line.page && it.zone == line.zone }
-                    ?.text
-                val prevIsFamily = prev != null && Regex("(?i)^(?:Familie|Fam\\.)$").matches(prev)
-                val prevIsSalutation = prev != null && !prevIsFamily && P.SALUTATION.containsMatchIn(prev) && stripSalutation(prev).first.isBlank()
-                val guardianMarker = prev?.let { Regex("(?i)^(?:Erziehungsberechtigte[rn]?|Eltern|Vormund|Sorgeberechtigte[rn]?)\\s+(?:von|des|der)$").find(it)?.value }
-                when {
-                    guardianMarker != null && nameDraft(line, t, collapse(guardianMarker), zoneAttr + ("guardianOf" to "true")) -> Unit
-                    prevIsFamily && t.split(Regex("\\s+")).size == 1 && !isOrg(t) ->
-                        add(line, 0 until t.length, CandidateKind.PERSON_NAME, "Familie $t", "Familie $t", attrs = zoneAttr)
-                    prevIsSalutation && t.split(Regex("\\s+")).size == 1 && !isOrg(t) ->
-                        add(line, 0 until t.length, CandidateKind.PERSON_NAME, t, t, attrs = zoneAttr + ("salutation" to "true"))
-                    else -> nameDraft(line, t, "", zoneAttr)
+                    ?.text?.trim()
+                if (t.split(Regex("\\s+")).size == 1 && prev != null && prev.split(Regex("\\s+")).size == 1 && !looksLikeAddressLine(prev)) {
+                    if (nameDraftJoined(line, "$prev $t", zoneAttr)) return
                 }
+                nameDraft(line, t, zoneAttr)
             }
             BlockZone.RETURN_ADDRESS -> {
-                val first = t.split(Regex("\\s*[\u00B7\u2022|]\\s*|\\s+[\u2013\u2014-]\\s+")).firstOrNull { it.isNotBlank() } ?: return
+                val first = t.split(Regex("\\s*[\u00B7\u2022|]\\s*|\\s+[\u2013\u2014-]\\s+")).firstOrNull { it.isNotBlank() }?.trim() ?: return
                 if (first.any { it.isDigit() }) return
-                if (!nameDraft(line, first, "", zoneAttr)) {
-                    add(line, 0 until first.length, CandidateKind.ORG_NAME, first.trim(), first.trim(), attrs = zoneAttr + ("guess" to "true"))
-                }
+                if (!nameDraft(line, first, zoneAttr, minWords = 1)) return
             }
             BlockZone.LETTERHEAD -> {
-                if (looksLikeAddressLine(t) || t.count { it.isDigit() } >= 3 ||
-                    Regex("(?i)(?:Tel|Fax|IBAN|BIC|USt|Steuer|HRB|HRA|Gesch\u00E4ftsf|www\\.|@)").containsMatchIn(t)
+                // Contact and legal lines are recognised by shape (digits, colon, @, web address), not by words.
+                if (looksLikeAddressLine(t) || t.count { it.isDigit() } >= 3 || t.contains(':') || t.contains('@') ||
+                    t.contains("www.", true)
                 ) return
-                if (isOrg(t)) {
-                    add(line, 0 until t.length, CandidateKind.ORG_NAME, t, t, attrs = zoneAttr)
-                } else if (drafts.none { it.line.page == line.page && it.line.blockIndex == line.blockIndex && it.c.attrs["zone"] == "LETTERHEAD" } &&
-                    t.length in 3..60
-                ) {
-                    add(line, 0 until t.length, CandidateKind.ORG_NAME, t, t, attrs = zoneAttr + ("guess" to "true"))
+                if (t.length in 3..60) {
+                    val first = drafts.none { it.line.page == line.page && it.line.blockIndex == line.blockIndex && it.c.attrs["zone"] == "LETTERHEAD" }
+                    val single = t.split(Regex("\\s+")).size == 1
+                    addName(line, 0 until t.length, t, "", if (first && single) zoneAttr + ("guess" to "true") else zoneAttr)
                 }
             }
             BlockZone.FOOTER -> shapeName(line, footer = true)
             null -> shapeName(line, footer = false)
         }
+    }
+
+    /** "Familie Beispiel": [combined] is the two one-word lines joined; the salutation, if any, is stripped. */
+    private fun nameDraftJoined(line: SourceLine, combined: String, extra: Map<String, String>): Boolean {
+        val (stripped, sal) = stripSalutation(combined)
+        if (stripped.isBlank() || !nameShape(stripped, 1)) return false
+        addName(line, 0 until line.text.length, stripped, "", if (sal) extra + ("salutation" to "true") else extra)
+        return true
     }
 
     /**
@@ -867,17 +808,20 @@ private class Run(
         val words = t.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (words.size !in 1..6) return
         if (t.endsWith('.') && words.last().length > 4) return
-        val (stripped, sal) = stripSalutation(t)
+        val (afterRoute, prefix) = stripRoutingPrefix(t)
+        val (stripped, sal) = stripSalutation(afterRoute)
         if (stripped.isBlank() || stripped.length < 3) return
         val zoneAttr = line.zone?.let { mapOf("zone" to it.name) } ?: emptyMap()
         val attrs = zoneAttr + ("shape" to "true")
         val range = 0 until t.length
-        when {
-            isOrg(stripped) -> add(line, range, CandidateKind.ORG_NAME, stripped, stripped, attrs = attrs)
-            stripped.split(Regex("\\s+")).size >= 2 || sal ->
-                add(line, range, CandidateKind.PERSON_NAME, stripped, stripped, attrs = if (sal) attrs + ("salutation" to "true") else attrs)
-            else -> add(line, range, CandidateKind.ORG_NAME, stripped, stripped, attrs = attrs + ("guess" to "true"))
-        }
+        // One neutral candidate; a single word is a weaker guess. Person, company or authority is the model's call.
+        val single = stripped.split(Regex("\\s+")).size < 2 && !sal
+        val flags = listOfNotNull(
+            if (sal) "salutation" to "true" else null,
+            if (single) "guess" to "true" else null,
+            if (prefix != null) "prefix" to prefix else null,
+        )
+        addName(line, range, stripped, prefix.orEmpty(), attrs + flags)
     }
 
     // ── labels ────────────────────────────────────────────────────────────────────────
@@ -887,7 +831,7 @@ private class Run(
         for ((line, list) in byLine) {
             val numeric = list.filter {
                 it.c.kind in setOf(
-                    CandidateKind.DATE, CandidateKind.DATETIME, CandidateKind.RELATIVE_DEADLINE, CandidateKind.AMOUNT,
+                    CandidateKind.DATE, CandidateKind.DATETIME, CandidateKind.AMOUNT,
                     CandidateKind.IBAN, CandidateKind.REFERENCE, CandidateKind.PHONE,
                 )
             }
@@ -903,10 +847,6 @@ private class Run(
                     CandidateKind.DATE, CandidateKind.DATETIME -> {
                         labelDate(d, line, pre, post, prevEnd == 0, previousDate)
                         previousDate = d
-                    }
-                    CandidateKind.RELATIVE_DEADLINE -> {
-                        val hit = LabelDetector.detectLast(LabelDetector.lastSentence(pre.takeLast(160)), LabelDetector.RELATIVE_RULES)
-                        d.c = d.c.copy(label = hit?.text.orEmpty(), labelKind = hit?.kind ?: LabelKind.DEADLINE)
                     }
                     else -> Unit
                 }
@@ -973,60 +913,50 @@ private class Run(
         return Triple(p[0].toIntOrNull() ?: return null, p[1].toIntOrNull() ?: return null, p[2].toIntOrNull() ?: return null)
     }
 
-    private fun inferLetterDate(): LocalDate? {
-        for (d in drafts) {
-            if (d.c.kind != CandidateKind.DATE && d.c.kind != CandidateKind.DATETIME) continue
-            if (d.c.page != 1 || d.c.labelKind !in setOf(LabelKind.LETTER_DATE, LabelKind.INVOICE_DATE)) continue
-            val (y, m, dd) = parseYmd(d.c.normalized) ?: continue
-            if (y !in 2000..2100 || !DateValidator.isRealDate(y, m, dd)) continue
-            return LocalDate.of(y, m, dd)
-        }
-        return null
-    }
-
+    /**
+     * Calendar validity, and the range around the letter date when the caller supplied one. Code no
+     * longer picks a letter date from a label: with none given every real date stays UNCHECKED here
+     * and the verifier checks the others against the date the model chose as the letter date.
+     * No label decides the window; it is the same generous window for every date.
+     */
     private fun validateDates(letter: LocalDate?) {
         for (d in drafts) {
             if (d.c.kind != CandidateKind.DATE && d.c.kind != CandidateKind.DATETIME) continue
             if (d.c.attrs["timeOnly"] != null) continue
             val (y, m, dd) = parseYmd(d.c.normalized) ?: continue
-            val lk = d.c.labelKind
-            val verdict = when {
-                lk == LabelKind.BIRTH_DATE ->
-                    if (DateValidator.isRealDate(y, m, dd)) Validation.Unchecked else DateValidator.validate(y, m, dd, null)
-                givenLetterDate == null && (lk == LabelKind.LETTER_DATE || lk == LabelKind.INVOICE_DATE) ->
-                    if (!DateValidator.isRealDate(y, m, dd)) DateValidator.validate(y, m, dd, null)
-                    else if (y in 2000..2100) Validation.Valid
-                    else Validation.Invalid("implausible letter date year $y")
-                else -> {
-                    val past = when (lk) {
-                        LabelKind.PERIOD, LabelKind.REFERENCED_DATE -> 10L
-                        else -> 1L
-                    }
-                    DateValidator.validate(y, m, dd, letter, past)
-                }
-            }
-            d.c = d.c.copy(validation = verdict)
+            d.c = d.c.copy(validation = DateValidator.validate(y, m, dd, letter, GIVEN_LETTER_PAST_YEARS))
         }
     }
 
+    /**
+     * Arithmetic, not words: three amounts of one currency on one page where a + b = c (within one
+     * cent) and b / a is a plausible tax rate (see [AmountConsistency.isNetVatGross]) are marked as a
+     * consistent triple. Nothing says which is the net, the VAT or the gross; the sum does.
+     */
     private fun markTriples() {
-        val amounts = drafts.filter { it.c.kind == CandidateKind.AMOUNT }
-        val nets = amounts.filter { it.c.labelKind == LabelKind.NET }
-        val vats = amounts.filter { it.c.labelKind == LabelKind.VAT }
-        val grosses = amounts.filter { it.c.labelKind == LabelKind.GROSS || it.c.labelKind == LabelKind.TOTAL_DUE }
         var k = 0
-        for (n in nets) for (v in vats) for (g in grosses) {
-            val nc = n.c.cents ?: continue
-            val vc = v.c.cents ?: continue
-            val gc = g.c.cents ?: continue
-            if (nc <= 0 || vc <= 0 || n.c.currency != g.c.currency || v.c.currency != g.c.currency) continue
-            if (!AmountConsistency.netPlusVatEqualsGross(nc, vc, gc)) continue
-            k++
-            for (x in listOf(n, v, g)) {
-                x.c = x.c.copy(
-                    validation = if (x.c.validation.isInvalid) x.c.validation else Validation.Valid,
-                    attrs = x.c.attrs + ("triple" to "T$k"),
-                )
+        val marked = HashSet<Draft>()
+        for ((_, onPage) in drafts.filter { it.c.kind == CandidateKind.AMOUNT && (it.c.cents ?: 0L) > 0L }.groupBy { it.c.page }) {
+            val byCents = onPage.groupBy { it.c.cents!! }
+            for (n in onPage) for (v in onPage) {
+                if (n === v || n.c.currency != v.c.currency) continue
+                val nc = n.c.cents!!
+                val vc = v.c.cents!!
+                if (vc >= nc) continue
+                for (delta in -1L..1L) {
+                    for (g in byCents[nc + vc + delta].orEmpty()) {
+                        if (g === n || g === v || g.c.currency != n.c.currency) continue
+                        if (!AmountConsistency.isNetVatGross(nc, vc, g.c.cents!!)) continue
+                        k++
+                        for (x in listOf(n, v, g)) {
+                            if (!marked.add(x)) continue
+                            x.c = x.c.copy(
+                                validation = if (x.c.validation.isInvalid) x.c.validation else Validation.Valid,
+                                attrs = x.c.attrs + ("triple" to "T$k"),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -1039,13 +969,11 @@ private class Run(
             val prefix = when (d.c.kind) {
                 CandidateKind.DATE -> "D"
                 CandidateKind.DATETIME -> "DT"
-                CandidateKind.RELATIVE_DEADLINE -> "R"
                 CandidateKind.AMOUNT -> "A"
                 CandidateKind.IBAN -> "I"
                 CandidateKind.BIC -> "B"
                 CandidateKind.REFERENCE -> "N"
-                CandidateKind.PERSON_NAME -> "P"
-                CandidateKind.ORG_NAME -> "O"
+                CandidateKind.NAME -> "M"
                 CandidateKind.PHONE -> "T"
                 CandidateKind.EMAIL -> "E"
             }

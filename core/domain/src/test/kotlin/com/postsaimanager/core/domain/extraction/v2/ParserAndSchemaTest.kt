@@ -10,8 +10,8 @@ class ParserAndSchemaTest {
 
     private val structured = """
         {"type":"school","tc":"HIGH","lang":"de",
-         "parties":[{"r":"SENDER","id":"O1","k":"AUTHORITY","rel":"NONE","c":"HIGH"},
-                    {"r":"ADDRESSEE","id":"P1","k":"PERSON","rel":"HOUSEHOLD","c":"MEDIUM"}],
+         "parties":[{"r":"SENDER","id":"M1","k":"AUTHORITY","rel":"NONE","c":"HIGH"},
+                    {"r":"ADDRESSEE","id":"M2","k":"PERSON","rel":"HOUSEHOLD","c":"MEDIUM"}],
          "s":{"letter_date":{"id":"D1","r":"LETTER_DATE","c":"HIGH"},"total":"NONE",
               "due_date":{"rule":"innerhalb eines Monats","r":"DEADLINE","c":"LOW"},
               "iban":{"id":"I1","c":"HIGH"},"cited_references":{"ids":["N1","N2"],"c":"MEDIUM"}},
@@ -24,7 +24,7 @@ class ParserAndSchemaTest {
         assertThat(raw.type).isEqualTo("school")
         assertThat(raw.typeConfidence).isEqualTo("HIGH")
         assertThat(raw.language).isEqualTo("de")
-        assertThat(raw.parties.map { it.role to it.id }).containsExactly("SENDER" to "O1", "ADDRESSEE" to "P1").inOrder()
+        assertThat(raw.parties.map { it.role to it.id }).containsExactly("SENDER" to "M1", "ADDRESSEE" to "M2").inOrder()
         assertThat(raw.parties[1].relation).isEqualTo("HOUSEHOLD")
         assertThat(raw.parties[1].confidence).isEqualTo("MEDIUM")
         assertThat(raw.slots.keys).containsExactly("letter_date", "due_date", "iban", "cited_references")

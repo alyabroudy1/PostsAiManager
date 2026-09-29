@@ -26,7 +26,7 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
  * 450 tokens for a typical letter).
  * ```
  * {"type":"bill","tc":"HIGH","lang":"de",
- *  "parties":[{"r":"SENDER","id":"O1","k":"COMPANY","rel":"NONE","c":"HIGH"}, ...],
+ *  "parties":[{"r":"SENDER","id":"M1","k":"COMPANY","rel":"NONE","c":"HIGH"}, ...],
  *  "s":{"letter_date":{"id":"D1","r":"LETTER_DATE","c":"HIGH"},"total":{"id":"A3","r":"TOTAL_DUE","c":"HIGH"},
  *       "iban":{"id":"I1","c":"HIGH"},"reference":"NONE", ...},
  *  "x":[{"lb":"Zählernummer","k":"meter_number","id":"N4","v":"","c":"MEDIUM"}]}
