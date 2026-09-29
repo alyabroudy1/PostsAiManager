@@ -1,0 +1,343 @@
+{
+    "key": "N9-fuzzy-name-1p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "EB",
+                    "bounds": {
+                        "left": 0.14631197,
+                        "top": 0.06498504,
+                        "right": 0.17412333,
+                        "bottom": 0.07823856
+                    },
+                    "confidence": 0.8203125,
+                    "language": "und"
+                },
+                {
+                    "text": "Energie Beispielstadt GmbH Stromweg 3 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.12636034,
+                        "top": 0.15006413,
+                        "right": 0.41293833,
+                        "bottom": 0.15946986
+                    },
+                    "confidence": 0.8081342,
+                    "language": "und"
+                },
+                {
+                    "text": "Herrn",
+                    "bounds": {
+                        "left": 0.123337366,
+                        "top": 0.16930312,
+                        "right": 0.16384523,
+                        "bottom": 0.17828132
+                    },
+                    "confidence": 0.8695313,
+                    "language": "und"
+                },
+                {
+                    "text": "Mohamad Mustermann",
+                    "bounds": {
+                        "left": 0.12152358,
+                        "top": 0.18469432,
+                        "right": 0.28899637,
+                        "bottom": 0.19538264
+                    },
+                    "confidence": 0.89200366,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielallee 21",
+                    "bounds": {
+                        "left": 0.122732766,
+                        "top": 0.20179564,
+                        "right": 0.23760581,
+                        "bottom": 0.21333903
+                    },
+                    "confidence": 0.91822916,
+                    "language": "und"
+                },
+                {
+                    "text": "12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.122732766,
+                        "top": 0.21633177,
+                        "right": 0.26844016,
+                        "bottom": 0.22958529
+                    },
+                    "confidence": 0.88845485,
+                    "language": "und"
+                },
+                {
+                    "text": "Abschlagsrechnung Oktober 2026",
+                    "bounds": {
+                        "left": 0.12091898,
+                        "top": 0.33732364,
+                        "right": 0.43228537,
+                        "bottom": 0.35185978
+                    },
+                    "confidence": 0.8971819,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrter Herr Mustermann,",
+                    "bounds": {
+                        "left": 0.12091898,
+                        "top": 0.36725095,
+                        "right": 0.36094317,
+                        "bottom": 0.3792219
+                    },
+                    "confidence": 0.88035303,
+                    "language": "und"
+                },
+                {
+                    "text": "Leistung",
+                    "bounds": {
+                        "left": 0.12756953,
+                        "top": 0.4399316,
+                        "right": 0.19286577,
+                        "bottom": 0.45233005
+                    },
+                    "confidence": 0.8886719,
+                    "language": "und"
+                },
+                {
+                    "text": "Abschlag Strom",
+                    "bounds": {
+                        "left": 0.12636034,
+                        "top": 0.46643865,
+                        "right": 0.24062878,
+                        "bottom": 0.4784096
+                    },
+                    "confidence": 0.90564907,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.1191052,
+                        "top": 0.5395468,
+                        "right": 0.30048367,
+                        "bottom": 0.54938006
+                    },
+                    "confidence": 0.86793154,
+                    "language": "und"
+                },
+                {
+                    "text": "Energie Beispielstadt GmbH\nKundenservice",
+                    "bounds": {
+                        "left": 0.1191052,
+                        "top": 0.5728944,
+                        "right": 0.32648125,
+                        "bottom": 0.59897393
+                    },
+                    "confidence": 0.87232697,
+                    "language": "und"
+                },
+                {
+                    "text": "Energie Beispielstadt GmbH\nGeschäftsführer: S. Beispiel",
+                    "bounds": {
+                        "left": 0.11487304,
+                        "top": 0.90423256,
+                        "right": 0.24244256,
+                        "bottom": 0.92176145
+                    },
+                    "confidence": 0.8370267,
+                    "language": "und"
+                },
+                {
+                    "text": "für die Stromlieferung an Ihre Abnahmestelle Beispielallee 21, 12345 Beispielstadt, stellen wir Ihnen\nden folgenden Abschlag in Rechnung.",
+                    "bounds": {
+                        "left": 0.1197098,
+                        "top": 0.38991022,
+                        "right": 0.8766626,
+                        "bottom": 0.42411286
+                    },
+                    "confidence": 0.8570354,
+                    "language": "und"
+                },
+                {
+                    "text": "AG Beispielstadt HRB O00000",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.92432666,
+                        "right": 0.24607013,
+                        "bottom": 0.9311672
+                    },
+                    "confidence": 0.7786458,
+                    "language": "und"
+                },
+                {
+                    "text": "Bankverbindung: Beispielbank\nIBAN DE89 3704 0044 0532 0130 00",
+                    "bounds": {
+                        "left": 0.37545344,
+                        "top": 0.90594274,
+                        "right": 0.5338573,
+                        "bottom": 0.9226165
+                    },
+                    "confidence": 0.8528813,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Zeichen:\nKundennummer:",
+                    "bounds": {
+                        "left": 0.59854895,
+                        "top": 0.17015819,
+                        "right": 0.6801693,
+                        "bottom": 0.19324498
+                    },
+                    "confidence": 0.8296001,
+                    "language": "und"
+                },
+                {
+                    "text": "BIC COBADEFFXXX",
+                    "bounds": {
+                        "left": 0.37484884,
+                        "top": 0.9260368,
+                        "right": 0.45525998,
+                        "bottom": 0.93244976
+                    },
+                    "confidence": 0.8370536,
+                    "language": "und"
+                },
+                {
+                    "text": "Rechnungsnr.:\nTelefon:",
+                    "bounds": {
+                        "left": 0.5973398,
+                        "top": 0.19965798,
+                        "right": 0.668682,
+                        "bottom": 0.22274476
+                    },
+                    "confidence": 0.82660383,
+                    "language": "und"
+                },
+                {
+                    "text": "Datum:",
+                    "bounds": {
+                        "left": 0.59854895,
+                        "top": 0.22958529,
+                        "right": 0.63422006,
+                        "bottom": 0.23599829
+                    },
+                    "confidence": 0.8378906,
+                    "language": "und"
+                },
+                {
+                    "text": "Energie Beispielstadt GmbH",
+                    "bounds": {
+                        "left": 0.6541717,
+                        "top": 0.051303975,
+                        "right": 0.9026602,
+                        "bottom": 0.0645575
+                    },
+                    "confidence": 0.8704427,
+                    "language": "und"
+                },
+                {
+                    "text": "Zeitraum",
+                    "bounds": {
+                        "left": 0.5501814,
+                        "top": 0.4424968,
+                        "right": 0.620919,
+                        "bottom": 0.4527576
+                    },
+                    "confidence": 0.85253906,
+                    "language": "und"
+                },
+                {
+                    "text": "Oktober 2026",
+                    "bounds": {
+                        "left": 0.54957676,
+                        "top": 0.4685763,
+                        "right": 0.64933497,
+                        "bottom": 0.4784096
+                    },
+                    "confidence": 0.88920456,
+                    "language": "und"
+                },
+                {
+                    "text": "Bitte überweisen Sie 78,00 € bis zum 12.10.2026 unter Angabe der Rechnungsnummer AB-2026-10-4471\nauf das folgende Kkonto: DE89 3704 0044 0532 0130 00 (Energie Beispielstadt GmbH).",
+                    "bounds": {
+                        "left": 0.1197098,
+                        "top": 0.4967935,
+                        "right": 0.8972189,
+                        "bottom": 0.5275759
+                    },
+                    "confidence": 0.8594959,
+                    "language": "und"
+                },
+                {
+                    "text": "Stromweg 3\n12345 Beispielstadt\nTel. 01234 600 0",
+                    "bounds": {
+                        "left": 0.80411124,
+                        "top": 0.069260366,
+                        "right": 0.9026602,
+                        "bottom": 0.09833262
+                    },
+                    "confidence": 0.85721046,
+                    "language": "und"
+                },
+                {
+                    "text": "kundenservice@energie-beispiel.example",
+                    "bounds": {
+                        "left": 0.6928658,
+                        "top": 0.101752885,
+                        "right": 0.9026602,
+                        "bottom": 0.11201368
+                    },
+                    "confidence": 0.86266446,
+                    "language": "und"
+                },
+                {
+                    "text": "60012987\nAB-2026-10-4471\n01234 600 10\n27.09.2026",
+                    "bounds": {
+                        "left": 0.70918983,
+                        "top": 0.18512185,
+                        "right": 0.808948,
+                        "bottom": 0.23642582
+                    },
+                    "confidence": 0.9101807,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 600 O\nwww.energie-beispiel. example",
+                    "bounds": {
+                        "left": 0.6348247,
+                        "top": 0.90679777,
+                        "right": 0.7762999,
+                        "bottom": 0.92475414
+                    },
+                    "confidence": 0.83188105,
+                    "language": "und"
+                },
+                {
+                    "text": "Betrag €\n78,00",
+                    "bounds": {
+                        "left": 0.808948,
+                        "top": 0.44377938,
+                        "right": 0.8730351,
+                        "bottom": 0.48097476
+                    },
+                    "confidence": 0.86941963,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 1",
+                    "bounds": {
+                        "left": 0.8301088,
+                        "top": 0.9628046,
+                        "right": 0.8935913,
+                        "bottom": 0.9692176
+                    },
+                    "confidence": 0.85,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}

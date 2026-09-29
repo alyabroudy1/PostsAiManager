@@ -1,0 +1,387 @@
+{
+    "key": "N4-zhd-firma-1p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "BB",
+                    "bounds": {
+                        "left": 0.14449818,
+                        "top": 0.065412566,
+                        "right": 0.1777509,
+                        "bottom": 0.07909363
+                    },
+                    "confidence": 0.9296875,
+                    "language": "und"
+                },
+                {
+                    "text": "Büro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.123337366,
+                        "top": 0.14920907,
+                        "right": 0.42079806,
+                        "bottom": 0.15904233
+                    },
+                    "confidence": 0.8633498,
+                    "language": "und"
+                },
+                {
+                    "text": "Mustermann Consulting GmbH",
+                    "bounds": {
+                        "left": 0.123337366,
+                        "top": 0.16802052,
+                        "right": 0.35126966,
+                        "bottom": 0.18127404
+                    },
+                    "confidence": 0.8976237,
+                    "language": "und"
+                },
+                {
+                    "text": "z. Hd. Frau Erika Mustermann",
+                    "bounds": {
+                        "left": 0.122732766,
+                        "top": 0.18512185,
+                        "right": 0.3440145,
+                        "bottom": 0.19623771
+                    },
+                    "confidence": 0.80078125,
+                    "language": "und"
+                },
+                {
+                    "text": "Gewerbering 4",
+                    "bounds": {
+                        "left": 0.122732766,
+                        "top": 0.20136811,
+                        "right": 0.23095526,
+                        "bottom": 0.2141941
+                    },
+                    "confidence": 0.8694661,
+                    "language": "und"
+                },
+                {
+                    "text": "54321 Beispieldorf",
+                    "bounds": {
+                        "left": 0.123337366,
+                        "top": 0.21846943,
+                        "right": 0.25997582,
+                        "bottom": 0.23044036
+                    },
+                    "confidence": 0.88143384,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrte Frau Mustermann,",
+                    "bounds": {
+                        "left": 0.12031439,
+                        "top": 0.3663959,
+                        "right": 0.36033857,
+                        "bottom": 0.37879434
+                    },
+                    "confidence": 0.85246396,
+                    "language": "und"
+                },
+                {
+                    "text": "Leistung",
+                    "bounds": {
+                        "left": 0.12756953,
+                        "top": 0.45746046,
+                        "right": 0.19649334,
+                        "bottom": 0.4698589
+                    },
+                    "confidence": 0.90527344,
+                    "language": "und"
+                },
+                {
+                    "text": "Wartungsvertrag WN-2291 - verlängerung ab 01.01.2027",
+                    "bounds": {
+                        "left": 0.12152358,
+                        "top": 0.3381787,
+                        "right": 0.7025393,
+                        "bottom": 0.35442495
+                    },
+                    "confidence": 0.84857047,
+                    "language": "und"
+                },
+                {
+                    "text": "Wartung 2 Geräte inkl. Toner-Service",
+                    "bounds": {
+                        "left": 0.12696493,
+                        "top": 0.48482257,
+                        "right": 0.404474,
+                        "bottom": 0.49636596
+                    },
+                    "confidence": 0.85180664,
+                    "language": "und"
+                },
+                {
+                    "text": "zum 31.12.2026.",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.54766995,
+                        "right": 0.24002418,
+                        "bottom": 0.55664814
+                    },
+                    "confidence": 0.89341515,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.1191052,
+                        "top": 0.57332194,
+                        "right": 0.2980653,
+                        "bottom": 0.5831552
+                    },
+                    "confidence": 0.8324033,
+                    "language": "und"
+                },
+                {
+                    "text": "Büro-Partner Beispiel KG",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.60495937,
+                        "right": 0.30048367,
+                        "bottom": 0.61821294
+                    },
+                    "confidence": 0.86328125,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Wartungsvertrag WN-2291 für die Multifunktionsgeräte der Mustermann Consulting GmbH läuft zum\n31.12.2026 aus. Wir möchten Ihnen die Verlängerung um weitere 12 Monate zu unveränderten\nKonditionen anbieten.",
+                    "bounds": {
+                        "left": 0.12091898,
+                        "top": 0.39375803,
+                        "right": 0.89661425,
+                        "bottom": 0.43693885
+                    },
+                    "confidence": 0.8535049,
+                    "language": "und"
+                },
+                {
+                    "text": "T. Muster, Vertrieb",
+                    "bounds": {
+                        "left": 0.11729141,
+                        "top": 0.6233433,
+                        "right": 0.25695285,
+                        "bottom": 0.6348867
+                    },
+                    "confidence": 0.8522518,
+                    "language": "und"
+                },
+                {
+                    "text": "Büro-Partner Beispiel KG\nPersönlich haftende Gesellschafterin:",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.9046601,
+                        "right": 0.27750906,
+                        "bottom": 0.92176145
+                    },
+                    "confidence": 0.820835,
+                    "language": "und"
+                },
+                {
+                    "text": "BPB Verwaltungs GmbH",
+                    "bounds": {
+                        "left": 0.113663845,
+                        "top": 0.92475414,
+                        "right": 0.22007255,
+                        "bottom": 0.93244976
+                    },
+                    "confidence": 0.8472222,
+                    "language": "und"
+                },
+                {
+                    "text": "AG Beispielstadt HRA 000000",
+                    "bounds": {
+                        "left": 0.113663845,
+                        "top": 0.93587005,
+                        "right": 0.24486095,
+                        "bottom": 0.9427106
+                    },
+                    "confidence": 0.82389325,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Zeichen:\nUnser Zeichen:\nAnsprechpartner:",
+                    "bounds": {
+                        "left": 0.59854895,
+                        "top": 0.17144078,
+                        "right": 0.6862152,
+                        "bottom": 0.20906371
+                    },
+                    "confidence": 0.8643136,
+                    "language": "und"
+                },
+                {
+                    "text": "Telefon:",
+                    "bounds": {
+                        "left": 0.5979444,
+                        "top": 0.2154767,
+                        "right": 0.63905686,
+                        "bottom": 0.22231723
+                    },
+                    "confidence": 0.8383789,
+                    "language": "und"
+                },
+                {
+                    "text": "Bankverbindung: Beispielbank",
+                    "bounds": {
+                        "left": 0.37424424,
+                        "top": 0.9063702,
+                        "right": 0.50665057,
+                        "bottom": 0.91406584
+                    },
+                    "confidence": 0.85662615,
+                    "language": "und"
+                },
+                {
+                    "text": "Datum:",
+                    "bounds": {
+                        "left": 0.5979444,
+                        "top": 0.22958529,
+                        "right": 0.63603383,
+                        "bottom": 0.23770842
+                    },
+                    "confidence": 0.859375,
+                    "language": "und"
+                },
+                {
+                    "text": "IBAN DE89 3704 0044 0532 0130 00\nBIC COBADEFFXXX",
+                    "bounds": {
+                        "left": 0.37424424,
+                        "top": 0.9170586,
+                        "right": 0.5356711,
+                        "bottom": 0.93330485
+                    },
+                    "confidence": 0.8527859,
+                    "language": "und"
+                },
+                {
+                    "text": "Büro-Partner Beispiel KG",
+                    "bounds": {
+                        "left": 0.6644498,
+                        "top": 0.05044891,
+                        "right": 0.9038694,
+                        "bottom": 0.06498504
+                    },
+                    "confidence": 0.88583094,
+                    "language": "und"
+                },
+                {
+                    "text": "Bitte bestätigen Sie uns die Verlängerung bis 15.10.2026 durch Rücksendung des unterschriebenen\nAngebots oder per E-Mail an vertrieb@buero-partner.example. Ohne Rückmeldung endet der Vertrag",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.51389486,
+                        "right": 0.8742443,
+                        "bottom": 0.54681486
+                    },
+                    "confidence": 0.84949315,
+                    "language": "und"
+                },
+                {
+                    "text": "Zeitraum",
+                    "bounds": {
+                        "left": 0.5501814,
+                        "top": 0.46088073,
+                        "right": 0.62636036,
+                        "bottom": 0.47028646
+                    },
+                    "confidence": 0.85253906,
+                    "language": "und"
+                },
+                {
+                    "text": "Industriestraße 40\n12345 Beispielstadt\nTel. 01234 888 0\nvertrieb@buero-partner.example",
+                    "bounds": {
+                        "left": 0.738815,
+                        "top": 0.069260366,
+                        "right": 0.904474,
+                        "bottom": 0.113723814
+                    },
+                    "confidence": 0.8389791,
+                    "language": "und"
+                },
+                {
+                    "text": "01.01.-31.12.2027",
+                    "bounds": {
+                        "left": 0.54957676,
+                        "top": 0.48653272,
+                        "right": 0.68440145,
+                        "bottom": 0.4967935
+                    },
+                    "confidence": 0.8625919,
+                    "language": "und"
+                },
+                {
+                    "text": "EM/2026\nwV-2291",
+                    "bounds": {
+                        "left": 0.7110036,
+                        "top": 0.17101325,
+                        "right": 0.7617896,
+                        "bottom": 0.19410004
+                    },
+                    "confidence": 0.828404,
+                    "language": "und"
+                },
+                {
+                    "text": "Herr T. Muster\n01234 888 44\n23.09.2026",
+                    "bounds": {
+                        "left": 0.71039903,
+                        "top": 0.20136811,
+                        "right": 0.7956469,
+                        "bottom": 0.23770842
+                    },
+                    "confidence": 0.89144963,
+                    "language": "und"
+                },
+                {
+                    "text": "Netto p. a.",
+                    "bounds": {
+                        "left": 0.78476423,
+                        "top": 0.46173579,
+                        "right": 0.8700121,
+                        "bottom": 0.47327918
+                    },
+                    "confidence": 0.7838542,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 888 0\nvertrieb@buero-partner.example",
+                    "bounds": {
+                        "left": 0.63301086,
+                        "top": 0.9072253,
+                        "right": 0.77871823,
+                        "bottom": 0.9264643
+                    },
+                    "confidence": 0.8244441,
+                    "language": "und"
+                },
+                {
+                    "text": "1.428,00 €",
+                    "bounds": {
+                        "left": 0.7968561,
+                        "top": 0.48867038,
+                        "right": 0.8730351,
+                        "bottom": 0.49978623
+                    },
+                    "confidence": 0.8315972,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 1",
+                    "bounds": {
+                        "left": 0.8288996,
+                        "top": 0.9636597,
+                        "right": 0.8935913,
+                        "bottom": 0.97050023
+                    },
+                    "confidence": 0.8191406,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}

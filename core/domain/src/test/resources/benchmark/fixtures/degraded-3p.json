@@ -1,0 +1,436 @@
+{
+    "key": "degraded-3p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Stadtwerke Beispielstadt",
+                    "bounds": {
+                        "left": 0.11003628,
+                        "top": 0.06156477,
+                        "right": 0.42079806,
+                        "bottom": 0.083368964
+                    },
+                    "confidence": 0.89317256,
+                    "language": "und"
+                },
+                {
+                    "text": "Stadtwerke BeispielstadtEnergieweg 3 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.108827084,
+                        "top": 0.08465156,
+                        "right": 0.47279322,
+                        "bottom": 0.09918769
+                    },
+                    "confidence": 0.8708684,
+                    "language": "und"
+                },
+                {
+                    "text": "Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt\nErika Mustermann",
+                    "bounds": {
+                        "left": 0.1070133,
+                        "top": 0.141941,
+                        "right": 0.38754535,
+                        "bottom": 0.17015819
+                    },
+                    "confidence": 0.8694386,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterstraße 12",
+                    "bounds": {
+                        "left": 0.10761789,
+                        "top": 0.17528859,
+                        "right": 0.23700121,
+                        "bottom": 0.18683198
+                    },
+                    "confidence": 0.9051339,
+                    "language": "und"
+                },
+                {
+                    "text": "54321 Beispieldorf",
+                    "bounds": {
+                        "left": 0.10640871,
+                        "top": 0.19367251,
+                        "right": 0.25937122,
+                        "bottom": 0.20863616
+                    },
+                    "confidence": 0.88671875,
+                    "language": "und"
+                },
+                {
+                    "text": "Änderung lhres Abschlags ab 01.12.2026",
+                    "bounds": {
+                        "left": 0.10459492,
+                        "top": 0.26592562,
+                        "right": 0.50302297,
+                        "bottom": 0.28601965
+                    },
+                    "confidence": 0.89326745,
+                    "language": "und"
+                },
+                {
+                    "text": "Vertragskonto: 3300 5521 08 Zählernummer: 1EMHO000123456",
+                    "bounds": {
+                        "left": 0.103990324,
+                        "top": 0.2928602,
+                        "right": 0.6257557,
+                        "bottom": 0.30953398
+                    },
+                    "confidence": 0.8628217,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrte Frau Mustermann,",
+                    "bounds": {
+                        "left": 0.103990324,
+                        "top": 0.31979477,
+                        "right": 0.36154777,
+                        "bottom": 0.33475843
+                    },
+                    "confidence": 0.87515026,
+                    "language": "und"
+                },
+                {
+                    "text": "Energieweg 3\n12345 Beispielstadt\nTel. 01234 000111",
+                    "bounds": {
+                        "left": 0.79504234,
+                        "top": 0.069260366,
+                        "right": 0.90810156,
+                        "bottom": 0.10089782
+                    },
+                    "confidence": 0.8800111,
+                    "language": "und"
+                },
+                {
+                    "text": "kundenservice@stadtwerke-beispiel.example",
+                    "bounds": {
+                        "left": 0.64570737,
+                        "top": 0.101325355,
+                        "right": 0.90810156,
+                        "bottom": 0.11415134
+                    },
+                    "confidence": 0.8445122,
+                    "language": "und"
+                },
+                {
+                    "text": "aufgrund der gestiegenen Beschaffungskosten und Ihres bisherigen Verbrauchs passen wir Ihren\nmonatlichen Abschlag für Strom an. Ihr neuer Abschlag beträgt 89,00 € monatlich und gilt ab dem\n01.12.2026. Bisher haben Sie 74,00 € monatlich gezahlt.",
+                    "bounds": {
+                        "left": 0.10217654,
+                        "top": 0.3433091,
+                        "right": 0.88996375,
+                        "bottom": 0.40188116
+                    },
+                    "confidence": 0.87861615,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.09975816,
+                        "top": 0.51688755,
+                        "right": 0.29322854,
+                        "bottom": 0.5288585
+                    },
+                    "confidence": 0.8526786,
+                    "language": "und"
+                },
+                {
+                    "text": "Der neue Betrag wird zu den bekannten Terminen von Ihrem Konto eingezogen, sofern Sie uns ein\nSEPA-Lastschriftmandat erteilt haben. Sie müssen nichts weiter veranlassen. Eine Übersicht Ihrer\nVerbrauchsdaten finden Sie auf der nächsten Seite.",
+                    "bounds": {
+                        "left": 0.100362755,
+                        "top": 0.40743908,
+                        "right": 0.90024185,
+                        "bottom": 0.46344593
+                    },
+                    "confidence": 0.8738037,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihre Stadtwerke Beispielstadt",
+                    "bounds": {
+                        "left": 0.09975816,
+                        "top": 0.5339889,
+                        "right": 0.3349456,
+                        "bottom": 0.5498076
+                    },
+                    "confidence": 0.8735532,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielstadt, 25.09.2026",
+                    "bounds": {
+                        "left": 0.7122128,
+                        "top": 0.24497649,
+                        "right": 0.9050786,
+                        "bottom": 0.2590851
+                    },
+                    "confidence": 0.8849284,
+                    "language": "und"
+                },
+                {
+                    "text": "Sollten Sie mit der Anpassung nicht einverstanden sein, können Sie uns Ihren aktuellen\nZählerstand mitteilen. Wir prüfen dann gerne, ob ein niedrigerer Abschlag möglich ist.",
+                    "bounds": {
+                        "left": 0.09975816,
+                        "top": 0.47114152,
+                        "right": 0.8071342,
+                        "bottom": 0.5109021
+                    },
+                    "confidence": 0.8815154,
+                    "language": "und"
+                },
+                {
+                    "text": "Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt Gläubiger-HD DE00Z7Z00000000000",
+                    "bounds": {
+                        "left": 0.09068924,
+                        "top": 0.91278327,
+                        "right": 0.6777509,
+                        "bottom": 0.92731935
+                    },
+                    "confidence": 0.83741426,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 3",
+                    "bounds": {
+                        "left": 0.8137848,
+                        "top": 0.9397178,
+                        "right": 0.8893591,
+                        "bottom": 0.94912356
+                    },
+                    "confidence": 0.8730469,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 2,
+            "width": 2339,
+            "height": 1654,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Stadtwerke Beispielstadt-Vertragskonto 3300 5521 08",
+                    "bounds": {
+                        "left": 0.063274905,
+                        "top": 0.58041114,
+                        "right": 0.077383496,
+                        "bottom": 0.89661425
+                    },
+                    "confidence": 0.65383977,
+                    "language": "und"
+                },
+                {
+                    "text": "Verbrauchsübersicht und Abschlagsplan",
+                    "bounds": {
+                        "left": 0.09833262,
+                        "top": 0.5024184,
+                        "right": 0.11586148,
+                        "bottom": 0.8935913
+                    },
+                    "confidence": 0.89944196,
+                    "language": "und"
+                },
+                {
+                    "text": "Betrag €",
+                    "bounds": {
+                        "left": 0.12783241,
+                        "top": 0.15719467,
+                        "right": 0.14279607,
+                        "bottom": 0.22188634
+                    },
+                    "confidence": 0.81696427,
+                    "language": "und"
+                },
+                {
+                    "text": "Verbrauch kWh",
+                    "bounds": {
+                        "left": 0.12954254,
+                        "top": 0.38270858,
+                        "right": 0.14493373,
+                        "bottom": 0.51088274
+                    },
+                    "confidence": 0.8782552,
+                    "language": "und"
+                },
+                {
+                    "text": "Zeitraum",
+                    "bounds": {
+                        "left": 0.13210773,
+                        "top": 0.8162031,
+                        "right": 0.14707139,
+                        "bottom": 0.8905683
+                    },
+                    "confidence": 0.83251953,
+                    "language": "und"
+                },
+                {
+                    "text": "888,00",
+                    "bounds": {
+                        "left": 0.15476699,
+                        "top": 0.15538089,
+                        "right": 0.16973065,
+                        "bottom": 0.20737606
+                    },
+                    "confidence": 0.86653644,
+                    "language": "und"
+                },
+                {
+                    "text": "2940",
+                    "bounds": {
+                        "left": 0.15690465,
+                        "top": 0.38210398,
+                        "right": 0.17101325,
+                        "bottom": 0.426844
+                    },
+                    "confidence": 0.90722656,
+                    "language": "und"
+                },
+                {
+                    "text": "01.10.2025-30.09.2026",
+                    "bounds": {
+                        "left": 0.15818726,
+                        "top": 0.691052,
+                        "right": 0.17357846,
+                        "bottom": 0.88875455
+                    },
+                    "confidence": 0.78571427,
+                    "language": "und"
+                },
+                {
+                    "text": "1.068.00",
+                    "bounds": {
+                        "left": 0.18255664,
+                        "top": 0.15719467,
+                        "right": 0.19581017,
+                        "bottom": 0.22007255
+                    },
+                    "confidence": 0.68896484,
+                    "language": "und"
+                },
+                {
+                    "text": "3.150",
+                    "bounds": {
+                        "left": 0.18512185,
+                        "top": 0.38210398,
+                        "right": 0.19837537,
+                        "bottom": 0.42140266
+                    },
+                    "confidence": 0.8382813,
+                    "language": "und"
+                },
+                {
+                    "text": "Prognose 2026/27",
+                    "bounds": {
+                        "left": 0.18597691,
+                        "top": 0.7454655,
+                        "right": 0.20307824,
+                        "bottom": 0.8905683
+                    },
+                    "confidence": 0.86302084,
+                    "language": "und"
+                },
+                {
+                    "text": "89,00",
+                    "bounds": {
+                        "left": 0.20991877,
+                        "top": 0.15659009,
+                        "right": 0.2244549,
+                        "bottom": 0.19830714
+                    },
+                    "confidence": 0.8671875,
+                    "language": "und"
+                },
+                {
+                    "text": "Abschlag neu (12 X)",
+                    "bounds": {
+                        "left": 0.21376656,
+                        "top": 0.7303507,
+                        "right": 0.22873023,
+                        "bottom": 0.88875455
+                    },
+                    "confidence": 0.82373047,
+                    "language": "und"
+                },
+                {
+                    "text": "ihr Abschlagsplan: Erster Abschlag in neuer Höhe amn 01.12.2026, danach jeweils zum 1. eines\nMonats. Die Einzugsbeträge werden von folgendem Konto\nabgebucht IBAN DE89 3704 0044\n0532 0130 00\n(Kontoinhaberin: Erika Mustermann)",
+                    "bounds": {
+                        "left": 0.24155623,
+                        "top": 0.13361548,
+                        "right": 0.29713553,
+                        "bottom": 0.90145105
+                    },
+                    "confidence": 0.81647325,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Höhe des Abschlags richtet sich nach\nIhrem voraussichtlichen Jahresverbrauch. Bei\nFragen\nerreichen Sie unser Kundenzentrum montags bis freitags von 8 bis 17 Uhr,",
+                    "bounds": {
+                        "left": 0.30525866,
+                        "top": 0.12636034,
+                        "right": 0.3420265,
+                        "bottom": 0.8941959
+                    },
+                    "confidence": 0.8336563,
+                    "language": "und"
+                },
+                {
+                    "text": "Stadtwerke\nBeispieistadt Energieweg 3 12345 Beispielstadt Glaubiger-D DEO0ZZZ0000000o000",
+                    "bounds": {
+                        "left": 0.9136383,
+                        "top": 0.30411124,
+                        "right": 0.9303121,
+                        "bottom": 0.88754535
+                    },
+                    "confidence": 0.6942424,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 2 von 3",
+                    "bounds": {
+                        "left": 0.93244976,
+                        "top": 0.09310762,
+                        "right": 0.9444207,
+                        "bottom": 0.16505441
+                    },
+                    "confidence": 0.65234375,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 3,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Stadtwerke Beispielstadt Energieweg 3-12345 Beispielstadt Gläubiger-D DE00ZZZO0000000000",
+                    "bounds": {
+                        "left": 0.10459492,
+                        "top": 0.91577595,
+                        "right": 0.6928658,
+                        "bottom": 0.9290295
+                    },
+                    "confidence": 0.77610517,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 3 von 3",
+                    "bounds": {
+                        "left": 0.82829505,
+                        "top": 0.9354425,
+                        "right": 0.904474,
+                        "bottom": 0.9431381
+                    },
+                    "confidence": 0.853125,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}

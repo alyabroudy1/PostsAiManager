@@ -1,0 +1,1403 @@
+{
+    "key": "tax-long-7p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Finanzamt Beispielstadt",
+                    "bounds": {
+                        "left": 0.09431681,
+                        "top": 0.054724243,
+                        "right": 0.24244256,
+                        "bottom": 0.063702434
+                    },
+                    "confidence": 0.8712713,
+                    "language": "und"
+                },
+                {
+                    "text": "Erika Mustermann\nMusterstraße 12\n54321 Beispieldorf",
+                    "bounds": {
+                        "left": 0.0949214,
+                        "top": 0.09833262,
+                        "right": 0.24727932,
+                        "bottom": 0.14621633
+                    },
+                    "confidence": 0.8882419,
+                    "language": "und"
+                },
+                {
+                    "text": "Einkommensteuerbescheid 2025",
+                    "bounds": {
+                        "left": 0.096130595,
+                        "top": 0.18896964,
+                        "right": 0.41233373,
+                        "bottom": 0.20436084
+                    },
+                    "confidence": 0.89800346,
+                    "language": "und"
+                },
+                {
+                    "text": "Festsetzung der Einkommensteuer und Nachzahlung",
+                    "bounds": {
+                        "left": 0.09673519,
+                        "top": 0.21205643,
+                        "right": 0.5513906,
+                        "bottom": 0.22659256
+                    },
+                    "confidence": 0.88717294,
+                    "language": "und"
+                },
+                {
+                    "text": "Steuernummer: 123/456/78901 Bescheiddatum: 24.09.2026 Veranlagungszeitraum: 2025",
+                    "bounds": {
+                        "left": 0.096130595,
+                        "top": 0.23172297,
+                        "right": 0.6130592,
+                        "bottom": 0.24625908
+                    },
+                    "confidence": 0.87947917,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrte Frau Mustermann,",
+                    "bounds": {
+                        "left": 0.09673519,
+                        "top": 0.25737494,
+                        "right": 0.31559855,
+                        "bottom": 0.26849082
+                    },
+                    "confidence": 0.8423978,
+                    "language": "und"
+                },
+                {
+                    "text": "Ergebnis: Nachzahlung 2.317,00 €",
+                    "bounds": {
+                        "left": 0.11305925,
+                        "top": 0.3445917,
+                        "right": 0.4413543,
+                        "bottom": 0.36169302
+                    },
+                    "confidence": 0.8972252,
+                    "language": "und"
+                },
+                {
+                    "text": "auf Grund Ihrer Einkommensteuererklärung für das Jahr 2025 wurde die Einkommensteuer wie in diesem Bescheid\ndargestellt festgesetzt. Die Festsetzung führt unter Anrechnung der von Ihnen geleisteten Vorauszahlungen zu einer\nAbschlusszahlung. Die Berechnungsgrundlagen sowie die Abweichungen von Ihrer Steuererklärung entnehmen Sie\nbitte den nachfolgenden Erläuterungen.",
+                    "bounds": {
+                        "left": 0.09673519,
+                        "top": 0.271056,
+                        "right": 0.88512695,
+                        "bottom": 0.33219326
+                    },
+                    "confidence": 0.86292773,
+                    "language": "und"
+                },
+                {
+                    "text": "Festgesetzte Einkommensteuer 9.817,00 € abzüglich Vorauszahlungen 7.500,00 €",
+                    "bounds": {
+                        "left": 0.11305925,
+                        "top": 0.36554083,
+                        "right": 0.5912938,
+                        "bottom": 0.38007694
+                    },
+                    "confidence": 0.8758492,
+                    "language": "und"
+                },
+                {
+                    "text": "Aktenzeichen: EST-2025-0047118",
+                    "bounds": {
+                        "left": 0.6874244,
+                        "top": 0.048311245,
+                        "right": 0.8917775,
+                        "bottom": 0.05857204
+                    },
+                    "confidence": 0.8929149,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielstadt, 24.09.2026",
+                    "bounds": {
+                        "left": 0.6904474,
+                        "top": 0.15818726,
+                        "right": 0.8917775,
+                        "bottom": 0.17357846
+                    },
+                    "confidence": 0.8904622,
+                    "language": "und"
+                },
+                {
+                    "text": "Der Nachzahlungsbetrag ist nach den Bestimmungen der Abgabenordnung zu dem im Abschnitt",
+                    "bounds": {
+                        "left": 0.09915357,
+                        "top": 0.39931595,
+                        "right": 0.75513905,
+                        "bottom": 0.4155622
+                    },
+                    "confidence": 0.89463407,
+                    "language": "und"
+                },
+                {
+                    "text": "Finanzamt Beispielstadt Steuerweg 1 12345 Beispielstadt Postfach 00 00 00 (fiktive Behörde)",
+                    "bounds": {
+                        "left": 0.1070133,
+                        "top": 0.9153484,
+                        "right": 0.67170495,
+                        "bottom": 0.9290295
+                    },
+                    "confidence": 0.8797363,
+                    "language": "und"
+                },
+                {
+                    "text": "„Zahlungsaufforderung auf Seite 6 genannten Termin an die Finanzkasse zu entrichten. Bitte beachten Sie, dass bei\nverspäteter Zahlung ein Säumniszuschlag entsteht, dessen Höhe sich nach den gesetzlichen Vorschriften bemisst.\nDieser Bescheid ergeht nach den Vorschriften der Abgabenordnung und des Einkommensteuergesetzes in der für\nden Veranlagungszeitraum 2025 geltenden Fassung. Er ersetzt den bisherigen Vorauszahlungsbescheid, soweit\ndieser den Veranlagungszeitraum 2025 betrifft. Die Festsetzung von Vorauszahlungen für das laufende Jahr wird\ngesondert mitgeteilt.",
+                    "bounds": {
+                        "left": 0.09854897,
+                        "top": 0.41085935,
+                        "right": 0.8941959,
+                        "bottom": 0.509192
+                    },
+                    "confidence": 0.8767413,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 7",
+                    "bounds": {
+                        "left": 0.83071345,
+                        "top": 0.9345874,
+                        "right": 0.9056832,
+                        "bottom": 0.94228303
+                    },
+                    "confidence": 0.81953126,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 2,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Finanzamt Beispielstadt",
+                    "bounds": {
+                        "left": 0.11003628,
+                        "top": 0.04788371,
+                        "right": 0.25634825,
+                        "bottom": 0.05857204
+                    },
+                    "confidence": 0.8838778,
+                    "language": "und"
+                },
+                {
+                    "text": "1. Erläuterungen zur Festsetzung",
+                    "bounds": {
+                        "left": 0.109431684,
+                        "top": 0.08251389,
+                        "right": 0.39298669,
+                        "bottom": 0.097905084
+                    },
+                    "confidence": 0.8898168,
+                    "language": "und"
+                },
+                {
+                    "text": "Aktenzeichen: EST-2025-0047118",
+                    "bounds": {
+                        "left": 0.7031439,
+                        "top": 0.054724243,
+                        "right": 0.90810156,
+                        "bottom": 0.06412997
+                    },
+                    "confidence": 0.889278,
+                    "language": "und"
+                },
+                {
+                    "text": "Bei der Ermittlung der Einkünfte aus nichtselbständiger Arbeit wurden die von Ihrem Arbeitgeber elektronisch\nübermittelten Lohnsteuerbescheinigungsdaten zugrunde gelegt. Die in der Erklärung angegebenen Werbungskosten\nwurden insoweit berücksichtigt, als sie durch Belege nachgewiesen oder glaubhaft gemacht wurden und den\nArbeitnehmer-Pauschbetrag übersteigen. Aufwendungen für ein häusliches Arbeitszimmer konnten nicht anerkannt\nwerden, weil der Mittelpunkt Ihrer beruflichen Tätigkeit nach den vorliegenden Unterlagen nicht in der Wohnung liegt;\nes wurde stattdessen die Tagespauschale für die tatsächlich an der häuslichen Arbeitsstätte verbrachten Tage\nberücksichtigt.",
+                    "bounds": {
+                        "left": 0.10640871,
+                        "top": 0.10303549,
+                        "right": 0.9032648,
+                        "bottom": 0.21120137
+                    },
+                    "confidence": 0.8722717,
+                    "language": "und"
+                },
+                {
+                    "text": "Die geltend gemachten Fahrtkosten zwischen Wohnung und erster Täigkeitsstätte wurden mit der\nEntfernungspauschale für die kürzeste Straßenverbindung angesetzt. Für Tage, an denen Sie nach Ihren eigenen\nAngaben ausschließlich im Homeoffice gearbeitet haben, wurde keine Entfernungspauschale gewährt. Die Anzahl\nder Arbeitstage wurde anhand der Angaben in Ihrer Erklärung sowie der Bescheinigung Ihres Arbeitgebers\ngeschätzt, soweit genaue Nachweise nicht vorlagen.",
+                    "bounds": {
+                        "left": 0.103990324,
+                        "top": 0.2103463,
+                        "right": 0.882104,
+                        "bottom": 0.28858486
+                    },
+                    "confidence": 0.8806273,
+                    "language": "und"
+                },
+                {
+                    "text": "Beiträge zur Kranken- und Pflegeversicherung wurden in der Höhe berücksichtigt, in der sie der Finanzverwaltung\nvon den Versicherungsunternehmen elektronisch mitgeteilt wurden. Abweichungen zwischen den mitgeteilten\nBeträgen und den Angaben in Ihrer Erklärung sind in der Anlage zu diesem Bescheid gesondert aufgeführt. Beiträge\nzu Haftpflicht- und Unfallversicherungen wurden im Rahmen des Höchstbetrags für sonstige Vorsorgeaufwendungen\nangesetzt, soweit dieser nicht bereits durch die Basiskranken- und Pflegeversicherung ausgeschöpft war.",
+                    "bounds": {
+                        "left": 0.10278114,
+                        "top": 0.2877298,
+                        "right": 0.90145105,
+                        "bottom": 0.36725095
+                    },
+                    "confidence": 0.87298745,
+                    "language": "und"
+                },
+                {
+                    "text": "Spenden und Mitgliedsbeiträge an steuerbegünstigte Organisationen wurden als Sonderausgaben berücksichtigt,\nsoweit Zuwendungsbestätigungen vorlagen oder der Betrag die Grenze für den vereinfachten Spendennachweis\nnicht überschritt. Für nicht bestätigte Zuwendungen kann ein Abzug nicht erfolgen. Bitte bewahren Sie die\nentsprechenden Belege auf., da das Finanzamt sie auch nachträglich anfordern kann.",
+                    "bounds": {
+                        "left": 0.10217654,
+                        "top": 0.36596838,
+                        "right": 0.8712213,
+                        "bottom": 0.4283882
+                    },
+                    "confidence": 0.875895,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Steuerermäßigung für haushaltsnahe Dienstleistungen und Handwerkerleistungen wurde in der beantragten\nHöhe gewährt, soweit die Rechnungen auf ein Konto überwiesen wurden und keine Barzahlung vorlag.\nAufwendungen, die auf Material entfallen, wurdern herausgerechnet, weil begünstigt nur der Arbeitslohn\neinschließlich der Fahrtkosten ist. Die Ermäßigung wird unmittelbar von der tariflichen Einkommensteuer\nabgezogen.",
+                    "bounds": {
+                        "left": 0.09915357,
+                        "top": 0.42796066,
+                        "right": 0.86336154,
+                        "bottom": 0.5083369
+                    },
+                    "confidence": 0.8646088,
+                    "language": "und"
+                },
+                {
+                    "text": "Bei der Prüfung der Belege wurde außerdem festgestelIt, dass einzelne Rechnungen nicht auf Ihren Namen\nausgestellt waren. Aufwendungen können nur dann berücksichtigt werden, wenn Sie selbst Schuldnerin der\nForderung waren und die Kosten wirtschaftlich getragen haben. Rechnungen, die an Dritte gerichtet sind, wurden\ndaher nicht anerkannt. Sollten Sie der Auffassung sein, dass dies zu Unrecht geschehen ist, legen Sie bitte eine\nBestätigung des Rechnungsstellers oder einen Zahlungsnachweis vor.",
+                    "bounds": {
+                        "left": 0.09854897,
+                        "top": 0.5066268,
+                        "right": 0.8694075,
+                        "bottom": 0.58486533
+                    },
+                    "confidence": 0.88023025,
+                    "language": "und"
+                },
+                {
+                    "text": "Reisekosten für beruflich veranlasste Auswärtstätigkeiten wurden mit den gesetzlichen Pauschalen für\nVerpflegungsmehraufwand angesetzt. Erstattungen des Arbeitgebers wurden davon abgezogen, sOweit sie steuerfrei\ngezahlt wurden. Übernachtungskosten wurden nur in der nachgewiesenen Höhe anerkannt. Für Fahrten mit dem\neigenen Fahrzeug wurde die pauschale Kilometerpauschale je gefahrenem Kilometer berücksichtigt, sofern ein\nFahrtenverzeichnis oder eine glaubhafte Aufstellung vorlag.",
+                    "bounds": {
+                        "left": 0.096130595,
+                        "top": 0.58486533,
+                        "right": 0.8948005,
+                        "bottom": 0.6635314
+                    },
+                    "confidence": 0.8773451,
+                    "language": "und"
+                },
+                {
+                    "text": "Berufliche Fortbildungskosten, Fachliteratur und Arbeitsmittel wurden als Werbungskosten anerkannt, soweit sie\nausschließlich oder nahezu ausschließlich beruflich genutzt werden. Wirtschaftsgüter mit Anschaffungskosten bis\nzur gesetzlichen Grenze für geringwertige Wirtschaftsgüter wurden im Jahr der Anschaffung in voller Höhe\nabgezogen, höherwertige Gegenstände über ihre betriebsgewöhnliche Nutzungsdauer verteilt. Für die Aufteilung\ngemischt genutzter Aufwendungen wurde ein sachgerechter Maßstab zugrunde gelegt.",
+                    "bounds": {
+                        "left": 0.09431681,
+                        "top": 0.66224885,
+                        "right": 0.8700121,
+                        "bottom": 0.74091494
+                    },
+                    "confidence": 0.868948,
+                    "language": "und"
+                },
+                {
+                    "text": "Finanzamt Beispielstadt Steuerweg1- 12345 Beispielstadt Postfach 00 00 00 (fiktive Behörde)",
+                    "bounds": {
+                        "left": 0.0949214,
+                        "top": 0.9119282,
+                        "right": 0.6577993,
+                        "bottom": 0.9277469
+                    },
+                    "confidence": 0.86786264,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 2 von 7",
+                    "bounds": {
+                        "left": 0.8137848,
+                        "top": 0.9401454,
+                        "right": 0.88875455,
+                        "bottom": 0.948696
+                    },
+                    "confidence": 0.8148438,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 3,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Finanzamt Beispielstadt",
+                    "bounds": {
+                        "left": 0.087061666,
+                        "top": 0.05557931,
+                        "right": 0.23458283,
+                        "bottom": 0.06669517
+                    },
+                    "confidence": 0.8620384,
+                    "language": "und"
+                },
+                {
+                    "text": "2. Berechnung der Einkommensteuer",
+                    "bounds": {
+                        "left": 0.08827086,
+                        "top": 0.08892689,
+                        "right": 0.4068924,
+                        "bottom": 0.10474562
+                    },
+                    "confidence": 0.89804685,
+                    "language": "und"
+                },
+                {
+                    "text": "Berechnungsgrundlage",
+                    "bounds": {
+                        "left": 0.09673519,
+                        "top": 0.11628901,
+                        "right": 0.28113663,
+                        "bottom": 0.1303976
+                    },
+                    "confidence": 0.9220703,
+                    "language": "und"
+                },
+                {
+                    "text": "Einkünfte aus nichtselbständiger Arbeit",
+                    "bounds": {
+                        "left": 0.09733978,
+                        "top": 0.14065841,
+                        "right": 0.3808948,
+                        "bottom": 0.15476699
+                    },
+                    "confidence": 0.87803817,
+                    "language": "und"
+                },
+                {
+                    "text": "abzüglich Werbungskosten",
+                    "bounds": {
+                        "left": 0.09733978,
+                        "top": 0.16759299,
+                        "right": 0.29262394,
+                        "bottom": 0.18127404
+                    },
+                    "confidence": 0.9008152,
+                    "language": "und"
+                },
+                {
+                    "text": "Summe der Einkünfte",
+                    "bounds": {
+                        "left": 0.09854897,
+                        "top": 0.19324498,
+                        "right": 0.25392985,
+                        "bottom": 0.2052159
+                    },
+                    "confidence": 0.86557907,
+                    "language": "und"
+                },
+                {
+                    "text": "abzüglich Sonderausgaben",
+                    "bounds": {
+                        "left": 0.09915357,
+                        "top": 0.21846943,
+                        "right": 0.29504234,
+                        "bottom": 0.23300555
+                    },
+                    "confidence": 0.8727921,
+                    "language": "und"
+                },
+                {
+                    "text": "abzüglich außergewöhnliche Belastungen",
+                    "bounds": {
+                        "left": 0.09975816,
+                        "top": 0.24241129,
+                        "right": 0.40145102,
+                        "bottom": 0.2595126
+                    },
+                    "confidence": 0.88096786,
+                    "language": "und"
+                },
+                {
+                    "text": "Zu versteuerndes Einkommen",
+                    "bounds": {
+                        "left": 0.10580411,
+                        "top": 0.26891834,
+                        "right": 0.31741235,
+                        "bottom": 0.283882
+                    },
+                    "confidence": 0.8585612,
+                    "language": "und"
+                },
+                {
+                    "text": "Tarifliche Einkommensteuer",
+                    "bounds": {
+                        "left": 0.10157195,
+                        "top": 0.29628047,
+                        "right": 0.30350664,
+                        "bottom": 0.30782387
+                    },
+                    "confidence": 0.87453127,
+                    "language": "und"
+                },
+                {
+                    "text": "abzüglich Steuerermäßigung § 35a EStG",
+                    "bounds": {
+                        "left": 0.10217654,
+                        "top": 0.31979477,
+                        "right": 0.39963725,
+                        "bottom": 0.33561352
+                    },
+                    "confidence": 0.8276515,
+                    "language": "und"
+                },
+                {
+                    "text": "Festgesetzte Einkommensteuer",
+                    "bounds": {
+                        "left": 0.10338573,
+                        "top": 0.3458743,
+                        "right": 0.34824666,
+                        "bottom": 0.3612655
+                    },
+                    "confidence": 0.90002894,
+                    "language": "und"
+                },
+                {
+                    "text": "Aktenzeichen: EST-2025-0047118",
+                    "bounds": {
+                        "left": 0.68077385,
+                        "top": 0.04531851,
+                        "right": 0.88512695,
+                        "bottom": 0.057716973
+                    },
+                    "confidence": 0.8895474,
+                    "language": "und"
+                },
+                {
+                    "text": "Erklärt €",
+                    "bounds": {
+                        "left": 0.6324063,
+                        "top": 0.11030355,
+                        "right": 0.69588876,
+                        "bottom": 0.12056434
+                    },
+                    "confidence": 0.7919922,
+                    "language": "und"
+                },
+                {
+                    "text": "46.020,00",
+                    "bounds": {
+                        "left": 0.62515116,
+                        "top": 0.135528,
+                        "right": 0.6964933,
+                        "bottom": 0.14749894
+                    },
+                    "confidence": 0.8689236,
+                    "language": "und"
+                },
+                {
+                    "text": "2.140,00",
+                    "bounds": {
+                        "left": 0.63542926,
+                        "top": 0.16160752,
+                        "right": 0.6977025,
+                        "bottom": 0.17272338
+                    },
+                    "confidence": 0.8129883,
+                    "language": "und"
+                },
+                {
+                    "text": "43.880,00",
+                    "bounds": {
+                        "left": 0.6269649,
+                        "top": 0.18683198,
+                        "right": 0.6977025,
+                        "bottom": 0.19794784
+                    },
+                    "confidence": 0.8819444,
+                    "language": "und"
+                },
+                {
+                    "text": "4.720,00",
+                    "bounds": {
+                        "left": 0.63663846,
+                        "top": 0.21376656,
+                        "right": 0.6995163,
+                        "bottom": 0.22402737
+                    },
+                    "confidence": 0.8930664,
+                    "language": "und"
+                },
+                {
+                    "text": "260,00",
+                    "bounds": {
+                        "left": 0.6517533,
+                        "top": 0.23813595,
+                        "right": 0.6995163,
+                        "bottom": 0.24967936
+                    },
+                    "confidence": 0.90234375,
+                    "language": "und"
+                },
+                {
+                    "text": "38.900,00",
+                    "bounds": {
+                        "left": 0.6299879,
+                        "top": 0.26421547,
+                        "right": 0.7007255,
+                        "bottom": 0.27533135
+                    },
+                    "confidence": 0.88151044,
+                    "language": "und"
+                },
+                {
+                    "text": "Festgesetzt €",
+                    "bounds": {
+                        "left": 0.7291415,
+                        "top": 0.10773835,
+                        "right": 0.831318,
+                        "bottom": 0.12141941
+                    },
+                    "confidence": 0.8701172,
+                    "language": "und"
+                },
+                {
+                    "text": "46.020,00",
+                    "bounds": {
+                        "left": 0.7605804,
+                        "top": 0.13381787,
+                        "right": 0.83071345,
+                        "bottom": 0.14493373
+                    },
+                    "confidence": 0.8619792,
+                    "language": "und"
+                },
+                {
+                    "text": "1.410,00",
+                    "bounds": {
+                        "left": 0.7720677,
+                        "top": 0.15946986,
+                        "right": 0.8325272,
+                        "bottom": 0.17058572
+                    },
+                    "confidence": 0.83691406,
+                    "language": "und"
+                },
+                {
+                    "text": "44.610,00",
+                    "bounds": {
+                        "left": 0.7623942,
+                        "top": 0.18597691,
+                        "right": 0.834341,
+                        "bottom": 0.19666524
+                    },
+                    "confidence": 0.87890625,
+                    "language": "und"
+                },
+                {
+                    "text": "3.980,00",
+                    "bounds": {
+                        "left": 0.7726723,
+                        "top": 0.21077384,
+                        "right": 0.834341,
+                        "bottom": 0.22231723
+                    },
+                    "confidence": 0.8515625,
+                    "language": "und"
+                },
+                {
+                    "text": "0,00",
+                    "bounds": {
+                        "left": 0.8047158,
+                        "top": 0.23599829,
+                        "right": 0.83494556,
+                        "bottom": 0.24754168
+                    },
+                    "confidence": 0.76953125,
+                    "language": "und"
+                },
+                {
+                    "text": "Finanzamt Beispielstadt Steuerweg1- 12345 Beispielstadt Postfach 00 00 00 (fiktive Behörde)",
+                    "bounds": {
+                        "left": 0.11305925,
+                        "top": 0.91406584,
+                        "right": 0.6783555,
+                        "bottom": 0.9320222
+                    },
+                    "confidence": 0.8672357,
+                    "language": "und"
+                },
+                {
+                    "text": "40.630,00",
+                    "bounds": {
+                        "left": 0.76420796,
+                        "top": 0.26165026,
+                        "right": 0.83615476,
+                        "bottom": 0.27276614
+                    },
+                    "confidence": 0.82769096,
+                    "language": "und"
+                },
+                {
+                    "text": "10.117,00",
+                    "bounds": {
+                        "left": 0.7672309,
+                        "top": 0.28858486,
+                        "right": 0.8379686,
+                        "bottom": 0.2992732
+                    },
+                    "confidence": 0.85199654,
+                    "language": "und"
+                },
+                {
+                    "text": "300,00",
+                    "bounds": {
+                        "left": 0.78960097,
+                        "top": 0.31295425,
+                        "right": 0.83736396,
+                        "bottom": 0.32449764
+                    },
+                    "confidence": 0.88151044,
+                    "language": "und"
+                },
+                {
+                    "text": "9.817,00",
+                    "bounds": {
+                        "left": 0.7762999,
+                        "top": 0.33903378,
+                        "right": 0.8379686,
+                        "bottom": 0.35057718
+                    },
+                    "confidence": 0.875,
+                    "language": "und"
+                },
+                {
+                    "text": "Die tarifliche Einkommensteuer wurde nach dem Grundtarif ermittelt, da Sie im Veranlagungszeitraum nicht\nzusammen mit einem Ehegatten oder eingetragenen Lebenspartner veranlagt wurden. Der Solidaritätszuschlag wird\nim Jahr 2025 für Ihr Einkommen nicht erhoben, weil die Milderungszone nicht erreicht wird. Kirchensteuer fällt nicht\nan, da Sie nach Ihren Angaben keiner steuererhebenden Religionsgemeinschaft angehören.",
+                    "bounds": {
+                        "left": 0.096130595,
+                        "top": 0.36725095,
+                        "right": 0.88996375,
+                        "bottom": 0.43437368
+                    },
+                    "confidence": 0.8741444,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Abweichungen gegenüber Ihrer Erklärung beruhen im Wesentlichen auf der Kürzung der Werbungskosten für\ndas häusliche Arbeitszimmer, der Anpassung der Sonderausgaben an die elektronisch übermittelten Daten sowie\ndem Wegfall der geltend gemachten außergewöhnlichen Belastungen. Für Krankheits- und Pflegekosten wurde die\nzumutbare Belastung berechnet; da diese den erklärten Betrag übersteigt, wirkt sich ein Abzug nicht aus.",
+                    "bounds": {
+                        "left": 0.09794438,
+                        "top": 0.43009833,
+                        "right": 0.8833132,
+                        "bottom": 0.49636596
+                    },
+                    "confidence": 0.88232005,
+                    "language": "und"
+                },
+                {
+                    "text": "Die zumutbare Belastung richtet sich nach der Höhe Ihres Gesamtbetrags der Einkünfte, Ihrem Familienstand und\nder Anzahl der Kinder, für die Sie einen Kinderfreibetrag oder Kindergeld erhalten. In Ihrem Fall beträgt sie einen\nProzentsatz des Gesamtbetrags der Einkünfte, der in der Anlage zu diesem Bescheid aufgeschlüsselt ist.\nAufwendungen bis zu diesem Betrag wirken sich nach der gesetzlichen Regelung nicht steuermindernd aus.",
+                    "bounds": {
+                        "left": 0.09975816,
+                        "top": 0.49380076,
+                        "right": 0.879081,
+                        "bottom": 0.5600684
+                    },
+                    "confidence": 0.8796272,
+                    "language": "und"
+                },
+                {
+                    "text": "Der Grundfreibetrag für das Jahr 2025 wurde bei der Berechnung der tariflichen Einkommensteuer berücksichtigt.\nDie Steuer wurde nach dem gesetzlichen Tarif berechnet, der für das zu versteuernde Einkommen in mehreren\nZonen ansteigende Grenzsteuersätze vorsieht. Der Durchschnittssteuersatz liegt daher deutlich unter dem\nGrenzsteuersatz, mit dem ein zusätzlich verdienter Euro belastet wird. Eine ausführliche Darstellung der Tarifzonen\nfinden Sie in den allgemeinen Erläuterungen der Finanzverwaltung.",
+                    "bounds": {
+                        "left": 0.10157195,
+                        "top": 0.55664814,
+                        "right": 0.8917775,
+                        "bottom": 0.638307
+                    },
+                    "confidence": 0.87459373,
+                    "language": "und"
+                },
+                {
+                    "text": "Freibeträge für Kinder waren nicht zu berücksichtigen, da nach den Angaben in Ihrer Erklärung im\nVeranlagungszeitraum kein steuerlich zu berücksichtigendes Kind zu lhrem Haushalt gehörte. Sollte sich ein\nAnspruch auf Kindergeld oder einen Kinderfreibetrag ergebern, der bislang nicht angegeben wurde, teilen Sie dies\nbitte mit, damit die Festsetzung geprüft und gegebenenfalls geändert werden kann.",
+                    "bounds": {
+                        "left": 0.103990324,
+                        "top": 0.6348867,
+                        "right": 0.8754535,
+                        "bottom": 0.7007268
+                    },
+                    "confidence": 0.87467766,
+                    "language": "und"
+                },
+                {
+                    "text": "Einkünfte aus Kapitalvermögen unterlagen dem gesonderten Steuertarif für Abgeltungsteuer und wurden, soweit die\nSteuer bereits durch die auszahlende Stelle einbehalten wurde, nicht in die Veranlagung einbezogen. Der\nSparer-Pauschbetrag wurde in voller Höhe von den auszahlenden Stellen berücksichtigt, sodass sich aus der\nVeranlagung insoweit weder eine Nachzahlung noch eine Erstattung ergibt. Eine Günstigerprüfung wurde\ndurchgeführt und führte zu keiner Änderung.",
+                    "bounds": {
+                        "left": 0.10640871,
+                        "top": 0.6973065,
+                        "right": 0.89661425,
+                        "bottom": 0.77896535
+                    },
+                    "confidence": 0.86747575,
+                    "language": "und"
+                },
+                {
+                    "text": "Verluste aus anderen Einkunftsarten liegen nicht vor. Ein Verlustrücktrag oder Verlustvortrag war daher weder zu\nberücksichtigen noch gesondert festzustellen. Sollten sich für frühere Jahre nachträglich Verluste ergeben, kann ein\nRücktrag auf Antrag erfolgen, soweit die gesetzlichen Höchstbeträge nicht überschritten werden.",
+                    "bounds": {
+                        "left": 0.10822249,
+                        "top": 0.7755451,
+                        "right": 0.8960097,
+                        "bottom": 0.8272766
+                    },
+                    "confidence": 0.88118505,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 3 von 7",
+                    "bounds": {
+                        "left": 0.8367594,
+                        "top": 0.93073964,
+                        "right": 0.9111245,
+                        "bottom": 0.9392903
+                    },
+                    "confidence": 0.8472656,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 4,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Finanzamt Beispielstadt",
+                    "bounds": {
+                        "left": 0.10580411,
+                        "top": 0.049593844,
+                        "right": 0.25272068,
+                        "bottom": 0.059854638
+                    },
+                    "confidence": 0.87002844,
+                    "language": "und"
+                },
+                {
+                    "text": "3. Anrechnung von Vorauszahlungen und Abschlusszahlung",
+                    "bounds": {
+                        "left": 0.105199516,
+                        "top": 0.08465156,
+                        "right": 0.62394196,
+                        "bottom": 0.10047029
+                    },
+                    "confidence": 0.9103157,
+                    "language": "und"
+                },
+                {
+                    "text": "Abrechnung",
+                    "bounds": {
+                        "left": 0.11185006,
+                        "top": 0.11073108,
+                        "right": 0.20858525,
+                        "bottom": 0.12270201
+                    },
+                    "confidence": 0.8785156,
+                    "language": "und"
+                },
+                {
+                    "text": "Festgesetzte Einkommensteuer 2025",
+                    "bounds": {
+                        "left": 0.11245465,
+                        "top": 0.13723813,
+                        "right": 0.38270858,
+                        "bottom": 0.148354
+                    },
+                    "confidence": 0.8813004,
+                    "language": "und"
+                },
+                {
+                    "text": "abzüglich geleistete Vorauszahlungen 2025",
+                    "bounds": {
+                        "left": 0.11124547,
+                        "top": 0.16289012,
+                        "right": 0.4292624,
+                        "bottom": 0.17528859
+                    },
+                    "confidence": 0.86543995,
+                    "language": "und"
+                },
+                {
+                    "text": "abzüglich einbehaltene Steuerabzugsbeträge",
+                    "bounds": {
+                        "left": 0.11064087,
+                        "top": 0.18768704,
+                        "right": 0.4401451,
+                        "bottom": 0.20136811
+                    },
+                    "confidence": 0.8702148,
+                    "language": "und"
+                },
+                {
+                    "text": "Abschlusszahlung (Nachzahlung)",
+                    "bounds": {
+                        "left": 0.11003628,
+                        "top": 0.21333903,
+                        "right": 0.37605804,
+                        "bottom": 0.22659256
+                    },
+                    "confidence": 0.88698816,
+                    "language": "und"
+                },
+                {
+                    "text": "4. Hinweise zu den Vorauszahlungen für das laufende Jahr",
+                    "bounds": {
+                        "left": 0.10157195,
+                        "top": 0.2915776,
+                        "right": 0.6039903,
+                        "bottom": 0.30654126
+                    },
+                    "confidence": 0.89038086,
+                    "language": "und"
+                },
+                {
+                    "text": "Aktenzeichen: EST-2025-0047118",
+                    "bounds": {
+                        "left": 0.6995163,
+                        "top": 0.05429671,
+                        "right": 0.904474,
+                        "bottom": 0.06241984
+                    },
+                    "confidence": 0.86664873,
+                    "language": "und"
+                },
+                {
+                    "text": "Betrag €",
+                    "bounds": {
+                        "left": 0.78355503,
+                        "top": 0.11586148,
+                        "right": 0.84885126,
+                        "bottom": 0.12654981
+                    },
+                    "confidence": 0.87276787,
+                    "language": "und"
+                },
+                {
+                    "text": "9.817,00",
+                    "bounds": {
+                        "left": 0.78476423,
+                        "top": 0.14023086,
+                        "right": 0.8482467,
+                        "bottom": 0.1522018
+                    },
+                    "confidence": 0.88916016,
+                    "language": "und"
+                },
+                {
+                    "text": "7.500,00",
+                    "bounds": {
+                        "left": 0.78476423,
+                        "top": 0.16631038,
+                        "right": 0.8470375,
+                        "bottom": 0.17699872
+                    },
+                    "confidence": 0.8666992,
+                    "language": "und"
+                },
+                {
+                    "text": "0,00",
+                    "bounds": {
+                        "left": 0.81680775,
+                        "top": 0.19281745,
+                        "right": 0.8470375,
+                        "bottom": 0.20307824
+                    },
+                    "confidence": 0.7871094,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Vorauszahlungen für das Jahr 2025 wurden in vier Raten zu jeweils 1.875,00 € entrichtet. Sie wurden vollständig\nangerechnet. Eine Erstattung überzahlter Beträge ist nicht möglich, da die festgesetzte Steuer die Vorauszahlungen\nübersteigt. Die verbleibende Abschlusszahlung ergitbt sich aus der vorstehenden Aufstellung.",
+                    "bounds": {
+                        "left": 0.10278114,
+                        "top": 0.24241129,
+                        "right": 0.89782345,
+                        "bottom": 0.28943995
+                    },
+                    "confidence": 0.8541305,
+                    "language": "und"
+                },
+                {
+                    "text": "Finanzamt Beispielstadt Steuerweg 1 12345 Beispielstadt - Postfach 00 00 00 (1iktive Behörde)",
+                    "bounds": {
+                        "left": 0.095525995,
+                        "top": 0.91577595,
+                        "right": 0.66142684,
+                        "bottom": 0.92689186
+                    },
+                    "confidence": 0.80941355,
+                    "language": "und"
+                },
+                {
+                    "text": "2.317,00",
+                    "bounds": {
+                        "left": 0.7841596,
+                        "top": 0.21846943,
+                        "right": 0.8470375,
+                        "bottom": 0.22873023
+                    },
+                    "confidence": 0.8330078,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Höhe der Vorauszahlungen für das Jahr 2026 richtet sich nach der zuletzt festgesetzten Steuer. Da die\nfestgesetzte Steuer für 2025 höher ist als die bisher zugrunde gelegte, wird das Finanzamt die Vorauszahlungen für\n2026 in einem gesonderten Bescheid anpassen. Sie haben die Möglichkeit, eine Anpassung zu beantragen, wenn\nSie glaubhaft machen, dass sich Ihre Einkünfte voraussichtlich verringern werden. Ein entsprechender Antrag ist\nformlos möglich und sollte die zu erwartenden Einkanfte des laufenden Jahres nachvollziehbar darstellen.\nSofern Sie Einkünfte erzielen, die nicht dem Lohnsteuerabzug unterliegen, sind Sie zur Abgabe einer\nSteuererklarung verpflichtet. Änderungen Ihrer persönlichen Verhaltnisse, insbesondere Ihrer Anschrift, Ihres\nFamilienstandes oder Ihrer Bankverbindung, teilen Sie dem Finanzamt bitte unverzüglich mit, damit Bescheide und\nErstatturngen an die richtige Stelle gelangen.",
+                    "bounds": {
+                        "left": 0.100362755,
+                        "top": 0.3120992,
+                        "right": 0.8881499,
+                        "bottom": 0.44933733
+                    },
+                    "confidence": 0.85237616,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Abschlusszahlung beruht ausschließlich auf der Differenz zwischen der festgesetzten Steuer und den bereits\ngeleisteten Beträgen. Eine gesonderte Verzinsung von Steuernachforderungen nach den Vorschriften der\nAbgabenordnung bleibt vorbehalten und wird gegebenenfalls in einem eigenen Zinsbescheid festgesetzt. Ob und in\nwelcher Höhe Zinsen anfallen, hängt vom Beginn des Zinslaufs ab, der sich nach dem Ablauf einer gesetzlich\nfestgelegtern Karenzzeit nach dem Ende des Veralagungszeitraums richtet.",
+                    "bounds": {
+                        "left": 0.09915357,
+                        "top": 0.4540402,
+                        "right": 0.882104,
+                        "bottom": 0.5267208
+                    },
+                    "confidence": 0.84871304,
+                    "language": "und"
+                },
+                {
+                    "text": "Falls Sie die Abschlusszahlung nicht in einer Summe leisten können, haben Sie die Möglichkeit, einen formlosen\nAntrag auf Stundung oder Ratenzahlung zu stellen. Der Antrag sollte die Gründe der Zahlungsschwierigkeiten\ndarlegen und einen konkreten Vorschlag zur Tilgung enthalten. Über den Antrag entscheidet die Finanzkasse nach\npflichtgemaßem Ermessen. Für gestundete Beträge werden Stundungszinsen erhoben.",
+                    "bounds": {
+                        "left": 0.09854897,
+                        "top": 0.5314237,
+                        "right": 0.8802902,
+                        "bottom": 0.5908508
+                    },
+                    "confidence": 0.85715747,
+                    "language": "und"
+                },
+                {
+                    "text": "Sofern Sie dem Finanzamt eine Einzugsermächtigung erteilt haben, wird der Betrag zum Fälligkeitstag von dem\nangegebenen Konto abgebucht; in diesem Fall brauchen Sie keine Überweisung vorzunehmen. Eine\nEinzugsermächtigung liegt nach unserer Kenntnis für lhre Steuernummer derzeit nicht vor.",
+                    "bounds": {
+                        "left": 0.09794438,
+                        "top": 0.5938435,
+                        "right": 0.86154777,
+                        "bottom": 0.63787943
+                    },
+                    "confidence": 0.85571545,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 4 von 7",
+                    "bounds": {
+                        "left": 0.8186215,
+                        "top": 0.9392903,
+                        "right": 0.8941959,
+                        "bottom": 0.9469859
+                    },
+                    "confidence": 0.83867186,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 5,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Finanzamt Beispielstadt",
+                    "bounds": {
+                        "left": 0.09068924,
+                        "top": 0.055151775,
+                        "right": 0.2382104,
+                        "bottom": 0.065412566
+                    },
+                    "confidence": 0.8709162,
+                    "language": "und"
+                },
+                {
+                    "text": "5. Vorläufigkeitsvermerk und Vorbehalt der Nachprüfung",
+                    "bounds": {
+                        "left": 0.09189843,
+                        "top": 0.08593416,
+                        "right": 0.57617897,
+                        "bottom": 0.10431808
+                    },
+                    "confidence": 0.89126277,
+                    "language": "und"
+                },
+                {
+                    "text": "Aktenzeichen: EST-2025-0047118",
+                    "bounds": {
+                        "left": 0.6837969,
+                        "top": 0.04745618,
+                        "right": 0.8881499,
+                        "bottom": 0.058144506
+                    },
+                    "confidence": 0.88618,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Steuerfestsetzung ergeht hinsichtlich der Berücksichtigung bestimmter Vorsorgeaufwendungen vorläufig nach\nder Abgabenordnung, soweit die Verfassungsmäßigkeit einzelner Regelungen Gegenstand anhängiger Verfahren ist.\nDie Vorläufigkeit betrifft nur die im Anhang genannten Punkte. Soweit die Vorläufigkeit endet, wird der Bescheid von\nAmts wegen geändert oder für endgültig erklärt; ein besonderer Antrag ist hierfür nicht erforderlich.",
+                    "bounds": {
+                        "left": 0.09068924,
+                        "top": 0.10303549,
+                        "right": 0.88633615,
+                        "bottom": 0.16759299
+                    },
+                    "confidence": 0.8654547,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Festsetzung steht außerdem unter dem Vorbehalt der Nachprüfung. Das bedeutet, dass das Finanzamt den\nBescheid innerhalb der Festsetzungsfrist jederzeit ändern kann, soweit dies zu einer höheren oder niedrigeren\nSteuer führt. Der Vorbehalt der Nachprüfung bedarf keiner Begründung und wird aufgehoben, wenn eine\nAußenprüfung durchgeführt wurde oder das Finanzamt die Prüfung abgeschlossen hat.",
+                    "bounds": {
+                        "left": 0.092503026,
+                        "top": 0.16759299,
+                        "right": 0.8548972,
+                        "bottom": 0.23086789
+                    },
+                    "confidence": 0.8726232,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Festsetzungsfrist beträgt vier Jahre und beginnt mit Ablauf des Kalenderjahres, in dem die Steuererklärung\neingereicht wurde, spätestens jedoch mit Ablauf des dritten Kalenderjahres, das auf das Kalenderjahr folgt, für das\ndie Steuer festgesetzt wird. In bestimmten Fällen, etwa bei Anträgen auf Änderung oder bei laufenden Ermittlungen,\nist der Ablauf der Frist gehemmt.",
+                    "bounds": {
+                        "left": 0.09431681,
+                        "top": 0.23001282,
+                        "right": 0.8808948,
+                        "bottom": 0.29328772
+                    },
+                    "confidence": 0.878127,
+                    "language": "und"
+                },
+                {
+                    "text": "Sollten Sie bislang nicht berücksichtigte Aufwendungen geltend machen wollen, können Sie dies im Rahmen eines\nEinspruchs oder eines Antrags auf Anderung tun. Bitte fügen Sie entsprechende Belege bei, damit die Angaben ohne\nweitere Rückfragen geprüft werden können. Für Rückfragen zu den Berechnungsgrundlagen steht Ihnen die\nzuständige Sachbearbeiterin unter der auf Seite 7 genannten Rufnummer zur Verfügung.",
+                    "bounds": {
+                        "left": 0.0949214,
+                        "top": 0.29328772,
+                        "right": 0.8917775,
+                        "bottom": 0.35699016
+                    },
+                    "confidence": 0.8695398,
+                    "language": "und"
+                },
+                {
+                    "text": "Ergänzend weisen wir darauf hin, dass bei der Berechnung der Steuer Beträge stets auf volle Euro abgerundet\nwerden, soweit das GesetzZ nichts anderes bestimmt. Rundungsdifferenzen in den Tabellen dieses Bescheids sind\ndarauf zurückzuführen.",
+                    "bounds": {
+                        "left": 0.09733978,
+                        "top": 0.35656264,
+                        "right": 0.87484884,
+                        "bottom": 0.40487388
+                    },
+                    "confidence": 0.8593736,
+                    "language": "und"
+                },
+                {
+                    "text": "Zur Vermeidung von Rückfragen bitten wir Sie, alle Schreiben an das Finanzamt mit dem Aktenzeichen im Kopf\ndieser Seite sowie Ihrer Steuernummer zu versehen. Bitte reichen Sie Unterlagen möglichst in Kopie ein, da\nOriginale nur in Ausnahmefällen zurückgesandt werden können. Wenn Sie Ihre Steuerangelegenheiten über eine\nsteuerberatende Person abwickeln, teilen Sie uns bitte deren Vollmacht mit, damit künftige Bescheide dorthin\nbekannt gegeben werden können.",
+                    "bounds": {
+                        "left": 0.09794438,
+                        "top": 0.40487388,
+                        "right": 0.8688029,
+                        "bottom": 0.48311245
+                    },
+                    "confidence": 0.8717132,
+                    "language": "und"
+                },
+                {
+                    "text": "Finanzamt Beispielstadt Steuerweg 1 12345 Beispielstadt Postfach 00 00 00 (fiktive Behörde)",
+                    "bounds": {
+                        "left": 0.11003628,
+                        "top": 0.9149209,
+                        "right": 0.6735187,
+                        "bottom": 0.93073964
+                    },
+                    "confidence": 0.87158203,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 5 von 7",
+                    "bounds": {
+                        "left": 0.8337364,
+                        "top": 0.9328773,
+                        "right": 0.907497,
+                        "bottom": 0.9405729
+                    },
+                    "confidence": 0.84648436,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 6,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Finanzamt Beispielstadt",
+                    "bounds": {
+                        "left": 0.11185006,
+                        "top": 0.047028646,
+                        "right": 0.25997582,
+                        "bottom": 0.057716973
+                    },
+                    "confidence": 0.8631037,
+                    "language": "und"
+                },
+                {
+                    "text": "6. Rechtsbehelfsbelehrung",
+                    "bounds": {
+                        "left": 0.11124547,
+                        "top": 0.081658825,
+                        "right": 0.34099153,
+                        "bottom": 0.09705002
+                    },
+                    "confidence": 0.8986003,
+                    "language": "und"
+                },
+                {
+                    "text": "Gegen diesen Bescheid ist der Einspruch zulässig. Der Einspruch ist schriftlich einzureichen oder zur Niederschrift\nzu erklären. Er kann auch elektronisch nach Maßgabe der Steuerdatenübermittlung eingelegt werden. Einspruch\ninnerhalb eines Monats nach Bekanntgabe des Bescheids beim Finanzamt Beispielstadt, Steuerweg 1, 12345\nBeispielstadt.",
+                    "bounds": {
+                        "left": 0.108827084,
+                        "top": 0.10303549,
+                        "right": 0.8948005,
+                        "bottom": 0.16716546
+                    },
+                    "confidence": 0.8767061,
+                    "language": "und"
+                },
+                {
+                    "text": "Aktenzeichen: EST-2025-0047118",
+                    "bounds": {
+                        "left": 0.7055623,
+                        "top": 0.055151775,
+                        "right": 0.90931076,
+                        "bottom": 0.065412566
+                    },
+                    "confidence": 0.8751347,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Frist beginnt mit Ablauf des Tages, an dem Ihnen dieser Bescheid bekannt gegeben wird. Bei Zusendung durch\neinfachen Brief gilt der Bescheid mit dem dritten Tag nach der Aufgabe zur Post als bekannt gegeben, es sei denn,\ner ist nicht oder zu einem späteren Zeitpunkt zugegangen. Fällt das Ende der Frist auf einen Samstag, Sonntag oder\ngesetzlichen Feiertag, endet die Frist mit Ablauf des nächsten Werktages. Der Einspruch ist fristgerecht, wenn er\ninnerhalb der Frist bei der Behörde eingeht.",
+                    "bounds": {
+                        "left": 0.10640871,
+                        "top": 0.16588286,
+                        "right": 0.90145105,
+                        "bottom": 0.24497649
+                    },
+                    "confidence": 0.8862277,
+                    "language": "und"
+                },
+                {
+                    "text": "Der Einspruch muss den angefochtenen Bescheid bezeichnen und erkennen lassen, wer ihn eingelegt hat. Er soll\nbegründet werden. Durch die Einlegung eines Einspruchs wird die Vollziehung des Bescheids nicht gehemmt,\ninsbesondere die Zahlungspflicht nicht berührt. Auf Antrag kann Aussetzung der Vollziehung gewährt werden, wenn\nernstliche Zweifel an der Rechtmäßigkeit des Bescheids bestehen oder die Vollziehung eine unbillige Härte zur\nFolge hätte.",
+                    "bounds": {
+                        "left": 0.10459492,
+                        "top": 0.24369389,
+                        "right": 0.8941959,
+                        "bottom": 0.32321504
+                    },
+                    "confidence": 0.8744752,
+                    "language": "und"
+                },
+                {
+                    "text": "Zahlungsaufforderung",
+                    "bounds": {
+                        "left": 0.103990324,
+                        "top": 0.32193244,
+                        "right": 0.2956469,
+                        "bottom": 0.33732364
+                    },
+                    "confidence": 0.9013672,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Abschlusszahlung von 2.317,00€ ist fällig am 03.11.2026. Bitte überweisen Sie den Betrag auf das Konto der\nFinanzkasse Beispielstadt: IBAN DE89 3704 0044 0532 0130 00, BIC COBADEFFXXX, Verwendungszweck:\nSteuernummer 123/456/78901 EST 2025. Der Einspruch entbindet nicht von der fristgerechten Zahlung. Bei Zahlung\nnach dem Fälligkeitstermin wird für jeden angefangenen Monat ein Säumniszuschlag von einem Prozent des\nabgerundeten rückständigen Betrags erhoben.",
+                    "bounds": {
+                        "left": 0.10217654,
+                        "top": 0.3420265,
+                        "right": 0.8984281,
+                        "bottom": 0.42283028
+                    },
+                    "confidence": 0.87858105,
+                    "language": "und"
+                },
+                {
+                    "text": "Finanzamt Beispielstadt Steuerweg 1 12345 Beispielstadt Postfach 00 00 00 (fiktive Behörde)",
+                    "bounds": {
+                        "left": 0.08887545,
+                        "top": 0.9123557,
+                        "right": 0.6553809,
+                        "bottom": 0.9277469
+                    },
+                    "confidence": 0.8671387,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 6 von 7",
+                    "bounds": {
+                        "left": 0.8113664,
+                        "top": 0.9410004,
+                        "right": 0.8869408,
+                        "bottom": 0.9495511
+                    },
+                    "confidence": 0.85625,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 7,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Finanzamt Beispielstadt",
+                    "bounds": {
+                        "left": 0.096130595,
+                        "top": 0.05429671,
+                        "right": 0.24486095,
+                        "bottom": 0.063274905
+                    },
+                    "confidence": 0.87677556,
+                    "language": "und"
+                },
+                {
+                    "text": "7. Weitere Hinweise",
+                    "bounds": {
+                        "left": 0.096130595,
+                        "top": 0.089354426,
+                        "right": 0.264208,
+                        "bottom": 0.09961522
+                    },
+                    "confidence": 0.8506434,
+                    "language": "und"
+                },
+                {
+                    "text": "Diese Mitteilung wurde maschinell erstelt und ist ohne Unterschrift gültig. Soweit Anlagen erwähnt sind, wurden\ndiese dem Bescheid in elektronischer Form beigefügt. Bitte prüfen Sie den Bescheid sorgfältig, da eine spätere\nÄnderung nur unter den gesetzlichen Voraussetzungen möglich ist. Für Rūckfragen nennen Sie bitte stets das\nAktenzeichen EST-2025-0047118 sowie Ihre Steuernummer.",
+                    "bounds": {
+                        "left": 0.09673519,
+                        "top": 0.10731082,
+                        "right": 0.86033857,
+                        "bottom": 0.1637452
+                    },
+                    "confidence": 0.8298968,
+                    "language": "und"
+                },
+                {
+                    "text": "Informationen zur Verarbeitung Ihrer personenbezogenen Daten durch die Finanzverwaltung sowie zu lhren Rechten\nnach der Datenschutz-Grundverordnung erhalten Sie in Ihrem Finanzamt oder im Internetangebot der\nFinanzverwaltung. Dort finden Sie auch die Kontaktdaten des zuständigen Datenschutzbeauftragten. Die\nVerarbeitung erfolgt zur Erfllung der der Behörde übertragenen Aufgaben.",
+                    "bounds": {
+                        "left": 0.09733978,
+                        "top": 0.17058572,
+                        "right": 0.8935913,
+                        "bottom": 0.22787516
+                    },
+                    "confidence": 0.8517974,
+                    "language": "und"
+                },
+                {
+                    "text": "Auskünfte erteilt Ihnen das Servicezentrum des Finanzamts Beispielstadt unter der Rufnummer 01234 555000\nmontags bis freitags von 8 bis 12 Uhr sowie donnerstags zusatzlich von 14 bis 17 Uhr. Persönliche Vorsprachen sind\nnach vorheriger Terminvereinbarung möglich. Bitte halten Sie lhr Aktenzeichen bereit.",
+                    "bounds": {
+                        "left": 0.09733978,
+                        "top": 0.23386063,
+                        "right": 0.89661425,
+                        "bottom": 0.27661395
+                    },
+                    "confidence": 0.83135915,
+                    "language": "und"
+                },
+                {
+                    "text": "Aktenzeichen: EST-2025-0047118",
+                    "bounds": {
+                        "left": 0.6898428,
+                        "top": 0.050876442,
+                        "right": 0.89540505,
+                        "bottom": 0.058999572
+                    },
+                    "confidence": 0.88658404,
+                    "language": "und"
+                },
+                {
+                    "text": "Bitte beachten Sie, dass Steuerbescheide auch dann wirksam bekannt gegeben sind, wenn sie Ihnen elektronisch\nbereitgestellt wurden und Sie die Bereitstellung nicht abgerufen haben. In diesem Fall gilit der Bescheid am dritten\nTag nach der Absendung der Benachrichtigung als bekannt gegeben. Prüfen Sie daher regelmäßig Ihr Postfach im\nPortal der Steuerverwaltung und pflegen Sie Ihre hinterlegte E-Mail-Adresse.",
+                    "bounds": {
+                        "left": 0.09854897,
+                        "top": 0.28217188,
+                        "right": 0.879081,
+                        "bottom": 0.3394613
+                    },
+                    "confidence": 0.8346182,
+                    "language": "und"
+                },
+                {
+                    "text": "Wir weisen darauf hin, dass unrichtige oder unvollständige Angaben in der Steuererklärung nach den gesetzlichen\nVorschriften geahndet werden können. Wenn Sie nachträglich erkennen, dass eine Erklärung unrichtig war, sind Sie\nverpfichtet, dies unverzüglich anzuzeigen und die erforderliche Richtigstellung vorzunehmen. Eine rechtzeitige\nBerichtigung kann unter bestimmten Voraussetzungen Strafreiheit bewirken.",
+                    "bounds": {
+                        "left": 0.09854897,
+                        "top": 0.3458743,
+                        "right": 0.8911729,
+                        "bottom": 0.40316373
+                    },
+                    "confidence": 0.8311502,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.09975816,
+                        "top": 0.4232578,
+                        "right": 0.2636034,
+                        "bottom": 0.43394613
+                    },
+                    "confidence": 0.8697917,
+                    "language": "und"
+                },
+                {
+                    "text": "Im Auftrag",
+                    "bounds": {
+                        "left": 0.09975816,
+                        "top": 0.438649,
+                        "right": 0.16928658,
+                        "bottom": 0.44933733
+                    },
+                    "confidence": 0.7907986,
+                    "language": "und"
+                },
+                {
+                    "text": "Finanzamt Beispielstadt",
+                    "bounds": {
+                        "left": 0.100362755,
+                        "top": 0.45233005,
+                        "right": 0.2617896,
+                        "bottom": 0.464301
+                    },
+                    "confidence": 0.87642044,
+                    "language": "und"
+                },
+                {
+                    "text": "Finanzamt Beispielstadt - Steuerweg 1-12345 Beispielstadt - Postfach 00 00 00 (fiktive Behörde)",
+                    "bounds": {
+                        "left": 0.11064087,
+                        "top": 0.91577595,
+                        "right": 0.6680774,
+                        "bottom": 0.928602
+                    },
+                    "confidence": 0.8114646,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 7 von 7",
+                    "bounds": {
+                        "left": 0.82829505,
+                        "top": 0.9354425,
+                        "right": 0.904474,
+                        "bottom": 0.9427106
+                    },
+                    "confidence": 0.8222656,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}
