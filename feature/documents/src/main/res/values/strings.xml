@@ -36,6 +36,14 @@
     <string name="slot_addressee">Receiver</string>
     <string name="slot_contact">Contact person</string>
     <string name="slot_subject">Subject</string>
+    <string name="slot_unlabelled">Detail</string>
+    <!-- Values code found on the page that nobody classified; %1$d is the running number -->
+    <string name="found_date">Found date %1$d</string>
+    <string name="found_amount">Found amount %1$d</string>
+    <string name="found_iban">Found IBAN %1$d</string>
+    <string name="found_reference">Found reference %1$d</string>
+    <string name="found_phone">Found phone %1$d</string>
+    <string name="found_email">Found e-mail %1$d</string>
     <string name="slot_letter_date">Document date</string>
     <string name="slot_total">Amount</string>
     <string name="slot_due_date">Deadline</string>

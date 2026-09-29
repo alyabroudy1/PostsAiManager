@@ -106,7 +106,10 @@ object UnderstandingToFields {
             .groupBy { canonicalLabel(it) }
             .forEach { (label, candidates) ->
                 val best = candidates.maxBy { it.confidence }
-                add(label, best.value, typeOf(best.kind), best.confidence, best.provenance)
+                add(
+                    label, best.value, typeOf(best.kind), best.confidence, best.provenance,
+                    slotKey = best.provenance?.slotKey ?: label.takeIf { it == SLOT_UNLABELLED },
+                )
             }
 
         return fields
@@ -127,7 +130,10 @@ object UnderstandingToFields {
         FactKind.SUBJECT -> SUBJECT
         // References keep their own label: "Aktenzeichen" and "Ihr Zeichen" are genuinely
         // different references and collapsing them would lose one.
-        FactKind.REFERENCE, FactKind.OTHER -> fact.label.trim().ifBlank { "Reference" }
+        // A fact with no label at all is stored under its slot key, else under the "unlabelled"
+        // key the screen words in the user's language; never an English literal.
+        FactKind.REFERENCE, FactKind.OTHER ->
+            fact.label.trim().ifBlank { fact.provenance?.slotKey?.ifBlank { null } ?: SLOT_UNLABELLED }
     }
 
     private fun typeOf(kind: FactKind): ExtractedFieldType = when (kind) {
@@ -156,4 +162,7 @@ object UnderstandingToFields {
     const val SLOT_ADDRESSEE = "addressee"
     const val SLOT_CONTACT = "contact"
     const val SLOT_SUBJECT = "subject"
+
+    /** Slot key (and stored name) of a value that came with no label at all; rendered from a string resource. */
+    const val SLOT_UNLABELLED = "unlabelled"
 }

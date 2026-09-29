@@ -19,7 +19,7 @@ import com.postsaimanager.core.model.RecognisedFact
  *   wins the name, and the others keep their own labels, so several amounts are several fields.
  * - Extras keep the model's own label, as printed on the page.
  * - The confidence carried is the final one from [ConfidenceCombiner].
- * - Without a model the found values become "Found ..." fields with low confidence and no role.
+ * - Without a model the found values become fields keyed `found:KIND:N` with low confidence and no role.
  */
 class ExtractionV2Adapter : UnderstandingAdapter {
 
@@ -62,8 +62,10 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         // The summary is not a field: it goes to the document (DocumentUnderstanding.summary), marked as the AI's.
 
         for (x in result.extras) {
-            // A label that collides with a field already present would overwrite it in the merge.
-            val label = if (x.label.lowercase() in usedLabels) "${x.label} (${x.key})" else x.label
+            // A name is unique per document, so a label that collides with a field already present would
+            // overwrite it. The extra is then stored under its slot key (its identity, unique by construction);
+            // the printed label is never altered, and the screen shows the key's words for it.
+            val label = if (x.label.lowercase() in usedLabels) x.identity else x.label
             add(label, x.value.value, FactKind.OTHER, x.value.confidence, provenanceOf(x.identity, x.value))
         }
 
@@ -95,23 +97,23 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         bbox = v.bbox,
     )
 
+    /**
+     * The single owner of found values: each is stored under a slot key ([foundKey]) that is also its
+     * name, so no English is written as data; the screen renders "Found date 1" from the key.
+     */
     private fun addFound(result: ExtractionV2Result, add: (String, String, FactKind, Float, FieldProvenance?) -> Unit) {
-        val counters = HashMap<String, Int>()
+        val counters = HashMap<CandidateKind, Int>()
         for (c in result.foundValues) {
-            val noun = when (c.kind) {
-                CandidateKind.DATE, CandidateKind.DATETIME -> "date"
-                CandidateKind.AMOUNT -> "amount"
-                CandidateKind.IBAN -> "IBAN"
-                CandidateKind.REFERENCE -> "reference"
-                CandidateKind.PHONE -> "phone"
-                CandidateKind.EMAIL -> "e-mail"
-                else -> continue
-            }
-            val n = (counters[noun] ?: 0) + 1
-            counters[noun] = n
+            val kind = foundKindOf(c.kind) ?: continue
+            val n = (counters[kind] ?: 0) + 1
+            counters[kind] = n
+            val key = foundKey(kind, n)
             add(
-                "Found $noun $n", c.raw, FactKind.OTHER, FOUND_CONFIDENCE,
-                FieldProvenance(origin = FOUND_ORIGIN, page = c.page, bbox = c.bbox, evidence = c.evidence.takeIf { it.isNotBlank() }),
+                key, c.raw, FactKind.OTHER, FOUND_CONFIDENCE,
+                FieldProvenance(
+                    slotKey = key, origin = FOUND_ORIGIN, page = c.page, bbox = c.bbox,
+                    evidence = c.evidence.takeIf { it.isNotBlank() },
+                ),
             )
         }
     }
@@ -190,6 +192,28 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         const val SENDER_KEY = "sender"
         const val ADDRESSEE_KEY = "addressee"
         const val SUBJECT_KEY = "subject"
+
+        /** Slot keys of found values start with this, then the kind and the number: `found:DATE:1`. */
+        const val FOUND_KEY_PREFIX = "found:"
+
+        /** The kind a found value is filed under (dates and date-times together), or null for a kind that is not stored. */
+        fun foundKindOf(kind: CandidateKind): CandidateKind? = when (kind) {
+            CandidateKind.DATE, CandidateKind.DATETIME -> CandidateKind.DATE
+            CandidateKind.AMOUNT, CandidateKind.IBAN, CandidateKind.REFERENCE, CandidateKind.PHONE, CandidateKind.EMAIL -> kind
+            else -> null
+        }
+
+        fun foundKey(kind: CandidateKind, number: Int) = "$FOUND_KEY_PREFIX${kind.name}:$number"
+
+        /** The kind and number in a [foundKey], or null when [key] is not one. */
+        fun parseFoundKey(key: String?): Pair<CandidateKind, Int>? {
+            if (key == null || !key.startsWith(FOUND_KEY_PREFIX)) return null
+            val parts = key.removePrefix(FOUND_KEY_PREFIX).split(':')
+            if (parts.size != 2) return null
+            val kind = CandidateKind.entries.firstOrNull { it.name == parts[0] } ?: return null
+            val number = parts[1].toIntOrNull() ?: return null
+            return kind to number
+        }
 
         /** [FieldProvenance.origin] of a value code found and nobody chose. */
         const val FOUND_ORIGIN = "FOUND"

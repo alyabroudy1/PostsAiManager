@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.v2
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EntityKind
@@ -115,11 +116,26 @@ class ExtractionV2AdapterTest {
     }
 
     @Test
-    fun `found values are marked as found and have no slot`() {
+    fun `found values are marked as found and keyed found KIND N, with no English stored`() {
         val bare = runBlocking { pipeline.run(Letters.n1.pages, null, 4096) }
         val stored = fields(adapter.adapt(bare))
         assertThat(stored).isNotEmpty()
-        assertThat(stored.all { it.origin == "FOUND" && it.slotKey == null }).isTrue()
+        assertThat(stored.all { it.origin == "FOUND" }).isTrue()
+        // The key is both identity and stored name; the screen words it from a string resource.
+        assertThat(stored.all { ExtractionV2Adapter.parseFoundKey(it.slotKey) != null }).isTrue()
+        assertThat(stored.all { it.fieldName == it.slotKey }).isTrue()
+        assertThat(stored.map { it.slotKey }).contains("found:AMOUNT:1")
+        assertThat(stored.map { it.slotKey }.toSet()).hasSize(stored.size)
+    }
+
+    @Test
+    fun `a found key round-trips and rejects anything else`() {
+        assertThat(ExtractionV2Adapter.parseFoundKey(ExtractionV2Adapter.foundKey(CandidateKind.IBAN, 2)))
+            .isEqualTo(CandidateKind.IBAN to 2)
+        assertThat(ExtractionV2Adapter.parseFoundKey("total")).isNull()
+        assertThat(ExtractionV2Adapter.parseFoundKey("found:NOPE:1")).isNull()
+        assertThat(ExtractionV2Adapter.parseFoundKey("found:DATE:x")).isNull()
+        assertThat(ExtractionV2Adapter.parseFoundKey(null)).isNull()
     }
 
     @Test
@@ -181,12 +197,15 @@ class ExtractionV2AdapterTest {
     }
 
     @Test
-    fun `an extra whose label collides with a field gets its key appended instead of overwriting it`() {
+    fun `an extra whose label collides with a field is stored under its slot key instead of overwriting it`() {
         val base = read(Letters.n1)
         val extra = ExtraValue("Amount", "some_amount", base.slots.getValue(Slots.FEE))
         val u = adapter.adapt(base.copy(extras = listOf(extra)))
-        assertThat(u.facts.map { it.label }).containsAtLeast("Amount", "Amount (some_amount)")
+        // Disambiguated by the slot key alone: nothing is appended to the printed label.
+        assertThat(u.facts.map { it.label }).containsAtLeast("Amount", "x:amount")
+        assertThat(u.facts.map { it.label }.none { it.contains("some_amount") }).isTrue()
         assertThat(u.facts.single { it.label == "Amount" }.value).isEqualTo("64,98 €")
+        assertThat(u.facts.single { it.label == "x:amount" }.provenance?.slotKey).isEqualTo("x:amount")
     }
 
     @Test
@@ -199,7 +218,7 @@ class ExtractionV2AdapterTest {
     }
 
     @Test
-    fun `without a model the found values become Found fields with low confidence, no roles, no type`() {
+    fun `without a model the found values become found fields with low confidence, no roles, no type`() {
         val bare = runBlocking { pipeline.run(Letters.n1.pages, null, 4096) }
         val u = adapter.adapt(bare)
         assertThat(u.modelUsed).isFalse()
@@ -207,10 +226,10 @@ class ExtractionV2AdapterTest {
         assertThat(u.entities).isEmpty()
         assertThat(u.title).isEmpty()
         assertThat(u.facts).isNotEmpty()
-        assertThat(u.facts.all { it.label.startsWith("Found ") }).isTrue()
+        assertThat(u.facts.all { it.label.startsWith(ExtractionV2Adapter.FOUND_KEY_PREFIX) }).isTrue()
         assertThat(u.facts.all { it.kind == FactKind.OTHER }).isTrue()
         assertThat(u.facts.all { it.confidence <= 0.3f }).isTrue()
-        assertThat(u.facts.map { it.label }).contains("Found amount 1")
+        assertThat(u.facts.map { it.label }).contains("found:AMOUNT:1")
         // no label such as "Amount" or "Deadline": nothing is guessed about what a value means
         assertThat(u.facts.map { it.label }).containsNoneOf("Amount", "Deadline", "IBAN", "Document Date")
     }

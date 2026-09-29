@@ -45,4 +45,19 @@ class SlotLabelsTest {
         assertThat(SlotLabels.labelFor(field("Whatever", "some_future_slot"))).isNull()
         assertThat(SlotLabels.labelFor(field("Amount", null))).isNull()
     }
+
+    @Test
+    fun `a found value is worded from its kind and number, an unlabelled one from its key`() {
+        assertThat(SlotLabels.found("found:DATE:1")).isEqualTo(SlotLabels.FoundLabel(R.string.found_date, 1))
+        assertThat(SlotLabels.found("found:AMOUNT:3")).isEqualTo(SlotLabels.FoundLabel(R.string.found_amount, 3))
+        assertThat(SlotLabels.found("total")).isNull()
+        assertThat(SlotLabels.labelFor(field("unlabelled", "unlabelled"))).isEqualTo(R.string.slot_unlabelled)
+    }
+
+    @Test
+    fun `an extra stored under its bare key shows the key's words`() {
+        assertThat(SlotLabels.extraKeyName("x:amount")).isEqualTo("amount")
+        assertThat(SlotLabels.extraKeyName("x:geleistete_vorauszahlungen")).isEqualTo("geleistete vorauszahlungen")
+        assertThat(SlotLabels.extraKeyName("Zaehlernummer")).isNull()
+    }
 }

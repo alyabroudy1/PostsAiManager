@@ -1124,7 +1124,11 @@ private fun AddFieldDialog(onDismiss: () -> Unit, onAdd: (String, String, Extrac
 
 @Composable
 private fun EditFieldDialog(field: ExtractedData, onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
-    var editName by remember { mutableStateOf(field.fieldName) }
+    // A name that is a key (a found value's, or an extra's bare slot key) is edited as the words the
+    // screen shows for it; left unchanged, the stored key is kept.
+    val keyed = SlotLabels.found(field.slotKey) != null || SlotLabels.extraKeyName(field.fieldName) != null
+    val shownName = fieldLabelText(field)
+    var editName by remember { mutableStateOf(if (keyed) shownName else field.fieldName) }
     var editValue by remember { mutableStateOf(field.fieldValue) }
 
     AlertDialog(
@@ -1137,7 +1141,7 @@ private fun EditFieldDialog(field: ExtractedData, onDismiss: () -> Unit, onSave:
                 Text("Type: ${field.fieldType.name} · ${(field.confidence * 100).toInt()}% confidence", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
-        confirmButton = { Button(onClick = { onSave(editName.trim(), editValue.trim()) }, enabled = editName.isNotBlank() && editValue.isNotBlank()) { Text("Save") } },
+        confirmButton = { Button(onClick = { onSave(if (keyed && editName.trim() == shownName) field.fieldName else editName.trim(), editValue.trim()) }, enabled = editName.isNotBlank() && editValue.isNotBlank()) { Text("Save") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
@@ -1276,7 +1280,7 @@ private fun FieldCard(field: ExtractedData, onConfirm: (String) -> Unit, onEdit:
                     // The label is rendered from the slot key; a name the person typed, or an
                     // extra's label as the letter printed it, is shown as stored.
                     Text(
-                        SlotLabels.labelFor(field)?.let { stringResource(it) } ?: field.fieldName,
+                        fieldLabelText(field),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -1570,7 +1574,17 @@ private fun EntityProposal.question(): String = when (entityRole) {
 @Composable
 private fun labelText(key: String): String {
     val res = SlotLabels.slot(key)
-    return if (res != null) stringResource(res) else key
+    if (res != null) return stringResource(res)
+    SlotLabels.found(key)?.let { return stringResource(it.res, it.number) }
+    return SlotLabels.extraKeyName(key) ?: key
+}
+
+/** A field's label: its slot's string, a found value's words, else the name as stored (a person's, or an extra's printed label). */
+@Composable
+private fun fieldLabelText(field: ExtractedData): String {
+    SlotLabels.labelFor(field)?.let { return stringResource(it) }
+    SlotLabels.found(field.slotKey)?.let { return stringResource(it.res, it.number) }
+    return SlotLabels.extraKeyName(field.fieldName) ?: field.fieldName
 }
 
 /** The title and the optional second line of a timeline entry, worded from string resources. */

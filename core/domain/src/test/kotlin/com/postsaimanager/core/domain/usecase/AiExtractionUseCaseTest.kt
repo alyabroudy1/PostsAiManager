@@ -180,7 +180,7 @@ class AiExtractionUseCaseTest {
             assertThat(u.entities).isEmpty()
             assertThat(u.documentType).isEmpty()
             assertThat(u.facts).isNotEmpty()
-            assertThat(u.facts.all { it.label.startsWith("Found ") }).isTrue()
+            assertThat(u.facts.all { it.label.startsWith("found:") }).isTrue()
         }
 
         @Test

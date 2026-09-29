@@ -128,6 +128,17 @@ class UnderstandingToFieldsTest {
     }
 
     @Test
+    @DisplayName("a value with no label is stored under a slot key, never under an English word")
+    fun `a fact without a label gets the unlabelled key`() {
+        val unlabelled = letter.copy(facts = listOf(RecognisedFact("  ", "4711-X", FactKind.REFERENCE, 0.7f)))
+
+        val field = map(unlabelled).single { it.fieldValue == "4711-X" }
+
+        assertThat(field.fieldName).isEqualTo(UnderstandingToFields.SLOT_UNLABELLED)
+        assertThat(field.slotKey).isEqualTo(UnderstandingToFields.SLOT_UNLABELLED)
+    }
+
+    @Test
     fun `duplicate labels collapse to the most confident, not the last`() {
         val conflicting = letter.copy(
             facts = listOf(

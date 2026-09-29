@@ -1,7 +1,9 @@
 package com.postsaimanager.feature.documents
 
 import androidx.annotation.StringRes
+import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.ExtractedData
@@ -19,6 +21,7 @@ object SlotLabels {
         UnderstandingToFields.SLOT_ADDRESSEE to R.string.slot_addressee,
         UnderstandingToFields.SLOT_CONTACT to R.string.slot_contact,
         UnderstandingToFields.SLOT_SUBJECT to R.string.slot_subject,
+        UnderstandingToFields.SLOT_UNLABELLED to R.string.slot_unlabelled,
         Slots.LETTER_DATE.json to R.string.slot_letter_date,
         Slots.TOTAL.json to R.string.slot_total,
         Slots.DUE_DATE.json to R.string.slot_due_date,
@@ -68,6 +71,33 @@ object SlotLabels {
     @StringRes
     fun slot(key: String?): Int? = key?.let(slots::get)
 
+    /** The words of a found value's label: [res] takes [number] as its one argument ("Found date %1$d"). */
+    data class FoundLabel(@StringRes val res: Int, val number: Int)
+
+    private val foundKinds: Map<CandidateKind, Int> = mapOf(
+        CandidateKind.DATE to R.string.found_date,
+        CandidateKind.AMOUNT to R.string.found_amount,
+        CandidateKind.IBAN to R.string.found_iban,
+        CandidateKind.REFERENCE to R.string.found_reference,
+        CandidateKind.PHONE to R.string.found_phone,
+        CandidateKind.EMAIL to R.string.found_email,
+    )
+
+    /** The label of a value code found (`found:DATE:1`), or null when [key] is not a found key. */
+    fun found(key: String?): FoundLabel? {
+        val (kind, number) = ExtractionV2Adapter.parseFoundKey(key) ?: return null
+        return foundKinds[kind]?.let { FoundLabel(it, number) }
+    }
+
+    /**
+     * The name to show for an extra stored under its bare slot key (`x:amount`), which happens when its
+     * printed label collided with a fixed field's name; null for any other name. The key's own words,
+     * since the printed label is not kept apart from the name.
+     */
+    fun extraKeyName(name: String): String? =
+        name.takeIf { it.startsWith(ExtractedData.EXTRA_KEY_PREFIX) }
+            ?.removePrefix(ExtractedData.EXTRA_KEY_PREFIX)?.replace('_', ' ')?.ifBlank { null }
+
     @StringRes
     fun type(id: String?): Int? = id?.let(types::get)
 
@@ -96,6 +126,7 @@ object SlotLabels {
         UnderstandingToFields.SLOT_ADDRESSEE -> setOf(UnderstandingToFields.RECEIVER_NAME)
         UnderstandingToFields.SLOT_CONTACT -> setOf(UnderstandingToFields.CONTACT_PERSON)
         UnderstandingToFields.SLOT_SUBJECT -> setOf(UnderstandingToFields.SUBJECT)
+        UnderstandingToFields.SLOT_UNLABELLED -> setOf(UnderstandingToFields.SLOT_UNLABELLED)
         else -> ExtractionSchema.DEFAULT.allSlots.filter { it.json == key }.map { it.label }.toSet()
     }
 }
