@@ -157,9 +157,8 @@ class MergeExtractionUseCase @Inject constructor() {
                         aiConfidence = fresh.aiConfidence,
                         evidence = fresh.evidence,
                         bbox = fresh.bbox,
-                        // A value the extractor has since changed is no longer the one the
-                        // user confirmed, so the confirmation does not carry over.
-                        isConfirmed = current.isConfirmed && !changed,
+                        // No isConfirmed handling here: a confirmed row is protected above (never
+                        // overwritten), so a row reaching this branch is not confirmed.
                         updatedAt = if (changed || renamed) now else current.updatedAt,
                     )
                     toPersist += updated
