@@ -34,10 +34,14 @@ class GrammarAndPromptTest {
         @Test
         fun `a type's rule has exactly its own slots`() {
             val r = rules(grammar)
-            val health = r.getValue("t-health")
+            // The core slots are one shared rule; the type's own follow it.
+            val core = r.getValue("core")
+            for (s in Slots.CORE) assertThat(core).contains("\\\"${s.json}\\\":")
+            val health = r.getValue("t-health") + r.getValue("core")
             for (s in ExtractionSchema.HEALTH.slots) assertThat(health).contains("\\\"${s.json}\\\":")
             assertThat(health).doesNotContain("\\\"invoice_no\\\":")
             assertThat(health).doesNotContain("\\\"policy_no\\\":")
+            assertThat(r.getValue("t-health")).contains(" core ")
             val bill = r.getValue("t-bill")
             assertThat(bill).contains("\\\"invoice_no\\\":")
             assertThat(bill).doesNotContain("\\\"appointment\\\":")
@@ -102,9 +106,9 @@ class GrammarAndPromptTest {
         }
 
         @Test
-        fun `extras are bounded and may point at any offered candidate`() {
+        fun `extras may point at any offered candidate, and the list is a star not a counted repetition`() {
             val r = rules(grammar)
-            assertThat(r.getValue("xlist")).contains("{0,${StructuredGrammar.MAX_EXTRAS - 1}}")
+            assertThat(r.getValue("xlist")).contains(")*")
             val all = invoice.offered.rows.map { it.candidate.id }
             assertThat(idsIn(r.getValue("xid"))).containsExactlyElementsIn(all)
         }
