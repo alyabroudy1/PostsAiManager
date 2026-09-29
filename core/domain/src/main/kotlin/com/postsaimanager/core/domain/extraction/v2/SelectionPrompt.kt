@@ -48,7 +48,8 @@ object SelectionPrompt {
         - x: up to ${StructuredGrammar.MAX_EXTRAS} other meaningful details that no field covers (a meter number,
           a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...).
           lb is the label as printed, k a short English snake_case key, id a candidate id or NONE, v the text
-          copied exactly from the letter when there is no candidate, otherwise "".
+          copied exactly from the letter when there is no candidate, otherwise "". Candidates whose id starts
+          with Z are plain numbers (a percentage, a quantity, a rate): they may only appear in x.
         - c is your confidence for that object: LOW, MEDIUM or HIGH.
     """.trimIndent()
 

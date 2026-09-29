@@ -79,6 +79,16 @@ class SelectionVerifierTest {
 
     @Nested
     inner class Confidence {
+        @Test
+        fun `a plain number is never accepted in a money slot`() {
+            val column = Prepared(listOf(page("Posten||Menge", "Strom||3,50").blocks))
+            val number = column.candidates.candidates.single { it.kind == CandidateKind.NUMBER }
+            // Numbers are found, but the table offers them for extras only; a money slot cannot name one.
+            val r = verify(column, answer(slots = slot("total", number.id, "TOTAL_DUE")))
+            assertThat(r.slots).isEmpty()
+            assertThat(r.diagnostics.rejections.single()).contains("NUMBER")
+        }
+
         private val total get() = id(invoice, CandidateKind.AMOUNT, "1284.50 EUR")
 
         @Test
@@ -93,11 +103,13 @@ class SelectionVerifierTest {
 
         @Test
         fun `an amount with no currency is capped at 0_6 but not flagged`() {
-            // 380,00 appears once, in a table cell with no currency next to it
-            val net = id(invoice, CandidateKind.AMOUNT, "380.00 EUR")
-            val c = invoice.find(CandidateKind.AMOUNT, "380.00 EUR")!!
+            // 64,98 is a table cell with no currency next to it; its column header names EUR, so it is an amount by geometry.
+            val column = Prepared(listOf(page("Posten||Betrag in EUR", "Strom||64,98").blocks))
+            val net = id(column, CandidateKind.AMOUNT, "64.98 EUR")
+            val c = column.find(CandidateKind.AMOUNT, "64.98 EUR")!!
             assertThat(c.validation).isEqualTo(Validation.Unchecked)
-            val v = verify(invoice, answer(slots = slot("total", net, "TOTAL_DUE"))).slots.getValue(Slots.TOTAL)
+            assertThat(c.attrs["promoted"]).isEqualTo("column")
+            val v = verify(column, answer(slots = slot("total", net, "TOTAL_DUE"))).slots.getValue(Slots.TOTAL)
             assertThat(v.confidence).isAtMost(Caps.UNCHECKED)
             assertThat(v.aiConfidence).isEqualTo(0.9f)
             assertThat(v.blocked).isFalse()

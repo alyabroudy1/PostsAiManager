@@ -97,13 +97,17 @@ class CandidateExtractorTest {
         listOf(
             "Betrag: 1.284,50 €" to "1284.50 EUR",
             "Betrag EUR 1.284,50" to "1284.50 EUR",
-            "Summe 1284,50" to "1284.50 EUR",
             "Balance £142.80 overdue" to "142.80 GBP",
             "Total \$1,284.50" to "1284.50 USD",
             "Guthaben -5,00 €" to "-5.00 EUR",
             "Kosten 35,- €" to "35.00 EUR",
-            "Gebühr 12,50 Euro" to "12.50 EUR",
             "Rate 1.234 €" to "1234.00 EUR",
+            // Any currency sign or ISO code, in front or behind, in any language around it.
+            "Prix 12,50 CHF" to "12.50 CHF",
+            "Total SEK 100,00" to "100.00 SEK",
+            "Fiyat 9,99 ₺" to "9.99 TRY",
+            "المبلغ 100,00 EUR" to "100.00 EUR",
+            "Precio ¥1.500" to "1500.00 JPY",
         ),
         { it.first },
     ) { (line, normalized) ->
@@ -111,9 +115,70 @@ class CandidateExtractorTest {
     }
 
     @Test
-    fun `percentages units and per-unit prices are not amounts`() {
-        val amounts = one("MwSt. 19,00 % auf 3,15 kWh und 1,79 EUR/kg").filter { it.kind == CandidateKind.AMOUNT }
-        assertThat(amounts).isEmpty()
+    fun `a number without a currency is a NUMBER, not an AMOUNT, whatever word follows it`() {
+        val set = one("Summe 1284,50", "Verbrauch 3,15 kWh", "Menge 4,00 Stück", "Total 12,50 dollars", "Dauer 14,00 Tage")
+        assertThat(set.filter { it.kind == CandidateKind.AMOUNT }).isEmpty()
+        val numbers = set.filter { it.kind == CandidateKind.NUMBER }
+        assertThat(numbers.map { it.normalized }).containsExactly("1284.50", "3.15", "4.00", "12.50", "14.00").inOrder()
+        assertThat(numbers.first().id).startsWith("Z")
+        assertThat(numbers.first().attrs["cents"]).isEqualTo("128450")
+    }
+
+    @Test
+    fun `a currency name from the platform's locale data right after a number counts as a currency, as a hint`() {
+        val set = one("Gebühr 12,50 Euro", "نفيدكم بأن المبلغ المستحق هو 450,00 يورو.", "Prix 9,90 euro")
+        val amounts = set.filter { it.kind == CandidateKind.AMOUNT }
+        assertThat(amounts.map { it.normalized }).containsExactly("12.50 EUR", "450.00 EUR", "9.90 EUR").inOrder()
+        assertThat(amounts.all { it.attrs["currencyName"] == "true" }).isTrue()
+    }
+
+    @Test
+    fun `percentages and per-unit prices are numbers, marked by their shape`() {
+        val set = one("MwSt. 19,00 % auf 3,15 kWh und 1,79 EUR/kg und 0,32 €/kWh")
+        assertThat(set.filter { it.kind == CandidateKind.AMOUNT }).isEmpty()
+        val byText = set.filter { it.kind == CandidateKind.NUMBER }.associateBy { it.raw }
+        assertThat(byText.getValue("19,00").attrs["percent"]).isEqualTo("true")
+        assertThat(byText.getValue("1,79 EUR").attrs["rate"]).isEqualTo("true")
+        assertThat(byText.getValue("0,32 €").attrs["rate"]).isEqualTo("true")
+        assertThat(byText.getValue("3,15").attrs["percent"]).isNull()
+    }
+
+    @Test
+    fun `a unitless table column becomes amounts when a header cell of the column names a currency`() {
+        val set = run(
+            page(
+                "Posten||Menge||Betrag in EUR",
+                "Strom||3,50||64,98",
+                "Gas||1,25||31,20",
+                "Summe||||96,18",
+            ),
+        )
+        val amounts = set.ofKind(CandidateKind.AMOUNT)
+        assertThat(amounts.map { it.normalized }).containsExactly("64.98 EUR", "31.20 EUR", "96.18 EUR").inOrder()
+        assertThat(amounts.all { it.attrs["promoted"] == "column" && it.attrs["currencyExplicit"] == "false" }).isTrue()
+        // The quantity column has no currency, so it stays plain numbers.
+        assertThat(set.ofKind(CandidateKind.NUMBER).map { it.normalized }).containsExactly("3.50", "1.25").inOrder()
+    }
+
+    @Test
+    fun `the column's currency is the header's, in any script`() {
+        val set = run(page("البند||المبلغ (USD)", "كهرباء||64,98"))
+        assertThat(set.ofKind(CandidateKind.AMOUNT).single().normalized).isEqualTo("64.98 USD")
+    }
+
+    @Test
+    fun `a table with no currency anywhere stays numbers`() {
+        val set = run(page("Posten||Menge", "Strom||3,50", "Gas||1,25"))
+        assertThat(set.ofKind(CandidateKind.AMOUNT)).isEmpty()
+        assertThat(set.ofKind(CandidateKind.NUMBER)).hasSize(2)
+    }
+
+    @Test
+    fun `plain numbers that add up as net plus VAT equals gross become amounts by arithmetic`() {
+        val set = one("100,00", "19,00", "119,00", "7,00")
+        assertThat(set.filter { it.kind == CandidateKind.AMOUNT }.map { it.normalized }).containsExactly("100.00 EUR", "19.00 EUR", "119.00 EUR")
+        assertThat(set.filter { it.kind == CandidateKind.AMOUNT }.all { it.attrs["triple"] != null }).isTrue()
+        assertThat(set.single { it.kind == CandidateKind.NUMBER }.normalized).isEqualTo("7.00")
     }
 
     @Test

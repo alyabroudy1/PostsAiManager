@@ -54,7 +54,14 @@ private class SourceLine(
 private class Draft(var c: Candidate, val line: SourceLine, val start: Int, val end: Int)
 
 private object P {
-    const val EUR = "EUR|Euro|\u20AC|\u00A3|GBP|USD|US\\u0024|\\u0024|CHF"
+    /**
+     * A currency by shape: any currency sign (Unicode category Sc) or an upper-case ISO 4217 code taken
+     * from the platform's currency data. No currency word ("Euro", "dollars") is looked for.
+     */
+    val CURRENCY: String = "\\p{Sc}|(?-i:" + AmountParser.isoCodes.sorted().joinToString("|") + ")"
+
+    /** A currency sign or code standing on its own in a cell or line (a table header such as "Betrag in EUR"). */
+    val CURRENCY_TOKEN = Regex("(?<![\\p{L}\\p{Nd}])($CURRENCY)(?![\\p{L}\\p{Nd}])")
 
     val MONTHS: Map<String, Int> = mapOf(
         "januar" to 1, "january" to 1, "jan" to 1, "februar" to 2, "february" to 2, "feb" to 2,
@@ -81,17 +88,22 @@ private object P {
     )
     val TIME_ONLY = Regex("(?<![\\d:.])(\\d{1,2})[:.](\\d{2})\\s*Uhr(?![\\p{L}])", RegexOption.IGNORE_CASE)
 
+    /** A number with an optional sign, an optional currency sign or code before or after it. Whether it is money is decided in [Run.findAmounts]. */
     val AMOUNT = Regex(
-        "(?<![\\p{L}\\d.,])((?<=^|[\\s(:])[-\\u2212])?(?:($EUR)\\s?)?" +
+        "(?<![\\p{L}\\d.,])((?<=^|[\\s(:])[-\\u2212])?(?:($CURRENCY)\\s?)?" +
             "(\\d{1,3}(?:[.,\\u2019']\\d{3})+(?:[.,]\\d{2})?|\\d+(?:[.,]\\d{2})?)(,-{1,2})?(?!\\d)" +
-            "(?:\\s?($EUR|\u064A\u0648\u0631\u0648)(?![\\p{L}]))?",
+            "(?:\\s?($CURRENCY)(?![\\p{L}]))?",
         RegexOption.IGNORE_CASE,
     )
-    val AMOUNT_NOT_MONEY_AFTER = Regex(
-        "^\\s?(?:%|Prozent|kWh|kg|m\u00B2|m2|qm|Liter|km|Std\\b|St\u00FCck|Tage|Tagen|Jahre|Monate)",
-        RegexOption.IGNORE_CASE,
-    )
-    val PER_UNIT_AFTER = Regex("^\\s?/\\s?(?:kg|kwh|m|l|st|std|h|tag|monat|jahr|month|year|day)\\b", RegexOption.IGNORE_CASE)
+
+    /** A percentage sign right after a number: a shape, not a word. */
+    val PERCENT_AFTER = Regex("^\\s?[%\u2030]")
+
+    /** A slash and a letter right after a number ("1,79 EUR/kg", "0,32 \u20AC/kWh"): a rate, marked by the slash. */
+    val RATE_AFTER = Regex("^\\s?/\\s?\\p{L}")
+
+    /** A decimal or grouped number that is a value with cents, as opposed to a plain integer. */
+    val CENTS_SHAPE = Regex("[.,]\\d{2}$")
 
     /** Two capitals and two check characters; a check character OCR read as a letter (o/O for 0, I/l for 1) is allowed and repaired later. */
     val IBAN_START = Regex("(?<![A-Za-z0-9])[A-Z]{2}(?:\\d{2}|[0-9oOIl]{2})(?=[ A-Za-z0-9]|$)")
@@ -236,6 +248,18 @@ private class Run(
     /** Shape-only names are looked for above this height on page 1 (fraction of the page). */
     private val TOP_HALF = 0.5f
 
+    /** A block at most this wide (fraction of the page) is read as a table cell; a wider one is running text. */
+    private val CELL_MAX_WIDTH = 0.4f
+
+    /** A cell names a column's currency only when it is at most this far above or below (fraction of the page height). */
+    private val COLUMN_MAX_DISTANCE = 0.45f
+
+    /** The sum rule looks at documents with at most this many amounts, to keep it a small pairwise check. */
+    private val MAX_SUM_AMOUNTS = 120
+
+    /** Two cells share a column edge when their edges differ by less than this (fraction of the page width). */
+    private val EDGE_TOLERANCE = 0.02f
+
     /** With a letter date given, a date may lie this far before it; the same for every date, no label decides. */
     private val GIVEN_LETTER_PAST_YEARS = 10L
 
@@ -247,6 +271,7 @@ private class Run(
         }
         resolveShapeBics()
         drafts.sortWith(compareBy({ it.line.order }, { it.start }))
+        promoteNumbers()
         labelDrafts()
         val letter = givenLetterDate
         validateDates(letter)
@@ -655,6 +680,13 @@ private class Run(
 
     // Amounts -----------------------------------------------------------------------
 
+    /**
+     * A number is money by evidence, never by a word next to it. AMOUNT: a currency sign or ISO code
+     * sits right before or after it, it takes part in an arithmetic triple, or it stands in a table
+     * column that has a currency (see [promoteNumbers]). Any other number with cents is a NUMBER: a
+     * percentage (`%` after it), a rate (`/` and a letter after it) or a plain figure such as a
+     * quantity. What a unit word says ("kWh", "Tage") is not looked at.
+     */
     private fun findAmounts(line: SourceLine, mask: Mask) {
         val text = line.text
         for (m in P.AMOUNT.findAll(text)) {
@@ -664,29 +696,204 @@ private class Run(
             val num = m.groupValues[3]
             val dash = m.groupValues[4]
             val c2 = m.groupValues[5]
-            val currencyToken = c1.ifEmpty { c2 }
+            var currencyToken = c1.ifEmpty { c2 }
+            var range = m.range
             val after = text.substring(m.range.last + 1)
-            if (currencyToken.isEmpty()) {
-                if (dash.isNotEmpty() || !Regex(",\\d{2}$").containsMatchIn(num)) continue
-                if (P.AMOUNT_NOT_MONEY_AFTER.containsMatchIn(after)) continue
-            } else if (c2.isNotEmpty() && P.PER_UNIT_AFTER.containsMatchIn(after)) {
-                continue
-            } else if (currencyToken.isNotEmpty() && P.AMOUNT_NOT_MONEY_AFTER.containsMatchIn(after) &&
-                after.trimStart().startsWith("%")
-            ) continue
+            val percent = P.PERCENT_AFTER.containsMatchIn(after)
+            val rate = P.RATE_AFTER.containsMatchIn(after)
+            var attrsExtra = emptyMap<String, String>()
+            if (currencyToken.isEmpty() && !percent && !rate) {
+                // A currency name from the platform's locale data right behind the number: a hint that counts as a currency.
+                CurrencyNames.codeAfter(after)?.let { (code, length) ->
+                    val longer = m.range.first..(m.range.last + length)
+                    if (mask.free(longer)) {
+                        currencyToken = code
+                        range = longer
+                        attrsExtra = mapOf("currencyName" to "true")
+                    }
+                }
+            }
+            if (currencyToken.isEmpty() && (dash.isNotEmpty() || !P.CENTS_SHAPE.containsMatchIn(num))) continue
             val money = AmountParser.parse(num, currencyToken.ifEmpty { null }, sign.isNotEmpty()) ?: continue
-            mask.add(m.range)
-            add(
-                line, m.range, CandidateKind.AMOUNT, m.value.trim(), money.canonical(),
-                validation = if (money.currencyExplicit) Validation.Valid else Validation.Unchecked,
-                attrs = mapOf(
-                    "cents" to money.cents.toString(),
-                    "currency" to money.currency,
-                    "currencyExplicit" to money.currencyExplicit.toString(),
-                    "numberText" to num,
-                ),
-            )
+            val attrs = mapOf(
+                "cents" to money.cents.toString(),
+                "currency" to money.currency,
+                "currencyExplicit" to money.currencyExplicit.toString(),
+                "numberText" to num,
+            ) + attrsExtra
+            mask.add(range)
+            val raw = text.substring(range.first, range.last + 1).trim()
+            if (currencyToken.isNotEmpty() && !percent && !rate) {
+                add(
+                    line, range, CandidateKind.AMOUNT, raw, money.canonical(),
+                    validation = if (money.currencyExplicit) Validation.Valid else Validation.Unchecked,
+                    attrs = attrs,
+                )
+            } else {
+                val shape = mapOf("percent" to percent, "rate" to (rate && !percent)).filterValues { it }.mapValues { "true" }
+                add(line, range, CandidateKind.NUMBER, raw, plainNumber(money.cents), attrs = attrs + shape)
+            }
         }
+    }
+
+    private fun plainNumber(cents: Long): String {
+        val abs = kotlin.math.abs(cents)
+        return "${if (cents < 0) "-" else ""}${abs / 100}.${(abs % 100).toString().padStart(2, '0')}"
+    }
+
+    /**
+     * Turns a NUMBER into an AMOUNT when the page gives evidence that it is money although no
+     * currency stands next to it, by geometry and arithmetic only:
+     * - **row**: the cell next to it on the same row shows a currency (a label cell "SUMME EUR",
+     *   "12 × 220,00 €");
+     * - **column**: a cell of its column shows a currency (a header "EUR", "Betrag in EUR") or is an
+     *   amount already;
+     * - **same value**: the same figure is printed elsewhere on the page with a currency;
+     * - **triple**: it is a term of net + VAT = gross.
+     * Percentages and rates never are. What was found once can carry over to its neighbours, so this
+     * repeats until nothing changes. A promoted amount has no explicit currency, so the verifier caps
+     * it like any amount without one.
+     */
+    private fun promoteNumbers() {
+        fun numbers() = drafts.filter { it.c.kind == CandidateKind.NUMBER && it.c.attrs["percent"] == null && it.c.attrs["rate"] == null }
+        if (numbers().isEmpty()) return
+        do {
+            var changed = false
+            for (n in numbers()) {
+                // A figure on a line that already has its own currency amount is that line's label or quantity, not a second amount.
+                if (drafts.any { it.line === n.line && it.c.kind == CandidateKind.AMOUNT && it.c.attrs["currencyExplicit"] == "true" }) continue
+                val (how, currency) = rowCurrency(n)?.let { "row" to it }
+                    ?: columnCurrency(n)?.let { "column" to it }
+                    ?: sameValueCurrency(n)?.let { "value" to it }
+                    ?: continue
+                promote(n, currency, how)
+                changed = true
+            }
+            if (promoteTriples()) changed = true
+            if (promoteSums()) changed = true
+        } while (changed)
+    }
+
+    /**
+     * A figure that is the exact sum or difference of two amounts of the document, whatever the page
+     * (a total on one page, its two parts on another), takes part in their arithmetic and is money too.
+     * Only a figure joins two amounts that are already known; nothing is inferred from figures alone.
+     */
+    private fun promoteSums(): Boolean {
+        val amounts = drafts.filter { it.c.kind == CandidateKind.AMOUNT && (it.c.cents ?: 0L) > 0L }
+        if (amounts.size < 2 || amounts.size > MAX_SUM_AMOUNTS) return false
+        val cents = amounts.map { it.c.cents!! }
+        var promoted = false
+        for (n in drafts.filter { it.c.kind == CandidateKind.NUMBER && it.c.attrs["percent"] == null && it.c.attrs["rate"] == null }) {
+            val x = n.c.cents ?: continue
+            if (x <= 0L) continue
+            val bySum = cents.withIndex().any { (i, p) -> cents.withIndex().any { (j, q) -> i < j && p + q == x } }
+            val byDifference = cents.any { p -> p - x > 0L && (p - x) in cents }
+            if (bySum || byDifference) {
+                promote(n, amounts.first().c.currency, "sum")
+                promoted = true
+            }
+        }
+        return promoted
+    }
+
+    /** The currency shown by the cell beside [n] on its row, or null. */
+    private fun rowCurrency(n: Draft): String? {
+        val b = n.line.block?.bounds ?: return null
+        if (!isCell(b)) return null
+        for (o in lines) {
+            val ob = o.block?.bounds ?: continue
+            if (o.page != n.line.page || o.blockIndex == n.line.blockIndex || !isCell(ob)) continue
+            val overlap = minOf(b.bottom, ob.bottom) - maxOf(b.top, ob.top)
+            if (overlap < 0.5f * minOf(b.height, ob.height)) continue
+            currencyIn(o)?.let { return it }
+        }
+        return null
+    }
+
+    /** The currency of the amount that already carries [n]'s figure on the same page, or null. */
+    private fun sameValueCurrency(n: Draft): String? {
+        val cents = n.c.cents ?: return null
+        return drafts.firstOrNull {
+            it.c.kind == CandidateKind.AMOUNT && it.c.page == n.c.page && it.c.cents == cents && it.c.attrs["currencyExplicit"] == "true"
+        }?.c?.currency
+    }
+
+    /** The currency a line shows: its own explicit amount's, or a sign or code standing in it. Null when none. */
+    private fun currencyIn(o: SourceLine): String? {
+        drafts.firstOrNull { it.line === o && it.c.kind == CandidateKind.AMOUNT && it.c.attrs["currencyExplicit"] == "true" }
+            ?.let { return it.c.currency }
+        val token = P.CURRENCY_TOKEN.find(o.text)?.groupValues?.get(1) ?: return null
+        return AmountParser.currencyOf(token)
+    }
+
+    private fun promote(d: Draft, currency: String?, how: String) {
+        val cents = d.c.cents ?: return
+        val code = currency ?: d.c.currency ?: "EUR"
+        d.c = d.c.copy(
+            kind = CandidateKind.AMOUNT,
+            normalized = Money(cents, code, false).canonical(),
+            validation = Validation.Unchecked,
+            attrs = d.c.attrs + mapOf("currency" to code, "promoted" to how),
+        )
+    }
+
+    /** A cell that is narrow enough to be a table cell rather than a paragraph. */
+    private fun isCell(b: com.postsaimanager.core.model.TextBounds) = b.width <= CELL_MAX_WIDTH
+
+    /**
+     * The currency of the column [n] sits in, or null. A column is the set of narrow blocks on the
+     * page that overlap [n]'s block horizontally by half, or share its left or right edge. A block of
+     * it that shows a currency sign or code on its own (or holds a currency amount) names the column.
+     */
+    private fun columnCurrency(n: Draft): String? {
+        val b = n.line.block?.bounds ?: return null
+        if (!isCell(b)) return null
+        for (o in lines) {
+            val ob = o.block?.bounds ?: continue
+            if (o.page != n.line.page || o.blockIndex == n.line.blockIndex || !isCell(ob)) continue
+            if (kotlin.math.abs(ob.centerY - b.centerY) > COLUMN_MAX_DISTANCE) continue
+            val overlap = minOf(b.right, ob.right) - maxOf(b.left, ob.left)
+            val aligned = overlap >= 0.5f * minOf(b.width, ob.width) ||
+                kotlin.math.abs(b.right - ob.right) <= EDGE_TOLERANCE || kotlin.math.abs(b.left - ob.left) <= EDGE_TOLERANCE
+            if (!aligned) continue
+            // An amount of the column, explicit or promoted, or a currency sign or code in a header cell.
+            drafts.firstOrNull { it.line === o && it.c.kind == CandidateKind.AMOUNT }?.let { return it.c.currency }
+            currencyIn(o)?.let { return it }
+        }
+        return null
+    }
+
+    /** Terms of net + VAT = gross among the amounts and the plain numbers of one page become amounts. True when one was promoted. */
+    private fun promoteTriples(): Boolean {
+        var promoted = false
+        val pool = drafts.filter {
+            (it.c.kind == CandidateKind.AMOUNT || (it.c.kind == CandidateKind.NUMBER && it.c.attrs["percent"] == null && it.c.attrs["rate"] == null)) &&
+                (it.c.cents ?: 0L) > 0L
+        }
+        for ((_, onPage) in pool.groupBy { it.c.page }) {
+            val byCents = onPage.groupBy { it.c.cents!! }
+            val terms = HashSet<Draft>()
+            for (n in onPage) for (v in onPage) {
+                if (n === v || n.c.currency != v.c.currency) continue
+                val nc = n.c.cents!!
+                val vc = v.c.cents!!
+                if (vc >= nc) continue
+                for (delta in -1L..1L) {
+                    for (g in byCents[nc + vc + delta].orEmpty()) {
+                        if (g === n || g === v || g.c.currency != n.c.currency) continue
+                        if (!AmountConsistency.isNetVatGross(nc, vc, g.c.cents!!)) continue
+                        terms += listOf(n, v, g)
+                    }
+                }
+            }
+            val currency = terms.firstOrNull { it.c.attrs["currencyExplicit"] == "true" }?.c?.currency
+            for (t in terms) if (t.c.kind == CandidateKind.NUMBER) {
+                promote(t, currency, "triple")
+                promoted = true
+            }
+        }
+        return promoted
     }
 
     // Phones, e-mails ------------------------------------------------------------------
@@ -1007,6 +1214,7 @@ private class Run(
                 CandidateKind.DATE -> "D"
                 CandidateKind.DATETIME -> "DT"
                 CandidateKind.AMOUNT -> "A"
+                CandidateKind.NUMBER -> "Z"
                 CandidateKind.IBAN -> "I"
                 CandidateKind.BIC -> "B"
                 CandidateKind.REFERENCE -> "N"

@@ -111,13 +111,23 @@ class ValidatorsTest {
             listOf("5,00", "€", "500", "EUR"),
             listOf("35", "€", "3500", "EUR"),
             listOf("1.284", "€", "128400", "EUR"),
-            listOf("2.317,00", "Euro", "231700", "EUR"),
+            listOf("2.317,00", "₺", "231700", "TRY"),
+            listOf("9,00", "SEK", "900", "SEK"),
+            listOf("9,00", "¤", "900", "¤"),
         ),
     ) { (num, cur, cents, code) ->
         val m = AmountParser.parse(num, cur)!!
         assertThat(m.cents).isEqualTo(cents.toLong())
         assertThat(m.currency).isEqualTo(code)
         assertThat(m.currencyExplicit).isTrue()
+    }
+
+    @Test
+    fun `a word is never a currency, a sign or an ISO code is`() {
+        for (word in listOf("Euro", "euro", "Dollar", "kWh", "Tage", "eur", "XXL", "ABC")) assertThat(AmountParser.currencyOf(word)).isNull()
+        assertThat(AmountParser.currencyOf("CHF")).isEqualTo("CHF")
+        assertThat(AmountParser.currencyOf("€")).isEqualTo("EUR")
+        assertThat(AmountParser.currencyOf("₡")).isEqualTo("₡")
     }
 
     @Test
