@@ -29,6 +29,12 @@ object ConfidenceCombiner {
     /** Below this a value is shown as worth checking (the app's auto-link threshold). */
     const val REVIEW_BELOW = 0.75f
 
+    /**
+     * A machine extra below this final confidence is hidden behind "Show all" (the model said LOW, or a
+     * check capped it). The one owner of the threshold: the screen and the benchmark read it from here.
+     */
+    const val HIDDEN_BELOW = 0.5f
+
     /** Maps the grammar's word to a number. */
     fun aiScore(word: String?): Float = when (word?.trim()?.uppercase()) {
         "HIGH" -> HIGH
@@ -57,6 +63,12 @@ object ConfidenceCombiner {
         const val ROLE_MISMATCH = 0.4f
         const val INCONSISTENT = 0.4f
         const val ZONE_MISMATCH = 0.4f
+
+        /** A phone, e-mail or BIC the model was not HIGH sure of: kept, but below [HIDDEN_BELOW]. */
+        const val WEAK_KIND = 0.45f
+
+        /** A second SENDER: kept and noted, but below [HIDDEN_BELOW]; the first one is the sender. */
+        const val SECOND_SENDER = 0.4f
         const val QUOTE_FUZZY = 0.45f
         const val DATE_ORDER = 0.5f
         const val GENERATED = 0.5f

@@ -340,16 +340,23 @@ class SelectionVerifier(
                     rejections += "party role '${rp.role}' is not one of ${PartyRole.entries.map { it.name }}"
                     continue
                 }
-                if (role == PartyRole.SENDER && parties.any { it.role == PartyRole.SENDER }) {
-                    rejections += "a second SENDER '${rp.id.take(40)}' was ignored"
-                    continue
-                }
+                val secondSender = role == PartyRole.SENDER && parties.any { it.role == PartyRole.SENDER }
                 val expected = when (role) {
                     PartyRole.SENDER -> senderZones
                     in addressSide -> addresseeZones
                     else -> null
                 }
-                val value = resolveName(rp.id.trim(), rp.confidence, expected, role.name)?.let { withModelName(it, rp.name, role.name) } ?: continue
+                var value = resolveName(rp.id.trim(), rp.confidence, expected, role.name)?.let { withModelName(it, rp.name, role.name) } ?: continue
+                // A second SENDER is the model contradicting itself. The AI is not overruled: the value is
+                // kept, capped below the visibility threshold (hidden by default) and noted, never dropped.
+                // The first SENDER stays the sender (Parties.sender).
+                if (secondSender) {
+                    val combined = ConfidenceCombiner.combine(
+                        value.confidence,
+                        listOf(Check.Cap(Caps.SECOND_SENDER, "a second SENDER; the first one is the sender", blocking = false)),
+                    )
+                    value = value.copy(confidence = combined.final, notes = value.notes + combined.notes)
+                }
                 val c = value.candidateId?.let { ctx.offered.get(it) }
                 val kind = PartyKind.entries.firstOrNull { it.name == rp.kind?.trim()?.uppercase() }
                     ?: PartyKind.OTHER // the grammar always makes the model say it; code never guesses a kind
@@ -518,14 +525,15 @@ class SelectionVerifier(
                     rejections += "extra '$label': $id is already used by a field"
                     return null
                 }
-                if (c.kind in weakKinds && ConfidenceCombiner.aiScore(x.confidence) < ConfidenceCombiner.HIGH) {
-                    rejections += "extra '$label': a ${c.kind} is only kept when the model is HIGH sure"
-                    return null
-                }
                 used += id
-                val checks = listOf(
+                val checks = mutableListOf(
                     validationCheck(effectiveValidation(c, null, pastYears = 10), c.kind), repairCheck(c), unnormalizedDateCheck(c),
                 )
+                // A phone, e-mail or BIC the model is not HIGH sure about is kept, not dropped: capped below
+                // the visibility threshold so it is hidden by default, with the reason in its notes.
+                if (c.kind in weakKinds && ConfidenceCombiner.aiScore(x.confidence) < ConfidenceCombiner.HIGH) {
+                    checks += Check.Cap(Caps.WEAK_KIND, "a ${c.kind} is only shown when the model is HIGH sure")
+                }
                 return build(null, c, x.confidence, null, checks)
             }
             val q = x.value.trim()

@@ -360,9 +360,18 @@ class SelectionVerifierTest {
         }
 
         @Test
-        fun `only one sender is kept`() {
+        fun `a second sender is kept, capped below the visibility threshold and noted, never dropped`() {
             val r = verify(n1, answer(parties = party("SENDER", sender, "COMPANY") + "," + party("SENDER", "Erika Mustermann")))
-            assertThat(r.parties.all.count { it.role == PartyRole.SENDER }).isEqualTo(1)
+            val senders = r.parties.all.filter { it.role == PartyRole.SENDER }
+            assertThat(senders).hasSize(2)
+            // The first stays the sender.
+            assertThat(r.parties.sender).isSameInstanceAs(senders.first())
+            assertThat(senders.first().value.confidence).isAtLeast(ConfidenceCombiner.HIDDEN_BELOW)
+            val second = senders.last().value
+            assertThat(second.confidence).isAtMost(Caps.SECOND_SENDER)
+            assertThat(second.confidence).isLessThan(ConfidenceCombiner.HIDDEN_BELOW)
+            assertThat(second.notes.joinToString()).contains("second SENDER")
+            assertThat(r.diagnostics.rejections.none { it.contains("second SENDER") }).isTrue()
         }
 
         @Test
@@ -498,12 +507,16 @@ class SelectionVerifierTest {
         }
 
         @Test
-        fun `a phone number, an e-mail or a BIC is only kept when the model is HIGH sure`() {
+        fun `a phone number, an e-mail or a BIC the model is not HIGH sure of is kept but capped below the visibility threshold`() {
             val phone = id(n1, CandidateKind.PHONE, "0800 555 0199")
             val medium = verify(n1, answer(extras = extra("Telefon", phone, c = "MEDIUM")))
-            assertThat(medium.extras).isEmpty()
+            val kept = medium.extras.single().value
+            assertThat(kept.confidence).isAtMost(Caps.WEAK_KIND)
+            assertThat(kept.confidence).isLessThan(ConfidenceCombiner.HIDDEN_BELOW)
+            assertThat(kept.notes.joinToString()).contains("HIGH sure")
+            assertThat(medium.diagnostics.rejections).isEmpty()
             val high = verify(n1, answer(extras = extra("Telefon", phone, c = "HIGH")))
-            assertThat(high.extras).hasSize(1)
+            assertThat(high.extras.single().value.confidence).isAtLeast(ConfidenceCombiner.HIDDEN_BELOW)
         }
 
         @Test
