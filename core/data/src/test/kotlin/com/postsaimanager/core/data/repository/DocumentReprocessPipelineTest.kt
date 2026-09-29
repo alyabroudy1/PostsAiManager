@@ -15,6 +15,10 @@ import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.OcrBlock
+import com.postsaimanager.core.model.TextBounds
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
@@ -157,6 +161,55 @@ class DocumentReprocessPipelineTest {
         val event = timeline.recorded.single()
         assertThat(event.code).isEqualTo(TimelineCodes.REPROCESSED)
         assertThat(event.args).containsExactly("entity-extractor-1", ExtractorVersion.CURRENT).inOrder()
+    }
+
+    private val storedBlock = OcrBlock("Rechnung 64,98 EUR", TextBounds(0.1f, 0.1f, 0.9f, 0.2f), 0.9f)
+
+    private fun storedPage(number: Int, withBlocks: Boolean = true) = DocumentPageEntity(
+        id = "p$number", documentId = "doc-1", pageNumber = number, imagePath = "/p$number.jpg",
+        processedPath = null, ocrText = "Rechnung 64,98 EUR", ocrConfidence = 0.8f,
+        ocrBlocks = if (withBlocks) {
+            Json.encodeToString(ListSerializer(OcrBlock.serializer()), listOf(storedBlock))
+        } else {
+            null
+        },
+        width = 10, height = 10,
+    )
+
+    @Test
+    @DisplayName("a reprocess reuses the stored OCR when every page has it, and does not read an image")
+    fun reprocessReusesStoredOcr() = runTest(dispatcher) {
+        coEvery { documentDao.getPages("doc-1") } returns listOf(storedPage(1), storedPage(2))
+        coEvery { aiExtraction(any(), any(), any()) } returns PamResult.Success(understanding())
+
+        pipeline.processDocument("doc-1", reprocess = true)
+
+        coVerify(exactly = 0) { ocrService.recognizeText(any()) }
+        coVerify(exactly = 0) { documentDao.insertPages(any()) }
+        // The stored blocks, page by page, are what the model is offered.
+        coVerify { aiExtraction(listOf(storedBlock, storedBlock), any(), listOf(1, 1)) }
+    }
+
+    @Test
+    @DisplayName("a reprocess reads the images again when any page has no stored blocks")
+    fun reprocessReadsAgainWhenOnePageLacksBlocks() = runTest(dispatcher) {
+        coEvery { documentDao.getPages("doc-1") } returns listOf(storedPage(1), storedPage(2, withBlocks = false))
+        coEvery { aiExtraction(any(), any(), any()) } returns PamResult.Success(understanding())
+
+        pipeline.processDocument("doc-1", reprocess = true)
+
+        coVerify(exactly = 2) { ocrService.recognizeText(any()) }
+    }
+
+    @Test
+    @DisplayName("a first scan always reads the images, stored blocks or not")
+    fun scanAlwaysReadsImages() = runTest(dispatcher) {
+        coEvery { documentDao.getPages("doc-1") } returns listOf(storedPage(1))
+        coEvery { aiExtraction(any(), any(), any()) } returns PamResult.Success(understanding())
+
+        pipeline.processDocument("doc-1", reprocess = false)
+
+        coVerify(exactly = 1) { ocrService.recognizeText(any()) }
     }
 
     private suspend fun titleAfterRun(doc: DocumentEntity, reprocess: Boolean): DocumentEntity {

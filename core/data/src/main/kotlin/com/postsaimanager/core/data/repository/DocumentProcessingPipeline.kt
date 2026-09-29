@@ -168,10 +168,14 @@ class DocumentProcessingPipeline @Inject constructor(
                 // page 1 before page 2 no matter which one finished OCR first. Progress is
                 // reported by completion count, which — with bounded, not ordered,
                 // concurrency — does not always match page number.
+                //
+                // A reprocess does not read the images again when every page already has its
+                // OCR stored (StoredOcr): faster, and the candidate ids stay the same.
                 val ocrSemaphore = Semaphore(OCR_CONCURRENCY)
                 val completedPages = AtomicInteger(0)
 
-                val ocrByPage: List<Pair<DocumentPageEntity, OcrResult?>> = coroutineScope {
+                val storedOcr = if (reprocess) StoredOcr.reuse(pages, documentMapper) else null
+                val ocrByPage: List<Pair<DocumentPageEntity, OcrResult?>> = storedOcr ?: coroutineScope {
                     pages.map { page ->
                         async {
                             ocrSemaphore.withPermit {
@@ -212,7 +216,8 @@ class DocumentProcessingPipeline @Inject constructor(
                         )
                     }
                 }
-                if (updatedPages.isNotEmpty()) {
+                // Nothing to write back when the stored OCR was reused as it is.
+                if (storedOcr == null && updatedPages.isNotEmpty()) {
                     documentDao.insertPages(updatedPages)
                 }
 
