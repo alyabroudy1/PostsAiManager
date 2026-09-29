@@ -87,6 +87,8 @@ internal object AnswerReader {
         return toks.split().mapNotNull { e ->
             var i = 0
             val id = e.text(i++) ?: return@mapNotNull null
+            // A small model sometimes writes NONE as a quoted name: that is still "no such party", not a person called NONE.
+            if (id.equals(QuestionGrammars.NONE, ignoreCase = true) && e.first() is Tok.Quote) return@mapNotNull null
             val kind = e.word(i++) ?: return@mapNotNull null
             val relation = if (withRelation) e.word(i++) ?: return@mapNotNull null else null
             val name = (e.getOrNull(i++) as? Tok.Quote)?.text ?: return@mapNotNull null

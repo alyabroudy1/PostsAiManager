@@ -148,9 +148,12 @@ class QuestionnaireBenchmarkTest {
                 var questionnaire: QuestionnaireInterpreter? = null
                 val capture = when (name) {
                     "single" -> Capture(ModelDocumentInterpreter(engine, contextTokens = budgetTokens))
-                    "questionnaire" -> Capture(
-                        QuestionnaireInterpreter(engine, engine, contextTokens = budgetTokens, measureTokens = true)
-                            .also { questionnaire = it },
+                    // "questionnaire2": each question also restates the candidates it chooses from.
+                    "questionnaire", "questionnaire2" -> Capture(
+                        QuestionnaireInterpreter(
+                            engine, engine, contextTokens = budgetTokens, measureTokens = true,
+                            restateOptions = name == "questionnaire2",
+                        ).also { questionnaire = it },
                     )
                     else -> error("unknown interpreter $name")
                 }

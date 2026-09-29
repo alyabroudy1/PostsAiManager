@@ -274,6 +274,12 @@ class QuestionnaireTest {
         }
 
         @Test
+        fun `a quoted NONE is no party`() {
+            assertThat(AnswerReader.parties("\"NONE\" PERSON \"Somebody\" HIGH", withRelation = false)).isEmpty()
+            assertThat(AnswerReader.parties("M1 PERSON \"None Ltd\" HIGH", withRelation = false)).hasSize(1)
+        }
+
+        @Test
         fun `a name in Arabic script survives the quotes`() {
             val list = AnswerReader.parties("M1 COMPANY \"شركة الكهرباء\" HIGH", withRelation = false)
             assertThat(list.single().name).isEqualTo("شركة الكهرباء")
@@ -352,6 +358,19 @@ class QuestionnaireTest {
             val outcome = interpreter(broken).interpret(request())
             assertThat(outcome).isInstanceOf(InterpretationOutcome.Failed::class.java)
             assertThat(broken.closes).isEqualTo(1)
+        }
+
+        @Test
+        fun `with restated options each choice question lists its candidates, and nothing else changes`() = runTest {
+            val session = FakePromptSession().apply { responder = OracleQuestionnaire.responder(letter, prepared) }
+            val model = QuestionnaireInterpreter(FakeAiEngine(), session, contextTokens = 4096, restateOptions = true)
+            model.interpret(request())
+            val sender = session.asks.first { it.question.contains("Who wrote and sent") }
+            assertThat(sender.question).contains("OPTIONS:")
+            val firstName = prepared.offered.idsOf(CandidateKind.NAME).first()
+            assertThat(sender.question).contains("$firstName: ")
+            assertThat(session.asks.first { it.question.contains("What kind of document") }.question).doesNotContain("OPTIONS:")
+            assertThat(session.prefixDecodes).isEqualTo(1)
         }
 
         @Test

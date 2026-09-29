@@ -82,6 +82,20 @@ object QuestionnairePrompt {
     /** The user turn's body: the letter and the candidate table, ending where the first question begins. */
     fun user(layoutText: String, offered: OfferedCandidates): String = SelectionPrompt.user(layoutText, offered)
 
+    /** How many candidate lines a question restates as its options. */
+    const val OPTIONS_CAP = 10
+
+    /**
+     * [question] with the candidates it may choose from listed right after it (the same lines as the table in
+     * the prefix, at most [OPTIONS_CAP]), so the choice sits next to the question. Costs question tokens.
+     */
+    fun withOptions(question: Question, offered: OfferedCandidates, vararg kinds: com.postsaimanager.core.domain.extraction.candidates.CandidateKind): Question {
+        val ids = offered.idsOf(*kinds).toSet()
+        val rows = offered.rows.filter { it.candidate.id in ids }.take(OPTIONS_CAP)
+        if (rows.isEmpty()) return question
+        return Question(question.name, question.text + "\nOPTIONS:\n" + SelectionPrompt.table(OfferedCandidates(rows)), question.grammar, question.maxTokens)
+    }
+
     private fun question(name: String, ask: String, shape: String, grammar: String, maxTokens: Int) =
         Question(name, "QUESTION: $ask\nANSWER FORMAT: $shape", grammar, maxTokens)
 
@@ -202,7 +216,7 @@ object QuestionnairePrompt {
     fun otherLabel(): Question = question(
         "text:other",
         "Give a short name for this kind of document. $IN_LETTER_LANGUAGE",
-        "\"name\"",
+        "one line of text in double quotes",
         QuestionGrammars.line(),
         TITLE_TOKENS,
     )
@@ -210,7 +224,7 @@ object QuestionnairePrompt {
     fun title(typeId: String?): Question = question(
         "text:title",
         "Write a title of at most 8 words for this ${typeId?.replace('_', ' ') ?: "document"}: who wrote it and what it is for. $IN_LETTER_LANGUAGE",
-        "\"title\"",
+        "one line of text in double quotes",
         QuestionGrammars.line(),
         TITLE_TOKENS,
     )
@@ -218,7 +232,7 @@ object QuestionnairePrompt {
     fun subjectLine(): Question = question(
         "text:subject",
         "Copy the subject line of the letter exactly as it is printed.",
-        "\"subject line\"",
+        "the subject line in double quotes",
         QuestionGrammars.line(),
         SUBJECT_TOKENS,
     )
@@ -226,15 +240,16 @@ object QuestionnairePrompt {
     fun summary(): Question = question(
         "text:summary",
         "Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. $IN_LETTER_LANGUAGE",
-        "\"summary\"",
+        "one or two sentences in double quotes",
         QuestionGrammars.line(),
         SUMMARY_TOKENS,
     )
 
     fun suggestedQuestions(): Question = question(
         "text:questions",
-        "Write three short questions the reader may ask about this letter. $IN_LETTER_LANGUAGE",
-        "\"question\" \"question\" \"question\"",
+        "Write three short questions the reader may ask about the content of this letter (for example about an amount, " +
+            "a deadline or what to do next). $IN_LETTER_LANGUAGE",
+        "three questions, each in double quotes, separated by spaces",
         QuestionGrammars.threeLines(),
         SUGGESTIONS_TOKENS,
     )

@@ -47,7 +47,12 @@ class QuestionnaireInterpreter(
     private val schema: ExtractionSchema = ExtractionSchema.DEFAULT,
     contextTokens: Int,
     private val measureTokens: Boolean = false,
+    /** Restate the candidates a question chooses from right after the question (see [QuestionnairePrompt.withOptions]). */
+    private val restateOptions: Boolean = false,
 ) : DocumentInterpreter {
+
+    private fun names(q: Question, offered: OfferedCandidates) =
+        if (restateOptions) QuestionnairePrompt.withOptions(q, offered, *SlotKind.NAME.candidates) else q
 
     private val withExample = contextTokens >= SelectionPrompt.EXAMPLE_MIN_CONTEXT_TOKENS
 
@@ -129,25 +134,26 @@ class QuestionnaireInterpreter(
                 confidence = answer.confidence, name = answer.name.ifBlank { null },
             )
         }
-        val sender = AnswerReader.parties(ask(QuestionnairePrompt.sender(offered)).orEmpty(), withRelation = false).firstOrNull()
+        val sender = AnswerReader.parties(ask(names(QuestionnairePrompt.sender(offered), offered)).orEmpty(), withRelation = false).firstOrNull()
         sender?.let { add(PartyRole.SENDER, it) }
         val addressees = AnswerReader
-            .parties(ask(QuestionnairePrompt.addressee(offered, sender?.id)).orEmpty(), withRelation = true)
+            .parties(ask(names(QuestionnairePrompt.addressee(offered, sender?.id), offered)).orEmpty(), withRelation = true)
             .filter { it.id != sender?.id }
             .take(QuestionGrammars.MAX_ADDRESSEES)
         addressees.forEachIndexed { i, a -> add(if (i == 0) PartyRole.ADDRESSEE else PartyRole.CO_ADDRESSEE, a) }
-        AnswerReader.parties(ask(QuestionnairePrompt.subjectPerson(offered)).orEmpty(), withRelation = false)
+        AnswerReader.parties(ask(names(QuestionnairePrompt.subjectPerson(offered), offered)).orEmpty(), withRelation = false)
             .take(QuestionGrammars.MAX_ADDRESSEES)
             .forEach { add(PartyRole.SUBJECT_PERSON, it) }
-        AnswerReader.parties(ask(QuestionnairePrompt.contactPerson(offered)).orEmpty(), withRelation = false).firstOrNull()
+        AnswerReader.parties(ask(names(QuestionnairePrompt.contactPerson(offered), offered)).orEmpty(), withRelation = false).firstOrNull()
             ?.let { add(PartyRole.ROUTING, it) }
-        AnswerReader.parties(ask(QuestionnairePrompt.careOf(offered)).orEmpty(), withRelation = false).firstOrNull()
+        AnswerReader.parties(ask(names(QuestionnairePrompt.careOf(offered), offered)).orEmpty(), withRelation = false).firstOrNull()
             ?.let { add(PartyRole.CARE_OF, it) }
 
         // ── slots of the chosen type ──
         val slots = LinkedHashMap<String, RawSlot>()
         for (slot in docType.slots) {
-            val question = QuestionnairePrompt.slot(slot, offered) ?: continue
+            val base = QuestionnairePrompt.slot(slot, offered) ?: continue
+            val question = if (restateOptions) QuestionnairePrompt.withOptions(base, offered, *slot.kind.candidates) else base
             val answer = AnswerReader.slot(slot, ask(question).orEmpty()) ?: continue
             slots[slot.json] = answer
             take(answer.id)

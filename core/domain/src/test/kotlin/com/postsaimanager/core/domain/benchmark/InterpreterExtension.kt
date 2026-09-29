@@ -262,7 +262,10 @@ internal class QuestionnaireReplay(private val recording: Recording) : DocumentI
 
     private fun create(offered: OfferedCandidates?): QuestionnaireInterpreter {
         val remap = offered?.let { IdRemap.between(recording.candidates, it) } ?: emptyMap()
-        return QuestionnaireInterpreter(engine, ReplayPromptSession(recording, remap), contextTokens = recording.contextTokens)
+        return QuestionnaireInterpreter(
+            engine, ReplayPromptSession(recording, remap), contextTokens = recording.contextTokens,
+            restateOptions = recording.variant.startsWith("questionnaire2"),
+        )
     }
 
     // The overheads are asked before and between the two calls: a throwaway instance answers them, so the one
