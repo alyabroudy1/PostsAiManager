@@ -39,6 +39,14 @@ class DocumentMapper @Inject constructor() {
         extractionPagesRead = entity.extractionPagesRead,
         extractionTotalPages = entity.extractionTotalPages,
         deletedAt = entity.deletedAt,
+        extractionType = entity.extractionType,
+        extractionTypeConfidence = entity.extractionTypeConfidence,
+        extractorVersion = entity.extractorVersion,
+        isUserTitle = entity.isUserTitle,
+        suggestedQuestions = JsonColumns.decodeStrings(entity.suggestedQuestions),
+        summary = entity.summary,
+        titleCode = entity.titleCode,
+        titleArgs = JsonColumns.decodeStrings(entity.titleArgs),
     )
 
     fun toEntity(domain: Document): DocumentEntity = DocumentEntity(
@@ -56,6 +64,14 @@ class DocumentMapper @Inject constructor() {
         extractionPagesRead = domain.extractionPagesRead,
         extractionTotalPages = domain.extractionTotalPages,
         deletedAt = domain.deletedAt,
+        extractionType = domain.extractionType,
+        extractionTypeConfidence = domain.extractionTypeConfidence,
+        extractorVersion = domain.extractorVersion,
+        isUserTitle = domain.isUserTitle,
+        suggestedQuestions = JsonColumns.encodeStrings(domain.suggestedQuestions),
+        summary = domain.summary,
+        titleCode = domain.titleCode,
+        titleArgs = JsonColumns.encodeStrings(domain.titleArgs),
     )
 
     fun pageToDomain(entity: DocumentPageEntity): DocumentPage = DocumentPage(
@@ -117,6 +133,12 @@ class DocumentMapper @Inject constructor() {
         hasUnreviewedMachineChange = entity.hasUnreviewedMachineChange,
         engineVersion = entity.engineVersion,
         updatedAt = entity.updatedAt,
+        slotKey = entity.slotKey,
+        role = entity.role,
+        origin = entity.origin,
+        aiConfidence = entity.aiConfidence,
+        evidence = entity.evidence,
+        bbox = JsonColumns.decodeBounds(entity.bbox),
     )
 
     fun extractedDataToEntity(domain: ExtractedData): ExtractedDataEntity = ExtractedDataEntity(
@@ -135,6 +157,12 @@ class DocumentMapper @Inject constructor() {
         hasUnreviewedMachineChange = domain.hasUnreviewedMachineChange,
         engineVersion = domain.engineVersion,
         updatedAt = domain.updatedAt,
+        slotKey = domain.slotKey,
+        role = domain.role,
+        origin = domain.origin,
+        aiConfidence = domain.aiConfidence,
+        evidence = domain.evidence,
+        bbox = JsonColumns.encodeBounds(domain.bbox),
     )
 
     fun revisionToEntity(domain: FieldRevision) = FieldRevisionEntity(

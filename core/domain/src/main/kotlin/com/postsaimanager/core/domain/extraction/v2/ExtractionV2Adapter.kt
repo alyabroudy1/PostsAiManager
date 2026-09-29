@@ -5,6 +5,7 @@ import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EntityKind
 import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.FactKind
+import com.postsaimanager.core.model.FieldProvenance
 import com.postsaimanager.core.model.InputTruncation
 import com.postsaimanager.core.model.RecognisedEntity
 import com.postsaimanager.core.model.RecognisedFact
@@ -26,9 +27,9 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         val facts = mutableListOf<RecognisedFact>()
         val usedLabels = mutableSetOf<String>()
 
-        fun add(label: String, value: String, kind: FactKind, confidence: Float) {
+        fun add(label: String, value: String, kind: FactKind, confidence: Float, provenance: FieldProvenance? = null) {
             if (value.isBlank()) return
-            facts += RecognisedFact(label, value.trim(), kind, confidence.coerceIn(0f, 1f))
+            facts += RecognisedFact(label, value.trim(), kind, confidence.coerceIn(0f, 1f), provenance)
             usedLabels += label.lowercase()
         }
 
@@ -39,27 +40,31 @@ class ExtractionV2Adapter : UnderstandingAdapter {
                 val v = result.slots[slot]
                 if (v != null) {
                     val canonical = slot.canonical?.takeIf { canonicalTaken.add(it) }
+                    val p = provenanceOf(slot.json, v)
                     when (canonical) {
-                        Canonical.AMOUNT -> add(AMOUNT, v.value, FactKind.AMOUNT, v.confidence)
-                        Canonical.DEADLINE -> add(DEADLINE, v.value, FactKind.DEADLINE, v.confidence)
-                        Canonical.DOCUMENT_DATE -> add(DOCUMENT_DATE, v.value, FactKind.DATE, v.confidence)
-                        Canonical.IBAN -> add(IBAN, v.value, FactKind.IBAN, v.confidence)
-                        null -> add(slot.label, v.value, if (slot.kind == SlotKind.REFERENCE) FactKind.REFERENCE else FactKind.OTHER, v.confidence)
+                        Canonical.AMOUNT -> add(AMOUNT, v.value, FactKind.AMOUNT, v.confidence, p)
+                        Canonical.DEADLINE -> add(DEADLINE, v.value, FactKind.DEADLINE, v.confidence, p)
+                        Canonical.DOCUMENT_DATE -> add(DOCUMENT_DATE, v.value, FactKind.DATE, v.confidence, p)
+                        Canonical.IBAN -> add(IBAN, v.value, FactKind.IBAN, v.confidence, p)
+                        null -> add(slot.label, v.value, if (slot.kind == SlotKind.REFERENCE) FactKind.REFERENCE else FactKind.OTHER, v.confidence, p)
                     }
                 }
                 result.slotLists[slot]?.takeIf { it.isNotEmpty() }?.let { list ->
-                    add(slot.label, list.joinToString(", ") { it.value }, FactKind.REFERENCE, list.minOf { it.confidence })
+                    add(
+                        slot.label, list.joinToString(", ") { it.value }, FactKind.REFERENCE, list.minOf { it.confidence },
+                        provenanceOf(slot.json, list.first()).copy(aiConfidence = list.minOf { it.aiConfidence }),
+                    )
                 }
             }
         }
 
-        result.freeText.subject?.let { add(SUBJECT, it.value, FactKind.SUBJECT, it.confidence) }
-        result.freeText.summary?.let { add(CONTENT_PREVIEW, it.value, FactKind.OTHER, it.confidence) }
+        result.freeText.subject?.let { add(SUBJECT, it.value, FactKind.SUBJECT, it.confidence, provenanceOf(SUBJECT_KEY, it)) }
+        // The summary is not a field: it goes to the document (DocumentUnderstanding.summary), marked as the AI's.
 
         for (x in result.extras) {
             // A label that collides with a field already present would overwrite it in the merge.
             val label = if (x.label.lowercase() in usedLabels) "${x.label} (${x.key})" else x.label
-            add(label, x.value.value, FactKind.OTHER, x.value.confidence)
+            add(label, x.value.value, FactKind.OTHER, x.value.confidence, provenanceOf(x.identity, x.value))
         }
 
         if (!result.diagnostics.modelUsed) addFound(result, ::add)
@@ -80,7 +85,17 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         )
     }
 
-    private fun addFound(result: ExtractionV2Result, add: (String, String, FactKind, Float) -> Unit) {
+    private fun provenanceOf(slotKey: String, v: SlotValue) = FieldProvenance(
+        slotKey = slotKey,
+        role = v.role,
+        origin = v.origin.name,
+        aiConfidence = v.aiConfidence,
+        evidence = v.evidence.takeIf { it.isNotBlank() },
+        page = v.page,
+        bbox = v.bbox,
+    )
+
+    private fun addFound(result: ExtractionV2Result, add: (String, String, FactKind, Float, FieldProvenance?) -> Unit) {
         val counters = HashMap<String, Int>()
         for (c in result.foundValues) {
             val noun = when (c.kind) {
@@ -94,7 +109,10 @@ class ExtractionV2Adapter : UnderstandingAdapter {
             }
             val n = (counters[noun] ?: 0) + 1
             counters[noun] = n
-            add("Found $noun $n", c.raw, FactKind.OTHER, FOUND_CONFIDENCE)
+            add(
+                "Found $noun $n", c.raw, FactKind.OTHER, FOUND_CONFIDENCE,
+                FieldProvenance(origin = FOUND_ORIGIN, page = c.page, bbox = c.bbox, evidence = c.evidence.takeIf { it.isNotBlank() }),
+            )
         }
     }
 
@@ -104,34 +122,40 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         val emitted = mutableSetOf<String>()
         val named = mutableSetOf<String>()
 
-        fun add(name: String, kind: EntityKind, role: EntityRole, relation: String, confidence: Float) {
+        fun add(name: String, kind: EntityKind, role: EntityRole, relation: String, p: Party, slotKey: String?) {
             if (name.isBlank() || !emitted.add("$role:${name.lowercase()}")) return
             // Someone already listed as the sender or a recipient is not listed again as "mentioned".
             if (role == EntityRole.MENTIONED && name.lowercase() in named) return
             named += name.lowercase()
-            out += RecognisedEntity(name.trim(), kind, role, relation, confidence.coerceIn(0f, 1f))
+            val v = p.value
+            out += RecognisedEntity(
+                name.trim(), kind, role, relation, v.confidence.coerceIn(0f, 1f),
+                provenanceOf(slotKey ?: "", v).copy(slotKey = slotKey, role = p.role.name),
+            )
         }
 
-        parties.sender?.let { add(it.name, kindOf(it.kind), EntityRole.SENDER, "", it.value.confidence) }
+        parties.sender?.let { add(it.name, kindOf(it.kind), EntityRole.SENDER, "", it, SENDER_KEY) }
 
         val subjects = parties.subjectPersons
         for (a in parties.allAddressees) {
             // A guardian is addressed on behalf of the subject person; the profile to link is the subject.
+            // The stored evidence is the addressee's, the printed name the letter was sent to.
             val stand = if (a.relation == PartyRelation.GUARDIAN_OF) subjects.firstOrNull() else null
+            val key = ADDRESSEE_KEY
             if (stand != null) {
-                add(stand.name, kindOf(stand.kind), EntityRole.RECIPIENT, "child; letter addressed to the guardian", a.value.confidence)
+                add(stand.name, kindOf(stand.kind), EntityRole.RECIPIENT, "child; letter addressed to the guardian", a, key)
             } else {
-                add(a.name, kindOf(a.kind), EntityRole.RECIPIENT, if (a.relation == PartyRelation.HOUSEHOLD) "household" else "", a.value.confidence)
+                add(a.name, kindOf(a.kind), EntityRole.RECIPIENT, if (a.relation == PartyRelation.HOUSEHOLD) "household" else "", a, key)
             }
         }
         parties.routingPerson?.let {
-            add(it.name, kindOf(it.kind), EntityRole.MENTIONED, "contact at the addressee", it.value.confidence)
+            add(it.name, kindOf(it.kind), EntityRole.MENTIONED, "contact at the addressee", it, null)
         }
         parties.careOf?.let {
-            add(it.name, kindOf(it.kind), EntityRole.MENTIONED, "care of (mailbox)", it.value.confidence)
+            add(it.name, kindOf(it.kind), EntityRole.MENTIONED, "care of (mailbox)", it, null)
         }
         for (s in subjects) {
-            add(s.name, kindOf(s.kind), EntityRole.MENTIONED, "subject of the letter", s.value.confidence)
+            add(s.name, kindOf(s.kind), EntityRole.MENTIONED, "subject of the letter", s, null)
         }
         return out
     }
@@ -161,7 +185,14 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         const val DOCUMENT_DATE = "Document Date"
         const val IBAN = "IBAN"
         const val SUBJECT = "Subject"
-        const val CONTENT_PREVIEW = "Content Preview"
+
+        // Slot keys of the values that are not schema slots; UnderstandingToFields stores them.
+        const val SENDER_KEY = "sender"
+        const val ADDRESSEE_KEY = "addressee"
+        const val SUBJECT_KEY = "subject"
+
+        /** [FieldProvenance.origin] of a value code found and nobody chose. */
+        const val FOUND_ORIGIN = "FOUND"
 
         /** Found values have no role; low on purpose so they show as worth checking. */
         const val FOUND_CONFIDENCE = 0.3f

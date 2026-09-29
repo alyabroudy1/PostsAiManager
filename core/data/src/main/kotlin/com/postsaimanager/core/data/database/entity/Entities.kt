@@ -29,6 +29,17 @@ data class DocumentEntity(
      * "not deleted". See documentation/07-document-pipeline.md, "Deleting documents".
      */
     val deletedAt: Long? = null,
+    /** See [com.postsaimanager.core.model.Document.extractionType]. */
+    val extractionType: String? = null,
+    val extractionTypeConfidence: Float? = null,
+    val extractorVersion: String? = null,
+    val isUserTitle: Boolean = false,
+    /** JSON list of strings; see [com.postsaimanager.core.model.Document.suggestedQuestions]. */
+    val suggestedQuestions: String? = null,
+    val summary: String? = null,
+    /** See [com.postsaimanager.core.model.Document.titleCode]; [titleArgs] is a JSON list of strings. */
+    val titleCode: String? = null,
+    val titleArgs: String? = null,
 )
 
 @Entity(
@@ -225,8 +236,17 @@ data class ExtractedDataEntity(
     val machineConfidence: Float? = null,
     val deletedByUser: Boolean = false,
     val hasUnreviewedMachineChange: Boolean = false,
+    /** The extractor version of this row (the "extractorVersion" of the v2 design). */
     val engineVersion: String? = null,
     val updatedAt: Long = 0L,
+    /** See [com.postsaimanager.core.model.ExtractedData.slotKey] and the fields after it. */
+    val slotKey: String? = null,
+    val role: String? = null,
+    val origin: String? = null,
+    val aiConfidence: Float? = null,
+    val evidence: String? = null,
+    /** JSON of a `TextBounds`. */
+    val bbox: String? = null,
 )
 
 /**
@@ -281,6 +301,9 @@ data class TimelineEventEntity(
     val referenceId: String?,
     val referenceType: String?,
     val createdAt: Long,
+    /** See [com.postsaimanager.core.model.TimelineEvent.code]; [args] is a JSON list of strings. */
+    val code: String? = null,
+    val args: String? = null,
 )
 
 @Entity(tableName = "tags")

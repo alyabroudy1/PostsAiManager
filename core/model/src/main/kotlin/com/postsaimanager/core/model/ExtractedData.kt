@@ -52,10 +52,33 @@ data class ExtractedData(
     /** Extraction now disagrees with the value the user set. Surfaced, not auto-resolved. */
     val hasUnreviewedMachineChange: Boolean = false,
 
-    /** Which extractor produced [machineValue]. */
+    /** Which extractor produced [machineValue]. The stored "extractor version" of this row. */
     val engineVersion: String? = null,
 
     val updatedAt: Long = 0L,
+
+    /**
+     * The stable key of the slot this value fills (`total`, `due_date`, `sender`, or `x:` plus the
+     * printed label for an open extra). Null for a row a person added and for rows read by an
+     * older extractor. It is the identity a re-read is matched by, ahead of [fieldName], and the
+     * key the UI renders a label from, so [fieldName] can be reworded without losing the row.
+     */
+    val slotKey: String? = null,
+
+    /** What the model said the value is (an amount or date role, or a party role); null when it did not say. */
+    val role: String? = null,
+
+    /** How the value was obtained (`MODEL_CHOICE`, `MODEL_QUOTED`, `MODEL_GENERATED`, `FOUND`); null for a person's row. */
+    val origin: String? = null,
+
+    /** What the model said about its own answer, kept unchanged next to the final [confidence] for calibration. */
+    val aiConfidence: Float? = null,
+
+    /** The text of the page the value was read from. */
+    val evidence: String? = null,
+
+    /** Where on [pageNumber] the evidence sits, in the page's own scale-free coordinates. */
+    val bbox: TextBounds? = null,
 ) {
     /**
      * Worth the user's eye.
@@ -73,25 +96,18 @@ data class ExtractedData(
 
     companion object {
         /**
-         * Below this, a machine value is flagged for review.
+         * Below this, a machine value is flagged for review ("worth checking").
          *
-         * **Currently inert, and honestly so.** `EntityExtractor` does not measure
-         * confidence — it assigns a constant per field kind: every `Receiver Name` is
-         * 0.80 whether it read "Aylin Mustermann" or, as it did on a real scan, the bare
-         * salutation "Frau". The values it emits span 0.70 to 0.95, so no threshold below
-         * 0.70 can ever fire and any threshold above it flags whole categories of field
-         * regardless of whether they are right.
-         *
-         * The number is kept at a defensible level rather than tuned to make something
-         * happen, because tuning it against constants would only encode which *kinds* of
-         * field the extractor guesses about — not which values are likely wrong. It starts
-         * being useful the moment extraction reports evidence instead of a category, and
-         * nothing above this line has to change when it does.
+         * Since extraction v2 the confidence is honest: the model's own word (LOW 0.4, MEDIUM 0.7,
+         * HIGH 0.9) capped by what the code's checks found, and never raised by them. So a
+         * medium-confidence answer and anything a check failed are flagged, a high one is not.
+         * Kept equal to `ConfidenceCombiner.REVIEW_BELOW` in `:core:domain`, which flags the same
+         * values while extraction runs.
          *
          * The other half of [needsReview] — the extractor disagreeing with a value the user
-         * set — does not depend on confidence and works today.
+         * set — does not depend on confidence.
          */
-        const val LOW_CONFIDENCE = 0.6f
+        const val LOW_CONFIDENCE = 0.75f
     }
 }
 

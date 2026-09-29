@@ -44,6 +44,10 @@ class MergeExtractionUseCase @Inject constructor() {
         /** Slots where extraction now disagrees with the user — the review queue. */
         val newlyFlagged: List<String>
             get() = toPersist.filter { it.hasUnreviewedMachineChange }.map { it.fieldName }
+
+        /** [newlyFlagged] by slot key where there is one, for the UI to render a label from. */
+        val newlyFlaggedKeys: List<String>
+            get() = toPersist.filter { it.hasUnreviewedMachineChange }.map { it.slotKey ?: it.fieldName }
     }
 
     operator fun invoke(
@@ -54,9 +58,11 @@ class MergeExtractionUseCase @Inject constructor() {
         newId: (String) -> String,
     ): Outcome {
         // Slot identity, not row identity. Ids are regenerated on every extraction run, so
-        // matching by id would make every run look entirely new.
-        val existingBySlot = existing.associateBy { it.fieldName }
-        val extractedBySlot = extracted.associateBy { it.fieldName }
+        // matching by id would make every run look entirely new. See [pair] for how a stored row
+        // finds its fresh reading.
+        val pairs = pair(existing, extracted)
+        val takenNames = existing.map { it.fieldName }.toSet()
+        val matchedFresh = pairs.values.map { it.id }.toSet()
 
         val toPersist = mutableListOf<ExtractedData>()
         val idsToDelete = mutableListOf<String>()
@@ -75,8 +81,8 @@ class MergeExtractionUseCase @Inject constructor() {
             )
         }
 
-        for ((slot, current) in existingBySlot) {
-            val fresh = extractedBySlot[slot]
+        for (current in existing) {
+            val fresh = pairs[current.id]
 
             when {
                 // Tombstone. The machine reading is still recorded, so the history stays
@@ -125,7 +131,11 @@ class MergeExtractionUseCase @Inject constructor() {
 
                 else -> {
                     val changed = fresh.fieldValue != current.fieldValue
+                    // A renamed machine slot is the same row under its new name, unless the new
+                    // name is held by another stored row (the name is unique per document).
+                    val renamed = fresh.fieldName != current.fieldName && fresh.fieldName !in takenNames
                     val updated = current.copy(
+                        fieldName = if (renamed) fresh.fieldName else current.fieldName,
                         fieldValue = fresh.fieldValue,
                         fieldType = fresh.fieldType,
                         confidence = fresh.confidence,
@@ -134,10 +144,16 @@ class MergeExtractionUseCase @Inject constructor() {
                         machineConfidence = fresh.confidence,
                         engineVersion = engineVersion,
                         source = ValueSource.MACHINE,
+                        slotKey = fresh.slotKey ?: current.slotKey,
+                        role = fresh.role,
+                        origin = fresh.origin,
+                        aiConfidence = fresh.aiConfidence,
+                        evidence = fresh.evidence,
+                        bbox = fresh.bbox,
                         // A value the extractor has since changed is no longer the one the
                         // user confirmed, so the confirmation does not carry over.
                         isConfirmed = current.isConfirmed && !changed,
-                        updatedAt = if (changed) now else current.updatedAt,
+                        updatedAt = if (changed || renamed) now else current.updatedAt,
                     )
                     toPersist += updated
                     if (changed) {
@@ -148,8 +164,8 @@ class MergeExtractionUseCase @Inject constructor() {
         }
 
         // Slots the extractor found that are not stored at all.
-        for ((slot, fresh) in extractedBySlot) {
-            if (slot in existingBySlot) continue
+        for (fresh in extracted) {
+            if (fresh.id in matchedFresh) continue
             val created = fresh.copy(
                 source = ValueSource.MACHINE,
                 machineValue = fresh.fieldValue,
@@ -163,6 +179,52 @@ class MergeExtractionUseCase @Inject constructor() {
 
         return Outcome(toPersist, idsToDelete, revisions)
     }
+
+    /**
+     * Which fresh reading belongs to which stored row (keyed by the stored row's id).
+     *
+     * 1. By **slot key**: the stable identity, so a field the AI relabelled or a sender whose kind
+     *    changed (name to organisation) is the same row.
+     * 2. By **field name**: rows stored before slot keys, and rows a person added or renamed.
+     * 3. By **normalised value**, for an open extra whose printed label changed between runs: a
+     *    machine row still unmatched and a fresh reading with the same value (and no rival on either
+     *    side) are one field renamed, not one deleted and one created. A person's row and a deleted
+     *    field are never matched this way.
+     */
+    private fun pair(existing: List<ExtractedData>, extracted: List<ExtractedData>): Map<String, ExtractedData> {
+        val pairs = LinkedHashMap<String, ExtractedData>()
+        val free = extracted.toMutableList()
+
+        fun take(candidate: ExtractedData?, current: ExtractedData) {
+            if (candidate == null) return
+            free.remove(candidate)
+            pairs[current.id] = candidate
+        }
+
+        for (current in existing) {
+            val key = current.slotKey ?: continue
+            take(free.firstOrNull { it.slotKey == key }, current)
+        }
+        for (current in existing) {
+            if (current.id in pairs) continue
+            take(free.firstOrNull { it.fieldName == current.fieldName }, current)
+        }
+
+        val renameable = existing.filter {
+            it.id !in pairs && it.source == ValueSource.MACHINE && !it.deletedByUser && valueKey(it.fieldValue).isNotEmpty()
+        }
+        for (current in renameable) {
+            val key = valueKey(current.fieldValue)
+            val rivalsInStore = renameable.count { valueKey(it.fieldValue) == key }
+            val candidates = free.filter { valueKey(it.fieldValue) == key }
+            if (rivalsInStore == 1 && candidates.size == 1) take(candidates.single(), current)
+        }
+        return pairs
+    }
+
+    /** A value with case, spacing and punctuation folded away, so "12,50 EUR" and "12.50 eur" compare equal. */
+    private fun valueKey(value: String): String =
+        value.lowercase().filter { it.isLetterOrDigit() }
 
     /**
      * Applies a user's edit, recording it as theirs.

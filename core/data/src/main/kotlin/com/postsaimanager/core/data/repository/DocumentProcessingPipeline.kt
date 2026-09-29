@@ -17,6 +17,7 @@ import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
+import com.postsaimanager.core.data.mapper.JsonColumns
 import com.postsaimanager.core.data.worker.DocumentProcessingWorker
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
@@ -371,26 +372,41 @@ class DocumentProcessingPipeline @Inject constructor(
                     return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
                 }
                 if (doc != null) {
+                    // A person's title is never replaced. Otherwise the model's title wins, and
+                    // the pattern fallback's subject only replaces a default title (one still
+                    // carrying its code), as before. A real title clears the default's code.
+                    val newTitle = when {
+                        doc.isUserTitle || extraction.subject == null -> null
+                        usedV2 -> extraction.subject
+                        doc.titleCode != null -> extraction.subject
+                        else -> null
+                    }
                     documentDao.update(
                         doc.copy(
                             documentType = extraction.documentType?.name ?: doc.documentType,
                             language = extraction.language ?: doc.language,
-                            // The model's title replaces the default; the pattern fallback's subject
-                            // only replaces a default "Scan ..." title, as before.
-                            // TODO(E): keep a title the user edited (needs an isUserTitle column).
-                            // Titles cannot be edited today, so nothing is overwritten.
-                            title = when {
-                                extraction.subject == null -> doc.title
-                                usedV2 -> extraction.subject!!
-                                doc.title.startsWith("Scan") -> extraction.subject!!
-                                else -> doc.title
-                            },
+                            title = newTitle ?: doc.title,
+                            titleCode = if (newTitle != null) null else doc.titleCode,
+                            titleArgs = if (newTitle != null) null else doc.titleArgs,
                             // Always overwritten with this run's own answer, null included —
                             // a reprocess that happens to read the whole document (a bigger
                             // context window, say) must clear a stale notice from an earlier
                             // truncated run, not leave it lingering.
                             extractionPagesRead = inputTruncation?.pagesRead,
                             extractionTotalPages = inputTruncation?.totalPages,
+                            // What the model understood about the document as a whole. Only a run
+                            // in which a model read the document replaces these: a run with no
+                            // model must not wipe an earlier, real reading.
+                            extractionType = if (usedModel) read?.documentType?.ifBlank { null } else doc.extractionType,
+                            extractionTypeConfidence =
+                                if (usedModel) read?.documentTypeConfidence else doc.extractionTypeConfidence,
+                            summary = if (usedModel) read?.summary?.ifBlank { null } else doc.summary,
+                            suggestedQuestions = if (usedModel) {
+                                JsonColumns.encodeStrings(read?.suggestedQuestions.orEmpty().take(MAX_SUGGESTED_QUESTIONS))
+                            } else {
+                                doc.suggestedQuestions
+                            },
+                            extractorVersion = engineVersion,
                         )
                     )
                 }
@@ -511,6 +527,9 @@ private const val TAG = "DocProcessing"
  */
 private const val REASON_NO_PAGES = "no_pages"
 private const val REASON_ERROR = "error"
+
+/** The chat offers at most this many of the model's suggested questions. */
+private const val MAX_SUGGESTED_QUESTIONS = 3
 
 /** Pages OCR'd at once. Bounded so a ten-page scan doesn't decode ten bitmaps together. */
 private const val OCR_CONCURRENCY = 2

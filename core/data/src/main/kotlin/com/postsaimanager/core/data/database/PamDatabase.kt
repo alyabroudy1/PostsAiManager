@@ -33,7 +33,7 @@ import com.postsaimanager.core.data.database.entity.*
         EntityProposalEntity::class,
         MessageSourceEntity::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = true,
 )
 abstract class PamDatabase : RoomDatabase() {
