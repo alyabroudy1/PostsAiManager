@@ -147,6 +147,8 @@ class InferenceService : Service() {
 
         override fun cancelGeneration() {
             cancelled.set(true)
+            // A blocking prompt-session answer has no token loop to observe the flag; the native side has its own.
+            if (handle != 0L) runCatching { LlamaNative.promptCancel() }
         }
 
         override fun lastReplyHitLimit(): Boolean {
@@ -229,6 +231,26 @@ class InferenceService : Service() {
         override fun resetChatSession() {
             if (handle == 0L) return
             submit { LlamaNative.resetChatSession(handle) }
+        }
+
+        override fun promptOpen(prefix: String?): Int {
+            if (handle == 0L || prefix == null) return -1
+            return submit { LlamaNative.promptOpen(handle, prefix) } ?: -1
+        }
+
+        override fun promptAsk(question: String?, grammar: String?, maxTokens: Int): String? {
+            if (handle == 0L || question == null) return null
+            return submit { LlamaNative.promptAsk(handle, question, grammar, maxTokens) }
+        }
+
+        override fun promptClose() {
+            if (handle == 0L) return
+            submit { LlamaNative.promptClose(handle) }
+        }
+
+        override fun countTokens(text: String?): Int {
+            if (handle == 0L || text == null) return -1
+            return submit { LlamaNative.countTokens(handle, text) } ?: -1
         }
 
         override fun unloadModel() {

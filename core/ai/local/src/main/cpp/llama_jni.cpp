@@ -12,6 +12,7 @@
 #include <jni.h>
 #include <android/log.h>
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <string>
@@ -118,6 +119,18 @@ struct PamSession {
     // populated for hybrid/recurrent models (Qwen3.5 is one), whose state cannot be trimmed
     // token-by-token with llama_memory_seq_rm.
     std::vector<uint8_t> replyCheckpoint;
+
+    // ── prompt session ("read once, ask many short questions") ───────────────
+    //
+    // promptOpen: the KV cache holds exactly a decoded prefix and nothing else (see promptOpen()
+    // below). promptPos is the KV position right after the prefix, promptCheckpoint the recurrent
+    // state at that position (hybrid/recurrent models only). Every promptAsk() decodes its question
+    // after the prefix, generates, then restores both, so the next question starts from the same
+    // state. Anything else that touches the KV cache (a one-shot generation, a chat session, a new
+    // context) clears promptOpen, and the Kotlin side re-opens on the next ask.
+    bool promptOpen = false;
+    llama_pos promptPos = 0;
+    std::vector<uint8_t> promptCheckpoint;
 
     // ── thinking-budget forced close ─────────────────────────────────────────
     //
@@ -417,9 +430,12 @@ bool hasRecurrentState(const PamSession *session) {
     return llama_model_is_hybrid(session->model) || llama_model_is_recurrent(session->model);
 }
 
-/** Snapshots the recurrent state at the current position — llama-server's checkpoint recipe. */
-void takeReplyCheckpoint(PamSession *session) {
-    session->replyCheckpoint.clear();
+/**
+ * Snapshots the recurrent state at the current position into [out] — llama-server's checkpoint
+ * recipe. Leaves [out] empty for attention-only models (nothing to save) and on failure.
+ */
+void snapshotRecurrentState(PamSession *session, std::vector<uint8_t> &out) {
+    out.clear();
     if (!hasRecurrentState(session)) return;
     const size_t size = llama_state_seq_get_size_ext(session->ctx, 0, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
     std::vector<uint8_t> data(size);
@@ -428,26 +444,34 @@ void takeReplyCheckpoint(PamSession *session) {
         LOGE("pam_llama: could not checkpoint the recurrent state (size=%zu)", size);
         return;
     }
-    session->replyCheckpoint = std::move(data);
+    out = std::move(data);
+}
+
+void takeReplyCheckpoint(PamSession *session) {
+    snapshotRecurrentState(session, session->replyCheckpoint);
 }
 
 /**
- * Drops the KV cache back to [pos] — where the open reply began. Attention-only models just
- * trim; recurrent/hybrid ones first restore the checkpoint [takeReplyCheckpoint] took at
- * that position, then trim the attention cells beyond it (llama-server does the same).
+ * Drops the KV cache back to [pos]. Attention-only models just trim; recurrent/hybrid ones first
+ * restore [checkpoint] (taken at that position), then trim the attention cells beyond it
+ * (llama-server does the same). Shared by the chat reply rewind and the prompt session.
  * @return false if the rollback could not be done, in which case nothing can be trusted.
  */
-bool rollbackToReplyStart(PamSession *session, llama_pos pos) {
+bool rollbackTo(PamSession *session, llama_pos pos, const std::vector<uint8_t> &checkpoint) {
     llama_memory_t mem = llama_get_memory(session->ctx);
     if (hasRecurrentState(session)) {
-        if (session->replyCheckpoint.empty()) return false;
-        if (llama_state_seq_set_data_ext(session->ctx, session->replyCheckpoint.data(),
-                                         session->replyCheckpoint.size(), 0,
+        if (checkpoint.empty()) return false;
+        if (llama_state_seq_set_data_ext(session->ctx, checkpoint.data(), checkpoint.size(), 0,
                                          LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == 0) {
             return false;
         }
     }
     return llama_memory_seq_rm(mem, 0, pos, -1);
+}
+
+/** Drops the KV cache back to [pos] — where the open reply began. See [rollbackTo]. */
+bool rollbackToReplyStart(PamSession *session, llama_pos pos) {
+    return rollbackTo(session, pos, session->replyCheckpoint);
 }
 
 /**
@@ -459,6 +483,7 @@ bool rollbackToReplyStart(PamSession *session, llama_pos pos) {
 void invalidateKvCache(PamSession *session, const char *why) {
     LOGE("pam_llama: %s — invalidating the KV cache; the next turn re-primes from history", why);
     llama_memory_clear(llama_get_memory(session->ctx), true);
+    session->promptOpen = false;
     session->chatPrevLen = 0;
     session->replyStartPos = -1;
     session->replyCheckpoint.clear();
@@ -905,6 +930,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_recreateContext(
 
     if (session->ctx != nullptr) llama_free(session->ctx);
     session->ctx = newCtx;
+    session->promptOpen = false; // a fresh context has an empty KV cache
     LOGI("context recreated, n_ctx=%d n_batch=%d threads=%d threads_batch=%d",
          contextTokens, batchTokens, threads, threadsBatch);
     return JNI_TRUE;
@@ -951,6 +977,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_startGeneration(
 
     releaseChain(session);
     llama_memory_clear(llama_get_memory(session->ctx), true);
+    session->promptOpen = false; // the KV cache no longer holds a prompt session's prefix
     session->chatHistory.clear();
     session->chatPrevLen = 0;
     // Grammar-constrained one-shot generation never tracks a thinking budget — see
@@ -1124,6 +1151,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_openChatSession(
 
     releaseChain(session);
     llama_memory_clear(llama_get_memory(session->ctx), true);
+    session->promptOpen = false;
     session->chatHistory.clear();
     session->chatPrevLen = 0;
     session->replyStartPos = -1;
@@ -1151,6 +1179,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_primeChatSession(
         JNIEnv *env, jobject, jlong handle, jobjectArray roles, jobjectArray contents) {
     auto *session = reinterpret_cast<PamSession *>(handle);
     if (session == nullptr) return JNI_FALSE;
+    session->promptOpen = false; // decoding history into the KV cache: no longer just a prompt prefix
 
     const jsize count = env->GetArrayLength(roles);
     if (count == 0) return JNI_TRUE;
@@ -1224,6 +1253,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
     if (session == nullptr) return JNI_FALSE;
 
     releaseChain(session);
+    session->promptOpen = false; // a chat turn decodes into the KV cache
 
     // Fresh per-turn thinking-budget state — see PamSession's doc on these fields. Reset
     // unconditionally (even when thinking is off) so a stale flag from an earlier turn can
@@ -1454,11 +1484,216 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_resetChatSession(JNIEnv *, job
     auto *session = reinterpret_cast<PamSession *>(handle);
     if (session == nullptr) return;
     releaseChain(session);
+    session->promptOpen = false;
     session->replyStartPos = -1;
     session->replyCheckpoint.clear();
     llama_memory_clear(llama_get_memory(session->ctx), true);
     session->chatHistory.clear();
     session->chatPrevLen = 0;
+}
+
+// ── prompt session: read once, ask many short questions ─────────────────────────────────
+//
+// The same KV machinery the chat rewind uses (a recurrent-state checkpoint plus an attention-cell
+// trim, see rollbackTo), aimed at a different job: a long prefix (a letter and its candidate
+// table) is decoded once, and each of many short questions is decoded after it, answered under its
+// own grammar, and then rolled back, so every question starts from the same state and no question
+// pays for the prefix again.
+//
+// Blocking by design: an answer is a few dozen tokens, so promptAsk() runs the whole generation
+// and returns the text (no token stream, no callback). promptCancel() stops it between tokens.
+
+std::atomic<bool> g_promptCancel{false};
+
+// A prefix must leave at least this many tokens of the context window for the questions.
+constexpr int kMinPromptReserveTokens = 64;
+
+/**
+ * Decodes [prefix] (already in the model's chat format; the caller rendered the template) into a
+ * cleared KV cache and remembers where it ends: the position, and for hybrid/recurrent models the
+ * recurrent state (a checkpoint). Takes the KV cache over from any chat session (its history is
+ * dropped; the Kotlin side re-primes) and from a one-shot generation.
+ *
+ * @return the number of prefix tokens, -1 on a failure, -2 when the prefix leaves no room for questions.
+ */
+JNIEXPORT jint JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_promptOpen(JNIEnv *env, jobject, jlong handle, jstring prefix) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr || session->model == nullptr) return -1;
+
+    releaseChain(session);
+    llama_memory_t mem = llama_get_memory(session->ctx);
+    llama_memory_clear(mem, true);
+    session->promptOpen = false;
+    session->promptCheckpoint.clear();
+    session->chatHistory.clear();
+    session->chatPrevLen = 0;
+    session->replyStartPos = -1;
+    session->replyCheckpoint.clear();
+    session->trackThinking = false;
+
+    const std::string text = jstringToStd(env, prefix);
+    const llama_vocab *vocab = llama_model_get_vocab(session->model);
+    const int needed = -llama_tokenize(vocab, text.c_str(), (int32_t) text.size(), nullptr, 0, true, true);
+    if (needed <= 0) return -1;
+    const int nCtx = (int) llama_n_ctx(session->ctx);
+    if (needed + kMinPromptReserveTokens > nCtx) {
+        LOGE("pam_llama: prompt prefix of %d tokens leaves no room in n_ctx=%d", needed, nCtx);
+        return -2;
+    }
+
+    int tokenCount = 0;
+    const auto start = std::chrono::steady_clock::now();
+    if (!decodeIntoSession(session, text, /* addSpecial */ true, /* leaveRemainderForSampling */ false, &tokenCount)) {
+        llama_memory_clear(mem, true);
+        return -1;
+    }
+    session->promptPos = (llama_pos) llama_memory_seq_pos_max(mem, 0) + 1;
+    snapshotRecurrentState(session, session->promptCheckpoint);
+    if (hasRecurrentState(session) && session->promptCheckpoint.empty()) {
+        llama_memory_clear(mem, true);
+        return -1;
+    }
+    session->promptOpen = true;
+    const double ms = elapsedMs(start);
+    LOGI("pam_llama: prompt session opened tokens=%d n_past=%d ms=%.1f prompt_eval_%s checkpoint=%zu bytes",
+         tokenCount, (int) session->promptPos, ms, tokensPerSecondText(tokenCount, ms).c_str(),
+         session->promptCheckpoint.size());
+    return tokenCount;
+}
+
+/**
+ * Decodes [question] after the prefix, generates greedily under [grammar] (null or empty for
+ * none) up to [maxTokens], and rolls the KV cache back to the prefix. Returns the answer, or null
+ * when the session was lost (the KV no longer holds exactly the prefix: something else used the
+ * context since; the caller re-opens and asks again), the question did not fit, decoding failed or
+ * [promptCancel] was called. The prefix is intact after a non-null answer; after a null one the
+ * session is closed unless the rollback itself worked.
+ */
+JNIEXPORT jstring JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_promptAsk(
+        JNIEnv *env, jobject, jlong handle, jstring question, jstring grammar, jint maxTokens) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr || session->model == nullptr || !session->promptOpen) return nullptr;
+
+    g_promptCancel.store(false);
+    releaseChain(session);
+    llama_memory_t mem = llama_get_memory(session->ctx);
+    const llama_vocab *vocab = llama_model_get_vocab(session->model);
+    const int nCtx = (int) llama_n_ctx(session->ctx);
+
+    // Belt and braces: the flag says the prefix is there; the cache must agree.
+    if ((llama_pos) llama_memory_seq_pos_max(mem, 0) + 1 != session->promptPos) {
+        LOGE("pam_llama: prompt session lost (n_past=%d, prefix=%d)",
+             (int) llama_memory_seq_pos_max(mem, 0) + 1, (int) session->promptPos);
+        session->promptOpen = false;
+        return nullptr;
+    }
+
+    auto rollback = [&]() {
+        releaseChain(session);
+        if (!rollbackTo(session, session->promptPos, session->promptCheckpoint) ||
+            (llama_pos) llama_memory_seq_pos_max(mem, 0) + 1 != session->promptPos) {
+            LOGE("pam_llama: prompt rollback failed — closing the session; the next ask re-reads the prefix");
+            llama_memory_clear(mem, true);
+            session->promptOpen = false;
+        }
+    };
+
+    const std::string questionStd = jstringToStd(env, question);
+    const std::string grammarStd = jstringToStd(env, grammar);
+
+    int questionTokens = 0;
+    const auto start = std::chrono::steady_clock::now();
+    if (!decodeIntoSession(session, questionStd, /* addSpecial */ false, /* leaveRemainderForSampling */ false,
+                           &questionTokens) || questionTokens <= 0) {
+        rollback();
+        return nullptr;
+    }
+    const double questionMs = elapsedMs(start);
+    const int budget = std::min((int) maxTokens, nCtx - ((int) session->promptPos + questionTokens));
+    if (budget <= 0) {
+        rollback();
+        return nullptr;
+    }
+
+    session->chain = buildSamplerChain(vocab, /* temperature */ 0.0f, 40, 0.9f, 0.0f, -1, grammarStd, &session->grammar);
+    session->grammarRejections = 0;
+    session->hitLengthCap = false;
+    session->pendingUtf8.clear();
+    session->generated = 0;
+    session->maxTokens = budget;
+    session->finished = false;
+    session->generationStart = std::chrono::steady_clock::now();
+
+    std::string out;
+    bool failed = false;
+    while (session->generated < budget) {
+        if (g_promptCancel.load()) {
+            failed = true;
+            break;
+        }
+        llama_token next;
+        if (session->grammar != nullptr) {
+            next = sampleUnderGrammar(session, vocab);
+        } else {
+            next = llama_sampler_sample(session->chain, session->ctx, -1);
+        }
+        if (llama_vocab_is_eog(vocab, next)) break;
+        out += tokenToPiece(vocab, next);
+        session->generated++;
+        if (session->generated >= budget) {
+            session->hitLengthCap = true;
+            break;
+        }
+        session->lastToken = next;
+        llama_batch one = llama_batch_get_one(&session->lastToken, 1);
+        if (llama_decode(session->ctx, one) != 0) {
+            LOGE("pam_llama: prompt ask decode failed at token %d", session->generated);
+            failed = true;
+            break;
+        }
+    }
+    const int generated = session->generated;
+    const double totalMs = elapsedMs(start);
+    const int rejections = session->grammarRejections;
+    const bool capped = session->hitLengthCap;
+    rollback(); // frees the sampler chain (logs decode tok/s) and restores the prefix state
+    LOGI("pam_llama: prompt ask question_tokens=%d question_ms=%.1f generated=%d total_ms=%.1f rejections=%d capped=%d %s",
+         questionTokens, questionMs, generated, totalMs, rejections, capped ? 1 : 0,
+         tokensPerSecondText(generated, totalMs - questionMs).c_str());
+    if (failed) return nullptr;
+    return utf8ToJString(env, out);
+}
+
+/** Stops a running [promptAsk] between tokens (it then returns null). Callable from any thread. */
+JNIEXPORT void JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_promptCancel(JNIEnv *, jobject) {
+    g_promptCancel.store(true);
+}
+
+/** Drops the prompt session and its KV state. Safe when none is open. */
+JNIEXPORT void JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_promptClose(JNIEnv *, jobject, jlong handle) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr) return;
+    if (session->promptOpen) {
+        releaseChain(session);
+        llama_memory_clear(llama_get_memory(session->ctx), true);
+    }
+    session->promptOpen = false;
+    std::vector<uint8_t>().swap(session->promptCheckpoint);
+}
+
+/** [text] in tokens for the loaded model (special tokens parsed, no BOS), or -1 with no model. */
+JNIEXPORT jint JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_countTokens(JNIEnv *env, jobject, jlong handle, jstring text) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr || session->model == nullptr) return -1;
+    const std::string s = jstringToStd(env, text);
+    if (s.empty()) return 0;
+    const llama_vocab *vocab = llama_model_get_vocab(session->model);
+    return -llama_tokenize(vocab, s.c_str(), (int32_t) s.size(), nullptr, 0, /* addSpecial */ false, true);
 }
 
 /**

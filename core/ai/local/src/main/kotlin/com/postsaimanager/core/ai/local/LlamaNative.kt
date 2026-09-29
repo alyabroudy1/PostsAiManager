@@ -269,6 +269,34 @@ internal object LlamaNative {
     /** Drops the standing chat session — its KV cache and history — e.g. on conversation switch. */
     external fun resetChatSession(handle: Long)
 
+    /**
+     * Opens a prompt session ("read once, ask many short questions"): clears the KV cache (and any
+     * chat session or one-shot generation standing in it), decodes [prefix] and remembers where it
+     * ends, with a recurrent-state checkpoint for hybrid models. See `llama_jni.cpp`'s `promptOpen`.
+     *
+     * @return the prefix's token count, -1 on failure, -2 when it leaves no room for questions.
+     */
+    external fun promptOpen(handle: Long, prefix: String): Int
+
+    /**
+     * Decodes [question] after the prefix, generates greedily under [grammar] (null or empty:
+     * unconstrained) up to [maxTokens] and rolls the KV cache back to the prefix, so the next question
+     * starts from the same state. Blocking; returns the whole answer.
+     *
+     * @return null when the session was lost (something else used the KV cache since [promptOpen]:
+     *   re-open and ask again), the question did not fit, decoding failed or [promptCancel] was called.
+     */
+    external fun promptAsk(handle: Long, question: String, grammar: String?, maxTokens: Int): String?
+
+    /** Stops a running [promptAsk] between tokens. Callable from any thread; not tied to a handle. */
+    external fun promptCancel()
+
+    /** Drops the prompt session. Safe when none is open. */
+    external fun promptClose(handle: Long)
+
+    /** [text] in tokens for the loaded model (llama_tokenize), or -1 when there is no model. */
+    external fun countTokens(handle: Long, text: String): Int
+
     /** Debug only — intentionally segfaults to measure crash blast radius (spike Q3). */
     external fun crashForTesting()
 }
