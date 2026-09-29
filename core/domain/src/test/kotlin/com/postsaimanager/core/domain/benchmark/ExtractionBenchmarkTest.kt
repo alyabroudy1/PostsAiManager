@@ -1,7 +1,6 @@
 package com.postsaimanager.core.domain.benchmark
 
 import com.google.common.truth.Truth.assertThat
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import java.io.File
 import java.util.Locale
@@ -9,6 +8,9 @@ import java.util.Locale
 /**
  * Runs the benchmark, writes `build/benchmark/scoreboard.md` and prints a summary. Never fails on
  * scores (that is [BenchmarkGateTest]'s job); it fails only if fixtures are missing entirely.
+ *
+ * The interpreter section replays recorded model answers (see InterpreterExtension.kt); with no
+ * recordings it says so and moves on.
  */
 class ExtractionBenchmarkTest {
 
@@ -17,10 +19,20 @@ class ExtractionBenchmarkTest {
         val loaded = BenchmarkFixtures.load()
         assertThat(loaded.docs).isNotEmpty()
         val report = ExtractionBenchmark.run(loaded.docs)
-        val file = ExtractionBenchmark.writeScoreboard(report, loaded.skipped)
+        val interpreter = InterpreterMetrics.scoreAll(loaded.docs, RECORDINGS)
+        val file = ExtractionBenchmark.writeScoreboard(report, loaded.skipped, InterpreterMetrics.section(interpreter))
         println("BENCHMARK scoreboard: ${file.absolutePath}")
         report.metrics.forEach { (k, v) -> println(String.format(Locale.ROOT, "BENCHMARK %-24s %.4f", k, v)) }
         report.webMetrics.forEach { (k, v) -> println(String.format(Locale.ROOT, "BENCHMARK web.%-20s %.4f", k, v)) }
+        if (interpreter.isEmpty()) println("BENCHMARK interpreter: no recordings")
+        interpreter.forEach { s ->
+            println(
+                String.format(
+                    Locale.ROOT, "BENCHMARK interpreter[%s] docs=%d fieldMatch=%.3f roles=%.3f hallucination=%.3f extrasPerDoc=%.2f calibration=%s",
+                    s.variant, s.docs, s.fieldMatch, s.rolesMatch, s.hallucination, s.extrasPerDoc, s.calibration,
+                ),
+            )
+        }
         if (System.getProperty("benchmark.writeBaseline") == "true" || System.getenv("BENCHMARK_WRITE_BASELINE") == "true") {
             val f = File("build/benchmark/baseline.candidate.json")
             f.writeText(BaselineFile.render(report.metrics))
@@ -29,13 +41,16 @@ class ExtractionBenchmarkTest {
     }
 
     @Test
-    fun `scores recorded interpreter answers when recordings exist`() {
-        val dir = File("src/test/resources/benchmark/recordings")
-        assumeTrue(dir.isDirectory && !dir.list().isNullOrEmpty(), "no recordings yet (see InterpreterExtension.kt)")
-        val loaded = BenchmarkFixtures.load()
-        val report = ExtractionBenchmark.run(loaded.docs)
-        val byKey = loaded.docs.associate { it.first.key to it.first }
-        val score = InterpreterMetrics.score(report.docs.map { it to byKey.getValue(it.key) }, ScriptedInterpreter(dir))
-        println("BENCHMARK interpreter: ${score?.let(InterpreterMetrics::format)}")
+    fun `an unusable recording scores zero instead of failing`() {
+        val docs = BenchmarkFixtures.load().docs.take(2)
+        val recs = docs.map { Recording(it.first.key, "broken", "not json", null, 4096) }
+        val score = InterpreterMetrics.score("broken", docs, recs)!!
+        assertThat(score.docs).isEqualTo(2)
+        assertThat(score.fieldMatch).isEqualTo(0.0)
+        assertThat(InterpreterMetrics.section(emptyList())).contains("No recordings")
+    }
+
+    private companion object {
+        val RECORDINGS = File("src/test/resources/benchmark/recordings")
     }
 }

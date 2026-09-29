@@ -165,7 +165,7 @@ object ExtractionBenchmark {
 
     // ── Scoreboard ──
 
-    fun scoreboard(report: BenchmarkReport, skipped: List<String>): String {
+    fun scoreboard(report: BenchmarkReport, skipped: List<String>, interpreterSection: String = ""): String {
         val sb = StringBuilder()
         fun pct(v: Double) = String.format(Locale.ROOT, "%.1f%%", v * 100)
         sb.appendLine("# Extraction benchmark (real phone OCR)\n")
@@ -223,14 +223,15 @@ object ExtractionBenchmark {
         sb.appendLine("## Extra candidates (not matched to a manifest fact), per kind\n")
         val extras = report.docs.flatMap { it.extrasByKind.entries }.groupBy({ it.key }, { it.value }).mapValues { it.value.sum() }
         sb.appendLine(extras.entries.joinToString(", ") { "${it.key}: ${it.value}" } + "\n")
+        if (interpreterSection.isNotEmpty()) sb.appendLine(interpreterSection)
         if (skipped.isNotEmpty()) sb.appendLine("Skipped (no fixture): ${skipped.joinToString()}")
         return sb.toString()
     }
 
-    fun writeScoreboard(report: BenchmarkReport, skipped: List<String>): File {
+    fun writeScoreboard(report: BenchmarkReport, skipped: List<String>, interpreterSection: String = ""): File {
         val f = File("build/benchmark/scoreboard.md")
         f.parentFile.mkdirs()
-        f.writeText(scoreboard(report, skipped))
+        f.writeText(scoreboard(report, skipped, interpreterSection))
         return f
     }
 }
@@ -314,15 +315,20 @@ object Expectations {
         }
     }
 
-    fun matches(c: Candidate, e: Expectation): Boolean {
+    fun matches(c: Candidate, e: Expectation): Boolean = when (e.kind) {
+        CandidateKind.DATE -> (c.kind == CandidateKind.DATE || c.kind == CandidateKind.DATETIME) && matchesValue(c.normalized, e)
+        null -> false
+        else -> c.kind == e.kind && matchesValue(c.normalized, e)
+    }
+
+    /** Whether a normalised value (a candidate's or a verified slot's) is the expected one; the value's kind is not checked. */
+    fun matchesValue(normalized: String, e: Expectation): Boolean {
         fun sq(s: String) = ExtractionBenchmark.squash(s)
         return when (e.kind) {
-            CandidateKind.DATE -> (c.kind == CandidateKind.DATE || c.kind == CandidateKind.DATETIME) && c.normalized.startsWith(e.norm)
-            CandidateKind.DATETIME -> c.kind == CandidateKind.DATETIME && c.normalized == e.norm
+            CandidateKind.DATE -> normalized.startsWith(e.norm)
             CandidateKind.AMOUNT ->
-                c.kind == CandidateKind.AMOUNT && (c.normalized == e.norm || c.normalized.substringBefore(' ') == e.norm.substringBefore(' ') && !e.norm.contains(' '))
-            CandidateKind.REFERENCE -> c.kind == CandidateKind.REFERENCE && sq(c.normalized) == sq(e.norm)
-            else -> c.kind == e.kind && sq(c.normalized) == sq(e.norm)
+                normalized == e.norm || normalized.substringBefore(' ') == e.norm.substringBefore(' ') && !e.norm.contains(' ')
+            else -> if (e.kind == CandidateKind.DATETIME) normalized == e.norm else sq(normalized) == sq(e.norm)
         }
     }
 }
