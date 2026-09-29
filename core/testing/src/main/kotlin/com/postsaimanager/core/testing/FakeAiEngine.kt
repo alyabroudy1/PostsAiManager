@@ -59,6 +59,15 @@ class FakeAiEngine(
     /** What [generate] emits, in chunks, to exercise streaming. */
     var response: String = ""
 
+    /**
+     * When set, [generate] answers with what this returns for the request instead of [response],
+     * so a test can script an answer that depends on the prompt or the grammar it was given.
+     */
+    var responder: ((AiRequest) -> String)? = null
+
+    /** Every request passed to [generate], in order. */
+    val generateRequests = mutableListOf<AiRequest>()
+
     /** When set, [generate] throws — for the "inference died" path. */
     var failWith: Exception? = null
 
@@ -104,6 +113,7 @@ class FakeAiEngine(
 
     override fun generate(request: AiRequest): Flow<String> = flow {
         lastRequest = request
+        generateRequests += request
         // A one-shot generation clears the KV cache on the real engines — see
         // RemoteAiEngine/LocalAiEngine.generate's doc — taking any primed chat session with
         // it, regardless of how this call turns out.
@@ -111,7 +121,7 @@ class FakeAiEngine(
         failWith?.let { throw it }
         // Emitted in pieces: a caller that assumes one emission per generation would pass a
         // single-chunk fake and fail against the real streaming engine.
-        response.chunked(7).forEach { emit(it) }
+        (responder?.invoke(request) ?: response).chunked(7).forEach { emit(it) }
     }
 
     /** Every `(conversationId, systemPrompt, history)` passed to [ensureChatSession], in order. */

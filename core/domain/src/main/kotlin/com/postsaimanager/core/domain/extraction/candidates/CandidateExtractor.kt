@@ -273,23 +273,7 @@ private class Run(
 
     // ── input ────────────────────────────────────────────────────────────────
 
-    private fun normalizeChars(s: String): String {
-        val sb = StringBuilder(s.length)
-        for (ch in s) {
-            sb.append(
-                when (ch) {
-                    '\u00A0', '\u2007', '\u2009', '\u202F', '\u2002', '\u2003' -> ' '
-                    in '\u0660'..'\u0669' -> '0' + (ch - '\u0660')
-                    in '\u06F0'..'\u06F9' -> '0' + (ch - '\u06F0')
-                    '\u066B' -> ','
-                    '\u066C' -> '.'
-                    '\r' -> ' '
-                    else -> ch
-                },
-            )
-        }
-        return sb.toString()
-    }
+    private fun normalizeChars(s: String): String = OcrText.normalizeChars(s)
 
     private fun buildLines() {
         var order = 0

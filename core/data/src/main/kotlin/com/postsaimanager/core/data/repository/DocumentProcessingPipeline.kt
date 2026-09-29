@@ -19,6 +19,7 @@ import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.data.worker.DocumentProcessingWorker
 import com.postsaimanager.core.domain.document.DocumentProcessor
+import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
@@ -27,6 +28,7 @@ import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractionResult
+import com.postsaimanager.core.model.FactKind
 import com.postsaimanager.core.model.ProcessingStage
 import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.TimelineEvent
@@ -211,17 +213,12 @@ class DocumentProcessingPipeline @Inject constructor(
 
                 val combinedText = ocrResults.joinToString("\n\n") { it.fullText }
 
-                // Read by the model when one is installed, by patterns when not.
-                //
-                // The model is given the page layout — each block labelled with where it
-                // sits — rather than flat text, which is what lets one prompt work across
-                // sender formats. Patterns encode a single layout in a single language, and
-                // on a clean German letter read the salutation "Frau" as the recipient's
-                // name.
-                //
-                // Falling back rather than failing: a device with no model, too little
-                // memory, or a model that returned something unusable still gets a document
-                // with fields. Worse fields, not none.
+                // Read by the model when one is installed: it decides the type, what every
+                // value means and who is who, and code verifies what it answered (see
+                // AiExtractionUseCase). With no model, or an answer that cannot be read, the
+                // result is only the values code found, marked "found" and low confidence,
+                // with no guessed roles. The pattern extractor is the last resort, for a
+                // document from which nothing at all could be read.
                 val allBlocks = ocrResults.flatMap { it.blocks }
                 val understanding = aiExtraction(
                     allBlocks,
@@ -231,25 +228,32 @@ class DocumentProcessingPipeline @Inject constructor(
                     pageBlockCounts = ocrResults.map { it.blocks.size },
                 )
 
-                val usedModel = understanding is PamResult.Success &&
-                    understanding.data.entities.isNotEmpty()
+                val read = (understanding as? PamResult.Success)?.data
+                // Something was read: by the model, or (no model) only found by code.
+                val usedV2 = read != null &&
+                    (read.entities.isNotEmpty() || read.facts.isNotEmpty() || read.documentType.isNotBlank())
+                // The model itself ran and its answer was used.
+                val usedModel = usedV2 && read?.modelUsed == true
 
-                val extraction = if (understanding is PamResult.Success && usedModel) {
+                val extraction = if (usedV2 && read != null) {
                     val fields = UnderstandingToFields.invoke(
                         documentId = documentId,
-                        understanding = understanding.data,
+                        understanding = read,
                         newId = { UuidGenerator.generate() },
                     )
                     Log.i(
                         TAG,
-                        "understood $documentId entities=${understanding.data.entities.size} " +
-                            "facts=${understanding.data.facts.size} fields=${fields.size}",
+                        "understood $documentId model=$usedModel type=${read.documentType} " +
+                            "entities=${read.entities.size} facts=${read.facts.size} fields=${fields.size}",
                     )
                     ExtractionResult(
                         documentId = documentId,
-                        language = understanding.data.language.ifBlank { null },
-                        subject = understanding.data.subject.ifBlank { null },
-                        documentType = null,
+                        language = read.language.ifBlank { null },
+                        // The model's own title (sender and purpose, in the letter's language),
+                        // else the subject line it quoted.
+                        subject = read.title.ifBlank { null }
+                            ?: read.facts.firstOrNull { it.kind == FactKind.SUBJECT }?.value,
+                        documentType = ExtractionSchema.DEFAULT.legacyType(read.documentType),
                         fields = fields,
                     )
                 } else {
@@ -263,7 +267,11 @@ class DocumentProcessingPipeline @Inject constructor(
                 // Part of the Understand stage's fingerprint. Switching between the two
                 // re-derives machine values without re-reading a page — and without
                 // touching anything the user decided.
-                val engineVersion = if (usedModel) AI_ENGINE_VERSION else EXTRACTOR_VERSION
+                val engineVersion = when {
+                    usedModel -> AI_ENGINE_VERSION
+                    usedV2 -> FOUND_VALUES_VERSION
+                    else -> EXTRACTOR_VERSION
+                }
 
                 // Step 5: Merge the extraction into what is already stored.
                 //
@@ -367,8 +375,16 @@ class DocumentProcessingPipeline @Inject constructor(
                         doc.copy(
                             documentType = extraction.documentType?.name ?: doc.documentType,
                             language = extraction.language ?: doc.language,
-                            title = if (extraction.subject != null && doc.title.startsWith("Scan"))
-                                extraction.subject!! else doc.title,
+                            // The model's title replaces the default; the pattern fallback's subject
+                            // only replaces a default "Scan ..." title, as before.
+                            // TODO(E): keep a title the user edited (needs an isUserTitle column).
+                            // Titles cannot be edited today, so nothing is overwritten.
+                            title = when {
+                                extraction.subject == null -> doc.title
+                                usedV2 -> extraction.subject!!
+                                doc.title.startsWith("Scan") -> extraction.subject!!
+                                else -> doc.title
+                            },
                             // Always overwritten with this run's own answer, null included —
                             // a reprocess that happens to read the whole document (a bigger
                             // context window, say) must clear a stale notice from an earlier
@@ -507,8 +523,11 @@ private const val OCR_CONCURRENCY = 2
  */
 private const val EXTRACTOR_VERSION = "entity-extractor-1"
 
-/** Bump when the prompt, the grammar or the field mapping changes. */
-private const val AI_ENGINE_VERSION = "ai-understanding-1"
+/** Bump when the prompt, the grammar, the schema or the field mapping changes. */
+private const val AI_ENGINE_VERSION = "extraction-v2-1"
+
+/** No model read the document: only values found by code. Re-derived as soon as a model does. */
+private const val FOUND_VALUES_VERSION = "found-values-1"
 
 // The context window comes from ActiveModelProvider, which caps the catalogued value by
 // what the device can actually afford. Passing a separate constant here would budget the

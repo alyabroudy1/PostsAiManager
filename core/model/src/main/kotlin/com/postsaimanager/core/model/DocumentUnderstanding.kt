@@ -130,6 +130,27 @@ data class DocumentUnderstanding(
      * the whole document fit inside the budget.
      */
     val inputTruncation: InputTruncation? = null,
+
+    /**
+     * At most eight words in the letter's language, sender and purpose. Written by the model, so
+     * it is a label, not a fact. Empty when there was none.
+     */
+    val title: String = "",
+
+    /** The model's own confidence in [documentType]; no check can raise or lower it. 0 when there was no reading. */
+    val documentTypeConfidence: Float = 0f,
+
+    /** One or two sentences: what the reader must know or do. Empty when there was none. */
+    val summary: String = "",
+
+    /** Questions a reader might ask, in the letter's language, for the chat to offer. */
+    val suggestedQuestions: List<String> = emptyList(),
+
+    /**
+     * False when no model read the document and [facts] are only values found by code, without
+     * roles or meaning. A caller must not link entities or trust the facts as it would a reading.
+     */
+    val modelUsed: Boolean = true,
 ) {
     val sender: RecognisedEntity? get() = entities.firstOrNull { it.role == EntityRole.SENDER }
 

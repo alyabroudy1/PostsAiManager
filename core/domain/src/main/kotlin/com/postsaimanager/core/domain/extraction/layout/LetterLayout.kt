@@ -1,4 +1,4 @@
-package com.postsaimanager.core.domain.usecase
+package com.postsaimanager.core.domain.extraction.layout
 
 import com.postsaimanager.core.model.TextBounds
 

@@ -1,6 +1,8 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.layout.LetterLayoutAnalyzer
+import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.model.LayoutZone
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.TextBounds

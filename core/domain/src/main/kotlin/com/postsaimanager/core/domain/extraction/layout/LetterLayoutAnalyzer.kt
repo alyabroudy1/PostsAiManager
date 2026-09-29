@@ -1,5 +1,6 @@
-package com.postsaimanager.core.domain.usecase
+package com.postsaimanager.core.domain.extraction.layout
 
+import com.postsaimanager.core.domain.usecase.DocumentLayout
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.TextBounds
 import kotlin.math.abs
