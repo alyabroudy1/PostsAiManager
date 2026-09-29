@@ -1,0 +1,354 @@
+{
+    "key": "N5-co-familie-1p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Universität Beispielstadt",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.048738778,
+                        "right": 0.45344618,
+                        "bottom": 0.067550234
+                    },
+                    "confidence": 0.8811849,
+                    "language": "und"
+                },
+                {
+                    "text": "Universitätsring 1 - 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.075245835,
+                        "right": 0.31378478,
+                        "bottom": 0.08379649
+                    },
+                    "confidence": 0.8347439,
+                    "language": "und"
+                },
+                {
+                    "text": "Studierendensekretariat",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.08721676,
+                        "right": 0.2394196,
+                        "bottom": 0.09405729
+                    },
+                    "confidence": 0.86463994,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. o1234 999 30",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.09833262,
+                        "right": 0.20616686,
+                        "bottom": 0.10645575
+                    },
+                    "confidence": 0.8250558,
+                    "language": "und"
+                },
+                {
+                    "text": "Universität Beispielstadt- Studierendensekretariat Universitätsring 1- 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.11608222,
+                        "top": 0.1522018,
+                        "right": 0.53022975,
+                        "bottom": 0.16032493
+                    },
+                    "confidence": 0.835426,
+                    "language": "und"
+                },
+                {
+                    "text": "Herrn",
+                    "bounds": {
+                        "left": 0.11668682,
+                        "top": 0.17144078,
+                        "right": 0.15900846,
+                        "bottom": 0.18127404
+                    },
+                    "confidence": 0.82734376,
+                    "language": "und"
+                },
+                {
+                    "text": "Jonas Mustermann",
+                    "bounds": {
+                        "left": 0.11608222,
+                        "top": 0.18854211,
+                        "right": 0.26118502,
+                        "bottom": 0.19794784
+                    },
+                    "confidence": 0.90625,
+                    "language": "und"
+                },
+                {
+                    "text": "clo Familie Beispiel",
+                    "bounds": {
+                        "left": 0.11668682,
+                        "top": 0.2039333,
+                        "right": 0.26541716,
+                        "bottom": 0.21633177
+                    },
+                    "confidence": 0.82421875,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielgasse 3",
+                    "bounds": {
+                        "left": 0.11729141,
+                        "top": 0.2206071,
+                        "right": 0.22853687,
+                        "bottom": 0.23257802
+                    },
+                    "confidence": 0.85658485,
+                    "language": "und"
+                },
+                {
+                    "text": "12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.11729141,
+                        "top": 0.23514323,
+                        "right": 0.26058042,
+                        "bottom": 0.24925181
+                    },
+                    "confidence": 0.8956163,
+                    "language": "und"
+                },
+                {
+                    "text": "Rückmeldung zum Wintersemester 2026/27",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.33860624,
+                        "right": 0.5719468,
+                        "bottom": 0.35399744
+                    },
+                    "confidence": 0.86941963,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrter Herr Mustermann,",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.36981615,
+                        "right": 0.36517534,
+                        "bottom": 0.38093203
+                    },
+                    "confidence": 0.8758681,
+                    "language": "und"
+                },
+                {
+                    "text": "Empfänger: Landeskasse Beispiel",
+                    "bounds": {
+                        "left": 0.1197098,
+                        "top": 0.4527576,
+                        "right": 0.40810156,
+                        "bottom": 0.46772125
+                    },
+                    "confidence": 0.8696121,
+                    "language": "und"
+                },
+                {
+                    "text": "IBAN: DEo2 10o1 0010 0006 8201 01",
+                    "bounds": {
+                        "left": 0.1197098,
+                        "top": 0.47156906,
+                        "right": 0.44195887,
+                        "bottom": 0.48182985
+                    },
+                    "confidence": 0.7751736,
+                    "language": "und"
+                },
+                {
+                    "text": "Verwendungszweck: 1234567 WS2026/27",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.48738778,
+                        "right": 0.48065296,
+                        "bottom": 0.50021374
+                    },
+                    "confidence": 0.84659094,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.12031439,
+                        "top": 0.5562206,
+                        "right": 0.30592504,
+                        "bottom": 0.5664814
+                    },
+                    "confidence": 0.8759301,
+                    "language": "und"
+                },
+                {
+                    "text": "Im Auftrag\nStudierendensekretariat",
+                    "bounds": {
+                        "left": 0.12031439,
+                        "top": 0.5887131,
+                        "right": 0.30169287,
+                        "bottom": 0.6169303
+                    },
+                    "confidence": 0.86683834,
+                    "language": "und"
+                },
+                {
+                    "text": "für die Rückmeldung zum Wintersemester 2026/27 (Matrikelnummer 1234567) bitten wir Sie, den\nSemesterbeitrag in Höhe von 187,50 € bis zum 12.10.2026 Zu überweisen. Erst nach Zahlungseingang\ngilt die Rückmeldung als vollzogen und Ihre Studienbescheinigung wird bereitgestelt.",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.39290294,
+                        "right": 0.882104,
+                        "bottom": 0.4412142
+                    },
+                    "confidence": 0.8335707,
+                    "language": "und"
+                },
+                {
+                    "text": "Universität Beispielstadt\nKörperschaft des öffentlichen Rechts",
+                    "bounds": {
+                        "left": 0.123337366,
+                        "top": 0.90594274,
+                        "right": 0.28960097,
+                        "bottom": 0.92560923
+                    },
+                    "confidence": 0.87494826,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Zeichen:",
+                    "bounds": {
+                        "left": 0.5912938,
+                        "top": 0.16844806,
+                        "right": 0.65114874,
+                        "bottom": 0.17742625
+                    },
+                    "confidence": 0.80184656,
+                    "language": "und"
+                },
+                {
+                    "text": "Universitätsring 1, 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.12394196,
+                        "top": 0.9277469,
+                        "right": 0.2968561,
+                        "bottom": 0.93587005
+                    },
+                    "confidence": 0.8451606,
+                    "language": "und"
+                },
+                {
+                    "text": "Matrikelnummer:\nAnsprechpartner:",
+                    "bounds": {
+                        "left": 0.5912938,
+                        "top": 0.18383925,
+                        "right": 0.68198305,
+                        "bottom": 0.20692603
+                    },
+                    "confidence": 0.8515706,
+                    "language": "und"
+                },
+                {
+                    "text": "Bankverbindung: Landeskasse Beispiel\nIBAN DEo2 1001 0o10 0006 8201 01\nBIC BELADEBEXXX",
+                    "bounds": {
+                        "left": 0.38331318,
+                        "top": 0.90594274,
+                        "right": 0.5592503,
+                        "bottom": 0.93330485
+                    },
+                    "confidence": 0.8056828,
+                    "language": "und"
+                },
+                {
+                    "text": "Telefon:",
+                    "bounds": {
+                        "left": 0.59189844,
+                        "top": 0.21376656,
+                        "right": 0.6324063,
+                        "bottom": 0.22017956
+                    },
+                    "confidence": 0.81689453,
+                    "language": "und"
+                },
+                {
+                    "text": "Datum:",
+                    "bounds": {
+                        "left": 0.59310764,
+                        "top": 0.22873023,
+                        "right": 0.6293833,
+                        "bottom": 0.23471569
+                    },
+                    "confidence": 0.86653644,
+                    "language": "und"
+                },
+                {
+                    "text": "Bitte beachten Sie: Bei Nichtzahlung bis zum genannten Termin droht die Exmatrikulation zum\n31.03.2027.",
+                    "bounds": {
+                        "left": 0.1197098,
+                        "top": 0.5066268,
+                        "right": 0.8355502,
+                        "bottom": 0.54253954
+                    },
+                    "confidence": 0.8546889,
+                    "language": "und"
+                },
+                {
+                    "text": "1234567",
+                    "bounds": {
+                        "left": 0.7043531,
+                        "top": 0.18341172,
+                        "right": 0.7515115,
+                        "bottom": 0.1923899
+                    },
+                    "confidence": 0.89453125,
+                    "language": "und"
+                },
+                {
+                    "text": "Frau L. Test",
+                    "bounds": {
+                        "left": 0.7043531,
+                        "top": 0.19794784,
+                        "right": 0.77448606,
+                        "bottom": 0.2052159
+                    },
+                    "confidence": 0.8921875,
+                    "language": "und"
+                },
+                {
+                    "text": "O1234 999 31\n24.09.2026",
+                    "bounds": {
+                        "left": 0.70374846,
+                        "top": 0.21205643,
+                        "right": 0.77932286,
+                        "bottom": 0.23642582
+                    },
+                    "confidence": 0.83515626,
+                    "language": "und"
+                },
+                {
+                    "text": "Studierendensekretariat\nTel. o1234 999 30\nsekretariat@uni-beispiel.example",
+                    "bounds": {
+                        "left": 0.6426844,
+                        "top": 0.9046601,
+                        "right": 0.7968561,
+                        "bottom": 0.9328773
+                    },
+                    "confidence": 0.8296553,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 Von 1",
+                    "bounds": {
+                        "left": 0.8422007,
+                        "top": 0.95895684,
+                        "right": 0.9038694,
+                        "bottom": 0.9653698
+                    },
+                    "confidence": 0.7921875,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}

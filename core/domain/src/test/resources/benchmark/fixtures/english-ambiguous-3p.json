@@ -1,0 +1,568 @@
+{
+    "key": "english-ambiguous-3p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Northwind Utilities Ltd.",
+                    "bounds": {
+                        "left": 0.109431684,
+                        "top": 0.063274905,
+                        "right": 0.39661428,
+                        "bottom": 0.07994869
+                    },
+                    "confidence": 0.87890625,
+                    "language": "und"
+                },
+                {
+                    "text": "Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX",
+                    "bounds": {
+                        "left": 0.10822249,
+                        "top": 0.085506625,
+                        "right": 0.4885127,
+                        "bottom": 0.09961522
+                    },
+                    "confidence": 0.86398435,
+                    "language": "und"
+                },
+                {
+                    "text": "Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX",
+                    "bounds": {
+                        "left": 0.10640871,
+                        "top": 0.14279607,
+                        "right": 0.40084642,
+                        "bottom": 0.15305686
+                    },
+                    "confidence": 0.84453124,
+                    "language": "und"
+                },
+                {
+                    "text": "Mr John Sample",
+                    "bounds": {
+                        "left": 0.1070133,
+                        "top": 0.15647712,
+                        "right": 0.2382104,
+                        "bottom": 0.17015819
+                    },
+                    "confidence": 0.8772786,
+                    "language": "und"
+                },
+                {
+                    "text": "22 Placeholder Lane",
+                    "bounds": {
+                        "left": 0.10580411,
+                        "top": 0.17528859,
+                        "right": 0.2726723,
+                        "bottom": 0.18811458
+                    },
+                    "confidence": 0.9200368,
+                    "language": "und"
+                },
+                {
+                    "text": "Exampleton EX2 3PL",
+                    "bounds": {
+                        "left": 0.1070133,
+                        "top": 0.19538264,
+                        "right": 0.2756953,
+                        "bottom": 0.20735358
+                    },
+                    "confidence": 0.8598633,
+                    "language": "und"
+                },
+                {
+                    "text": "Your account NU-77120934 – overdue balance and payment plan",
+                    "bounds": {
+                        "left": 0.103990324,
+                        "top": 0.26891834,
+                        "right": 0.73337364,
+                        "bottom": 0.2890124
+                    },
+                    "confidence": 0.8870251,
+                    "language": "und"
+                },
+                {
+                    "text": "Reference: NU/REM/2026/03318",
+                    "bounds": {
+                        "left": 0.103990324,
+                        "top": 0.29756308,
+                        "right": 0.37061667,
+                        "bottom": 0.31038904
+                    },
+                    "confidence": 0.8420139,
+                    "language": "und"
+                },
+                {
+                    "text": "Dear Mr Sample,",
+                    "bounds": {
+                        "left": 0.10338573,
+                        "top": 0.32235998,
+                        "right": 0.238815,
+                        "bottom": 0.3381787
+                    },
+                    "confidence": 0.8701923,
+                    "language": "und"
+                },
+                {
+                    "text": "Sampletown, 26 September 2026",
+                    "bounds": {
+                        "left": 0.6451028,
+                        "top": 0.24283881,
+                        "right": 0.9026602,
+                        "bottom": 0.25865754
+                    },
+                    "confidence": 0.8991887,
+                    "language": "und"
+                },
+                {
+                    "text": "1 Example Road\nSampletown SA1 OXX\nTel. 0000 000 0000\nhelp@northwind.example",
+                    "bounds": {
+                        "left": 0.7599758,
+                        "top": 0.067122705,
+                        "right": 0.90810156,
+                        "bottom": 0.113723814
+                    },
+                    "confidence": 0.8532001,
+                    "language": "und"
+                },
+                {
+                    "text": "Our records show that your gas and electricity account is currently overdue. As of 26 September\n2026 the overdue balance on your account is £142.80. This amount relates to the billing periods\nJune to August 2026 and has not yet been settled.",
+                    "bounds": {
+                        "left": 0.10157195,
+                        "top": 0.34758443,
+                        "right": 0.87605804,
+                        "bottom": 0.40401882
+                    },
+                    "confidence": 0.896582,
+                    "language": "und"
+                },
+                {
+                    "text": "We would like to help you resolve this without further reminders or additional charges. If you\nbelieve the balance is incorrect, or if you have already paid it, please let us know. We ask that you\nreply to this letter by 10 October 2026, either by telephone, by e-mail or by returning the reply slip\nenclosed with this letter.",
+                    "bounds": {
+                        "left": 0.100362755,
+                        "top": 0.41128686,
+                        "right": 0.88875455,
+                        "bottom": 0.48439503
+                    },
+                    "confidence": 0.8879775,
+                    "language": "und"
+                },
+                {
+                    "text": "If we do not hear from you by that date we may have to pass your account to our collections team.\nWe would much rather avoid this, and so we have set out a proposal on the last page of this letter\nwhich spreads the cost over a longer period.",
+                    "bounds": {
+                        "left": 0.09854897,
+                        "top": 0.49337325,
+                        "right": 0.88512695,
+                        "bottom": 0.5498076
+                    },
+                    "confidence": 0.89593816,
+                    "language": "und"
+                },
+                {
+                    "text": "Please note that the terms and conditions of the payment arrangement are printed overleaf on\npage 2 and form part of this letter.",
+                    "bounds": {
+                        "left": 0.09854897,
+                        "top": 0.5575032,
+                        "right": 0.853688,
+                        "bottom": 0.59298843
+                    },
+                    "confidence": 0.886534,
+                    "language": "und"
+                },
+                {
+                    "text": "Northwind Utilities Ltd. 1 Example Road- Sampletown SA1 0XX Registered in England No. 00000000 (fictional)",
+                    "bounds": {
+                        "left": 0.09189843,
+                        "top": 0.9119282,
+                        "right": 0.75634825,
+                        "bottom": 0.9290295
+                    },
+                    "confidence": 0.86047894,
+                    "language": "und"
+                },
+                {
+                    "text": "Page 1 of 3",
+                    "bounds": {
+                        "left": 0.8252721,
+                        "top": 0.9405729,
+                        "right": 0.8911729,
+                        "bottom": 0.9495511
+                    },
+                    "confidence": 0.8774414,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 2,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Northwind Utilities Ltd. - Account NU-77120934",
+                    "bounds": {
+                        "left": 0.09431681,
+                        "top": 0.06669517,
+                        "right": 0.37182587,
+                        "bottom": 0.075673364
+                    },
+                    "confidence": 0.8310785,
+                    "language": "und"
+                },
+                {
+                    "text": "Terms and conditions of payment arrangements",
+                    "bounds": {
+                        "left": 0.09431681,
+                        "top": 0.10089782,
+                        "right": 0.56227326,
+                        "bottom": 0.11586148
+                    },
+                    "confidence": 0.90434694,
+                    "language": "und"
+                },
+                {
+                    "text": "1. Scope. These terms apply to every payment arrangement offered by Northwind Utilities Ltd. (the\nSupplier) to a domestic customer (the Customer) in respect of an overdue account balance. They\ndo not affect any statutory rights of the Customer.",
+                    "bounds": {
+                        "left": 0.0949214,
+                        "top": 0.12270201,
+                        "right": 0.8857316,
+                        "bottom": 0.17870885
+                    },
+                    "confidence": 0.8946694,
+                    "language": "und"
+                },
+                {
+                    "text": "2. Agreement. A payment arrangement becomes binding when the Customer confirms it in writing,\nby telephone or by e-mail, or when the first instalment is collected. The Supplier may withdraw an\noffer that has not been accepted within the period stated in the letter.",
+                    "bounds": {
+                        "left": 0.095525995,
+                        "top": 0.18298419,
+                        "right": 0.8814994,
+                        "bottom": 0.23728089
+                    },
+                    "confidence": 0.89291435,
+                    "language": "und"
+                },
+                {
+                    "text": "3. Instalments. Instalments are due on the dates shown in the arrangement. If the amount of an\ninstalment is changed following a review of the Customer's consumption, the Supplier will inform\nthe Customer in writing at least thirty days before the change takes effect.",
+                    "bounds": {
+                        "left": 0.096130595,
+                        "top": 0.24369389,
+                        "right": 0.8712213,
+                        "bottom": 0.2979906
+                    },
+                    "confidence": 0.89577806,
+                    "language": "und"
+                },
+                {
+                    "text": "4. Direct debit. Where the arrangement is paid by direct debit, the Customer will receive advance\nnotice of the amount and the collection date. The Customer is protected by the Direct Debit\nGuarantee and may cancel the mandate at any time through their bank or building society.",
+                    "bounds": {
+                        "left": 0.09673519,
+                        "top": 0.303121,
+                        "right": 0.8754535,
+                        "bottom": 0.35784525
+                    },
+                    "confidence": 0.90207976,
+                    "language": "und"
+                },
+                {
+                    "text": "5. Missed payments. If a payment is missed the Supplier will contact the Customer to agree a new\ndate. Repeated missed payments may result in the arrangement being cancelled and the full\noutstanding balance becoming due immediately.",
+                    "bounds": {
+                        "left": 0.09794438,
+                        "top": 0.36297563,
+                        "right": 0.88633615,
+                        "bottom": 0.41812742
+                    },
+                    "confidence": 0.8970777,
+                    "language": "und"
+                },
+                {
+                    "text": "6. Charges. No additional charge is made for entering into a payment arrangement. Any charge for\na returned payment will be limited to the actual cost incurred by the Supplier and will be notified in\nadvance.",
+                    "bounds": {
+                        "left": 0.09915357,
+                        "top": 0.42240274,
+                        "right": 0.8917775,
+                        "bottom": 0.47541684
+                    },
+                    "confidence": 0.89441985,
+                    "language": "und"
+                },
+                {
+                    "text": "7. Complaints. If the Customer is unhappy with any aspect of the arrangement, they may contact\nthe Supplier's complaints team. If the complaint is not resolved within eight weeks the Customer\nmay refer it to the relevant ombudsman service free of charge.",
+                    "bounds": {
+                        "left": 0.100362755,
+                        "top": 0.48225737,
+                        "right": 0.87484884,
+                        "bottom": 0.5365541
+                    },
+                    "confidence": 0.8985482,
+                    "language": "und"
+                },
+                {
+                    "text": "8. Data prote ction. Personal data supplied in connection with a payment arrangement is processed\nonly to administer the account, in accordance with the Supplier's privacy notice which is available\non request.",
+                    "bounds": {
+                        "left": 0.100967355,
+                        "top": 0.5391193,
+                        "right": 0.8960097,
+                        "bottom": 0.5972638
+                    },
+                    "confidence": 0.8743585,
+                    "language": "und"
+                },
+                {
+                    "text": "9. Changes. The Supplier may amend these terms where required by law or by a change in\nregulation. Customers will be informed of any amendment that affects an existing arrangement.\n10. Governing law. These terms are governed by the law of England and VWales and are subject to\nthe jurisdiction of its courts.",
+                    "bounds": {
+                        "left": 0.100967355,
+                        "top": 0.6028217,
+                        "right": 0.8917775,
+                        "bottom": 0.6814878
+                    },
+                    "confidence": 0.8865979,
+                    "language": "und"
+                },
+                {
+                    "text": "Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX Registered in England No. 00000000 (fictional)",
+                    "bounds": {
+                        "left": 0.1070133,
+                        "top": 0.9144934,
+                        "right": 0.76904476,
+                        "bottom": 0.929457
+                    },
+                    "confidence": 0.86341006,
+                    "language": "und"
+                },
+                {
+                    "text": "Page 2 of 3",
+                    "bounds": {
+                        "left": 0.83978236,
+                        "top": 0.93244976,
+                        "right": 0.9032648,
+                        "bottom": 0.9427106
+                    },
+                    "confidence": 0.8989258,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 3,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Northwind Utilities Ltd. - Account NU-77120934",
+                    "bounds": {
+                        "left": 0.08887545,
+                        "top": 0.06626764,
+                        "right": 0.36517534,
+                        "bottom": 0.0786661
+                    },
+                    "confidence": 0.84241617,
+                    "language": "und"
+                },
+                {
+                    "text": "Our proposal: a payment plan for your account",
+                    "bounds": {
+                        "left": 0.08948005,
+                        "top": 0.09876015,
+                        "right": 0.5453446,
+                        "bottom": 0.12013681
+                    },
+                    "confidence": 0.87736434,
+                    "language": "und"
+                },
+                {
+                    "text": "To make repayment easier we propose that the overdue balance is added to your regular\npayments. Your new monthly instalment would be £57.00, which covers your estimated ongoing\nusage and a contribution towards the overdue balance.",
+                    "bounds": {
+                        "left": 0.09008464,
+                        "top": 0.12099188,
+                        "right": 0.86215234,
+                        "bottom": 0.18127404
+                    },
+                    "confidence": 0.8993901,
+                    "language": "und"
+                },
+                {
+                    "text": "If you agree, your direct debit will start on 1 November 2026 and will be collected on the first\nworking day of each month from your nominated bank account. You do not need to do anything if\nyou are happy with this proposal, but we would still be grateful if you confirmed it by the reply date\ngiven on page 1.",
+                    "bounds": {
+                        "left": 0.091293834,
+                        "top": 0.18298419,
+                        "right": 0.87968564,
+                        "bottom": 0.26378796
+                    },
+                    "confidence": 0.8958748,
+                    "language": "und"
+                },
+                {
+                    "text": "Item",
+                    "bounds": {
+                        "left": 0.10217654,
+                        "top": 0.28217188,
+                        "right": 0.13663845,
+                        "bottom": 0.29200512
+                    },
+                    "confidence": 0.7158203,
+                    "language": "und"
+                },
+                {
+                    "text": "Account number",
+                    "bounds": {
+                        "left": 0.10157195,
+                        "top": 0.30696878,
+                        "right": 0.23337364,
+                        "bottom": 0.31936726
+                    },
+                    "confidence": 0.8620793,
+                    "language": "und"
+                },
+                {
+                    "text": "New monthly instalment",
+                    "bounds": {
+                        "left": 0.10338573,
+                        "top": 0.33390337,
+                        "right": 0.2956469,
+                        "bottom": 0.34801197
+                    },
+                    "confidence": 0.8966797,
+                    "language": "und"
+                },
+                {
+                    "text": "Direct debit starts",
+                    "bounds": {
+                        "left": 0.10459492,
+                        "top": 0.3612655,
+                        "right": 0.24304716,
+                        "bottom": 0.3740915
+                    },
+                    "confidence": 0.89797795,
+                    "language": "und"
+                },
+                {
+                    "text": "Payment method",
+                    "bounds": {
+                        "left": 0.105199516,
+                        "top": 0.38905516,
+                        "right": 0.2394196,
+                        "bottom": 0.40359128
+                    },
+                    "confidence": 0.9128606,
+                    "language": "und"
+                },
+                {
+                    "text": "Yours sincerely,",
+                    "bounds": {
+                        "left": 0.09915357,
+                        "top": 0.4655836,
+                        "right": 0.22793229,
+                        "bottom": 0.4775545
+                    },
+                    "confidence": 0.85833335,
+                    "language": "und"
+                },
+                {
+                    "text": "Detail",
+                    "bounds": {
+                        "left": 0.525393,
+                        "top": 0.27575886,
+                        "right": 0.57255137,
+                        "bottom": 0.28601965
+                    },
+                    "confidence": 0.8769531,
+                    "language": "und"
+                },
+                {
+                    "text": "Customer Accounts Team\nNorthwind Utilities Ltd.",
+                    "bounds": {
+                        "left": 0.100967355,
+                        "top": 0.509192,
+                        "right": 0.308948,
+                        "bottom": 0.5395468
+                    },
+                    "confidence": 0.88688743,
+                    "language": "und"
+                },
+                {
+                    "text": "NU-77120934",
+                    "bounds": {
+                        "left": 0.5259976,
+                        "top": 0.30098334,
+                        "right": 0.63784766,
+                        "bottom": 0.3138093
+                    },
+                    "confidence": 0.85795456,
+                    "language": "und"
+                },
+                {
+                    "text": "£57.00",
+                    "bounds": {
+                        "left": 0.5259976,
+                        "top": 0.32962805,
+                        "right": 0.5798065,
+                        "bottom": 0.3407439
+                    },
+                    "confidence": 0.8541667,
+                    "language": "und"
+                },
+                {
+                    "text": "1 November 2026",
+                    "bounds": {
+                        "left": 0.5344619,
+                        "top": 0.3548525,
+                        "right": 0.6698912,
+                        "bottom": 0.36981615
+                    },
+                    "confidence": 0.89002407,
+                    "language": "und"
+                },
+                {
+                    "text": "If you would like to discuss any part of this letter, our friendly customer team is available Monday to\nFriday from 8 am to 6 pm.",
+                    "bounds": {
+                        "left": 0.09854897,
+                        "top": 0.4100043,
+                        "right": 0.8917775,
+                        "bottom": 0.4527576
+                    },
+                    "confidence": 0.8740059,
+                    "language": "und"
+                },
+                {
+                    "text": "Direct debit",
+                    "bounds": {
+                        "left": 0.528416,
+                        "top": 0.38392475,
+                        "right": 0.6185006,
+                        "bottom": 0.39546815
+                    },
+                    "confidence": 0.86328125,
+                    "language": "und"
+                },
+                {
+                    "text": "Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX Registered in England No. 00000000 (fictional)",
+                    "bounds": {
+                        "left": 0.11185006,
+                        "top": 0.9123557,
+                        "right": 0.7738815,
+                        "bottom": 0.9320222
+                    },
+                    "confidence": 0.859375,
+                    "language": "und"
+                },
+                {
+                    "text": "Page 3 of 3",
+                    "bounds": {
+                        "left": 0.8458283,
+                        "top": 0.93073964,
+                        "right": 0.91051996,
+                        "bottom": 0.94142795
+                    },
+                    "confidence": 0.8964844,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}

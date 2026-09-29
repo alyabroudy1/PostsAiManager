@@ -1,0 +1,354 @@
+{
+    "key": "N7-beitragsservice-1p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "BB",
+                    "bounds": {
+                        "left": 0.14449818,
+                        "top": 0.06284737,
+                        "right": 0.17956468,
+                        "bottom": 0.07652843
+                    },
+                    "confidence": 0.90234375,
+                    "language": "und"
+                },
+                {
+                    "text": "Beitragsservice Beispiel Postfach 10 00 O0 50656 Beispielstadt",
+                    "bounds": {
+                        "left": 0.12454655,
+                        "top": 0.15006413,
+                        "right": 0.42261186,
+                        "bottom": 0.15775973
+                    },
+                    "confidence": 0.84069604,
+                    "language": "und"
+                },
+                {
+                    "text": "Frau",
+                    "bounds": {
+                        "left": 0.12515114,
+                        "top": 0.16802052,
+                        "right": 0.15779927,
+                        "bottom": 0.17699872
+                    },
+                    "confidence": 0.8496094,
+                    "language": "und"
+                },
+                {
+                    "text": "Erika Mustermann",
+                    "bounds": {
+                        "left": 0.12454655,
+                        "top": 0.18341172,
+                        "right": 0.26058042,
+                        "bottom": 0.19452758
+                    },
+                    "confidence": 0.8747396,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterstraße 12",
+                    "bounds": {
+                        "left": 0.12394196,
+                        "top": 0.2000855,
+                        "right": 0.24486095,
+                        "bottom": 0.2103463
+                    },
+                    "confidence": 0.89313614,
+                    "language": "und"
+                },
+                {
+                    "text": "54321 Beispieldorf",
+                    "bounds": {
+                        "left": 0.123337366,
+                        "top": 0.21590424,
+                        "right": 0.2648126,
+                        "bottom": 0.22873023
+                    },
+                    "confidence": 0.89269304,
+                    "language": "und"
+                },
+                {
+                    "text": "Zahlungserinnerung- Beitragsnummer 987 654 321",
+                    "bounds": {
+                        "left": 0.12152358,
+                        "top": 0.33604103,
+                        "right": 0.6027811,
+                        "bottom": 0.35143223
+                    },
+                    "confidence": 0.87565106,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrte Frau Mustermann,",
+                    "bounds": {
+                        "left": 0.12152358,
+                        "top": 0.36596838,
+                        "right": 0.36215237,
+                        "bottom": 0.37751177
+                    },
+                    "confidence": 0.8701923,
+                    "language": "und"
+                },
+                {
+                    "text": "Zeitraum",
+                    "bounds": {
+                        "left": 0.12696493,
+                        "top": 0.43907654,
+                        "right": 0.19770254,
+                        "bottom": 0.44976485
+                    },
+                    "confidence": 0.8408203,
+                    "language": "und"
+                },
+                {
+                    "text": "01.10.2026 –31.12.2026",
+                    "bounds": {
+                        "left": 0.13482466,
+                        "top": 0.46515605,
+                        "right": 0.32164448,
+                        "bottom": 0.4775545
+                    },
+                    "confidence": 0.87462795,
+                    "language": "und"
+                },
+                {
+                    "text": "Kontoinhaber: Beitragsservice Beispiel\nIBAN: DE02 1001 0010 0006 8201 01",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.55280036,
+                        "right": 0.43591294,
+                        "bottom": 0.58401024
+                    },
+                    "confidence": 0.8678385,
+                    "language": "und"
+                },
+                {
+                    "text": "BIC: BELADEBEXXX",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.5878581,
+                        "right": 0.28295043,
+                        "bottom": 0.5976913
+                    },
+                    "confidence": 0.83958334,
+                    "language": "und"
+                },
+                {
+                    "text": "Verwendungszweck: 987 654 321",
+                    "bounds": {
+                        "left": 0.11789601,
+                        "top": 0.60495937,
+                        "right": 0.38452238,
+                        "bottom": 0.6169303
+                    },
+                    "confidence": 0.87545073,
+                    "language": "und"
+                },
+                {
+                    "text": "für Ihre Wohnung Musterstraße 12, 54321 Beispieldorf, ist der Rundfunkbeitrag für das vierte Quartal\n2026 (Oktober bis Dezember) fällig. Der Beitrag wird Ihnen vierteljährlich in Rechnung gestellt.",
+                    "bounds": {
+                        "left": 0.12031439,
+                        "top": 0.39033777,
+                        "right": 0.88633615,
+                        "bottom": 0.42539546
+                    },
+                    "confidence": 0.8729932,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.11789601,
+                        "top": 0.6301838,
+                        "right": 0.29987907,
+                        "bottom": 0.64044464
+                    },
+                    "confidence": 0.8547247,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Beitragsservice",
+                    "bounds": {
+                        "left": 0.11729141,
+                        "top": 0.66224885,
+                        "right": 0.25634825,
+                        "bottom": 0.6759299
+                    },
+                    "confidence": 0.8706597,
+                    "language": "und"
+                },
+                {
+                    "text": "Beitragsservice Beispiel\neiner Germeinschaftseinrichtung der\nBeispiel-Rundfunkanstalten (fiktiv)",
+                    "bounds": {
+                        "left": 0.11245465,
+                        "top": 0.90295,
+                        "right": 0.2726723,
+                        "bottom": 0.93159467
+                    },
+                    "confidence": 0.8465581,
+                    "language": "und"
+                },
+                {
+                    "text": "Beitragsnummer:\nIhr Zeichen:\nDatum:",
+                    "bounds": {
+                        "left": 0.5979444,
+                        "top": 0.16930312,
+                        "right": 0.685006,
+                        "bottom": 0.20991877
+                    },
+                    "confidence": 0.824491,
+                    "language": "und"
+                },
+                {
+                    "text": "Bankverbindung: Beispielbank",
+                    "bounds": {
+                        "left": 0.37303507,
+                        "top": 0.9046601,
+                        "right": 0.5078597,
+                        "bottom": 0.91321075
+                    },
+                    "confidence": 0.8712384,
+                    "language": "und"
+                },
+                {
+                    "text": "Beitragsservice Beispiel",
+                    "bounds": {
+                        "left": 0.68198305,
+                        "top": 0.05044891,
+                        "right": 0.9050786,
+                        "bottom": 0.0645575
+                    },
+                    "confidence": 0.90234375,
+                    "language": "und"
+                },
+                {
+                    "text": "IBAN DE02 1001 0010 0006 8201 01\nBIC BELADEBEXXX",
+                    "bounds": {
+                        "left": 0.37243047,
+                        "top": 0.9144934,
+                        "right": 0.5344619,
+                        "bottom": 0.93330485
+                    },
+                    "confidence": 0.81897104,
+                    "language": "und"
+                },
+                {
+                    "text": "Fällig am\n15.10.2026",
+                    "bounds": {
+                        "left": 0.5501814,
+                        "top": 0.4424968,
+                        "right": 0.63603383,
+                        "bottom": 0.4788371
+                    },
+                    "confidence": 0.87939453,
+                    "language": "und"
+                },
+                {
+                    "text": "Bitte zahlen Sie den Betrag von 55,08 € bis zum 15.10.2026 unter Angabe Ihrer Beitragsnummer 987\n654 321 auf das unten stehende Konto. Wenn Sie uns ein SEPA-Lastschriftmandat erteilen, erledigen\nwir das künftig automatisch.",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.4942283,
+                        "right": 0.8941959,
+                        "bottom": 0.54424965
+                    },
+                    "confidence": 0.8683375,
+                    "language": "und"
+                },
+                {
+                    "text": "987 654 321",
+                    "bounds": {
+                        "left": 0.71160823,
+                        "top": 0.17058572,
+                        "right": 0.78113663,
+                        "bottom": 0.17870885
+                    },
+                    "confidence": 0.94835067,
+                    "language": "und"
+                },
+                {
+                    "text": "Postfach 10 00 00\n50656 Beispielstadt",
+                    "bounds": {
+                        "left": 0.8035067,
+                        "top": 0.069260366,
+                        "right": 0.9056832,
+                        "bottom": 0.08849936
+                    },
+                    "confidence": 0.8637308,
+                    "language": "und"
+                },
+                {
+                    "text": "service @beitragsservice-beispiel.example",
+                    "bounds": {
+                        "left": 0.6898428,
+                        "top": 0.101325355,
+                        "right": 0.9056832,
+                        "bottom": 0.11286875
+                    },
+                    "confidence": 0.8341797,
+                    "language": "und"
+                },
+                {
+                    "text": "26.09.2026",
+                    "bounds": {
+                        "left": 0.7110036,
+                        "top": 0.19923045,
+                        "right": 0.7750907,
+                        "bottom": 0.20820864
+                    },
+                    "confidence": 0.9015625,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01806 000 000",
+                    "bounds": {
+                        "left": 0.8047158,
+                        "top": 0.09277469,
+                        "right": 0.9056832,
+                        "bottom": 0.09961522
+                    },
+                    "confidence": 0.8098958,
+                    "language": "und"
+                },
+                {
+                    "text": "Betrag €\n55,08",
+                    "bounds": {
+                        "left": 0.805925,
+                        "top": 0.44420692,
+                        "right": 0.8730351,
+                        "bottom": 0.48097476
+                    },
+                    "confidence": 0.8981585,
+                    "language": "und"
+                },
+                {
+                    "text": "Servicetelefon: 01806 000 000\nwww.beitragsservice-beispiel.example",
+                    "bounds": {
+                        "left": 0.6324063,
+                        "top": 0.90679777,
+                        "right": 0.80532044,
+                        "bottom": 0.92560923
+                    },
+                    "confidence": 0.8534614,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 1",
+                    "bounds": {
+                        "left": 0.8252721,
+                        "top": 0.96323216,
+                        "right": 0.8911729,
+                        "bottom": 0.9700727
+                    },
+                    "confidence": 0.8460938,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}
