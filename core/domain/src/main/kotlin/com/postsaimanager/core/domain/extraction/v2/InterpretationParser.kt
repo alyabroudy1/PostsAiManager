@@ -34,21 +34,21 @@ object InterpretationParser {
             val o = el as? JsonObject ?: return@mapNotNull null
             RawParty(
                 role = o.str("r") ?: return@mapNotNull null,
-                id = o.str("id") ?: return@mapNotNull null,
+                id = o.str("id", StructuredGrammar.MAX_QUOTE_CHARS) ?: return@mapNotNull null,
                 kind = o.str("k"),
                 relation = o.str("rel"),
                 confidence = o.str("c"),
             )
-        }
+        }.take(StructuredGrammar.MAX_PARTIES)
 
         val slots = LinkedHashMap<String, RawSlot>()
         (root["s"] as? JsonObject)?.forEach { (key, value) ->
             val o = value as? JsonObject ?: return@forEach // "NONE" (a plain string) means no value
             slots[key] = RawSlot(
-                id = o.str("id"),
+                id = o.str("id", StructuredGrammar.MAX_QUOTE_CHARS),
                 role = o.str("r"),
-                rule = o.str("rule"),
-                ids = o.array("ids").mapNotNull { (it as? JsonPrimitive)?.contentOrNull },
+                rule = o.str("rule", StructuredGrammar.MAX_QUOTE_CHARS),
+                ids = o.array("ids").mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.take(StructuredGrammar.MAX_REF_IDS),
                 confidence = o.str("c"),
             )
         }
@@ -56,13 +56,13 @@ object InterpretationParser {
         val extras = root.array("x").mapNotNull { el ->
             val o = el as? JsonObject ?: return@mapNotNull null
             RawExtra(
-                label = o.str("lb") ?: return@mapNotNull null,
-                key = o.str("k").orEmpty(),
+                label = o.str("lb", StructuredGrammar.MAX_EXTRA_LABEL_CHARS) ?: return@mapNotNull null,
+                key = o.str("k", StructuredGrammar.MAX_EXTRA_KEY_CHARS).orEmpty(),
                 id = o.str("id") ?: StructuredGrammar.NONE,
-                value = o.str("v").orEmpty(),
+                value = o.str("v", StructuredGrammar.MAX_EXTRA_VALUE_CHARS).orEmpty(),
                 confidence = o.str("c"),
             )
-        }
+        }.take(StructuredGrammar.MAX_EXTRAS)
 
         return Parsed.Ok(
             RawInterpretation(
@@ -81,11 +81,13 @@ object InterpretationParser {
         val root = objectOf(text) ?: return Parsed.Bad("no valid JSON object in the answer")
         return Parsed.Ok(
             RawText(
-                otherLabel = root.str("other"),
-                title = root.str("title"),
-                subject = root.str("subject"),
-                summary = root.str("summary"),
-                questions = root.array("qs").mapNotNull { (it as? JsonPrimitive)?.contentOrNull },
+                otherLabel = root.str("other", TextGrammar.MAX_OTHER_CHARS),
+                title = root.str("title", TextGrammar.MAX_TITLE_CHARS),
+                subject = root.str("subject", TextGrammar.MAX_SUBJECT_CHARS),
+                summary = root.str("summary", TextGrammar.MAX_SUMMARY_CHARS),
+                questions = root.array("qs")
+                    .mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.take(TextGrammar.MAX_QUESTION_CHARS) }
+                    .take(TextGrammar.MAX_QUESTIONS),
             ),
         )
     }
@@ -101,7 +103,9 @@ object InterpretationParser {
         }
     }
 
-    private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
+    /** The string at [key], cut to [maxChars] when given: the grammar does not bound string length, this does. */
+    private fun JsonObject.str(key: String, maxChars: Int = Int.MAX_VALUE): String? =
+        (this[key] as? JsonPrimitive)?.contentOrNull?.take(maxChars)
 
     private fun JsonObject.array(key: String): List<JsonElement> = (this[key] as? JsonArray)?.toList() ?: emptyList()
 }

@@ -51,26 +51,42 @@ object StructuredGrammar {
     /** Kinds an extra may point at: everything offered. */
     private val EXTRA_KINDS = CandidateKind.entries.toTypedArray()
 
+    /** How many cited references a list slot keeps; the grammar does not count, the parser truncates. */
+    const val MAX_REF_IDS = 4
+
+    /** Longest key of an extra, in characters. The parser truncates. */
+    const val MAX_EXTRA_KEY_CHARS = 30
+
     fun build(offered: OfferedCandidates, schema: ExtractionSchema): String {
         val rules = LinkedHashMap<String, String>()
 
+        // No bounded repetition anywhere (`x{0,5}`, `qchar{1,100}`): llama.cpp expands each into a chain
+        // of helper rules, and every token then advances dozens of parser stacks. Lists and strings are
+        // unbounded here; the token limit stops a runaway and the parser truncates to the MAX_* caps.
+        //
+        // The parts every type shares are single rules, so the type alternative is only its own literal
+        // and its own slots after the shared core (every type starts with Slots.CORE).
         rules["root"] = schema.types.joinToString(" | ") { "t-" + it.rule() }
+        val coreSlots = Slots.CORE
         for (type in schema.types) {
-            val slots = type.slots.joinToString(" \",\" ws ") { slotRule(it) }
-            rules["t-" + type.rule()] = listOf(
-                "\"{\" ws ${GrammarSyntax.key("type")} ws ${GrammarSyntax.lit(type.id)}",
-                "${GrammarSyntax.key("tc")} ws conf",
-                "${GrammarSyntax.key("lang")} ws lang",
-                "${GrammarSyntax.key("parties")} ws parties",
-                "${GrammarSyntax.key("s")} ws \"{\" ws $slots ws \"}\"",
-                "${GrammarSyntax.key("x")} ws xlist ws \"}\"",
-            ).joinToString(" \",\" ws ")
+            require(type.slots.take(coreSlots.size) == coreSlots) { "type ${type.id} must start with the core slots" }
+            val own = type.slots.drop(coreSlots.size).joinToString("") { " \",\" ws ${slotRule(it)}" }
+            rules["t-" + type.rule()] =
+                "\"{\" ws ${GrammarSyntax.key("type")} ws ${GrammarSyntax.lit(type.id)} head core$own tail"
         }
+        rules["head"] = listOf(
+            "\",\" ws ${GrammarSyntax.key("tc")} ws conf",
+            "${GrammarSyntax.key("lang")} ws lang",
+            "${GrammarSyntax.key("parties")} ws parties",
+            "${GrammarSyntax.key("s")} ws \"{\" ws",
+        ).joinToString(" \",\" ws ")
+        rules["core"] = coreSlots.joinToString(" \",\" ws ") { slotRule(it) }
+        rules["tail"] = "ws \"}\" \",\" ws ${GrammarSyntax.key("x")} ws xlist ws \"}\""
 
         rules["conf"] = GrammarSyntax.enumRule(CONFIDENCE_WORDS)
-        rules["lang"] = "\"\\\"\" [a-z] [a-z] [a-z]? (\"-\" [A-Za-z0-9] [A-Za-z0-9]{1,7})? \"\\\"\""
+        rules["lang"] = "\"\\\"\" [a-z] [a-z] [a-z]? (\"-\" [A-Za-z0-9]+)? \"\\\"\""
 
-        rules["parties"] = "\"[\" ws (party (ws \",\" ws party){0,${MAX_PARTIES - 1}})? ws \"]\""
+        rules["parties"] = "\"[\" ws (party (ws \",\" ws party)*)? ws \"]\""
         rules["party"] = GrammarSyntax.obj(
             "r" to "prole", "id" to "nameref", "k" to "pkind", "rel" to "prel", "c" to "conf",
         )
@@ -92,7 +108,7 @@ object StructuredGrammar {
         rules["refs"] = if (refIds.isEmpty()) {
             GrammarSyntax.lit(NONE)
         } else {
-            "${GrammarSyntax.lit(NONE)} | \"{\" ws ${GrammarSyntax.key("ids")} ws \"[\" ws refid (ws \",\" ws refid){0,3} ws \"]\" " +
+            "${GrammarSyntax.lit(NONE)} | \"{\" ws ${GrammarSyntax.key("ids")} ws \"[\" ws refid (ws \",\" ws refid)* ws \"]\" " +
                 "\",\" ws ${GrammarSyntax.key("c")} ws conf ws \"}\""
         }
         if (refIds.isNotEmpty()) rules["refid"] = refIds.joinToString(" | ") { GrammarSyntax.lit(it) }
@@ -102,14 +118,14 @@ object StructuredGrammar {
         rules["name"] = "${GrammarSyntax.lit(NONE)} | " + GrammarSyntax.obj("id" to "nameref", "c" to "conf")
 
         val extraIds = offered.idsOf(*EXTRA_KINDS)
-        rules["xlist"] = "\"[\" ws (extra (ws \",\" ws extra){0,${MAX_EXTRAS - 1}})? ws \"]\""
+        rules["xlist"] = "\"[\" ws (extra (ws \",\" ws extra)*)? ws \"]\""
         rules["extra"] = GrammarSyntax.obj("lb" to "xlabel", "k" to "xkey", "id" to "xid", "v" to "xvalue", "c" to "conf")
-        rules["xlabel"] = GrammarSyntax.string(1, MAX_EXTRA_LABEL_CHARS)
-        rules["xkey"] = "\"\\\"\" [a-z] [a-z_]{1,29} \"\\\"\""
+        rules["xlabel"] = GrammarSyntax.string(nonEmpty = true)
+        rules["xkey"] = "\"\\\"\" [a-z] [a-z_]+ \"\\\"\""
         rules["xid"] = (extraIds + NONE).joinToString(" | ") { GrammarSyntax.lit(it) }
-        rules["xvalue"] = GrammarSyntax.string(0, MAX_EXTRA_VALUE_CHARS)
+        rules["xvalue"] = GrammarSyntax.string(nonEmpty = false)
 
-        rules["quote"] = GrammarSyntax.string(1, MAX_QUOTE_CHARS)
+        rules["quote"] = GrammarSyntax.string(nonEmpty = true)
         rules.putAll(GrammarSyntax.commonRules())
 
         return GrammarSyntax.render(rules)
@@ -166,6 +182,7 @@ object TextGrammar {
     const val MAX_SUBJECT_CHARS = 100
     const val MAX_SUMMARY_CHARS = 240
     const val MAX_QUESTION_CHARS = 100
+    const val MAX_QUESTIONS = 3
 
     fun build(): String {
         val rules = LinkedHashMap<String, String>()
@@ -176,11 +193,11 @@ object TextGrammar {
             "${GrammarSyntax.key("summary")} ws summary",
             "${GrammarSyntax.key("qs")} ws qs ws \"}\"",
         ).joinToString(" \",\" ws ")
-        rules["other"] = GrammarSyntax.string(0, MAX_OTHER_CHARS)
-        rules["title"] = GrammarSyntax.string(1, MAX_TITLE_CHARS)
-        rules["subject"] = GrammarSyntax.string(1, MAX_SUBJECT_CHARS)
-        rules["summary"] = GrammarSyntax.string(1, MAX_SUMMARY_CHARS)
-        rules["question"] = GrammarSyntax.string(1, MAX_QUESTION_CHARS)
+        rules["other"] = GrammarSyntax.string(nonEmpty = false)
+        rules["title"] = GrammarSyntax.string(nonEmpty = true)
+        rules["subject"] = GrammarSyntax.string(nonEmpty = true)
+        rules["summary"] = GrammarSyntax.string(nonEmpty = true)
+        rules["question"] = GrammarSyntax.string(nonEmpty = true)
         rules["qs"] = "\"[\" ws question \",\" ws question \",\" ws question ws \"]\""
         rules.putAll(GrammarSyntax.commonRules())
         return GrammarSyntax.render(rules)
@@ -196,7 +213,8 @@ internal object GrammarSyntax {
 
     fun enumRule(values: List<String>): String = values.joinToString(" | ") { lit(it) }
 
-    fun string(min: Int, max: Int): String = "\"\\\"\" qchar{$min,$max} \"\\\"\""
+    /** A JSON string, unbounded: `qchar+` or `qchar*`. Lengths are capped by the parser, not counted here. */
+    fun string(nonEmpty: Boolean): String = "\"\\\"\" qchar${if (nonEmpty) "+" else "*"} \"\\\"\""
 
     /** A JSON key as a GBNF terminal: `"\"type\":"`. */
     fun key(name: String): String = "\"\\\"$name\\\":\""
