@@ -4,10 +4,14 @@ import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
 import android.os.StatFs
+import com.postsaimanager.core.common.dispatcher.Dispatcher
+import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.DeviceCapability
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,6 +27,7 @@ import javax.inject.Singleton
 class DeviceCapabilityChecker @Inject constructor(
     @ApplicationContext private val context: Context,
     private val aiEngine: AiEngine,
+    @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) {
 
     /**
@@ -43,7 +48,7 @@ class DeviceCapabilityChecker @Inject constructor(
         return DeviceCapability(
             totalRamBytes = memoryInfo.totalMem,
             availableRamBytes = memoryInfo.availMem,
-            freeStorageBytes = freeStorageBytes(),
+            freeStorageBytes = withContext(ioDispatcher) { freeStorageBytes() },
             supportedAbis = Build.SUPPORTED_ABIS.toList(),
             isLowMemory = memoryInfo.lowMemory,
             accelerators = accelerators,
@@ -53,6 +58,10 @@ class DeviceCapabilityChecker @Inject constructor(
     /**
      * Free space in the app's own storage — models live in `filesDir`, not on shared
      * storage, so this is the number that matters rather than total disk free.
+     *
+     * Touches disk (`filesDir`'s existence check + `StatFs`), so [current] runs it on
+     * [ioDispatcher] — callers such as `ChatViewModel` resume on Main, where StrictMode
+     * flags it as a DiskReadViolation.
      */
     private fun freeStorageBytes(): Long =
         runCatching { StatFs(context.filesDir.absolutePath).availableBytes }
