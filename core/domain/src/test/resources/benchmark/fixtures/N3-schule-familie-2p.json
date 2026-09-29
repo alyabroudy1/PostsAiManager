@@ -1,0 +1,505 @@
+{
+    "key": "N3-schule-familie-2p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Grundschule Am Beispielweg",
+                    "bounds": {
+                        "left": 0.11245465,
+                        "top": 0.049593844,
+                        "right": 0.46916565,
+                        "bottom": 0.06797777
+                    },
+                    "confidence": 0.89420575,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielweg 20 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.073535696,
+                        "right": 0.2986699,
+                        "bottom": 0.08422403
+                    },
+                    "confidence": 0.87777215,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 777 10",
+                    "bounds": {
+                        "left": 0.11185006,
+                        "top": 0.08721676,
+                        "right": 0.2025393,
+                        "bottom": 0.09491236
+                    },
+                    "confidence": 0.87918526,
+                    "language": "und"
+                },
+                {
+                    "text": "sekretariat@gs-beispielweg.example",
+                    "bounds": {
+                        "left": 0.11245465,
+                        "top": 0.09918769,
+                        "right": 0.30108827,
+                        "bottom": 0.10816588
+                    },
+                    "confidence": 0.84018844,
+                    "language": "und"
+                },
+                {
+                    "text": "Grundschule Am Beispielweg Beispielweg 20 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.11789601,
+                        "top": 0.15134673,
+                        "right": 0.41958886,
+                        "bottom": 0.16203506
+                    },
+                    "confidence": 0.8817472,
+                    "language": "und"
+                },
+                {
+                    "text": "Familie",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.17400599,
+                        "right": 0.1680774,
+                        "bottom": 0.18341172
+                    },
+                    "confidence": 0.88671875,
+                    "language": "und"
+                },
+                {
+                    "text": "Mustermann",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.19110732,
+                        "right": 0.20435308,
+                        "bottom": 0.19965798
+                    },
+                    "confidence": 0.8738281,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterstraße 12",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.20607097,
+                        "right": 0.23337364,
+                        "bottom": 0.21590424
+                    },
+                    "confidence": 0.8763951,
+                    "language": "und"
+                },
+                {
+                    "text": "54321 Beispieldorf",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.22188969,
+                        "right": 0.25453445,
+                        "bottom": 0.23386063
+                    },
+                    "confidence": 0.90050554,
+                    "language": "und"
+                },
+                {
+                    "text": "Klassenausflug der Klasse 3b am 24.11.2026",
+                    "bounds": {
+                        "left": 0.11729141,
+                        "top": 0.33689612,
+                        "right": 0.5259976,
+                        "bottom": 0.35528004
+                    },
+                    "confidence": 0.8885135,
+                    "language": "und"
+                },
+                {
+                    "text": "Liebe Eltern und Erziehungsberechtigte der Klasse 3b,",
+                    "bounds": {
+                        "left": 0.11789601,
+                        "top": 0.3676785,
+                        "right": 0.51995164,
+                        "bottom": 0.3830697
+                    },
+                    "confidence": 0.8853058,
+                    "language": "und"
+                },
+                {
+                    "text": "Vielen Dank für Ihre Unterstützung!",
+                    "bounds": {
+                        "left": 0.12091898,
+                        "top": 0.5908508,
+                        "right": 0.38512698,
+                        "bottom": 0.6028217
+                    },
+                    "confidence": 0.84740424,
+                    "language": "und"
+                },
+                {
+                    "text": "am Dienstag, 24.11.2026 fahren wir mit der Klasse 3b in das Naturkundemuseum Beispielstadt. Die\nKinder nehmen an einem Workshop zum Thema ,Wald im Winter“ teil. Abfahrt ist um 8:15 Uhr an der\nSchule, Rückkehr gegen 13:00 Uhr.",
+                    "bounds": {
+                        "left": 0.11789601,
+                        "top": 0.39076528,
+                        "right": 0.88512695,
+                        "bottom": 0.44206926
+                    },
+                    "confidence": 0.871979,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.12152358,
+                        "top": 0.62377083,
+                        "right": 0.30169287,
+                        "bottom": 0.6357418
+                    },
+                    "confidence": 0.8610491,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Zeichen:",
+                    "bounds": {
+                        "left": 0.58948004,
+                        "top": 0.16930312,
+                        "right": 0.64752114,
+                        "bottom": 0.17657119
+                    },
+                    "confidence": 0.79971594,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Kosten für Fahrt, Eintritt und Workshop betragen 35,00 € pro Kind. Bitte geben Sie den Betrag\npassend und in einem beschrifteten Umschlag (Name des Kindes, Klasse) zusammen mit dem\nRückmeldeabschnitt Ihrem Kind mit. Ihre Tochter Lea Mustermann soll außerdem ein Lunchpaket und\nwetterfeste Kleidung mitbringen.",
+                    "bounds": {
+                        "left": 0.1191052,
+                        "top": 0.4501924,
+                        "right": 0.8802902,
+                        "bottom": 0.5190252
+                    },
+                    "confidence": 0.87552565,
+                    "language": "und"
+                },
+                {
+                    "text": "Sabine Sommer\nKlassenlehrerin 3b",
+                    "bounds": {
+                        "left": 0.12212817,
+                        "top": 0.65882856,
+                        "right": 0.25755742,
+                        "bottom": 0.68533564
+                    },
+                    "confidence": 0.869897,
+                    "language": "und"
+                },
+                {
+                    "text": "Unser Zeichen:\nKlassenlehrerin:",
+                    "bounds": {
+                        "left": 0.5900847,
+                        "top": 0.18426678,
+                        "right": 0.67049575,
+                        "bottom": 0.2052159
+                    },
+                    "confidence": 0.83023775,
+                    "language": "und"
+                },
+                {
+                    "text": "Bitte füllen Sie den Rückmeldeabschnitt auf der nächsten Seite aus und geben Sie ihn bitte\nunterschrieben bis Freitag, 16.10.2026 zurück. Ohne Rückmeldung können wir Ihr Kind leider nicht\nanmelden.",
+                    "bounds": {
+                        "left": 0.1197098,
+                        "top": 0.5241556,
+                        "right": 0.86336154,
+                        "bottom": 0.5763147
+                    },
+                    "confidence": 0.87128305,
+                    "language": "und"
+                },
+                {
+                    "text": "Grundschule Am Beispielweg\nSchulleitung: R. Muster",
+                    "bounds": {
+                        "left": 0.12636034,
+                        "top": 0.90765285,
+                        "right": 0.25634825,
+                        "bottom": 0.9260368
+                    },
+                    "confidence": 0.8374373,
+                    "language": "und"
+                },
+                {
+                    "text": "Telefon:\nDatum:",
+                    "bounds": {
+                        "left": 0.5900847,
+                        "top": 0.21333903,
+                        "right": 0.6311971,
+                        "bottom": 0.23428816
+                    },
+                    "confidence": 0.84578454,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielweg 20, 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.12696493,
+                        "top": 0.92817444,
+                        "right": 0.28960097,
+                        "bottom": 0.9367251
+                    },
+                    "confidence": 0.8634033,
+                    "language": "und"
+                },
+                {
+                    "text": "KL. 3b / 2026-27\nFrau S. Sommer\n01234 777 10\n28.09.2026",
+                    "bounds": {
+                        "left": 0.7013301,
+                        "top": 0.18041898,
+                        "right": 0.7986699,
+                        "bottom": 0.2334331
+                    },
+                    "confidence": 0.88645834,
+                    "language": "und"
+                },
+                {
+                    "text": "Förderverein Grundschule Am Beispielweg e. V.\nIBAN DE89 3704 0044 0532 0130 00\nSparkasse Beispielstadt",
+                    "bounds": {
+                        "left": 0.38694075,
+                        "top": 0.9046601,
+                        "right": 0.60217655,
+                        "bottom": 0.93501496
+                    },
+                    "confidence": 0.85528576,
+                    "language": "und"
+                },
+                {
+                    "text": "Sekretariat Mo-Fr 7:30-12:00 Uhr\nsekretariat@gs-beispielweg.example",
+                    "bounds": {
+                        "left": 0.646312,
+                        "top": 0.90252244,
+                        "right": 0.81438935,
+                        "bottom": 0.922189
+                    },
+                    "confidence": 0.8572634,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 2",
+                    "bounds": {
+                        "left": 0.8428053,
+                        "top": 0.9576742,
+                        "right": 0.9056832,
+                        "bottom": 0.9640872
+                    },
+                    "confidence": 0.8328125,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 2,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Grundschule Am Beispielweg Klassenausflug Klasse 3b",
+                    "bounds": {
+                        "left": 0.1318017,
+                        "top": 0.048738778,
+                        "right": 0.40991536,
+                        "bottom": 0.059427105
+                    },
+                    "confidence": 0.86141306,
+                    "language": "und"
+                },
+                {
+                    "text": "Hinweise zum Ausflug",
+                    "bounds": {
+                        "left": 0.12575574,
+                        "top": 0.09705002,
+                        "right": 0.32889965,
+                        "bottom": 0.11201368
+                    },
+                    "confidence": 0.85720485,
+                    "language": "und"
+                },
+                {
+                    "text": "•Bitte denken Sie an feste Schuhe und eine Trinkflasche.",
+                    "bounds": {
+                        "left": 0.12575574,
+                        "top": 0.119709276,
+                        "right": 0.55441356,
+                        "bottom": 0.13424541
+                    },
+                    "confidence": 0.8868001,
+                    "language": "und"
+                },
+                {
+                    "text": "• Bei Rückfragen erreichen Sie Frau Sommer über das Sekretariat.",
+                    "bounds": {
+                        "left": 0.1311971,
+                        "top": 0.13638307,
+                        "right": 0.6191052,
+                        "bottom": 0.15134673
+                    },
+                    "confidence": 0.8648437,
+                    "language": "und"
+                },
+                {
+                    "text": "• Familien, für die der Betrag eine Belastung darstellt, sprechen uns bitte vertraulich an.",
+                    "bounds": {
+                        "left": 0.12575574,
+                        "top": 0.15391193,
+                        "right": 0.79262394,
+                        "bottom": 0.17015819
+                    },
+                    "confidence": 0.87730366,
+                    "language": "und"
+                },
+                {
+                    "text": "-- Hier abtrennen und zurückgeben -",
+                    "bounds": {
+                        "left": 0.13603386,
+                        "top": 0.17828132,
+                        "right": 0.33131802,
+                        "bottom": 0.18811458
+                    },
+                    "confidence": 0.83203125,
+                    "language": "und"
+                },
+                {
+                    "text": "Rückmeldung - Klassenausflug 24.11.2026 (Klasse 3b)",
+                    "bounds": {
+                        "left": 0.12394196,
+                        "top": 0.20906371,
+                        "right": 0.62031436,
+                        "bottom": 0.2257375
+                    },
+                    "confidence": 0.8738111,
+                    "language": "und"
+                },
+                {
+                    "text": "Name des Kindes: Lea Mustermann Klasse: 3b",
+                    "bounds": {
+                        "left": 0.123337366,
+                        "top": 0.23428816,
+                        "right": 0.46191052,
+                        "bottom": 0.24711415
+                    },
+                    "confidence": 0.85894096,
+                    "language": "und"
+                },
+                {
+                    "text": "Mein Kind nimmt am Ausflug teil. Die 35,00 € liegen bei.",
+                    "bounds": {
+                        "left": 0.15235792,
+                        "top": 0.2590851,
+                        "right": 0.57376057,
+                        "bottom": 0.27533135
+                    },
+                    "confidence": 0.8703295,
+                    "language": "und"
+                },
+                {
+                    "text": "Mein Kind nimmt nicht am Ausflug teil.",
+                    "bounds": {
+                        "left": 0.15235792,
+                        "top": 0.28217188,
+                        "right": 0.4401451,
+                        "bottom": 0.296708
+                    },
+                    "confidence": 0.8602295,
+                    "language": "und"
+                },
+                {
+                    "text": "Bitte unterschrieben bis Freitag, 16.10.2026 zurückgeben.",
+                    "bounds": {
+                        "left": 0.12212817,
+                        "top": 0.3150919,
+                        "right": 0.5822249,
+                        "bottom": 0.3304831
+                    },
+                    "confidence": 0.8936298,
+                    "language": "und"
+                },
+                {
+                    "text": "Datum, Unterschrift eines Erziehungsberechtigten",
+                    "bounds": {
+                        "left": 0.12091898,
+                        "top": 0.3676785,
+                        "right": 0.37545344,
+                        "bottom": 0.37836683
+                    },
+                    "confidence": 0.87256944,
+                    "language": "und"
+                },
+                {
+                    "text": "Grundschule Am Beispielweg\nSchulleitung: R. Muster",
+                    "bounds": {
+                        "left": 0.11245465,
+                        "top": 0.90252244,
+                        "right": 0.24304716,
+                        "bottom": 0.9213339
+                    },
+                    "confidence": 0.85009766,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielweg 20, 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.11305925,
+                        "top": 0.92432666,
+                        "right": 0.27690446,
+                        "bottom": 0.9320222
+                    },
+                    "confidence": 0.80163574,
+                    "language": "und"
+                },
+                {
+                    "text": "Förderverein Grundschule Am Beispielweg e. V.\nIBAN DE89 3704 0044 0532 0130 00\nSparkasse Beispielstadt",
+                    "bounds": {
+                        "left": 0.37303507,
+                        "top": 0.9046601,
+                        "right": 0.58827084,
+                        "bottom": 0.9345874
+                    },
+                    "confidence": 0.8446983,
+                    "language": "und"
+                },
+                {
+                    "text": "Sekretariat Mo-Fr 7:30-12:00 Uhr\nsekretariat@gs -beispielweg.example",
+                    "bounds": {
+                        "left": 0.6324063,
+                        "top": 0.9063702,
+                        "right": 0.8004837,
+                        "bottom": 0.9251817
+                    },
+                    "confidence": 0.8347014,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 2 von 2",
+                    "bounds": {
+                        "left": 0.8403869,
+                        "top": 0.05429671,
+                        "right": 0.9038694,
+                        "bottom": 0.06241984
+                    },
+                    "confidence": 0.82421875,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 2 von 2",
+                    "bounds": {
+                        "left": 0.8276904,
+                        "top": 0.96323216,
+                        "right": 0.8929867,
+                        "bottom": 0.9700727
+                    },
+                    "confidence": 0.8457031,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}
