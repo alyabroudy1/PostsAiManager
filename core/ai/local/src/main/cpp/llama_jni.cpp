@@ -373,6 +373,30 @@ void invalidateKvCache(PamSession *session, const char *why) {
     session->replyCheckpoint.clear();
 }
 
+/**
+ * Consistency check: with no reply open, the KV must hold exactly the tokens of the rendered
+ * history (n_past == token count of it). On any mismatch, log a warning and invalidate so the
+ * next send re-primes instead of building on a cache that disagrees with the text bookkeeping.
+ * @return true when consistent.
+ */
+bool verifyKvConsistency(PamSession *session, const char *where) {
+    if (session->chatHistory.empty()) return true;
+    const std::string rendered = renderChatHistory(session, /* addAssistant */ false);
+    const llama_vocab *vocab = llama_model_get_vocab(session->model);
+    const int expected = rendered.empty() ? 0 : -llama_tokenize(
+            vocab, rendered.c_str(), (int32_t) rendered.size(), nullptr, 0, true, true);
+    const int nPast = (int) llama_memory_seq_pos_max(llama_get_memory(session->ctx), 0) + 1;
+    if (nPast == expected && (size_t) session->chatPrevLen == rendered.size()) {
+        LOGI("pam_llama: kv consistent after %s (n_past=%d)", where, nPast);
+        return true;
+    }
+    __android_log_print(ANDROID_LOG_WARN, LOG_TAG,
+                        "pam_llama: kv MISMATCH after %s: n_past=%d rendered_tokens=%d prev_len=%d rendered_len=%zu",
+                        where, nPast, expected, session->chatPrevLen, rendered.size());
+    invalidateKvCache(session, where);
+    return false;
+}
+
 /** Builds the sampler chain shared by the raw one-shot path and the chat-session path. */
 llama_sampler *buildSamplerChain(const llama_vocab *vocab, float temperature, int topK, float topP,
                                   jlong seed, const std::string &grammarStd) {
@@ -982,6 +1006,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_primeChatSession(
     const double primeMs = elapsedMs(start);
     LOGI("pam_llama: session primed turns=%d tokens=%d ms=%.1f %s",
          (int) count, tokenCount, primeMs, tokensPerSecondText(tokenCount, primeMs).c_str());
+    verifyKvConsistency(session, "prime");
     return JNI_TRUE;
 }
 
@@ -1076,13 +1101,22 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
         }
     }
 
-    const size_t from = std::min((size_t) session->chatPrevLen, formatted.size());
-    const std::string diff = formatted.substr(from);
+    // The reply boundary is the end of the user turn (history rendered *without* the open
+    // assistant tag). The tag and the prefill belong to the reply, so a stop or rewind returns
+    // to exactly "history through this user turn", which is what chatPrevLen then records.
+    const std::string userTurnText = renderChatHistory(session, /* addAssistant */ false);
+    if (userTurnText.empty() || formatted.compare(0, userTurnText.size(), userTurnText) != 0) {
+        invalidateKvCache(session, "sendChatMessage: template is not prefix-stable");
+        return JNI_FALSE;
+    }
+    const std::string assistantOpen = formatted.substr(userTurnText.size());
+
+    const size_t from = std::min((size_t) session->chatPrevLen, userTurnText.size());
+    const std::string diff = userTurnText.substr(from);
     const bool isFirst = llama_memory_seq_pos_max(mem, 0) == -1;
 
-    // The user turn + open assistant tag are decoded in full *here* (not lazily by the first
-    // nextToken), so the position and recurrent state captured below are exactly "right
-    // before this reply" — the point a stop or a thinking rewind must return to.
+    // The user turn is decoded in full *here* (not lazily by the first nextToken), so the
+    // position and recurrent state captured below are exactly "right before this reply".
     int tokenCount = 0;
     const auto start = std::chrono::steady_clock::now();
     if (!decodeIntoSession(session, diff, isFirst, /* leaveRemainderForSampling */ false, &tokenCount)) {
@@ -1093,11 +1127,11 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
     LOGI("pam_llama: session decode new_tokens=%d n_past=%d prompt_eval_ms=%.1f prompt_eval_%s",
          tokenCount, nPast, promptMs, tokensPerSecondText(tokenCount, promptMs).c_str());
 
-    // Marks "up to the open assistant turn" as decoded; commitChatReply() extends this once
-    // the generated content is known, without decoding anything more (see its doc).
-    session->chatPrevLen = (int) formatted.size();
+    // "Through the user turn" is what the KV holds; commitChatReply() extends this with the
+    // answer, discardPendingReply() leaves it as is.
+    session->chatPrevLen = (int) userTurnText.size();
 
-    // Everything decoded from here on (the thinking prefill and the [nextToken] calls that
+    // Everything decoded from here on (assistant tag, prefill and the [nextToken] calls that
     // follow) is this reply's own — the position discardPendingReply()/commitChatReply()
     // roll back to. Recurrent models need their state saved at this exact point too.
     session->replyStartPos = (llama_pos) llama_memory_seq_pos_max(mem, 0) + 1;
@@ -1110,7 +1144,7 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
     const std::string &prefill = thinkingOpen ? kThinkOpenPrefill : kThinkClosedPrefill;
     // Its final chunk is left un-decoded for nextToken's first call to sample from.
     int prefillTokens = 0;
-    if (!decodeIntoSession(session, prefill, /* addSpecial */ false,
+    if (!decodeIntoSession(session, assistantOpen + prefill, /* addSpecial */ false,
                            /* leaveRemainderForSampling */ true, &prefillTokens) || prefillTokens <= 0) {
         invalidateKvCache(session, "sendChatMessage: thinking prefill failed");
         return JNI_FALSE;
@@ -1150,27 +1184,10 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_sendChatMessage(
  * why a reasoning trace never re-enters a future prompt) in the session's history, so the
  * *next* turn's template diff renders correctly.
  *
- * Usually decodes nothing: the reply's tokens are already in the KV cache from the
- * [nextToken] calls that produced them, and [chatHistory]'s answer-only text plus
- * [chatPrevLen]'s bookkeeping stay consistent with that on their own.
- *
- * ### Except when this turn thought
- *
- * If it did, what is *physically* in the KV cache is the model's raw output —
- * `<think>...</think>` included — never the clean `{answer}<|im_end|>\n`-shaped text
- * [chatHistory] now claims for this turn (chatHistory only ever stores the answer — see
- * above — and nothing ever decodes a turn's closing tag; the *next* turn's diff normally
- * absorbs it lazily, which is exactly the mechanism this exploits below). Left alone, every
- * future turn's generation would silently keep attending to this turn's own reasoning trace
- * through the KV cache, even though no text-level bookkeeping anywhere admits it is there —
- * violating the same "history is answer-only" invariant chatHistory itself keeps.
- *
- * Fixed by rolling the whole raw span back
- * (`llama_memory_seq_rm(mem, 0, replyStartPos, -1)` — the same, already-proven-safe
- * rollback [discardPendingReply] uses) and re-decoding the clean, answer-only closed turn
- * in its place via the same [decodeIntoSession] helper every other decode in this file
- * uses. A second small decode, but only for a turn that thought — the common, no-thinking
- * turn stays exactly as cheap as it always was.
+ * Always rewinds the raw reply (assistant tag, prefill, any thinking trace) and decodes the
+ * clean `<|im_start|>assistant\n{answer}<|im_end|>\n` in its place, for thinking and
+ * non-thinking turns alike. The KV then equals the rendered history, including the closing
+ * `<|im_end|>\n` that sampling never decodes, and verifyKvConsistency() checks it.
  */
 JNIEXPORT void JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_commitChatReply(
@@ -1178,24 +1195,28 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_commitChatReply(
     auto *session = reinterpret_cast<PamSession *>(handle);
     if (session == nullptr) return;
 
-    const bool hadThinking = session->sawThinkOpen;
     const int replyOpenTextLen = session->chatPrevLen; // text boundary right at replyStartPos.
     const llama_pos replyStartPos = session->replyStartPos;
 
     session->chatHistory.push_back({"assistant", jstringToStd(env, answer)});
     const std::string formatted = renderChatHistory(session, /* addAssistant */ false);
-    session->chatPrevLen = (int) formatted.size();
     // The reply is committed — nothing pending left to roll back.
     session->replyStartPos = -1;
     session->sawThinkOpen = false;
 
-    if (!hadThinking || replyStartPos < 0) {
+    if (replyStartPos < 0) {
+        // No open reply: the KV was invalidated (or never primed) — re-prime on the next send.
+        session->chatPrevLen = 0;
         session->replyCheckpoint.clear();
+        llama_memory_clear(llama_get_memory(session->ctx), true);
         return;
     }
 
+    // Uniform rule for thinking and non-thinking turns: the KV physically holds the raw reply
+    // (open/empty think block included), never the clean text the history renders, so rewind
+    // it and decode `<|im_start|>assistant\n{answer}<|im_end|>\n` in its place.
     if (!rollbackToReplyStart(session, replyStartPos)) {
-        invalidateKvCache(session, "commitChatReply: could not rewind the thinking trace");
+        invalidateKvCache(session, "commitChatReply: could not rewind the reply");
         return;
     }
     session->replyCheckpoint.clear();
@@ -1204,16 +1225,16 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_commitChatReply(
             formatted.substr(std::min((size_t) replyOpenTextLen, formatted.size()));
     int tokenCount = 0;
     const auto start = std::chrono::steady_clock::now();
-    // Never the first-ever decode in this context — a reply always follows at least the
-    // opening prompt/system turn — so addSpecial is always false here.
-    if (decodeIntoSession(session, closingDiff, /* addSpecial */ false,
+    // Never the first-ever decode in this context — a reply always follows a user turn.
+    if (!decodeIntoSession(session, closingDiff, /* addSpecial */ false,
                            /* leaveRemainderForSampling */ false, &tokenCount)) {
-        LOGI("pam_llama: rewound thinking trace, re-decoded clean turn tokens=%d ms=%.1f",
-             tokenCount, elapsedMs(start));
-    } else {
         // A stale KV would silently corrupt every later turn; start over instead.
         invalidateKvCache(session, "commitChatReply: failed to re-decode the clean turn");
+        return;
     }
+    session->chatPrevLen = (int) formatted.size();
+    LOGI("pam_llama: commit re-decoded clean turn tokens=%d ms=%.1f", tokenCount, elapsedMs(start));
+    verifyKvConsistency(session, "commit");
 }
 
 /**
@@ -1234,6 +1255,8 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_discardPendingReply(JNIEnv *, 
         LOGI("pam_llama: discardPendingReply removed tokens from n_past=%d onward", (int) session->replyStartPos);
         session->replyStartPos = -1;
         session->replyCheckpoint.clear();
+        // KV, chatHistory and chatPrevLen now all say "history through the last user turn".
+        verifyKvConsistency(session, "stop");
     } else {
         invalidateKvCache(session, "discardPendingReply: rollback failed");
     }

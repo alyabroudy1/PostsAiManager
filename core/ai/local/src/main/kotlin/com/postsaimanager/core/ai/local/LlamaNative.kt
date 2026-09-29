@@ -246,8 +246,9 @@ internal object LlamaNative {
 
     /**
      * Records the assistant's (thinking-stripped) [answer] in the session's history so the
-     * *next* turn's diff renders correctly. Decodes nothing — those tokens are already in
-     * the KV cache from the [nextToken] calls that produced them.
+     * *next* turn's diff renders correctly. Rewinds the raw reply in the KV cache and decodes
+     * the clean `assistant\n{answer}<|im_end|>\n` turn in its place (thinking or not), then
+     * checks the KV against the rendered history and invalidates it (re-prime) on mismatch.
      */
     external fun commitChatReply(handle: Long, answer: String)
 
