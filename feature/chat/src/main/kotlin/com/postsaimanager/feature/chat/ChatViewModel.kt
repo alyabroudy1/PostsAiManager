@@ -8,7 +8,6 @@ import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.usecase.ChatErrorAction
 import com.postsaimanager.core.domain.usecase.ChatTurn
-import com.postsaimanager.core.domain.usecase.CitationParser
 import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.ObserveInstalledModelsUseCase
 import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
@@ -152,11 +151,18 @@ class ChatViewModel @Inject constructor(
 
     /** Shared by [preWarmModel] and [selectModel] — see their docs. */
     private suspend fun primeConversation() {
-        _uiState.update { it.copy(isPrimingConversation = true) }
+        // Sampled before our own load/prime starts, so a busy engine here can only be someone
+        // else's work (a document being read) — the header then explains the wait.
+        val busyWithOtherWork = engine.isBusy
+        _uiState.update {
+            it.copy(isPrimingConversation = true, primeWaitingForDocument = busyWithOtherWork)
+        }
         try {
-            sendChatMessage.primeConversation(conversationId, documentId)
+            sendChatMessage.primeConversation(conversationId, documentId) {
+                _uiState.update { it.copy(primeWaitingForDocument = false) }
+            }
         } finally {
-            _uiState.update { it.copy(isPrimingConversation = false) }
+            _uiState.update { it.copy(isPrimingConversation = false, primeWaitingForDocument = false) }
         }
     }
 
@@ -174,6 +180,7 @@ class ChatViewModel @Inject constructor(
                         thinking = message.thinking,
                         thinkingDurationMs = message.thinkingDurationMs,
                         incomplete = message.incomplete,
+                        cutOff = message.cutOff,
                         // 4.3: every source SendChatMessageUseCase persisted was *shown* to
                         // the model — narrow that down to what the answer actually cites, or
                         // keep them all when it cited none (see pickVisibleSources).
@@ -216,25 +223,6 @@ class ChatViewModel @Inject constructor(
             title = title,
             documentDeleted = document == null || document.isTrashed,
         )
-    }
-
-    /**
-     * [CitationParser] needs each source labelled exactly the way `SendChatMessageUseCase`
-     * showed it to the model — `"p.N"` in a document chat, `"<title>, p.N"` in a standalone
-     * one (see that use case's `withPassages` KDoc) — to recognise the model's citation back.
-     * A source with no page number (a chunk indexed before 4.0's page-aware chunking) cannot
-     * be labelled that way at all, so it goes in [CitationParser.pick]'s `unlabelled` list
-     * instead: never individually citable, but still part of the "show everything" fallback.
-     */
-    private fun pickVisibleSources(content: String, sources: List<ChatSource>): List<ChatSource> {
-        if (sources.isEmpty()) return sources
-        val labelled = sources.mapNotNull { source ->
-            val page = source.pageNumber ?: return@mapNotNull null
-            val label = source.title?.let { "$it, p.$page" } ?: "p.$page"
-            CitationParser.Labelled(label, source)
-        }
-        val unlabelled = sources.filter { it.pageNumber == null }
-        return CitationParser.pick(content, labelled, unlabelled)
     }
 
     private fun observeEngine() {
@@ -506,6 +494,8 @@ data class ChatUiState(
      * Drives the "Preparing conversation…" header subtitle — see [ModelHeaderChip].
      */
     val isPrimingConversation: Boolean = false,
+    /** The pre-warm started while the engine was busy reading a document, and is still waiting. */
+    val primeWaitingForDocument: Boolean = false,
     val error: ChatError? = null,
     /**
      * Set to `System.currentTimeMillis()` every time [ChatViewModel.sendMessage] runs —
@@ -514,7 +504,16 @@ data class ChatUiState(
      * of `followBottom`.
      */
     val lastSentAt: Long = 0L,
-)
+) {
+    /**
+     * True while the chat is stuck behind a document being read: either the pre-warm found
+     * the engine busy, or a send is waiting with the use case's busy reason. Drives the
+     * header's "Waiting for a document to finish reading…".
+     */
+    val isWaitingForDocument: Boolean
+        get() = primeWaitingForDocument ||
+            (isProcessing && statusText == ChatTurn.PreparingModel.WAITING_FOR_DOCUMENT)
+}
 
 /** A failure the user can act on, rather than a swallowed exception (see defect 6.7.12). */
 data class ChatError(
@@ -532,6 +531,8 @@ data class ChatMessage(
     val thinkingDurationMs: Long? = null,
     /** True for a reply the user stopped, or one that failed mid-stream. See [com.postsaimanager.core.model.AiMessage.incomplete]. */
     val incomplete: Boolean = false,
+    /** With [incomplete]: the reply hit its token cap ("Answer was cut off") rather than being stopped. */
+    val cutOff: Boolean = false,
     /** The passages this reply cites/was grounded on, for [ChatScreen]'s citation chips (4.3). */
     val sources: List<ChatSource> = emptyList(),
 )

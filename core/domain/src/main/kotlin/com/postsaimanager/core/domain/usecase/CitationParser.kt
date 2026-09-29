@@ -49,18 +49,40 @@ object CitationParser {
         val citations = extractCitations(answer)
         if (citations.isEmpty()) return labelled.map { it.value } + unlabelled
 
-        val cited = labelled.filter { entry -> citations.any { it.matches(entry.label) } }
+        // Cited passages come back in the order the answer first mentions them.
+        val cited = labelled
+            .mapNotNull { entry ->
+                val firstMention = citations.filter { it.matches(entry.label) }.minOfOrNull { it.position }
+                firstMention?.let { it to entry }
+            }
+            .sortedBy { it.first }
+            .map { it.second }
         return if (cited.isNotEmpty()) cited.map { it.value } else labelled.map { it.value } + unlabelled
     }
 
-    private fun extractCitations(answer: String): List<Citation> =
-        BRACKET_REGEX.findAll(answer).mapNotNull { parseCitation(it.groupValues[1]) }.toList()
+    /**
+     * Removes the inline citation markers (a page or part number in square brackets, with or
+     * without a document title) from the answer — the chips under the reply carry that
+     * information, so raw brackets in the prose are just noise. Only bracketed spans that
+     * [pick] itself would parse as a citation are touched; any other brackets stay.
+     */
+    fun stripMarkers(answer: String): String {
+        if (!answer.contains('[')) return answer
+        // The spaces before a marker go with it ("gilt [p.6]." -> "gilt."); other whitespace
+        // (markdown indentation included) is left alone.
+        return MARKER_WITH_LEADING_SPACE_REGEX.replace(answer) { match ->
+            if (parseCitation(match.groupValues[1], 0) != null) "" else match.value
+        }
+    }
 
-    private fun parseCitation(bracketText: String): Citation? {
+    private fun extractCitations(answer: String): List<Citation> =
+        BRACKET_REGEX.findAll(answer).mapNotNull { parseCitation(it.groupValues[1], it.range.first) }.toList()
+
+    private fun parseCitation(bracketText: String, position: Int): Citation? {
         val part = PART_REGEX.find(bracketText)?.groupValues?.get(1)?.toIntOrNull()
         val page = PAGE_REGEX.find(bracketText)?.groupValues?.get(1)?.toIntOrNull()
         if (part == null && page == null) return null
-        return Citation(page = page, part = part, text = bracketText)
+        return Citation(page = page, part = part, text = bracketText, position = position)
     }
 
     /** A `&#91;p.N&#93;`/`&#91;part K&#93;`/`&#91;title, p.N&#93;`-shaped label, decomposed for matching. */
@@ -78,7 +100,7 @@ object CitationParser {
     }
 
     /** A citation found in the model's answer, parsed out of one bracketed span, e.g. `p.2`. */
-    private data class Citation(val page: Int?, val part: Int?, val text: String) {
+    private data class Citation(val page: Int?, val part: Int?, val text: String, val position: Int) {
         fun matches(label: String): Boolean {
             val parsed = parseLabel(label) ?: return false
             val numberMatches = (parsed.page != null && parsed.page == page) ||
@@ -100,6 +122,7 @@ object CitationParser {
     private data class ParsedLabel(val title: String?, val page: Int?, val part: Int?)
 
     private val WHITESPACE_REGEX = Regex("\\s+")
+    private val MARKER_WITH_LEADING_SPACE_REGEX = Regex("[ \\t]*\\[([^\\[\\]]{1,120})]")
     private val BRACKET_REGEX = Regex("\\[([^\\[\\]]{1,120})]")
     private val PART_REGEX = Regex("\\bpart\\s*(\\d+)\\b", RegexOption.IGNORE_CASE)
 
