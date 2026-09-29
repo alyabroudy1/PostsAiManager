@@ -100,6 +100,10 @@ dependencies {
     // Lifecycle
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.lifecycle.process)
+
+    // App lock: BiometricPrompt (needs a FragmentActivity, which it brings in)
+    implementation(libs.biometric)
 
     // Hilt
     implementation(libs.hilt.android)
@@ -110,6 +114,8 @@ dependencies {
 
     // Core
     implementation(libs.core.ktx)
+    implementation(libs.coroutines.core)
+    implementation(libs.coroutines.android)
 
     // Debug
     debugImplementation(libs.compose.ui.tooling)

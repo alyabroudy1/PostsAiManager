@@ -7,6 +7,7 @@ import android.os.Process
 import android.os.StrictMode
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.postsaimanager.applock.AppLockCoordinator
 import com.postsaimanager.core.ai.local.InferenceCrashObserver
 import com.postsaimanager.core.ai.local.InferenceMemoryPressureObserver
 import com.postsaimanager.core.data.worker.DocumentProcessingRecovery
@@ -75,6 +76,10 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
     @Inject
     lateinit var purgeExpiredDocuments: Lazy<PurgeExpiredDocumentsUseCase>
 
+    // Lazy for the same reason as above: only the main process has a UI to lock.
+    @Inject
+    lateinit var appLockCoordinator: Lazy<AppLockCoordinator>
+
     /** Process-lifetime scope for start-up work that must outlive `onCreate` returning. */
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -87,6 +92,9 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
         super.onCreate()
         enableStrictModeInDebug()
         if (!isMainProcess()) return
+        // First, and on Main: the lock must know about lifecycle events from the very first
+        // ON_START, and starts locked until the stored settings arrive.
+        appLockCoordinator.get().start(applicationScope)
         inferenceMemoryPressureObserver.start()
         inferenceCrashObserver.start()
         // Off Main, and after onCreate returns rather than blocking it: a document stuck at

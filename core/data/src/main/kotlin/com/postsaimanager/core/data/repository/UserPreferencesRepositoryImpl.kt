@@ -6,12 +6,14 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.postsaimanager.core.common.dispatcher.Dispatcher
 import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.repository.UserPreferencesRepository
+import com.postsaimanager.core.model.AppLockTimeouts
 import com.postsaimanager.core.model.AppTheme
 import com.postsaimanager.core.model.UserPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -33,7 +35,8 @@ private object PrefsKeys {
     val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
     val AI_MODEL_ID = stringPreferencesKey("ai_model_id")
     val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
-    val NOTIFICATION_PERMISSION_REQUESTED = booleanPreferencesKey("notification_permission_requested")
+    val APP_LOCK_TIMEOUT_MINUTES = intPreferencesKey("app_lock_timeout_minutes")
+    val NOTIFICATION_PERMISSION_REQUESTED =booleanPreferencesKey("notification_permission_requested")
 }
 
 @Singleton
@@ -54,6 +57,9 @@ class UserPreferencesRepositoryImpl @Inject constructor(
                     notificationsEnabled = prefs[PrefsKeys.NOTIFICATIONS_ENABLED] ?: true,
                     selectedAiModelId = prefs[PrefsKeys.AI_MODEL_ID],
                     biometricEnabled = prefs[PrefsKeys.BIOMETRIC_ENABLED] ?: false,
+                    appLockTimeoutMinutes = prefs[PrefsKeys.APP_LOCK_TIMEOUT_MINUTES]
+                        ?.takeIf { it in AppLockTimeouts.OPTIONS_MINUTES }
+                        ?: AppLockTimeouts.DEFAULT_MINUTES,
                     notificationPermissionRequested =
                         prefs[PrefsKeys.NOTIFICATION_PERMISSION_REQUESTED] ?: false,
                 )
@@ -81,6 +87,9 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 
     override suspend fun setBiometricEnabled(enabled: Boolean): PamResult<Unit> =
         editPrefs { it[PrefsKeys.BIOMETRIC_ENABLED] = enabled }
+
+    override suspend fun setAppLockTimeoutMinutes(minutes: Int): PamResult<Unit> =
+        editPrefs { it[PrefsKeys.APP_LOCK_TIMEOUT_MINUTES] = minutes }
 
     override suspend fun setNotificationPermissionRequested(requested: Boolean): PamResult<Unit> =
         editPrefs { it[PrefsKeys.NOTIFICATION_PERMISSION_REQUESTED] = requested }
