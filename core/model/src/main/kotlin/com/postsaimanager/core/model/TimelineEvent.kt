@@ -38,6 +38,15 @@ object TimelineCodes {
 
     /** data carries the machine reason (`no_pages`, `error`); description carries the raw detail. */
     const val PROCESSING_FAILED = "processing_failed"
+
+    /** A finished letter was quietly re-read by a newer extractor. args: the version it had (empty if none), the new one. */
+    const val REPROCESSED = "reprocessed"
+
+    /**
+     * A background re-read did not finish and the letter kept its earlier data and status. args: a machine
+     * reason (`no_model`, `no_pages`, `error`). Counted to allow one retry on a later start.
+     */
+    const val REPROCESS_FAILED = "reprocess_failed"
 }
 
 /** The [Document.titleCode] the scanner writes. args: page count. */

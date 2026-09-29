@@ -29,6 +29,12 @@ data class UserPreferences(
      * permission a second time, regardless of what the user answered.
      */
     val notificationPermissionRequested: Boolean = false,
+    /**
+     * Whether letters read by an older version of the extractor are quietly re-read in the background
+     * (only while charging or idle) when the extractor improves. Never touches what the user confirmed
+     * or edited.
+     */
+    val updateOlderLettersAutomatically: Boolean = true,
 )
 
 /** The grace periods the app lock offers. 0 means "lock every time the app leaves the screen". */

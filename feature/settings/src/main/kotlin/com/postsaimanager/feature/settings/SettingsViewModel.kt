@@ -103,6 +103,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { userPreferencesRepository.setAutoProcess(enabled) }
     }
 
+    fun setUpdateOlderLettersAutomatically(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setUpdateOlderLettersAutomatically(enabled) }
+    }
+
     fun setDefaultLanguage(language: String) {
         viewModelScope.launch { userPreferencesRepository.setDefaultLanguage(language) }
     }

@@ -98,6 +98,15 @@ class SettingsViewModelTest {
         assertThat(repo.current.defaultLanguage).isEqualTo("de")
     }
 
+    @Test
+    fun `updating older letters is on by default and can be turned off`() = runTest {
+        assertThat(repo.current.updateOlderLettersAutomatically).isTrue()
+
+        viewModel().setUpdateOlderLettersAutomatically(false)
+
+        assertThat(repo.current.updateOlderLettersAutomatically).isFalse()
+    }
+
     @Nested
     @DisplayName("app lock toggle")
     inner class AppLockToggle {

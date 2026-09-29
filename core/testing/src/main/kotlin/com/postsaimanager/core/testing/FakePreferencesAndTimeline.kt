@@ -56,6 +56,9 @@ class FakeUserPreferencesRepository(
 
     override suspend fun setNotificationPermissionRequested(requested: Boolean) =
         update { it.copy(notificationPermissionRequested = requested) }
+
+    override suspend fun setUpdateOlderLettersAutomatically(enabled: Boolean) =
+        update { it.copy(updateOlderLettersAutomatically = enabled) }
 }
 
 /** In-memory [InferenceSettingsRepository], the same shape as the DataStore-backed one. */

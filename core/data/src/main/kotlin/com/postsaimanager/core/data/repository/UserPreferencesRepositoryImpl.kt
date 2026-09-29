@@ -37,6 +37,7 @@ private object PrefsKeys {
     val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
     val APP_LOCK_TIMEOUT_MINUTES = intPreferencesKey("app_lock_timeout_minutes")
     val NOTIFICATION_PERMISSION_REQUESTED =booleanPreferencesKey("notification_permission_requested")
+    val UPDATE_OLDER_LETTERS = booleanPreferencesKey("update_older_letters_automatically")
 }
 
 @Singleton
@@ -62,6 +63,7 @@ class UserPreferencesRepositoryImpl @Inject constructor(
                         ?: AppLockTimeouts.DEFAULT_MINUTES,
                     notificationPermissionRequested =
                         prefs[PrefsKeys.NOTIFICATION_PERMISSION_REQUESTED] ?: false,
+                    updateOlderLettersAutomatically = prefs[PrefsKeys.UPDATE_OLDER_LETTERS] ?: true,
                 )
             }
             .catch { emit(UserPreferences()) }
@@ -93,6 +95,9 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 
     override suspend fun setNotificationPermissionRequested(requested: Boolean): PamResult<Unit> =
         editPrefs { it[PrefsKeys.NOTIFICATION_PERMISSION_REQUESTED] = requested }
+
+    override suspend fun setUpdateOlderLettersAutomatically(enabled: Boolean): PamResult<Unit> =
+        editPrefs { it[PrefsKeys.UPDATE_OLDER_LETTERS] = enabled }
 
     private suspend fun editPrefs(
         block: (MutablePreferences) -> Unit,

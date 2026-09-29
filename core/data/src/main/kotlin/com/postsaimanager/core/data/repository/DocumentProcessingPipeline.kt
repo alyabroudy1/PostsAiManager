@@ -21,6 +21,7 @@ import com.postsaimanager.core.data.mapper.JsonColumns
 import com.postsaimanager.core.data.worker.DocumentProcessingWorker
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
@@ -545,19 +546,11 @@ private const val MAX_SUGGESTED_QUESTIONS = 3
 /** Pages OCR'd at once. Bounded so a ten-page scan doesn't decode ten bitmaps together. */
 private const val OCR_CONCURRENCY = 2
 
-/**
- * Identifies the extractor that produced a value.
- *
- * Part of the Understand stage's fingerprint: bump it when extraction logic changes, and
- * every document re-derives its machine values on next run without re-reading a single page.
- */
-private const val EXTRACTOR_VERSION = "entity-extractor-1"
-
-/** Bump when the prompt, the grammar, the schema or the field mapping changes. */
-private const val AI_ENGINE_VERSION = "extraction-v2-1"
-
-/** No model read the document: only values found by code. Re-derived as soon as a model does. */
-private const val FOUND_VALUES_VERSION = "found-values-1"
+// The versions a run stamps come from ExtractorVersion (core:domain) — the one place they are bumped,
+// and the one the background reprocess compares against. Part of the Understand stage's fingerprint.
+private const val EXTRACTOR_VERSION = ExtractorVersion.PATTERNS
+private const val AI_ENGINE_VERSION = ExtractorVersion.CURRENT
+private const val FOUND_VALUES_VERSION = ExtractorVersion.FOUND_VALUES
 
 // The context window comes from ActiveModelProvider, which caps the catalogued value by
 // what the device can actually afford. Passing a separate constant here would budget the

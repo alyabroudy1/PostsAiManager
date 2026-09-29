@@ -21,4 +21,7 @@ interface UserPreferencesRepository {
     /** Records that the OS `POST_NOTIFICATIONS` prompt has been shown once — see
      * [UserPreferences.notificationPermissionRequested]. */
     suspend fun setNotificationPermissionRequested(requested: Boolean): PamResult<Unit>
+
+    /** See [UserPreferences.updateOlderLettersAutomatically]. */
+    suspend fun setUpdateOlderLettersAutomatically(enabled: Boolean): PamResult<Unit>
 }

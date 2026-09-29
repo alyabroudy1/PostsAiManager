@@ -139,6 +139,13 @@ fun SettingsScreen(
                 checked = prefs.autoProcessAfterScan,
                 onCheckedChange = viewModel::setAutoProcess,
             )
+            SettingsSwitchItem(
+                icon = PamIcons.AiModel,
+                title = "Update older letters automatically",
+                subtitle = "Re-read finished letters in the background, while charging or idle, when reading improves. Your edits are never changed",
+                checked = prefs.updateOlderLettersAutomatically,
+                onCheckedChange = viewModel::setUpdateOlderLettersAutomatically,
+            )
             SettingsClickItem(
                 icon = PamIcons.Delete,
                 title = "Recently deleted",
