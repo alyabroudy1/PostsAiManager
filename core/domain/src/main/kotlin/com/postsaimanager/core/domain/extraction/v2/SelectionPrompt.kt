@@ -33,6 +33,8 @@ object SelectionPrompt {
           the addressee), CARE_OF (a person or household whose address is only used as a mailbox),
           SUBJECT_PERSON (who the letter is about, for example a child when the parents are addressed).
           id is a name candidate id, or the name copied exactly from the letter when there is no candidate.
+          n is the party's name as you would write it, using only words of that line: leave out any form of
+          address or title (such as Mr, Madame or السيد) and keep everything else.
           A name candidate does not say whether it is a person or an organisation, and a prefix such as a
           routing or "care of" abbreviation is only a hint: you decide k and r. k is PERSON, AUTHORITY, COMPANY
           or OTHER. rel is GUARDIAN_OF when the addressee acts for the subject person (for example the letter is
@@ -46,7 +48,8 @@ object SelectionPrompt {
         - x: up to ${StructuredGrammar.MAX_EXTRAS} other meaningful details that no field covers (a meter number,
           a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...).
           lb is the label as printed, k a short English snake_case key, id a candidate id or NONE, v the text
-          copied exactly from the letter when there is no candidate, otherwise "".
+          copied exactly from the letter when there is no candidate, otherwise "". Candidates whose id starts
+          with Z are plain numbers (a percentage, a quantity, a rate): they may only appear in x.
         - c is your confidence for that object: LOW, MEDIUM or HIGH.
     """.trimIndent()
 
@@ -67,7 +70,7 @@ object SelectionPrompt {
         D3: 10.03.2026 p.1
         A1: 12,00 € p.1
         ANSWER
-        {"type":"school","tc":"HIGH","lang":"de","parties":[{"r":"SENDER","id":"M1","k":"AUTHORITY","rel":"NONE","c":"HIGH"},{"r":"ADDRESSEE","id":"M2","k":"PERSON","rel":"HOUSEHOLD","c":"HIGH"},{"r":"SUBJECT_PERSON","id":"Mia Beispiel","k":"PERSON","rel":"NONE","c":"MEDIUM"}],"s":{"letter_date":{"id":"D1","r":"LETTER_DATE","c":"HIGH"},"total":{"id":"A1","r":"FEE","c":"HIGH"},"due_date":{"id":"D3","r":"DEADLINE","c":"HIGH"},"iban":"NONE","reference":"NONE","customer_no":"NONE","event_date":{"id":"D2","r":"EVENT","c":"HIGH"}},"x":[{"lb":"Klasse","k":"school_class","id":"NONE","v":"2a","c":"MEDIUM"}]}
+        {"type":"school","tc":"HIGH","lang":"de","parties":[{"r":"SENDER","id":"M1","n":"Grundschule Am Waldweg","k":"AUTHORITY","rel":"NONE","c":"HIGH"},{"r":"ADDRESSEE","id":"M2","n":"Familie Beispiel","k":"PERSON","rel":"HOUSEHOLD","c":"HIGH"},{"r":"SUBJECT_PERSON","id":"Mia Beispiel","n":"Mia Beispiel","k":"PERSON","rel":"NONE","c":"MEDIUM"}],"s":{"letter_date":{"id":"D1","r":"LETTER_DATE","c":"HIGH"},"total":{"id":"A1","r":"FEE","c":"HIGH"},"due_date":{"id":"D3","r":"DEADLINE","c":"HIGH"},"iban":"NONE","reference":"NONE","customer_no":"NONE","event_date":{"id":"D2","r":"EVENT","c":"HIGH"}},"x":[{"lb":"Klasse","k":"school_class","id":"NONE","v":"2a","c":"MEDIUM"}]}
     """.trimIndent()
 
     fun system(schema: ExtractionSchema, withExample: Boolean): String {

@@ -42,6 +42,7 @@ object CandidateTable {
 
     private const val CAP_AMOUNTS = 20
     private const val CAP_DATES = 20
+    private const val CAP_NUMBERS = 6
     private const val CAP_IBANS = 4
     private const val CAP_REFERENCES = 14
     private const val CAP_NAMES = 10
@@ -61,6 +62,8 @@ object CandidateTable {
         add(CAP_NAMES, CandidateKind.NAME)
         add(CAP_DATES, CandidateKind.DATE, CandidateKind.DATETIME)
         add(CAP_AMOUNTS, CandidateKind.AMOUNT)
+        // Plain figures (a percentage, a quantity, a rate): for extras only, no money slot takes one.
+        add(CAP_NUMBERS, CandidateKind.NUMBER)
         add(CAP_IBANS, CandidateKind.IBAN)
         add(CAP_REFERENCES, CandidateKind.REFERENCE)
         // No fixed slot takes these, but the model may report them as open metadata.
@@ -105,7 +108,10 @@ object CandidateTable {
             .groupBy { it.value.pages.first() }
             .toSortedMap()
             .mapValues { (_, list) ->
-                list.sortedWith(compareBy({ it.value.candidate.validation.isInvalid }, { it.index })).toMutableList()
+                // Passing values first; a date kept as printed (no locale read its month) after the ones that were read.
+                list.sortedWith(
+                    compareBy({ it.value.candidate.validation.isInvalid }, { it.value.candidate.attrs["unnormalized"] != null }, { it.index }),
+                ).toMutableList()
             }
         val keep = mutableSetOf<Int>()
         while (keep.size < cap && byPage.values.any { it.isNotEmpty() }) {

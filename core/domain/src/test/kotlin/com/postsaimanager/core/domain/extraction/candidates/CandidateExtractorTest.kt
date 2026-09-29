@@ -42,10 +42,80 @@ class CandidateExtractorTest {
         assertThat(c.attrs["timeOnly"]).isEqualTo("true")
     }
 
+    @TestFactory
+    fun `a long-form date is found by its shape and read with java_time month names, in any language`(): List<DynamicTest> = table(
+        listOf(
+            "Le 26 septembre 2026" to "2026-09-26",
+            "le 1er octobre 2026" to "2026-10-01",
+            "Madrid, 26 de septiembre de 2026" to "2026-09-26",
+            "Roma, 26 settembre 2026" to "2026-09-26",
+            "Ankara, 26 Eylül 2026" to "2026-09-26",
+            "Lisboa, 26 de setembro de 2026" to "2026-09-26",
+            "Москва, 26 сентября 2026" to "2026-09-26",
+            "التاريخ: 26 سبتمبر 2026" to "2026-09-26",
+            "التاريخ: 26 أيلول 2026" to "2026-09-26",
+            "التاريخ: ٢٦ سبتمبر ٢٠٢٦" to "2026-09-26",
+            "26. Sept. 2026" to "2026-09-26",
+            "Okt. 3, 2026" to "2026-10-03",
+            "2026 September 26" to "2026-09-26",
+            "26 Mar 2026" to "2026-03-26",
+        ),
+        { it.first },
+    ) { (line, iso) ->
+        val dates = one(line).filter { it.kind == CandidateKind.DATE }
+        assertThat(dates.map { it.normalized }).contains(iso)
+        assertThat(dates.first { it.normalized == iso }.attrs["unnormalized"]).isNull()
+    }
+
     @Test
-    fun `a bare decimal-dot number after a date is not a time`() {
-        val kinds = one("Datum 12.11.2026 15.10 Stück").map { it.kind }
-        assertThat(kinds).doesNotContain(CandidateKind.DATETIME)
+    fun `a date whose month word no locale reads is kept as printed, quoted and not read`() {
+        val c = one("am 26 Foobar 2026 fällig").single { it.kind == CandidateKind.DATE }
+        assertThat(c.raw).isEqualTo("26 Foobar 2026")
+        assertThat(c.normalized).isEqualTo("26 Foobar 2026")
+        assertThat(c.attrs["unnormalized"]).isEqualTo("true")
+        assertThat(c.validation).isEqualTo(Validation.Unchecked)
+        assertThat(c.id).startsWith("D")
+        // Arabic-Indic digits and a word of another script, no language known.
+        val other = one("تاريخ ٢٦ شهرالمثال ٢٠٢٦").single { it.kind == CandidateKind.DATE }
+        assertThat(other.normalized).isEqualTo("26 شهرالمثال 2026")
+        // A day that cannot be one, or a year that is no year, is not a date shape.
+        assertThat(one("am 45 Foobar 2026", "am 26 Foobar 1234").filter { it.kind == CandidateKind.DATE }).isEmpty()
+    }
+
+    @Test
+    fun `an impossible long-form date is kept invalid like a numeric one`() {
+        val c = one("fällig am 31 September 2026").single { it.kind == CandidateKind.DATE }
+        assertThat(c.normalized).isEqualTo("2026-09-31")
+        assertThat(c.validation).isInstanceOf(Validation.Invalid::class.java)
+    }
+
+    @Test
+    fun `word day year is kept as printed only with the comma, else only when a month reads`() {
+        assertThat(one("Rechnung 12 2026", "Nummer 12 2026").filter { it.kind == CandidateKind.DATE }).isEmpty()
+        assertThat(one("Foobar 12, 2026").single { it.kind == CandidateKind.DATE }.attrs["unnormalized"]).isEqualTo("true")
+        assertThat(one("March 12 2026").single { it.kind == CandidateKind.DATE }.normalized).isEqualTo("2026-03-12")
+    }
+
+    @Test
+    fun `a time behind a date is found by its shape, no word is needed, and money is not a time`() {
+        assertThat(one("Termin 12.11.2026 um 09:30 Uhr").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("2026-11-12T09:30")
+        assertThat(one("Cita 12.11.2026 a las 9:30").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("2026-11-12T09:30")
+        assertThat(one("12.11.2026 09:30").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("2026-11-12T09:30")
+        assertThat(one("موعد 26 سبتمبر 2026 الساعة 14:05").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("2026-09-26T14:05")
+        assertThat(one("Datum 12.11.2026 15.10 Stück").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("2026-11-12T15:10")
+        // Money or a percentage behind the figure, or a second date, is not a time.
+        assertThat(one("Datum 12.11.2026 12.50 EUR").map { it.kind }).doesNotContain(CandidateKind.DATETIME)
+        assertThat(one("Datum 12.11.2026 15.10 %").map { it.kind }).doesNotContain(CandidateKind.DATETIME)
+        assertThat(one("vom 05.08.2026 19.08.2026").filter { it.kind == CandidateKind.DATETIME }).isEmpty()
+        assertThat(one("vom 05.08.2026 19.08.2026").filter { it.kind == CandidateKind.DATE }).hasSize(2)
+    }
+
+    @Test
+    fun `a time of its own is found by its colon shape, a dot time needs a short token behind it`() {
+        assertThat(one("Öffnung 08:00 bis 18:00").filter { it.kind == CandidateKind.DATETIME }.map { it.normalized }).containsExactly("T08:00", "T18:00")
+        assertThat(one("Beginn 9.30 Uhr im Raum 4").single { it.kind == CandidateKind.DATETIME }.normalized).isEqualTo("T09:30")
+        assertThat(one("Gesamt 9.30").filter { it.kind == CandidateKind.DATETIME }).isEmpty()
+        assertThat(one("Preis 9.30 EUR").filter { it.kind == CandidateKind.DATETIME }).isEmpty()
     }
 
     @Test
@@ -97,13 +167,17 @@ class CandidateExtractorTest {
         listOf(
             "Betrag: 1.284,50 €" to "1284.50 EUR",
             "Betrag EUR 1.284,50" to "1284.50 EUR",
-            "Summe 1284,50" to "1284.50 EUR",
             "Balance £142.80 overdue" to "142.80 GBP",
             "Total \$1,284.50" to "1284.50 USD",
             "Guthaben -5,00 €" to "-5.00 EUR",
             "Kosten 35,- €" to "35.00 EUR",
-            "Gebühr 12,50 Euro" to "12.50 EUR",
             "Rate 1.234 €" to "1234.00 EUR",
+            // Any currency sign or ISO code, in front or behind, in any language around it.
+            "Prix 12,50 CHF" to "12.50 CHF",
+            "Total SEK 100,00" to "100.00 SEK",
+            "Fiyat 9,99 ₺" to "9.99 TRY",
+            "المبلغ 100,00 EUR" to "100.00 EUR",
+            "Precio ¥1.500" to "1500.00 JPY",
         ),
         { it.first },
     ) { (line, normalized) ->
@@ -111,9 +185,70 @@ class CandidateExtractorTest {
     }
 
     @Test
-    fun `percentages units and per-unit prices are not amounts`() {
-        val amounts = one("MwSt. 19,00 % auf 3,15 kWh und 1,79 EUR/kg").filter { it.kind == CandidateKind.AMOUNT }
-        assertThat(amounts).isEmpty()
+    fun `a number without a currency is a NUMBER, not an AMOUNT, whatever word follows it`() {
+        val set = one("Summe 1284,50", "Verbrauch 3,15 kWh", "Menge 4,00 Stück", "Total 12,50 dollars", "Dauer 14,00 Tage")
+        assertThat(set.filter { it.kind == CandidateKind.AMOUNT }).isEmpty()
+        val numbers = set.filter { it.kind == CandidateKind.NUMBER }
+        assertThat(numbers.map { it.normalized }).containsExactly("1284.50", "3.15", "4.00", "12.50", "14.00").inOrder()
+        assertThat(numbers.first().id).startsWith("Z")
+        assertThat(numbers.first().attrs["cents"]).isEqualTo("128450")
+    }
+
+    @Test
+    fun `a currency name from the platform's locale data right after a number counts as a currency, as a hint`() {
+        val set = one("Gebühr 12,50 Euro", "نفيدكم بأن المبلغ المستحق هو 450,00 يورو.", "Prix 9,90 euro")
+        val amounts = set.filter { it.kind == CandidateKind.AMOUNT }
+        assertThat(amounts.map { it.normalized }).containsExactly("12.50 EUR", "450.00 EUR", "9.90 EUR").inOrder()
+        assertThat(amounts.all { it.attrs["currencyName"] == "true" }).isTrue()
+    }
+
+    @Test
+    fun `percentages and per-unit prices are numbers, marked by their shape`() {
+        val set = one("MwSt. 19,00 % auf 3,15 kWh und 1,79 EUR/kg und 0,32 €/kWh")
+        assertThat(set.filter { it.kind == CandidateKind.AMOUNT }).isEmpty()
+        val byText = set.filter { it.kind == CandidateKind.NUMBER }.associateBy { it.raw }
+        assertThat(byText.getValue("19,00").attrs["percent"]).isEqualTo("true")
+        assertThat(byText.getValue("1,79 EUR").attrs["rate"]).isEqualTo("true")
+        assertThat(byText.getValue("0,32 €").attrs["rate"]).isEqualTo("true")
+        assertThat(byText.getValue("3,15").attrs["percent"]).isNull()
+    }
+
+    @Test
+    fun `a unitless table column becomes amounts when a header cell of the column names a currency`() {
+        val set = run(
+            page(
+                "Posten||Menge||Betrag in EUR",
+                "Strom||3,50||64,98",
+                "Gas||1,25||31,20",
+                "Summe||||96,18",
+            ),
+        )
+        val amounts = set.ofKind(CandidateKind.AMOUNT)
+        assertThat(amounts.map { it.normalized }).containsExactly("64.98 EUR", "31.20 EUR", "96.18 EUR").inOrder()
+        assertThat(amounts.all { it.attrs["promoted"] == "column" && it.attrs["currencyExplicit"] == "false" }).isTrue()
+        // The quantity column has no currency, so it stays plain numbers.
+        assertThat(set.ofKind(CandidateKind.NUMBER).map { it.normalized }).containsExactly("3.50", "1.25").inOrder()
+    }
+
+    @Test
+    fun `the column's currency is the header's, in any script`() {
+        val set = run(page("البند||المبلغ (USD)", "كهرباء||64,98"))
+        assertThat(set.ofKind(CandidateKind.AMOUNT).single().normalized).isEqualTo("64.98 USD")
+    }
+
+    @Test
+    fun `a table with no currency anywhere stays numbers`() {
+        val set = run(page("Posten||Menge", "Strom||3,50", "Gas||1,25"))
+        assertThat(set.ofKind(CandidateKind.AMOUNT)).isEmpty()
+        assertThat(set.ofKind(CandidateKind.NUMBER)).hasSize(2)
+    }
+
+    @Test
+    fun `plain numbers that add up as net plus VAT equals gross become amounts by arithmetic`() {
+        val set = one("100,00", "19,00", "119,00", "7,00")
+        assertThat(set.filter { it.kind == CandidateKind.AMOUNT }.map { it.normalized }).containsExactly("100.00 EUR", "19.00 EUR", "119.00 EUR")
+        assertThat(set.filter { it.kind == CandidateKind.AMOUNT }.all { it.attrs["triple"] != null }).isTrue()
+        assertThat(set.single { it.kind == CandidateKind.NUMBER }.normalized).isEqualTo("7.00")
     }
 
     @Test
@@ -230,10 +365,34 @@ class CandidateExtractorTest {
     }
 
     @Test
-    fun `BIC needs its label`() {
+    fun `a labelled BIC is found and the label is a hint`() {
         val set = one("BIC: COBADEFFXXX", "BEISPIELMARKT", "SWIFT DEUTDEFF")
         assertThat(set.filter { it.kind == CandidateKind.BIC }.map { it.normalized })
             .containsExactly("COBADEFFXXX", "DEUTDEFF")
+    }
+
+    @Test
+    fun `a BIC is found by its shape when its country is the country of an IBAN on the page, with no label`() {
+        val set = one("IBAN: DE89 3704 0044 0532 0130 00", "COBADEFFXXX", "Empfänger Muster GmbH  DEUTDEFF")
+        val bics = set.filter { it.kind == CandidateKind.BIC }
+        assertThat(bics.map { it.normalized }).containsExactly("COBADEFFXXX", "DEUTDEFF").inOrder()
+        assertThat(bics.all { it.attrs["shape"] == "true" }).isTrue()
+        // Any language around it, or none.
+        val ar = one("IBAN DE89 3704 0044 0532 0130 00", "رمز البنك COBADEFFXXX")
+        assertThat(ar.single { it.kind == CandidateKind.BIC }.normalized).isEqualTo("COBADEFFXXX")
+    }
+
+    @Test
+    fun `a BIC-shaped word without an IBAN of the same country on the page is not a BIC`() {
+        // No IBAN at all.
+        assertThat(one("COBADEFFXXX", "BEISPIELMARKT").filter { it.kind == CandidateKind.BIC }).isEmpty()
+        // An IBAN of another country.
+        assertThat(one("IBAN: NL91 ABNA 0417 1643 00", "COBADEFFXXX").filter { it.kind == CandidateKind.BIC }).isEmpty()
+        // The IBAN is on another page.
+        val split = run(page("IBAN: DE89 3704 0044 0532 0130 00"), page("COBADEFFXXX"))
+        assertThat(split.ofKind(CandidateKind.BIC)).isEmpty()
+        // A word of the right length whose 5th and 6th letters are no IBAN country.
+        assertThat(one("IBAN: DE89 3704 0044 0532 0130 00", "BEISPIEL").filter { it.kind == CandidateKind.BIC }).isEmpty()
     }
 
     // ── references ──────────────────────────────────────────────────────────────
@@ -279,7 +438,8 @@ class CandidateExtractorTest {
     fun `a routing prefix is cut off by its shape and kept as the hint, kind is not decided`() {
         val set = run(page("@ADDR Mustermann Consulting GmbH", "@ADDR z. Hd. Frau Erika Mustermann", "@ADDR Gewerbering 4", "@ADDR 54321 Beispieldorf"))
         val names = set.ofKind(CandidateKind.NAME)
-        assertThat(names.map { it.normalized }).containsExactly("Mustermann Consulting GmbH", "Erika Mustermann").inOrder()
+        // The form of address stays: what the person is called is the model's normalised name to give.
+        assertThat(names.map { it.normalized }).containsExactly("Mustermann Consulting GmbH", "Frau Erika Mustermann").inOrder()
         assertThat(names[1].label).contains("Hd")
         assertThat(names[1].attrs["prefix"]).isEqualTo("z. Hd.")
         // Whether this person is the routing contact is not recorded here; that is the model's `r`.
@@ -299,7 +459,7 @@ class CandidateExtractorTest {
     fun `routing lines are found without zone hints, from their shape`() {
         val set = run(page("Mustermann Consulting GmbH", "z. Hd. Herrn Dr. Max Beispiel", "c/o Firma Test GmbH"))
         assertThat(set.ofKind(CandidateKind.NAME).map { it.normalized })
-            .containsExactly("Mustermann Consulting GmbH", "Dr. Max Beispiel", "Firma Test GmbH").inOrder()
+            .containsExactly("Mustermann Consulting GmbH", "Herrn Dr. Max Beispiel", "Firma Test GmbH").inOrder()
     }
 
     @Test
@@ -318,8 +478,19 @@ class CandidateExtractorTest {
         assertThat(fr.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Famille Exemple")
         val ar = run(page("@ADDR عائلة", "@ADDR موستيرمان"))
         assertThat(ar.ofKind(CandidateKind.NAME)).hasSize(1)
+    }
+
+    @Test
+    fun `a name keeps its whole line, no form of address and no connecting word is cut or needed`() {
         val herrn = run(page("@ADDR Herrn und Frau", "@ADDR Max und Erika Mustermann"))
-        assertThat(herrn.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Max und Erika Mustermann")
+        assertThat(herrn.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Herrn und Frau", "Max und Erika Mustermann").inOrder()
+        val lines = listOf(
+            "Herrn Max Mustermann", "Mrs Erika Beispiel", "Madame Claire Exemple", "Señor Juan Ejemplo",
+            "السيد أحمد علي", "Maria de la Cruz", "Mustermann & Söhne", "Jan van der Berg",
+        )
+        val set = run(page(*lines.map { "@ADDR $it" }.toTypedArray()))
+        assertThat(set.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactlyElementsIn(lines).inOrder()
+        assertThat(set.candidates.none { it.attrs["salutation"] != null }).isTrue()
     }
 
     @Test
@@ -328,7 +499,8 @@ class CandidateExtractorTest {
         assertThat(inline.ofKind(CandidateKind.NAME).single().normalized).isEqualTo("Erziehungsberechtigte von Adam Mustermann")
         assertThat(inline.candidates.none { it.attrs["guardianOf"] != null }).isTrue()
         val split = run(page("@ADDR Erziehungsberechtigte von", "@ADDR Adam Mustermann"))
-        assertThat(split.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Adam Mustermann")
+        // Both lines are offered whole (no connecting word decides): reading them as a guardian is the model's job.
+        assertThat(split.ofKind(CandidateKind.NAME).map { it.normalized }).containsExactly("Erziehungsberechtigte von", "Adam Mustermann").inOrder()
     }
 
     @Test

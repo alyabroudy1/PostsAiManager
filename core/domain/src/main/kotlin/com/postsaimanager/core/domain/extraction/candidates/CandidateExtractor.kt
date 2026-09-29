@@ -54,44 +54,65 @@ private class SourceLine(
 private class Draft(var c: Candidate, val line: SourceLine, val start: Int, val end: Int)
 
 private object P {
-    const val EUR = "EUR|Euro|\u20AC|\u00A3|GBP|USD|US\\u0024|\\u0024|CHF"
+    /**
+     * A currency by shape: any currency sign (Unicode category Sc) or an upper-case ISO 4217 code taken
+     * from the platform's currency data. Currency names are only a hint (see [CurrencyNames]).
+     */
+    val CURRENCY: String = "\\p{Sc}|(?-i:" + AmountParser.isoCodes.sorted().joinToString("|") + ")"
 
-    val MONTHS: Map<String, Int> = mapOf(
-        "januar" to 1, "january" to 1, "jan" to 1, "februar" to 2, "february" to 2, "feb" to 2,
-        "m\u00E4rz" to 3, "maerz" to 3, "march" to 3, "m\u00E4r" to 3, "mar" to 3, "april" to 4, "apr" to 4,
-        "mai" to 5, "may" to 5, "juni" to 6, "june" to 6, "jun" to 6, "juli" to 7, "july" to 7, "jul" to 7,
-        "august" to 8, "aug" to 8, "september" to 9, "sept" to 9, "sep" to 9, "oktober" to 10, "october" to 10,
-        "okt" to 10, "oct" to 10, "november" to 11, "nov" to 11, "dezember" to 12, "december" to 12, "dez" to 12, "dec" to 12,
-    )
-    private val monthAlt = MONTHS.keys.sortedByDescending { it.length }.joinToString("|")
+    /** A currency sign or code standing on its own in a cell or line (a table header such as "Betrag in EUR"). */
+    val CURRENCY_TOKEN = Regex("(?<![\\p{L}\\p{Nd}])($CURRENCY)(?![\\p{L}\\p{Nd}])")
 
     val ISO_DATE = Regex("(?<![\\d-])(\\d{4})-(\\d{2})-(\\d{2})(?!\\d|-\\d)")
     val NUM_DATE = Regex("(?<![\\d.,/])(\\d{1,2})\\.\\s?(\\d{1,2})\\.\\s?(\\d{4}|\\d{2})(?!\\d|[.,]\\d)")
-    val LONG_DATE = Regex(
-        "(?<![\\d.,])(\\d{1,2})(?:st|nd|rd|th)?\\.?\\s*($monthAlt)\\.?,?\\s*(\\d{4})(?!\\d)",
-        RegexOption.IGNORE_CASE,
-    )
-    val MDY_DATE = Regex(
-        "(?<![\\p{L}\\d])($monthAlt)\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})(?!\\d)",
-        RegexOption.IGNORE_CASE,
-    )
-    val TIME_AFTER = Regex(
-        "^(?:\\s*,)?\\s+(?:(um|at|@|ab|gegen)\\s+)?(\\d{1,2})([:.])(\\d{2})(?::\\d{2})?(?:\\s*(Uhr|h)(?![\\p{L}]))?",
-        RegexOption.IGNORE_CASE,
-    )
-    val TIME_ONLY = Regex("(?<![\\d:.])(\\d{1,2})[:.](\\d{2})\\s*Uhr(?![\\p{L}])", RegexOption.IGNORE_CASE)
 
+    // Long-form dates by shape: a day number, a word and a four-digit year, in any order. Whether the
+    // word is a month, and which, is read afterwards from java.time's names (MonthNames) as a hint.
+    // A short word between the parts ("de", "of", "le", "di") is allowed, whatever it says.
+    private const val ORDINAL = "\\p{L}{0,2}[.\u00BA\u00B0\u00AA]?"
+    private const val WORD = "\\p{L}{3,12}"
+    private const val SMALL = "(?:\\p{L}{1,3}\\s+)?"
+
+    /** 26 September 2026, 26. Sept. 2026, 1er septembre 2026, 26 de septiembre de 2026, 26 Eyl\u00FCl 2026, 26 \u0633\u0628\u062A\u0645\u0628\u0631 2026. */
+    val DAY_FIRST = Regex("(?<![\\d.,/])(\\d{1,2})$ORDINAL\\s*$SMALL($WORD)\\.?,?\\s+$SMALL(\\d{4})(?!\\d)")
+
+    /** October 10, 2026 (the comma after the day is optional). */
+    val WORD_FIRST = Regex("(?<![\\p{L}\\d])($WORD)\\.?\\s+(\\d{1,2})$ORDINAL(,?)\\s+(\\d{4})(?!\\d)")
+
+    /** 2026 September 26. */
+    val YEAR_FIRST = Regex("(?<![\\d.,/])(\\d{4})\\s+($WORD)\\.?\\s+(\\d{1,2})[.\u00BA\u00B0\u00AA]?(?!\\d)")
+
+    /**
+     * A time right behind a date: hours, `:` or `.`, minutes, optional seconds; at most two short
+     * words before it ("um", "at", "a las") or an `@`. No word is required and none is looked for.
+     */
+    val TIME_AFTER = Regex("^(?:\\s*[,;])?\\s+(?:(?:\\p{L}{1,6}\\.?\\s+){0,2}|@\\s*)(\\d{1,2})([:.])(\\d{2})(?::\\d{2})?(?![.,:]?\\d)")
+
+    /** A time of its own: `hh:mm` anywhere, `hh.mm` only when a short token follows (see [Run.findDates]). */
+    val TIME_ONLY = Regex("(?<![\\p{L}\\d:.\\-/_])(\\d{1,2})([:.])(\\d{2})(?::\\d{2})?(?![_/\\-]|[.,:]?\\d)")
+
+    /** A short token right behind a time: a unit such as "Uhr", "h", "pm". Any language; only its shape is looked at. */
+    val SHORT_TOKEN_AFTER = Regex("^\\s?\\p{L}{1,3}(?![\\p{L}])")
+
+    /** Money or a percentage right behind a figure that could be read as a time ("12.50 EUR"): then it is not a time. */
+    val MONEY_OR_PERCENT_AFTER = Regex("^\\s?(?:[%\u2030]|$CURRENCY)(?![\\p{L}])")
+
+    /** A number with an optional sign, an optional currency sign or code before or after it. Whether it is money is decided in [Run.findAmounts]. */
     val AMOUNT = Regex(
-        "(?<![\\p{L}\\d.,])((?<=^|[\\s(:])[-\\u2212])?(?:($EUR)\\s?)?" +
+        "(?<![\\p{L}\\d.,])((?<=^|[\\s(:])[-\\u2212])?(?:($CURRENCY)\\s?)?" +
             "(\\d{1,3}(?:[.,\\u2019']\\d{3})+(?:[.,]\\d{2})?|\\d+(?:[.,]\\d{2})?)(,-{1,2})?(?!\\d)" +
-            "(?:\\s?($EUR|\u064A\u0648\u0631\u0648)(?![\\p{L}]))?",
+            "(?:\\s?($CURRENCY)(?![\\p{L}]))?",
         RegexOption.IGNORE_CASE,
     )
-    val AMOUNT_NOT_MONEY_AFTER = Regex(
-        "^\\s?(?:%|Prozent|kWh|kg|m\u00B2|m2|qm|Liter|km|Std\\b|St\u00FCck|Tage|Tagen|Jahre|Monate)",
-        RegexOption.IGNORE_CASE,
-    )
-    val PER_UNIT_AFTER = Regex("^\\s?/\\s?(?:kg|kwh|m|l|st|std|h|tag|monat|jahr|month|year|day)\\b", RegexOption.IGNORE_CASE)
+
+    /** A percentage sign right after a number: a shape, not a word. */
+    val PERCENT_AFTER = Regex("^\\s?[%\u2030]")
+
+    /** A slash and a letter right after a number ("1,79 EUR/kg", "0,32 \u20AC/kWh"): a rate, marked by the slash. */
+    val RATE_AFTER = Regex("^\\s?/\\s?\\p{L}")
+
+    /** A decimal or grouped number that is a value with cents, as opposed to a plain integer. */
+    val CENTS_SHAPE = Regex("[.,]\\d{2}$")
 
     /** Two capitals and two check characters; a check character OCR read as a letter (o/O for 0, I/l for 1) is allowed and repaired later. */
     val IBAN_START = Regex("(?<![A-Za-z0-9])[A-Z]{2}(?:\\d{2}|[0-9oOIl]{2})(?=[ A-Za-z0-9]|$)")
@@ -103,6 +124,8 @@ private object P {
         "(?<![\\p{L}\\d])(BIC(?:/SWIFT)?|SWIFT(?:[-\\s]?Code)?)\\s*[:.]?\\s*([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)(?![A-Za-z0-9])",
         RegexOption.IGNORE_CASE,
     )
+    /** The BIC shape alone: 8 or 11 upper-case characters, no label. Accepted only next to an IBAN of the same country. */
+    val BIC_SHAPE = Regex("(?<![\\p{L}\\p{Nd}])[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?(?![\\p{L}\\p{Nd}])")
     val EMAIL = Regex("[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+")
     val PHONE_LABELLED = Regex(
         "(?<![\\p{L}\\d])(Tel(?:efon)?\\.?|Fon|Fax|Telefax|Mobil(?:funk)?|Phone|Hotline|Servicetelefon|Servicenummer|Rufnummer|Handy)" +
@@ -124,10 +147,6 @@ private object P {
     val PHONE_UNTER =Regex("(?<![\\p{L}\\d])unter\\s+(?:der\\s+Nummer\\s+)?(\\+?\\d[\\d ()/\\-]{6,20}\\d)", RegexOption.IGNORE_CASE)
 
     // ── names ──
-    val SALUTATION = Regex(
-        "^(?:Herrn\\s+und\\s+Frau|Herr\\s+und\\s+Frau|Herrn|Herr|Frau|Fr\\.|Hr\\.|Fr\u00E4ulein|Eheleute|Mr\\.?|Mrs\\.?|Ms\\.?|Miss|Mx\\.?)(?=\\s|$)\\s*",
-        RegexOption.IGNORE_CASE,
-    )
     /**
      * A routing prefix by shape: leading abbreviation tokens such as "z. Hd." or "c/o" (short letters
      * ended by a full stop, or two letters around a slash). Only removed from the name; the words are
@@ -141,7 +160,6 @@ private object P {
             "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\\.?,?$",
     )
     val PLACE_COMMA = Regex("^\\p{L}[\\p{L}.\\- ]{1,40},\\s*$")
-    val CONNECTORS = setOf("und", "&", "+", "von", "van", "de", "der", "zu", "zur", "vom", "el", "al", "bin", "ibn", "and")
 }
 
 /** Reference label rules; the first rule to claim a value span wins. */
@@ -239,6 +257,18 @@ private class Run(
     /** Shape-only names are looked for above this height on page 1 (fraction of the page). */
     private val TOP_HALF = 0.5f
 
+    /** A block at most this wide (fraction of the page) is read as a table cell; a wider one is running text. */
+    private val CELL_MAX_WIDTH = 0.4f
+
+    /** A cell names a column's currency only when it is at most this far above or below (fraction of the page height). */
+    private val COLUMN_MAX_DISTANCE = 0.45f
+
+    /** The sum rule looks at documents with at most this many amounts, to keep it a small pairwise check. */
+    private val MAX_SUM_AMOUNTS = 120
+
+    /** Two cells share a column edge when their edges differ by less than this (fraction of the page width). */
+    private val EDGE_TOLERANCE = 0.02f
+
     /** With a letter date given, a date may lie this far before it; the same for every date, no label decides. */
     private val GIVEN_LETTER_PAST_YEARS = 10L
 
@@ -248,7 +278,9 @@ private class Run(
             if (NoiseFilter.isNoiseLine(line.text)) continue
             processLine(line, lines.getOrNull(i + 1))
         }
+        resolveShapeBics()
         drafts.sortWith(compareBy({ it.line.order }, { it.start }))
+        promoteNumbers()
         labelDrafts()
         val letter = givenLetterDate
         validateDates(letter)
@@ -495,13 +527,15 @@ private class Run(
             var end = range.last + 1
             var normalized = "%04d-%02d-%02d".format(y, mo, d)
             var kind = CandidateKind.DATE
+            // A time right behind the date, by shape: hh:mm or hh.mm. A dot time is dropped when money or a
+            // percentage follows it ("12.11.2026 12.50 EUR"): that figure is not a time.
             val tm = P.TIME_AFTER.find(text.substring(end))
             if (tm != null) {
-                val hh = tm.groupValues[2].toInt()
-                val mm = tm.groupValues[4].toInt()
-                val sepDot = tm.groupValues[3] == "."
-                val hasWord = tm.groupValues[1].isNotEmpty() || tm.groupValues[5].isNotEmpty()
-                if (hh < 24 && mm < 60 && (!sepDot || hasWord)) {
+                val hh = tm.groupValues[1].toInt()
+                val mm = tm.groupValues[3].toInt()
+                val sepDot = tm.groupValues[2] == "."
+                val rest = text.substring(end + tm.value.length)
+                if (hh < 24 && mm < 60 && !(sepDot && P.MONEY_OR_PERCENT_AFTER.containsMatchIn(rest))) {
                     end += tm.value.length
                     normalized += "T%02d:%02d".format(hh, mm)
                     kind = CandidateKind.DATETIME
@@ -511,24 +545,45 @@ private class Run(
             mask.add(r)
             add(line, r, kind, text.substring(r.first, end).trim(), normalized)
         }
+
+        /** The shape is a date but no locale reads the word as a month (or they disagree): kept as printed, quoted not read. */
+        fun emitRaw(range: IntRange) {
+            if (!mask.free(range)) return
+            mask.add(range)
+            val raw = text.substring(range.first, range.last + 1).trim().replace(Regex("\\s+"), " ")
+            add(line, range, CandidateKind.DATE, raw, raw, attrs = mapOf("unnormalized" to "true"))
+        }
+
+        fun plausible(day: Int, year: Int) = day in 1..31 && year in 1900..2199
+
+        /** A long-form date: read the month word with java.time's names when possible, else keep it as printed. */
+        fun longDate(range: IntRange, day: Int, word: String, year: Int, rawAllowed: Boolean) {
+            if (!plausible(day, year) || !mask.free(range)) return
+            val month = MonthNames.monthOf(word)
+            if (month != null) emit(range, year, month, day) else if (rawAllowed) emitRaw(range)
+        }
         for (m in P.ISO_DATE.findAll(text)) emit(m.range, m.groupValues[1].toInt(), m.groupValues[2].toInt(), m.groupValues[3].toInt())
         for (m in P.NUM_DATE.findAll(text)) {
             val yy = m.groupValues[3]
             val y = if (yy.length == 2) 2000 + yy.toInt() else yy.toInt()
             emit(m.range, y, m.groupValues[2].toInt(), m.groupValues[1].toInt())
         }
-        for (m in P.LONG_DATE.findAll(text)) {
-            val mo = P.MONTHS[m.groupValues[2].lowercase()] ?: continue
-            emit(m.range, m.groupValues[3].toInt(), mo, m.groupValues[1].toInt())
+        // Day, word, year. The word may be a month in any language; when none reads it the date stays as printed.
+        for (m in P.DAY_FIRST.findAll(text)) longDate(m.range, m.groupValues[1].toInt(), m.groupValues[2], m.groupValues[3].toInt(), rawAllowed = true)
+        // Word, day, year: kept as printed only with the comma of "October 10, 2026", else a figure pair after any word would be a date.
+        for (m in P.WORD_FIRST.findAll(text)) {
+            longDate(m.range, m.groupValues[2].toInt(), m.groupValues[1], m.groupValues[4].toInt(), rawAllowed = m.groupValues[3].isNotEmpty())
         }
-        for (m in P.MDY_DATE.findAll(text)) {
-            val mo = P.MONTHS[m.groupValues[1].lowercase()] ?: continue
-            emit(m.range, m.groupValues[3].toInt(), mo, m.groupValues[2].toInt())
-        }
+        for (m in P.YEAR_FIRST.findAll(text)) longDate(m.range, m.groupValues[3].toInt(), m.groupValues[2], m.groupValues[1].toInt(), rawAllowed = false)
+        // A time on its own: hh:mm anywhere, hh.mm only with a short token behind it ("9.30 Uhr") and no money or percent sign.
         for (m in P.TIME_ONLY.findAll(text)) {
             val hh = m.groupValues[1].toInt()
-            val mm = m.groupValues[2].toInt()
+            val mm = m.groupValues[3].toInt()
             if (hh >= 24 || mm >= 60 || !mask.free(m.range)) continue
+            if (m.groupValues[2] == ".") {
+                val rest = text.substring(m.range.last + 1)
+                if (P.MONEY_OR_PERCENT_AFTER.containsMatchIn(rest) || !P.SHORT_TOKEN_AFTER.containsMatchIn(rest)) continue
+            }
             mask.add(m.range)
             add(
                 line, m.range, CandidateKind.DATETIME, m.value, "T%02d:%02d".format(hh, mm),
@@ -545,13 +600,39 @@ private class Run(
 
     private val bicCountries: Set<String> = IbanValidator.lengths.keys + setOf("US", "CA", "JP", "CN", "AU", "NZ", "IN", "HK", "SG", "ZA", "MX", "AR", "RU", "KR")
 
+    /** Unlabelled BIC-shaped tokens, resolved once every IBAN on the page is known (see [resolveShapeBics]). */
+    private val bicShapes = ArrayList<Pair<SourceLine, MatchResult>>()
+
     private fun findBics(line: SourceLine, mask: Mask) {
+        // A label ("BIC", "SWIFT") is only a hint that makes the token certain; it is not needed.
         for (m in P.BIC.findAll(line.text)) {
             if (!mask.free(m.range)) continue
             val code = m.groupValues[2].uppercase()
             val valid = if (code.substring(4, 6) in bicCountries) Validation.Valid else Validation.Invalid("unknown country ${code.substring(4, 6)}")
             mask.add(m.range)
             add(line, m.range, CandidateKind.BIC, m.groupValues[2], code, label = m.groupValues[1].uppercase(), validation = valid)
+        }
+        for (m in P.BIC_SHAPE.findAll(line.text)) {
+            if (mask.free(m.range)) bicShapes += line to m
+        }
+    }
+
+    /**
+     * A token of the BIC shape (4 letters, 2 country letters, 2 characters, optional 3) whose country
+     * is the country of an IBAN found on the same page is a BIC, with no label needed: a bank code
+     * and the account it belongs to agree on the country. The words before it stay as a hint.
+     */
+    private fun resolveShapeBics() {
+        val countries = drafts.filter { it.c.kind == CandidateKind.IBAN }
+            .groupBy({ it.c.page }, { it.c.attrs["country"].orEmpty() })
+        for ((line, m) in bicShapes) {
+            val code = m.value
+            if (code.substring(4, 6) !in countries[line.page].orEmpty()) continue
+            // A name-shaped line is a weaker claim on the same characters; anything else already owns them.
+            if (drafts.any { it.line === line && it.c.kind != CandidateKind.NAME && it.start <= m.range.last && m.range.first < it.end }) continue
+            val before = line.text.substring(0, m.range.first).trim().trimEnd(':', '.', ' ')
+            val hint = before.split(Regex("\\s+")).filter { it.isNotEmpty() }.takeLast(2).joinToString(" ")
+            add(line, m.range, CandidateKind.BIC, code, code, label = hint, validation = Validation.Valid, attrs = mapOf("shape" to "true"))
         }
     }
 
@@ -631,6 +712,13 @@ private class Run(
 
     // Amounts -----------------------------------------------------------------------
 
+    /**
+     * A number is money by evidence, never by a word next to it. AMOUNT: a currency sign or ISO code
+     * sits right before or after it, it takes part in an arithmetic triple, or it stands in a table
+     * column that has a currency (see [promoteNumbers]). Any other number with cents is a NUMBER: a
+     * percentage (`%` after it), a rate (`/` and a letter after it) or a plain figure such as a
+     * quantity. What a unit word says ("kWh", "Tage") is not looked at.
+     */
     private fun findAmounts(line: SourceLine, mask: Mask) {
         val text = line.text
         for (m in P.AMOUNT.findAll(text)) {
@@ -640,29 +728,204 @@ private class Run(
             val num = m.groupValues[3]
             val dash = m.groupValues[4]
             val c2 = m.groupValues[5]
-            val currencyToken = c1.ifEmpty { c2 }
+            var currencyToken = c1.ifEmpty { c2 }
+            var range = m.range
             val after = text.substring(m.range.last + 1)
-            if (currencyToken.isEmpty()) {
-                if (dash.isNotEmpty() || !Regex(",\\d{2}$").containsMatchIn(num)) continue
-                if (P.AMOUNT_NOT_MONEY_AFTER.containsMatchIn(after)) continue
-            } else if (c2.isNotEmpty() && P.PER_UNIT_AFTER.containsMatchIn(after)) {
-                continue
-            } else if (currencyToken.isNotEmpty() && P.AMOUNT_NOT_MONEY_AFTER.containsMatchIn(after) &&
-                after.trimStart().startsWith("%")
-            ) continue
+            val percent = P.PERCENT_AFTER.containsMatchIn(after)
+            val rate = P.RATE_AFTER.containsMatchIn(after)
+            var attrsExtra = emptyMap<String, String>()
+            if (currencyToken.isEmpty() && !percent && !rate) {
+                // A currency name from the platform's locale data right behind the number: a hint that counts as a currency.
+                CurrencyNames.codeAfter(after)?.let { (code, length) ->
+                    val longer = m.range.first..(m.range.last + length)
+                    if (mask.free(longer)) {
+                        currencyToken = code
+                        range = longer
+                        attrsExtra = mapOf("currencyName" to "true")
+                    }
+                }
+            }
+            if (currencyToken.isEmpty() && (dash.isNotEmpty() || !P.CENTS_SHAPE.containsMatchIn(num))) continue
             val money = AmountParser.parse(num, currencyToken.ifEmpty { null }, sign.isNotEmpty()) ?: continue
-            mask.add(m.range)
-            add(
-                line, m.range, CandidateKind.AMOUNT, m.value.trim(), money.canonical(),
-                validation = if (money.currencyExplicit) Validation.Valid else Validation.Unchecked,
-                attrs = mapOf(
-                    "cents" to money.cents.toString(),
-                    "currency" to money.currency,
-                    "currencyExplicit" to money.currencyExplicit.toString(),
-                    "numberText" to num,
-                ),
-            )
+            val attrs = mapOf(
+                "cents" to money.cents.toString(),
+                "currency" to money.currency,
+                "currencyExplicit" to money.currencyExplicit.toString(),
+                "numberText" to num,
+            ) + attrsExtra
+            mask.add(range)
+            val raw = text.substring(range.first, range.last + 1).trim()
+            if (currencyToken.isNotEmpty() && !percent && !rate) {
+                add(
+                    line, range, CandidateKind.AMOUNT, raw, money.canonical(),
+                    validation = if (money.currencyExplicit) Validation.Valid else Validation.Unchecked,
+                    attrs = attrs,
+                )
+            } else {
+                val shape = mapOf("percent" to percent, "rate" to (rate && !percent)).filterValues { it }.mapValues { "true" }
+                add(line, range, CandidateKind.NUMBER, raw, plainNumber(money.cents), attrs = attrs + shape)
+            }
         }
+    }
+
+    private fun plainNumber(cents: Long): String {
+        val abs = kotlin.math.abs(cents)
+        return "${if (cents < 0) "-" else ""}${abs / 100}.${(abs % 100).toString().padStart(2, '0')}"
+    }
+
+    /**
+     * Turns a NUMBER into an AMOUNT when the page gives evidence that it is money although no
+     * currency stands next to it, by geometry and arithmetic only:
+     * - **row**: the cell next to it on the same row shows a currency (a label cell "SUMME EUR",
+     *   "12 × 220,00 €");
+     * - **column**: a cell of its column shows a currency (a header "EUR", "Betrag in EUR") or is an
+     *   amount already;
+     * - **same value**: the same figure is printed elsewhere on the page with a currency;
+     * - **triple**: it is a term of net + VAT = gross.
+     * Percentages and rates never are. What was found once can carry over to its neighbours, so this
+     * repeats until nothing changes. A promoted amount has no explicit currency, so the verifier caps
+     * it like any amount without one.
+     */
+    private fun promoteNumbers() {
+        fun numbers() = drafts.filter { it.c.kind == CandidateKind.NUMBER && it.c.attrs["percent"] == null && it.c.attrs["rate"] == null }
+        if (numbers().isEmpty()) return
+        do {
+            var changed = false
+            for (n in numbers()) {
+                // A figure on a line that already has its own currency amount is that line's label or quantity, not a second amount.
+                if (drafts.any { it.line === n.line && it.c.kind == CandidateKind.AMOUNT && it.c.attrs["currencyExplicit"] == "true" }) continue
+                val (how, currency) = rowCurrency(n)?.let { "row" to it }
+                    ?: columnCurrency(n)?.let { "column" to it }
+                    ?: sameValueCurrency(n)?.let { "value" to it }
+                    ?: continue
+                promote(n, currency, how)
+                changed = true
+            }
+            if (promoteTriples()) changed = true
+            if (promoteSums()) changed = true
+        } while (changed)
+    }
+
+    /**
+     * A figure that is the exact sum or difference of two amounts of the document, whatever the page
+     * (a total on one page, its two parts on another), takes part in their arithmetic and is money too.
+     * Only a figure joins two amounts that are already known; nothing is inferred from figures alone.
+     */
+    private fun promoteSums(): Boolean {
+        val amounts = drafts.filter { it.c.kind == CandidateKind.AMOUNT && (it.c.cents ?: 0L) > 0L }
+        if (amounts.size < 2 || amounts.size > MAX_SUM_AMOUNTS) return false
+        val cents = amounts.map { it.c.cents!! }
+        var promoted = false
+        for (n in drafts.filter { it.c.kind == CandidateKind.NUMBER && it.c.attrs["percent"] == null && it.c.attrs["rate"] == null }) {
+            val x = n.c.cents ?: continue
+            if (x <= 0L) continue
+            val bySum = cents.withIndex().any { (i, p) -> cents.withIndex().any { (j, q) -> i < j && p + q == x } }
+            val byDifference = cents.any { p -> p - x > 0L && (p - x) in cents }
+            if (bySum || byDifference) {
+                promote(n, amounts.first().c.currency, "sum")
+                promoted = true
+            }
+        }
+        return promoted
+    }
+
+    /** The currency shown by the cell beside [n] on its row, or null. */
+    private fun rowCurrency(n: Draft): String? {
+        val b = n.line.block?.bounds ?: return null
+        if (!isCell(b)) return null
+        for (o in lines) {
+            val ob = o.block?.bounds ?: continue
+            if (o.page != n.line.page || o.blockIndex == n.line.blockIndex || !isCell(ob)) continue
+            val overlap = minOf(b.bottom, ob.bottom) - maxOf(b.top, ob.top)
+            if (overlap < 0.5f * minOf(b.height, ob.height)) continue
+            currencyIn(o)?.let { return it }
+        }
+        return null
+    }
+
+    /** The currency of the amount that already carries [n]'s figure on the same page, or null. */
+    private fun sameValueCurrency(n: Draft): String? {
+        val cents = n.c.cents ?: return null
+        return drafts.firstOrNull {
+            it.c.kind == CandidateKind.AMOUNT && it.c.page == n.c.page && it.c.cents == cents && it.c.attrs["currencyExplicit"] == "true"
+        }?.c?.currency
+    }
+
+    /** The currency a line shows: its own explicit amount's, or a sign or code standing in it. Null when none. */
+    private fun currencyIn(o: SourceLine): String? {
+        drafts.firstOrNull { it.line === o && it.c.kind == CandidateKind.AMOUNT && it.c.attrs["currencyExplicit"] == "true" }
+            ?.let { return it.c.currency }
+        val token = P.CURRENCY_TOKEN.find(o.text)?.groupValues?.get(1) ?: return null
+        return AmountParser.currencyOf(token)
+    }
+
+    private fun promote(d: Draft, currency: String?, how: String) {
+        val cents = d.c.cents ?: return
+        val code = currency ?: d.c.currency ?: "EUR"
+        d.c = d.c.copy(
+            kind = CandidateKind.AMOUNT,
+            normalized = Money(cents, code, false).canonical(),
+            validation = Validation.Unchecked,
+            attrs = d.c.attrs + mapOf("currency" to code, "promoted" to how),
+        )
+    }
+
+    /** A cell that is narrow enough to be a table cell rather than a paragraph. */
+    private fun isCell(b: com.postsaimanager.core.model.TextBounds) = b.width <= CELL_MAX_WIDTH
+
+    /**
+     * The currency of the column [n] sits in, or null. A column is the set of narrow blocks on the
+     * page that overlap [n]'s block horizontally by half, or share its left or right edge. A block of
+     * it that shows a currency sign or code on its own (or holds a currency amount) names the column.
+     */
+    private fun columnCurrency(n: Draft): String? {
+        val b = n.line.block?.bounds ?: return null
+        if (!isCell(b)) return null
+        for (o in lines) {
+            val ob = o.block?.bounds ?: continue
+            if (o.page != n.line.page || o.blockIndex == n.line.blockIndex || !isCell(ob)) continue
+            if (kotlin.math.abs(ob.centerY - b.centerY) > COLUMN_MAX_DISTANCE) continue
+            val overlap = minOf(b.right, ob.right) - maxOf(b.left, ob.left)
+            val aligned = overlap >= 0.5f * minOf(b.width, ob.width) ||
+                kotlin.math.abs(b.right - ob.right) <= EDGE_TOLERANCE || kotlin.math.abs(b.left - ob.left) <= EDGE_TOLERANCE
+            if (!aligned) continue
+            // An amount of the column, explicit or promoted, or a currency sign or code in a header cell.
+            drafts.firstOrNull { it.line === o && it.c.kind == CandidateKind.AMOUNT }?.let { return it.c.currency }
+            currencyIn(o)?.let { return it }
+        }
+        return null
+    }
+
+    /** Terms of net + VAT = gross among the amounts and the plain numbers of one page become amounts. True when one was promoted. */
+    private fun promoteTriples(): Boolean {
+        var promoted = false
+        val pool = drafts.filter {
+            (it.c.kind == CandidateKind.AMOUNT || (it.c.kind == CandidateKind.NUMBER && it.c.attrs["percent"] == null && it.c.attrs["rate"] == null)) &&
+                (it.c.cents ?: 0L) > 0L
+        }
+        for ((_, onPage) in pool.groupBy { it.c.page }) {
+            val byCents = onPage.groupBy { it.c.cents!! }
+            val terms = HashSet<Draft>()
+            for (n in onPage) for (v in onPage) {
+                if (n === v || n.c.currency != v.c.currency) continue
+                val nc = n.c.cents!!
+                val vc = v.c.cents!!
+                if (vc >= nc) continue
+                for (delta in -1L..1L) {
+                    for (g in byCents[nc + vc + delta].orEmpty()) {
+                        if (g === n || g === v || g.c.currency != n.c.currency) continue
+                        if (!AmountConsistency.isNetVatGross(nc, vc, g.c.cents!!)) continue
+                        terms += listOf(n, v, g)
+                    }
+                }
+            }
+            val currency = terms.firstOrNull { it.c.attrs["currencyExplicit"] == "true" }?.c?.currency
+            for (t in terms) if (t.c.kind == CandidateKind.NUMBER) {
+                promote(t, currency, "triple")
+                promoted = true
+            }
+        }
+        return promoted
     }
 
     // Phones, e-mails ------------------------------------------------------------------
@@ -708,11 +971,6 @@ private class Run(
 
     // Names -------------------------------------------------------------------------------
 
-    private fun stripSalutation(s: String): Pair<String, Boolean> {
-        val m = P.SALUTATION.find(s) ?: return s to false
-        return s.substring(m.range.last + 1).trim() to true
-    }
-
     /** A line of an address block that is not a name: a postcode line, a street with a number, or no letters. */
     private fun looksLikeAddressLine(t: String): Boolean =
         P.POSTAL.containsMatchIn(t) || P.STREET_SHAPE.matches(t) || t.any { it.isDigit() } || t.none { it.isLetter() }
@@ -740,30 +998,28 @@ private class Run(
         add(line, range, CandidateKind.NAME, value, value, label = label, attrs = attrs)
     }
 
-    /** A name candidate from an address-field line: shape only, routing prefix and honorific removed. */
+    /**
+     * A name candidate from an address-field line: shape only. The line stays whole (a form of address
+     * such as "Herrn" or "Mrs" is part of it); only a routing prefix is cut off by its shape and kept as
+     * the hint. The model returns the party's normalised name and code checks it against this text.
+     */
     private fun nameDraft(line: SourceLine, name: String, extra: Map<String, String>, minWords: Int = 2): Boolean {
         val trimmed = name.trim().trimEnd(',', ';')
-        val (afterRoute, prefix) = stripRoutingPrefix(trimmed)
-        val (stripped, sal) = stripSalutation(afterRoute)
-        if (stripped.isBlank() || !nameShape(stripped, minWords)) return false
-        val start = line.text.indexOf(stripped).coerceAtLeast(0)
-        val range = start until (start + stripped.length)
-        val attrs = extra + listOfNotNull(
-            if (sal) "salutation" to "true" else null,
-            if (prefix != null) "prefix" to prefix else null,
-        )
-        addName(line, range, stripped, prefix.orEmpty(), attrs)
+        val (text, prefix) = stripRoutingPrefix(trimmed)
+        if (text.isBlank() || !nameShape(text, minWords)) return false
+        val start = line.text.indexOf(text).coerceAtLeast(0)
+        val range = start until (start + text.length)
+        val attrs = extra + listOfNotNull(if (prefix != null) "prefix" to prefix else null)
+        addName(line, range, text, prefix.orEmpty(), attrs)
         return true
     }
 
-    /** Words only: no digit, no `@`, no web address, 1..6 words, at most 60 characters. Any script. */
+    /** Words only: no digit, no `@`, no web address, 1..6 words, at most 60 characters. Any script, no word list. */
     private fun nameShape(s: String, minWords: Int): Boolean {
         if (s.length !in 2..60 || s.any { it.isDigit() } || s.contains('@') || s.contains("://") || s.contains("www.", true)) return false
         if (s.any { it in ":;!?" }) return false
         val words = s.split(Regex("\\s+")).filter { it.isNotEmpty() }
-        val real = words.filter { it.lowercase() !in P.CONNECTORS }
-        if (words.size !in 1..6 || real.isEmpty() || words.last().lowercase() in P.CONNECTORS) return false
-        if (s.endsWith(',')) return false
+        if (words.size !in 1..6 || s.endsWith(',')) return false
         return words.size >= minWords
     }
 
@@ -804,11 +1060,10 @@ private class Run(
         }
     }
 
-    /** "Familie Beispiel": [combined] is the two one-word lines joined; the salutation, if any, is stripped. */
+    /** "Familie Beispiel": [combined] is the two one-word lines joined, kept whole. */
     private fun nameDraftJoined(line: SourceLine, combined: String, extra: Map<String, String>): Boolean {
-        val (stripped, sal) = stripSalutation(combined)
-        if (stripped.isBlank() || !nameShape(stripped, 1)) return false
-        addName(line, 0 until line.text.length, stripped, "", if (sal) extra + ("salutation" to "true") else extra)
+        if (combined.isBlank() || !nameShape(combined, 1)) return false
+        addName(line, 0 until line.text.length, combined, "", extra)
         return true
     }
 
@@ -830,20 +1085,19 @@ private class Run(
         val words = t.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (words.size !in 1..6) return
         if (t.endsWith('.') && words.last().length > 4) return
-        val (afterRoute, prefix) = stripRoutingPrefix(t)
-        val (stripped, sal) = stripSalutation(afterRoute)
-        if (stripped.isBlank() || stripped.length < 3) return
+        val (text, prefix) = stripRoutingPrefix(t)
+        if (text.isBlank() || text.length < 3) return
         val zoneAttr = line.zone?.let { mapOf("zone" to it.name) } ?: emptyMap()
         val attrs = zoneAttr + ("shape" to "true")
         val range = 0 until t.length
-        // One neutral candidate; a single word is a weaker guess. Person, company or authority is the model's call.
-        val single = stripped.split(Regex("\\s+")).size < 2 && !sal
+        // One neutral candidate, the whole line; a single word is a weaker guess. Person, company or
+        // authority, and the name without any form of address, are the model's call.
+        val single = text.split(Regex("\\s+")).size < 2
         val flags = listOfNotNull(
-            if (sal) "salutation" to "true" else null,
             if (single) "guess" to "true" else null,
             if (prefix != null) "prefix" to prefix else null,
         )
-        addName(line, range, stripped, prefix.orEmpty(), attrs + flags)
+        addName(line, range, text, prefix.orEmpty(), attrs + flags)
     }
 
     // ── labels ────────────────────────────────────────────────────────────────────────
@@ -932,6 +1186,7 @@ private class Run(
     private fun parseYmd(normalized: String): Triple<Int, Int, Int>? {
         if (normalized.length < 10 || normalized[0] == 'T') return null
         val p = normalized.substring(0, 10).split('-')
+        if (p.size < 3) return null // a date kept as printed has no ISO form
         return Triple(p[0].toIntOrNull() ?: return null, p[1].toIntOrNull() ?: return null, p[2].toIntOrNull() ?: return null)
     }
 
@@ -992,6 +1247,7 @@ private class Run(
                 CandidateKind.DATE -> "D"
                 CandidateKind.DATETIME -> "DT"
                 CandidateKind.AMOUNT -> "A"
+                CandidateKind.NUMBER -> "Z"
                 CandidateKind.IBAN -> "I"
                 CandidateKind.BIC -> "B"
                 CandidateKind.REFERENCE -> "N"

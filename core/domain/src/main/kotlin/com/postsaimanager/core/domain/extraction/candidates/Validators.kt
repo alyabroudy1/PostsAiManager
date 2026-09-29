@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.extraction.candidates
 
 import java.time.DateTimeException
 import java.time.LocalDate
+import java.util.Currency
 
 /**
  * IBAN validation: country length table (ISO 13616 registry) plus the mod-97 checksum.
@@ -191,14 +192,26 @@ object AmountParser {
 
     private val GROUPED = Regex("^\\d{1,3}(?:[.,\\u2019'\\u202f]\\d{3})+$")
 
-    /** Currency symbol or word to ISO code, or null when the token is not a currency. */
-    fun currencyOf(token: String?): String? = when (token?.trim()?.lowercase()) {
-        null, "" -> null
-        "eur", "euro", "€", "يورو" -> "EUR"
-        "gbp", "£" -> "GBP"
-        "usd", "us$", "$" -> "USD"
-        "chf" -> "CHF"
-        else -> null
+    /** ISO 4217 alphabetic codes, from the platform's own currency data (no word list of ours). */
+    val isoCodes: Set<String> by lazy { Currency.getAvailableCurrencies().map { it.currencyCode }.toSet() }
+
+    /** The ISO code of the widely used currency signs; any other sign is kept as itself. */
+    private val SIGNS = mapOf(
+        "€" to "EUR", "£" to "GBP", "$" to "USD", "¥" to "JPY", "₺" to "TRY", "₹" to "INR",
+        "₽" to "RUB", "₩" to "KRW", "₪" to "ILS", "₫" to "VND", "₴" to "UAH", "₦" to "NGN",
+        "฿" to "THB", "₱" to "PHP",
+    )
+
+    /**
+     * The currency of a token: a currency sign (Unicode category Sc) or an upper-case ISO 4217 code;
+     * null for anything else. A word is never read as a currency.
+     */
+    fun currencyOf(token: String?): String? {
+        val t = token?.trim().orEmpty()
+        if (t.isEmpty()) return null
+        SIGNS[t]?.let { return it }
+        if (t.length == 1 && Character.getType(t[0]) == Character.CURRENCY_SYMBOL.toInt()) return t
+        return t.takeIf { it.length == 3 && it in isoCodes }
     }
 
     /**

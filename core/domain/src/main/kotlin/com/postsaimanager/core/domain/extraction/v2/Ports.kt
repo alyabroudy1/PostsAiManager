@@ -103,6 +103,11 @@ data class RawParty(
     val relation: String?,
     /** The model's own confidence word (LOW, MEDIUM, HIGH), as written. */
     val confidence: String? = null,
+    /**
+     * The party's normalised name as the model writes it (without a form of address or a title).
+     * Used only when its words are found in the text of the chosen candidate or quote.
+     */
+    val name: String? = null,
 )
 
 /** One value slot as the model wrote it, never checked yet. */

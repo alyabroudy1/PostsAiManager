@@ -12,7 +12,18 @@ import com.postsaimanager.core.model.TextBounds
 enum class CandidateKind {
     DATE,
     DATETIME,
+
+    /**
+     * Money: a number with a currency sign or ISO code next to it, one that takes part in an
+     * arithmetic triple (net + VAT = gross), or one in a table column that has a currency.
+     */
     AMOUNT,
+
+    /**
+     * A number with decimals and none of that evidence (a quantity, a percentage, a rate, a plain
+     * figure). Offered to the model for extras only, never for a money slot.
+     */
+    NUMBER,
     IBAN,
     BIC,
     REFERENCE,

@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.candidates.Validation
+import com.postsaimanager.core.domain.extraction.candidates.page
 import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner.Caps
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -78,6 +79,16 @@ class SelectionVerifierTest {
 
     @Nested
     inner class Confidence {
+        @Test
+        fun `a plain number is never accepted in a money slot`() {
+            val column = Prepared(listOf(page("Posten||Menge", "Strom||3,50").blocks))
+            val number = column.candidates.candidates.single { it.kind == CandidateKind.NUMBER }
+            // Numbers are found, but the table offers them for extras only; a money slot cannot name one.
+            val r = verify(column, answer(slots = slot("total", number.id, "TOTAL_DUE")))
+            assertThat(r.slots).isEmpty()
+            assertThat(r.diagnostics.rejections.single()).contains("NUMBER")
+        }
+
         private val total get() = id(invoice, CandidateKind.AMOUNT, "1284.50 EUR")
 
         @Test
@@ -92,14 +103,28 @@ class SelectionVerifierTest {
 
         @Test
         fun `an amount with no currency is capped at 0_6 but not flagged`() {
-            // 380,00 appears once, in a table cell with no currency next to it
-            val net = id(invoice, CandidateKind.AMOUNT, "380.00 EUR")
-            val c = invoice.find(CandidateKind.AMOUNT, "380.00 EUR")!!
+            // 64,98 is a table cell with no currency next to it; its column header names EUR, so it is an amount by geometry.
+            val column = Prepared(listOf(page("Posten||Betrag in EUR", "Strom||64,98").blocks))
+            val net = id(column, CandidateKind.AMOUNT, "64.98 EUR")
+            val c = column.find(CandidateKind.AMOUNT, "64.98 EUR")!!
             assertThat(c.validation).isEqualTo(Validation.Unchecked)
-            val v = verify(invoice, answer(slots = slot("total", net, "TOTAL_DUE"))).slots.getValue(Slots.TOTAL)
+            assertThat(c.attrs["promoted"]).isEqualTo("column")
+            val v = verify(column, answer(slots = slot("total", net, "TOTAL_DUE"))).slots.getValue(Slots.TOTAL)
             assertThat(v.confidence).isAtMost(Caps.UNCHECKED)
             assertThat(v.aiConfidence).isEqualTo(0.9f)
             assertThat(v.blocked).isFalse()
+        }
+
+        @Test
+        fun `a date kept as printed is treated as a quote, capped and never flagged`() {
+            val p = Prepared(listOf(page("Datum: 26 Foobar 2026", "Kundennummer: KD-40417").blocks))
+            val c = p.offered.rows.map { it.candidate }.single { it.attrs["unnormalized"] == "true" }
+            val v = verify(p, answer(slots = slot("letter_date", c.id, "LETTER_DATE"))).slots.values.single()
+            assertThat(v.value).isEqualTo("26 Foobar 2026")
+            assertThat(v.aiConfidence).isEqualTo(0.9f)
+            assertThat(v.confidence).isAtMost(Caps.QUOTE_EXACT)
+            assertThat(v.blocked).isFalse()
+            assertThat(v.notes.any { it.contains("quoted") }).isTrue()
         }
 
         @Test
@@ -224,8 +249,45 @@ class SelectionVerifierTest {
 
     @Nested
     inner class Parties {
-        private fun party(role: String, id: String, kind: String = "PERSON", rel: String = "NONE", c: String = "HIGH") =
-            "{\"r\":\"$role\",\"id\":\"$id\",\"k\":\"$kind\",\"rel\":\"$rel\",\"c\":\"$c\"}"
+        private fun party(role: String, id: String, kind: String = "PERSON", rel: String = "NONE", c: String = "HIGH", n: String? = null) =
+            "{\"r\":\"$role\",\"id\":\"$id\",${n?.let { "\"n\":\"$it\"," } ?: ""}\"k\":\"$kind\",\"rel\":\"$rel\",\"c\":\"$c\"}"
+
+        /** A page whose name lines keep their form of address, in three languages. */
+        private val honorifics = Prepared(
+            listOf(page("Stadtwerke Beispiel GmbH", "Herrn Max Mustermann", "Mrs Erika Beispiel", "السيد أحمد علي").blocks),
+        )
+
+        private fun nameId(p: Prepared, raw: String) = p.offered.rows.map { it.candidate }.first { it.kind == CandidateKind.NAME && it.raw == raw }.id
+
+        @Test
+        fun `a name candidate keeps its form of address and the model's own name replaces it once its words are found there`() {
+            for ((printed, model) in listOf("Herrn Max Mustermann" to "Max Mustermann", "Mrs Erika Beispiel" to "Erika Beispiel", "السيد أحمد علي" to "أحمد علي")) {
+                val id = nameId(honorifics, printed)
+                val r = verify(honorifics, answer(parties = party("ADDRESSEE", id, n = model)))
+                val p = r.parties.addressees.single()
+                assertThat(p.name).isEqualTo(model)
+                assertThat(p.value.candidateId).isEqualTo(id)
+                assertThat(p.value.evidence).isEqualTo(printed)
+                assertThat(r.diagnostics.rejections).isEmpty()
+            }
+        }
+
+        @Test
+        fun `without a model name, or with one that is not in the printed line, the printed line is kept`() {
+            val id = nameId(honorifics, "Herrn Max Mustermann")
+            val none = verify(honorifics, answer(parties = party("ADDRESSEE", id)))
+            assertThat(none.parties.addressees.single().name).isEqualTo("Herrn Max Mustermann")
+            val invented = verify(honorifics, answer(parties = party("ADDRESSEE", id, n = "Moritz Musterfrau")))
+            assertThat(invented.parties.addressees.single().name).isEqualTo("Herrn Max Mustermann")
+            assertThat(invented.diagnostics.rejections.single()).contains("Moritz Musterfrau")
+        }
+
+        @Test
+        fun `a reordered model name is accepted because its words are all in the line`() {
+            val id = nameId(honorifics, "Herrn Max Mustermann")
+            val r = verify(honorifics, answer(parties = party("ADDRESSEE", id, n = "Mustermann Max")))
+            assertThat(r.parties.addressees.single().name).isEqualTo("Mustermann Max")
+        }
 
         private val sender get() = n1.findName("Nordlicht Mobilfunk GmbH")!!.id
         private val addressee get() = n1.findName("Erika Mustermann")!!.id

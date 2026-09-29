@@ -34,9 +34,16 @@ internal class Prepared(val pages: List<List<OcrBlock>>) {
         }
     }
 
-    /** A name candidate whose text is [name], ignoring case, spacing and accents. */
-    fun findName(name: String): Candidate? = offered.rows.map { it.candidate }.firstOrNull {
-        it.kind == CandidateKind.NAME && QuoteVerifier.fold(it.raw).trim() == QuoteVerifier.fold(name).trim()
+    /**
+     * A name candidate whose text is [name], ignoring case, spacing and accents; failing that the
+     * shortest one that holds the name's words (a name candidate keeps the whole printed line, so
+     * "Herrn Max Mustermann" is the candidate of "Max Mustermann").
+     */
+    fun findName(name: String): Candidate? {
+        val names = offered.rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME }
+        val wanted = QuoteVerifier.fold(name).trim()
+        return names.firstOrNull { QuoteVerifier.fold(it.raw).trim() == wanted }
+            ?: names.filter { QuoteVerifier.fold(it.raw).contains(wanted) }.minByOrNull { it.raw.length }
     }
 }
 
@@ -141,6 +148,7 @@ internal object Oracle {
         return buildJsonObject {
             put("r", e.role.name)
             put("id", cand?.id ?: e.quote ?: e.text)
+            put("n", e.text)
             put("k", e.kind.name)
             put("rel", e.relation.name)
             put("c", "HIGH")

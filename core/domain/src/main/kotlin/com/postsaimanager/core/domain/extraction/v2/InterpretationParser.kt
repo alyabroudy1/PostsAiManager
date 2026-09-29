@@ -35,6 +35,7 @@ object InterpretationParser {
             RawParty(
                 role = o.str("r") ?: return@mapNotNull null,
                 id = o.str("id", StructuredGrammar.MAX_QUOTE_CHARS) ?: return@mapNotNull null,
+                name = o.str("n", StructuredGrammar.MAX_PARTY_NAME_CHARS)?.trim()?.ifEmpty { null },
                 kind = o.str("k"),
                 relation = o.str("rel"),
                 confidence = o.str("c"),
