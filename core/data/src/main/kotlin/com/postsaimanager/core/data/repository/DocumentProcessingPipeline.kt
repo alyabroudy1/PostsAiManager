@@ -18,11 +18,13 @@ import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.data.mapper.JsonColumns
+import com.postsaimanager.core.data.worker.DocumentEnrichmentWorker
 import com.postsaimanager.core.data.worker.DocumentProcessingWorker
 import com.postsaimanager.core.data.worker.ReprocessDocumentWorker
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.DocumentTitlePolicy
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
@@ -31,6 +33,7 @@ import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.ExtractionResult
 import com.postsaimanager.core.model.FactKind
 import com.postsaimanager.core.model.ProcessingStage
@@ -94,7 +97,18 @@ class DocumentProcessingPipeline @Inject constructor(
      */
     private val processingMutex = Mutex()
 
+    /**
+     * Readings whose second stage (language, extras, title, summary) is still to be written, by document. Kept here so a second
+     * stage that a new scan pushed aside can be scheduled again, and so a screen can say "Summary coming…" meanwhile.
+     */
+    private val pendingEnrichment = java.util.concurrent.ConcurrentHashMap<String, EnrichmentTicket>()
+    private val _enriching = MutableStateFlow<Set<String>>(emptySet())
+    override val enrichingDocuments: Flow<Set<String>> = _enriching.asStateFlow()
+
     override suspend fun enqueue(documentId: String, force: Boolean) = withContext(ioDispatcher) {
+        // A new scan never waits for a summary: second stages step aside (cancelled, their tickets kept) and come back
+        // once the scan's first stage is stored (see [resumeEnrichment]).
+        workManager.cancelAllWorkByTag(DocumentEnrichmentWorker.TAG)
         val current = documentDao.getById(documentId)?.status
         if (current != DocumentStatus.PROCESSING.name) {
             // Honest status before the work actually starts — see DocumentStatus's doc
@@ -124,6 +138,8 @@ class DocumentProcessingPipeline @Inject constructor(
     }
 
     override fun cancel(documentId: String) {
+        finishEnrichment(documentId)
+        workManager.cancelUniqueWork(DocumentEnrichmentWorker.workName(documentId))
         workManager.cancelUniqueWork(DocumentProcessingWorker.workName(documentId))
         workManager.cancelUniqueWork(ReprocessDocumentWorker.chargingWorkName(documentId))
         workManager.cancelUniqueWork(ReprocessDocumentWorker.idleWorkName(documentId))
@@ -273,10 +289,15 @@ class DocumentProcessingPipeline @Inject constructor(
                     pageAspect = pages.minByOrNull { it.pageNumber }
                         ?.takeIf { it.width > 0 && it.height > 0 }?.let { it.width.toFloat() / it.height },
                     traceContent = traceContentFor(documentId),
+                    // What a person needs to see first: the type, the parties, the amounts and dates. The language, the extras and the
+                    // free text follow as the second stage, in the background, once this is stored.
+                    stages = ExtractionV2Pipeline.Stages.FIRST,
                 )
 
                 val read = (understanding as? PamResult.Success)?.data
                 read?.let { logReadingTrace(documentId, it.readingTrace) }
+                // The first stage of a staged reading: no extras, no subject, no summary yet (the second stage writes them).
+                val staged = read?.enrichment != null
                 // Something was read: by the model, or (no model) only found by code.
                 val usedV2 = read != null &&
                     (read.entities.isNotEmpty() || read.facts.isNotEmpty() || read.documentType.isNotBlank())
@@ -349,7 +370,9 @@ class DocumentProcessingPipeline @Inject constructor(
                 val now = System.currentTimeMillis()
 
                 val merged = mergeExtraction(
-                    existing = stored,
+                    // A staged reading's first stage produces no extras and no subject: the ones already stored (an earlier
+                    // reading's) wait for the second stage to replace them instead of being deleted now.
+                    existing = if (staged) stored.filterNot(UnderstandingToFields::writtenInSecondStage) else stored,
                     extracted = extraction.fields,
                     engineVersion = engineVersion,
                     now = now,
@@ -462,8 +485,9 @@ class DocumentProcessingPipeline @Inject constructor(
                             extractionType = if (usedModel) read?.documentType?.ifBlank { null } else doc.extractionType,
                             extractionTypeConfidence =
                                 if (usedModel) read?.documentTypeConfidence else doc.extractionTypeConfidence,
-                            summary = if (usedModel) read?.summary?.ifBlank { null } else doc.summary,
-                            suggestedQuestions = if (usedModel) {
+                            // (A staged reading's first stage has no summary or questions yet: an earlier reading's stay until the second stage.)
+                            summary = if (usedModel && !staged) read?.summary?.ifBlank { null } else doc.summary,
+                            suggestedQuestions = if (usedModel && !staged) {
                                 JsonColumns.encodeStrings(read?.suggestedQuestions.orEmpty().take(MAX_SUGGESTED_QUESTIONS))
                             } else {
                                 doc.suggestedQuestions
@@ -504,6 +528,9 @@ class DocumentProcessingPipeline @Inject constructor(
                     }
                 )
 
+                // The result is stored and (for a scan) shown as EXTRACTED: now the second stage, in the background.
+                read?.enrichment?.let { scheduleEnrichment(documentId, it) }
+
                 // Step 7: Make it searchable.
                 //
                 // Deliberately after the document is already marked EXTRACTED and its
@@ -543,6 +570,8 @@ class DocumentProcessingPipeline @Inject constructor(
 
                 Log.i(TIMING_TAG, "$documentId TOTAL processDocument (inside the lock, reprocess=$reprocess) ms=${msSince(runStarted)}")
                 state.value = ProcessingState.Completed(documentId)
+                // Second stages a scan pushed aside come back now, unless another scan is waiting.
+                resumeEnrichment()
                 PamResult.Success(extraction)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // A cancellation is not a failure — WorkManager REPLACE (Reprocess),
@@ -562,6 +591,123 @@ class DocumentProcessingPipeline @Inject constructor(
             }
         }
     }
+
+    // ── the reading's second stage ──
+
+    /** Queues [ticket]'s second stage for [documentId] (replacing one queued earlier for the same document). */
+    private fun scheduleEnrichment(documentId: String, ticket: EnrichmentTicket) {
+        pendingEnrichment[documentId] = ticket
+        _enriching.value = pendingEnrichment.keys.toSet()
+        workManager.enqueueUniqueWork(
+            DocumentEnrichmentWorker.workName(documentId), ExistingWorkPolicy.REPLACE, DocumentEnrichmentWorker.request(documentId, ticket),
+        )
+    }
+
+    /** Puts back every second stage that a new scan pushed aside (work that is still queued is left as it is), unless a scan is waiting. */
+    private suspend fun resumeEnrichment() {
+        if (pendingEnrichment.isEmpty()) return
+        val scansWaiting = documentDao.getByStatus(DocumentStatus.QUEUED.name).isNotEmpty() ||
+            documentDao.getByStatus(DocumentStatus.PROCESSING.name).isNotEmpty()
+        if (scansWaiting) return
+        pendingEnrichment.forEach { (documentId, ticket) ->
+            workManager.enqueueUniqueWork(
+                DocumentEnrichmentWorker.workName(documentId), ExistingWorkPolicy.KEEP, DocumentEnrichmentWorker.request(documentId, ticket),
+            )
+        }
+    }
+
+    /** The second stage of [documentId] is over (written, failed or no longer wanted): nothing is coming any more. */
+    private fun finishEnrichment(documentId: String) {
+        pendingEnrichment.remove(documentId)
+        _enriching.value = pendingEnrichment.keys.toSet()
+    }
+
+    override suspend fun enrichDocument(documentId: String, ticket: EnrichmentTicket): PamResult<Unit> =
+        processingMutex.withLock {
+            withContext(ioDispatcher) {
+                val started = System.nanoTime()
+                try {
+                    val doc = documentDao.getById(documentId)
+                    if (doc == null || doc.deletedAt != null) {
+                        finishEnrichment(documentId)
+                        return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
+                    }
+                    val pages = documentDao.getPages(documentId)
+                    // The same blocks the first stage read, so the candidate ids are its ids; a document without stored text cannot be
+                    // read a second time (it was read by an older version: the next re-read starts from the images).
+                    val ocrResults = StoredOcr.reuse(pages, documentMapper)?.mapNotNull { it.second }.orEmpty()
+                    if (ocrResults.isEmpty()) {
+                        finishEnrichment(documentId)
+                        return@withContext PamResult.Error(PamError.OcrFailed(detail = "No stored text to read again"))
+                    }
+                    val understanding = aiExtraction(
+                        ocrResults.flatMap { it.blocks },
+                        pageBlockCounts = ocrResults.map { it.blocks.size },
+                        pageAspect = pages.minByOrNull { it.pageNumber }
+                            ?.takeIf { it.width > 0 && it.height > 0 }?.let { it.width.toFloat() / it.height },
+                        stages = ExtractionV2Pipeline.Stages.SECOND,
+                        ticket = ticket,
+                    )
+                    val read = (understanding as? PamResult.Success)?.data
+                    read?.let { logReadingTrace(documentId, it.readingTrace) }
+                    if (read == null || !read.modelUsed) {
+                        finishEnrichment(documentId)
+                        return@withContext PamResult.Error(PamError.ExtractionFailed(detail = "The model did not write the second stage"))
+                    }
+
+                    // What this stage wrote: the extras and the subject line (the parties and slots are the first stage's, untouched).
+                    val fields = UnderstandingToFields.invoke(documentId, read.copy(entities = emptyList()), newId = { UuidGenerator.generate() })
+                        .filter(UnderstandingToFields::writtenInSecondStage)
+                    val now = System.currentTimeMillis()
+                    val stored = documentDao.getExtractedData(documentId).map(documentMapper::extractedDataToDomain)
+                    // The merge keeps every value a person wrote or confirmed and every deletion, flagging a differing reading
+                    // instead of applying it; only rows this stage owns are offered to it, so nothing of the first stage can be dropped.
+                    val merged = mergeExtraction(
+                        existing = stored.filter(UnderstandingToFields::writtenInSecondStage),
+                        extracted = fields, engineVersion = AI_ENGINE_VERSION, now = now, newId = { UuidGenerator.generate() },
+                    )
+                    merged.idsToDelete.forEach { documentDao.deleteExtractedField(it) }
+                    documentDao.insertExtractedData(merged.toPersist.map(documentMapper::extractedDataToEntity))
+                    fieldRevisionDao.insertAll(merged.revisions.map(documentMapper::revisionToEntity))
+
+                    // Re-read right before the write: the document may have been trashed or edited while the model was writing.
+                    val latest = documentDao.getById(documentId)
+                    if (latest == null || latest.deletedAt != null) {
+                        finishEnrichment(documentId)
+                        return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
+                    }
+                    // The model's title replaces the default title only (DocumentTitlePolicy), as in the first stage of old.
+                    val modelTitle = read.title.ifBlank { null } ?: read.facts.firstOrNull { it.kind == FactKind.SUBJECT }?.value
+                    val newTitle = modelTitle?.takeIf {
+                        DocumentTitlePolicy.modelTitleMayReplace(isUserTitle = latest.isUserTitle, titleCode = latest.titleCode)
+                    }
+                    documentDao.update(
+                        latest.copy(
+                            language = read.language.ifBlank { null } ?: latest.language,
+                            title = newTitle ?: latest.title,
+                            titleCode = if (newTitle != null) null else latest.titleCode,
+                            titleArgs = if (newTitle != null) null else latest.titleArgs,
+                            summary = read.summary.ifBlank { null } ?: latest.summary,
+                            suggestedQuestions = if (read.suggestedQuestions.isNotEmpty()) {
+                                JsonColumns.encodeStrings(read.suggestedQuestions.take(MAX_SUGGESTED_QUESTIONS))
+                            } else {
+                                latest.suggestedQuestions
+                            },
+                        ),
+                    )
+                    Log.i(TIMING_TAG, "$documentId TOTAL enrichDocument (inside the lock) ms=${msSince(started)} extras=${fields.size}")
+                    finishEnrichment(documentId)
+                    PamResult.Success(Unit)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    // Pushed aside by a scan or stopped by the system: the ticket stays, the second stage comes back later.
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "second stage failed for $documentId: ${e.message}")
+                    finishEnrichment(documentId)
+                    PamResult.Error(PamError.ExtractionFailed(detail = e.message ?: "Second stage failed", cause = e))
+                }
+            }
+        }
 
     /**
      * The reading's structure in logcat: the chosen model, profile and interpreter always (an unknown model

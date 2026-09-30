@@ -49,8 +49,8 @@ class ZoneScoringInterpreterTest {
         // Nothing was said yes to for the IBAN or the deadline: the answer is none, not the first candidate.
         assertThat(result.slots.keys.map { it.json }).doesNotContain("iban")
         assertThat(result.slots.keys.map { it.json }).doesNotContain("due_date")
-        // The header session, the body session that scores, and the session that writes.
-        assertThat(session.opens.size).isEqualTo(3)
+        // One session for the whole letter, which scores and then writes: the letter is read once for everything.
+        assertThat(session.opens.size).isEqualTo(1)
     }
 
     @Test
@@ -74,12 +74,33 @@ class ZoneScoringInterpreterTest {
     fun `what is written is asked in a session whose instruction is not yes or no`() {
         val (_, session) = run { false }
         val yesNo = "single word Yes or No"
-        assertThat(session.opens.dropLast(1).all { it.contains(yesNo) }).isTrue()
-        // A small model obeys a yes/no instruction over any question: measured, every written answer was "Yes".
-        assertThat(session.opens.last()).doesNotContain(yesNo)
-        assertThat(session.opens.last()).contains("LETTER")
-        // Nothing is scored after the writing session opens, and every generated answer is asked in it.
+        // The letter's session is neutral, because a small model obeys a yes/no instruction over any question: measured, every
+        // written answer was "Yes". It holds the whole letter: the header's lines and the body.
+        assertThat(session.opens.single()).doesNotContain(yesNo)
+        assertThat(session.opens.single()).contains("LETTER")
+        assertThat(session.opens.single()).contains("[address-field]")
+        // Each scoring batch of the letter's session says "answer Yes or No" itself; every generated answer is asked in the same session.
+        val typeBatch = session.scored.first { b -> b.any { it.contains("Is this document") } }
+        assertThat(typeBatch.all { it.contains(ZonePrompt.SCORING_INSTRUCTION) }).isTrue()
         assertThat(session.asks).isNotEmpty()
+        assertThat(session.asks.none { it.question.contains(ZonePrompt.SCORING_INSTRUCTION) }).isTrue()
+    }
+
+    @Test
+    fun `the questions about one value share their zone block as a level of the prefix tree, and the text is read whole`() {
+        // A yes to the sender makes the party's kind be scored: three statements about the same value.
+        val (_, session) = run { c -> c.contains("the sender") }
+        // A batch of several candidates decodes the shared block once; a single question has nothing to share.
+        assertThat(session.sharedLevels.any { it.isNotEmpty() }).isTrue()
+        val tree = session.scored.indices.filter { session.sharedLevels[it].isNotEmpty() }
+        assertThat(tree).isNotEmpty()
+        for (i in tree) assertThat(session.scored[i].size).isGreaterThan(1)
+        // The kinds of one party are asked about the same value: the block and the value's head are shared, each statement is its own.
+        val kinds = session.scored.indices.firstOrNull { session.scored[it].size == ScoringDescriptions.KINDS.size && session.sharedLevels[it].contains("Is «") }
+        assertThat(kinds).isNotNull()
+        // The scores are those of the whole text: the session hands the scorer shared + continuation.
+        assertThat(session.scored[kinds!!].all { it.startsWith("\n\n") && it.contains("Is «") && it.contains("? Answer:") }).isTrue()
+        assertThat(session.scored[kinds].map { it.substringAfter("? Answer:").length }.distinct()).hasSize(1)
     }
 
     @Test
@@ -96,18 +117,17 @@ class ZoneScoringInterpreterTest {
     }
 
     @Test
-    fun `the neighbour glimpse is context only and adds no candidate`() {
+    fun `the neighbour glimpse adds nothing when the whole letter is already in the prefix, and never a candidate`() {
         val plain = run { false }.second.scored.flatten()
         val ctx = FakePromptSession().apply { scorer = { -5.0 }; responder = { _, _ -> "\"text\"" } }.also { s ->
             runBlocking {
                 ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), s, contextTokens = 4096, neighbourContext = true), 4096)
             }
         }.scored.flatten()
+        // A glimpse is for zones a question brings with it; every zone is in the prefix now, so there is none to glimpse at.
         assertThat(plain.none { it.contains("CONTEXT ONLY") }).isTrue()
-        val withGlimpse = ctx.filter { it.contains("ZONE address-field.") }
-        assertThat(withGlimpse).isNotEmpty()
-        assertThat(withGlimpse.all { it.contains("CONTEXT ONLY, the zone just above (") }).isTrue()
-        // The same candidates are scored either way (the glimpse selects nothing).
+        assertThat(ctx.none { it.contains("CONTEXT ONLY") }).isTrue()
+        // The same candidates are scored either way.
         assertThat(ctx.size).isEqualTo(plain.size)
     }
 
@@ -156,7 +176,7 @@ class ZoneScoringInterpreterTest {
         // The key is the value's own kind.
         val kinds = com.postsaimanager.core.domain.extraction.candidates.CandidateKind.entries.map { it.name.lowercase() }
         assertThat(result.extras.all { it.key in kinds }).isTrue()
-        assertThat(session.opens).hasSize(3)
+        assertThat(session.opens).hasSize(1)
     }
 
     @Test

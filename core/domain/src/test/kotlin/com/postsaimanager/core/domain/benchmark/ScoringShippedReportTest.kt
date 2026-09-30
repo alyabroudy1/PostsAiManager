@@ -18,7 +18,8 @@ import java.util.Locale
 class ScoringShippedReportTest {
 
     private val docs = BenchmarkFixtures.load().docs
-    private val recordings = Recordings.load(File("src/test/resources/benchmark/recordings")).filter { it.variant == "zonesscoring" }
+    private val recordings = Recordings.load(File(System.getenv("ZONES_RECORDINGS_DIR") ?: "src/test/resources/benchmark/recordings"))
+        .filter { it.variant == "zonesscoring" }
     private val profile = ModelProfiles.QWEN35_08B.scoring
 
     private fun languages(): Map<String, String?> =

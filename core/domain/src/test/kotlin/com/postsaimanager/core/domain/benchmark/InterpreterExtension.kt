@@ -369,6 +369,12 @@ internal class ZoneReplay(private val recording: Recording, private val scoring:
 
     override suspend fun writeText(request: TextRequest): TextOutcome = (inner ?: create(null)).writeText(request)
 
+    // The scoring interpreter is staged: the pipeline asks it (once it has interpreted) for the second stage.
+    override val staged: Boolean get() = inner?.staged ?: false
+
+    override suspend fun enrich(request: com.postsaimanager.core.domain.extraction.v2.EnrichmentRequest): com.postsaimanager.core.domain.extraction.v2.EnrichmentOutcome =
+        (inner ?: create(request.offered).also { inner = it }).enrich(request)
+
     /** What the last scoring replay asked, with `answer == null` for a batch or question the recording had no answer for. */
     val transcript: List<com.postsaimanager.core.domain.extraction.v2.AskRecord>
         get() = (inner as? ZoneScoringInterpreter)?.transcript.orEmpty()

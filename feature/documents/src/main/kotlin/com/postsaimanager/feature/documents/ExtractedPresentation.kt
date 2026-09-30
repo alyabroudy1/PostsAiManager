@@ -26,6 +26,8 @@ data class SummaryCard(
     val due: CardLine? = null,
     /** Marked "AI summary" wherever it is shown: the model wrote it, nothing checked it as fact. */
     val aiSummary: String? = null,
+    /** The summary is not there yet but is being written (the reading's second stage): the card says "Summary coming…". */
+    val summaryComing: Boolean = false,
 ) {
     val isEmpty: Boolean get() = from == null && forWhom == null && typeId == null && amount == null && due == null && aiSummary == null
 }
@@ -62,7 +64,7 @@ object ExtractedPresenter {
     private val amountKeys = listOf("total", "new_amount", "proof_amount")
     private val dueKeys = listOf("due_date", "objection_deadline")
 
-    fun present(document: Document, fields: List<ExtractedData>, showAllExtras: Boolean = false): ExtractedPresentation {
+    fun present(document: Document, fields: List<ExtractedData>, showAllExtras: Boolean = false, summaryComing: Boolean = false): ExtractedPresentation {
         // A field the user deleted is a tombstone that keeps extraction from bringing it back; it is not shown.
         val live = fields.filter { !it.deletedByUser }
         val order = schema.type(document.extractionType)?.slots?.map { it.json }.orEmpty()
@@ -76,7 +78,7 @@ object ExtractedPresenter {
 
         val (visible, hidden) = extraRows.partition { showAllExtras || !isHidden(it) }
         return ExtractedPresentation(
-            summary = card(document, live),
+            summary = card(document, live).let { if (summaryComing && it.aiSummary == null) it.copy(summaryComing = true) else it },
             details = details,
             extras = visible,
             hiddenExtras = hidden.size,

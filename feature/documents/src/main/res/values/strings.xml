@@ -20,6 +20,7 @@
     <string name="card_amount">Amount</string>
     <string name="card_due">Due</string>
     <string name="card_ai_summary">AI summary</string>
+    <string name="card_summary_coming">Summary coming…</string>
     <string name="card_worth_checking">Worth checking</string>
 
     <!-- Sections -->

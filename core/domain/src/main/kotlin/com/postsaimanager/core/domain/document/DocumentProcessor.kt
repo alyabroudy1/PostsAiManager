@@ -1,9 +1,11 @@
 package com.postsaimanager.core.domain.document
 
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.ExtractionResult
 import com.postsaimanager.core.model.ProcessingState
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * The port through which a feature runs the document pipeline and observes its progress.
@@ -56,4 +58,18 @@ interface DocumentProcessor {
      * is deleted, so a stale worker does not resurrect rows a delete just removed.
      */
     fun cancel(documentId: String)
+
+    /**
+     * The documents whose reading is shown but not finished: the first stage (type, parties, amounts, dates) is stored and the second
+     * (language, extras, title, summary, suggested questions) is queued or running. A screen says "Summary coming…" for these.
+     */
+    val enrichingDocuments: Flow<Set<String>> get() = flowOf(emptySet())
+
+    /**
+     * The second stage of [documentId]'s reading, from the ticket its first stage left: writes the language, the extras and the free
+     * text and merges them into what is stored (never over a value a person wrote or confirmed, and the title only where
+     * `DocumentTitlePolicy` allows). Called only by the background worker that [processDocument] schedules once the first stage is
+     * stored; it never runs while a scan is being read.
+     */
+    suspend fun enrichDocument(documentId: String, ticket: EnrichmentTicket): PamResult<Unit> = PamResult.Success(Unit)
 }

@@ -24,22 +24,19 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
     fun system(template: LayoutTemplate): String =
         RULES + "\n\nLAYOUT: ${template.id}, ${template.description}."
 
-    /** The scoring session's instruction: judge one value at a time, answer Yes or No. */
-    fun scoringSystem(template: LayoutTemplate): String =
-        "You read one scanned letter one part (zone) at a time. The letter can be in any language. For each value you are shown, " +
-            "answer Yes if the value is what the question says, otherwise No. A hint says what a block usually is; it is only a prior. " +
-            "Decide from what the text says. Answer with the single word Yes or No.\n\nLAYOUT: ${template.id}, ${template.description}."
-
     /**
-     * The instruction of the writing session that follows the scoring (the language, the names of the extras, the title, the summary,
-     * the suggested questions). The scoring instruction says to answer Yes or No, and a small model obeys it over any question: measured
-     * on the device, every written answer was "Yes". So what is written is asked under this one, which only says to write what the
-     * question asks, in its format.
+     * The instruction of the one session that reads the whole letter (its prefix is this and the letter): neutral, so the same session
+     * can be asked to judge a value (Yes or No, see [SCORING_INSTRUCTION]) and to write (the language, the names of the extras, the
+     * title, the summary, the suggested questions). The Yes or No instruction used to live here, and a small model obeys it over any
+     * question: measured on the device, every written answer was "Yes". So it is part of what a scoring batch says, never of the prefix.
      */
-    fun writingSystem(template: LayoutTemplate): String =
+    fun readerSystem(template: LayoutTemplate): String =
         "You read one scanned letter and answer questions about it, one at a time. The letter can be in any language. " +
-            "Each question tells you what to write and the format of the answer: write exactly that, from what the letter says, " +
-            "and nothing else.\n\nLAYOUT: ${template.id}, ${template.description}."
+            "Each question tells you what to decide or write and the format of the answer: answer exactly that, from what the letter says, " +
+            "and nothing else. A hint says what a block of the letter usually is; it is only a prior.\n\nLAYOUT: ${template.id}, ${template.description}."
+
+    /** What a scoring batch says before its questions (in the session with the neutral [readerSystem]): every question is answered Yes or No. */
+    const val SCORING_INSTRUCTION = "Answer each question with the single word Yes or No.\n"
 
     /** The user turn of the body session: what the header established, then the body zones. */
     fun bodyUser(summary: String, bodyText: String): String = buildString {
@@ -113,7 +110,11 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
     private const val NAME_TOKENS = 40
 
     /** A statement of what a slot or a role is, for the scoring interpreter's question. */
-    fun scoringQuestion(candidate: String, context: ZonedLetter.Context?, what: String): String = buildString {
+    fun scoringQuestion(candidate: String, context: ZonedLetter.Context?, what: String): String =
+        scoringHead(candidate, context) + scoringAsk(what)
+
+    /** The value and its context: the part of a scoring question that every question about the same value shares. */
+    fun scoringHead(candidate: String, context: ZonedLetter.Context?): String = buildString {
         append("Is «").append(candidate).append("»")
         val ctx = listOfNotNull(
             context?.line?.takeIf { it.isNotBlank() && ZonedLetter.squash(it) != ZonedLetter.squash(candidate) }?.let { "printed on the line: $it" },
@@ -121,6 +122,8 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
             context?.below?.takeIf { it.isNotBlank() }?.let { "line below: $it" },
         )
         if (ctx.isNotEmpty()) append(" (context: ").append(ctx.joinToString("; ")).append(')')
-        append(" ").append(what).append("? Answer:")
     }
+
+    /** What is asked of the value, closing the question; [scoringHead] + this is the whole question. */
+    fun scoringAsk(what: String): String = " $what? Answer:"
 }

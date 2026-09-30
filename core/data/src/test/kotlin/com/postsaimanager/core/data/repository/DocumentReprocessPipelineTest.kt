@@ -132,7 +132,7 @@ class DocumentReprocessPipelineTest {
     @Test
     @DisplayName("keeps user rows, stamps the current version, and stays invisible")
     fun reprocessKeepsUserRowsAndUpdatesVersion() = runTest(dispatcher) {
-        coEvery { aiExtraction(any(), any(), any(), any(), any()) } returns PamResult.Success(understanding())
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(understanding())
 
         val result = pipeline.processDocument("doc-1", reprocess = true)
 
@@ -180,21 +180,21 @@ class DocumentReprocessPipelineTest {
     @DisplayName("a reprocess reuses the stored OCR when every page has it, and does not read an image")
     fun reprocessReusesStoredOcr() = runTest(dispatcher) {
         coEvery { documentDao.getPages("doc-1") } returns listOf(storedPage(1), storedPage(2))
-        coEvery { aiExtraction(any(), any(), any(), any(), any()) } returns PamResult.Success(understanding())
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(understanding())
 
         pipeline.processDocument("doc-1", reprocess = true)
 
         coVerify(exactly = 0) { ocrService.recognizeText(any()) }
         coVerify(exactly = 0) { documentDao.insertPages(any()) }
         // The stored blocks, page by page, are what the model is offered.
-        coVerify { aiExtraction(listOf(storedBlock, storedBlock), any(), listOf(1, 1), any(), any()) }
+        coVerify { aiExtraction(listOf(storedBlock, storedBlock), any(), listOf(1, 1), any(), any(), any(), any()) }
     }
 
     @Test
     @DisplayName("a reprocess reads the images again when any page has no stored blocks")
     fun reprocessReadsAgainWhenOnePageLacksBlocks() = runTest(dispatcher) {
         coEvery { documentDao.getPages("doc-1") } returns listOf(storedPage(1), storedPage(2, withBlocks = false))
-        coEvery { aiExtraction(any(), any(), any(), any(), any()) } returns PamResult.Success(understanding())
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(understanding())
 
         pipeline.processDocument("doc-1", reprocess = true)
 
@@ -205,7 +205,7 @@ class DocumentReprocessPipelineTest {
     @DisplayName("a first scan always reads the images, stored blocks or not")
     fun scanAlwaysReadsImages() = runTest(dispatcher) {
         coEvery { documentDao.getPages("doc-1") } returns listOf(storedPage(1))
-        coEvery { aiExtraction(any(), any(), any(), any(), any()) } returns PamResult.Success(understanding())
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(understanding())
 
         pipeline.processDocument("doc-1", reprocess = false)
 
@@ -214,7 +214,7 @@ class DocumentReprocessPipelineTest {
 
     private suspend fun titleAfterRun(doc: DocumentEntity, reprocess: Boolean): DocumentEntity {
         coEvery { documentDao.getById("doc-1") } returns doc
-        coEvery { aiExtraction(any(), any(), any(), any(), any()) } returns
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns
             PamResult.Success(understanding().copy(title = "Nordlicht Mahnung"))
         pipeline.processDocument("doc-1", reprocess = reprocess)
         val updated = slot<DocumentEntity>()
@@ -260,7 +260,7 @@ class DocumentReprocessPipelineTest {
     @Test
     @DisplayName("a failure keeps the EXTRACTED status and the old data, and is recorded for one retry")
     fun failureKeepsStatusAndData() = runTest(dispatcher) {
-        coEvery { aiExtraction(any(), any(), any(), any(), any()) } throws IllegalStateException("model crashed")
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } throws IllegalStateException("model crashed")
 
         val result = pipeline.processDocument("doc-1", reprocess = true)
 
@@ -278,7 +278,7 @@ class DocumentReprocessPipelineTest {
     @Test
     @DisplayName("a run in which the model did not read the letter changes nothing")
     fun noModelChangesNothing() = runTest(dispatcher) {
-        coEvery { aiExtraction(any(), any(), any(), any(), any()) } returns PamResult.Success(understanding(modelUsed = false))
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(understanding(modelUsed = false))
 
         val result = pipeline.processDocument("doc-1", reprocess = true)
 

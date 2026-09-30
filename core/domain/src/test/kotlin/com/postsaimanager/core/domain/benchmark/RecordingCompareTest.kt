@@ -51,8 +51,11 @@ class RecordingCompareTest {
             val (m, f) = docs.first { it.first.key == k }
             val b = base.first { it.key == k }
             val n = fresh.first { it.key == k }
-            val rb = shape(InterpreterMetrics.replayResult(b, f, profile))
-            val rn = shape(InterpreterMetrics.replayResult(n, f, profile))
+            val resultBase = InterpreterMetrics.replayResult(b, f, profile)
+            val resultNew = InterpreterMetrics.replayResult(n, f, profile)
+            sb.appendLine("## $k replay: baseline type=${resultBase.documentType?.id} error=${resultBase.diagnostics.modelError} | new type=${resultNew.documentType?.id} error=${resultNew.diagnostics.modelError}")
+            val rb = shape(resultBase)
+            val rn = shape(resultNew)
             val diff = (rb - rn.toSet()).map { "-$it" } + (rn - rb.toSet()).map { "+$it" }
             sb.appendLine("## $k: ${if (diff.isEmpty()) "same picks" else "DIFFERENT picks"}")
             diff.forEach { sb.appendLine("  $it") }

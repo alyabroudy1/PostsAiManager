@@ -111,6 +111,20 @@ data class RecognisedFact(
 )
 
 /**
+ * What the second stage of a reading needs from the first (see `ExtractionV2Pipeline`'s stages): the first stage decides the type,
+ * the parties and the slots and is stored at once; the language, the extras and the free text are written afterwards, in the
+ * background, and must not offer a value the first stage already took.
+ *
+ * @property typeId the document type the first stage chose.
+ * @property takenIds candidate ids the first stage's slots and parties took.
+ */
+@Serializable
+data class EnrichmentTicket(
+    val typeId: String? = null,
+    val takenIds: List<String> = emptyList(),
+)
+
+/**
  * One model's reading of one document.
  *
  * Everything here is a **claim**, not a fact — it is stored with `MACHINE` provenance, so a
@@ -176,6 +190,12 @@ data class DocumentUnderstanding(
      * in a debug build and nothing stores it.
      */
     val readingTrace: List<String> = emptyList(),
+
+    /**
+     * Set on the result of a reading's first stage when a second stage is to follow (language, extras, title, subject,
+     * summary, suggested questions are still unwritten); null when this reading is complete.
+     */
+    val enrichment: EnrichmentTicket? = null,
 ) {
     val sender: RecognisedEntity? get() = entities.firstOrNull { it.role == EntityRole.SENDER }
 

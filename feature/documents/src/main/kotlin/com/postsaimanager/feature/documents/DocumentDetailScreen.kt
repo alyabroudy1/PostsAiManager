@@ -123,6 +123,7 @@ fun DocumentDetailScreen(
     val profileSuggestions by viewModel.profileSuggestions.collectAsStateWithLifecycle()
     val editingProfileSuggestion by viewModel.editingProfileSuggestion.collectAsStateWithLifecycle()
     val entityProposals by viewModel.entityProposals.collectAsStateWithLifecycle()
+    val summaryComing by viewModel.summaryComing.collectAsStateWithLifecycle()
     val pendingConfirmAllUndo by viewModel.pendingConfirmAllUndo.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -241,6 +242,7 @@ fun DocumentDetailScreen(
                     processingState = processingState,
                     profileSuggestions = profileSuggestions,
                     entityProposals = entityProposals,
+                    summaryComing = summaryComing,
                     onTabSelected = viewModel::selectTab,
                     onProcess = { force -> viewModel.startProcessing(force) },
                     onConfirmField = viewModel::confirmField,
@@ -303,6 +305,8 @@ private fun DocumentDetailContent(
     processingState: ProcessingState,
     profileSuggestions: List<ProfileSuggestion>,
     entityProposals: List<EntityProposal>,
+    /** The reading's second stage (summary, extras) is still being written: the summary card says so. */
+    summaryComing: Boolean,
     onTabSelected: (DetailTab) -> Unit,
     /** `force = true` restarts a document that is already `EXTRACTED`/`REVIEWED`, or retries
      * one that `FAILED`; `false` is used only for the auto-enqueue done by the ViewModel on
@@ -406,6 +410,7 @@ private fun DocumentDetailContent(
                 extractionTotalPages = state.document.extractionTotalPages,
                 profileSuggestions = profileSuggestions,
                 entityProposals = entityProposals,
+                summaryComing = summaryComing,
                 onConfirm = onConfirmField,
                 onConfirmAll = onConfirmAllFields,
                 onAddClick = onAddClick,
@@ -739,6 +744,7 @@ private fun ExtractedTemplateTab(
     extractionTotalPages: Int?,
     profileSuggestions: List<ProfileSuggestion>,
     entityProposals: List<EntityProposal>,
+    summaryComing: Boolean,
     onConfirm: (String) -> Unit,
     onConfirmAll: () -> Unit,
     onAddClick: () -> Unit,
@@ -778,8 +784,8 @@ private fun ExtractedTemplateTab(
             // ExtractedPresenter for the grouping and for which extras start hidden.
             var showAllExtras by remember { mutableStateOf(false) }
             var extrasExpanded by remember { mutableStateOf(false) }
-            val presentation = remember(document, data, showAllExtras) {
-                ExtractedPresenter.present(document, data, showAllExtras)
+            val presentation = remember(document, data, showAllExtras, summaryComing) {
+                ExtractedPresenter.present(document, data, showAllExtras, summaryComing)
             }
 
             LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1237,6 +1243,14 @@ private fun SummaryCardView(card: SummaryCard) {
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(summary, style = MaterialTheme.typography.bodyMedium)
+            }
+            // The summary is written after the result is shown (the reading's second stage): say so until it lands.
+            if (card.aiSummary == null && card.summaryComing) {
+                Text(
+                    stringResource(R.string.card_summary_coming),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

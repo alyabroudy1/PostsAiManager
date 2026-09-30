@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.extraction.v2
 
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.Validation
+import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.TextBounds
 import java.time.LocalDate
 
@@ -195,6 +196,8 @@ data class ExtractionV2Result(
     val foundValues: List<Candidate> = emptyList(),
     val letterDate: LocalDate? = null,
     val diagnostics: Diagnostics,
+    /** Set on a first-stage result that a second stage is to complete (see [ExtractionV2Pipeline.Stages]); null otherwise. */
+    val enrichment: EnrichmentTicket? = null,
 ) {
     /**
      * Something in the result failed a check the user should look at: no model, a conflict, or a

@@ -10,6 +10,7 @@ import com.postsaimanager.core.domain.extraction.v2.InterpreterFactory
 import com.postsaimanager.core.domain.extraction.v2.ModelDocumentInterpreter
 import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
 import com.postsaimanager.core.model.DocumentUnderstanding
+import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.OcrBlock
 import javax.inject.Inject
@@ -58,6 +59,9 @@ class AiExtractionUseCase @Inject constructor(
      * @param pageAspect width over height of page 1's image when known: the layout template match uses it (the
      *   benchmark always passed it; without it the page's shape is only guessed from the text).
      * @param traceContent the reading trace also carries page 1's lines and names; only for a document listed for diagnostics.
+     * @param stages [ExtractionV2Pipeline.Stages.FIRST] stops after what a person needs to see (type, parties, slots) when the
+     *   interpreter is staged, leaving [DocumentUnderstanding.enrichment] for the second stage; [ExtractionV2Pipeline.Stages.SECOND]
+     *   runs that second stage from its [ticket]. An interpreter that is not staged reads everything whatever [stages] says.
      */
     suspend operator fun invoke(
         blocks: List<OcrBlock>,
@@ -65,6 +69,8 @@ class AiExtractionUseCase @Inject constructor(
         pageBlockCounts: List<Int> = emptyList(),
         pageAspect: Float? = null,
         traceContent: Boolean = false,
+        stages: ExtractionV2Pipeline.Stages = ExtractionV2Pipeline.Stages.ALL,
+        ticket: EnrichmentTicket? = null,
     ): PamResult<DocumentUnderstanding> {
         if (blocks.isEmpty()) return PamResult.Success(DocumentUnderstanding())
 
@@ -77,7 +83,9 @@ class AiExtractionUseCase @Inject constructor(
         val interpreter = loadedInterpreter(config, modelId)
         val loadMs = (System.nanoTime() - started) / NANOS_PER_MS
 
-        val result = pipeline.run(pages(blocks, pageBlockCounts), interpreter, window, pageAspect, traceContent = traceContent)
+        val result = pipeline.run(
+            pages(blocks, pageBlockCounts), interpreter, window, pageAspect, traceContent = traceContent, stages = stages, ticket = ticket,
+        )
         val adapting = System.nanoTime()
         // What was chosen to read with, first in the trace: the strategy follows from the model's profile, and an
         // unknown model silently reading with the fallback is exactly what a trace must make visible.

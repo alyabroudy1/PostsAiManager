@@ -165,4 +165,11 @@ object UnderstandingToFields {
 
     /** Slot key (and stored name) of a value that came with no label at all; rendered from a string resource. */
     const val SLOT_UNLABELLED = "unlabelled"
+
+    /**
+     * Whether a stored field is written by a reading's second stage (the extras and the subject line) rather than its first (the type,
+     * the parties, the slots). The one owner of that split: the first stage's merge leaves these rows alone, the second stage's merge
+     * touches nothing else.
+     */
+    fun writtenInSecondStage(field: ExtractedData): Boolean = field.isExtra || field.slotKey == SLOT_SUBJECT
 }

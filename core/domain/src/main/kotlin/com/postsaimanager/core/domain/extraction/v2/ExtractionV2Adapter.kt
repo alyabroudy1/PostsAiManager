@@ -85,6 +85,7 @@ class ExtractionV2Adapter : UnderstandingAdapter {
             suggestedQuestions = result.freeText.suggestedQuestions,
             modelUsed = result.diagnostics.modelUsed,
             readingTrace = result.diagnostics.trace,
+            enrichment = result.enrichment,
         )
     }
 

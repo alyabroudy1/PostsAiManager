@@ -6,6 +6,7 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
 import com.postsaimanager.core.domain.extraction.candidates.OcrText
 import com.postsaimanager.core.domain.extraction.layout.LayoutDescription
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
+import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.OcrBlock
 
 /**
@@ -38,6 +39,8 @@ class ExtractionV2Pipeline(
         pageAspect: Float? = null,
         direction: DocDirection = DocDirection.INCOMING,
         traceContent: Boolean = false,
+        stages: Stages = Stages.ALL,
+        ticket: EnrichmentTicket? = null,
     ): ExtractionV2Result {
         // Milliseconds per stage, as `t ...` lines of the trace (no letter text): the data layer logs them under one tag.
         val timings = mutableListOf<String>()
@@ -54,6 +57,10 @@ class ExtractionV2Pipeline(
         lap("candidates")
         if (interpreter == null) return foundOnly(candidates, offered, modelCalled = false, error = "no model is available")
 
+        if (stages == Stages.SECOND) {
+            return secondStage(pages, layout, candidates, offered, interpreter, pageAspect, direction, ticket ?: EnrichmentTicket(), timings)
+        }
+
         val description = fitLayout(layout, interpreter, offered, contextTokens)
         val total = if (description.isComplete) description.text.length else layout.describe().text.length
         lap("fitLayout")
@@ -69,14 +76,41 @@ class ExtractionV2Pipeline(
         }
         outcome as InterpretationOutcome.Answered
 
-        val textBudget = budgetChars(contextTokens, interpreter.maxTextTokens, interpreter.textOverheadChars())
-        val textOutcome = interpreter.writeText(TextRequest(layout.describe(textBudget).text, outcome.raw.type))
-        val written = textOutcome as? TextOutcome.Written
-        lap("writeText (language excluded: title, subject, summary, questions)")
+        // What the model wrote besides the reading: a staged interpreter's second stage, or the one writeText call.
+        var raw = outcome.raw
+        var text: RawText? = null
+        var rawText: String? = null
+        var textError: String? = null
+        var ticket: EnrichmentTicket? = null
+        if (interpreter.staged) {
+            val first = EnrichmentTicket(raw.type, takenIds(raw))
+            if (stages == Stages.FIRST) {
+                ticket = first
+            } else {
+                val enriched = interpreter.enrich(enrichmentRequest(layout, offered, pageAspect, direction, first))
+                lap("enrich (language, extras, free text)")
+                when (enriched) {
+                    is EnrichmentOutcome.Done -> {
+                        raw = raw.copy(language = enriched.enrichment.language ?: raw.language, extras = enriched.enrichment.extras)
+                        text = enriched.enrichment.text
+                        rawText = enriched.enrichment.rawText
+                        textError = enriched.enrichment.textError
+                    }
+                    is EnrichmentOutcome.Failed -> textError = enriched.reason
+                }
+            }
+        } else {
+            val textBudget = budgetChars(contextTokens, interpreter.maxTextTokens, interpreter.textOverheadChars())
+            val textOutcome = interpreter.writeText(TextRequest(layout.describe(textBudget).text, raw.type))
+            text = (textOutcome as? TextOutcome.Written)?.text
+            rawText = (textOutcome as? TextOutcome.Written)?.rawText
+            textError = (textOutcome as? TextOutcome.Failed)?.reason
+            lap("writeText (language excluded: title, subject, summary, questions)")
+        }
 
         val verified = verifier.verify(
-            outcome.raw,
-            written?.text,
+            raw,
+            text,
             VerificationContext(
                 candidates = candidates,
                 offered = offered,
@@ -88,16 +122,64 @@ class ExtractionV2Pipeline(
                 prompt = outcome.prompt,
                 grammar = outcome.grammar,
                 rawAnswer = outcome.rawText,
-                rawText = written?.rawText,
-                textError = (textOutcome as? TextOutcome.Failed)?.reason,
+                rawText = rawText,
+                textError = textError,
             ),
         )
         lap("verify")
-        return verified.withReading(
+        return verified.copy(enrichment = ticket).withReading(
             layoutTrace(pages, layout, candidates, offered, description, traceContent) + timings + interpreter.trace,
             interpreter.unread, pages.size,
         )
     }
+
+    /**
+     * The second stage on its own (a later call, possibly another process than the first): the layout and candidates are found again from
+     * the same pages, so the ids are the first stage's, and only what the first stage left is written. The result holds the language,
+     * the extras and the free text (the first stage's slots and parties are not repeated).
+     */
+    private suspend fun secondStage(
+        pages: List<List<OcrBlock>>,
+        layout: LetterLayout,
+        candidates: CandidateSet,
+        offered: OfferedCandidates,
+        interpreter: DocumentInterpreter,
+        pageAspect: Float?,
+        direction: DocDirection,
+        ticket: EnrichmentTicket,
+        timings: MutableList<String>,
+    ): ExtractionV2Result {
+        val started = System.nanoTime()
+        val enriched = interpreter.enrich(enrichmentRequest(layout, offered, pageAspect, direction, ticket))
+        timings += "t enrich (language, extras, free text) ms=${(System.nanoTime() - started) / NANOS_PER_MS}"
+        val done = (enriched as? EnrichmentOutcome.Done)?.enrichment
+        val raw = RawInterpretation(
+            type = ticket.typeId ?: ExtractionSchema.OTHER.id, language = done?.language, parties = emptyList(), slots = emptyMap(),
+            extras = done?.extras.orEmpty(),
+        )
+        val verified = verifier.verify(
+            raw, done?.text,
+            VerificationContext(
+                candidates = candidates, offered = offered,
+                pageTexts = pages.map { blocks -> blocks.joinToString("\n") { OcrText.normalizeChars(it.text) } },
+                layoutCharsSent = 0, layoutCharsTotal = 0, pagesRead = pages.size, totalPages = pages.size,
+                rawText = done?.rawText, textError = done?.textError ?: (enriched as? EnrichmentOutcome.Failed)?.reason,
+            ),
+        )
+        return verified.copy(
+            diagnostics = verified.diagnostics.copy(modelCalled = true, modelUsed = done != null, trace = timings + interpreter.trace),
+        )
+    }
+
+    private fun enrichmentRequest(layout: LetterLayout, offered: OfferedCandidates, pageAspect: Float?, direction: DocDirection, ticket: EnrichmentTicket) =
+        EnrichmentRequest(offered, layout, pageAspect, direction, ticket.takenIds.toSet(), ticket.typeId)
+
+    /** The candidate ids the reading's slots and parties took (before verification: the ids the model's scores chose). */
+    private fun takenIds(raw: RawInterpretation): List<String> =
+        (raw.parties.map { it.id } + raw.slots.values.flatMap { listOfNotNull(it.id) + it.ids }).distinct()
+
+    /** Which stages of the reading a run does: both in one go ([ALL]), or the first now and the second later, from the first's [EnrichmentTicket]. */
+    enum class Stages { ALL, FIRST, SECOND }
 
     /**
      * The reading's trace, and what the interpreter left unread to fit its own window: it renders the letter itself, so its cut

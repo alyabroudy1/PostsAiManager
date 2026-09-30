@@ -75,7 +75,7 @@ class InferenceConfigTest {
         }
 
         @Test
-        fun `threadsBatch prefers the performance cluster when the reading is big-LITTLE`() {
+        fun `threadsBatch never exceeds the measured thread count when the reading is big-LITTLE`() {
             // Modelled on this project's reference device (Snapdragon 8 Gen 2): 3 efficiency
             // cores near 2.0 GHz, 5 performance cores from 2.8-3.36 GHz.
             val snapdragon8Gen2MaxFreqsKHz = listOf(
@@ -88,7 +88,16 @@ class InferenceConfigTest {
                 4096,
                 coreMaxFreqsKHz = snapdragon8Gen2MaxFreqsKHz,
             )
-            assertThat(config.threadsBatch).isEqualTo(5)
+            // 5 performance cores were detected, but 5 threads measured slower than 4 on this device: the reading only lowers.
+            assertThat(config.threadsBatch).isEqualTo(minOf(5, config.threads))
+        }
+
+        @Test
+        fun `the thread count of a device is what was measured on it, else half the cores`() {
+            assertThat(InferenceConfig.threadsFor(8)).isEqualTo(4) // measured on the reference device
+            assertThat(InferenceConfig.threadsFor(6)).isEqualTo(3)
+            assertThat(InferenceConfig.threadsFor(2)).isEqualTo(2)
+            assertThat(InferenceConfig.threadsFor(1)).isEqualTo(2)
         }
 
         @Test

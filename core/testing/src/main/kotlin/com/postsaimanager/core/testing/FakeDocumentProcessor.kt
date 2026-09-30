@@ -2,6 +2,7 @@ package com.postsaimanager.core.testing
 
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.document.DocumentProcessor
+import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.ExtractionResult
 import com.postsaimanager.core.model.ProcessingState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +41,17 @@ class FakeDocumentProcessor : DocumentProcessor {
 
     override suspend fun enqueueReprocess(documentId: String) {
         reprocessCalls += documentId
+    }
+
+    /** The documents a test says have a second stage pending ([enrichingDocuments]). */
+    val enriching = MutableStateFlow<Set<String>>(emptySet())
+    override val enrichingDocuments: kotlinx.coroutines.flow.Flow<Set<String>> = enriching
+
+    val enrichCalls = mutableListOf<Pair<String, EnrichmentTicket>>()
+
+    override suspend fun enrichDocument(documentId: String, ticket: EnrichmentTicket): PamResult<Unit> {
+        enrichCalls += documentId to ticket
+        return PamResult.Success(Unit)
     }
 
     override suspend fun enqueue(documentId: String, force: Boolean) {

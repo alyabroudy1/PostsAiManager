@@ -144,7 +144,7 @@ class ZoneBenchmarkTest {
         // `mode=stages`: no recording, only the two stages timed the way the app runs them (the first, then the second as a later
         // call on a new interpreter that finds the letter's prefix still open), each letter with the shipped profile.
         if (args.getString("mode") == "stages") {
-            for (key in keys.filter { File(bench, "$key.json").exists() }) {
+            for (key in keys.filter { File(bench, "$it.json").exists() }) {
                 val (pages, aspect) = parseFixture(File(bench, "$key.json"))
                 val shipped = com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring
                 val first = ZoneScoringInterpreter(engine, engine, contextTokens = budgetTokens, profile = shipped)

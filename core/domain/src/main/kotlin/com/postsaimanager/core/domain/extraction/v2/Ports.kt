@@ -103,6 +103,40 @@ interface DocumentInterpreter {
     suspend fun interpret(request: InterpretationRequest): InterpretationOutcome
 
     suspend fun writeText(request: TextRequest): TextOutcome
+
+    /**
+     * True when [interpret] decides only the type, the parties and the slots (what a person needs to see a result) and
+     * [enrich] does the rest (the language, the extras, the free text), so the pipeline can store the first stage at once
+     * and finish the second in the background. False (the default): [interpret] and [writeText] are the whole reading.
+     */
+    val staged: Boolean get() = false
+
+    /**
+     * The second stage of a [staged] interpreter: the language, the extras (values no slot or party took) and the free text.
+     * Reads the same letter again; an engine that still holds the letter's prefix does not decode it twice.
+     */
+    suspend fun enrich(request: EnrichmentRequest): EnrichmentOutcome = EnrichmentOutcome.Failed("this interpreter reads everything in one go")
+}
+
+/** What the second stage is given: the letter as the first stage had it, and what the first stage decided. */
+class EnrichmentRequest(
+    val offered: OfferedCandidates,
+    val layout: LetterLayout?,
+    val pageAspect: Float? = null,
+    val direction: DocDirection = DocDirection.INCOMING,
+    /** Candidate ids the first stage's slots and parties took: never offered as extras. */
+    val takenIds: Set<String> = emptySet(),
+    /** The document type the first stage chose, so the texts fit it. */
+    val documentTypeId: String? = null,
+)
+
+/** What the second stage wrote, parsed but not trusted; any part may be missing. */
+class Enrichment(val language: String?, val extras: List<RawExtra>, val text: RawText?, val textError: String? = null, val rawText: String? = null)
+
+sealed interface EnrichmentOutcome {
+    class Done(val enrichment: Enrichment) : EnrichmentOutcome
+
+    class Failed(val reason: String) : EnrichmentOutcome
 }
 
 /** Text an interpreter left out to fit: how many lines, and the first page that lost some. */

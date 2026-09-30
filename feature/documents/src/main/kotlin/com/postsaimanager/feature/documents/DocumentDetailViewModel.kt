@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -132,6 +133,14 @@ class DocumentDetailViewModel @Inject constructor(
                 started = SharingStarted.WhileSubscribed(5_000),
                 initialValue = DocumentDetailUiState.Loading,
             )
+
+    /**
+     * The reading's second stage (summary, extras, title) of this document is queued or running, so the summary card says
+     * "Summary coming…" instead of staying silent.
+     */
+    val summaryComing: StateFlow<Boolean> = documentProcessor.enrichingDocuments
+        .map { documentId in it }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** Guards the auto-enqueue below so opening a `NEW` document does not re-enqueue on
      * every recomposition — `enqueue` is idempotent via `ExistingWorkPolicy.KEEP` anyway,
