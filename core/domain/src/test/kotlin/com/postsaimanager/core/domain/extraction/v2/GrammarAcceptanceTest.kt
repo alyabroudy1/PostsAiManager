@@ -184,7 +184,7 @@ class GrammarAcceptanceTest {
         fun `the parts every type shares are written once`() {
             val lines = grammar.lines()
             for (name in listOf("head", "core", "tail")) assertThat(lines.count { it.startsWith("$name ::=") }).isEqualTo(1)
-            for (t in schema.types) {
+            for (t in schema.families) {
                 val rule = lines.first { it.startsWith("t-" + t.id.replace('_', '-') + " ::=") }
                 assertThat(rule).contains(" head core")
                 assertThat(rule).endsWith(" tail")

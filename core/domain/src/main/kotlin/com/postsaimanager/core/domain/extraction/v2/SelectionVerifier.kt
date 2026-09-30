@@ -54,9 +54,9 @@ class SelectionVerifier(
         private var anchor: LocalDate? = ctx.candidates.letterDate
 
         fun execute(): ExtractionV2Result {
-            val type = schema.type(raw.type)
+            val type = schema.family(raw.type)
             if (type == null) rejections += "type '${raw.type}' is not in the schema"
-            val docType = type ?: schema.type("other")
+            val docType = type ?: schema.family("other")
 
             // The letter date the model chose anchors the other dates when code could not find one.
             if (anchor == null && docType != null) anchor = anchorFromModel(docType)
@@ -119,7 +119,7 @@ class SelectionVerifier(
 
         // ── slots ────────────────────────────────────────────────────────────────
 
-        private fun anchorFromModel(type: DocType): LocalDate? {
+        private fun anchorFromModel(type: DocFamily): LocalDate? {
             val letterSlot = type.slots.firstOrNull { it.canonical == Canonical.DOCUMENT_DATE } ?: return null
             val id = raw.slots[letterSlot.json]?.id ?: return null
             val c = ctx.offered.get(id) ?: return null

@@ -31,6 +31,22 @@ data class ScoringProfile(
 
     /** The confidence word of a slot or party answer: [ScoreCuts.word] of the winner's margin over the runner-up and its own score. */
     fun confidence(margin: Double, best: Double): String = cuts.word(margin, best)
+
+    /** The best family is taken only when its score is above this; otherwise the document is `free_form`. */
+    val familyThreshold: Double get() = threshold(FAMILY)
+
+    /** A topic holds when its score is above this. */
+    val topicsThreshold: Double get() = threshold(TOPICS)
+
+    /** An address line takes a label (a person, an organisation, a department, a routing part) when its score is above this. */
+    val addrThreshold: Double get() = threshold(ADDR)
+
+    companion object {
+        /** The question names of the classification and of the address labelling, for [thresholds]. */
+        const val FAMILY = "family"
+        const val TOPICS = "topics"
+        const val ADDR = "addr"
+    }
 }
 
 /**

@@ -78,7 +78,7 @@ class QuestionnaireTest {
 
         @Test
         fun `every slot of every type carries its own question and every type its description`() {
-            for (type in schema.types) {
+            for (type in schema.families) {
                 assertThat(type.description).isNotEmpty()
                 for (slot in type.slots) assertThat(slot.question).isNotEmpty()
             }
@@ -90,11 +90,11 @@ class QuestionnaireTest {
         @Test
         fun `the type question offers every type of the registry with its description`() {
             val q = QuestionnairePrompt.type(schema)
-            for (type in schema.types) {
+            for (type in schema.families) {
                 assertThat(q.text).contains("- ${type.id}: ${type.description}")
             }
             val matcher = GbnfMatcher(q.grammar)
-            for (type in schema.types) assertThat(matcher.accepts("${type.id} de HIGH")).isTrue()
+            for (type in schema.families) assertThat(matcher.accepts("${type.id} de HIGH")).isTrue()
             assertThat(matcher.accepts("invoice de HIGH")).isFalse()
         }
 
@@ -120,7 +120,7 @@ class QuestionnaireTest {
         @Test
         fun `every type's questions can be asked of a letter with no candidates at all`() {
             val none = OfferedCandidates(emptyList())
-            for (type in schema.types) {
+            for (type in schema.families) {
                 for (slot in type.slots) {
                     val q = QuestionnairePrompt.slot(slot, none)
                     if (q != null) GbnfMatcher(q.grammar).accepts("NONE") // the grammar parses and takes NONE

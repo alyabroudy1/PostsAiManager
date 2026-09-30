@@ -31,6 +31,8 @@ enum class InterpreterStrategy {
  *
  * @property restateOptions QUESTIONNAIRE only: restate the candidates a question chooses from after it.
  * @property scoring ZONES_SCORING only: the abstain thresholds and confidence margins for this model.
+ * @property topicsInFirstStage ZONES_SCORING only: the topic scores run in the first stage with the family scores (+14 scores); false
+ *   moves them to the second stage, when the first stage's time budget is exceeded.
  */
 data class ModelProfile(
     val modelId: String,
@@ -38,6 +40,7 @@ data class ModelProfile(
     val strategy: InterpreterStrategy,
     val restateOptions: Boolean = false,
     val scoring: ScoringProfile = ScoringProfile(),
+    val topicsInFirstStage: Boolean = true,
 )
 
 /** The registry of profiles, keyed by catalogue model id. */
@@ -55,6 +58,8 @@ object ModelProfiles {
      */
     val QWEN35_08B = ModelProfile(
         "qwen3.5-0.8b-q4_k_m", contextTokens = 4096, strategy = InterpreterStrategy.ZONES_SCORING,
+        // The +14 topic scores run with the family scores; P4 measures the time and flips this when it is over budget.
+        topicsInFirstStage = true,
         scoring = ScoringProfile(
             defaultThreshold = -12.0,
             // The extras are the one question where "take the best" is wrong: a value is an extra only when the model says yes to it.
@@ -63,6 +68,14 @@ object ModelProfiles {
             thresholds = mapOf(
                 ScoringDescriptions.EXTRAS_ASK to 0.0,
                 QuestionNames.CONTACT to 0.0, QuestionNames.CARE_OF to 0.0, QuestionNames.SUBJECT_PERSON to 0.0,
+                // The family: abstain (free_form) when no family's log-odds are above 0.0, the model's own indifference between Yes and No.
+                // On the recorded type scores read through LegacyTypes (FamilyAccuracyTest, 13 letters) every threshold from -0.1 to 0.3
+                // gives 11 right (10 at or below -0.25, 9 from 0.4); 0.0 is taken from the plateau, not tuned to a letter: it turns the
+                // N4 offer (best score -0.14) into the abstain the letter honestly is. In-sample and on 13 letters, so it is a starting
+                // point that P4 refits on the family scores re-recorded on the device.
+                // The topics and the address labels have no recording yet (they are new questions); they start at the same 0.0 indifference,
+                // the threshold the other optional questions here use (a contact, a care-of party), and are fitted in P4.
+                ScoringProfile.FAMILY to 0.0, ScoringProfile.TOPICS to 0.0, ScoringProfile.ADDR to 0.0,
             ),
             // Fitted on the 137 scored answers of the 16 letters (ConfidenceCalibrationTest). HIGH: a margin of 0.2 over the runner-up
             // (91% right in-sample, 85 answers; 83% held out, cuts fitted on the other half of the letters). LOW: the winner's own

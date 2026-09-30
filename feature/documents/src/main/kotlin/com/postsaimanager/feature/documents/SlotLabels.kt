@@ -65,6 +65,34 @@ object SlotLabels {
         ExtractionSchema.OUTGOING_LETTER.id to R.string.doctype_outgoing_letter,
         ExtractionSchema.PAYMENT_PROOF.id to R.string.doctype_payment_proof,
         ExtractionSchema.OTHER.id to R.string.doctype_other,
+        // the families of extraction-v2-2 (receipt, outgoing_letter and payment_proof are the lines above)
+        ExtractionSchema.OFFICIAL_LETTER.id to R.string.doctype_official_letter,
+        ExtractionSchema.INVOICE_BILL.id to R.string.doctype_invoice_bill,
+        ExtractionSchema.FORM_APPLICATION.id to R.string.doctype_form_application,
+        ExtractionSchema.STATEMENT.id to R.string.doctype_statement,
+        ExtractionSchema.CONTRACT_POLICY.id to R.string.doctype_contract_policy,
+        ExtractionSchema.CERTIFICATE_ID.id to R.string.doctype_certificate_id,
+        ExtractionSchema.MEDICAL.id to R.string.doctype_medical,
+        ExtractionSchema.TICKET_BOOKING.id to R.string.doctype_ticket_booking,
+        ExtractionSchema.EMAIL_PRINTOUT.id to R.string.doctype_email_printout,
+        ExtractionSchema.FREE_FORM.id to R.string.doctype_free_form,
+    )
+
+    private val topics: Map<String, Int> = mapOf(
+        "government" to R.string.topic_government,
+        "tax" to R.string.topic_tax,
+        "health" to R.string.topic_health,
+        "insurance" to R.string.topic_insurance,
+        "bank_finance" to R.string.topic_bank_finance,
+        "housing_utilities" to R.string.topic_housing_utilities,
+        "work" to R.string.topic_work,
+        "school_education" to R.string.topic_school_education,
+        "vehicle" to R.string.topic_vehicle,
+        "telecom" to R.string.topic_telecom,
+        "shopping" to R.string.topic_shopping,
+        "travel" to R.string.topic_travel,
+        "legal" to R.string.topic_legal,
+        "personal" to R.string.topic_personal,
     )
 
     /** The label resource for a slot key, or null for a key with none (an extra, or a name a person typed). */
@@ -101,9 +129,14 @@ object SlotLabels {
     @StringRes
     fun type(id: String?): Int? = id?.let(types::get)
 
+    /** The label resource for a topic id, or null for an id with none. */
+    @StringRes
+    fun topic(id: String?): Int? = id?.let(topics::get)
+
     /** Every key that has a label; for the test that guards the schema. */
     val slotKeys: Set<String> get() = slots.keys
     val typeIds: Set<String> get() = types.keys
+    val topicIds: Set<String> get() = topics.keys
 
     /**
      * The resource to render [field]'s label from, or null to show [ExtractedData.fieldName] as it is.

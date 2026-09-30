@@ -56,7 +56,7 @@ internal class ExpExtra(
 internal class Letter(
     val id: String,
     val pages: List<List<OcrBlock>>,
-    val type: DocType,
+    val type: DocFamily,
     val language: String,
     val slots: List<ExpSlot>,
     val parties: List<ExpParty>,

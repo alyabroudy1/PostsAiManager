@@ -118,7 +118,7 @@ class QuestionnaireInterpreter(
     private suspend fun readEverything(offered: OfferedCandidates): RawInterpretation {
         val type = AnswerReader.type(ask(QuestionnairePrompt.type(schema)).orEmpty())
             ?: throw Abort("the model gave no document type")
-        val docType = schema.type(type.typeId) ?: throw Abort("the model chose a document type that does not exist: ${type.typeId}")
+        val docType = schema.family(type.typeId) ?: throw Abort("the model chose a document type that does not exist: ${type.typeId}")
 
         val taken = LinkedHashSet<String>()
         fun take(id: String?) {

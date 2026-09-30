@@ -8,7 +8,7 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
  *
  * The answer is one JSON object that starts with the document type. The grammar has one
  * alternative per type, so the slots that follow depend on the type the model just wrote (see
- * [DocType.slots]) and the sampler physically cannot write a slot the type does not have.
+ * [DocFamily.slots]) and the sampler physically cannot write a slot the type does not have.
  *
  * Every value slot is restricted to the ids of the offered candidates of the right kind, or
  * `"NONE"`; a value the model would have to type itself (an amount, a date, an IBAN) cannot be
@@ -71,9 +71,9 @@ object StructuredGrammar {
         //
         // The parts every type shares are single rules, so the type alternative is only its own literal
         // and its own slots after the shared core (every type starts with Slots.CORE).
-        rules["root"] = schema.types.joinToString(" | ") { "t-" + it.rule() }
+        rules["root"] = schema.families.joinToString(" | ") { "t-" + it.rule() }
         val coreSlots = Slots.CORE
-        for (type in schema.types) {
+        for (type in schema.families) {
             require(type.slots.take(coreSlots.size) == coreSlots) { "type ${type.id} must start with the core slots" }
             val own = type.slots.drop(coreSlots.size).joinToString("") { " \",\" ws ${slotRule(it)}" }
             rules["t-" + type.rule()] =
@@ -171,7 +171,7 @@ object StructuredGrammar {
             "\",\" ws ${GrammarSyntax.key("c")} ws conf ws \"}\""
     }
 
-    private fun DocType.rule() = id.replace('_', '-')
+    private fun DocFamily.rule() = id.replace('_', '-')
 }
 
 /**

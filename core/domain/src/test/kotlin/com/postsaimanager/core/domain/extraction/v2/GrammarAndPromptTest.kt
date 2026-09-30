@@ -27,8 +27,8 @@ class GrammarAndPromptTest {
         fun `there is one alternative per document type in the schema`() {
             val r = rules(grammar)
             val alternatives = r.getValue("root").split(" | ")
-            assertThat(alternatives).hasSize(schema.types.size)
-            for (t in schema.types) assertThat(r).containsKey("t-" + t.id.replace('_', '-'))
+            assertThat(alternatives).hasSize(schema.families.size)
+            for (t in schema.families) assertThat(r).containsKey("t-" + t.id.replace('_', '-'))
         }
 
         @Test
@@ -49,7 +49,7 @@ class GrammarAndPromptTest {
 
         @Test
         fun `every type has the universal core`() {
-            for (t in schema.types) for (core in Slots.CORE) assertThat(t.slots).contains(core)
+            for (t in schema.families) for (core in Slots.CORE) assertThat(t.slots).contains(core)
         }
 
         @Test
@@ -193,7 +193,7 @@ class GrammarAndPromptTest {
 
         @Test
         fun `the prompt lists every type of the schema it is given`() {
-            val custom = ExtractionSchema(listOf(DocType.of("contract", com.postsaimanager.core.model.DocumentType.CONTRACT)))
+            val custom = ExtractionSchema(listOf(DocFamily.of("contract", com.postsaimanager.core.model.DocumentType.CONTRACT)))
             val prompt = SelectionPrompt.system(custom, withExample = false)
             assertThat(prompt).contains("(contract)")
             assertThat(prompt).doesNotContain("reminder_dunning")

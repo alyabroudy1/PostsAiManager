@@ -50,7 +50,7 @@ object QuestionGrammars {
     /** Document type, language code and confidence: `bill de HIGH`. */
     fun type(schema: ExtractionSchema): String = render(
         "root" to "tid \" \" lang \" \" conf",
-        "tid" to words(schema.types.map { it.id }),
+        "tid" to words(schema.families.map { it.id }),
         "lang" to LANG,
         CONF,
     )

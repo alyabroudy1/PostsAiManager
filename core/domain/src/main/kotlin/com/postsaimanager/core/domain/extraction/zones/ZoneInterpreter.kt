@@ -7,7 +7,7 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.domain.extraction.v2.AnswerReader
 import com.postsaimanager.core.domain.extraction.v2.AskRecord
-import com.postsaimanager.core.domain.extraction.v2.DocType
+import com.postsaimanager.core.domain.extraction.v2.DocFamily
 import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.InterpretationOutcome
@@ -190,7 +190,7 @@ class ZoneInterpreter(
         val typeQuestion = QuestionnairePrompt.type(schema)
         a.type = AnswerReader.type(ask(QuestionNames.TYPE, typeText + typeQuestion.text, typeQuestion).orEmpty())
             ?: throw Abort("the model gave no document type")
-        val docType: DocType = schema.type(a.type!!.typeId)
+        val docType: DocFamily = schema.family(a.type!!.typeId)
             ?: throw Abort("the model chose a document type that does not exist: ${a.type!!.typeId}")
 
         val bodyPartySteps = partySteps.filter { !plan.isHeader(it.zones) }
