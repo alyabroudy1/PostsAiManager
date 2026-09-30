@@ -146,7 +146,9 @@ class ZoneBenchmarkTest {
         if (args.getString("mode") == "stages") {
             for (key in keys.filter { File(bench, "$it.json").exists() }) {
                 val (pages, aspect) = parseFixture(File(bench, "$key.json"))
+                // `tree=true` times the prefix tree (faster, scores not bit-identical to the recorded ones); default: the shipped profile as is.
                 val shipped = com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring
+                    .let { if (args.getString("tree") == "true") it.copy(prefixTree = true) else it }
                 val first = ZoneScoringInterpreter(engine, engine, contextTokens = budgetTokens, profile = shipped)
                 val t0 = System.nanoTime()
                 val one = pipeline.run(pages, first, budgetTokens, aspect, stages = ExtractionV2Pipeline.Stages.FIRST)
@@ -157,7 +159,7 @@ class ZoneBenchmarkTest {
                 val ms2 = (System.nanoTime() - t1) / 1_000_000
                 Log.i(
                     tag,
-                    "STAGES $key stage1Ms=$ms1 stage2Ms=$ms2 type=${one.documentType?.id} slots=${one.slots.size} parties=${one.parties.all.size} " +
+                    "STAGES tree=${shipped.prefixTree} $key stage1Ms=$ms1 stage2Ms=$ms2 type=${one.documentType?.id} slots=${one.slots.size} parties=${one.parties.all.size} " +
                         "extras=${two.extras.size} language=${two.language} title=${two.freeText.title != null} summary=${two.freeText.summary != null}",
                 )
             }
