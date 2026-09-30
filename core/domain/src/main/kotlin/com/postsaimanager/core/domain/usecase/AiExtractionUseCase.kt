@@ -72,15 +72,25 @@ class AiExtractionUseCase @Inject constructor(
         val config = contextTokens?.let { baseConfig.copy(contextTokens = it) } ?: baseConfig
         val window = config.contextTokens
 
+        val started = System.nanoTime()
         val modelId = activeModelProvider.extractionModelId()
         val interpreter = loadedInterpreter(config, modelId)
+        val loadMs = (System.nanoTime() - started) / NANOS_PER_MS
 
         val result = pipeline.run(pages(blocks, pageBlockCounts), interpreter, window, pageAspect, traceContent = traceContent)
+        val adapting = System.nanoTime()
         // What was chosen to read with, first in the trace: the strategy follows from the model's profile, and an
         // unknown model silently reading with the fallback is exactly what a trace must make visible.
         val header = "model=${modelId ?: "none"} profile=${if (ModelProfiles.isKnown(modelId)) "known" else "UNKNOWN"} " +
             "interpreter=${interpreter?.name ?: "none"} window=$window"
-        val understanding = adapter.adapt(result).let { it.copy(readingTrace = listOf(header) + it.readingTrace) }
+        val adapted = adapter.adapt(result)
+        val timings = listOf(
+            "t engine.load+interpreter ms=$loadMs",
+            "t adapter ms=${(System.nanoTime() - adapting) / NANOS_PER_MS}",
+            "t extraction total (load, pipeline, adapter) ms=${(System.nanoTime() - started) / NANOS_PER_MS}",
+        )
+        // The reading's trace: the header first (the data layer logs it always), then the structure, then the timings.
+        val understanding = adapted.copy(readingTrace = listOf(header) + adapted.readingTrace + timings)
         val truncation = understanding.inputTruncation
         return PamResult.Success(
             if (truncation != null && pageBlockCounts.isEmpty()) {
@@ -107,5 +117,9 @@ class AiExtractionUseCase @Inject constructor(
         if (counts.isEmpty() || counts.sum() != blocks.size) return listOf(blocks)
         var from = 0
         return counts.map { n -> blocks.subList(from, from + n).also { from += n } }
+    }
+
+    private companion object {
+        const val NANOS_PER_MS = 1_000_000L
     }
 }

@@ -39,15 +39,27 @@ class ExtractionV2Pipeline(
         direction: DocDirection = DocDirection.INCOMING,
         traceContent: Boolean = false,
     ): ExtractionV2Result {
+        // Milliseconds per stage, as `t ...` lines of the trace (no letter text): the data layer logs them under one tag.
+        val timings = mutableListOf<String>()
+        var mark = System.nanoTime()
+        fun lap(stage: String) {
+            val now = System.nanoTime()
+            timings += "t $stage ms=${(now - mark) / NANOS_PER_MS}"
+            mark = now
+        }
         val layout = layoutReader.read(pages)
+        lap("layout")
         val candidates = candidateSource.find(pages, layout)
         val offered = CandidateTable.build(candidates)
+        lap("candidates")
         if (interpreter == null) return foundOnly(candidates, offered, modelCalled = false, error = "no model is available")
 
         val description = fitLayout(layout, interpreter, offered, contextTokens)
         val total = if (description.isComplete) description.text.length else layout.describe().text.length
+        lap("fitLayout")
 
         val outcome = interpreter.interpret(InterpretationRequest(description.text, offered, layout, pageAspect, direction))
+        lap("interpret (everything the model decides: sessions, scoring, decoding)")
         if (outcome is InterpretationOutcome.Failed) {
             return foundOnly(
                 candidates, offered, modelCalled = true, error = outcome.reason,
@@ -60,6 +72,7 @@ class ExtractionV2Pipeline(
         val textBudget = budgetChars(contextTokens, interpreter.maxTextTokens, interpreter.textOverheadChars())
         val textOutcome = interpreter.writeText(TextRequest(layout.describe(textBudget).text, outcome.raw.type))
         val written = textOutcome as? TextOutcome.Written
+        lap("writeText (language excluded: title, subject, summary, questions)")
 
         val verified = verifier.verify(
             outcome.raw,
@@ -79,7 +92,11 @@ class ExtractionV2Pipeline(
                 textError = (textOutcome as? TextOutcome.Failed)?.reason,
             ),
         )
-        return verified.withReading(layoutTrace(pages, layout, candidates, offered, description, traceContent) + interpreter.trace, interpreter.unread, pages.size)
+        lap("verify")
+        return verified.withReading(
+            layoutTrace(pages, layout, candidates, offered, description, traceContent) + timings + interpreter.trace,
+            interpreter.unread, pages.size,
+        )
     }
 
     /**
@@ -211,6 +228,7 @@ class ExtractionV2Pipeline(
          */
         const val CHARS_PER_TOKEN = 2.5
         const val MIN_LAYOUT_CHARS = 1024
+        private const val NANOS_PER_MS = 1_000_000L
 
         /** How many times the measured fit corrects the character budget, and how close to the limit is close enough. */
         private const val FIT_ROUNDS = 4

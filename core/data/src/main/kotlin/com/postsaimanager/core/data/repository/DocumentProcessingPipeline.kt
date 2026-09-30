@@ -139,6 +139,7 @@ class DocumentProcessingPipeline @Inject constructor(
             // the UI shows no spinner and no notification for a letter that is already done.
             val state: MutableStateFlow<ProcessingState> =
                 if (reprocess) MutableStateFlow(ProcessingState.Idle) else _processingState
+            val runStarted = System.nanoTime()
             try {
                 // A document trashed after this run was enqueued but before it started: stop
                 // before anything is written. Not a failure — same treatment as a
@@ -175,13 +176,19 @@ class DocumentProcessingPipeline @Inject constructor(
                 // OCR stored (StoredOcr): faster, and the candidate ids stay the same.
                 val ocrSemaphore = Semaphore(OCR_CONCURRENCY)
                 val completedPages = AtomicInteger(0)
+                val ocrStarted = System.nanoTime()
 
                 val storedOcr = if (reprocess) StoredOcr.reuse(pages, documentMapper) else null
                 val ocrByPage: List<Pair<DocumentPageEntity, OcrResult?>> = storedOcr ?: coroutineScope {
                     pages.map { page ->
                         async {
                             ocrSemaphore.withPermit {
+                                val pageStarted = System.nanoTime()
                                 val ocrResult = ocrService.recognizeText(page.imagePath).getOrNull()
+                                Log.i(
+                                    TIMING_TAG,
+                                    "$documentId ocr page ${page.pageNumber} ms=${msSince(pageStarted)} blocks=${ocrResult?.blocks?.size ?: -1}",
+                                )
                                 val completed = completedPages.incrementAndGet()
                                 state.value = ProcessingState.Running(
                                     documentId = documentId,
@@ -197,6 +204,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 }
 
                 val ocrResults = ocrByPage.mapNotNull { it.second }
+                Log.i(TIMING_TAG, "$documentId ocr all pages=${pages.size} ms=${msSince(ocrStarted)} storedOcr=${storedOcr != null}")
 
                 // One write for every page that produced text, instead of one DAO call per
                 // page — turns an N-statement sequence into a single batched insert.
@@ -335,6 +343,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     fieldCount = extraction.fields.size,
                 )
 
+                val storeStarted = System.nanoTime()
                 val stored = documentDao.getExtractedData(documentId)
                     .map(documentMapper::extractedDataToDomain)
                 val now = System.currentTimeMillis()
@@ -383,10 +392,12 @@ class DocumentProcessingPipeline @Inject constructor(
                 // Not on a background reprocess: profiles and their proposals ("is this the same
                 // person?") are questions for the user, and an update nobody asked for must not
                 // raise new ones. What the merge flags is all a reprocess surfaces.
+                val linkStarted = System.nanoTime()
                 if (understanding is PamResult.Success && usedModel && !reprocess) {
                     runCatching {
                         entityProfileLinker.process(documentId, understanding.data, propose = !alreadyRead)
                     }.onSuccess { outcome ->
+                        Log.i(TIMING_TAG, "$documentId profile linking ms=${msSince(linkStarted)}")
                         Log.i(
                             TAG,
                             "profiles for $documentId linked=${outcome.linked} " +
@@ -509,10 +520,14 @@ class DocumentProcessingPipeline @Inject constructor(
                 // page break and can always be cited as `[p.N]` (4.0). `ocrByPage` already
                 // preserves page order regardless of OCR completion order (see its own
                 // comment above).
+                Log.i(TIMING_TAG, "$documentId storage (merge, fields, profile linking, title, timeline) ms=${msSince(storeStarted)}")
+                val indexStarted = System.nanoTime()
                 val pageTexts = ocrByPage.mapNotNull { (page, ocrResult) ->
                     ocrResult?.let { IndexDocumentUseCase.PageText(page.pageNumber, it.fullText) }
                 }
-                when (val indexed = indexDocument(documentId, pageTexts)) {
+                val indexResult = indexDocument(documentId, pageTexts)
+                Log.i(TIMING_TAG, "$documentId index ms=${msSince(indexStarted)}")
+                when (val indexed = indexResult) {
                     is PamResult.Success -> Log.i(
                         TAG,
                         "indexed $documentId chunks=${indexed.data.chunkCount} " +
@@ -526,6 +541,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     )
                 }
 
+                Log.i(TIMING_TAG, "$documentId TOTAL processDocument (inside the lock, reprocess=$reprocess) ms=${msSince(runStarted)}")
                 state.value = ProcessingState.Completed(documentId)
                 PamResult.Success(extraction)
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -555,8 +571,13 @@ class DocumentProcessingPipeline @Inject constructor(
     private fun logReadingTrace(documentId: String, trace: List<String>) {
         val header = trace.firstOrNull() ?: return
         if (header.contains("profile=UNKNOWN")) Log.w(TAG, "reading $documentId: $header (no profile, fallback strategy)") else Log.i(TAG, "reading $documentId: $header")
-        if (isDebuggable()) trace.drop(1).forEach { Log.i(TAG, "reading $documentId: $it") }
+        val rest = trace.drop(1)
+        // Timings (`t ...`: stage, counts, milliseconds) always; the structure and any content only in a debuggable build.
+        rest.filter { it.startsWith("t ") }.forEach { Log.i(TIMING_TAG, "$documentId ${it.removePrefix("t ")}") }
+        if (isDebuggable()) rest.filter { !it.startsWith("t ") }.forEach { Log.i(TAG, "reading $documentId: $it") }
     }
+
+    private fun msSince(startNanos: Long) = (System.nanoTime() - startNanos) / 1_000_000L
 
     private fun isDebuggable() = (appContext.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
@@ -636,6 +657,9 @@ class DocumentProcessingPipeline @Inject constructor(
 private val blockJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
 
 private const val TAG = "DocProcessing"
+
+/** Per-stage latency of a reading: one tag, stage + counts + milliseconds, never a word of the letter. */
+private const val TIMING_TAG = "ExtractTiming"
 
 /**
  * [TimelineEvent.data] reason codes `failDocument` records — the detail screen's FAILED

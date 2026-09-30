@@ -97,6 +97,11 @@ class ZoneScoringInterpreter(
 
     private var tail = ""
 
+    /** Totals of the scoring in this reading, for the timing summary. */
+    private var scoreBatches = 0
+    private var scoreCount = 0
+    private var scoreMs = 0L
+
     /** The writing session is open (the language, the extras' names and the free text are asked in it). */
     private var writingOpen = false
     private var failures = 0
@@ -123,6 +128,9 @@ class ZoneScoringInterpreter(
         records.clear()
         scored.clear()
         traceLines.clear()
+        scoreBatches = 0
+        scoreCount = 0
+        scoreMs = 0
         unread = null
         failures = 0
         writingOpen = false
@@ -163,7 +171,7 @@ class ZoneScoringInterpreter(
             // The prefix is the instructions only: each question carries its own zone (and, with neighbour context,
             // a glimpse of the zones around it), so a zone is judged on its own text and hint.
             val (head, closing) = setup.frame(system, ZonePrompt.HEADER_USER)
-            open(head, closing)
+            open(head, closing, "header")
             inPrefix = emptySet()
             // A party whose header zones offered no name is asked again with the body, on the zones the registry names
             // as its fallback (the sender's name is sometimes only in the footer).
@@ -180,7 +188,7 @@ class ZoneScoringInterpreter(
         for (attempt in 0 until MAX_OPEN_ATTEMPTS) {
             bodyUser = ZonePrompt.bodyUser(summary, zonedText(setup, zonesInPrefix, budget))
             val (head, closing) = setup.frame(system, bodyUser)
-            if (tryOpen(head, closing)) {
+            if (tryOpen(head, closing, "body#${attempt + 1}")) {
                 opened = true
                 break
             }
@@ -196,13 +204,21 @@ class ZoneScoringInterpreter(
         (partyNames.filter { !isHeader(it.first) } + deferredParties).forEach { (name, role) -> party(setup, s, name, role, widen = true) }
         val bodySlots = (Slots.CORE + docType.slots).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) }
         (bodySlots + deferred).forEach { slot(setup, s, it, widen = true) }
+        val decoding = System.nanoTime()
         redecide(setup, s)
+        timing("decode ms=${(System.nanoTime() - decoding) / NANOS_PER_MS} (includes the kind and household scoring of a changed answer)")
         traceFinal(setup, s)
 
         // Everything that is decided is decided; what is left is writing. The scoring session's instruction is "answer Yes or No"
         // and a small model obeys it over any question (measured: the language, the title, the summary were all "Yes"), so the
         // writing has its own session: the same letter under an instruction that only says to write what is asked.
         val picked = pickExtras(setup, s)
+        timing(
+            String.format(
+                Locale.ROOT, "scoring total batches=%d scores=%d ms=%d msPerScore=%.0f", scoreBatches, scoreCount, scoreMs,
+                if (scoreCount > 0) scoreMs.toDouble() / scoreCount else 0.0,
+            ),
+        )
         // The letter as plain text: no zone hints and no summary of the header, which a small model copies instead of the letter.
         writingOpen = switchToWriting(setup, ZonePrompt.bodyUser("", zoned.render(zonesInPrefix, budget)))
         val language = if (writingOpen) ask(QuestionnairePrompt.language())?.let { AnswerReader.language(it) } else null
@@ -287,7 +303,7 @@ class ZoneScoringInterpreter(
     /** Reopens the session for writing: the same letter, under [ZonePrompt.writingSystem] instead of the scoring instruction. */
     private suspend fun switchToWriting(setup: ZoneSetup, bodyUser: String): Boolean {
         val (head, closing) = setup.frame(ZonePrompt.writingSystem(setup.template), bodyUser)
-        return tryOpen(head, closing)
+        return tryOpen(head, closing, "writing")
     }
 
     private fun zonedText(setup: ZoneSetup, zones: List<LetterZone>, budget: Int): String {
@@ -494,18 +510,28 @@ class ZoneScoringInterpreter(
 
     // ── engine ──
 
-    private suspend fun open(head: String, closing: String) {
-        if (!tryOpen(head, closing)) throw Abort("the model could not read the letter")
+    private suspend fun open(head: String, closing: String, label: String) {
+        if (!tryOpen(head, closing, label)) throw Abort("the model could not read the letter")
     }
 
-    private suspend fun tryOpen(head: String, closing: String): Boolean {
+    private suspend fun tryOpen(head: String, closing: String, label: String): Boolean {
         val started = System.nanoTime()
         val opened = session.open(head)
-        prefixMs += (System.nanoTime() - started) / NANOS_PER_MS
-        if (opened !is PamResult.Success) return false
+        val ms = (System.nanoTime() - started) / NANOS_PER_MS
+        prefixMs += ms
+        if (opened !is PamResult.Success) {
+            timing("open $label failed ms=$ms")
+            return false
+        }
         prefixTokens += opened.data
+        timing("open $label prefixTokens=${opened.data} ms=$ms")
         tail = closing
         return true
+    }
+
+    /** A timing line of the reading trace (`t ...`): stage, counts and milliseconds, never a word of the letter. */
+    private fun timing(line: String) {
+        traceLines += "t $line"
     }
 
     /** One score per question, or null when the engine failed the batch. Three failures in a row abort the reading. */
@@ -518,6 +544,10 @@ class ZoneScoringInterpreter(
         records += AskRecord(
             name = "score:$name", question = questions.joinToString(BATCH_SEPARATOR), answer = scores?.joinToString(","), ms = ms,
         )
+        scoreBatches++
+        scoreCount += questions.size
+        scoreMs += ms
+        timing(String.format(Locale.ROOT, "score %s n=%d ms=%d msPerScore=%.0f%s", name, questions.size, ms, ms.toDouble() / questions.size, if (scores == null) " FAILED" else ""))
         if (scores == null) {
             if (++failures >= MAX_FAILURES) throw Abort("the engine failed $MAX_FAILURES scorings in a row")
         } else {
@@ -531,7 +561,9 @@ class ZoneScoringInterpreter(
         val started = System.nanoTime()
         val result = session.ask("\n\n" + question.text + tail, question.grammar, question.maxTokens)
         val answer = (result as? PamResult.Success)?.data?.trim()
-        records += AskRecord(question.name, question.text, answer, (System.nanoTime() - started) / NANOS_PER_MS)
+        val ms = (System.nanoTime() - started) / NANOS_PER_MS
+        records += AskRecord(question.name, question.text, answer, ms)
+        timing("ask ${question.name} ms=$ms answerChars=${answer?.length ?: 0}${if (answer == null) " FAILED" else ""}")
         return answer
     }
 
