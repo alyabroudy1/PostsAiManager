@@ -142,7 +142,11 @@ class ConfidenceCalibrationTest {
         sb.appendLine(table("## Cross-fitted (cuts fitted on the other fold), both folds together", listOf(cutsFromB, cutsFromA), listOf(onA, onB)))
         sb.appendLine(table("### Fold B answers with cuts from A", listOf(cutsFromA), listOf(onB)))
         sb.appendLine(table("### Fold A answers with cuts from B", listOf(cutsFromB), listOf(onA)))
-        sb.appendLine(table("## In-sample with the shipped cuts (fitted on all letters): $shipped", listOf(shipped), listOf(all)))
+        sb.appendLine(table("## In-sample with the cuts the fitter gives on all letters: $shipped", listOf(shipped), listOf(all)))
+        val inProfile = com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring.cuts
+        sb.appendLine(table("## In-sample with the cuts in the qwen3.5-0.8b profile (the fitter's HIGH, and LOW where the winner itself leans No): $inProfile", listOf(inProfile), listOf(all)))
+        sb.appendLine(table("### Slots only, with the profile's cuts", listOf(inProfile), listOf(all.filter { it.what.startsWith("slot") })))
+        sb.appendLine(table("### Parties only, with the profile's cuts", listOf(inProfile), listOf(all.filter { it.what.startsWith("party") })))
         sb.appendLine("## Share right by margin band (all answers, no cuts)\n\n| margin | answers | right | share |\n|---|---|---|---|")
         for ((lo, hi) in listOf(-9.0 to 0.03, 0.03 to 0.1, 0.1 to 0.2, 0.2 to 0.4, 0.4 to 0.75, 0.75 to 9.0)) {
             val s = all.filter { it.margin >= lo && it.margin < hi }

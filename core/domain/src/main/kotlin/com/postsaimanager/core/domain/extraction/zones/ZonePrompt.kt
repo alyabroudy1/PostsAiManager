@@ -90,8 +90,9 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
     }
 
     /**
-     * What the letter calls a value the scoring picked as an extra: its printed words and a short english key. The value is
-     * the candidate itself, so nothing here can change it; the model only names it.
+     * What the letter calls a value the scoring picked as an extra: the printed words that name it. The value is the candidate
+     * itself, so nothing here can change it; the model only names it. (A key was asked for as well and a 0.8B model answered
+     * the format's own placeholder every time, so the key is left to the verifier's own fallback.)
      */
     fun extraName(candidate: String, context: ZonedLetter.Context?): Question {
         val ctx = listOfNotNull(
@@ -102,9 +103,9 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
         return Question(
             "extra:name",
             "QUESTION: The value «$candidate» is an important fact of this letter$where. What does the letter call this value? " +
-                "Copy the printed words that name it (not the value itself), then give a short english key for it.\n" +
-                "ANSWER FORMAT: \"printed words\" key_name",
-            QuestionGrammars.labelAndKey(),
+                "Copy the printed words that name it (not the value itself).\n" +
+                "ANSWER FORMAT: the printed words in double quotes",
+            QuestionGrammars.line(),
             NAME_TOKENS,
         )
     }

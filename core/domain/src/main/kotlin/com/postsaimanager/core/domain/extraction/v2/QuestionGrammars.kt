@@ -133,9 +133,6 @@ object QuestionGrammars {
     /** The language of the letter alone: a BCP-47 code (`de`, `pt-BR`). */
     fun language(): String = render("root" to LANG)
 
-    /** What a found value is called: `"label" key`, the words printed next to it and a short english key (`"Rechnung" invoice_number`). */
-    fun labelAndKey(): String = render("root" to "qstr \" \" xkey", "xkey" to "[a-z] [a-z_]+")
-
     /** `[a-z]{2,3}` with an optional region or script subtag, as BCP-47 writes it (written out: no `{m,n}`). */
     private const val LANG = "[a-z] [a-z] [a-z]? (\"-\" [A-Za-z0-9]+)?"
 

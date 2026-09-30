@@ -60,9 +60,10 @@ object ModelProfiles {
             // The extras are the one question where "take the best" is wrong: a value is an extra only when the model says yes to it.
             thresholds = mapOf(ScoringDescriptions.EXTRAS_ASK to 0.0),
             // Fitted on the 137 scored answers of the 16 letters (ConfidenceCalibrationTest). HIGH: a margin of 0.2 over the runner-up
-            // (91% right in-sample; 83% held out, cuts fitted on the other half of the letters). LOW: the winner's own log-odds are
-            // under -0.25, the model itself leaning No (56% right); no set of answers reached the 50% ceiling, so this is the weakest
-            // principled one, chosen from the table, not by the fitter. MEDIUM is the rest.
+            // (91% right in-sample, 85 answers; 83% held out, cuts fitted on the other half of the letters). LOW: the winner's own
+            // log-odds are under -0.25, the model itself leaning No (50% right, 14 answers in-sample). The fitter, which keeps a safety
+            // buffer under the 50% ceiling, found no LOW set of its own (held out, its best was 63% right on 8 answers), so this LOW cut
+            // was chosen from the table, not by the fitter. MEDIUM is the rest (66%).
             cuts = ScoreCuts(mediumMargin = Double.NEGATIVE_INFINITY, mediumBest = -0.25, highMargin = 0.2, highBest = Double.NEGATIVE_INFINITY),
         ),
     )

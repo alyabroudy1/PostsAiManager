@@ -3,11 +3,10 @@ package com.postsaimanager.core.domain.extraction.v2
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 
-/** The two short constrained asks of the scoring reading: the letter's language, and the name of an extra. */
+/** The short constrained ask of the scoring reading that names nothing but the language. */
 class LanguageAndExtrasTest {
 
     private val language = GbnfMatcher(QuestionGrammars.language())
-    private val naming = GbnfMatcher(QuestionGrammars.labelAndKey())
 
     @Test
     fun `the language grammar accepts a bare code, with or without a region`() {
@@ -20,19 +19,8 @@ class LanguageAndExtrasTest {
     }
 
     @Test
-    fun `the naming grammar takes the printed words in quotes and a key`() {
-        assertThat(naming.accepts("\"Rechnung\" invoice_number")).isTrue()
-        assertThat(naming.accepts("\"Kunden-Nr.\" customer_number")).isTrue()
-        assertThat(naming.accepts("Rechnung invoice_number")).isFalse()
-        assertThat(naming.accepts("\"Rechnung\"")).isFalse()
-        assertThat(naming.accepts("\"Rechnung\" Invoice")).isFalse()
-    }
-
-    @Test
-    fun `the grammars have no counted repetition`() {
-        for (grammar in listOf(QuestionGrammars.language(), QuestionGrammars.labelAndKey())) {
-            assertThat(Regex("\\{\\d*,?\\d*\\}").containsMatchIn(grammar)).isFalse()
-        }
+    fun `the grammar has no counted repetition`() {
+        assertThat(Regex("\\{\\d*,?\\d*\\}").containsMatchIn(QuestionGrammars.language())).isFalse()
     }
 
     @Test
@@ -46,10 +34,10 @@ class LanguageAndExtrasTest {
     }
 
     @Test
-    fun `the reader takes the words and the key`() {
-        assertThat(AnswerReader.labelAndKey("\"Rechnung\" invoice_number")).isEqualTo("Rechnung" to "invoice_number")
-        assertThat(AnswerReader.labelAndKey("\"  \" invoice_number")).isNull()
-        assertThat(AnswerReader.labelAndKey("\"Rechnung\"")).isNull()
-        assertThat(AnswerReader.labelAndKey("invoice_number")).isNull()
+    fun `the name of an extra is one quoted line`() {
+        val line = GbnfMatcher(QuestionGrammars.line())
+        assertThat(line.accepts("\"Rechnung\"")).isTrue()
+        assertThat(line.accepts("Rechnung")).isFalse()
+        assertThat(AnswerReader.line("\"Kunden-Nr.\"")).isEqualTo("Kunden-Nr.")
     }
 }

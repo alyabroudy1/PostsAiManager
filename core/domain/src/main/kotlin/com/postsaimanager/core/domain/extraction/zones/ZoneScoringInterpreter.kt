@@ -181,7 +181,8 @@ class ZoneScoringInterpreter(
         // and a small model obeys it over any question (measured: the language, the title, the summary were all "Yes"), so the
         // writing has its own session: the same letter under an instruction that only says to write what is asked.
         val picked = pickExtras(setup, s)
-        writingOpen = switchToWriting(setup, bodyUser)
+        // The letter as plain text: no zone hints and no summary of the header, which a small model copies instead of the letter.
+        writingOpen = switchToWriting(setup, ZonePrompt.bodyUser("", zoned.render(zonesInPrefix, budget)))
         val language = if (writingOpen) ask(QuestionnairePrompt.language())?.let { AnswerReader.language(it) } else null
         return RawInterpretation(
             type = type.first, typeConfidence = type.second, language = language,
@@ -200,7 +201,7 @@ class ZoneScoringInterpreter(
      */
     private suspend fun pickExtras(setup: ZoneSetup, s: State): List<Picked> {
         val zoned = setup.zoned
-        val zones = setup.plan.zones(QuestionNames.EXTRAS).filter { zoned.hasText(it) }
+        val zones = setup.plan.zones(QuestionNames.EXTRAS_SCORED).filter { zoned.hasText(it) }
         if (zones.isEmpty()) return emptyList()
         val taken = s.parties.map { it.id }.toSet() + s.slots.values.flatMap { listOfNotNull(it.id) + it.ids }
         val cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.id !in taken && it.kind != CandidateKind.NAME }
@@ -216,15 +217,17 @@ class ZoneScoringInterpreter(
     }
 
     /**
-     * Names each picked extra with one short constrained ask: the words the letter prints next to it and an english key. The value is
-     * the candidate itself: the model names it and cannot change it, and the verifier treats the extra as it does any other (an id
-     * already used, a weak kind, a duplicate). A failed naming leaves that extra out.
+     * Names each picked extra with one short constrained ask: the words the letter prints next to it. The value is the candidate
+     * itself: the model names it and cannot change it, and the verifier treats the extra as it does any other (an id already used, a
+     * weak kind, a duplicate by label). The key is the candidate's own kind (`reference`, `amount`, `date`, `phone` ...): a
+     * coarse grouping that code can state from the value's shape, where a 0.8B model's own key was the format's placeholder every
+     * time. A failed naming leaves that extra out.
      */
     private suspend fun nameExtras(setup: ZoneSetup, picked: List<Picked>): List<RawExtra> = picked.mapNotNull { p ->
         val c = p.candidate
-        val (label, key) = ask(ZonePrompt.extraName(c.raw.replace('\n', ' '), setup.zoned.context(c)))?.let { AnswerReader.labelAndKey(it) }
+        val label = ask(ZonePrompt.extraName(c.raw.replace('\n', ' '), setup.zoned.context(c)))?.let { AnswerReader.line(it) }?.trim()?.takeIf { it.isNotEmpty() }
             ?: return@mapNotNull null
-        RawExtra(label = label, key = key, id = c.id, value = "", confidence = confidenceOf(p.score, null, 1).first)
+        RawExtra(label = label, key = c.kind.name.lowercase(), id = c.id, value = "", confidence = confidenceOf(p.score, null, 1).first)
     }
 
     /** Reopens the session for writing: the same letter, under [ZonePrompt.writingSystem] instead of the scoring instruction. */

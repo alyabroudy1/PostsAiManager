@@ -39,7 +39,8 @@ class ZoneErrorAnalysisTest {
         for ((m, f) in docs) {
             val rec = recordings.firstOrNull { it.key == m.key } ?: continue
             val det = ExtractionBenchmark.score(m, f)
-            val result = InterpreterMetrics.replayResult(rec, f, ScoringProfile(defaultThreshold = -12.0))
+            // As the app decides it: the shipped profile's thresholds (take the best; an extra only above its threshold).
+            val result = InterpreterMetrics.replayResult(rec, f, com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring)
             val offered = CandidateTable.build(det.candidateSet)
             val first = f.pages.firstOrNull()
             val setup = ZoneSetup(FakeAiEngine(), det.layout, offered, TemplateMatcher(), first?.takeIf { it.height > 0 }?.let { it.width.toFloat() / it.height })

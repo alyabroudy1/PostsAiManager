@@ -120,7 +120,7 @@ class ZoneScoringInterpreterTest {
             responder = { q, _ ->
                 when {
                     q.contains("BCP-47") -> "de"
-                    q.contains("What does the letter call this value?") -> "\"Gegenstand ${++named}\" some_key"
+                    q.contains("What does the letter call this value?") -> "\"Gegenstand ${++named}\""
                     else -> "\"text\""
                 }
             }
@@ -134,7 +134,10 @@ class ZoneScoringInterpreterTest {
         assertThat(result.extras.all { it.value.candidateId != null }).isTrue()
         // Each ask has its own small grammar, in the same open body session as the scoring.
         assertThat(session.asks.first { it.question.contains("BCP-47") }.grammar).isEqualTo(QuestionGrammars.language())
-        assertThat(session.asks.first { it.question.contains("What does the letter call this value?") }.grammar).isEqualTo(QuestionGrammars.labelAndKey())
+        assertThat(session.asks.first { it.question.contains("What does the letter call this value?") }.grammar).isEqualTo(QuestionGrammars.line())
+        // The key is the value's own kind.
+        val kinds = com.postsaimanager.core.domain.extraction.candidates.CandidateKind.entries.map { it.name.lowercase() }
+        assertThat(result.extras.all { it.key in kinds }).isTrue()
         assertThat(session.opens).hasSize(3)
     }
 
@@ -189,7 +192,7 @@ class ZoneScoringInterpreterTest {
         fun extras(threshold: Double): Int {
             val session = FakePromptSession().apply {
                 scorer = { c -> if (c.contains(ScoringDescriptions.EXTRA)) 2.0 else if (c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
-                responder = { q, _ -> if (q.contains("BCP-47")) "de" else if (q.contains("What does the letter call this value?")) "\"Gegenstand\" k${q.hashCode()}".replace("-", "m") else "\"text\"" }
+                responder = { q, _ -> if (q.contains("BCP-47")) "de" else if (q.contains("What does the letter call this value?")) "\"Gegenstand\"" else "\"text\"" }
             }
             return session.let { s ->
                 runBlocking {
@@ -235,6 +238,19 @@ class ZoneScoringInterpreterTest {
         assertThat(cuts.word(0.15, 0.3)).isEqualTo("MEDIUM")
         assertThat(cuts.word(0.05, 0.3)).isEqualTo("LOW")
         assertThat(cuts.word(0.5, -0.4)).isEqualTo("LOW")
+    }
+
+    @Test
+    fun `extras are looked for on every zone that holds facts while the generating reader's extras question stays on the body`() {
+        fun zones(t: LayoutTemplate, name: String) = t.zones.filter { name in it.asks }.map { it.zone }
+        val din = LayoutTemplates.DIN5008_B
+        val tags = zones(din, QuestionNames.EXTRAS_SCORED).map { it.tag }
+        assertThat(tags).containsExactly("info-block", "body", "payment").inOrder()
+        assertThat(zones(din, QuestionNames.EXTRAS).map { it.tag }).containsExactly("body")
+        // Wherever a template asks the generating reader's extras, it asks the scoring reader's there too.
+        for (t in LayoutTemplates.ALL + LayoutTemplates.GENERIC) {
+            assertThat(zones(t, QuestionNames.EXTRAS_SCORED)).containsAtLeastElementsIn(zones(t, QuestionNames.EXTRAS))
+        }
     }
 
     @Test

@@ -142,14 +142,6 @@ internal object AnswerReader {
     fun language(answer: String): String? =
         tokens(answer).singleOrNull()?.let { it as? Tok.Word }?.text?.lowercase()?.takeIf { LANGUAGE.matches(it) }
 
-    /** The label and the key of `"label" key` (see [QuestionGrammars.labelAndKey]), or null when it is not that. */
-    fun labelAndKey(answer: String): Pair<String, String>? {
-        val t = tokens(answer)
-        val label = (t.getOrNull(0) as? Tok.Quote)?.text?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-        val key = t.word(1) ?: return null
-        return label to key
-    }
-
     private val LANGUAGE = Regex("[a-z]{2,3}(-[a-z0-9]+)?")
 
     /** The one quoted line an answer holds, or null. */

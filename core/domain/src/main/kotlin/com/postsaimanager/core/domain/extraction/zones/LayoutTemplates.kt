@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.extraction.zones.QuestionNames.ADDRESSEE
 import com.postsaimanager.core.domain.extraction.zones.QuestionNames.CARE_OF
 import com.postsaimanager.core.domain.extraction.zones.QuestionNames.CONTACT
 import com.postsaimanager.core.domain.extraction.zones.QuestionNames.EXTRAS
+import com.postsaimanager.core.domain.extraction.zones.QuestionNames.EXTRAS_SCORED
 import com.postsaimanager.core.domain.extraction.zones.QuestionNames.SENDER
 import com.postsaimanager.core.domain.extraction.zones.QuestionNames.SUBJECT_PERSON
 import com.postsaimanager.core.domain.extraction.zones.QuestionNames.TYPE
@@ -46,11 +47,11 @@ object LayoutTemplates {
         add(ZoneSpec(LetterZone.LETTERHEAD, H_LETTERHEAD, listOf(SENDER)))
         if (returnLine) add(ZoneSpec(LetterZone.RETURN_ADDRESS_LINE, H_RETURN, listOf(SENDER)))
         add(ZoneSpec(LetterZone.ADDRESS_FIELD, H_ADDRESS + mirrorNote, listOf(ADDRESSEE, CARE_OF)))
-        add(ZoneSpec(LetterZone.INFO_BLOCK, H_INFO + mirrorNote, listOf(LETTER_DATE, REFERENCE, CUSTOMER_NO, CONTACT)))
+        add(ZoneSpec(LetterZone.INFO_BLOCK, H_INFO + mirrorNote, listOf(LETTER_DATE, REFERENCE, CUSTOMER_NO, CONTACT, EXTRAS_SCORED)))
         add(ZoneSpec(LetterZone.SUBJECT, H_SUBJECT))
         // References are asked on the reference block and on the body too: many letters print them in a sentence.
-        add(ZoneSpec(LetterZone.BODY, H_BODY, listOf(TYPE, SUBJECT_PERSON, REFERENCE, CUSTOMER_NO, TOTAL, DUE_DATE, EXTRAS)))
-        add(ZoneSpec(LetterZone.PAYMENT_SECTION, H_PAYMENT, listOf(TOTAL, DUE_DATE, IBAN)))
+        add(ZoneSpec(LetterZone.BODY, H_BODY, listOf(TYPE, SUBJECT_PERSON, REFERENCE, CUSTOMER_NO, TOTAL, DUE_DATE, EXTRAS, EXTRAS_SCORED)))
+        add(ZoneSpec(LetterZone.PAYMENT_SECTION, H_PAYMENT, listOf(TOTAL, DUE_DATE, IBAN, EXTRAS_SCORED)))
         add(ZoneSpec(LetterZone.FOOTER, H_FOOTER, listOf(IBAN)))
     }
 
@@ -132,9 +133,9 @@ object LayoutTemplates {
             ZoneSpec(
                 LetterZone.BODY,
                 "These are the item lines, then the total and how it was paid. Each price stands on the row of its item.",
-                listOf(TYPE, LETTER_DATE, TOTAL, slot("receipt_no"), REFERENCE, EXTRAS),
+                listOf(TYPE, LETTER_DATE, TOTAL, slot("receipt_no"), REFERENCE, EXTRAS, EXTRAS_SCORED),
             ),
-            ZoneSpec(LetterZone.PAYMENT_SECTION, H_PAYMENT, listOf(TOTAL)),
+            ZoneSpec(LetterZone.PAYMENT_SECTION, H_PAYMENT, listOf(TOTAL, EXTRAS_SCORED)),
             ZoneSpec(LetterZone.FOOTER, "This is the end of the receipt: often a date, a transaction number and thanks.", listOf(LETTER_DATE, IBAN)),
         ),
         // The analyzer reads a DIN window into what is a list of items: every such zone is just the body here.
@@ -166,9 +167,9 @@ object LayoutTemplates {
             ZoneSpec(
                 LetterZone.BODY,
                 "These are label and value pairs: a value stands to the right of, or below, its label.",
-                listOf(TYPE, ADDRESSEE, SUBJECT_PERSON, LETTER_DATE, REFERENCE, CUSTOMER_NO, TOTAL, DUE_DATE, EXTRAS),
+                listOf(TYPE, ADDRESSEE, SUBJECT_PERSON, LETTER_DATE, REFERENCE, CUSTOMER_NO, TOTAL, DUE_DATE, EXTRAS, EXTRAS_SCORED),
             ),
-            ZoneSpec(LetterZone.PAYMENT_SECTION, H_PAYMENT, listOf(TOTAL, DUE_DATE, IBAN)),
+            ZoneSpec(LetterZone.PAYMENT_SECTION, H_PAYMENT, listOf(TOTAL, DUE_DATE, IBAN, EXTRAS_SCORED)),
             ZoneSpec(LetterZone.FOOTER, H_FOOTER, listOf(IBAN)),
         ),
         remap = mapOf(
@@ -206,7 +207,7 @@ object LayoutTemplates {
             ZoneSpec(
                 LetterZone.BODY,
                 "No layout was recognised: this is the text of the document in reading order.",
-                listOf(TYPE, SENDER, ADDRESSEE, CARE_OF, SUBJECT_PERSON, CONTACT, LETTER_DATE, REFERENCE, CUSTOMER_NO, TOTAL, DUE_DATE, IBAN, EXTRAS),
+                listOf(TYPE, SENDER, ADDRESSEE, CARE_OF, SUBJECT_PERSON, CONTACT, LETTER_DATE, REFERENCE, CUSTOMER_NO, TOTAL, DUE_DATE, IBAN, EXTRAS, EXTRAS_SCORED),
             ),
         ),
         remap = LetterZone.entries.filter { it != LetterZone.BODY }.associateWith { LetterZone.BODY },

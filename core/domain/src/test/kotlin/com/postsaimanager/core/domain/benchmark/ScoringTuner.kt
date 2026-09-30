@@ -26,7 +26,8 @@ internal class ScoringTuner(
         return Eval(obj, s.fieldMatch, if (answers == 0) 1.0 else correct / answers, answers)
     }
 
-    private val grid = (-12..10).map { it.toDouble() }
+    /** Whole numbers from -12 to 10, and quarters between -2 and 2, where the model's scores actually lie (they rarely pass 1.5 either way). */
+    private val grid = ((-12..10).map { it.toDouble() } + (-8..8).map { it * 0.25 }).distinct().sorted()
 
     fun questions(variant: String, keys: Set<String>): List<String> =
         recordings.filter { it.variant == variant && it.key in keys }.flatMap { it.asks }.map { it.name }
