@@ -40,6 +40,31 @@ class ExtractedPresenterTest {
         ExtractedPresenter.present(doc(type, summary), fields, showAll)
 
     @Nested
+    @DisplayName("Summary coming")
+    inner class SummaryComing {
+
+        @Test
+        fun `the card says the summary is coming while the second stage is pending and there is none yet`() {
+            val pending = ExtractedPresenter.present(doc(summary = null), listOf(field("Amount", "64,98 €", "total")), summaryComing = true)
+            assertThat(pending.summary.summaryComing).isTrue()
+            assertThat(pending.summary.aiSummary).isNull()
+        }
+
+        @Test
+        fun `a summary that has landed is shown and nothing is coming any more`() {
+            val landed = ExtractedPresenter.present(doc(summary = "Pay 64,98 €."), listOf(field("Amount", "64,98 €", "total")), summaryComing = true)
+            assertThat(landed.summary.summaryComing).isFalse()
+            assertThat(landed.summary.aiSummary).isEqualTo("Pay 64,98 €.")
+        }
+
+        @Test
+        fun `nothing is coming when no second stage is pending`() {
+            val none = ExtractedPresenter.present(doc(summary = null), listOf(field("Amount", "64,98 €", "total")))
+            assertThat(none.summary.summaryComing).isFalse()
+        }
+    }
+
+    @Nested
     @DisplayName("Summary card")
     inner class Card {
 
