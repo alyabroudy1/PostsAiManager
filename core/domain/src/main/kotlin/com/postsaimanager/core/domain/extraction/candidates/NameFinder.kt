@@ -110,6 +110,9 @@ internal object NameFinder : CandidateFinder {
         when (line.zone) {
             BlockZone.ADDRESS_FIELD -> {
                 if (looksLikeAddressLine(t)) return
+                // A line that ends in a comma starts a sentence or is a greeting, never a line of an address: by shape,
+                // whatever the words say (the salutation of a letter whose address field was misplaced).
+                if (t.trimEnd().endsWith(',')) return
                 // A one-word line under a one-word line ("Familie" / "Beispiel", "Herrn" / "Mustermann")
                 // is one name; by shape, whatever the first word says.
                 val prev = ctx.lines.getOrNull(line.order - 1)

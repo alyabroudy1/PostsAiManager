@@ -614,4 +614,33 @@ class LetterLayoutTest {
             assertThat(layout.plainText()).doesNotContain("MEUCIQ")
         }
     }
+
+    @Nested
+    @DisplayName("a scan cropped to the paper")
+    inner class CroppedScan {
+
+        private fun scan(shift: Float): List<OcrBlock> = listOf(
+            b("Reference: X-1", 0.71f, 0.015f + shift, w = 0.22f),
+            b("Sender Office", 0.08f, 0.025f + shift, w = 0.16f),
+            b("Erika Mustermann\nMusterstrasse 12\n54321 Beispieldorf", 0.08f, 0.085f + shift, w = 0.16f),
+            b("Statement 2025", 0.08f, 0.18f + shift, w = 0.3f),
+            b("Dear Ms Mustermann,", 0.08f, 0.255f + shift, w = 0.23f),
+            b("on the basis of your declaration the amount was set", 0.07f, 0.29f + shift, w = 0.85f),
+            b("please see the notes below for the details", 0.07f, 0.32f + shift, w = 0.85f),
+        )
+
+        @Test
+        fun `a first line at the edge still finds the address stack, and the greeting is not part of it`() {
+            val cropped = LetterLayoutAnalyzer.analyze(listOf(scan(0f)))
+            val field = cropped.pages.first().lines.filter { it.zone == LetterZone.ADDRESS_FIELD }.map { it.text }
+            assertThat(field).contains("Erika Mustermann")
+            assertThat(field.none { it.startsWith("Dear") }).isTrue()
+        }
+
+        @Test
+        fun `the zones of a page with its margin are the same as those of the same page cropped`() {
+            fun zones(blocks: List<OcrBlock>) = LetterLayoutAnalyzer.analyze(listOf(blocks)).pages.first().lines.associate { it.text to it.zone }
+            assertThat(zones(scan(0f))).isEqualTo(zones(scan(0.04f)))
+        }
+    }
 }

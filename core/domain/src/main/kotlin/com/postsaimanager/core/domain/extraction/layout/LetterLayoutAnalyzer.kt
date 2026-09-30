@@ -56,6 +56,7 @@ object LetterLayoutAnalyzer {
         val work = pages.mapIndexed { i, blocks -> toLines(blocks, i + 1) }
         for (lines in work) if (isRightToLeft(lines)) lines.forEach { it.mirror = true }
         flagNoise(work)
+        work.firstOrNull()?.let(::alignCroppedTop)
         work.forEachIndexed { i, lines -> classify(lines, isFirstPage = i == 0) }
         return LetterLayout(
             work.mapIndexed { i, lines ->
@@ -83,7 +84,9 @@ object LetterLayoutAnalyzer {
 
         /** True on a right-to-left page: geometry is read as if the page were flipped, so the address field is on the left again. */
         var mirror = false
-        val cy get() = bounds.centerY
+        /** Added to the vertical position when a scan was cropped at the top (see [alignCroppedTop]); zones read [cy], the output keeps [bounds]. */
+        var shift = 0f
+        val cy get() = bounds.centerY + shift
         val left get() = if (mirror) 1f - bounds.right else bounds.left
     }
 
@@ -102,6 +105,21 @@ object LetterLayoutAnalyzer {
             }
         }
         return out
+    }
+
+    /**
+     * A phone scan is often cropped to the paper, which removes the top margin a rendered page has: the letter then starts
+     * at the very edge and everything in the header sits higher than the fixed page fractions below expect (measured: the
+     * address block of a scanned letter ended at 0.115 of the page where the zone priors start at 0.12, so the real
+     * address stack was missed and the subject and the salutation were taken as the address field). When the first line
+     * starts above [CROPPED_TOP], the page's vertical positions are read as if that margin were restored to
+     * [TYPICAL_TOP] (a shift of what was cropped, geometry only). Pages that start lower are read exactly as before.
+     */
+    private fun alignCroppedTop(lines: List<Work>) {
+        val top = lines.filter { it.noise == null }.minOfOrNull { it.bounds.top } ?: return
+        if (top >= CROPPED_TOP) return
+        val shift = TYPICAL_TOP - top
+        lines.forEach { it.shift = shift }
     }
 
     private fun rank(zone: LetterZone) = when (zone) {
@@ -244,8 +262,8 @@ object LetterLayoutAnalyzer {
         }
         returnLine?.let { set(it, LetterZone.RETURN_ADDRESS_LINE) }
         field.forEach { set(it, LetterZone.ADDRESS_FIELD) }
-        val fieldTop = (returnLine ?: field.firstOrNull())?.bounds?.top
-        val fieldBottom = field.maxOfOrNull { it.bounds.bottom }
+        val fieldTop = (returnLine ?: field.firstOrNull())?.let { it.bounds.top + it.shift }
+        val fieldBottom = field.maxOfOrNull { it.bounds.bottom + it.shift }
 
         // 2. Info block: whatever stands in the right-hand column beside the address field, labels and
         //    values alike (a label in one OCR block and its value in the next are both in the column).
@@ -254,12 +272,12 @@ object LetterLayoutAnalyzer {
         var infoBottom: Float? = null
         if (inColumn.isNotEmpty()) {
             inColumn.forEach { set(it, LetterZone.INFO_BLOCK) }
-            infoBottom = inColumn.maxOf { it.bounds.bottom } + 0.01f
+            infoBottom = inColumn.maxOf { it.bounds.bottom + it.shift } + 0.01f
         }
         // A line that is only a date (a place and date line on the left) belongs to the info block too.
         clean.filter { !it.assigned && it.cy < INFO_END && DATE_ONLY.matches(it.text) }.forEach {
             set(it, LetterZone.INFO_BLOCK)
-            infoBottom = maxOf(infoBottom ?: 0f, it.bounds.bottom)
+            infoBottom = maxOf(infoBottom ?: 0f, it.bounds.bottom + it.shift)
         }
 
         // 3. Letterhead: everything above the return line / address field.
@@ -516,6 +534,9 @@ object LetterLayoutAnalyzer {
     }
 
     // Fractions of page height/width. Priors and tolerances, not a template.
+    /** The first line of a rendered letter starts at 0.042 to 0.063 of the page (the 16 benchmark letters); a scan whose first line starts above 0.035 was cropped. */
+    private const val CROPPED_TOP = 0.035f
+    private const val TYPICAL_TOP = 0.05f
     private const val HEADER_REGION = 0.10f
     private const val FOOTER_REGION = 0.88f
     private const val FOOTER_START = 0.86f
