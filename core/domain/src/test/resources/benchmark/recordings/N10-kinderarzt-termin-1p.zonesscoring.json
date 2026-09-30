@@ -96,11 +96,11 @@
    "page": 1
   }
  ],
- "call1": "score:sender: 0.5117034912109375,0.3788928985595703\nscore:kind:sender: -0.38907623291015625,-0.8561935424804688,-0.4202594757080078\nscore:addressee: -0.05630302429199219,0.984710693359375,-0.04919624328613281\nscore:kind:addressee: 0.07693099975585938,-1.3281726837158203,-1.1385955810546875\nscore:household: -0.8439407348632812\nscore:care_of: 0.2755699157714844,0.9739341735839844,-0.23850440979003906\nscore:kind:care_of: 0.07693099975585938,-1.3281726837158203,-1.1385955810546875\nscore:contact: 0.01944732666015625\nscore:kind:contact: -0.2767753601074219,-1.011526107788086,-0.5688495635986328\nscore:slot:letter_date: 0.2574462890625\nscore:type: -1.5017070770263672,0.06861495971679688,0.6372756958007812,0.9703178405761719,-1.1477432250976562,-0.40045166015625,-1.4697647094726562,-0.019083023071289062,1.4773139953613281,-1.8189926147460938,0.6789131164550781\nscore:subject_person: -1.4361915588378906,-0.7353076934814453,-0.9494113922119141\nscore:kind:subject_person: -0.29338645935058594,-1.3616714477539062,-1.8133678436279297\nscore:slot:due_date: 0.30636024475097656\nscore:slot:reference: 0.05566215515136719\nscore:slot:customer_no: -0.1497344970703125\nscore:slot:recipient_org: -1.1285114288330078,0.29653167724609375,-0.20683860778808594\nscore:slot:cited_references: -0.37467002868652344\nscore:extras: 0.44959449768066406\nlang: de\nextra:name: \"Gesundheitsweg 512345 Beispielstadt\"",
- "call1Ms": 49296,
- "call2Ms": 8033,
+ "call1": "score:sender: 0.5117034912109375,0.3788928985595703\nscore:kind:sender: -0.38907623291015625,-0.8561935424804688,-0.4202594757080078\nscore:addressee: -0.05630302429199219,0.984710693359375,-0.04919624328613281\nscore:kind:addressee: 0.07693099975585938,-1.3281726837158203,-1.1385955810546875\nscore:household: -0.8439407348632812\nscore:care_of: 0.2755699157714844,0.9739341735839844,-0.23850440979003906\nscore:kind:care_of: 0.07693099975585938,-1.3281726837158203,-1.1385955810546875\nscore:contact: 0.01944732666015625\nscore:kind:contact: -0.2767753601074219,-1.011526107788086,-0.5688495635986328\nscore:slot:letter_date: 0.2574462890625\nscore:type: -1.5017070770263672,0.06861495971679688,0.6372756958007812,0.9703178405761719,-1.1477432250976562,-0.40045166015625,-1.4697647094726562,-0.019083023071289062,-0.26642417907714844\nscore:subject_person: -1.4361915588378906,-0.7353076934814453,-0.9494113922119141\nscore:kind:subject_person: -0.29338645935058594,-1.3616714477539062,-1.8133678436279297\nscore:slot:due_date: 0.30636024475097656\nscore:slot:reference: 0.05566215515136719\nscore:slot:customer_no: -0.1497344970703125\nscore:slot:appointment: 0.6157207489013672\nscore:extras: 0.44959449768066406\nlang: de\nextra:name: \"Gesundheitsweg 512345 Beispielstadt\"",
+ "call1Ms": 55293,
+ "call2Ms": 6751,
  "prefixTokens": 1022,
- "prefixMs": 7599,
+ "prefixMs": 8027,
  "template": "DIN5008_B",
  "templateScore": 1,
  "asks": [
@@ -108,7 +108,7 @@
    "name": "score:sender",
    "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nKinder- und Jugendarztpraxis Beispiel \/ Gesundheitsweg 512345 Beispielstadt \/ Tel. 01234 700 20 \/ praxis@kinderarzt-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nKinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielstadt\nIs «Kinder- und Jugendarztpraxis Beispiel» (context: line below: Gesundheitsweg 512345 Beispielstadt) the sender: the party that wrote and sent this letter? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nKinder- und Jugendarztpraxis Beispiel \/ Gesundheitsweg 512345 Beispielstadt \/ Tel. 01234 700 20 \/ praxis@kinderarzt-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nKinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielstadt\nIs «Beispiel» (context: printed on the line: Dr. A. Beispiel; line above: Telefon:; line below: 01234 700 20) the sender: the party that wrote and sent this letter? Answer:",
    "answer": "0.5117034912109375,0.3788928985595703",
-   "ms": 2701,
+   "ms": 4969,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -116,7 +116,7 @@
    "name": "score:kind:sender",
    "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nKinder- und Jugendarztpraxis Beispiel \/ Gesundheitsweg 512345 Beispielstadt \/ Tel. 01234 700 20 \/ praxis@kinderarzt-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nKinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielstadt\nIs «Kinder- und Jugendarztpraxis Beispiel» (context: line below: Gesundheitsweg 512345 Beispielstadt) the name of a private person? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nKinder- und Jugendarztpraxis Beispiel \/ Gesundheitsweg 512345 Beispielstadt \/ Tel. 01234 700 20 \/ praxis@kinderarzt-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nKinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielstadt\nIs «Kinder- und Jugendarztpraxis Beispiel» (context: line below: Gesundheitsweg 512345 Beispielstadt) the name of an authority or public body? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nKinder- und Jugendarztpraxis Beispiel \/ Gesundheitsweg 512345 Beispielstadt \/ Tel. 01234 700 20 \/ praxis@kinderarzt-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nKinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielstadt\nIs «Kinder- und Jugendarztpraxis Beispiel» (context: line below: Gesundheitsweg 512345 Beispielstadt) the name of a company or other organisation? Answer:",
    "answer": "-0.38907623291015625,-0.8561935424804688,-0.4202594757080078",
-   "ms": 4003,
+   "ms": 6851,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -124,7 +124,7 @@
    "name": "score:addressee",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erziehungsberechtigte von» (context: line above: Adam Mustermann; line below: Musterstraße 12) the addressee: the party this letter is addressed to? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the addressee: the party this letter is addressed to? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Beispiel» (context: printed on the line: Dr. A. Beispiel; line above: Telefon:; line below: 01234 700 20) the addressee: the party this letter is addressed to? Answer:",
    "answer": "-0.05630302429199219,0.984710693359375,-0.04919624328613281",
-   "ms": 2723,
+   "ms": 2972,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -132,7 +132,7 @@
    "name": "score:kind:addressee",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the name of a company or other organisation? Answer:",
    "answer": "0.07693099975585938,-1.3281726837158203,-1.1385955810546875",
-   "ms": 2593,
+   "ms": 2923,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -140,7 +140,7 @@
    "name": "score:household",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the name of a family or household (several people living together)? Answer:",
    "answer": "-0.8439407348632812",
-   "ms": 938,
+   "ms": 1057,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -148,7 +148,7 @@
    "name": "score:care_of",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erziehungsberechtigte von» (context: line above: Adam Mustermann; line below: Musterstraße 12) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Beispiel» (context: printed on the line: Dr. A. Beispiel; line above: Telefon:; line below: 01234 700 20) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:",
    "answer": "0.2755699157714844,0.9739341735839844,-0.23850440979003906",
-   "ms": 2561,
+   "ms": 3099,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -156,7 +156,7 @@
    "name": "score:kind:care_of",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the name of a company or other organisation? Answer:",
    "answer": "0.07693099975585938,-1.3281726837158203,-1.1385955810546875",
-   "ms": 2552,
+   "ms": 2856,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -164,7 +164,7 @@
    "name": "score:contact",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nIs «Beispiel» (context: printed on the line: Dr. A. Beispiel; line above: Telefon:; line below: 01234 700 20) a contact person named as the one who handles the matter? Answer:",
    "answer": "0.01944732666015625",
-   "ms": 1060,
+   "ms": 1260,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -172,7 +172,7 @@
    "name": "score:kind:contact",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nIs «Beispiel» (context: printed on the line: Dr. A. Beispiel; line above: Telefon:; line below: 01234 700 20) the name of a private person? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nIs «Beispiel» (context: printed on the line: Dr. A. Beispiel; line above: Telefon:; line below: 01234 700 20) the name of an authority or public body? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nIs «Beispiel» (context: printed on the line: Dr. A. Beispiel; line above: Telefon:; line below: 01234 700 20) the name of a company or other organisation? Answer:",
    "answer": "-0.2767753601074219,-1.011526107788086,-0.5688495635986328",
-   "ms": 3260,
+   "ms": 3371,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -180,15 +180,15 @@
    "name": "score:slot:letter_date",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nIs «25.09.2026» (context: line above: 01234 700 20; line below: Datum:) the date of the letter itself (when it was written or issued)? Answer:",
    "answer": "0.2574462890625",
-   "ms": 1084,
+   "ms": 1160,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
    "name": "score:type",
-   "question": "Is this document an invoice or bill that asks the reader to pay? Answer:\n@@\nIs this document a payment reminder or dunning letter about an unpaid bill? Answer:\n@@\nIs this document a letter or decision from an authority, tax office or public body? Answer:\n@@\nIs this document a letter from a doctor, clinic or health insurer, such as an appointment? Answer:\n@@\nIs this document an insurance or service contract, or a change to its price or terms? Answer:\n@@\nIs this document a letter from a school or kindergarten to parents? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document an information letter or statement that asks nothing of the reader? Answer:\n@@\nIs this document a letter the reader wrote and sent to someone else? Answer:\n@@\nIs this document a confirmation that a payment was made? Answer:\n@@\nIs this document anything that fits none of the other types? Answer:",
-   "answer": "-1.5017070770263672,0.06861495971679688,0.6372756958007812,0.9703178405761719,-1.1477432250976562,-0.40045166015625,-1.4697647094726562,-0.019083023071289062,1.4773139953613281,-1.8189926147460938,0.6789131164550781",
-   "ms": 2513,
+   "question": "Is this document an invoice or bill that asks the reader to pay? Answer:\n@@\nIs this document a payment reminder or dunning letter about an unpaid bill? Answer:\n@@\nIs this document a letter or decision from an authority, tax office or public body? Answer:\n@@\nIs this document a letter from a doctor, clinic or health insurer, such as an appointment? Answer:\n@@\nIs this document an insurance or service contract, or a change to its price or terms? Answer:\n@@\nIs this document a letter from a school or kindergarten to parents? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document an information letter or statement that asks nothing of the reader? Answer:\n@@\nIs this document a document of a kind not listed here? Answer:",
+   "answer": "-1.5017070770263672,0.06861495971679688,0.6372756958007812,0.9703178405761719,-1.1477432250976562,-0.40045166015625,-1.4697647094726562,-0.019083023071289062,-0.26642417907714844",
+   "ms": 2179,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -196,7 +196,7 @@
    "name": "score:subject_person",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Kinder- und Jugendarztpraxis Beispiel» (context: line below: Gesundheitsweg 512345 Beispielstadt) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Beispiel» (context: printed on the line: Dr. A. Beispiel; line above: Telefon:; line below: 01234 700 20) a person the letter is about, other than the addressee? Answer:",
    "answer": "-1.4361915588378906,-0.7353076934814453,-0.9494113922119141",
-   "ms": 2221,
+   "ms": 2321,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -204,7 +204,7 @@
    "name": "score:kind:subject_person",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the name of a private person? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the name of an authority or public body? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the name of a company or other organisation? Answer:",
    "answer": "-0.29338645935058594,-1.3616714477539062,-1.8133678436279297",
-   "ms": 2062,
+   "ms": 2142,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -212,7 +212,7 @@
    "name": "score:slot:due_date",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «12.11.2026 um 09:30» (context: printed on the line: Donnerstag, 12.11.2026 um 09:30 Uhr; line above: wir möchten Sie an den folgenden Termin für Ihr Kind Adam Mustermann e; line below: Kinder- und Jugendarztpraxis Beispiel, Gesundheitsweg 5, 12345 Beispie) the date by which the reader must pay or act? Answer:",
    "answer": "0.30636024475097656",
-   "ms": 1155,
+   "ms": 1226,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -220,7 +220,7 @@
    "name": "score:slot:reference",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «512345» (context: printed on the line: Gesundheitsweg 512345 Beispielstadt; line above: Kinder- und Jugendarztpraxis Beispiel; line below: Tel. 01234 700 20) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
    "answer": "0.05566215515136719",
-   "ms": 1428,
+   "ms": 1669,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -228,23 +228,15 @@
    "name": "score:slot:customer_no",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «512345» (context: printed on the line: Gesundheitsweg 512345 Beispielstadt; line above: Kinder- und Jugendarztpraxis Beispiel; line below: Tel. 01234 700 20) the number that identifies the reader as a customer, member or account holder? Answer:",
    "answer": "-0.1497344970703125",
-   "ms": 1385,
+   "ms": 1626,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
-   "name": "score:slot:recipient_org",
-   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Kinder- und Jugendarztpraxis Beispiel» (context: line below: Gesundheitsweg 512345 Beispielstadt) the sent to? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Adam Mustermann» (context: line above: Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielsta; line below: Erziehungsberechtigte von) the sent to? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Beispiel» (context: printed on the line: Dr. A. Beispiel; line above: Telefon:; line below: 01234 700 20) the sent to? Answer:",
-   "answer": "-1.1285114288330078,0.29653167724609375,-0.20683860778808594",
-   "ms": 1836,
-   "questionTokens": -1,
-   "answerTokens": -1
-  },
-  {
-   "name": "score:slot:cited_references",
-   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «512345» (context: printed on the line: Gesundheitsweg 512345 Beispielstadt; line above: Kinder- und Jugendarztpraxis Beispiel; line below: Tel. 01234 700 20) the cited references? Answer:",
-   "answer": "-0.37467002868652344",
-   "ms": 1554,
+   "name": "score:slot:appointment",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «12.11.2026 um 09:30» (context: printed on the line: Donnerstag, 12.11.2026 um 09:30 Uhr; line above: wir möchten Sie an den folgenden Termin für Ihr Kind Adam Mustermann e; line below: Kinder- und Jugendarztpraxis Beispiel, Gesundheitsweg 5, 12345 Beispie) the appointment? Answer:",
+   "answer": "0.6157207489013672",
+   "ms": 1075,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -252,7 +244,7 @@
    "name": "score:extras",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01234 700 20» (context: printed on the line: Tel. 01234 700 20; line above: Gesundheitsweg 512345 Beispielstadt; line below: praxis@kinderarzt-beispiel.example) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:",
    "answer": "0.44959449768066406",
-   "ms": 1704,
+   "ms": 1939,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -260,7 +252,7 @@
    "name": "lang",
    "question": "QUESTION: In which language is this letter written? Answer with its BCP-47 language code (for example de, en, ar).\nANSWER FORMAT: the code only",
    "answer": "de",
-   "ms": 480,
+   "ms": 530,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -268,15 +260,15 @@
    "name": "extra:name",
    "question": "QUESTION: The value «01234 700 20» is an important fact of this letter: it is printed on the line «Tel. 01234 700 20», the line above it is «Gesundheitsweg 512345 Beispielstadt». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
    "answer": "\"Gesundheitsweg 512345 Beispielstadt\"",
-   "ms": 1739,
+   "ms": 1895,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
    "name": "text:title",
-   "question": "QUESTION: Write a title of at most 8 words for this outgoing letter: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
-   "answer": "\"Letter from Dr. Anna Beispiel to Parents about a 2026 Pediatric Appointment\"",
-   "ms": 1484,
+   "question": "QUESTION: Write a title of at most 8 words for this health: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Terminierung für Adam Mustermann\"",
+   "ms": 1064,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -284,7 +276,7 @@
    "name": "text:subject",
    "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
    "answer": "\"Terminerinnerung für Adam Mustermann\"",
-   "ms": 1057,
+   "ms": 1021,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -292,7 +284,7 @@
    "name": "text:summary",
    "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
    "answer": "\"Bitte bringen Sie die Versichertenkarte mit und sagen Sie den Termin mindestens 24 Stunden vorher unter 01234 700 20 ab.\"",
-   "ms": 2509,
+   "ms": 2630,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -300,11 +292,11 @@
    "name": "text:questions",
    "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
    "answer": "\"Was ist der Termin für den Terminerinnerung für Adam Mustermann?\" \"Wie lange ist der Zeitraum für die Versichertenkarte?\" \"Welche Telefonnummer ist für die Rückmeldung vorgesehen?\"",
-   "ms": 2941,
+   "ms": 2027,
    "questionTokens": -1,
    "answerTokens": -1
   }
  ],
- "wallMs": 57425,
+ "wallMs": 62117,
  "model": "text.gguf"
 }

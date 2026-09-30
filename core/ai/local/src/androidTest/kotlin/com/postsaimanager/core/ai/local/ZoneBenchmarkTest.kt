@@ -42,12 +42,12 @@ import java.io.File
  * that lost the USB connection is started again with the same arguments and continues.
  *
  * Staging (all under /data/local/tmp/z10, deleted afterwards): `text.gguf` (or `model`), `bench/<key>.json`.
- * Arguments: `keys`, `interpreters` (default `zones,zonesscoring`), `model` (default text.gguf), `suffix`, `resume`.
+ * Arguments: `keys`, `interpreters` (default `zones,zonesscoring`), `model` (default text.gguf), `suffix`, `resume`, `dir` (default /data/local/tmp/z10).
  */
 @RunWith(AndroidJUnit4::class)
 class ZoneBenchmarkTest {
 
-    private val dir = File("/data/local/tmp/z10")
+    private val dir get() = File(args.getString("dir") ?: "/data/local/tmp/z10")
     private val tag = "z10"
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private val args get() = InstrumentationRegistry.getArguments()

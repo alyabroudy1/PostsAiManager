@@ -152,11 +152,11 @@
    "page": 1
   }
  ],
- "call1": "score:sender: 0.5956478118896484\nscore:kind:sender: 0.16692543029785156,-0.37158966064453125,1.2561187744140625\nscore:addressee: 0.5863704681396484,0.9702491760253906\nscore:kind:addressee: 0.5992412567138672,-1.2176227569580078,-0.45947265625\nscore:household: 0.33179664611816406\nscore:care_of: -0.007724761962890625,0.6189708709716797\nscore:kind:care_of: 0.5992412567138672,-1.2176227569580078,-0.45947265625\nscore:slot:letter_date: 0.16348648071289062\nscore:type: -0.8462734222412109,-0.7028427124023438,0.15062904357910156,-0.9838333129882812,0.07326698303222656,-0.8959808349609375,-1.2553768157958984,-0.26618003845214844,0.7012138366699219,-1.2926502227783203,0.8054485321044922\nscore:subject_person: -1.2473907470703125,-0.8307571411132812,-0.37753868103027344,-1.1656951904296875\nscore:kind:subject_person: -1.637319564819336,-1.612894058227539,-0.9217987060546875\nscore:slot:total: -0.5619583129882812,-0.10109138488769531\nscore:slot:due_date: 1.1822547912597656,0.8013114929199219,0.6788597106933594\nscore:slot:iban: 0.23883819580078125\nscore:slot:reference: 0.5659160614013672\nscore:slot:customer_no: 0.7871417999267578\nscore:extras: -0.09125518798828125,-0.47083282470703125,0.17969512939453125,0.17822265625\nlang: de\nextra:name: \"bisher\"\nextra:name: \"Telefon:\"\nextra:name: \"Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;\"\nextra:name: \"Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;\"",
- "call1Ms": 79249,
- "call2Ms": 10738,
+ "call1": "score:sender: 0.5956478118896484\nscore:kind:sender: 0.16692543029785156,-0.37158966064453125,1.2561187744140625\nscore:addressee: 0.5863704681396484,0.9702491760253906\nscore:kind:addressee: 0.5992412567138672,-1.2176227569580078,-0.45947265625\nscore:household: 0.33179664611816406\nscore:care_of: -0.007724761962890625,0.6189708709716797\nscore:kind:care_of: 0.5992412567138672,-1.2176227569580078,-0.45947265625\nscore:slot:letter_date: 0.16348648071289062\nscore:type: -0.8462734222412109,-0.7028427124023438,0.15062904357910156,-0.9838333129882812,0.07326698303222656,-0.8959808349609375,-1.2553768157958984,-0.26618003845214844,0.4849281311035156\nscore:subject_person: -1.2473907470703125,-0.8307571411132812,-0.37753868103027344,-1.1656951904296875\nscore:kind:subject_person: -1.637319564819336,-1.612894058227539,-0.9217987060546875\nscore:slot:total: -0.5619583129882812,-0.10109138488769531\nscore:slot:due_date: 1.1822547912597656,0.8013114929199219,0.6788597106933594\nscore:slot:iban: 0.23883819580078125\nscore:slot:reference: 0.5659160614013672\nscore:slot:customer_no: 0.7871417999267578\nscore:extras: -0.09125518798828125,-0.47083282470703125,0.17969512939453125,0.17822265625\nlang: de\nextra:name: \"bisher\"\nextra:name: \"Telefon:\"\nextra:name: \"Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;\"\nextra:name: \"Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;\"",
+ "call1Ms": 56608,
+ "call2Ms": 12159,
  "prefixTokens": 1497,
- "prefixMs": 13875,
+ "prefixMs": 11023,
  "template": "DIN5008_B",
  "templateScore": 1,
  "asks": [
@@ -164,7 +164,7 @@
    "name": "score:sender",
    "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNordstern Direkt Versicherung AG \/ Versicherungsallee 15 12345 Beispielstadt \/ Tel, 01234 555 200 \/ kfz@nordstern-direkt.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNordstern Direkt Versicherung AG. Versicherungsallee 15 12345 Beispielstadt\nIs «Nordstern Direkt Versicherung AG» (context: line below: Versicherungsallee 15 12345 Beispielstadt) the sender: the party that wrote and sent this letter? Answer:",
    "answer": "0.5956478118896484",
-   "ms": 1431,
+   "ms": 1110,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -172,7 +172,7 @@
    "name": "score:kind:sender",
    "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNordstern Direkt Versicherung AG \/ Versicherungsallee 15 12345 Beispielstadt \/ Tel, 01234 555 200 \/ kfz@nordstern-direkt.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNordstern Direkt Versicherung AG. Versicherungsallee 15 12345 Beispielstadt\nIs «Nordstern Direkt Versicherung AG» (context: line below: Versicherungsallee 15 12345 Beispielstadt) the name of a private person? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNordstern Direkt Versicherung AG \/ Versicherungsallee 15 12345 Beispielstadt \/ Tel, 01234 555 200 \/ kfz@nordstern-direkt.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNordstern Direkt Versicherung AG. Versicherungsallee 15 12345 Beispielstadt\nIs «Nordstern Direkt Versicherung AG» (context: line below: Versicherungsallee 15 12345 Beispielstadt) the name of an authority or public body? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNordstern Direkt Versicherung AG \/ Versicherungsallee 15 12345 Beispielstadt \/ Tel, 01234 555 200 \/ kfz@nordstern-direkt.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNordstern Direkt Versicherung AG. Versicherungsallee 15 12345 Beispielstadt\nIs «Nordstern Direkt Versicherung AG» (context: line below: Versicherungsallee 15 12345 Beispielstadt) the name of a company or other organisation? Answer:",
    "answer": "0.16692543029785156,-0.37158966064453125,1.2561187744140625",
-   "ms": 4811,
+   "ms": 3439,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -180,7 +180,7 @@
    "name": "score:addressee",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Herrn und Frau» (context: line above: Nordstern Direkt Versicherung AG. Versicherungsallee 15 12345 Beispiel; line below: Max und Erika Mustermann) the addressee: the party this letter is addressed to? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max und Erika Mustermann» (context: line above: Herrn und Frau; line below: Musterstraße 12) the addressee: the party this letter is addressed to? Answer:",
    "answer": "0.5863704681396484,0.9702491760253906",
-   "ms": 2302,
+   "ms": 1633,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -188,7 +188,7 @@
    "name": "score:kind:addressee",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max und Erika Mustermann» (context: line above: Herrn und Frau; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max und Erika Mustermann» (context: line above: Herrn und Frau; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max und Erika Mustermann» (context: line above: Herrn und Frau; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
    "answer": "0.5992412567138672,-1.2176227569580078,-0.45947265625",
-   "ms": 3914,
+   "ms": 2276,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -196,7 +196,7 @@
    "name": "score:household",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max und Erika Mustermann» (context: line above: Herrn und Frau; line below: Musterstraße 12) the name of a family or household (several people living together)? Answer:",
    "answer": "0.33179664611816406",
-   "ms": 1237,
+   "ms": 732,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -204,7 +204,7 @@
    "name": "score:care_of",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Herrn und Frau» (context: line above: Nordstern Direkt Versicherung AG. Versicherungsallee 15 12345 Beispiel; line below: Max und Erika Mustermann) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max und Erika Mustermann» (context: line above: Herrn und Frau; line below: Musterstraße 12) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:",
    "answer": "-0.007724761962890625,0.6189708709716797",
-   "ms": 2434,
+   "ms": 1710,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -212,7 +212,7 @@
    "name": "score:kind:care_of",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max und Erika Mustermann» (context: line above: Herrn und Frau; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max und Erika Mustermann» (context: line above: Herrn und Frau; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max und Erika Mustermann» (context: line above: Herrn und Frau; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
    "answer": "0.5992412567138672,-1.2176227569580078,-0.45947265625",
-   "ms": 2721,
+   "ms": 2130,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -220,15 +220,15 @@
    "name": "score:slot:letter_date",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nIs «14.09.2026» (context: line above: 01234 555 210; line below: Datum:) the date of the letter itself (when it was written or issued)? Answer:",
    "answer": "0.16348648071289062",
-   "ms": 1399,
+   "ms": 1113,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
    "name": "score:type",
-   "question": "Is this document an invoice or bill that asks the reader to pay? Answer:\n@@\nIs this document a payment reminder or dunning letter about an unpaid bill? Answer:\n@@\nIs this document a letter or decision from an authority, tax office or public body? Answer:\n@@\nIs this document a letter from a doctor, clinic or health insurer, such as an appointment? Answer:\n@@\nIs this document an insurance or service contract, or a change to its price or terms? Answer:\n@@\nIs this document a letter from a school or kindergarten to parents? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document an information letter or statement that asks nothing of the reader? Answer:\n@@\nIs this document a letter the reader wrote and sent to someone else? Answer:\n@@\nIs this document a confirmation that a payment was made? Answer:\n@@\nIs this document anything that fits none of the other types? Answer:",
-   "answer": "-0.8462734222412109,-0.7028427124023438,0.15062904357910156,-0.9838333129882812,0.07326698303222656,-0.8959808349609375,-1.2553768157958984,-0.26618003845214844,0.7012138366699219,-1.2926502227783203,0.8054485321044922",
-   "ms": 2503,
+   "question": "Is this document an invoice or bill that asks the reader to pay? Answer:\n@@\nIs this document a payment reminder or dunning letter about an unpaid bill? Answer:\n@@\nIs this document a letter or decision from an authority, tax office or public body? Answer:\n@@\nIs this document a letter from a doctor, clinic or health insurer, such as an appointment? Answer:\n@@\nIs this document an insurance or service contract, or a change to its price or terms? Answer:\n@@\nIs this document a letter from a school or kindergarten to parents? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document an information letter or statement that asks nothing of the reader? Answer:\n@@\nIs this document a document of a kind not listed here? Answer:",
+   "answer": "-0.8462734222412109,-0.7028427124023438,0.15062904357910156,-0.9838333129882812,0.07326698303222656,-0.8959808349609375,-1.2553768157958984,-0.26618003845214844,0.4849281311035156",
+   "ms": 1912,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -236,7 +236,7 @@
    "name": "score:subject_person",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Nordstern Direkt Versicherung AG» (context: line below: Versicherungsallee 15 12345 Beispielstadt) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Beitrag pro Jahr» (context: line above: anpassen.; line below: bisher) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Kfz-Haftpflicht und Teilkasko» (context: line above: ab 01.01.2027; line below: 612,40 €) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «bisher» (context: line above: Beitrag pro Jahr; line below: 579,10 €) a person the letter is about, other than the addressee? Answer:",
    "answer": "-1.2473907470703125,-0.8307571411132812,-0.37753868103027344,-1.1656951904296875",
-   "ms": 3035,
+   "ms": 2352,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -244,7 +244,7 @@
    "name": "score:kind:subject_person",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Kfz-Haftpflicht und Teilkasko» (context: line above: ab 01.01.2027; line below: 612,40 €) the name of a private person? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Kfz-Haftpflicht und Teilkasko» (context: line above: ab 01.01.2027; line below: 612,40 €) the name of an authority or public body? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Kfz-Haftpflicht und Teilkasko» (context: line above: ab 01.01.2027; line below: 612,40 €) the name of a company or other organisation? Answer:",
    "answer": "-1.637319564819336,-1.612894058227539,-0.9217987060546875",
-   "ms": 2373,
+   "ms": 2030,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -252,7 +252,7 @@
    "name": "score:slot:total",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «579,10 €» (context: line above: bisher; line below: ab 01.01.2027) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «612,40 €» (context: printed on the line: Der neue Jahresbeitrag beträgt 612,40 € (bisher 579,10 €). Der Beitrag; line above: 612,40 €; line below: per SEPA-Lastschrift von dem bei uns hinterlegten Konto eingezogen.) the main amount of this document: what the reader has to pay, or the total? Answer:",
    "answer": "-0.5619583129882812,-0.10109138488769531",
-   "ms": 3356,
+   "ms": 1573,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -260,7 +260,7 @@
    "name": "score:slot:due_date",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01.01.2027» (context: printed on the line: Ihre Kfz-Versicherung - Beitrag ab 01.01.2027; line above: Datum:; line below: Sehr geehrte Frau Mustermann, sehr geehrter Herr Mustermann,) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «30.11.2026» (context: printed on the line: Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;; line above: Wegen der Beitragserhöhung können Sie Ihren Vertrag außerordentlich kü; line below: endet dann zum 31.12.2026.) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «31.12.2026» (context: printed on the line: endet dann zum 31.12.2026.; line above: Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;; line below: Möchten Sie Ihre Versicherung bei uns fortführen, müssen Sie nichts we) the date by which the reader must pay or act? Answer:",
    "answer": "1.1822547912597656,0.8013114929199219,0.6788597106933594",
-   "ms": 4603,
+   "ms": 2712,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -268,7 +268,7 @@
    "name": "score:slot:iban",
    "question": "ZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\n(the text of this zone is in the letter above)\nIs «DE89 3704 0044 0532 0130 00» (context: printed on the line: JBAN DE89 3704 0044 0532 0130 00; line above: Bankverbindung: Beispielbank; line below: BỊC COBADEFFXXX) the IBAN of the account the reader should pay to? Answer:",
    "answer": "0.23883819580078125",
-   "ms": 2004,
+   "ms": 1138,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -276,7 +276,7 @@
    "name": "score:slot:reference",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «KFZ-4471-882-19» (context: printed on the line: KFZ-4471-882-19 verlängert sich zum 01.01.2027 um ein weiteres Jahr. A; line above: vielen Dank für Ihr Vertrauen. Ihre Kfz-Versicherung mit der Versicher; line below: aktuellen Schadenentwicklung und der Regionalklasse müssen wir Ihren B) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
    "answer": "0.5659160614013672",
-   "ms": 3407,
+   "ms": 1908,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -284,7 +284,7 @@
    "name": "score:slot:customer_no",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «KFZ-4471-882-19» (context: printed on the line: KFZ-4471-882-19 verlängert sich zum 01.01.2027 um ein weiteres Jahr. A; line above: vielen Dank für Ihr Vertrauen. Ihre Kfz-Versicherung mit der Versicher; line below: aktuellen Schadenentwicklung und der Regionalklasse müssen wir Ihren B) the number that identifies the reader as a customer, member or account holder? Answer:",
    "answer": "0.7871417999267578",
-   "ms": 3689,
+   "ms": 1918,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -292,7 +292,7 @@
    "name": "score:extras",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «30.11.2026» (context: printed on the line: Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;; line above: Wegen der Beitragserhöhung können Sie Ihren Vertrag außerordentlich kü; line below: endet dann zum 31.12.2026.) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «31.12.2026» (context: printed on the line: endet dann zum 31.12.2026.; line above: Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;; line below: Möchten Sie Ihre Versicherung bei uns fortführen, müssen Sie nichts we) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «579,10 €» (context: line above: bisher; line below: ab 01.01.2027) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01234 555 210» (context: line above: Telefon:; line below: 14.09.2026) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:",
    "answer": "-0.09125518798828125,-0.47083282470703125,0.17969512939453125,0.17822265625",
-   "ms": 11117,
+   "ms": 7422,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -300,7 +300,7 @@
    "name": "lang",
    "question": "QUESTION: In which language is this letter written? Answer with its BCP-47 language code (for example de, en, ar).\nANSWER FORMAT: the code only",
    "answer": "de",
-   "ms": 631,
+   "ms": 487,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -308,7 +308,7 @@
    "name": "extra:name",
    "question": "QUESTION: The value «579,10 €» is an important fact of this letter: it is printed on the line «579,10 €», the line above it is «bisher». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
    "answer": "\"bisher\"",
-   "ms": 1096,
+   "ms": 880,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -316,7 +316,7 @@
    "name": "extra:name",
    "question": "QUESTION: The value «01234 555 210» is an important fact of this letter: it is printed on the line «01234 555 210», the line above it is «Telefon:». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
    "answer": "\"Telefon:\"",
-   "ms": 1264,
+   "ms": 1102,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -324,7 +324,7 @@
    "name": "extra:name",
    "question": "QUESTION: The value «30.11.2026» is an important fact of this letter: it is printed on the line «Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;», the line above it is «Wegen der Beitragserhöhung können Sie Ihren Vertrag außerordentlich kü». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
    "answer": "\"Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;\"",
-   "ms": 3074,
+   "ms": 3002,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -332,7 +332,7 @@
    "name": "extra:name",
    "question": "QUESTION: The value «31.12.2026» is an important fact of this letter: it is printed on the line «endet dann zum 31.12.2026.», the line above it is «Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
    "answer": "\"Kündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen;\"",
-   "ms": 2883,
+   "ms": 2794,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -340,7 +340,7 @@
    "name": "text:other",
    "question": "QUESTION: Give a short name for this kind of document. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
    "answer": "\"Ein Brief\"",
-   "ms": 696,
+   "ms": 654,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -348,7 +348,7 @@
    "name": "text:title",
    "question": "QUESTION: Write a title of at most 8 words for this other: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
    "answer": "\"Dear Mustermann, this letter is a renewal notice for your car insurance\"",
-   "ms": 1553,
+   "ms": 1394,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -356,7 +356,7 @@
    "name": "text:subject",
    "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
    "answer": "\"LETTER\"",
-   "ms": 619,
+   "ms": 576,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -364,7 +364,7 @@
    "name": "text:summary",
    "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
    "answer": "\"Ihre Kfz-Versicherung verlängert sich zum 01.01.2027 um ein weiteres Jahr.\"",
-   "ms": 2131,
+   "ms": 1979,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -372,11 +372,11 @@
    "name": "text:questions",
    "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
    "answer": "\"1. What is the current annual contribution amount for the Kfz-Versicherung? 2. When is the renewal date for the Kfz-Versicherung? 3. What is the deadline for the customer to terminate the contract?\" \">(1) 579,10 € 2027 01.01.2027 30.11.2026\" \">(2) 01.01.2027 01.",
-   "ms": 5728,
+   "ms": 7543,
    "questionTokens": -1,
    "answerTokens": -1
   }
  ],
- "wallMs": 90166,
+ "wallMs": 68988,
  "model": "text.gguf"
 }

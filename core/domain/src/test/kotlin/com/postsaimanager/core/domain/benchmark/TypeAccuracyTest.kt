@@ -42,13 +42,19 @@ class TypeAccuracyTest {
 
     private fun rows(): List<Row> {
         val all = ExtractionSchema.DEFAULT.types.filter { it.description.isNotBlank() }
+        val incoming = ExtractionSchema.DEFAULT.typesFor(DocDirection.INCOMING).filter { it.description.isNotBlank() }
         return docs.mapNotNull { (m, f) ->
             val ok = expected[m.key] ?: return@mapNotNull null
             val rec = recordings.firstOrNull { it.key == m.key && it.variant == InterpreterMetrics.SCORING_VARIANT } ?: return@mapNotNull null
             val batch = rec.asks.first { it.name == "score:type" }
             val scores = batch.answer!!.split(',').map { it.trim().toDouble() }
-            check(scores.size == all.size) { "the recording was made with ${scores.size} types" }
-            val before = all[scores.indices.maxByOrNull { scores[it] }!!].id
+            // A recording made before the fix scored all types; one made after scored only those an incoming document can be.
+            val scored = when (scores.size) {
+                all.size -> all
+                incoming.size -> incoming
+                else -> error("the recording was made with ${scores.size} types")
+            }
+            val before = scored[scores.indices.maxByOrNull { scores[it] }!!].id
             Row(m.key, before, InterpreterMetrics.replayResult(rec, f, profile).documentType?.id, ok)
         }
     }

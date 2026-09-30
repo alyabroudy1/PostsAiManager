@@ -139,6 +139,12 @@ party ADDRESSEE M1 Mustermann Consulting GmbH COMPANY NONE 0.9 [score margin +0.
 party CARE_OF M2 Frau Erika Mustermann PERSON NONE 0.7 [score margin +0.11 (winner +1.14 of 2)]
 party ROUTING M9 Herr T. Muster PERSON NONE 0.9 [score margin +0.29 (winner +0.29 of 1)]
 party SUBJECT_PERSON M1 Mustermann Consulting GmbH COMPANY NONE 0.9 [score margin +0.45 (winner -0.47 of 4)]
+extra vertrieb@buero-partner.example
+extra 2026-12-31
+extra 01234 888 44
+extra EM/2026 wV-2291
+extra 1428.00 EUR
+extra 2027-12-31
 == N5-co-familie-1p
 type bill language de
 slot customer_no N3 1234567 null 0.9 0.9 [score margin +0.74 (winner +0.23 of 4)]
@@ -188,11 +194,14 @@ party SUBJECT_PERSON M2 Zeitraum COMPANY NONE 0.4 [the name is a guess from its 
 extra BELADEBEXXX
 extra 2026-12-31
 == N8-info-bank-noaction-1p
-type other language de
+type authority_tax language de
+slot case_no N1 7788123 null 0.4 0.4 [score margin -0.68 (winner -0.68 of 1)]
 slot customer_no N1 7788123 null 0.9 0.9 [score margin +0.25 (winner +0.25 of 1)]
 slot due_date D1 2026-11-01 DUE_DATE 0.7 0.7 [score margin +0.08 (winner +0.08 of 1)]
 slot letter_date D2 2026-09-21 LETTER_DATE 0.9 0.9 [score margin +0.27 (winner +0.27 of 1)]
+slot objection_deadline D1 2026-11-01 DUE_DATE 0.7 0.7 [score margin -0.06 (winner -0.06 of 1)]
 slot reference N1 7788123 null 0.7 0.7 [score margin -0.03 (winner -0.03 of 1)]
+slot tax_no N1 7788123 null 0.4 0.4 [score margin -1.61 (winner -1.61 of 1)]
 party SENDER M1 Beispielbank eG COMPANY NONE 0.9 [score margin +0.37 (winner +0.37 of 1)]
 party ADDRESSEE M2 Max Mustermann PERSON NONE 0.9 [score margin +0.44 (winner +0.44 of 1)]
 party CARE_OF M2 Max Mustermann PERSON NONE 0.9 [score margin +0.45 (winner +0.45 of 1)]
@@ -215,6 +224,7 @@ extra 60012987
 extra 01234 600 10
 == N10-kinderarzt-termin-1p
 type health language de
+slot appointment DT1 2026-11-12T09:30 APPOINTMENT 0.9 0.9 [score margin +0.62 (winner +0.62 of 1)]
 slot customer_no N1 512345 null 0.7 0.7 [score margin -0.15 (winner -0.15 of 1)]
 slot due_date DT1 2026-11-12T09:30 DUE_DATE 0.9 0.9 [score margin +0.31 (winner +0.31 of 1)]
 slot letter_date D1 2026-09-25 LETTER_DATE 0.9 0.9 [score margin +0.26 (winner +0.26 of 1)]

@@ -82,11 +82,11 @@
    "page": 1
   }
  ],
- "call1": "score:sender: 0.36589813232421875\nscore:kind:sender: -0.047039031982421875,-0.5306339263916016,0.6949634552001953\nscore:addressee: 0.4449272155761719\nscore:kind:addressee: 0.4613075256347656,-1.0072650909423828,-0.7191905975341797\nscore:household: -0.4466381072998047\nscore:care_of: 0.45192527770996094\nscore:kind:care_of: 0.4613075256347656,-1.0072650909423828,-0.7191905975341797\nscore:slot:letter_date: 0.27313995361328125\nscore:type: -2.1433544158935547,-1.9134845733642578,0.6832904815673828,-1.7384605407714844,-1.881103515625,-1.1416511535644531,-2.077157974243164,-0.17753028869628906,1.0972881317138672,-2.143362045288086,1.0412178039550781\nscore:subject_person: -1.227975845336914\nscore:slot:due_date: 0.08355522155761719\nscore:slot:reference: -0.03383445739746094\nscore:slot:customer_no: 0.2510719299316406\nscore:slot:recipient_org: -0.7330741882324219\nscore:slot:cited_references: -0.1496601104736328\nscore:extras: -0.029386520385742188\nlang: de\nextra:name: \"Ansprechpartner: Ihr Berater-Team\"",
- "call1Ms": 34939,
- "call2Ms": 4374,
+ "call1": "score:sender: 0.36589813232421875\nscore:kind:sender: -0.047039031982421875,-0.5306339263916016,0.6949634552001953\nscore:addressee: 0.4449272155761719\nscore:kind:addressee: 0.4613075256347656,-1.0072650909423828,-0.7191905975341797\nscore:household: -0.4466381072998047\nscore:care_of: 0.45192527770996094\nscore:kind:care_of: 0.4613075256347656,-1.0072650909423828,-0.7191905975341797\nscore:slot:letter_date: 0.27313995361328125\nscore:type: -2.1433544158935547,-1.9134845733642578,0.6832904815673828,-1.7384605407714844,-1.881103515625,-1.1416511535644531,-2.077157974243164,-0.17753028869628906,0.3574390411376953\nscore:subject_person: -1.227975845336914\nscore:slot:due_date: 0.08355522155761719\nscore:slot:reference: -0.03383445739746094\nscore:slot:customer_no: 0.2510719299316406\nscore:slot:objection_deadline: -0.05544281005859375\nscore:slot:case_no: -0.6775894165039062\nscore:slot:tax_no: -1.6113815307617188\nscore:extras: -0.029386520385742188\nlang: de\nextra:name: \"Ansprechpartner: Ihr Berater-Team\"",
+ "call1Ms": 35369,
+ "call2Ms": 7928,
  "prefixTokens": 1074,
- "prefixMs": 9613,
+ "prefixMs": 8174,
  "template": "DIN5008_B",
  "templateScore": 1,
  "asks": [
@@ -94,7 +94,7 @@
    "name": "score:sender",
    "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nBeispielbank eG \/ Marktplatz 2 12345 Beispielstadt \/ Tel. 01234 400 0 \/ kundenservice@belspielbank.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nBeispielbank eG Marktplatz 2 12345 Beispielstadt\nIs «Beispielbank eG» (context: line below: Marktplatz 2 12345 Beispielstadt) the sender: the party that wrote and sent this letter? Answer:",
    "answer": "0.36589813232421875",
-   "ms": 1201,
+   "ms": 1150,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -102,7 +102,7 @@
    "name": "score:kind:sender",
    "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nBeispielbank eG \/ Marktplatz 2 12345 Beispielstadt \/ Tel. 01234 400 0 \/ kundenservice@belspielbank.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nBeispielbank eG Marktplatz 2 12345 Beispielstadt\nIs «Beispielbank eG» (context: line below: Marktplatz 2 12345 Beispielstadt) the name of a private person? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nBeispielbank eG \/ Marktplatz 2 12345 Beispielstadt \/ Tel. 01234 400 0 \/ kundenservice@belspielbank.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nBeispielbank eG Marktplatz 2 12345 Beispielstadt\nIs «Beispielbank eG» (context: line below: Marktplatz 2 12345 Beispielstadt) the name of an authority or public body? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nBeispielbank eG \/ Marktplatz 2 12345 Beispielstadt \/ Tel. 01234 400 0 \/ kundenservice@belspielbank.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nBeispielbank eG Marktplatz 2 12345 Beispielstadt\nIs «Beispielbank eG» (context: line below: Marktplatz 2 12345 Beispielstadt) the name of a company or other organisation? Answer:",
    "answer": "-0.047039031982421875,-0.5306339263916016,0.6949634552001953",
-   "ms": 3846,
+   "ms": 3951,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -110,7 +110,7 @@
    "name": "score:addressee",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn \/ Max Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max Mustermann» (context: line above: Herrn; line below: Musterstraße 12) the addressee: the party this letter is addressed to? Answer:",
    "answer": "0.4449272155761719",
-   "ms": 755,
+   "ms": 850,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -118,7 +118,7 @@
    "name": "score:kind:addressee",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn \/ Max Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max Mustermann» (context: line above: Herrn; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn \/ Max Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max Mustermann» (context: line above: Herrn; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn \/ Max Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max Mustermann» (context: line above: Herrn; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
    "answer": "0.4613075256347656,-1.0072650909423828,-0.7191905975341797",
-   "ms": 2265,
+   "ms": 2001,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -126,7 +126,7 @@
    "name": "score:household",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn \/ Max Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max Mustermann» (context: line above: Herrn; line below: Musterstraße 12) the name of a family or household (several people living together)? Answer:",
    "answer": "-0.4466381072998047",
-   "ms": 809,
+   "ms": 867,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -134,7 +134,7 @@
    "name": "score:care_of",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn \/ Max Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max Mustermann» (context: line above: Herrn; line below: Musterstraße 12) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:",
    "answer": "0.45192527770996094",
-   "ms": 819,
+   "ms": 892,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -142,7 +142,7 @@
    "name": "score:kind:care_of",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn \/ Max Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max Mustermann» (context: line above: Herrn; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn \/ Max Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max Mustermann» (context: line above: Herrn; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn \/ Max Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Max Mustermann» (context: line above: Herrn; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
    "answer": "0.4613075256347656,-1.0072650909423828,-0.7191905975341797",
-   "ms": 2177,
+   "ms": 2412,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -150,15 +150,15 @@
    "name": "score:slot:letter_date",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Kundennummer: 7788123 \/ Ansprechpartner: Ihr Berater-Team \/ 01234 400 55 \/ 21.09.2026 \/ Telefon: \/ Datum:\nIs «21.09.2026» (context: line above: 01234 400 55; line below: Telefon:) the date of the letter itself (when it was written or issued)? Answer:",
    "answer": "0.27313995361328125",
-   "ms": 1121,
+   "ms": 952,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
    "name": "score:type",
-   "question": "Is this document an invoice or bill that asks the reader to pay? Answer:\n@@\nIs this document a payment reminder or dunning letter about an unpaid bill? Answer:\n@@\nIs this document a letter or decision from an authority, tax office or public body? Answer:\n@@\nIs this document a letter from a doctor, clinic or health insurer, such as an appointment? Answer:\n@@\nIs this document an insurance or service contract, or a change to its price or terms? Answer:\n@@\nIs this document a letter from a school or kindergarten to parents? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document an information letter or statement that asks nothing of the reader? Answer:\n@@\nIs this document a letter the reader wrote and sent to someone else? Answer:\n@@\nIs this document a confirmation that a payment was made? Answer:\n@@\nIs this document anything that fits none of the other types? Answer:",
-   "answer": "-2.1433544158935547,-1.9134845733642578,0.6832904815673828,-1.7384605407714844,-1.881103515625,-1.1416511535644531,-2.077157974243164,-0.17753028869628906,1.0972881317138672,-2.143362045288086,1.0412178039550781",
-   "ms": 2485,
+   "question": "Is this document an invoice or bill that asks the reader to pay? Answer:\n@@\nIs this document a payment reminder or dunning letter about an unpaid bill? Answer:\n@@\nIs this document a letter or decision from an authority, tax office or public body? Answer:\n@@\nIs this document a letter from a doctor, clinic or health insurer, such as an appointment? Answer:\n@@\nIs this document an insurance or service contract, or a change to its price or terms? Answer:\n@@\nIs this document a letter from a school or kindergarten to parents? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document an information letter or statement that asks nothing of the reader? Answer:\n@@\nIs this document a document of a kind not listed here? Answer:",
+   "answer": "-2.1433544158935547,-1.9134845733642578,0.6832904815673828,-1.7384605407714844,-1.881103515625,-1.1416511535644531,-2.077157974243164,-0.17753028869628906,0.3574390411376953",
+   "ms": 1902,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -166,7 +166,7 @@
    "name": "score:subject_person",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Beispielbank eG» (context: line below: Marktplatz 2 12345 Beispielstadt) a person the letter is about, other than the addressee? Answer:",
    "answer": "-1.227975845336914",
-   "ms": 560,
+   "ms": 509,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -174,7 +174,7 @@
    "name": "score:slot:due_date",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01.11.2026» (context: printed on the line: wir entwickeln unser Angebot für Sie stetig weiter. Ab dem 01.11.2026 ; line above: Sehr geehrter Herr Mustermann,; line below: neues Kundenportal zur Verfügung, in dem Sie Ihre Kontoumsätze, Dokume) the date by which the reader must pay or act? Answer:",
    "answer": "0.08355522155761719",
-   "ms": 887,
+   "ms": 904,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -182,7 +182,7 @@
    "name": "score:slot:reference",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Kundennummer: 7788123 \/ Ansprechpartner: Ihr Berater-Team \/ 01234 400 55 \/ 21.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «7788123» (context: printed on the line: Kundennummer: 7788123; line above: Ihr Zeichen:; line below: Ansprechpartner: Ihr Berater-Team) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
    "answer": "-0.03383445739746094",
-   "ms": 1427,
+   "ms": 1464,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -190,23 +190,31 @@
    "name": "score:slot:customer_no",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Kundennummer: 7788123 \/ Ansprechpartner: Ihr Berater-Team \/ 01234 400 55 \/ 21.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «7788123» (context: printed on the line: Kundennummer: 7788123; line above: Ihr Zeichen:; line below: Ansprechpartner: Ihr Berater-Team) the number that identifies the reader as a customer, member or account holder? Answer:",
    "answer": "0.2510719299316406",
-   "ms": 1279,
+   "ms": 1204,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
-   "name": "score:slot:recipient_org",
-   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Beispielbank eG» (context: line below: Marktplatz 2 12345 Beispielstadt) the sent to? Answer:",
-   "answer": "-0.7330741882324219",
-   "ms": 552,
+   "name": "score:slot:objection_deadline",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01.11.2026» (context: printed on the line: wir entwickeln unser Angebot für Sie stetig weiter. Ab dem 01.11.2026 ; line above: Sehr geehrter Herr Mustermann,; line below: neues Kundenportal zur Verfügung, in dem Sie Ihre Kontoumsätze, Dokume) the objection deadline? Answer:",
+   "answer": "-0.05544281005859375",
+   "ms": 966,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
-   "name": "score:slot:cited_references",
-   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Kundennummer: 7788123 \/ Ansprechpartner: Ihr Berater-Team \/ 01234 400 55 \/ 21.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «7788123» (context: printed on the line: Kundennummer: 7788123; line above: Ihr Zeichen:; line below: Ansprechpartner: Ihr Berater-Team) the cited references? Answer:",
-   "answer": "-0.1496601104736328",
-   "ms": 1548,
+   "name": "score:slot:case_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Kundennummer: 7788123 \/ Ansprechpartner: Ihr Berater-Team \/ 01234 400 55 \/ 21.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «7788123» (context: printed on the line: Kundennummer: 7788123; line above: Ihr Zeichen:; line below: Ansprechpartner: Ihr Berater-Team) the case number? Answer:",
+   "answer": "-0.6775894165039062",
+   "ms": 1750,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:tax_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Kundennummer: 7788123 \/ Ansprechpartner: Ihr Berater-Team \/ 01234 400 55 \/ 21.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «7788123» (context: printed on the line: Kundennummer: 7788123; line above: Ihr Zeichen:; line below: Ansprechpartner: Ihr Berater-Team) the tax number? Answer:",
+   "answer": "-1.6113815307617188",
+   "ms": 1598,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -214,7 +222,7 @@
    "name": "score:extras",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Kundennummer: 7788123 \/ Ansprechpartner: Ihr Berater-Team \/ 01234 400 55 \/ 21.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01234 400 55» (context: line above: Ansprechpartner: Ihr Berater-Team; line below: 21.09.2026) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:",
    "answer": "-0.029386520385742188",
-   "ms": 1626,
+   "ms": 1841,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -222,7 +230,7 @@
    "name": "lang",
    "question": "QUESTION: In which language is this letter written? Answer with its BCP-47 language code (for example de, en, ar).\nANSWER FORMAT: the code only",
    "answer": "de",
-   "ms": 460,
+   "ms": 500,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -230,15 +238,15 @@
    "name": "extra:name",
    "question": "QUESTION: The value «01234 400 55» is an important fact of this letter: it is printed on the line «01234 400 55», the line above it is «Ansprechpartner: Ihr Berater-Team». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
    "answer": "\"Ansprechpartner: Ihr Berater-Team\"",
-   "ms": 1392,
+   "ms": 1384,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
    "name": "text:title",
-   "question": "QUESTION: Write a title of at most 8 words for this outgoing letter: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "question": "QUESTION: Write a title of at most 8 words for this authority tax: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
    "answer": "\"Beispielbank eG\"",
-   "ms": 637,
+   "ms": 1194,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -246,7 +254,7 @@
    "name": "text:subject",
    "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
    "answer": "\"Informationen zu unserem neuen Kundenportal\"",
-   "ms": 696,
+   "ms": 997,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -254,7 +262,7 @@
    "name": "text:summary",
    "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
    "answer": "\"Sie müssen nichts unternehmen; dieses Schreiben dient ausschließlich Ihrer Information.\"",
-   "ms": 1048,
+   "ms": 2225,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -262,11 +270,11 @@
    "name": "text:questions",
    "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
    "answer": "\"Was ist der genaue Termin für die Einführung des neuen Kundenportals?\" \"Wie können Sie Ihre Konten und Zugangsdaten für das Online-Banking sicherstellen?\" \"Welches Bankkonto wird für die neue Bankverbindung verwendet?\"",
-   "ms": 1986,
+   "ms": 3508,
    "questionTokens": -1,
    "answerTokens": -1
   }
  ],
- "wallMs": 39375,
+ "wallMs": 43364,
  "model": "text.gguf"
 }
