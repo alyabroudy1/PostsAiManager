@@ -456,13 +456,30 @@ OCR blocks -> layout -> candidates -> template + zones -> scoring interpreter ->
 | Layout | `extraction/layout` | Reads OCR blocks into lines and geometric zones (header, sender, address window, reference block, body, footer). |
 | Candidates | `extraction/candidates` | A language-neutral extractor finds every amount, date, IBAN, reference, phone and name in the letter, each with an id. Recall is measured (96.8% on the benchmark). |
 | Template and zones | `extraction/zones` (`TemplateMatcher`, `LayoutTemplates`, `SlotPlacements`) | Matches the page to a layout template (DIN 5008 A/B, invoice table, receipt, form, RTL, generic) and maps each question to the zones where its answer usually sits. A placement is a prior, never a rule. |
-| Scoring interpreter | `ZoneScoringInterpreter` | For each slot, asks the model "Is «X» the <slot>?" for every candidate of the zone and reads its own log-odds of Yes against No (`PromptSession.score`). Nothing is offered as a list, so the model cannot prefer the first option. The document type is scored the same way, over the types a document of its direction can be (`ExtractionSchema.typesFor`). Extras are values no slot took that score above a threshold. The free text (language, extra names, title, summary) is written afterwards in a separate writing session. |
+| Scoring interpreter | `ZoneScoringInterpreter` | For each slot, asks the model "Is «X» the <slot>?" for every candidate of the zone and reads its own log-odds of Yes against No (`PromptSession.score`). Nothing is offered as a list, so the model cannot prefer the first option. The document type is scored the same way, over the types a document of its direction can be (`ExtractionSchema.typesFor`). The whole letter is one prefix (neutral instruction; each scoring batch says "answer Yes or No" itself) and questions that share a zone block or a value are scored as a prefix tree (`scoreGrid`), so the block and each value are decoded once. Extras are values no slot took that score above a threshold; they and the free text (language, extra names, title, subject, summary, suggested questions) are the second stage, asked in the same session. |
 | Joint decoder | `SlotDecoder` port, `JointAssignment` | Decides all questions together from the same scores: a value answers one question, so a best candidate goes to the question that needs it more. Sharing rules and the secondary party tier are data (`DecoderSpec`). |
 | Verifier | `SelectionVerifier` | Checks ids, quotes and plausibility against the letter, and derives the final confidence. |
 | Adapter and storage | `ExtractionV2Adapter` | Maps the verified result to the stored `DocumentUnderstanding`; revisions, provenance and the merge are §4. |
 
 The confidence word of a slot or party comes from the scores (`ScoreCuts`: the winner's margin over the runner-up and its
 own score), not from the model's self-report.
+
+### Two stages
+
+A person needs the type, the parties, the amounts and the dates; the language, the extras and the free text can wait. So a
+staged interpreter (`DocumentInterpreter.staged`) reads in two stages (`ExtractionV2Pipeline.Stages`):
+
+1. **First** (`Stages.FIRST`): type, parties and slots are scored, verified, adapted and stored, the document is EXTRACTED and
+   shown. The result carries an `EnrichmentTicket` (the type and the candidate ids already taken).
+2. **Second** (`Stages.SECOND`): `DocumentEnrichmentWorker`, unique per document (`enrich-document-<id>`), quiet, reads the stored
+   text again (same candidate ids), asks for the language, the extras and the free text, and merges only the rows it owns
+   (`UnderstandingToFields.writtenInSecondStage`: the extras and the subject line) through `MergeExtractionUseCase`, so a value
+   a person wrote or confirmed stands; the title changes only where `DocumentTitlePolicy` allows. A new scan cancels every second
+   stage (they keep their tickets in `DocumentProcessingPipeline`) and they come back once that scan's first stage is stored.
+   The detail screen says "Summary coming..." while one is pending (`DocumentProcessor.enrichingDocuments`).
+
+An interpreter that is not staged reads everything in `interpret`/`writeText` and leaves no ticket. `Stages.ALL` (the benchmark)
+runs both stages in one call.
 
 ### The ModelProfile registry
 
