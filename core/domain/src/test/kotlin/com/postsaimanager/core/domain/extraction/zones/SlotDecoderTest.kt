@@ -51,6 +51,19 @@ class SlotDecoderTest {
     }
 
     @Test
+    fun `a secondary party question never takes what a primary one needs`() {
+        // The mailbox question likes M1 more than the addressee question does, but the addressee is decided first.
+        val questions = listOf(
+            q("sender", name("M0", 0.9)),
+            q("addressee", name("M1", 0.3)),
+            q("care_of", name("M1", 0.8), name("M2", 0.1)),
+        )
+        val d = joint.decode(questions, emptyList())
+        assertThat(d["addressee"]).isEqualTo("M1")
+        assertThat(d["care_of"]).isEqualTo("M2")
+    }
+
+    @Test
     fun `slots that are the same fact under another name may share a candidate`() {
         val questions = listOf(
             q("slot:reference", name("N1", 0.9)),

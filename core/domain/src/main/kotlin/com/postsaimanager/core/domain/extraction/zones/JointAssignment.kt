@@ -25,13 +25,27 @@ import kotlin.math.sqrt
 class JointAssignment(private val spec: DecoderSpec, private val nodeLimit: Int = NODE_LIMIT) : SlotDecoder {
 
     /** A question's options: a calibrated value per candidate, and what none is worth. */
-    private class Options(val q: ScoredQuestion, val values: DoubleArray, val none: Double)
+    private class Options(val q: ScoredQuestion, val values: DoubleArray, val none: Double) {
+        /** Candidates an earlier tier's answer has taken (see [PairConstraints.SECONDARY]). */
+        val banned = HashSet<Int>()
+    }
 
     override fun decode(questions: List<ScoredQuestion>, pool: List<CandidateFacts>): Map<String, String?> {
         val triple = if (spec.tripleBonus != 0.0) TripleFacts.of(pool) else null
         val options = questions.map { options(it, triple) }
         val chosen = arrayOfNulls<Int>(questions.size) // per question: candidate index, or null for none
-        for (group in groups(options)) solve(group, options, chosen)
+        // The primary questions are decided first; the secondary ones (a mailbox, a contact, a person the letter is about) take
+        // what the primaries left, so a question the letter may not even answer never takes the addressee.
+        val primary = questions.indices.filter { questions[it].name !in PairConstraints.SECONDARY }
+        val secondary = questions.indices.filter { questions[it].name in PairConstraints.SECONDARY }
+        for (tier in listOf(primary, secondary)) {
+            for (i in tier) for (j in questions.indices) {
+                val taken = chosen[j]?.let { questions[j].candidates[it].id } ?: continue
+                if (j in tier || spec.sharing.mayShare(questions[i].name, questions[j].name)) continue
+                questions[i].candidates.forEachIndexed { c, cand -> if (cand.id == taken) options[i].banned += c }
+            }
+            for (group in groups(options, tier)) solve(group, options, chosen)
+        }
         val out = LinkedHashMap<String, String?>()
         questions.forEachIndexed { i, q -> out[q.name] = chosen[i]?.let { q.candidates[it].id } }
         return out
@@ -57,13 +71,13 @@ class JointAssignment(private val spec: DecoderSpec, private val nodeLimit: Int 
         return b.q.candidates.any { it.id in ids }
     }
 
-    private fun groups(options: List<Options>): List<List<Int>> {
+    private fun groups(options: List<Options>, among: List<Int>): List<List<Int>> {
         val parent = IntArray(options.size) { it }
         fun find(x: Int): Int { var r = x; while (parent[r] != r) r = parent[r]; return r }
-        for (i in options.indices) for (j in i + 1 until options.size) {
-            if (interferes(options[i], options[j])) parent[find(i)] = find(j)
+        for (i in among) for (j in among) {
+            if (i < j && interferes(options[i], options[j])) parent[find(i)] = find(j)
         }
-        return options.indices.groupBy { find(it) }.values.toList()
+        return among.groupBy { find(it) }.values.toList()
     }
 
     private fun hasPairTerm(a: String, b: String): Boolean =
@@ -86,12 +100,12 @@ class JointAssignment(private val spec: DecoderSpec, private val nodeLimit: Int 
         val bound = DoubleArray(members.size + 1)
         for (k in members.indices.reversed()) {
             val o = options[members[k]]
-            bound[k] = bound[k + 1] + max(o.none, o.values.maxOrNull() ?: Double.NEGATIVE_INFINITY)
+            bound[k] = bound[k + 1] + max(o.none, o.values.filterIndexed { i, _ -> i !in o.banned }.maxOrNull() ?: Double.NEGATIVE_INFINITY)
         }
         // Each question's options, best first; none before a candidate of equal value (an abstain level is not beaten by a tie).
         val order = members.map { m ->
             val o = options[m]
-            val idx = o.values.indices.sortedByDescending { o.values[it] }
+            val idx = o.values.indices.filter { it !in o.banned }.sortedByDescending { o.values[it] }
             buildList<Int?> {
                 var noneDone = false
                 for (i in idx) {

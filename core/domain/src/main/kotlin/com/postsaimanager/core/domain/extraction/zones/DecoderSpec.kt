@@ -102,6 +102,12 @@ object PairConstraints {
         QuestionNames.slot("original_due_date") to QuestionNames.slot("due_date"),
     )
 
+    /**
+     * The party questions that only make sense once the sender and the addressee are known (the mailbox a letter is sent in
+     * care of, the contact person, a person the letter is about): decided after every other question, from what is left.
+     */
+    val SECONDARY: Set<String> = setOf(QuestionNames.CARE_OF, QuestionNames.CONTACT, QuestionNames.SUBJECT_PERSON)
+
     /** The questions whose answer is the amount to pay: a net or VAT part of a triple is not one, the gross is. */
     val TOTAL_SLOTS: Set<String> = setOf(QuestionNames.slot("total"), QuestionNames.slot("new_amount"), QuestionNames.slot("proof_amount"))
 }
