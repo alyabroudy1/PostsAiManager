@@ -480,6 +480,14 @@ class SelectionVerifierTest {
         }
 
         @Test
+        fun `a label with no letter is replaced by the kind's key, numbered when it repeats`() {
+            val a = id(n1, CandidateKind.DATE, "2026-08-05")
+            val b = id(n1, CandidateKind.DATE, "2026-09-25")
+            val r = verify(n1, answer(extras = extra("1", a, key = "date") + "," + extra("2", b, key = "date")))
+            assertThat(r.extras.map { it.label }).containsExactly("x:date", "x:date_2").inOrder()
+        }
+
+        @Test
         fun `a hallucinated extra is dropped`() {
             val r = verify(n1, answer(extras = extra("Mitgliedsnummer", "NONE", v = "MB-99-77-1234")))
             assertThat(r.extras).isEmpty()

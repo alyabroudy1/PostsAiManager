@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.extraction.v2
 
+import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.domain.extraction.candidates.AmountConsistency
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
@@ -519,14 +520,27 @@ class SelectionVerifier(
             val out = mutableListOf<ExtraValue>()
             for (x in raw.extras) {
                 if (out.size >= StructuredGrammar.MAX_EXTRAS) break
-                val label = x.label.trim()
-                if (label.isEmpty()) continue
+                val printed = x.label.trim()
+                if (printed.isEmpty()) continue
+                val label = if (printed.any { it.isLetter() }) printed else unnamedLabel(x, out)
                 val value = extraValue(x, label, used) ?: continue
                 val extra = ExtraValue(label, keyOf(x.key), value)
                 if (out.any { it.identity == extra.identity || (it.value.normalized == value.normalized && it.key == extra.key) }) continue
                 out += extra
             }
             return out
+        }
+
+        /**
+         * The label of an extra the model "named" with no letter in it (a bare digit): its kind's key (`x:amount`, numbered when
+         * the kind repeats), which the screen renders as the kind's words, never the printed junk.
+         */
+        private fun unnamedLabel(x: RawExtra, taken: List<ExtraValue>): String {
+            val base = ExtractedData.EXTRA_KEY_PREFIX + keyOf(x.key)
+            var label = base
+            var n = 1
+            while (taken.any { it.label == label }) label = base + "_" + (++n)
+            return label
         }
 
         private fun extraValue(x: RawExtra, label: String, used: MutableSet<String>): SlotValue? {
