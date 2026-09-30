@@ -37,6 +37,17 @@ object SlotPlacements {
         SlotKind.NAME, SlotKind.ACTION -> listOf(LetterZone.BODY)
     }
 
+    /**
+     * Where a party is looked for when the zones it is asked on hold no name at all: the sender's name is sometimes only
+     * printed in the small print at the foot of the page. A prior like the rest; the model still decides among the names
+     * found there.
+     */
+    private val PARTY_FALLBACKS: Map<String, List<LetterZone>> = mapOf(
+        QuestionNames.SENDER to listOf(LetterZone.FOOTER),
+    )
+
+    fun partyFallback(name: String): List<LetterZone> = PARTY_FALLBACKS[name].orEmpty()
+
     /** The zones [slot] is asked on under [template], before the template's zone remap. */
     fun zonesFor(slot: SlotKey, template: LayoutTemplate): List<LetterZone> =
         template.placements[slot.json] ?: BY_KEY[slot.json] ?: byKind(slot.kind)

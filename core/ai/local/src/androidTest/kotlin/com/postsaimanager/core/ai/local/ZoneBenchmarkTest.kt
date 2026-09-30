@@ -41,14 +41,14 @@ import java.io.File
  * Resumable per letter and interpreter: a recording that exists is skipped (`resume` argument, default true), so a run
  * that lost the USB connection is started again with the same arguments and continues.
  *
- * Staging (all under /data/local/tmp/z9, deleted afterwards): `text.gguf` (or `model`), `bench/<key>.json`.
+ * Staging (all under /data/local/tmp/z10, deleted afterwards): `text.gguf` (or `model`), `bench/<key>.json`.
  * Arguments: `keys`, `interpreters` (default `zones,zonesscoring`), `model` (default text.gguf), `suffix`, `resume`.
  */
 @RunWith(AndroidJUnit4::class)
 class ZoneBenchmarkTest {
 
-    private val dir = File("/data/local/tmp/z9")
-    private val tag = "z9"
+    private val dir = File("/data/local/tmp/z10")
+    private val tag = "z10"
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private val args get() = InstrumentationRegistry.getArguments()
 
@@ -127,7 +127,7 @@ class ZoneBenchmarkTest {
             ?: bench.list().orEmpty().filter { it.endsWith(".json") }.map { it.removeSuffix(".json") }.sorted()
         val budgetTokens = 4096
 
-        val outDir = File(context.getExternalFilesDir(null), "z9/rec").apply { mkdirs() }
+        val outDir = File(context.getExternalFilesDir(null), "z10/rec").apply { mkdirs() }
         val todo = keys.flatMap { k -> interpreters.map { k to it } }.filter { (k, n) ->
             File(bench, "$k.json").exists() && !(resume && File(outDir, "$k.$n$suffix.json").exists())
         }

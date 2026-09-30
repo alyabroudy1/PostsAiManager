@@ -69,9 +69,9 @@ class SelectionVerifier(
                         val values = answer.ids.mapNotNull { id ->
                             candidateValue(slot, id, answer.confidence, null, CandidateKind.REFERENCE)
                         }
-                        if (values.isNotEmpty()) lists[slot] = values
+                        if (values.isNotEmpty()) lists[slot] = values.map { withScoreNote(it, answer.scoreNote) }
                     } else {
-                        slotValue(slot, answer)?.let { slots[slot] = withZoneNote(it, answer.zoneNote) }
+                        slotValue(slot, answer)?.let { slots[slot] = withScoreNote(withZoneNote(it, answer.zoneNote), answer.scoreNote) }
                     }
                 }
                 raw.slots.keys.filter { key -> docType.slots.none { it.json == key } }.forEach {
@@ -347,7 +347,7 @@ class SelectionVerifier(
                     else -> null
                 }
                 var value = resolveName(rp.id.trim(), rp.confidence, expected, role.name)?.let { withModelName(it, rp.name, role.name) } ?: continue
-                value = withZoneNote(value, rp.zoneNote)
+                value = withScoreNote(withZoneNote(value, rp.zoneNote), rp.scoreNote)
                 // A second SENDER is the model contradicting itself. The AI is not overruled: the value is
                 // kept, capped below the visibility threshold (hidden by default) and noted, never dropped.
                 // The first SENDER stays the sender (Parties.sender).
@@ -378,6 +378,10 @@ class SelectionVerifier(
             conflicts += note
             return value.copy(confidence = combined.final, blocked = true, notes = value.notes + combined.notes)
         }
+
+        /** The raw numbers a scoring interpreter's confidence rests on, kept in the value's notes for diagnostics; never a cap. */
+        private fun withScoreNote(value: SlotValue, note: String?): SlotValue =
+            if (note == null) value else value.copy(notes = value.notes + note)
 
         /**
          * The candidate keeps the whole printed line ("Herrn Max Mustermann"); the model gives the party's

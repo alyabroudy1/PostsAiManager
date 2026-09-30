@@ -55,7 +55,14 @@ object ModelProfiles {
      */
     val QWEN35_08B = ModelProfile(
         "qwen3.5-0.8b-q4_k_m", contextTokens = 4096, strategy = InterpreterStrategy.ZONES_SCORING,
-        scoring = ScoringProfile(defaultThreshold = -12.0),
+        scoring = ScoringProfile(
+            defaultThreshold = -12.0,
+            // Fitted on the 137 scored answers of the 16 letters (ConfidenceCalibrationTest). HIGH: a margin of 0.2 over the runner-up
+            // (91% right in-sample; 83% held out, cuts fitted on the other half of the letters). LOW: the winner's own log-odds are
+            // under -0.25, the model itself leaning No (56% right); no set of answers reached the 50% ceiling, so this is the weakest
+            // principled one, chosen from the table, not by the fitter. MEDIUM is the rest.
+            cuts = ScoreCuts(mediumMargin = Double.NEGATIVE_INFINITY, mediumBest = -0.25, highMargin = 0.2, highBest = Double.NEGATIVE_INFINITY),
+        ),
     )
 
     val QWEN35_2B = ModelProfile("qwen3.5-2b-q4_k_m", contextTokens = 4096, strategy = InterpreterStrategy.ZONES)

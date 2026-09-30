@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
+import com.postsaimanager.core.domain.extraction.v2.AnswerReader
 import com.postsaimanager.core.domain.extraction.v2.AskRecord
 import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
@@ -24,6 +25,7 @@ import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.extraction.v2.StructuredGrammar
 import com.postsaimanager.core.domain.extraction.v2.TextOutcome
 import com.postsaimanager.core.domain.extraction.v2.TextRequest
+import java.util.Locale
 
 /**
  * Label-free reading, zone by zone: the model is never shown a list of options, so it cannot prefer the
@@ -41,7 +43,12 @@ import com.postsaimanager.core.domain.extraction.v2.TextRequest
  * verifier checks the result exactly as before. Roles of amounts and dates come from the slot the candidate won
  * (the slot says what the value is), a party's kind and household relation are scored the same way.
  *
- * Not produced here: extras (metadata no slot covers) and the type's language. They need generation.
+ * The confidence of a slot or party is derived from its scores ([ScoringProfile.confidence]): the winner's margin over
+ * the runner-up and its own score, mapped to LOW, MEDIUM or HIGH by cut points that are data, fitted on recordings.
+ *
+ * Two things need writing and are generated, constrained by a grammar, in the same open body session: the language of
+ * the letter and the extras (metadata no slot covers) in [languageAndExtras], and the free text ([ZoneFreeText]: title,
+ * subject line, summary, suggested questions), which runs after the reading exactly as in the other interpreters.
  */
 class ZoneScoringInterpreter(
     private val engine: AiEngine,
@@ -122,6 +129,7 @@ class ZoneScoringInterpreter(
         fun isHeader(name: String, slot: SlotKey? = null) = plan.isHeader(plan.zones(name, slot))
 
         val deferred = ArrayList<SlotKey>()
+        val deferredParties = ArrayList<Pair<String, PartyRole>>()
 
         // ── header session: the header zones are the prefix ──
         val headerParties = partyNames.filter { isHeader(it.first) }
@@ -132,7 +140,9 @@ class ZoneScoringInterpreter(
             val (head, closing) = setup.frame(system, ZonePrompt.HEADER_USER)
             open(head, closing)
             inPrefix = emptySet()
-            headerParties.forEach { (name, role) -> party(setup, s, name, role) }
+            // A party whose header zones offered no name is asked again with the body, on the zones the registry names
+            // as its fallback (the sender's name is sometimes only in the footer).
+            headerParties.forEach { if (!party(setup, s, it.first, it.second, widen = false)) deferredParties += it }
             headerSlots.forEach { if (!slot(setup, s, it, widen = false)) deferred += it }
         }
 
@@ -156,14 +166,34 @@ class ZoneScoringInterpreter(
 
         val type = scoreType()
         val docType = schema.type(type.first) ?: throw Abort("no document type scored")
-        partyNames.filter { !isHeader(it.first) }.forEach { (name, role) -> party(setup, s, name, role) }
+        (partyNames.filter { !isHeader(it.first) } + deferredParties).forEach { (name, role) -> party(setup, s, name, role, widen = true) }
         val bodySlots = (Slots.CORE + docType.slots).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) }
         (bodySlots + deferred).forEach { slot(setup, s, it, widen = true) }
 
+        val more = languageAndExtras(setup, s)
         return RawInterpretation(
-            type = type.first, typeConfidence = type.second, language = null,
-            parties = s.parties.take(StructuredGrammar.MAX_PARTIES), slots = s.slots, extras = emptyList(),
+            type = type.first, typeConfidence = type.second, language = more.language,
+            parties = s.parties.take(StructuredGrammar.MAX_PARTIES), slots = s.slots, extras = more.extras,
         )
+    }
+
+    /**
+     * The one generation of the reading, asked in the same open body session after every scoring: the letter's language
+     * (BCP-47) and up to [StructuredGrammar.MAX_EXTRAS] other important facts, over the candidates of the extras zones
+     * that no slot or party took, or a quote. Only the language and the facts need writing; what the model chooses is
+     * verified afterwards exactly like the other readings' extras (an id already used, a quote not in the letter, a weak
+     * kind, a duplicate). A failed ask is not fatal: the letter is then read without a language or extras.
+     */
+    private suspend fun languageAndExtras(setup: ZoneSetup, s: State): AnswerReader.LanguageAndExtras {
+        val zoned = setup.zoned
+        val zones = setup.plan.zones(QuestionNames.EXTRAS).filter { zoned.hasText(it) }
+        val taken = s.parties.map { it.id }.toSet() + s.slots.values.flatMap { listOfNotNull(it.id) + it.ids }
+        val left = OfferedCandidates(zoned.candidatesIn(zones).rows.filter { it.candidate.id !in taken })
+        val question = QuestionnairePrompt.languageAndExtras(left)
+        val text = ZonePrompt.zoneBlock(zones, setup.plan::hint, zoned::zoneText, inPrefix, left) + question.text
+        val answer = ask(Question(question.name, text, question.grammar, question.maxTokens)) ?: return AnswerReader.LanguageAndExtras(null, emptyList())
+        val read = AnswerReader.languageAndExtras(answer)
+        return AnswerReader.LanguageAndExtras(read.language, read.extras.take(StructuredGrammar.MAX_EXTRAS))
     }
 
     private fun zonedText(setup: ZoneSetup, zones: List<LetterZone>, budget: Int): String {
@@ -192,23 +222,34 @@ class ZoneScoringInterpreter(
 
     // ── parties ──
 
-    private suspend fun party(setup: ZoneSetup, s: State, name: String, role: PartyRole) {
+    /**
+     * Scores the names of the zones [name] is asked on; with [widen] (body session only) and no name there, the zones the
+     * registry gives as the party's fallback ([SlotPlacements.partyFallback]).
+     *
+     * @return whether any name was scored (false: nothing was offered, so the caller may ask again where the fallback is).
+     */
+    private suspend fun party(setup: ZoneSetup, s: State, name: String, role: PartyRole, widen: Boolean): Boolean {
         val zoned = setup.zoned
-        val zones = setup.plan.zones(name).filter { zoned.hasText(it) }
-        if (zones.isEmpty()) return
+        var zones = setup.plan.zones(name).filter { zoned.hasText(it) }
         // Every name of the zone is scored, whatever was decided before: what is scored then does not depend on the
         // thresholds, which is what lets a recording be re-decided offline. The one exclusion code makes (the sender is
         // not also the addressee, the routing person or the mailbox) is applied to the choice.
-        val cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME }
-        if (cands.isEmpty()) return
+        var cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME }
+        if (cands.isEmpty() && widen) {
+            zones = SlotPlacements.partyFallback(name).map { zoned.mapped(it) }.distinct().filter { zoned.hasText(it) }
+            cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME }
+        }
+        if (zones.isEmpty() || cands.isEmpty()) return false
         val what = ScoringDescriptions.ofRole(name)
         val block = block(setup, zones)
         val questions = cands.map { block + ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), what) }
-        val scores = scoreBatch(name, questions) ?: return
+        val scores = scoreBatch(name, questions) ?: return true
         val allowed = scores.indices.filter { role == PartyRole.SENDER || cands[it].id != s.senderId }
-        val best = allowed.maxByOrNull { scores[it] } ?: return
+        val ranked = allowed.sortedByDescending { scores[it] }
+        val best = ranked.firstOrNull() ?: return true
         val threshold = profile.threshold(name)
-        if (scores[best] <= threshold) return
+        if (scores[best] <= threshold) return true
+        val (confidence, note) = confidenceOf(scores[best], ranked.getOrNull(1)?.let { scores[it] }, ranked.size)
         val c = cands[best]
         val ctx = zoned.context(c)
         val printed = c.raw.replace('\n', ' ')
@@ -226,8 +267,20 @@ class ZoneScoringInterpreter(
         }
         s.parties += RawParty(
             role = role.name, id = c.id, kind = kind, relation = relation,
-            confidence = profile.confidence(scores[best] - threshold), name = null,
+            confidence = confidence, name = null, scoreNote = note,
         )
+        return true
+    }
+
+    /**
+     * The confidence word of a scored answer and the raw numbers behind it. The margin is the winner's score over the
+     * runner-up's; with a single candidate there is no runner-up and the margin is over 0.0, where the model is
+     * indifferent between Yes and No.
+     */
+    private fun confidenceOf(best: Double, runnerUp: Double?, candidates: Int): Pair<String, String> {
+        val margin = best - (runnerUp ?: 0.0)
+        val note = String.format(Locale.ROOT, "score margin %+.2f (winner %+.2f of %d)", margin, best, candidates)
+        return profile.confidence(margin, best) to note
     }
 
     // ── slots ──
@@ -257,14 +310,15 @@ class ZoneScoringInterpreter(
         val order = scores.indices.sortedByDescending { scores[it] }
         val best = order.first()
         if (scores[best] <= threshold) return true
-        val confidence = profile.confidence(scores[best] - threshold)
+        val (confidence, note) = confidenceOf(scores[best], order.getOrNull(1)?.let { scores[it] }, order.size)
         s.slots[slot.json] = when (slot.kind) {
             SlotKind.AMOUNT, SlotKind.DATE, SlotKind.DEADLINE ->
-                RawSlot(id = cands[best].id, role = roleOf(slot), confidence = confidence)
+                RawSlot(id = cands[best].id, role = roleOf(slot), confidence = confidence, scoreNote = note)
             SlotKind.REFERENCE_LIST -> RawSlot(
-                ids = order.filter { scores[it] > threshold }.take(StructuredGrammar.MAX_REF_IDS).map { cands[it].id }, confidence = confidence,
+                ids = order.filter { scores[it] > threshold }.take(StructuredGrammar.MAX_REF_IDS).map { cands[it].id },
+                confidence = confidence, scoreNote = note,
             )
-            else -> RawSlot(id = cands[best].id, confidence = confidence)
+            else -> RawSlot(id = cands[best].id, confidence = confidence, scoreNote = note)
         }
         return true
     }

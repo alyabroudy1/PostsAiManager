@@ -3,22 +3,50 @@ package com.postsaimanager.core.domain.extraction.zones
 import com.postsaimanager.core.domain.extraction.v2.SlotKey
 
 /**
- * How a log-odds score becomes a decision, as data: the abstain threshold per question (the best candidate
- * is taken only when its score is above it, otherwise the answer is NONE) and how far above it counts as
- * MEDIUM or HIGH confidence. Tuned on benchmark recordings, per model (see [ModelProfile]).
+ * How a log-odds score becomes a decision, as data, per model (see [ModelProfile]): the abstain threshold per
+ * question (the best candidate is taken only when its score is above it, otherwise the answer is NONE), how far
+ * above it the type's margin counts as MEDIUM or HIGH, and the cut points that turn a scored answer into the
+ * confidence word the verifier reads (see [confidence]). All of it is tuned on benchmark recordings.
  */
 data class ScoringProfile(
     val defaultThreshold: Double = 0.0,
     /** By question name (`sender`, `addressee`, `slot:total`, ...). */
     val thresholds: Map<String, Double> = emptyMap(),
+    /** The document type's margin over the next type: MEDIUM from here, HIGH from [highMargin]. */
     val mediumMargin: Double = 1.0,
     val highMargin: Double = 3.0,
+    /** The cut points of a slot's or a party's confidence; see [ScoreCuts]. */
+    val cuts: ScoreCuts = ScoreCuts(),
 ) {
     fun threshold(ask: String): Double = thresholds[ask] ?: defaultThreshold
 
+    /** The type's confidence from its margin. */
     fun confidence(margin: Double): String = when {
         margin >= highMargin -> "HIGH"
         margin >= mediumMargin -> "MEDIUM"
+        else -> "LOW"
+    }
+
+    /** The confidence word of a slot or party answer: [ScoreCuts.word] of the winner's margin over the runner-up and its own score. */
+    fun confidence(margin: Double, best: Double): String = cuts.word(margin, best)
+}
+
+/**
+ * Where a scored answer is LOW, MEDIUM or HIGH, from two numbers the model's own scores give: the [margin] (the winner's
+ * log-odds of Yes minus the runner-up's; with a single candidate, minus 0.0, the model's indifference between Yes and No)
+ * and the winner's absolute score [best]. HIGH needs both [highMargin] and [highBest]; MEDIUM both [mediumMargin] and
+ * [mediumBest]; everything else is LOW. Fitted on recordings with cross-fitting (see the calibration benchmark); the
+ * defaults are a first guess that calls everything with a clear margin MEDIUM and nothing HIGH.
+ */
+data class ScoreCuts(
+    val mediumMargin: Double = 0.1,
+    val mediumBest: Double = Double.NEGATIVE_INFINITY,
+    val highMargin: Double = Double.POSITIVE_INFINITY,
+    val highBest: Double = Double.NEGATIVE_INFINITY,
+) {
+    fun word(margin: Double, best: Double): String = when {
+        margin >= highMargin && best >= highBest -> "HIGH"
+        margin >= mediumMargin && best >= mediumBest -> "MEDIUM"
         else -> "LOW"
     }
 }

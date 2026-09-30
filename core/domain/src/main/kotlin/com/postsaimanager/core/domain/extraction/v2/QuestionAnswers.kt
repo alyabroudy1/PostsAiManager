@@ -128,7 +128,24 @@ internal object AnswerReader {
     fun extras(answer: String): List<RawExtra> {
         val toks = tokens(answer)
         if (toks.isEmpty() || isNone(toks)) return emptyList()
-        return toks.split().mapNotNull { e ->
+        return extraEntries(toks.split())
+    }
+
+    /** The language code the first entry holds (null when it is not a bare code) and every complete extra after it. */
+    class LanguageAndExtras(val language: String?, val extras: List<RawExtra>)
+
+    /** `de; N4 "label" key "value" MEDIUM; ...` (see [QuestionGrammars.languageAndExtras]). */
+    fun languageAndExtras(answer: String): LanguageAndExtras {
+        val entries = tokens(answer).split()
+        val first = entries.firstOrNull()
+        val language = first?.takeIf { it.size == 1 }?.word(0)?.lowercase()?.takeIf { LANGUAGE.matches(it) }
+        return LanguageAndExtras(language, extraEntries(entries.drop(1)))
+    }
+
+    private val LANGUAGE = Regex("[a-z]{2,3}(-[a-z0-9]+)?")
+
+    private fun extraEntries(entries: List<List<Tok>>): List<RawExtra> {
+        return entries.mapNotNull { e ->
             val id = e.word(0) ?: return@mapNotNull null
             val label = (e.getOrNull(1) as? Tok.Quote)?.text ?: return@mapNotNull null
             val key = e.word(2) ?: return@mapNotNull null

@@ -96,6 +96,92 @@ class ZoneScoringInterpreterTest {
     }
 
     @Test
+    fun `the language and the extras come from one grammar-constrained ask in the body session`() {
+        val session = FakePromptSession().apply {
+            scorer = { -5.0 }
+            responder = { q, _ -> if (q.contains("BCP-47")) "de; NONE \"Kunde\" customer_name \"Musterfirma GmbH\" HIGH" else "\"text\"" }
+        }
+        val interpreter = ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096)
+        val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, interpreter, 4096) }
+        assertThat(result.language).isEqualTo("de")
+        assertThat(result.extras.map { it.label }).contains("Kunde")
+        val asks = session.asks.filter { it.question.contains("BCP-47") }
+        assertThat(asks).hasSize(1)
+        assertThat(asks.single().grammar).contains("root ::= lang")
+        // It is asked after every scoring, in the same open session as the body questions.
+        assertThat(session.opens).hasSize(2)
+    }
+
+    @Test
+    fun `a failed language ask leaves the reading without a language or extras and does not fail it`() {
+        val session = FakePromptSession().apply {
+            scorer = { c -> if (c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
+            responder = { q, _ -> if (q.contains("BCP-47")) null else "\"text\"" }
+        }
+        val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096), 4096) }
+        assertThat(result.language).isNull()
+        assertThat(result.extras).isEmpty()
+        assertThat(result.documentType?.id).isEqualTo("bill")
+    }
+
+    @Test
+    fun `the extras may only point at candidates no slot or party took`() {
+        fun xids(yes: (String) -> Boolean): Pair<Set<String>, com.postsaimanager.core.domain.extraction.v2.ExtractionV2Result> {
+            val session = FakePromptSession().apply {
+                scorer = { c -> if (yes(c) || c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
+                responder = { _, _ -> "\"text\"" }
+            }
+            val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096), 4096) }
+            val line = session.asks.first { it.question.contains("BCP-47") }.grammar.lines().first { it.startsWith("xid ::=") }
+            return Regex("\"([A-Z]{1,2}\\d{1,3})\"").findAll(line).map { it.groupValues[1] }.toSet() to result
+        }
+        val (none, _) = xids { false }
+        val (some, result) = xids { c -> c.contains("the main amount") || c.contains("the date by which") || c.contains("the sender") || c.contains("the addressee") }
+        val taken = result.slots.values.mapNotNull { it.candidateId } + result.parties.all.mapNotNull { it.value.candidateId }
+        assertThat(taken).isNotEmpty()
+        // What a slot or a party took is not offered to the extras; what nobody took still is.
+        assertThat(some.intersect(taken.toSet())).isEmpty()
+        assertThat(some.size).isAtMost(none.size)
+    }
+
+    @Test
+    fun `confidence follows the margin and the winner's score through the cuts in the profile`() {
+        val yesDate = says("28.09.2026", "the date of the letter itself")
+        // The one date the model likes is +5 against the others' -5: a margin of 10 over the runner-up.
+        val sure = ScoringProfile(cuts = ScoreCuts(mediumMargin = 1.0, highMargin = 5.0))
+        val (high, _) = run(sure, yesDate)
+        val date = high.slots.entries.first { it.key.json == "letter_date" }.value
+        assertThat(date.aiConfidence).isEqualTo(com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner.HIGH)
+        assertThat(date.notes.any { it.startsWith("score margin +") }).isTrue()
+        // The same scores under cuts that want a bigger margin give a lower word.
+        val strict = ScoringProfile(cuts = ScoreCuts(mediumMargin = 1.0, highMargin = 50.0))
+        val (medium, _) = run(strict, yesDate)
+        assertThat(medium.slots.entries.first { it.key.json == "letter_date" }.value.aiConfidence)
+            .isLessThan(com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner.HIGH)
+        // A winner that the model itself answers No to (a low absolute score) is LOW, whatever its margin.
+        val cautious = ScoringProfile(cuts = ScoreCuts(mediumMargin = 0.0, mediumBest = 100.0, highMargin = 5.0, highBest = 100.0))
+        val (low, _) = run(cautious, yesDate)
+        assertThat(low.slots.entries.first { it.key.json == "letter_date" }.value.aiConfidence)
+            .isAtMost(com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner.UNKNOWN)
+    }
+
+    @Test
+    fun `the cuts put a score in a bucket`() {
+        val cuts = ScoreCuts(mediumMargin = 0.1, mediumBest = -0.25, highMargin = 0.2, highBest = 0.0)
+        assertThat(cuts.word(0.5, 0.3)).isEqualTo("HIGH")
+        assertThat(cuts.word(0.5, -0.1)).isEqualTo("MEDIUM") // a big margin, but the winner itself is under the HIGH line
+        assertThat(cuts.word(0.15, 0.3)).isEqualTo("MEDIUM")
+        assertThat(cuts.word(0.05, 0.3)).isEqualTo("LOW")
+        assertThat(cuts.word(0.5, -0.4)).isEqualTo("LOW")
+    }
+
+    @Test
+    fun `the sender falls back to the footer and no other party has a fallback`() {
+        assertThat(SlotPlacements.partyFallback(QuestionNames.SENDER).map { it.tag }).containsExactly("footer")
+        assertThat(SlotPlacements.partyFallback(QuestionNames.ADDRESSEE)).isEmpty()
+    }
+
+    @Test
     fun `the schema's core slots all have a statement of their own`() {
         for (slot in Slots.CORE) assertThat(ScoringDescriptions.ofSlot(slot)).doesNotContain("the ${slot.label.lowercase()}")
         assertThat(ExtractionSchema.DEFAULT.types.all { it.description.isNotBlank() }).isTrue()

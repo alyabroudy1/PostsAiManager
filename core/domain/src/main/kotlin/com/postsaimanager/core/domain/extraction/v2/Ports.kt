@@ -130,6 +130,8 @@ data class RawParty(
      * usually holds (a name outside the address field as addressee). Allowed, but the verifier caps it.
      */
     val zoneNote: String? = null,
+    /** A scoring interpreter's raw numbers behind [confidence] (the margin and the winner's score), shown in the value's notes; it changes nothing. */
+    val scoreNote: String? = null,
 )
 
 /** One value slot as the model wrote it, never checked yet. */
@@ -143,6 +145,8 @@ data class RawSlot(
     val confidence: String? = null,
     /** Like [RawParty.zoneNote]: the answer contradicts the zone's hint. */
     val zoneNote: String? = null,
+    /** Like [RawParty.scoreNote]. */
+    val scoreNote: String? = null,
 )
 
 /**

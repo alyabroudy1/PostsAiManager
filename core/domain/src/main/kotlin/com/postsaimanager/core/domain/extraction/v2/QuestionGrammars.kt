@@ -51,7 +51,7 @@ object QuestionGrammars {
     fun type(schema: ExtractionSchema): String = render(
         "root" to "tid \" \" lang \" \" conf",
         "tid" to words(schema.types.map { it.id }),
-        "lang" to "[a-z] [a-z] [a-z]? (\"-\" [A-Za-z0-9]+)?",
+        "lang" to LANG,
         CONF,
     )
 
@@ -127,6 +127,24 @@ object QuestionGrammars {
      */
     fun extras(ids: List<String>): String = render(
         "root" to "${word(NONE)} | entry (\"$LIST_SEPARATOR\" entry)*",
+        *extraEntryRules(ids),
+    )
+
+    /**
+     * The language of the letter and, after it, up to [StructuredGrammar.MAX_EXTRAS] extras in the shape of [extras]:
+     * `de` or `de; N4 "Zählernummer" meter_number "" MEDIUM; NONE "Klasse" school_class "2a" MEDIUM`. One answer, so one
+     * generation; the list is bounded by nested optional repeats ([GrammarSyntax.list]), never `{m,n}`.
+     */
+    fun languageAndExtras(ids: List<String>): String = render(
+        "root" to "lang (\"$LIST_SEPARATOR\" ${GrammarSyntax.list("entry", StructuredGrammar.MAX_EXTRAS, "\"$LIST_SEPARATOR\"")})?",
+        "lang" to LANG,
+        *extraEntryRules(ids),
+    )
+
+    /** `[a-z]{2,3}` with an optional region or script subtag, as BCP-47 writes it (written out: no `{m,n}`). */
+    private const val LANG = "[a-z] [a-z] [a-z]? (\"-\" [A-Za-z0-9]+)?"
+
+    private fun extraEntryRules(ids: List<String>): Array<Pair<String, String>> = arrayOf(
         "entry" to "xid \" \" qstr \" \" xkey \" \" qstr0 \" \" conf",
         "xid" to (ids + NONE).joinToString(" | ") { word(it) },
         "xkey" to "[a-z] [a-z_]+",
