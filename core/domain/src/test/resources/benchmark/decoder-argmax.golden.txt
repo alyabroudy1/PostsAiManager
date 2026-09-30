@@ -46,7 +46,6 @@ slot reference N2 NU/REM/2026/03318 null 0.7 0.7 [score margin +0.06 (winner +1.
 slot total A1 142.80 GBP TOTAL_DUE 0.9 0.9 [score margin +0.23 (winner +0.39 of 2)]
 party SENDER M1 Northwind Utilities Ltd. COMPANY NONE 0.9 [score margin +0.93 (winner +0.93 of 1)]
 party ADDRESSEE M2 Mr John Sample PERSON NONE 0.7 [score margin +0.14 (winner +0.14 of 1)]
-party CARE_OF M2 Mr John Sample PERSON NONE 0.7 [score margin -0.22 (winner -0.22 of 1)]
 extra 57.00 GBP
 == receipt-noise-1p
 type receipt language ar
@@ -93,7 +92,6 @@ party SENDER M3 Nordlicht Mobilfunk GmbH COMPANY NONE 0.9 [score margin +1.24 (w
 party ADDRESSEE M1 Erika Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.84 (winner +0.84 of 1)]
 party CARE_OF M1 Erika Mustermann PERSON NONE 0.9 [score margin +0.92 (winner +0.92 of 1)]
 party ROUTING M7 Team Forderungen COMPANY NONE 0.9 [score margin +1.03 (winner +1.03 of 1)]
-party SUBJECT_PERSON M2 Position PERSON NONE 0.4 [the name is a guess from its position, score margin +0.12 (winner -0.33 of 4)]
 extra 5.00 EUR
 extra 59.98 EUR
 extra 2026-08-19
@@ -110,7 +108,6 @@ slot total A2 612.40 EUR TOTAL_DUE 0.9 0.9 [score margin +0.46 (winner -0.10 of 
 party SENDER M1 Nordstern Direkt Versicherung AG COMPANY NONE 0.9 [score margin +0.60 (winner +0.60 of 1)]
 party ADDRESSEE M3 Max und Erika Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.38 (winner +0.97 of 2)]
 party CARE_OF M3 Max und Erika Mustermann PERSON NONE 0.9 [score margin +0.63 (winner +0.62 of 2)]
-party SUBJECT_PERSON M5 Kfz-Haftpflicht und Teilkasko COMPANY NONE 0.9 [score margin +0.45 (winner -0.38 of 3)]
 extra 579.10 EUR
 extra 01234 555 210
 == N3-schule-familie-2p
@@ -138,7 +135,6 @@ party SENDER M4 Büro-Partner Beispiel KG COMPANY NONE 0.9 [score margin +0.81 (
 party ADDRESSEE M1 Mustermann Consulting GmbH COMPANY NONE 0.9 [score margin +0.22 (winner +0.91 of 2)]
 party CARE_OF M2 Frau Erika Mustermann PERSON NONE 0.7 [score margin +0.11 (winner +1.14 of 2)]
 party ROUTING M9 Herr T. Muster PERSON NONE 0.9 [score margin +0.29 (winner +0.29 of 1)]
-party SUBJECT_PERSON M1 Mustermann Consulting GmbH COMPANY NONE 0.9 [score margin +0.45 (winner -0.47 of 4)]
 extra vertrieb@buero-partner.example
 extra 2026-12-31
 extra 01234 888 44
@@ -158,7 +154,6 @@ party SENDER M1 Universität Beispielstadt AUTHORITY NONE 0.9 [score margin +0.2
 party ADDRESSEE M3 Jonas Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.33 (winner +0.40 of 2)]
 party CARE_OF M3 Jonas Mustermann PERSON NONE 0.9 [score margin +0.74 (winner +0.17 of 2)]
 party ROUTING M8 Frau L. Test PERSON NONE 0.9 [score margin +0.25 (winner +0.25 of 1)]
-party SUBJECT_PERSON M2 Studierendensekretariat COMPANY NONE 0.4 [the name is a guess from its position, score margin -0.60 (winner -0.60 of 1)]
 extra O1234
 == N6-nebenkosten-3p
 type bill language de
@@ -173,7 +168,6 @@ party SENDER M3 Hausverwaltung Beispiel GmbH COMPANY NONE 0.9 [score margin +0.6
 party ADDRESSEE M1 Mohammad Mustermann PERSON NONE 0.9 [score margin +0.50 (winner +0.50 of 1)]
 party CARE_OF M1 Mohammad Mustermann PERSON NONE 0.7 [score margin +0.12 (winner +0.12 of 1)]
 party ROUTING M7 Frau H. Muster PERSON NONE 0.7 [score margin +0.15 (winner +0.15 of 1)]
-party SUBJECT_PERSON M8 Ihr Anteil € PERSON NONE 0.4 [score margin +0.04 (winner -0.79 of 3)]
 extra 186.32 EUR
 extra 301.77 EUR
 == N7-beitragsservice-1p
@@ -190,7 +184,6 @@ slot total A1 55.08 EUR TOTAL_DUE 0.9 0.9 [score margin +0.82 (winner +0.82 of 1
 party SENDER M3 Beitragsservice Beispiel COMPANY NONE 0.9 [score margin +0.35 (winner +0.35 of 1)]
 party ADDRESSEE M1 Erika Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.84 (winner +0.84 of 1)]
 party CARE_OF M1 Erika Mustermann PERSON NONE 0.9 [score margin +0.92 (winner +0.92 of 1)]
-party SUBJECT_PERSON M2 Zeitraum COMPANY NONE 0.4 [the name is a guess from its position, score margin +0.09 (winner -0.87 of 3)]
 extra BELADEBEXXX
 extra 2026-12-31
 == N8-info-bank-noaction-1p
@@ -217,8 +210,6 @@ slot total A1 78.00 EUR TOTAL_DUE 0.9 0.9 [score margin +0.83 (winner +0.83 of 1
 party SENDER M4 Energie Beispielstadt GmbH COMPANY NONE 0.9 [score margin +0.97 (winner +0.97 of 1)]
 party ADDRESSEE M1 Mohamad Mustermann PERSON NONE 0.9 [score margin +0.29 (winner +0.29 of 1)]
 party CARE_OF M1 Mohamad Mustermann PERSON NONE 0.9 [score margin +0.31 (winner +0.31 of 1)]
-party ROUTING M7 Zeitraum PERSON NONE 0.4 [the name is a guess from its position, score margin -0.89 (winner -0.89 of 1)]
-party SUBJECT_PERSON M2 Leistung COMPANY NONE 0.9 [the name is a guess from its position, score margin +0.74 (winner -0.44 of 2)]
 extra 01234 600
 extra 60012987
 extra 01234 600 10
@@ -233,5 +224,4 @@ party SENDER M1 Kinder- und Jugendarztpraxis Beispiel PERSON NONE 0.7 [score mar
 party ADDRESSEE M3 Adam Mustermann PERSON NONE 0.9 [score margin +1.03 (winner +0.98 of 3)]
 party CARE_OF M3 Adam Mustermann PERSON NONE 0.9 [score margin +0.70 (winner +0.97 of 3)]
 party ROUTING M7 Beispiel PERSON NONE 0.7 [the name is a guess from its position, score margin +0.02 (winner +0.02 of 1)]
-party SUBJECT_PERSON M3 Adam Mustermann PERSON NONE 0.9 [score margin +0.21 (winner -0.74 of 2)]
 extra 01234 700 20
