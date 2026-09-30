@@ -115,15 +115,7 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
     }
 
     private fun party(fields: List<ExtractedData>, party: DocumentParty): String? {
-        val row = when (party) {
-            DocumentParty.SENDER ->
-                fields.firstOrNull { it.slotKey == UnderstandingToFields.SLOT_SENDER }
-                    ?: fields.firstOrNull { it.slotKey == null && it.fieldName == UnderstandingToFields.SENDER_ORGANISATION }
-                    ?: fields.firstOrNull { it.slotKey == null && it.fieldName == UnderstandingToFields.SENDER_NAME }
-            DocumentParty.ADDRESSEE ->
-                fields.firstOrNull { it.slotKey == UnderstandingToFields.SLOT_ADDRESSEE }
-                    ?: fields.firstOrNull { it.slotKey == null && it.fieldName == UnderstandingToFields.RECEIVER_NAME }
-        }
+        val row = PartyFields.of(party, fields)
         val printed = row?.fieldValue?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         return partyNames.resolve(party, printed).trim().takeIf { it.isNotEmpty() }
     }

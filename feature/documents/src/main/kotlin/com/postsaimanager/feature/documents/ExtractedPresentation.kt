@@ -1,5 +1,6 @@
 package com.postsaimanager.feature.documents
 
+import com.postsaimanager.core.domain.document.list.PartyFields
 import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.SlotKind
@@ -130,17 +131,9 @@ object ExtractedPresenter {
             keys.firstNotNullOfOrNull { key -> live.firstOrNull { it.slotKey == key } }
                 ?: live.firstOrNull { it.slotKey == null && it.fieldName == legacyName }
 
-        val sender = live.firstOrNull { it.slotKey == UnderstandingToFields.SLOT_SENDER }
-            ?: live.firstOrNull {
-                it.slotKey == null &&
-                    (it.fieldName == UnderstandingToFields.SENDER_ORGANISATION || it.fieldName == UnderstandingToFields.SENDER_NAME)
-            }
-        val addressee = live.firstOrNull { it.slotKey == UnderstandingToFields.SLOT_ADDRESSEE }
-            ?: live.firstOrNull { it.slotKey == null && it.fieldName == UnderstandingToFields.RECEIVER_NAME }
-
         return SummaryCard(
-            from = line(sender),
-            forWhom = line(addressee),
+            from = line(PartyFields.sender(live)),
+            forWhom = line(PartyFields.addressee(live)),
             typeId = document.extractionType,
             amount = line(bySlot(amountKeys, UnderstandingToFields.AMOUNT)),
             due = line(bySlot(dueKeys, UnderstandingToFields.DEADLINE)),
