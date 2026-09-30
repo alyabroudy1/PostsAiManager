@@ -1,6 +1,7 @@
 package com.postsaimanager.core.ai.catalog
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -14,6 +15,15 @@ import org.junit.jupiter.api.Test
  * wrong bytes, and none is visible in review.
  */
 class BundledCatalogTest {
+
+    @Test
+    @DisplayName("every catalogue model has a reading profile, so none silently falls back to the single call")
+    fun `every catalogue model id has a model profile`() {
+        BundledCatalog.models.forEach { model ->
+            assertThat(ModelProfiles.isKnown(model.id)).isTrue()
+            assertThat(ModelProfiles.of(model.id).modelId).isEqualTo(model.id)
+        }
+    }
 
     @Test
     @DisplayName("every model can actually be installed")

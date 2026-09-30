@@ -71,6 +71,10 @@ class ZoneScoringInterpreter(
     override val maxTextTokens: Int = QuestionnairePrompt.QUESTION_RESERVE_TOKENS
 
     val transcript: List<AskRecord> get() = records
+
+    /** Structure only (see [DocumentInterpreter.trace]): the template, the zones, and per question the pick, its zone and its scores. */
+    override val trace: List<String> get() = traceLines
+    private val traceLines = ArrayList<String>()
     private val records = ArrayList<AskRecord>()
 
     var prefixTokens: Int = 0
@@ -114,6 +118,7 @@ class ZoneScoringInterpreter(
     override suspend fun interpret(request: InterpretationRequest): InterpretationOutcome {
         records.clear()
         scored.clear()
+        traceLines.clear()
         failures = 0
         writingOpen = false
         prefixTokens = 0
@@ -122,6 +127,7 @@ class ZoneScoringInterpreter(
         val setup = ZoneSetup(engine, layout, request.offered, matcher, request.pageAspect)
         templateId = setup.template.id
         templateScore = setup.match.score
+        traceSetup(setup)
         return try {
             InterpretationOutcome.Answered(read(setup, request.direction), transcriptText(), ZonePrompt.scoringSystem(setup.template), "")
         } catch (e: Abort) {
@@ -184,6 +190,7 @@ class ZoneScoringInterpreter(
         val bodySlots = (Slots.CORE + docType.slots).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) }
         (bodySlots + deferred).forEach { slot(setup, s, it, widen = true) }
         redecide(setup, s)
+        traceFinal(setup, s)
 
         // Everything that is decided is decided; what is left is writing. The scoring session's instruction is "answer Yes or No"
         // and a small model obeys it over any question (measured: the language, the title, the summary were all "Yes"), so the
@@ -196,6 +203,38 @@ class ZoneScoringInterpreter(
             type = type.first, typeConfidence = type.second, language = language,
             parties = s.parties.take(StructuredGrammar.MAX_PARTIES), slots = s.slots, extras = if (writingOpen) nameExtras(setup, picked) else emptyList(),
         )
+    }
+
+    private fun traceSetup(setup: ZoneSetup) {
+        val m = setup.match
+        val top = m.scores.entries.sortedByDescending { it.value }.take(3).joinToString(" ") { it.key + String.format(Locale.ROOT, "=%.2f", it.value) }
+        traceLines += String.format(Locale.ROOT, "template=%s score=%.2f fallback=%s top=[%s]", setup.template.id, m.score, m.isFallback, top)
+        val zoned = setup.zoned
+        val zones = LetterZone.entries.filter { zoned.hasText(it) }.joinToString(" ") { z ->
+            "${z.tag}(lines=${zoned.lines(z).size},cands=${zoned.candidatesIn(listOf(z)).rows.size})"
+        }
+        traceLines += "zones $zones"
+    }
+
+    /** One scored question: how many candidates on which zones, the pick with its zones, kind and score, and the runner-up's score. */
+    private fun traceAsk(setup: ZoneSetup, name: String, zones: List<LetterZone>, cands: List<Candidate>, scores: List<Double>, best: Int?) {
+        val asked = zones.joinToString("+") { it.tag }
+        if (best == null) {
+            traceLines += "ask $name zones=$asked cands=${cands.size} pick=none"
+            return
+        }
+        val second = scores.indices.filter { it != best }.maxOfOrNull { scores[it] }
+        val c = cands[best]
+        traceLines += String.format(
+            Locale.ROOT, "ask %s zones=%s cands=%d pick=%s kind=%s in=%s best=%+.2f second=%s", name, asked, cands.size, c.id, c.kind.name,
+            setup.zoned.zonesOfCandidate(c.id).joinToString("+") { it.tag }, scores[best], second?.let { String.format(Locale.ROOT, "%+.2f", it) } ?: "-",
+        )
+    }
+
+    private fun traceFinal(setup: ZoneSetup, s: State) {
+        fun where(id: String) = setup.zoned.zonesOfCandidate(id).joinToString("+") { it.tag }
+        s.parties.forEach { traceLines += "final party ${it.role} id=${it.id} kind=${it.kind} in=${where(it.id)} conf=${it.confidence}" }
+        s.slots.forEach { (k, v) -> traceLines += "final slot $k id=${v.id ?: v.ids.joinToString(",")} in=${v.id?.let(::where).orEmpty()} conf=${v.confidence}" }
     }
 
     /** A value picked as an extra: the candidate and the score that picked it. */
@@ -266,6 +305,7 @@ class ZoneScoringInterpreter(
         val order = scores.indices.sortedByDescending { scores[it] }
         val best = order.first()
         val margin = if (order.size > 1) scores[best] - scores[order[1]] else scores[best]
+        traceLines += "type offered=${types.size} " + order.take(3).joinToString(" ") { types[it].id + String.format(Locale.ROOT, "=%+.2f", scores[it]) }
         return types[best].id to profile.confidence(margin)
     }
 
@@ -296,6 +336,7 @@ class ZoneScoringInterpreter(
         collect(name, cands, scores, role = role, slot = null, block = block)
         val allowed = scores.indices.filter { role == PartyRole.SENDER || cands[it].id != s.senderId }
         val ranked = allowed.sortedByDescending { scores[it] }
+        traceAsk(setup, name, zones, cands, scores, ranked.firstOrNull())
         val best = ranked.firstOrNull() ?: return true
         val threshold = profile.threshold(name)
         if (scores[best] <= threshold) return true
@@ -365,6 +406,7 @@ class ZoneScoringInterpreter(
         val threshold = profile.threshold(name)
         val order = scores.indices.sortedByDescending { scores[it] }
         val best = order.first()
+        traceAsk(setup, name, asked, cands, scores, best)
         if (scores[best] <= threshold) return true
         val (confidence, note) = confidenceOf(scores[best], order.getOrNull(1)?.let { scores[it] }, order.size)
         s.slots[slot.json] = if (slot.kind == SlotKind.REFERENCE_LIST) {

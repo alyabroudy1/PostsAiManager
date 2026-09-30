@@ -262,6 +262,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 )
 
                 val read = (understanding as? PamResult.Success)?.data
+                read?.let { logReadingTrace(documentId, it.readingTrace) }
                 // Something was read: by the model, or (no model) only found by code.
                 val usedV2 = read != null &&
                     (read.entities.isNotEmpty() || read.facts.isNotEmpty() || read.documentType.isNotBlank())
@@ -539,6 +540,18 @@ class DocumentProcessingPipeline @Inject constructor(
                 PamResult.Error(PamError.ExtractionFailed(detail = detail, cause = e))
             }
         }
+    }
+
+    /**
+     * The reading's structure in logcat: the chosen model, profile and interpreter always (an unknown model
+     * is a warning), the rest (template, zones, candidate counts, ids and scores) only in a debuggable build.
+     * Structure only: [DocumentUnderstanding.readingTrace] never holds a word of the letter.
+     */
+    private fun logReadingTrace(documentId: String, trace: List<String>) {
+        val header = trace.firstOrNull() ?: return
+        if (header.contains("profile=UNKNOWN")) Log.w(TAG, "reading $documentId: $header (no profile, fallback strategy)") else Log.i(TAG, "reading $documentId: $header")
+        val debuggable = (appContext.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (debuggable) trace.drop(1).forEach { Log.i(TAG, "reading $documentId: $it") }
     }
 
     /**

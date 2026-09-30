@@ -84,6 +84,7 @@ class ExtractionV2Adapter : UnderstandingAdapter {
             summary = result.freeText.summary?.value.orEmpty(),
             suggestedQuestions = result.freeText.suggestedQuestions,
             modelUsed = result.diagnostics.modelUsed,
+            readingTrace = result.diagnostics.trace,
         )
     }
 

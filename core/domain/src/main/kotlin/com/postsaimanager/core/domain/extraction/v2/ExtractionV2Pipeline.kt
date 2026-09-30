@@ -58,7 +58,7 @@ class ExtractionV2Pipeline(
         val textOutcome = interpreter.writeText(TextRequest(layout.describe(textBudget).text, outcome.raw.type))
         val written = textOutcome as? TextOutcome.Written
 
-        return verifier.verify(
+        val verified = verifier.verify(
             outcome.raw,
             written?.text,
             VerificationContext(
@@ -75,6 +75,29 @@ class ExtractionV2Pipeline(
                 rawText = written?.rawText,
                 textError = (textOutcome as? TextOutcome.Failed)?.reason,
             ),
+        )
+        return verified.withTrace(layoutTrace(pages, layout, candidates, offered, description) + interpreter.trace)
+    }
+
+    private fun ExtractionV2Result.withTrace(lines: List<String>) = copy(diagnostics = diagnostics.copy(trace = lines))
+
+    /** The letter's shape, counts only: pages and their blocks and lines per zone, candidates per kind, what was sent. */
+    private fun layoutTrace(
+        pages: List<List<OcrBlock>>,
+        layout: LetterLayout,
+        candidates: CandidateSet,
+        offered: OfferedCandidates,
+        description: LayoutDescription,
+    ): List<String> {
+        val perPage = layout.pages.joinToString(",") { p ->
+            "p${p.pageNumber}:${pages.getOrNull(p.pageNumber - 1)?.size ?: 0}blocks/${p.lines.size}lines/${p.lines.count { it.isNoise }}noise"
+        }
+        val perZone = layout.pages.firstOrNull()?.lines.orEmpty().filter { !it.isNoise }.groupingBy { it.zone.tag }.eachCount()
+        val perKind = candidates.candidates.groupingBy { it.kind.name }.eachCount()
+        return listOf(
+            "layout pages=[$perPage] page1Zones=$perZone",
+            "candidates found=${candidates.candidates.size} offered=${offered.size} byKind=$perKind dropped=${offered.dropped.mapKeys { it.key.name }}",
+            "layoutText sent=${description.text.length} complete=${description.isComplete} pagesRead=${description.pagesRead}/${description.totalPages}",
         )
     }
 

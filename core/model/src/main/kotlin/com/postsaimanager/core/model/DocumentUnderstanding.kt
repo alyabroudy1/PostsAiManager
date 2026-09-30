@@ -169,6 +169,13 @@ data class DocumentUnderstanding(
      * roles or meaning. A caller must not link entities or trust the facts as it would a reading.
      */
     val modelUsed: Boolean = true,
+
+    /**
+     * What the reading did, as structure only (which interpreter, which layout template, zone and candidate
+     * counts, the ids and scores chosen): never a word of the letter. For diagnostics; the data layer logs it
+     * in a debug build and nothing stores it.
+     */
+    val readingTrace: List<String> = emptyList(),
 ) {
     val sender: RecognisedEntity? get() = entities.firstOrNull { it.role == EntityRole.SENDER }
 

@@ -163,6 +163,8 @@ data class Diagnostics(
     /** The structured call's grammar and prompt, for tests and the benchmark. Never part of the result proper. */
     val grammar: String? = null,
     val prompt: String? = null,
+    /** The reading's structure, no letter text (see [DocumentInterpreter.trace]); the pipeline adds the layout's own lines. */
+    val trace: List<String> = emptyList(),
 ) {
     val layoutComplete: Boolean get() = layoutCharsSent >= layoutCharsTotal
 }

@@ -63,6 +63,15 @@ class TextRequest(
  */
 interface DocumentInterpreter {
 
+    /** Which interpreter this is, for the reading trace. */
+    val name: String get() = this::class.simpleName ?: "interpreter"
+
+    /**
+     * What the last [interpret] did, as structure only: the layout template, zones, candidate counts, the
+     * ids chosen and their scores. Never a word of the letter, so it is safe to log in a debug build.
+     */
+    val trace: List<String> get() = emptyList()
+
     /** Tokens call 1 may use; the pipeline subtracts them from the context window. */
     val maxAnswerTokens: Int
 

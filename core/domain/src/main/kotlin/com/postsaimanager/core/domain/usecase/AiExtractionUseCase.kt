@@ -8,6 +8,7 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.InterpreterFactory
 import com.postsaimanager.core.domain.extraction.v2.ModelDocumentInterpreter
+import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.OcrBlock
@@ -66,10 +67,15 @@ class AiExtractionUseCase @Inject constructor(
         val config = contextTokens?.let { baseConfig.copy(contextTokens = it) } ?: baseConfig
         val window = config.contextTokens
 
-        val interpreter = loadedInterpreter(config)
+        val modelId = activeModelProvider.extractionModelId()
+        val interpreter = loadedInterpreter(config, modelId)
 
         val result = pipeline.run(pages(blocks, pageBlockCounts), interpreter, window)
-        val understanding = adapter.adapt(result)
+        // What was chosen to read with, first in the trace: the strategy follows from the model's profile, and an
+        // unknown model silently reading with the fallback is exactly what a trace must make visible.
+        val header = "model=${modelId ?: "none"} profile=${if (ModelProfiles.isKnown(modelId)) "known" else "UNKNOWN"} " +
+            "interpreter=${interpreter?.name ?: "none"} window=$window"
+        val understanding = adapter.adapt(result).let { it.copy(readingTrace = listOf(header) + it.readingTrace) }
         val truncation = understanding.inputTruncation
         return PamResult.Success(
             if (truncation != null && pageBlockCounts.isEmpty()) {
@@ -86,10 +92,10 @@ class AiExtractionUseCase @Inject constructor(
      * engine may be ready on the chat model, or on this model with a stale configuration, and `load`
      * is cheap when nothing changed.
      */
-    private suspend fun loadedInterpreter(config: InferenceConfig): DocumentInterpreter? {
+    private suspend fun loadedInterpreter(config: InferenceConfig, modelId: String?): DocumentInterpreter? {
         val path = activeModelProvider.extractionModelPath() ?: return null
         if (engine.load(path, config) is PamResult.Error) return null
-        return interpreters.create(config.contextTokens, activeModelProvider.extractionModelId())
+        return interpreters.create(config.contextTokens, modelId)
     }
 
     private fun pages(blocks: List<OcrBlock>, counts: List<Int>): List<List<OcrBlock>> {

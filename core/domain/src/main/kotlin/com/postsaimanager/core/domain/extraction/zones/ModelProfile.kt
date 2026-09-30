@@ -87,7 +87,16 @@ object ModelProfiles {
 
     val ALL: List<ModelProfile> = listOf(QWEN35_08B, QWEN35_2B, QWEN35_4B, GEMMA4_E2B, GEMMA4_E4B)
 
-    fun of(modelId: String?): ModelProfile = ALL.firstOrNull { it.modelId == modelId } ?: FALLBACK
+    /** The profile of [modelId] (matched ignoring case and surrounding blanks), or [FALLBACK] for a model with none. */
+    fun of(modelId: String?): ModelProfile = find(modelId) ?: FALLBACK
+
+    /** Whether [modelId] has a registered profile; a model without one reads with the fallback strategy and is reported in the reading trace. */
+    fun isKnown(modelId: String?): Boolean = find(modelId) != null
+
+    private fun find(modelId: String?): ModelProfile? {
+        val key = modelId?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: return null
+        return ALL.firstOrNull { it.modelId.lowercase() == key }
+    }
 }
 
 /**
