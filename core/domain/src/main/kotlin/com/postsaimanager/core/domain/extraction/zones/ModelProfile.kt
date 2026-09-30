@@ -65,6 +65,12 @@ object ModelProfiles {
             // buffer under the 50% ceiling, found no LOW set of its own (held out, its best was 63% right on 8 answers), so this LOW cut
             // was chosen from the table, not by the fitter. MEDIUM is the rest (66%).
             cuts = ScoreCuts(mediumMargin = Double.NEGATIVE_INFINITY, mediumBest = -0.25, highMargin = 0.2, highBest = Double.NEGATIVE_INFINITY),
+            // Experiment E1 (DecoderEvalTest, recorded scores of the 16 letters): one value answers one question, so a question's
+            // best candidate goes to the question that needs it more. Field match 70.3% -> 74.7% (three letters: a reminder's fee
+            // and total, a reference and a customer number, a customer number), roles unchanged at 86.7%, hallucination 0%. The
+            // plain joint assignment has no number to fit; every variant with a tuned weight or a calibration did no better
+            // held out (the date-order penalty and the net + VAT = gross bonus tuned to nothing or hurt one letter).
+            decoder = DecoderSpec(DecoderKind.JOINT),
         ),
     )
 

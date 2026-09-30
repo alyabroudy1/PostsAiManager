@@ -17,6 +17,8 @@ data class ScoringProfile(
     val highMargin: Double = 3.0,
     /** The cut points of a slot's or a party's confidence; see [ScoreCuts]. */
     val cuts: ScoreCuts = ScoreCuts(),
+    /** How the scores of all questions are combined into the answers ([SlotDecoder]); the per-slot argmax by default. */
+    val decoder: DecoderSpec = DecoderSpec(),
 ) {
     fun threshold(ask: String): Double = thresholds[ask] ?: defaultThreshold
 

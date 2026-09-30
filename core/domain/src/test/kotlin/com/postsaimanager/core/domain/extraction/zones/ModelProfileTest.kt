@@ -31,6 +31,7 @@ class ModelProfileTest {
     fun `the smallest model reads by scoring, the strategy the benchmark chose for it`() {
         val p = ModelProfiles.of("qwen3.5-0.8b-q4_k_m")
         assertThat(p.strategy).isEqualTo(InterpreterStrategy.ZONES_SCORING)
+        assertThat(p.scoring.decoder.kind).isEqualTo(DecoderKind.JOINT)
         assertThat(factory.create(32768, "qwen3.5-0.8b-q4_k_m")).isInstanceOf(ZoneScoringInterpreter::class.java)
     }
 
