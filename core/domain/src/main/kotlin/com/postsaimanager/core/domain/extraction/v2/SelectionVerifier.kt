@@ -499,17 +499,12 @@ class SelectionVerifier(
             )
         }
 
-        /** Each sentence must be in the letter for the summary to count as quoted; otherwise it is an AI summary. */
-        private fun verifySummary(text: String): SlotValue {
-            val sentences = text.split(Regex("(?<=[.!?؟。])\\s+")).map { it.trim() }.filter { it.isNotEmpty() }
-            val matches = sentences.map { QuoteVerifier.verify(it, ctx.ocrText) }
-            if (sentences.isNotEmpty() && matches.all { it != null }) {
-                val weakest = matches.filterNotNull().map { it.match }.maxBy { it.ordinal }
-                val combined = ConfidenceCombiner.combine(freeTextAi, listOf(quoteCheck(weakest)))
-                return quotedSlotValue(null, text, freeTextAi, combined, weakest).copy(page = pageOf(sentences.first()))
-            }
-            return generated(text, "AI summary").copy(notes = listOf("AI summary: not every sentence is in the letter"))
-        }
+        /**
+         * A summary is always the model's own words. Being quoted from the letter is not a merit (it rewards copying a line),
+         * so there is no "quoted" tier; the facts in it are checked by `SummaryGate`.
+         */
+        private fun verifySummary(text: String): SlotValue =
+            generated(text, "AI summary").copy(notes = listOf("AI summary"))
 
         // ── extras ───────────────────────────────────────────────────────────────
 
