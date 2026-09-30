@@ -7,7 +7,10 @@ import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.FamilySource
+import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.SourceType
+import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.model.ValueSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -145,23 +148,71 @@ class FakeDocumentRepository : DocumentRepository {
 
     override suspend fun confirmExtractedField(fieldId: String): PamResult<Unit> = guard {
         extracted.value = extracted.value.mapValues { (_, fields) ->
-            fields.map { if (it.id == fieldId) it.copy(isConfirmed = true) else it }
+            fields.map { if (it.id == fieldId) it.copy(isConfirmed = true, reviewState = ReviewState.CONFIRMED) else it }
         }
         PamResult.Success(Unit)
     }
 
-    override suspend fun confirmAllExtractedFields(documentId: String): PamResult<List<ExtractedData>> = guard {
+    override suspend fun confirmAllExtractedFields(
+        documentId: String,
+        onlyConfident: Boolean,
+    ): PamResult<List<ExtractedData>> = guard {
         val current = extracted.value[documentId].orEmpty()
-        val toConfirm = current.filter { !it.isConfirmed && !it.deletedByUser }
+        val toConfirm = current.filter {
+            !it.isConfirmed && !it.deletedByUser && (!onlyConfident || !it.needsReview)
+        }
         if (toConfirm.isNotEmpty()) {
             val confirmIds = toConfirm.map { it.id }.toSet()
             extracted.value = extracted.value + (
                 documentId to current.map {
-                    if (it.id in confirmIds) it.copy(isConfirmed = true, source = ValueSource.USER) else it
+                    if (it.id in confirmIds) {
+                        it.copy(isConfirmed = true, source = ValueSource.USER, reviewState = ReviewState.CONFIRMED)
+                    } else {
+                        it
+                    }
                 }
                 )
         }
         PamResult.Success(toConfirm)
+    }
+
+    override suspend fun setFieldReviewState(fieldId: String, state: ReviewState): PamResult<Unit> = guard {
+        if (extracted.value.values.none { fields -> fields.any { it.id == fieldId } }) {
+            return@guard PamResult.Error(PamError.DatabaseError())
+        }
+        extracted.value = extracted.value.mapValues { (_, fields) ->
+            fields.map {
+                if (it.id != fieldId) {
+                    it
+                } else {
+                    it.copy(
+                        reviewState = state,
+                        isConfirmed = state == ReviewState.CONFIRMED || state == ReviewState.EDITED,
+                        deletedByUser = state == ReviewState.IGNORED,
+                        source = if (state == ReviewState.CONFIRMED || state == ReviewState.EDITED) ValueSource.USER else it.source,
+                    )
+                }
+            }
+        }
+        PamResult.Success(Unit)
+    }
+
+    override suspend fun setDocumentFamily(documentId: String, familyId: String): PamResult<Unit> = guard {
+        documents.value = documents.value.map {
+            if (it.id == documentId) it.copy(extractionType = familyId, familySource = FamilySource.USER) else it
+        }
+        PamResult.Success(Unit)
+    }
+
+    override suspend fun updateSummary(documentId: String, text: String): PamResult<Unit> = guard {
+        documents.value = documents.value.map {
+            if (it.id == documentId) {
+                it.copy(summary = text.trim(), summarySource = SummarySource.USER, summaryCode = null, summaryArgs = emptyList())
+            } else {
+                it
+            }
+        }
+        PamResult.Success(Unit)
     }
 
     override suspend fun restoreExtractedFields(fields: List<ExtractedData>): PamResult<Unit> = guard {

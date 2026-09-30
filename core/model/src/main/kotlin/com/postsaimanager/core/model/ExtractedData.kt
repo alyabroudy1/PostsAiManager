@@ -79,6 +79,18 @@ data class ExtractedData(
 
     /** Where on [pageNumber] the evidence sits, in the page's own scale-free coordinates. */
     val bbox: TextBounds? = null,
+
+    /**
+     * The owner of review state. [isConfirmed] and [deletedByUser] stay as plain stored properties
+     * so every existing caller keeps compiling, and are kept in step with this one: the default
+     * derives it from them when a caller only knows the old flags, the mapper writes all three
+     * together, and `MergeExtractionUseCase` sets both on every edit, confirm and delete. Readers
+     * that decide protection ask this.
+     */
+    val reviewState: ReviewState = ReviewState.fromFlags(isConfirmed, deletedByUser, source),
+
+    /** The runner-up readings for this slot (the Edit sheet's chips), best first; empty when there were none. */
+    val alternatives: List<FieldAlternative> = emptyList(),
 ) {
     /** True for an open extra: something the model found that no fixed slot covers, keyed by its printed label. */
     val isExtra: Boolean get() = slotKey?.startsWith(EXTRA_KEY_PREFIX) == true
@@ -123,6 +135,16 @@ data class ExtractedData(
         const val LOW_CONFIDENCE = 0.75f
     }
 }
+
+/** A runner-up reading of a slot: what else the letter offered, how it scored and where it sits. */
+@Serializable
+data class FieldAlternative(
+    val value: String,
+    val normalized: String? = null,
+    val score: Float? = null,
+    val page: Int? = null,
+    val bbox: TextBounds? = null,
+)
 
 /**
  * One entry in a field's history.

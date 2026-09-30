@@ -40,6 +40,18 @@ data class DocumentEntity(
     /** See [com.postsaimanager.core.model.Document.titleCode]; [titleArgs] is a JSON list of strings. */
     val titleCode: String? = null,
     val titleArgs: String? = null,
+    /** JSON list of topic ids; see [com.postsaimanager.core.model.Document.topics]. */
+    val topics: String? = null,
+    /** `MODEL` or `USER`; null reads as `MODEL`. See `FamilySource`. */
+    val familySource: String? = null,
+    /** `DEFAULT`, `COMPOSED`, `MODEL` or `USER`; see `TitleSource`. */
+    val titleSource: String? = null,
+    /** `MODEL`, `TEMPLATE` or `USER`; see `SummarySource`. */
+    val summarySource: String? = null,
+    val summaryCode: String? = null,
+    /** JSON list of strings. */
+    val summaryArgs: String? = null,
+    val layoutTemplate: String? = null,
 )
 
 @Entity(
@@ -247,6 +259,10 @@ data class ExtractedDataEntity(
     val evidence: String? = null,
     /** JSON of a `TextBounds`. */
     val bbox: String? = null,
+    /** `UNREVIEWED`, `CONFIRMED`, `EDITED` or `IGNORED`; see `ReviewState`. Kept in step with [isConfirmed] and [deletedByUser]. */
+    val reviewState: String = "UNREVIEWED",
+    /** JSON list of `FieldAlternative`. */
+    val alternatives: String? = null,
 )
 
 /**

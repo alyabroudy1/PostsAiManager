@@ -38,7 +38,11 @@ data class Document(
     val extractionType: String? = null,
     /** The model's own confidence in [extractionType]. */
     val extractionTypeConfidence: Float? = null,
+<<<<<<< HEAD
     /** The topic ids the model found, best first (`health`, `tax`, ...); empty before a model read it. */
+=======
+    /** The topic ids the document concerns (`government`, `insurance`, ...), at most the few that scored above the cut. */
+>>>>>>> arch/p0b-db15
     val topics: List<String> = emptyList(),
     /** Which extractor version wrote this document's machine values; drives reprocessing on a version bump. */
     val extractorVersion: String? = null,
@@ -56,6 +60,17 @@ data class Document(
      */
     val titleCode: String? = null,
     val titleArgs: List<String> = emptyList(),
+    /** Who chose [extractionType] (the family) and [topics]; a re-read overwrites them only for [FamilySource.MODEL]. */
+    val familySource: FamilySource = FamilySource.MODEL,
+    /** Where [title] came from. */
+    val titleSource: TitleSource = TitleSource.DEFAULT,
+    /** Where [summary] came from; null when there is no summary. A re-read keeps it when it is [SummarySource.USER]. */
+    val summarySource: SummarySource? = null,
+    /** When the summary is a template, its code; [summaryArgs] are the values it is rendered from. */
+    val summaryCode: String? = null,
+    val summaryArgs: List<String> = emptyList(),
+    /** The id of the layout template the letter matched, for display and debugging; null when none. */
+    val layoutTemplate: String? = null,
 ) {
     val isTrashed: Boolean get() = deletedAt != null
 

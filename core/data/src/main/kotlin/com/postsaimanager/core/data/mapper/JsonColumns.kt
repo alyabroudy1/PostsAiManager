@@ -1,5 +1,6 @@
 package com.postsaimanager.core.data.mapper
 
+import com.postsaimanager.core.model.FieldAlternative
 import com.postsaimanager.core.model.TextBounds
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -18,6 +19,14 @@ internal object JsonColumns {
 
     fun decodeStrings(text: String?): List<String> =
         if (text.isNullOrBlank()) emptyList() else runCatching { json.decodeFromString(strings, text) }.getOrDefault(emptyList())
+
+    private val alternativeList = ListSerializer(FieldAlternative.serializer())
+
+    fun encodeAlternatives(values: List<FieldAlternative>): String? =
+        values.takeIf { it.isNotEmpty() }?.let { runCatching { json.encodeToString(alternativeList, it) }.getOrNull() }
+
+    fun decodeAlternatives(text: String?): List<FieldAlternative> =
+        if (text.isNullOrBlank()) emptyList() else runCatching { json.decodeFromString(alternativeList, text) }.getOrDefault(emptyList())
 
     fun encodeBounds(bounds: TextBounds?): String? =
         bounds?.let { runCatching { json.encodeToString(TextBounds.serializer(), it) }.getOrNull() }
