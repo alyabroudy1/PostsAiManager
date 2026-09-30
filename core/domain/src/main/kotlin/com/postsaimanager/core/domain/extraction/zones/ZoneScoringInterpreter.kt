@@ -112,9 +112,6 @@ class ZoneScoringInterpreter(
     /** The zones whose text the open session's prefix holds (none in the header session). */
     private var inPrefix: Set<LetterZone> = emptySet()
 
-    /** What every scoring batch of the open session says first: empty in the header session (its system prompt says it), [ZonePrompt.SCORING_INSTRUCTION] in the letter's. */
-    private var instruction = ""
-
     override fun promptOverheadChars(offered: OfferedCandidates): Int = OVERHEAD_CHARS
 
     override fun textOverheadChars(): Int = OVERHEAD_CHARS
@@ -127,6 +124,7 @@ class ZoneScoringInterpreter(
         val parties = ArrayList<RawParty>()
         val slots = LinkedHashMap<String, RawSlot>()
         var senderId: String? = null
+        val established = ArrayList<Pair<String, String>>()
     }
 
     override suspend fun interpret(request: InterpretationRequest): InterpretationOutcome {
@@ -139,7 +137,7 @@ class ZoneScoringInterpreter(
         unread = null
         failures = 0
         letter = null
-        instruction = ""
+        prescored.clear()
         prefixTokens = 0
         prefixMs = 0
         val layout = request.layout ?: return InterpretationOutcome.Failed("zones need the zoned layout", null, "", "")
@@ -148,84 +146,102 @@ class ZoneScoringInterpreter(
         templateScore = setup.match.score
         traceSetup(setup)
         return try {
-            InterpretationOutcome.Answered(read(setup, request.direction), transcriptText(), ZonePrompt.readerSystem(setup.template), "")
+            InterpretationOutcome.Answered(read(setup, request.direction), transcriptText(), ZonePrompt.scoringSystem(setup.template), "")
         } catch (e: Abort) {
             session.close()
-            InterpretationOutcome.Failed(e.reason, transcriptText().take(FAILED_RAW_CHARS), ZonePrompt.readerSystem(setup.template), "")
+            InterpretationOutcome.Failed(e.reason, transcriptText().take(FAILED_RAW_CHARS), ZonePrompt.scoringSystem(setup.template), "")
         }
     }
 
     private suspend fun read(setup: ZoneSetup, direction: DocDirection): RawInterpretation {
+        val plan = setup.plan
         val zoned = setup.zoned
+        val system = ZonePrompt.scoringSystem(setup.template)
         val s = State()
-        instruction = ""
 
         val partyNames = listOf(
             QuestionNames.SENDER to PartyRole.SENDER, QuestionNames.ADDRESSEE to PartyRole.ADDRESSEE, QuestionNames.CARE_OF to PartyRole.CARE_OF,
             QuestionNames.CONTACT to PartyRole.ROUTING, QuestionNames.SUBJECT_PERSON to PartyRole.SUBJECT_PERSON,
         )
+        fun isHeader(name: String, slot: SlotKey? = null) = plan.isHeader(plan.zones(name, slot))
 
-        // ── the letter's session: the whole letter is the prefix, under the neutral instruction; it scores, then writes ──
-        // One prefix for everything: the header's few lines, the body and the footer are decoded once, each batch says "answer Yes or No"
-        // itself (see [block]) and brings only its zone hints, and the writing of the second stage follows in the same session. (The
-        // header used to be a session of its own whose every question carried its zone's text again: about 150 tokens a batch.)
-        val zonesInPrefix = letterZones(setup)
-        val budget = openLetter(setup, zonesInPrefix) ?: throw Abort("the model could not read the letter")
+        val deferred = ArrayList<SlotKey>()
+        val deferredParties = ArrayList<Pair<String, PartyRole>>()
+
+        // ── header session: the header zones are the prefix ──
+        val headerParties = partyNames.filter { isHeader(it.first) }
+        val headerSlots = Slots.CORE.filter { isHeader(QuestionNames.slot(it.json), it) }
+        if (headerParties.isNotEmpty() || headerSlots.isNotEmpty()) {
+            // The prefix is the instructions only: each question carries its own zone (and, with neighbour context,
+            // a glimpse of the zones around it), so a zone is judged on its own text and hint.
+            val (head, closing) = setup.frame(system, ZonePrompt.HEADER_USER)
+            if (!tryOpen(head, closing, "header")) throw Abort("the model could not read the letter")
+            inPrefix = emptySet()
+            prescored.clear()
+            // Questions that bring the same zone block and ask about the same values are scored ahead as a grid (see [prescore]).
+            prescore(
+                setup,
+                headerParties.mapNotNull { partyAsk(setup, it.first, widen = false) } + headerSlots.mapNotNull { slotAsk(setup, it, widen = false) },
+            )
+            // A party whose header zones offered no name is asked again with the body, on the zones the registry names
+            // as its fallback (the sender's name is sometimes only in the footer).
+            headerParties.forEach { if (!party(setup, s, it.first, it.second, widen = false)) deferredParties += it }
+            headerSlots.forEach { if (!slot(setup, s, it, widen = false)) deferred += it }
+        }
+
+        // ── body session: body, footer and the header's summary are the prefix ──
+        val zonesInPrefix = bodyZones(setup)
+        val summary = ZonePrompt.summary(s.established)
+        val budget = openBody(setup, zonesInPrefix, summary) ?: throw Abort("the model could not read the letter")
         unread = zoned.coverage(zonesInPrefix, budget).takeIf { it.droppedLines > 0 }?.let { UnreadText(it.droppedLines, it.firstCutPage) }
         unread?.let { traceLines += "unread lines=${it.lines} firstCutPage=${it.firstCutPage} budgetChars=$budget" }
 
-        // The type, then everything it asks about. The questions that share a zone block and the same candidates (the reference slots, the
-        // date slots, the parties of one zone) are scored ahead as grids, so the block and each value are decoded once; the parties are
-        // decided first (the sender decides what the addressee cannot be), then the slots.
         val type = scoreType(direction)
         val docType = schema.type(type.first) ?: throw Abort("no document type scored")
-        val slots = (Slots.CORE + docType.slots).distinct()
+        val bodyParties = partyNames.filter { !isHeader(it.first) } + deferredParties
+        val bodySlots = (Slots.CORE + docType.slots).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) } + deferred
         prescored.clear()
-        prescore(setup, partyNames.mapNotNull { (name, _) -> partyAsk(setup, name, widen = true) } + slots.mapNotNull { slotAsk(setup, it, widen = true) })
-        partyNames.forEach { (name, role) -> party(setup, s, name, role, widen = true) }
-        slots.forEach { slot(setup, s, it, widen = true) }
+        prescore(setup, bodyParties.mapNotNull { partyAsk(setup, it.first, widen = true) } + bodySlots.mapNotNull { slotAsk(setup, it, widen = true) })
+        bodyParties.forEach { (name, role) -> party(setup, s, name, role, widen = true) }
+        bodySlots.forEach { slot(setup, s, it, widen = true) }
         val decoding = System.nanoTime()
         redecide(setup, s)
         timing("decode ms=${(System.nanoTime() - decoding) / NANOS_PER_MS} (includes the kind and household scoring of a changed answer)")
         traceFinal(setup, s)
 
         // Everything a person needs to see is decided: the type, the parties and the slots. The extras, the language and the free text
-        // are the second stage ([enrich]); the letter's session stays open for it (the letter is not read again).
+        // are the second stage ([enrich]); the body session stays open for it, and so does what it was told of the header.
         timing(
             String.format(
                 Locale.ROOT, "scoring total batches=%d scores=%d ms=%d msPerScore=%.0f", scoreBatches, scoreCount, scoreMs,
                 if (scoreCount > 0) scoreMs.toDouble() / scoreCount else 0.0,
             ),
         )
-        letter = LetterSession(setup, zonesInPrefix)
+        letter = LetterSession(setup, zonesInPrefix, budget)
         return RawInterpretation(
             type = type.first, typeConfidence = type.second, language = null,
-            parties = s.parties.take(StructuredGrammar.MAX_PARTIES), slots = s.slots,
+            parties = s.parties.take(StructuredGrammar.MAX_PARTIES), slots = s.slots, established = summary,
         )
     }
 
-    /** What the second stage needs of the first: the zoned letter and the zones the open session's prefix holds. */
-    private class LetterSession(val setup: ZoneSetup, val zonesInPrefix: List<LetterZone>)
+    /** What the second stage needs of the first: the zoned letter, the zones the body session's prefix holds and the budget it was cut to. */
+    private class LetterSession(val setup: ZoneSetup, val zonesInPrefix: List<LetterZone>, val budget: Int)
 
-    /** The whole letter: the header zones that hold text, then the body zones and the footer. */
-    private fun letterZones(setup: ZoneSetup): List<LetterZone> =
-        (ZonedLetter.HEADER_ZONES.map { setup.zoned.mapped(it) }.filter { setup.zoned.hasText(it) } + setup.bodyZones + setup.zoned.mapped(LetterZone.FOOTER)).distinct()
+    /** The zones whose text the body session holds as its prefix: body, subject, payment and the footer. */
+    private fun bodyZones(setup: ZoneSetup): List<LetterZone> = (setup.bodyZones + setup.zoned.mapped(LetterZone.FOOTER)).distinct()
 
     /**
-     * Opens the letter's session: the neutral instruction and the body and footer as the prefix (halving the text until it fits), and
-     * makes it the session the scoring batches ([ZonePrompt.SCORING_INSTRUCTION] in each) and the written questions are asked in. The
-     * prefix carries no Yes or No instruction (a small model obeys one over any question: measured, the language, the title and the
-     * summary were all "Yes"); a scoring batch brings its own, a written question says what to write.
+     * Opens the body session: the scoring instruction, what the header established ([summary]) and the body and footer zones, each with its
+     * hint, as the prefix (halving the text until it fits).
      *
      * @return the character budget the letter was rendered with, or null when the model could not read it.
      */
-    private suspend fun openLetter(setup: ZoneSetup, zonesInPrefix: List<LetterZone>): Int? {
+    private suspend fun openBody(setup: ZoneSetup, zonesInPrefix: List<LetterZone>, summary: String): Int? {
         var budget = ZoneSetup.bodyBudgetChars(contextTokens)
         for (attempt in 0 until MAX_OPEN_ATTEMPTS) {
-            val (head, closing) = setup.frame(ZonePrompt.readerSystem(setup.template), ZonePrompt.bodyUser("", setup.zoned.render(zonesInPrefix, budget)))
+            val (head, closing) = setup.frame(ZonePrompt.scoringSystem(setup.template), ZonePrompt.bodyUser(summary, zonedText(setup, zonesInPrefix, budget)))
             if (tryOpen(head, closing, "body#${attempt + 1}")) {
                 inPrefix = zonesInPrefix.toSet()
-                instruction = ZonePrompt.SCORING_INSTRUCTION
                 return budget
             }
             budget /= 2
@@ -233,11 +249,23 @@ class ZoneScoringInterpreter(
         return null
     }
 
+    private fun zonedText(setup: ZoneSetup, zones: List<LetterZone>, budget: Int): String {
+        val hints = zones.filter { setup.zoned.hasText(it) }.joinToString("\n") { "ZONE ${it.tag}. HINT: ${setup.plan.hint(it)}" }
+        return hints + "\n" + setup.zoned.render(zones, budget)
+    }
+
+    /** Reopens the session for writing: the same letter, under [ZonePrompt.writingSystem] instead of the scoring instruction. */
+    private suspend fun switchToWriting(setup: ZoneSetup, bodyUser: String): Boolean {
+        val (head, closing) = setup.frame(ZonePrompt.writingSystem(setup.template), bodyUser)
+        return tryOpen(head, closing, "writing")
+    }
+
     override val staged: Boolean = true
 
     /**
-     * The second stage: the language, the extras and the free text, asked in the letter's session (still open when this reading ran its
-     * first stage here, opened again otherwise; an engine that still holds the same prefix does not decode it twice).
+     * The second stage: the extras (scored in the body session, which an engine that still holds the same prefix does not decode again),
+     * then, in a writing session (a small model obeys "answer Yes or No" over any question, so what is written is asked under an
+     * instruction that only says to write what is asked), the language, the extras' names and the free text.
      */
     override suspend fun enrich(request: EnrichmentRequest): EnrichmentOutcome {
         val layout = request.layout ?: return EnrichmentOutcome.Failed("zones need the zoned layout")
@@ -245,11 +273,15 @@ class ZoneScoringInterpreter(
         try {
             val open = letter ?: run {
                 val setup = ZoneSetup(engine, layout, request.offered, matcher, request.pageAspect)
-                val zones = letterZones(setup)
-                if (openLetter(setup, zones) == null) return EnrichmentOutcome.Failed("the model could not read the letter")
-                LetterSession(setup, zones).also { letter = it }
+                val zones = bodyZones(setup)
+                inPrefix = emptySet()
+                val budget = openBody(setup, zones, request.established) ?: return EnrichmentOutcome.Failed("the model could not read the letter")
+                LetterSession(setup, zones, budget).also { letter = it }
             }
             val picked = pickExtras(open.setup, request.takenIds)
+            // The letter as plain text: no zone hints and no summary of the header, which a small model copies instead of the letter.
+            val writing = switchToWriting(open.setup, ZonePrompt.bodyUser("", open.setup.zoned.render(open.zonesInPrefix, open.budget)))
+            if (!writing) return EnrichmentOutcome.Done(Enrichment(language = null, extras = emptyList(), text = null, textError = "the model could not read the letter again"))
             val language = ask(QuestionnairePrompt.language())?.let { AnswerReader.language(it) }
             val extras = nameExtras(open.setup, picked)
             val text = ZoneFreeText.write(TextRequest("", request.documentTypeId)) { q -> ask(q) }
@@ -338,15 +370,11 @@ class ZoneScoringInterpreter(
         RawExtra(label = label, key = c.kind.name.lowercase(), id = c.id, value = "", confidence = confidenceOf(p.score, null, 1).first)
     }
 
-    /**
-     * What a scoring batch says first: the session's [instruction] (the letter's session has a neutral prefix, so each batch says
-     * "answer Yes or No" itself), then the zones the batch is about, each with its hint and (unless the session's prefix holds it)
-     * its text, and the glimpse when asked for. No candidates: nothing is offered as an option.
-     */
+    /** The zones a question is about, each with its hint and (unless the session's prefix holds it) its text, and the glimpse when asked for. No candidates: nothing is offered as an option. */
     private fun block(setup: ZoneSetup, zones: List<LetterZone>): String {
         val fresh = zones.filter { it !in inPrefix }
         val glimpse = if (neighbourContext && fresh.isNotEmpty()) setup.zoned.glimpse(fresh).takeIf { it.before != null || it.after != null } else null
-        return instruction + ZonePrompt.zoneBlock(zones, setup.plan::hint, setup.zoned::zoneText, inPrefix, candidates = null, glimpse = glimpse)
+        return ZonePrompt.zoneBlock(zones, setup.plan::hint, setup.zoned::zoneText, inPrefix, candidates = null, glimpse = glimpse)
     }
 
     // ── the type ──
@@ -355,7 +383,7 @@ class ZoneScoringInterpreter(
     private suspend fun scoreType(direction: DocDirection): Pair<String, String> {
         val types = schema.typesFor(direction).filter { it.description.isNotBlank() }
         val questions = types.map { "Is this document ${it.description}? Answer:" }
-        val scores = scoreBatch("type", instruction, questions) ?: throw Abort("the type could not be scored")
+        val scores = scoreBatch("type", "", questions) ?: throw Abort("the type could not be scored")
         val order = scores.indices.sortedByDescending { scores[it] }
         val best = order.first()
         val margin = if (order.size > 1) scores[best] - scores[order[1]] else scores[best]
@@ -494,6 +522,9 @@ class ZoneScoringInterpreter(
             relation = if (h != null && h.first() > 0.0) "HOUSEHOLD" else "NONE"
         }
         if (role == PartyRole.SENDER) s.senderId = c.id
+        if (role == PartyRole.SENDER || role == PartyRole.ADDRESSEE) {
+            s.established += (if (role == PartyRole.SENDER) "sender" else "addressee") to "${c.id} «$printed»"
+        }
         s.parties += RawParty(
             role = role.name, id = c.id, kind = kind, relation = relation,
             confidence = confidence, name = null, scoreNote = note,

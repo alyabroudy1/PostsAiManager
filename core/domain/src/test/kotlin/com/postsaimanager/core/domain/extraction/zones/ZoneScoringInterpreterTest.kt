@@ -49,8 +49,8 @@ class ZoneScoringInterpreterTest {
         // Nothing was said yes to for the IBAN or the deadline: the answer is none, not the first candidate.
         assertThat(result.slots.keys.map { it.json }).doesNotContain("iban")
         assertThat(result.slots.keys.map { it.json }).doesNotContain("due_date")
-        // One session for the whole letter, which scores and then writes: the letter is read once for everything.
-        assertThat(session.opens.size).isEqualTo(1)
+        // The header session, the body session that scores, and the session that writes.
+        assertThat(session.opens.size).isEqualTo(3)
     }
 
     @Test
@@ -74,16 +74,13 @@ class ZoneScoringInterpreterTest {
     fun `what is written is asked in a session whose instruction is not yes or no`() {
         val (_, session) = run { false }
         val yesNo = "single word Yes or No"
-        // The letter's session is neutral, because a small model obeys a yes/no instruction over any question: measured, every
-        // written answer was "Yes". It holds the whole letter: the header's lines and the body.
-        assertThat(session.opens.single()).doesNotContain(yesNo)
-        assertThat(session.opens.single()).contains("LETTER")
-        assertThat(session.opens.single()).contains("[address-field]")
-        // Each scoring batch of the letter's session says "answer Yes or No" itself; every generated answer is asked in the same session.
-        val typeBatch = session.scored.first { b -> b.any { it.contains("Is this document") } }
-        assertThat(typeBatch.all { it.contains(ZonePrompt.SCORING_INSTRUCTION) }).isTrue()
+        // The sessions that score carry the yes/no instruction in their system prompt; the one that writes (the last) does not, because a
+        // small model obeys a yes/no instruction over any question: measured, every written answer was "Yes".
+        assertThat(session.opens.dropLast(1).all { it.contains(yesNo) }).isTrue()
+        assertThat(session.opens.last()).doesNotContain(yesNo)
+        assertThat(session.opens.last()).contains("LETTER")
+        // Nothing is scored after the writing session opens, and every generated answer is asked in it.
         assertThat(session.asks).isNotEmpty()
-        assertThat(session.asks.none { it.question.contains(ZonePrompt.SCORING_INSTRUCTION) }).isTrue()
     }
 
     @Test
@@ -118,17 +115,18 @@ class ZoneScoringInterpreterTest {
     }
 
     @Test
-    fun `the neighbour glimpse adds nothing when the whole letter is already in the prefix, and never a candidate`() {
+    fun `the neighbour glimpse is context only and adds no candidate`() {
         val plain = run { false }.second.scored.flatten()
         val ctx = FakePromptSession().apply { scorer = { -5.0 }; responder = { _, _ -> "\"text\"" } }.also { s ->
             runBlocking {
                 ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), s, contextTokens = 4096, neighbourContext = true), 4096)
             }
         }.scored.flatten()
-        // A glimpse is for zones a question brings with it; every zone is in the prefix now, so there is none to glimpse at.
         assertThat(plain.none { it.contains("CONTEXT ONLY") }).isTrue()
-        assertThat(ctx.none { it.contains("CONTEXT ONLY") }).isTrue()
-        // The same candidates are scored either way.
+        val withGlimpse = ctx.filter { it.contains("ZONE address-field.") }
+        assertThat(withGlimpse).isNotEmpty()
+        assertThat(withGlimpse.all { it.contains("CONTEXT ONLY, the zone just above (") }).isTrue()
+        // The same candidates are scored either way (the glimpse selects nothing).
         assertThat(ctx.size).isEqualTo(plain.size)
     }
 
@@ -177,7 +175,7 @@ class ZoneScoringInterpreterTest {
         // The key is the value's own kind.
         val kinds = com.postsaimanager.core.domain.extraction.candidates.CandidateKind.entries.map { it.name.lowercase() }
         assertThat(result.extras.all { it.key in kinds }).isTrue()
-        assertThat(session.opens).hasSize(1)
+        assertThat(session.opens).hasSize(3)
     }
 
     @Test

@@ -24,19 +24,25 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
     fun system(template: LayoutTemplate): String =
         RULES + "\n\nLAYOUT: ${template.id}, ${template.description}."
 
-    /**
-     * The instruction of the one session that reads the whole letter (its prefix is this and the letter): neutral, so the same session
-     * can be asked to judge a value (Yes or No, see [SCORING_INSTRUCTION]) and to write (the language, the names of the extras, the
-     * title, the summary, the suggested questions). The Yes or No instruction used to live here, and a small model obeys it over any
-     * question: measured on the device, every written answer was "Yes". So it is part of what a scoring batch says, never of the prefix.
-     */
-    fun readerSystem(template: LayoutTemplate): String =
-        "You read one scanned letter and answer questions about it, one at a time. The letter can be in any language. " +
-            "Each question tells you what to decide or write and the format of the answer: answer exactly that, from what the letter says, " +
-            "and nothing else. A hint says what a block of the letter usually is; it is only a prior.\n\nLAYOUT: ${template.id}, ${template.description}."
+    /** The scoring session's instruction: judge one value at a time, answer Yes or No. */
+    fun scoringSystem(template: LayoutTemplate): String =
+        "You read one scanned letter one part (zone) at a time. The letter can be in any language. For each value you are shown, " +
+            "answer Yes if the value is what the question says, otherwise No. A hint says what a block usually is; it is only a prior. " +
+            "Decide from what the text says. Answer with the single word Yes or No.\n\nLAYOUT: ${template.id}, ${template.description}."
 
-    /** What a scoring batch says before its questions (in the session with the neutral [readerSystem]): every question is answered Yes or No. */
-    const val SCORING_INSTRUCTION = "Answer each question with the single word Yes or No.\n"
+    /**
+     * The instruction of the writing session that follows the scoring (the language, the names of the extras, the title, the summary,
+     * the suggested questions). The scoring instruction says to answer Yes or No, and a small model obeys it over any question: measured
+     * on the device, every written answer was "Yes". So what is written is asked under this one, which only says to write what the
+     * question asks, in its format.
+     *
+     * (Tried and reverted: one neutral session for scoring and writing, with "answer Yes or No" in each scoring batch. On the 16 benchmark
+     * letters it cost 5.5 points of field match and 6.7 of roles against the scoring instruction in the session's own system prompt.)
+     */
+    fun writingSystem(template: LayoutTemplate): String =
+        "You read one scanned letter and answer questions about it, one at a time. The letter can be in any language. " +
+            "Each question tells you what to write and the format of the answer: write exactly that, from what the letter says, " +
+            "and nothing else.\n\nLAYOUT: ${template.id}, ${template.description}."
 
     /** The user turn of the body session: what the header established, then the body zones. */
     fun bodyUser(summary: String, bodyText: String): String = buildString {

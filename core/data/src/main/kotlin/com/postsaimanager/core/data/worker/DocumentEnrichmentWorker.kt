@@ -38,6 +38,7 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
         val ticket = EnrichmentTicket(
             typeId = inputData.getString(KEY_TYPE_ID)?.takeIf { it.isNotEmpty() },
             takenIds = inputData.getStringArray(KEY_TAKEN_IDS)?.toList().orEmpty(),
+            established = inputData.getString(KEY_ESTABLISHED).orEmpty(),
         )
 
         // A scan goes first: come back later (WorkManager's own backoff decides when).
@@ -59,6 +60,7 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
         const val KEY_DOCUMENT_ID = "documentId"
         const val KEY_TYPE_ID = "typeId"
         const val KEY_TAKEN_IDS = "takenIds"
+        const val KEY_ESTABLISHED = "established"
 
         /** Tag of every second-stage work, so a new scan can push them all aside at once. */
         const val TAG = "enrich-documents"
@@ -73,6 +75,7 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
                         KEY_DOCUMENT_ID to documentId,
                         KEY_TYPE_ID to (ticket.typeId ?: ""),
                         KEY_TAKEN_IDS to ticket.takenIds.toTypedArray(),
+                        KEY_ESTABLISHED to ticket.established,
                     ),
                 )
                 .addTag(TAG)

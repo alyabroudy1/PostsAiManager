@@ -83,7 +83,7 @@ class ExtractionV2Pipeline(
         var textError: String? = null
         var ticket: EnrichmentTicket? = null
         if (interpreter.staged) {
-            val first = EnrichmentTicket(raw.type, takenIds(raw))
+            val first = EnrichmentTicket(raw.type, takenIds(raw), raw.established)
             if (stages == Stages.FIRST) {
                 ticket = first
             } else {
@@ -172,7 +172,7 @@ class ExtractionV2Pipeline(
     }
 
     private fun enrichmentRequest(layout: LetterLayout, offered: OfferedCandidates, pageAspect: Float?, direction: DocDirection, ticket: EnrichmentTicket) =
-        EnrichmentRequest(offered, layout, pageAspect, direction, ticket.takenIds.toSet(), ticket.typeId)
+        EnrichmentRequest(offered, layout, pageAspect, direction, ticket.takenIds.toSet(), ticket.typeId, ticket.established)
 
     /** The candidate ids the reading's slots and parties took (before verification: the ids the model's scores chose). */
     private fun takenIds(raw: RawInterpretation): List<String> =

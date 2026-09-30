@@ -117,11 +117,14 @@ data class RecognisedFact(
  *
  * @property typeId the document type the first stage chose.
  * @property takenIds candidate ids the first stage's slots and parties took.
+ * @property established what the first stage told the second about the header (who the sender and the addressee are), so the second
+ *   reads the letter under the same words the first did.
  */
 @Serializable
 data class EnrichmentTicket(
     val typeId: String? = null,
     val takenIds: List<String> = emptyList(),
+    val established: String = "",
 )
 
 /**

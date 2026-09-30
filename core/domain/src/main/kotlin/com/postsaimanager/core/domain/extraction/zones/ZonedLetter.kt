@@ -215,8 +215,6 @@ class ZonedLetter(
         val all = runs(zones)
         val lastPage = layout.pages.lastOrNull()?.pageNumber ?: 1
         fun tier(r: Run) = when {
-            // The header's few lines (who wrote, who it is for) are what the first questions are about: never the ones to go.
-            r.zone in HEADER_ZONES -> 0
             r.zone == LetterZone.PAYMENT_SECTION || r.zone == LetterZone.SUBJECT -> 1
             r.zone == LetterZone.BODY && r.page == lastPage -> 2
             else -> 3

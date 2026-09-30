@@ -128,6 +128,8 @@ class EnrichmentRequest(
     val takenIds: Set<String> = emptySet(),
     /** The document type the first stage chose, so the texts fit it. */
     val documentTypeId: String? = null,
+    /** What the first stage established (see [RawInterpretation.established]); empty when it established nothing. */
+    val established: String = "",
 )
 
 /** What the second stage wrote, parsed but not trusted; any part may be missing. */
@@ -231,6 +233,8 @@ data class RawInterpretation(
     val extras: List<RawExtra> = emptyList(),
     /** The answer was cut off at the token limit and closed at its last complete element. */
     val truncated: Boolean = false,
+    /** What a scoring interpreter's first stage told its second ("sender: M1 «...»; addressee: ..."): the second stage reads the letter under it. */
+    val established: String = "",
 )
 
 /** Call 2's answer, parsed but not trusted. */

@@ -85,9 +85,13 @@ class TwoStageReadingTest {
         // The first stage's slots and parties are not repeated.
         assertThat(second.slots).isEmpty()
         assertThat(second.parties.all).isEmpty()
-        // Only the extras were scored (no type, no party, no slot), after the letter's one prefix.
+        // Only the extras were scored (no type, no party, no slot), in the body session the first stage left (what it established is in
+        // its prefix), and the text was written in the writing session that follows.
         assertThat(later.scored.flatten().all { it.contains(ScoringDescriptions.EXTRA) }).isTrue()
-        assertThat(later.opens).hasSize(1)
+        assertThat(later.opens).hasSize(2)
+        assertThat(later.opens.first()).contains("ESTABLISHED FROM THE HEADER OF THE LETTER")
+        assertThat(later.opens.first()).contains(ticket.established)
+        assertThat(ticket.established).isNotEmpty()
         // A value the first stage took is never an extra.
         val offered = com.postsaimanager.core.domain.extraction.v2.Prepared(letter.pages).offered
         val takenRaw = ticket.takenIds.mapNotNull { offered.get(it)?.raw?.replace('\n', ' ') }
