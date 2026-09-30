@@ -86,7 +86,7 @@ class ZoneScoringInterpreterTest {
     @Test
     fun `the questions about one value share their zone block as a level of the prefix tree, and the text is read whole`() {
         // A yes to the sender makes the party's kind be scored: three statements about the same value.
-        val (_, session) = run { c -> c.contains("the sender") }
+        val (_, session) = run(ScoringProfile(prefixTree = true)) { c -> c.contains("the sender") }
         // A batch of several candidates decodes the shared block once; a single question has nothing to share.
         assertThat(session.sharedLevels.any { it.isNotEmpty() }).isTrue()
         val tree = session.scored.indices.filter { session.sharedLevels[it].isNotEmpty() }
@@ -99,6 +99,22 @@ class ZoneScoringInterpreterTest {
         // The scores are those of the whole text: the session hands the scorer shared + continuation.
         assertThat(session.scored[kinds!!].all { it.startsWith("\n\n") && it.contains("Is «") && it.contains("? Answer:") }).isTrue()
         assertThat(session.scored[kinds].map { it.substringAfter("? Answer:").length }.distinct()).hasSize(1)
+    }
+
+    @Test
+    fun `without the prefix tree every question is read whole, as recorded`() {
+        val (_, session) = run { c -> c.contains("the sender") }
+        assertThat(session.sharedLevels.all { it.isEmpty() }).isTrue()
+        assertThat(session.grids).isEqualTo(0)
+        // The same questions, asked one batch per question name, each whole text.
+        assertThat(session.scored.flatten().all { it.startsWith("\n\n") }).isTrue()
+    }
+
+    @Test
+    fun `the prefix tree asks the same questions in the same words as reading them whole`() {
+        val whole = run { c -> c.contains("the sender") }.second.scored.flatten().sorted()
+        val tree = run(ScoringProfile(prefixTree = true)) { c -> c.contains("the sender") }.second.scored.flatten().sorted()
+        assertThat(tree).isEqualTo(whole)
     }
 
     @Test

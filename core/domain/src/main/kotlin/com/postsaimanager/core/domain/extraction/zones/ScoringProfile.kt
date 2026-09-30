@@ -19,6 +19,14 @@ data class ScoringProfile(
     val cuts: ScoreCuts = ScoreCuts(),
     /** How the scores of all questions are combined into the answers ([SlotDecoder]); the per-slot argmax by default. */
     val decoder: DecoderSpec = DecoderSpec(),
+    /**
+     * Whether questions that share text are scored through the prefix tree (a zone block, or a value, decoded once and each question
+     * rolled back to it: `PromptSession.score`'s shared level and `scoreGrid`) instead of each question read whole. Faster (the shared
+     * tokens are paid once), but a split decode is not the same arithmetic as a whole one: on the 16 benchmark letters the recorded
+     * scores moved by up to 0.8 log-odds (mean about 0.15) and the best candidate changed in 25 of 138 questions, because the 0.8B
+     * model's scores sit within +-1 of zero. Off by default: the reading is then exactly what the recordings hold.
+     */
+    val prefixTree: Boolean = false,
 ) {
     fun threshold(ask: String): Double = thresholds[ask] ?: defaultThreshold
 

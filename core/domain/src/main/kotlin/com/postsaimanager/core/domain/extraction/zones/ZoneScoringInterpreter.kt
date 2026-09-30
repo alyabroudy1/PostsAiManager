@@ -444,6 +444,7 @@ class ZoneScoringInterpreter(
      * decoding is shared (`PromptSession.scoreGrid`). A grid the engine failed is left to the questions' own batches.
      */
     private suspend fun prescore(setup: ZoneSetup, asks: List<Ask>) {
+        if (!profile.prefixTree) return
         val zoned = setup.zoned
         for ((key, group) in asks.groupBy { block(setup, it.zones) to it.cands.map { c -> c.id } }) {
             if (group.size < 2) continue
@@ -674,8 +675,9 @@ class ZoneScoringInterpreter(
     private suspend fun scoreBatch(name: String, shared: String, questions: List<String>): List<Double>? {
         if (questions.isEmpty()) return emptyList()
         val started = System.nanoTime()
-        // A shared level is worth a checkpoint only when more than one question uses it.
-        val tree = shared.isNotEmpty() && questions.size > 1
+        // A shared level is worth a checkpoint only when more than one question uses it, and only for a profile that accepts the split
+        // decode (see [ScoringProfile.prefixTree]); otherwise every question is read whole, exactly as recorded.
+        val tree = profile.prefixTree && shared.isNotEmpty() && questions.size > 1
         val result = if (tree) {
             session.score(questions.map { it + tail }, YES, NO, "\n\n" + shared)
         } else {
