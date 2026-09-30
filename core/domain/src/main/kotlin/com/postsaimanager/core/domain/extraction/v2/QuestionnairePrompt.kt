@@ -224,6 +224,7 @@ object QuestionnairePrompt {
 
     private const val IN_LETTER_LANGUAGE = "Write it in the letter's own language."
 
+    @Deprecated("The title is composed from verified fields (TitleComposer); P4 removes this with the title ask in ZoneFreeText/the interpreter.")
     fun otherLabel(): Question = question(
         "text:other",
         "Give a short name for this kind of document. $IN_LETTER_LANGUAGE",
@@ -232,6 +233,7 @@ object QuestionnairePrompt {
         TITLE_TOKENS,
     )
 
+    @Deprecated("The title is composed from verified fields (TitleComposer); P4 removes this with the title ask in ZoneFreeText/the interpreter.")
     fun title(typeId: String?): Question = question(
         "text:title",
         "Write a title of at most 8 words for this ${typeId?.replace('_', ' ') ?: "document"}: who wrote it and what it is for. $IN_LETTER_LANGUAGE",

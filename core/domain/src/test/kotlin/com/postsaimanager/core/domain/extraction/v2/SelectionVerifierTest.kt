@@ -410,9 +410,10 @@ class SelectionVerifierTest {
         }
 
         @Test
-        fun `a summary whose sentences are all in the letter is a quote`() {
+        fun `a summary copied from the letter is not rewarded as a quote`() {
             val f = run("Zahlungserinnerung / 1. Mahnung – Rechnung 2026-08-771204", "Die Rechnung war am 19.08.2026 fällig.")
-            assertThat(f.summary!!.origin).isEqualTo(SlotOrigin.MODEL_QUOTED)
+            assertThat(f.summary!!.origin).isEqualTo(SlotOrigin.MODEL_GENERATED)
+            assertThat(f.summary!!.confidence).isAtMost(Caps.GENERATED)
         }
 
         @Test
