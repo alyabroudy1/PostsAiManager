@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.extraction.zones
 
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.PromptSession
+import com.postsaimanager.core.domain.extraction.address.LineAsk
 import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.InterpreterFactory
 import com.postsaimanager.core.domain.extraction.v2.ModelDocumentInterpreter
@@ -76,6 +77,8 @@ object ModelProfiles {
                 // The topics and the address labels have no recording yet (they are new questions); they start at the same 0.0 indifference,
                 // the threshold the other optional questions here use (a contact, a care-of party), and are fitted in P4.
                 ScoringProfile.FAMILY to 0.0, ScoringProfile.TOPICS to 0.0, ScoringProfile.ADDR to 0.0,
+                // A street-shaped address line is a post office box or a locker only when the model leans Yes (not yet fitted: P4 measures it).
+                LineAsk.DELIVERY_ASK to 0.0,
             ),
             // Fitted on the 137 scored answers of the 16 letters (ConfidenceCalibrationTest). HIGH: a margin of 0.2 over the runner-up
             // (91% right in-sample, 85 answers; 83% held out, cuts fitted on the other half of the letters). LOW: the winner's own

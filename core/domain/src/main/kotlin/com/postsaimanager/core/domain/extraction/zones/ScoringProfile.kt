@@ -19,6 +19,11 @@ data class ScoringProfile(
     val cuts: ScoreCuts = ScoreCuts(),
     /** How the scores of all questions are combined into the answers ([SlotDecoder]); the per-slot argmax by default. */
     val decoder: DecoderSpec = DecoderSpec(),
+    /**
+     * The address retry: when the letter's address zone holds no postcode line, the runner-up layout template's address region is read
+     * instead if the runner-up's match score is at most this far (0..1, the template matcher's scale) below the chosen template's.
+     */
+    val addressRetryMargin: Float = 0.1f,
 ) {
     fun threshold(ask: String): Double = thresholds[ask] ?: defaultThreshold
 

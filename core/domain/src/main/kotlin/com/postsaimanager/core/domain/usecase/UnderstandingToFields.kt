@@ -1,5 +1,7 @@
 package com.postsaimanager.core.domain.usecase
 
+import com.postsaimanager.core.domain.extraction.address.AddressRows
+import com.postsaimanager.core.model.AddressPart
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EntityKind
 import com.postsaimanager.core.model.EntityRole
@@ -107,7 +109,7 @@ object UnderstandingToFields {
             .forEach { (label, candidates) ->
                 val best = candidates.maxBy { it.confidence }
                 add(
-                    label, best.value, typeOf(best.kind), best.confidence, best.provenance,
+                    label, best.value, addressTypeOf(best.provenance?.slotKey) ?: typeOf(best.kind), best.confidence, best.provenance,
                     slotKey = best.provenance?.slotKey ?: label.takeIf { it == SLOT_UNLABELLED },
                 )
             }
@@ -134,6 +136,16 @@ object UnderstandingToFields {
         // key the screen words in the user's language; never an English literal.
         FactKind.REFERENCE, FactKind.OTHER ->
             fact.label.trim().ifBlank { fact.provenance?.slotKey?.ifBlank { null } ?: SLOT_UNLABELLED }
+    }
+
+    /**
+     * The field type of a structured-address row (`addressee.street`, `sender.name`...): a person's name, else an address part; null for
+     * any other row. The keys are owned by [AddressRows].
+     */
+    private fun addressTypeOf(slotKey: String?): ExtractedFieldType? = when {
+        !AddressRows.isAddressKey(slotKey) -> null
+        slotKey!!.endsWith(".${AddressPart.RECIPIENT_NAME.key}") -> ExtractedFieldType.PERSON_NAME
+        else -> ExtractedFieldType.ADDRESS
     }
 
     private fun typeOf(kind: FactKind): ExtractedFieldType = when (kind) {
