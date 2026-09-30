@@ -26,7 +26,7 @@ internal class ScoringTuner(
         return Eval(obj, s.fieldMatch, if (answers == 0) 1.0 else correct / answers, answers)
     }
 
-    private val grid = (-3..10).map { it.toDouble() }
+    private val grid = (-12..10).map { it.toDouble() }
 
     fun questions(variant: String, keys: Set<String>): List<String> =
         recordings.filter { it.variant == variant && it.key in keys }.flatMap { it.asks }.map { it.name }

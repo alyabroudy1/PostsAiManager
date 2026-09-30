@@ -1,0 +1,238 @@
+{
+ "key": "N10-kinderarzt-termin-1p",
+ "interpreter": "zones",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Kinder- und Jugendarztpraxis Beispiel",
+   "normalized": "Kinder- und Jugendarztpraxis Beispiel",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Erziehungsberechtigte von",
+   "normalized": "Erziehungsberechtigte von",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Adam Mustermann",
+   "normalized": "Adam Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Terminerinnerung für Adam Mustermann",
+   "normalized": "Terminerinnerung für Adam Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Anna Beispiel",
+   "normalized": "Anna Beispiel",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Beispiel",
+   "normalized": "Beispiel",
+   "page": 1
+  },
+  {
+   "id": "DT1",
+   "kind": "DATETIME",
+   "raw": "12.11.2026 um 09:30",
+   "normalized": "2026-11-12T09:30",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "25.09.2026",
+   "normalized": "2026-09-25",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "512345",
+   "normalized": "512345",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "00-12",
+   "normalized": "00-12",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "15-00-17",
+   "normalized": "15-00-17",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 700 20",
+   "normalized": "01234 700 20",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "praxis@kinderarzt-beispiel.example",
+   "normalized": "praxis@kinderarzt-beispiel.example",
+   "page": 1
+  }
+ ],
+ "call1": "sender: M1 PERSON \"Kinder- und Jugendarztpraxis Beispiel\" HIGH\naddressee: NONE\ncare_of: NONE\ncontact: NONE\nslot:letter_date: D1 OTHER LOW\ntype: bill de HIGH\nsubject_person: NONE\nslot:due_date: RULE \"12.11.2026 um 09:30 p.1\" LETTER_DATE MEDIUM\nslot:reference: NONE\nslot:customer_no: NONE\nslot:invoice_no: NONE\nextras: NONE \"label\" english_key \"value\" LOW",
+ "call1Ms": 29876,
+ "call2Ms": 6132,
+ "prefixTokens": 863,
+ "prefixMs": 6816,
+ "template": "DIN5008_B",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nKinder- und Jugendarztpraxis Beispiel \/ Gesundheitsweg 512345 Beispielstadt \/ Tel. 01234 700 20 \/ praxis@kinderarzt-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nKinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielstadt\nCANDIDATES IN THESE ZONES\nM1: Kinder- und Jugendarztpraxis Beispiel [letterhead] p.1\nM7: Beispiel (near: \"Dr. A.\") p.1\nQUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "M1 PERSON \"Kinder- und Jugendarztpraxis Beispiel\" HIGH",
+   "ms": 2434,
+   "questionTokens": 208,
+   "answerTokens": 15
+  },
+  {
+   "name": "addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nCANDIDATES IN THESE ZONES\nM2: Erziehungsberechtigte von [address-field] p.1\nM3: Adam Mustermann [address-field] p.1\nM7: Beispiel (near: \"Dr. A.\") p.1\nQUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1970,
+   "questionTokens": 221,
+   "answerTokens": 1
+  },
+  {
+   "name": "care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nAdam Mustermann \/ Erziehungsberechtigte von \/ Musterstraße 12 \/ 54321 Beispieldorf\nCANDIDATES IN THESE ZONES\nM2: Erziehungsberechtigte von [address-field] p.1\nM3: Adam Mustermann [address-field] p.1\nM7: Beispiel (near: \"Dr. A.\") p.1\nQUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1656,
+   "questionTokens": 182,
+   "answerTokens": 1
+  },
+  {
+   "name": "contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nCANDIDATES IN THESE ZONES\nM7: Beispiel (near: \"Dr. A.\") p.1\nQUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1272,
+   "questionTokens": 152,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nCANDIDATES IN THESE ZONES\nD1: 25.09.2026 p.1\nQUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 OTHER LOW",
+   "ms": 1935,
+   "questionTokens": 180,
+   "answerTokens": 4
+  },
+  {
+   "name": "type",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nQUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "bill de HIGH",
+   "ms": 2220,
+   "questionTokens": 240,
+   "answerTokens": 3
+  },
+  {
+   "name": "subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM1: Kinder- und Jugendarztpraxis Beispiel [letterhead] p.1\nM3: Adam Mustermann [address-field] p.1\nM7: Beispiel (near: \"Dr. A.\") p.1\nQUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1470,
+   "questionTokens": 163,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nDT1: 12.11.2026 um 09:30 p.1\nQUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "RULE \"12.11.2026 um 09:30 p.1\" LETTER_DATE MEDIUM",
+   "ms": 2262,
+   "questionTokens": 157,
+   "answerTokens": 27
+  },
+  {
+   "name": "slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: 512345 (near: \"Gesundheitsweg\") p.1\nQUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1609,
+   "questionTokens": 175,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: 512345 (near: \"Gesundheitsweg\") p.1\nQUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1547,
+   "questionTokens": 168,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:invoice_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Praxis: \/ Telefon: \/ Dr. A. Beispiel \/ 01234 700 20 \/ 25.09.2026 \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: 512345 (near: \"Gesundheitsweg\") p.1\nQUESTION: Which number is the invoice number (the bill this letter is about)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1887,
+   "questionTokens": 197,
+   "answerTokens": 1
+  },
+  {
+   "name": "extras",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM1: Kinder- und Jugendarztpraxis Beispiel [letterhead] p.1\nM3: Adam Mustermann [address-field] p.1\nM7: Beispiel (near: \"Dr. A.\") p.1\nDT1: 12.11.2026 um 09:30 p.1\nN1: 512345 (near: \"Gesundheitsweg\") p.1\nT1: 01234 700 20 (near: \"Tel\" | \"unter\") p.1\nQUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "NONE \"label\" english_key \"value\" LOW",
+   "ms": 2755,
+   "questionTokens": 286,
+   "answerTokens": 10
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this bill: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"M1 «Kinder- und Jugendarztpraxis Beispiel»\"",
+   "ms": 987,
+   "questionTokens": 50,
+   "answerTokens": 14
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"TERMINERINNERUNG FÜR ADAM MUSTERMAN\"",
+   "ms": 794,
+   "questionTokens": 31,
+   "answerTokens": 14
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Bitte bringen Sie die Versichertenkarte mit. Wenn Sie den Termin nicht wahrnehmen können, sagen Sie ihn bitte mindestens 24 Stunden vorher unter 01234 700 20 ab, damit wir den Platz anderweitig vergeben können.\"",
+   "ms": 2253,
+   "questionTokens": 51,
+   "answerTokens": 55
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"1. What is the deadline for the next visit? \" \"2. What is the contact number mentioned in the letter? \" \"3. What is the name of the clinic mentioned in the letter? \"",
+   "ms": 2089,
+   "questionTokens": 61,
+   "answerTokens": 43
+  }
+ ],
+ "wallMs": 36119,
+ "model": "text.gguf"
+}

@@ -29,18 +29,25 @@ class ZoneReportTest {
             if (crossFit) memo.getOrPut(variant) { tuner.crossFitted(variant) } else { _ -> com.postsaimanager.core.domain.extraction.zones.ScoringProfile() }
 
         // 1. Overall on each variant's own letters, and on the letters every listed variant has.
-        val common = variants.map { v -> all.filter { it.variant == v }.map { it.key }.toSet() }.reduce { a, b -> a intersect b }
-        sb.appendLine("## Overall (${common.size} letters common to all variants; per-variant own count in the second table)\n")
-        for ((title, keys) in listOf("common letters" to common, "each variant's own letters" to null)) {
+        fun keysOf(prefix: String) = all.filter { it.variant.startsWith(prefix) }.map { it.key }.toSet()
+        val subsets = listOf(
+            "all 16 letters" to docs.map { it.first.key }.toSet(),
+            "the ${keysOf("zonesctx").size}-letter subset the +CTX variants were run on" to keysOf("zonesctx"),
+            "the ${keysOf("zonesscoring2b").size}-letter subset the 2B model was run on" to keysOf("zonesscoring2b"),
+        ).filter { it.second.isNotEmpty() }
+        sb.appendLine("## Overall. A variant is listed on a subset only when it has a recording for every letter of it.\n")
+        sb.appendLine("Scoring variants are decided with thresholds tuned on the plain `zonesscoring` recordings of the other half of the 16 letters (cross-fitted), or with t=0.\n")
+        for ((title, keys) in subsets) {
             sb.appendLine("### $title\n")
             sb.appendLine("| variant | letters | field match | roles | hallucination | extras/doc | s/letter | first-candidate share |")
             sb.appendLine("|---|---|---|---|---|---|---|---|")
             for (v in variants) {
                 val scoring = v.startsWith(InterpreterMetrics.SCORING_VARIANT)
                 for (crossFit in if (scoring) listOf(false, true) else listOf(false)) {
-                    val recs = all.filter { it.variant == v && (keys == null || it.key in keys) }
+                    val recs = all.filter { it.variant == v && it.key in keys }
+                    if (recs.map { it.key }.toSet() != keys) continue
                     val d = docs.filter { (m, _) -> recs.any { it.key == m.key } }
-                    val s = InterpreterMetrics.score(v, d, recs, profileFor(v, crossFit)) ?: continue
+                    val s = InterpreterMetrics.score(v, d, recs, profileFor("zonesscoring", crossFit)) ?: continue
                     val label = if (scoring) (if (crossFit) "$v (thresholds cross-fitted)" else "$v (t=0)") else v
                     sb.appendLine(
                         "| $label | ${s.docs} | ${pct(s.fieldMatch)} | ${pct(s.rolesMatch)} | ${pct(s.hallucination)} | ${"%.2f".format(Locale.ROOT, s.extrasPerDoc)} | " +
@@ -56,7 +63,7 @@ class ZoneReportTest {
         val questionKeys = linkedSetOf("sender", "addressee")
         val stats = HashMap<String, MutableMap<String, IntArray>>() // variant -> question -> [answers, correct]
         for (v in variants) {
-            val fit = profileFor(v, v.startsWith(InterpreterMetrics.SCORING_VARIANT))
+            val fit = profileFor("zonesscoring", v.startsWith(InterpreterMetrics.SCORING_VARIANT))
             val m = stats.getOrPut(v) { HashMap() }
             for (rec in all.filter { it.variant == v }) {
                 val (manifest, fixture) = docs.firstOrNull { it.first.key == rec.key } ?: continue
@@ -113,7 +120,7 @@ class ZoneReportTest {
                 "| ${m.key} | " + variants.joinToString(" | ") { v ->
                     val rec = all.firstOrNull { it.variant == v && it.key == m.key } ?: return@joinToString "-"
                     val scoring = v.startsWith(InterpreterMetrics.SCORING_VARIANT)
-                    val s = InterpreterMetrics.score(v, listOf(m to f), listOf(rec), profileFor(v, scoring)) ?: return@joinToString "-"
+                    val s = InterpreterMetrics.score(v, listOf(m to f), listOf(rec), profileFor("zonesscoring", scoring)) ?: return@joinToString "-"
                     "${pct(s.fieldMatch)} / ${pct(s.rolesMatch)} / ${pct(s.hallucination)} / ${s.secondsPerDoc?.let { "%.0f".format(Locale.ROOT, it) } ?: "-"}"
                 } + " |",
             )

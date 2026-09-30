@@ -1,0 +1,345 @@
+{
+ "key": "N4-zhd-firma-1p",
+ "interpreter": "zonesctx",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Mustermann Consulting GmbH",
+   "normalized": "Mustermann Consulting GmbH",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Frau Erika Mustermann",
+   "normalized": "Frau Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Leistung",
+   "normalized": "Leistung",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Büro-Partner Beispiel KG",
+   "normalized": "Büro-Partner Beispiel KG",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "BPB Verwaltungs GmbH",
+   "normalized": "BPB Verwaltungs GmbH",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "BIC COBADEFFXXX",
+   "normalized": "BIC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "Zeitraum",
+   "normalized": "Zeitraum",
+   "page": 1
+  },
+  {
+   "id": "M9",
+   "kind": "NAME",
+   "raw": "Herr T. Muster",
+   "normalized": "Herr T. Muster",
+   "page": 1
+  },
+  {
+   "id": "M10",
+   "kind": "NAME",
+   "raw": "Netto p. a.",
+   "normalized": "Netto p. a.",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "01.01.2027",
+   "normalized": "2027-01-01",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "31.12.2026",
+   "normalized": "2026-12-31",
+   "page": 1
+  },
+  {
+   "id": "D4",
+   "kind": "DATE",
+   "raw": "15.10.2026",
+   "normalized": "2026-10-15",
+   "page": 1
+  },
+  {
+   "id": "D5",
+   "kind": "DATE",
+   "raw": "31.12.2027",
+   "normalized": "2027-12-31",
+   "page": 1
+  },
+  {
+   "id": "D6",
+   "kind": "DATE",
+   "raw": "23.09.2026",
+   "normalized": "2026-09-23",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "01.01",
+   "normalized": "1.01 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "1.428,00 €",
+   "normalized": "1428.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "WN-2291",
+   "normalized": "WN-2291",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "EM\/2026 wV-2291",
+   "normalized": "EM\/2026 wV-2291",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "EM\/2026",
+   "normalized": "EM\/2026",
+   "page": 1
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "wV-2291",
+   "normalized": "wV-2291",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 888 0",
+   "normalized": "01234 888 0",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "01234 888 44",
+   "normalized": "01234 888 44",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "vertrieb@buero-partner.example",
+   "normalized": "vertrieb@buero-partner.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "sender: M4 PERSON \"Büro-Partner Beispiel KG\" HIGH\naddressee: NONE\ncare_of: NONE\ncontact: NONE\nslot:letter_date: D6 OTHER LOW\ntype: bill de HIGH\nsubject_person: NONE\nslot:total: A2 TOTAL_DUE MEDIUM\nslot:due_date: D1 OTHER LOW\nslot:iban: I1 HIGH\nslot:reference: N1 HIGH\nslot:customer_no: N4 MEDIUM\nslot:invoice_no: N1 HIGH\nextras: M1 \"p.1\" confidence \"LOW\" MEDIUM",
+ "call1Ms": 36537,
+ "call2Ms": 14383,
+ "prefixTokens": 940,
+ "prefixMs": 6266,
+ "template": "DIN5008_B",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nBüro-Partner Beispiel KG \/ BB Industriestraße 40 \/ 12345 Beispielstadt \/ Tel. 01234 888 0 \/ vertrieb@buero-partner.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nBüro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt\nCONTEXT ONLY, the zone just below (address-field, not part of this question): Mustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann\nCANDIDATES IN THESE ZONES\nM4: Büro-Partner Beispiel KG [footer] p.1\nQUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "M4 PERSON \"Büro-Partner Beispiel KG\" HIGH",
+   "ms": 2464,
+   "questionTokens": 222,
+   "answerTokens": 13
+  },
+  {
+   "name": "addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just above (return-address-line, not part of this question): Büro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt\nCONTEXT ONLY, the zone just below (info-block, not part of this question): Ihr Zeichen: \/ Unser Zeichen:\nCANDIDATES IN THESE ZONES\nM1: Mustermann Consulting GmbH [address-field] p.1\nM2: Frau Erika Mustermann (near: \"z. Hd.\") [address-field] p.1\nQUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 2014,
+   "questionTokens": 280,
+   "answerTokens": 1
+  },
+  {
+   "name": "care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just above (return-address-line, not part of this question): Büro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt\nCONTEXT ONLY, the zone just below (info-block, not part of this question): Ihr Zeichen: \/ Unser Zeichen:\nCANDIDATES IN THESE ZONES\nM1: Mustermann Consulting GmbH [address-field] p.1\nM2: Frau Erika Mustermann (near: \"z. Hd.\") [address-field] p.1\nQUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1671,
+   "questionTokens": 241,
+   "answerTokens": 1
+  },
+  {
+   "name": "contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nCONTEXT ONLY, the zone just above (address-field, not part of this question): Gewerbering 4 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just below (subject, not part of this question): Mit freundlichen Grüßen\nCANDIDATES IN THESE ZONES\nM9: Herr T. Muster p.1\nQUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1682,
+   "questionTokens": 222,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nCONTEXT ONLY, the zone just above (address-field, not part of this question): Gewerbering 4 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just below (subject, not part of this question): Mit freundlichen Grüßen\nCANDIDATES IN THESE ZONES\nD6: 23.09.2026 p.1\nQUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D6 OTHER LOW",
+   "ms": 2260,
+   "questionTokens": 255,
+   "answerTokens": 4
+  },
+  {
+   "name": "type",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nQUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "bill de HIGH",
+   "ms": 1824,
+   "questionTokens": 240,
+   "answerTokens": 3
+  },
+  {
+   "name": "subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM1: Mustermann Consulting GmbH [address-field] p.1\nM3: Leistung p.1\nM4: Büro-Partner Beispiel KG [footer] p.1\nM8: Zeitraum p.1\nM10: Netto p. a. p.1\nQUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1286,
+   "questionTokens": 172,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nA1: 01.01 p.1\nA2: 1.428,00 € p.1\nQUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A2 TOTAL_DUE MEDIUM",
+   "ms": 1530,
+   "questionTokens": 149,
+   "answerTokens": 7
+  },
+  {
+   "name": "slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nD1: 01.01.2027 (near: \"ab\") p.1\nD2: 31.12.2026 p.1\nD4: 15.10.2026 (near: \"bis\") p.1\nD5: 31.12.2027 p.1\nQUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 OTHER LOW",
+   "ms": 1962,
+   "questionTokens": 216,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:iban",
+   "question": "ZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\nBüro-Partner Beispiel KG \/ Persönlich haftende Gesellschafterin: Bankverbindung: Beispielbank Tel. 01234 888 0 \/ vertrieb@buero-partner.example \/ BPB Verwaltungs GmbH IBAN DE89 3704 0044 0532 0130 00 \/ BIC COBADEFFXXX \/ AG Beispielstadt HRA 000000 \/ Seite 1 von 1\nCONTEXT ONLY, the zone just above (body, not part of this question): Büro-Partner Beispiel KG \/ T. Muster, Vertrieb\nCANDIDATES IN THESE ZONES\nI1: DE89 3704 0044 0532 0130 00 (near: \"IBAN\") p.1\nQUESTION: Which IBAN is the account the reader should pay to?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "I1 HIGH",
+   "ms": 2144,
+   "questionTokens": 250,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCONTEXT ONLY, the zone just above (address-field, not part of this question): Gewerbering 4 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just below (subject, not part of this question): Mit freundlichen Grüßen\nCANDIDATES IN THESE ZONES\nN1: WN-2291 (near: \"Wartungsvertrag\") p.1\nN4: EM\/2026 wV-2291 (near: \"Ihr Zeichen\" | \"Unser Zeichen\") p.1\nN6: EM\/2026 (near: \"Zeichen: Unser Zeichen: Ansprechpartner\") p.1\nN7: wV-2291 (near: \"Zeichen: Unser Zeichen: Ansprechpartner\") p.1\nQUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 2566,
+   "questionTokens": 336,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCONTEXT ONLY, the zone just above (address-field, not part of this question): Gewerbering 4 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just below (subject, not part of this question): Mit freundlichen Grüßen\nCANDIDATES IN THESE ZONES\nN1: WN-2291 (near: \"Wartungsvertrag\") p.1\nN4: EM\/2026 wV-2291 (near: \"Ihr Zeichen\" | \"Unser Zeichen\") p.1\nN6: EM\/2026 (near: \"Zeichen: Unser Zeichen: Ansprechpartner\") p.1\nN7: wV-2291 (near: \"Zeichen: Unser Zeichen: Ansprechpartner\") p.1\nQUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N4 MEDIUM",
+   "ms": 2477,
+   "questionTokens": 329,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:invoice_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCONTEXT ONLY, the zone just above (address-field, not part of this question): Gewerbering 4 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just below (subject, not part of this question): Mit freundlichen Grüßen\nCANDIDATES IN THESE ZONES\nN1: WN-2291 (near: \"Wartungsvertrag\") p.1\nN4: EM\/2026 wV-2291 (near: \"Ihr Zeichen\" | \"Unser Zeichen\") p.1\nN6: EM\/2026 (near: \"Zeichen: Unser Zeichen: Ansprechpartner\") p.1\nN7: wV-2291 (near: \"Zeichen: Unser Zeichen: Ansprechpartner\") p.1\nQUESTION: Which number is the invoice number (the bill this letter is about)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 2682,
+   "questionTokens": 358,
+   "answerTokens": 3
+  },
+  {
+   "name": "extras",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM1: Mustermann Consulting GmbH [address-field] p.1\nM3: Leistung p.1\nM4: Büro-Partner Beispiel KG [footer] p.1\nM8: Zeitraum p.1\nM10: Netto p. a. p.1\nD1: 01.01.2027 (near: \"ab\") p.1\nD2: 31.12.2026 p.1\nD4: 15.10.2026 (near: \"bis\") p.1\nD5: 31.12.2027 p.1\nA1: 01.01 p.1\nA2: 1.428,00 € p.1\nN1: WN-2291 (near: \"Wartungsvertrag\") p.1\nE1: vertrieb@buero-partner.example p.1\nQUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "M1 \"p.1\" confidence \"LOW\" MEDIUM",
+   "ms": 3510,
+   "questionTokens": 368,
+   "answerTokens": 13
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this bill: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Mit freundlichen Grüßen\"",
+   "ms": 790,
+   "questionTokens": 50,
+   "answerTokens": 7
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Mit freundlichen Grüßen\"",
+   "ms": 645,
+   "questionTokens": 31,
+   "answerTokens": 7
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Mit freundlichen Grüßen Wartungsvertrag WN-2291 für die Multifunktionsgeräte der Mustermann Consulting GmbH läuft zum 31.12.2026 aus. Wir möchten Ihnen die Verlängerung um weitere 12 Monate zu unveränderten Konditionen anbieten. \/ Leistung Zeitraum Netto p. a. Wartung 2 Geräte inkl. Toner-Service 01.01.-31.12.2027 1.428,00 € \/ Bitte bestätigen Sie uns die Verlängerung bis 1",
+   "ms": 6517,
+   "questionTokens": 51,
+   "answerTokens": 120
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"1. What is the current date of the letter? 2. What is the current date of the letter? 3. What is the current date of the letter?\" \">(1) 2026-12-31 2027-01-01 2027-01-01\" \">(2) 2026-12-31 2027-01-01 2027-01-0",
+   "ms": 6402,
+   "questionTokens": 61,
+   "answerTokens": 110
+  }
+ ],
+ "wallMs": 51005,
+ "model": "text.gguf"
+}

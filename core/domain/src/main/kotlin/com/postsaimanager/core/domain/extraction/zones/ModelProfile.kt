@@ -44,10 +44,19 @@ data class ModelProfile(
 object ModelProfiles {
 
     /**
-     * The measured default for the smallest catalogue model: see `documentation/` (Experiment Z) for the
-     * benchmark that chose it.
+     * Chosen by the on-device benchmark on the 16 real-OCR letters (Experiment Z, real Qwen3.5-0.8B):
+     * ZONES_SCORING reads 56% of the facts at t=0 and 68% with cross-fitted thresholds, names the sender and
+     * the addressee right in 87% of letters and hallucinates nothing, against the questionnaire's 64%, 40% and
+     * 12%; the generated zone answers (ZONES) were worse than both (45%, 13%, 13%).
+     *
+     * The abstain threshold is effectively off (-12): tuned on either half of the letters and tested on the other,
+     * the best setting for almost every question was "always take the best candidate", and the two thresholds that
+     * moved (cited_references, recipient_org) rest on one or two answers.
      */
-    val QWEN35_08B = ModelProfile("qwen3.5-0.8b-q4_k_m", contextTokens = 4096, strategy = InterpreterStrategy.ZONES)
+    val QWEN35_08B = ModelProfile(
+        "qwen3.5-0.8b-q4_k_m", contextTokens = 4096, strategy = InterpreterStrategy.ZONES_SCORING,
+        scoring = ScoringProfile(defaultThreshold = -12.0),
+    )
 
     val QWEN35_2B = ModelProfile("qwen3.5-2b-q4_k_m", contextTokens = 4096, strategy = InterpreterStrategy.ZONES)
 

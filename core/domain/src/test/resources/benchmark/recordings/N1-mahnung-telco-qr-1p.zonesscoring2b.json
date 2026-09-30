@@ -1,0 +1,387 @@
+{
+ "key": "N1-mahnung-telco-qr-1p",
+ "interpreter": "zonesscoring",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Position",
+   "normalized": "Position",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Nordlicht Mobilfunk GmbH",
+   "normalized": "Nordlicht Mobilfunk GmbH",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "BIC COBADEFFXXX",
+   "normalized": "BIC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Rechnung vom",
+   "normalized": "Rechnung vom",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Team Forderungen",
+   "normalized": "Team Forderungen",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "Fällig am",
+   "normalized": "Fällig am",
+   "page": 1
+  },
+  {
+   "id": "M9",
+   "kind": "NAME",
+   "raw": "Betrag €",
+   "normalized": "Betrag €",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "05.08.2026",
+   "normalized": "2026-08-05",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "19.08.2026",
+   "normalized": "2026-08-19",
+   "page": 1
+  },
+  {
+   "id": "D4",
+   "kind": "DATE",
+   "raw": "25.09.2026",
+   "normalized": "2026-09-25",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "64,98€",
+   "normalized": "64.98 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "59,98",
+   "normalized": "59.98 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "5,00",
+   "normalized": "5.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE02 1203 0000 0000 2020 51",
+   "normalized": "DE02120300000000202051",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "2026-08-771204",
+   "normalized": "2026-08-771204",
+   "page": 1
+  },
+  {
+   "id": "N5",
+   "kind": "REFERENCE",
+   "raw": "4402917",
+   "normalized": "4402917",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "FIB-Mahn 4402917 4402917",
+   "normalized": "FIB-Mahn 4402917 4402917",
+   "page": 1
+  },
+  {
+   "id": "N8",
+   "kind": "REFERENCE",
+   "raw": "DEO00000000",
+   "normalized": "DE000000000",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "0800 555 0100",
+   "normalized": "0800 555 0100",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "0800 555 0199",
+   "normalized": "0800 555 0199",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "service@nordlicht-mobil.example",
+   "normalized": "service@nordlicht-mobil.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "score:sender: 3.574481964111328\nscore:kind:sender: -5.376221656799316,-4.733449935913086,3.8581695556640625\nscore:addressee: 4.235511779785156\nscore:kind:addressee: 1.7199592590332031,-4.57917594909668,-5.096453666687012\nscore:household: 0.32404136657714844\nscore:care_of: 0.9984779357910156\nscore:kind:care_of: 1.7199592590332031,-4.57917594909668,-5.096453666687012\nscore:contact: -0.8244075775146484\nscore:kind:contact: -3.557636260986328,-1.242950439453125,-0.5916919708251953\nscore:slot:letter_date: 2.073415756225586\nscore:type: 0.5415821075439453,1.6735610961914062,-0.3446502685546875,-3.2709274291992188,-2.3014965057373047,-4.358434677124023,-4.440633773803711,-2.203512191772461,-4.407812118530273,-4.50921630859375,0.4456367492675781\nscore:subject_person: -0.9087600708007812,0.05718421936035156,-1.655853271484375,-1.853109359741211,-1.3167457580566406\nscore:kind:subject_person: -4.831186294555664,-3.4941272735595703,-2.7025318145751953\nscore:slot:total: 1.0244464874267578,-0.6255474090576172,-0.47197532653808594\nscore:slot:due_date: 0.892303466796875,1.4954204559326172\nscore:slot:iban: 3.8599681854248047\nscore:slot:reference: 1.8677597045898438,3.2012062072753906,1.3660755157470703\nscore:slot:customer_no: -2.8288650512695312,-1.9158573150634766,-1.5853252410888672\nscore:slot:invoice_no: -0.5504589080810547,-3.2522010803222656,-4.390079498291016,-2.7561473846435547\nscore:slot:fee: -4.1331634521484375,-1.0066204071044922,1.3881568908691406\nscore:slot:original_due_date: 0.6157550811767578,1.7854022979736328",
+ "call1Ms": 137428,
+ "call2Ms": 14864,
+ "prefixTokens": 963,
+ "prefixMs": 16575,
+ "template": "DIN5008_B",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "score:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNordlicht Mobilfunk GmbH \/ NM Beispielweg 7 \/ 12345 Beispielstadt \/ Tel. 0800 555 0100 \/ service@nordlicht-mobil.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNordlicht Mobilfunk GmbH Beispielweg 7 : 12345 Beispielstadt\nIs «Nordlicht Mobilfunk GmbH» (context: line above: Forderungsmanagement; line below: Beispielweg 7, 12345 Beispielstadt) the sender: the party that wrote and sent this letter? Answer:",
+   "answer": "3.574481964111328",
+   "ms": 2606,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNordlicht Mobilfunk GmbH \/ NM Beispielweg 7 \/ 12345 Beispielstadt \/ Tel. 0800 555 0100 \/ service@nordlicht-mobil.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNordlicht Mobilfunk GmbH Beispielweg 7 : 12345 Beispielstadt\nIs «Nordlicht Mobilfunk GmbH» (context: line above: Forderungsmanagement; line below: Beispielweg 7, 12345 Beispielstadt) the name of a private person? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNordlicht Mobilfunk GmbH \/ NM Beispielweg 7 \/ 12345 Beispielstadt \/ Tel. 0800 555 0100 \/ service@nordlicht-mobil.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNordlicht Mobilfunk GmbH Beispielweg 7 : 12345 Beispielstadt\nIs «Nordlicht Mobilfunk GmbH» (context: line above: Forderungsmanagement; line below: Beispielweg 7, 12345 Beispielstadt) the name of an authority or public body? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNordlicht Mobilfunk GmbH \/ NM Beispielweg 7 \/ 12345 Beispielstadt \/ Tel. 0800 555 0100 \/ service@nordlicht-mobil.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNordlicht Mobilfunk GmbH Beispielweg 7 : 12345 Beispielstadt\nIs «Nordlicht Mobilfunk GmbH» (context: line above: Forderungsmanagement; line below: Beispielweg 7, 12345 Beispielstadt) the name of a company or other organisation? Answer:",
+   "answer": "-5.376221656799316,-4.733449935913086,3.8581695556640625",
+   "ms": 8919,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFrau \/ Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Frau; line below: Musterstraße 12) the addressee: the party this letter is addressed to? Answer:",
+   "answer": "4.235511779785156",
+   "ms": 1670,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFrau \/ Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Frau; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFrau \/ Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Frau; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFrau \/ Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Frau; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
+   "answer": "1.7199592590332031,-4.57917594909668,-5.096453666687012",
+   "ms": 4664,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:household",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFrau \/ Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Frau; line below: Musterstraße 12) the name of a family or household (several people living together)? Answer:",
+   "answer": "0.32404136657714844",
+   "ms": 1669,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFrau \/ Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Frau; line below: Musterstraße 12) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:",
+   "answer": "0.9984779357910156",
+   "ms": 1663,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFrau \/ Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Frau; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFrau \/ Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Frau; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFrau \/ Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Frau; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
+   "answer": "1.7199592590332031,-4.57917594909668,-5.096453666687012",
+   "ms": 4586,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nIs «Team Forderungen» (context: line above: Telefon:; line below: 0800 555 0199) a contact person named as the one who handles the matter? Answer:",
+   "answer": "-0.8244075775146484",
+   "ms": 2754,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nIs «Team Forderungen» (context: line above: Telefon:; line below: 0800 555 0199) the name of a private person? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nIs «Team Forderungen» (context: line above: Telefon:; line below: 0800 555 0199) the name of an authority or public body? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nIs «Team Forderungen» (context: line above: Telefon:; line below: 0800 555 0199) the name of a company or other organisation? Answer:",
+   "answer": "-3.557636260986328,-1.242950439453125,-0.5916919708251953",
+   "ms": 8114,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nIs «25.09.2026» (context: line above: Datum:; line below: Zahlungserinnerung \/1. Mahnung- Rechnung 2026-08-771204) the date of the letter itself (when it was written or issued)? Answer:",
+   "answer": "2.073415756225586",
+   "ms": 3204,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:type",
+   "question": "Is this document an invoice or bill that asks the reader to pay? Answer:\n@@\nIs this document a payment reminder or dunning letter about an unpaid bill? Answer:\n@@\nIs this document a letter or decision from an authority, tax office or public body? Answer:\n@@\nIs this document a letter from a doctor, clinic or health insurer, such as an appointment? Answer:\n@@\nIs this document an insurance or service contract, or a change to its price or terms? Answer:\n@@\nIs this document a letter from a school or kindergarten to parents? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document an information letter or statement that asks nothing of the reader? Answer:\n@@\nIs this document a letter the reader wrote and sent to someone else? Answer:\n@@\nIs this document a confirmation that a payment was made? Answer:\n@@\nIs this document anything that fits none of the other types? Answer:",
+   "answer": "0.5415821075439453,1.6735610961914062,-0.3446502685546875,-3.2709274291992188,-2.3014965057373047,-4.358434677124023,-4.440633773803711,-2.203512191772461,-4.407812118530273,-4.50921630859375,0.4456367492675781",
+   "ms": 5236,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Position» (context: line above: diesem Schreiben überschnitten hat, betrachten Sie es bitte als gegens; line below: Rechnung vom) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Nordlicht Mobilfunk GmbH» (context: line above: Forderungsmanagement; line below: Beispielweg 7, 12345 Beispielstadt) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Rechnung vom» (context: line above: Position; line below: Fällig am) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Fällig am» (context: line above: Rechnung vom; line below: 19.08.2026) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Betrag €» (context: line above: 19.08.2026; line below: Rechnung 2026-08-771204 (Mobilfunk Juli 2026)) a person the letter is about, other than the addressee? Answer:",
+   "answer": "-0.9087600708007812,0.05718421936035156,-1.655853271484375,-1.853109359741211,-1.3167457580566406",
+   "ms": 7560,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Position» (context: line above: diesem Schreiben überschnitten hat, betrachten Sie es bitte als gegens; line below: Rechnung vom) the name of a private person? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Position» (context: line above: diesem Schreiben überschnitten hat, betrachten Sie es bitte als gegens; line below: Rechnung vom) the name of an authority or public body? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Position» (context: line above: diesem Schreiben überschnitten hat, betrachten Sie es bitte als gegens; line below: Rechnung vom) the name of a company or other organisation? Answer:",
+   "answer": "-4.831186294555664,-3.4941272735595703,-2.7025318145751953",
+   "ms": 4106,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «64,98€» (context: printed on the line: Bitte überweisen Sie den offenen Betrag von 64,98€ zahlbar innerhalb v; line above: 64,98; line below: dieses Schreibens auf das unten genannte Konto. Nach Ablauf dieser Fri) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «59,98» (context: line above: 05.08.2026; line below: Mahngebühr) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «5,00» (context: line above: Mahngebühr; line below: Offener Gesamtbetrag) the main amount of this document: what the reader has to pay, or the total? Answer:",
+   "answer": "1.0244464874267578,-0.6255474090576172,-0.47197532653808594",
+   "ms": 6708,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «05.08.2026» (context: printed on the line: zu unserer Rechnung 2026-08-771204 vom 05.08.2026 konnten wir bis heut; line above: Sehr geehrte Frau Mustermann,; line below: Zahlungseingang feststellen. Die Rechnung war am 19.08.2026 fällig. Fa) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «19.08.2026» (context: printed on the line: Zahlungseingang feststellen. Die Rechnung war am 19.08.2026 fällig. Fa; line above: zu unserer Rechnung 2026-08-771204 vom 05.08.2026 konnten wir bis heut; line below: diesem Schreiben überschnitten hat, betrachten Sie es bitte als gegens) the date by which the reader must pay or act? Answer:",
+   "answer": "0.892303466796875,1.4954204559326172",
+   "ms": 6238,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:iban",
+   "question": "ZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\n(the text of this zone is in the letter above)\nIs «DE02 1203 0000 0000 2020 51» (context: printed on the line: IBAN: DE02 1203 0000 0000 2020 51; line above: Kontoinhaber: Nordlicht Mobilfunk GmbH; line below: BIC: COBADEFFXXX) the IBAN of the account the reader should pay to? Answer:",
+   "answer": "3.8599681854248047",
+   "ms": 3235,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «2026-08-771204» (context: printed on the line: Rechnung 2026-08-771204 (Mobilfunk Juli 2026); line above: Betrag €; line below: 05.08.2026) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «4402917» (context: printed on the line: Verwendungszweck: RE 2026-08-771204 Kd 4402917; line above: BIC: COBADEFFXXX; line below: GiroCode: Mit der Banking-App scannen,) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «FIB-Mahn 4402917 4402917» a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
+   "answer": "1.8677597045898438,3.2012062072753906,1.3660755157470703",
+   "ms": 10896,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «2026-08-771204» (context: printed on the line: Rechnung 2026-08-771204 (Mobilfunk Juli 2026); line above: Betrag €; line below: 05.08.2026) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «4402917» (context: printed on the line: Verwendungszweck: RE 2026-08-771204 Kd 4402917; line above: BIC: COBADEFFXXX; line below: GiroCode: Mit der Banking-App scannen,) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «FIB-Mahn 4402917 4402917» the number that identifies the reader as a customer, member or account holder? Answer:",
+   "answer": "-2.8288650512695312,-1.9158573150634766,-1.5853252410888672",
+   "ms": 10021,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:invoice_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «2026-08-771204» (context: printed on the line: Rechnung 2026-08-771204 (Mobilfunk Juli 2026); line above: Betrag €; line below: 05.08.2026) the invoice number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «4402917» (context: printed on the line: Verwendungszweck: RE 2026-08-771204 Kd 4402917; line above: BIC: COBADEFFXXX; line below: GiroCode: Mit der Banking-App scannen,) the invoice number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «000000» (context: printed on the line: AG Beispielstadt HRB 000000; line above: Geschaftsführer: Nora Beispiel, Tim Muster; line below: Bankverbindung: Beispielbank) the invoice number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «FIB-Mahn 4402917 4402917» the invoice number? Answer:",
+   "answer": "-0.5504589080810547,-3.2522010803222656,-4.390079498291016,-2.7561473846435547",
+   "ms": 14831,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:fee",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «64,98€» (context: printed on the line: Bitte überweisen Sie den offenen Betrag von 64,98€ zahlbar innerhalb v; line above: 64,98; line below: dieses Schreibens auf das unten genannte Konto. Nach Ablauf dieser Fri) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «59,98» (context: line above: 05.08.2026; line below: Mahngebühr) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «5,00» (context: line above: Mahngebühr; line below: Offener Gesamtbetrag) the fee? Answer:",
+   "answer": "-4.1331634521484375,-1.0066204071044922,1.3881568908691406",
+   "ms": 5782,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:original_due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «05.08.2026» (context: printed on the line: zu unserer Rechnung 2026-08-771204 vom 05.08.2026 konnten wir bis heut; line above: Sehr geehrte Frau Mustermann,; line below: Zahlungseingang feststellen. Die Rechnung war am 19.08.2026 fällig. Fa) the original due date? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «19.08.2026» (context: printed on the line: Zahlungseingang feststellen. Die Rechnung war am 19.08.2026 fällig. Fa; line above: zu unserer Rechnung 2026-08-771204 vom 05.08.2026 konnten wir bis heut; line below: diesem Schreiben überschnitten hat, betrachten Sie es bitte als gegens) the original due date? Answer:",
+   "answer": "0.6157550811767578,1.7854022979736328",
+   "ms": 6162,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this reminder dunning: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Zahlungserinnerung für Rechnung 2026-08-771204 von Nordlicht Mobilfunk GmbH\"",
+   "ms": 3765,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Zahlungserinnerung \/1. Mahnung- Rechnung 2026-08-771204 \/ Sehr geehrte Frau Mustermann,\"",
+   "ms": 2940,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Zahlungseingang ist nicht festgestellt worden, und der offene Betrag von 64,98€ muss innerhalb von 14 Tagen nach Zugang auf das genannte Konto überwiesen werden.\"",
+   "ms": 4714,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Was ist der offene Gesamtbetrag?\" \"Wie lange muss ich die Zahlung leisten?\" \"Was passiert, wenn ich nicht zahlt?\"",
+   "ms": 3431,
+   "questionTokens": -1,
+   "answerTokens": -1
+  }
+ ],
+ "wallMs": 152772,
+ "model": "q2b.gguf"
+}

@@ -1,0 +1,310 @@
+{
+ "key": "N2-kfz-verlaengerung-2p",
+ "interpreter": "zones",
+ "pages": 2,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Nordstern Direkt Versicherung AG",
+   "normalized": "Nordstern Direkt Versicherung AG",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Herrn und Frau",
+   "normalized": "Herrn und Frau",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Max und Erika Mustermann",
+   "normalized": "Max und Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Beitrag pro Jahr",
+   "normalized": "Beitrag pro Jahr",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "Kfz-Haftpflicht und Teilkasko",
+   "normalized": "Kfz-Haftpflicht und Teilkasko",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "BỊC COBADEFFXXX",
+   "normalized": "BỊC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "bisher",
+   "normalized": "bisher",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "01.01.2027",
+   "normalized": "2027-01-01",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "14.09.2026",
+   "normalized": "2026-09-14",
+   "page": 1
+  },
+  {
+   "id": "D5",
+   "kind": "DATE",
+   "raw": "30.11.2026",
+   "normalized": "2026-11-30",
+   "page": 2
+  },
+  {
+   "id": "D6",
+   "kind": "DATE",
+   "raw": "31.12.2026",
+   "normalized": "2026-12-31",
+   "page": 2
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "579,10 €",
+   "normalized": "579.10 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "612,40 €",
+   "normalized": "612.40 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "KFZ-4471-882-19",
+   "normalized": "KFZ-4471-882-19",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "O00000",
+   "normalized": "O00000",
+   "page": 2
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 555 200",
+   "normalized": "01234 555 200",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "01234 555 210",
+   "normalized": "01234 555 210",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "kfz@nordstern-direkt.example",
+   "normalized": "kfz@nordstern-direkt.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "sender: NONE\naddressee: M2 PERSON HOUSEHOLD \"Max und Erika Mustermann\" HIGH\ncare_of: NONE\ncontact: NONE\nslot:letter_date: D3 OTHER LOW\ntype: bill de HIGH\nsubject_person: NONE\nslot:total: A1 TOTAL_DUE HIGH\nslot:due_date: D1 LETTER_DATE LOW\nslot:iban: NONE\nslot:reference: NONE\nslot:customer_no: NONE\nslot:invoice_no: NONE\nextras: NONE",
+ "call1Ms": 44897,
+ "call2Ms": 6539,
+ "prefixTokens": 1070,
+ "prefixMs": 10617,
+ "template": "DIN5008_B",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNordstern Direkt Versicherung AG \/ Versicherungsallee 15 12345 Beispielstadt \/ Tel, 01234 555 200 \/ kfz@nordstern-direkt.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNordstern Direkt Versicherung AG. Versicherungsallee 15 12345 Beispielstadt\nCANDIDATES IN THESE ZONES\nM1: Nordstern Direkt Versicherung AG [letterhead] p.1\/2\nQUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1891,
+   "questionTokens": 194,
+   "answerTokens": 1
+  },
+  {
+   "name": "addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nCANDIDATES IN THESE ZONES\nM2: Herrn und Frau [address-field] p.1\nM3: Max und Erika Mustermann [address-field] p.1\nQUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE",
+   "answer": "M2 PERSON HOUSEHOLD \"Max und Erika Mustermann\" HIGH",
+   "ms": 2974,
+   "questionTokens": 207,
+   "answerTokens": 15
+  },
+  {
+   "name": "care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nHerrn und Frau \/ Max und Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nCANDIDATES IN THESE ZONES\nM2: Herrn und Frau [address-field] p.1\nM3: Max und Erika Mustermann [address-field] p.1\nQUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1801,
+   "questionTokens": 168,
+   "answerTokens": 1
+  },
+  {
+   "name": "contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nCANDIDATES IN THESE ZONES\n(none)\nQUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1833,
+   "questionTokens": 171,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nCANDIDATES IN THESE ZONES\nD3: 14.09.2026 p.1\nQUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D3 OTHER LOW",
+   "ms": 2685,
+   "questionTokens": 211,
+   "answerTokens": 4
+  },
+  {
+   "name": "type",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nQUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "bill de HIGH",
+   "ms": 2672,
+   "questionTokens": 240,
+   "answerTokens": 3
+  },
+  {
+   "name": "subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM1: Nordstern Direkt Versicherung AG [letterhead] p.1\/2\nM4: Beitrag pro Jahr p.1\nM5: Kfz-Haftpflicht und Teilkasko p.1\nM8: bisher p.1\nQUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1726,
+   "questionTokens": 168,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nA1: 579,10 € (near: \"bisher\") p.1\nA2: 612,40 € (near: \"Jahresbeitrag\" | \"bisher\") p.1\nQUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A1 TOTAL_DUE HIGH",
+   "ms": 2432,
+   "questionTokens": 170,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nD1: 01.01.2027 (near: \"ab\") p.1\nD5: 30.11.2026 (near: \"bis\") p.2\nD6: 31.12.2026 (near: \"endet dann zum\") p.2\nQUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 LETTER_DATE LOW",
+   "ms": 2526,
+   "questionTokens": 206,
+   "answerTokens": 5
+  },
+  {
+   "name": "slot:iban",
+   "question": "ZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\nNordstern Direkt Versicherung AG \/ Vorstand: Dr. Uta Muster, Jan Beispiel \/ Vors. des Aufsichtsrats: P. Test \/ Sitz Beispielstadt, HRB 000000 \/ Bankverbindung: Beispielbank \/ JBAN DE89 3704 0044 0532 0130 00 \/ BỊC COBADEFFXXX \/ Tel. 01234 555 200 \/ kfz@nordstern-direkt.example \/ Seite 1 von 2 \/ Sitz Beispielstadt, HRB O00000\nCANDIDATES IN THESE ZONES\nI1: DE89 3704 0044 0532 0130 00 p.1\/2\nQUESTION: Which IBAN is the account the reader should pay to?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 2483,
+   "questionTokens": 246,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: KFZ-4471-882-19 (near: \"Versicherungsnummer\" | \"Versicherungsnr.\" | \"AG - Kfz-Versicherung\") p.1\/2\nQUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 2524,
+   "questionTokens": 233,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: KFZ-4471-882-19 (near: \"Versicherungsnummer\" | \"Versicherungsnr.\" | \"AG - Kfz-Versicherung\") p.1\/2\nQUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 2280,
+   "questionTokens": 226,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:invoice_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Versicherungsnr.: KFZ-4471-882-19 \/ Kennzeichen: XX-AB 1234 \/ Ansprechpartner: Herr K. Beispiel \/ Telefon: \/ 01234 555 210 \/ 14.09.2026 \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: KFZ-4471-882-19 (near: \"Versicherungsnummer\" | \"Versicherungsnr.\" | \"AG - Kfz-Versicherung\") p.1\/2\nQUESTION: Which number is the invoice number (the bill this letter is about)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 2461,
+   "questionTokens": 226,
+   "answerTokens": 1
+  },
+  {
+   "name": "extras",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM1: Nordstern Direkt Versicherung AG [letterhead] p.1\/2\nM4: Beitrag pro Jahr p.1\nM5: Kfz-Haftpflicht und Teilkasko p.1\nM8: bisher p.1\nD1: 01.01.2027 (near: \"ab\") p.1\nD5: 30.11.2026 (near: \"bis\") p.2\nD6: 31.12.2026 (near: \"endet dann zum\") p.2\nA1: 579,10 € (near: \"bisher\") p.1\nA2: 612,40 € (near: \"Jahresbeitrag\" | \"bisher\") p.1\nN1: KFZ-4471-882-19 (near: \"Versicherungsnummer\" | \"Versicherungsnr.\" | \"AG - Kfz-Versicherung\") p.1\/2\nT2: 01234 555 210 (near: \"unter\") p.1\/2\nQUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "NONE",
+   "ms": 3914,
+   "questionTokens": 417,
+   "answerTokens": 1
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this bill: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"NEUTRO\"",
+   "ms": 849,
+   "questionTokens": 50,
+   "answerTokens": 5
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Kfz-Versicherung\"",
+   "ms": 863,
+   "questionTokens": 31,
+   "answerTokens": 8
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Dear Max und Erika Mustermann, please contact Nordstern Direkt Versicherung AG for further assistance.\"",
+   "ms": 1718,
+   "questionTokens": 51,
+   "answerTokens": 21
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"1. What is the current annual contribution amount mentioned in the letter? \" \"2. What is the new annual contribution amount mentioned in the letter? \" \"3. What is the deadline for the customer to terminate the contract? \"",
+   "ms": 3075,
+   "questionTokens": 61,
+   "answerTokens": 48
+  }
+ ],
+ "wallMs": 51656,
+ "model": "text.gguf"
+}

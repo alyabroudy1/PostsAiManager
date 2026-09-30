@@ -28,6 +28,13 @@ class ModelProfileTest {
     }
 
     @Test
+    fun `the smallest model reads by scoring, the strategy the benchmark chose for it`() {
+        val p = ModelProfiles.of("qwen3.5-0.8b-q4_k_m")
+        assertThat(p.strategy).isEqualTo(InterpreterStrategy.ZONES_SCORING)
+        assertThat(factory.create(32768, "qwen3.5-0.8b-q4_k_m")).isInstanceOf(ZoneScoringInterpreter::class.java)
+    }
+
+    @Test
     fun `every profile is for a distinct catalogue model`() {
         assertThat(ModelProfiles.ALL.map { it.modelId }.toSet()).hasSize(ModelProfiles.ALL.size)
         assertThat(ModelProfiles.of(ModelProfiles.QWEN35_08B.modelId)).isSameInstanceAs(ModelProfiles.QWEN35_08B)

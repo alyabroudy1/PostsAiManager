@@ -1,0 +1,424 @@
+{
+ "key": "receipt-noise-1p",
+ "interpreter": "zonesscoring",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Spülmittel Spülmittel",
+   "normalized": "Spülmittel Spülmittel",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "BEISPIELMARKT",
+   "normalized": "BEISPIELMARKT",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "SUMME EUR",
+   "normalized": "SUMME EUR",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Kartenzahlung girocard",
+   "normalized": "Kartenzahlung girocard",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "Netto MwSt Brutto",
+   "normalized": "Netto MwSt Brutto",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Kartenzahlung",
+   "normalized": "Kartenzahlung",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Umtausch nur mit Kassenbon",
+   "normalized": "Umtausch nur mit Kassenbon",
+   "page": 1
+  },
+  {
+   "id": "DT1",
+   "kind": "DATETIME",
+   "raw": "27.09.2026 18:42",
+   "normalized": "2026-09-27T18:42",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "27.09.2026",
+   "normalized": "2026-09-27",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "19,15",
+   "normalized": "19.15 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "1,34",
+   "normalized": "1.34 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "2,50",
+   "normalized": "2.50 EUR",
+   "page": 1
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "0,48",
+   "normalized": "0.48 EUR",
+   "page": 1
+  },
+  {
+   "id": "A5",
+   "kind": "AMOUNT",
+   "raw": "7£",
+   "normalized": "7.00 GBP",
+   "page": 1
+  },
+  {
+   "id": "A6",
+   "kind": "AMOUNT",
+   "raw": "1,19",
+   "normalized": "1.19 EUR",
+   "page": 1
+  },
+  {
+   "id": "A7",
+   "kind": "AMOUNT",
+   "raw": "3,29",
+   "normalized": "3.29 EUR",
+   "page": 1
+  },
+  {
+   "id": "A8",
+   "kind": "AMOUNT",
+   "raw": "1,51",
+   "normalized": "1.51 EUR",
+   "page": 1
+  },
+  {
+   "id": "A9",
+   "kind": "AMOUNT",
+   "raw": "2,49",
+   "normalized": "2.49 EUR",
+   "page": 1
+  },
+  {
+   "id": "A10",
+   "kind": "AMOUNT",
+   "raw": "2,19",
+   "normalized": "2.19 EUR",
+   "page": 1
+  },
+  {
+   "id": "A11",
+   "kind": "AMOUNT",
+   "raw": "2,04",
+   "normalized": "2.04 EUR",
+   "page": 1
+  },
+  {
+   "id": "A12",
+   "kind": "AMOUNT",
+   "raw": "0,79",
+   "normalized": "0.79 EUR",
+   "page": 1
+  },
+  {
+   "id": "A13",
+   "kind": "AMOUNT",
+   "raw": "6,99",
+   "normalized": "6.99 EUR",
+   "page": 1
+  },
+  {
+   "id": "A14",
+   "kind": "AMOUNT",
+   "raw": "1,49",
+   "normalized": "1.49 EUR",
+   "page": 1
+  },
+  {
+   "id": "A16",
+   "kind": "AMOUNT",
+   "raw": "23,47",
+   "normalized": "23.47 EUR",
+   "page": 1
+  },
+  {
+   "id": "A17",
+   "kind": "AMOUNT",
+   "raw": "20,49",
+   "normalized": "20.49 EUR",
+   "page": 1
+  },
+  {
+   "id": "A18",
+   "kind": "AMOUNT",
+   "raw": "2,98",
+   "normalized": "2.98 EUR",
+   "page": 1
+  },
+  {
+   "id": "Z1",
+   "kind": "NUMBER",
+   "raw": "1,79 EUR",
+   "normalized": "1.79",
+   "page": 1
+  },
+  {
+   "id": "Z2",
+   "kind": "NUMBER",
+   "raw": "3,99 EUR",
+   "normalized": "3.99",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "750g",
+   "normalized": "750g",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "250g",
+   "normalized": "250g",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "DE000000000",
+   "normalized": "DE000000000",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "500g",
+   "normalized": "500g",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "52847196",
+   "normalized": "52847196",
+   "page": 1
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "004217",
+   "normalized": "004217",
+   "page": 1
+  },
+  {
+   "id": "N8",
+   "kind": "REFERENCE",
+   "raw": "918274",
+   "normalized": "918274",
+   "page": 1
+  },
+  {
+   "id": "N9",
+   "kind": "REFERENCE",
+   "raw": "b40928b5b7a",
+   "normalized": "b40928b5b7a",
+   "page": 1
+  },
+  {
+   "id": "N10",
+   "kind": "REFERENCE",
+   "raw": "767c76fb008f86bebb2",
+   "normalized": "767c76fb008f86bebb2",
+   "page": 1
+  },
+  {
+   "id": "N11",
+   "kind": "REFERENCE",
+   "raw": "3c6f5da2",
+   "normalized": "3c6f5da2",
+   "page": 1
+  },
+  {
+   "id": "N12",
+   "kind": "REFERENCE",
+   "raw": "cec255404e4",
+   "normalized": "cec255404e4",
+   "page": 1
+  },
+  {
+   "id": "N13",
+   "kind": "REFERENCE",
+   "raw": "1049233",
+   "normalized": "1049233",
+   "page": 1
+  },
+  {
+   "id": "N14",
+   "kind": "REFERENCE",
+   "raw": "ecdsa-plain-SHA256",
+   "normalized": "ecdsa-plain-SHA256",
+   "page": 1
+  },
+  {
+   "id": "N15",
+   "kind": "REFERENCE",
+   "raw": "234567",
+   "normalized": "234567",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 998877",
+   "normalized": "01234 998877",
+   "page": 1
+  }
+ ],
+ "call1": "score:sender: 0.226043701171875\nscore:kind:sender: -0.7172107696533203,-0.6514682769775391,0.4287261962890625\nscore:type: 0.5345592498779297,-0.4593029022216797,-0.6562709808349609,-1.2954177856445312,-1.4073829650878906,-2.062196731567383,1.1133060455322266,-0.0494842529296875,0.09349250793457031,0.9110126495361328,0.8912811279296875\nscore:slot:letter_date: 0.6379623413085938,-0.18860244750976562\nscore:slot:total: 0.011415481567382812,-0.17889404296875,-0.26177024841308594,-0.09533500671386719,-0.02161407470703125,-0.55859375,-0.22188377380371094,-0.3972797393798828,-0.2984352111816406,-0.09866714477539062,-0.29755210876464844,-0.40161895751953125,-0.06542205810546875,-0.22566604614257812,0.021097183227539062,-0.15785598754882812,-0.22820281982421875\nscore:slot:due_date: 0.25272369384765625,-0.16119384765625\nscore:slot:reference: 0.06581687927246094,0.2060699462890625,0.5000820159912109,0.6987533569335938,0.5884532928466797,0.661590576171875,1.2851486206054688,1.1784210205078125,0.7888622283935547,1.052734375,1.1101531982421875,1.1461620330810547\nscore:slot:customer_no: -0.5188369750976562,-0.8013362884521484,-0.0678863525390625,-0.23527145385742188,-0.0064411163330078125,-0.3581123352050781,-0.16347885131835938,-0.11166763305664062,-0.23782730102539062,0.04207038879394531,-0.1635303497314453,0.06781005859375,-0.20743560791015625\nscore:slot:receipt_no: -1.2735099792480469,-1.285623550415039,-0.8283367156982422,-0.18552017211914062,-0.137359619140625,-0.5214519500732422,-0.24918365478515625,-0.16464614868164062,0.0074863433837890625,-0.3239727020263672,0.032703399658203125,-0.4694786071777344",
+ "call1Ms": 147154,
+ "call2Ms": 3568,
+ "prefixTokens": 902,
+ "prefixMs": 7229,
+ "template": "RECEIPT_NARROW",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "score:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «BEISPIELMARKT» (context: line below: Musterstraße 12) the sender: the party that wrote and sent this letter? Answer:",
+   "answer": "0.226043701171875",
+   "ms": 985,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «BEISPIELMARKT» (context: line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «BEISPIELMARKT» (context: line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «BEISPIELMARKT» (context: line below: Musterstraße 12) the name of a company or other organisation? Answer:",
+   "answer": "-0.7172107696533203,-0.6514682769775391,0.4287261962890625",
+   "ms": 3032,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:type",
+   "question": "Is this document an invoice or bill that asks the reader to pay? Answer:\n@@\nIs this document a payment reminder or dunning letter about an unpaid bill? Answer:\n@@\nIs this document a letter or decision from an authority, tax office or public body? Answer:\n@@\nIs this document a letter from a doctor, clinic or health insurer, such as an appointment? Answer:\n@@\nIs this document an insurance or service contract, or a change to its price or terms? Answer:\n@@\nIs this document a letter from a school or kindergarten to parents? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document an information letter or statement that asks nothing of the reader? Answer:\n@@\nIs this document a letter the reader wrote and sent to someone else? Answer:\n@@\nIs this document a confirmation that a payment was made? Answer:\n@@\nIs this document anything that fits none of the other types? Answer:",
+   "answer": "0.5345592498779297,-0.4593029022216797,-0.6562709808349609,-1.2954177856445312,-1.4073829650878906,-2.062196731567383,1.1133060455322266,-0.0494842529296875,0.09349250793457031,0.9110126495361328,0.8912811279296875",
+   "ms": 2386,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:letter_date",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE footer. HINT: This is the end of the receipt: often a date, a transaction number and thanks.\n(the text of this zone is in the letter above)\nIs «27.09.2026 18:42» (context: printed on the line: Datum: 27.09.2026 18:42; line above: ********4821; line below: ZAHLUNG EREFOLGT) the date of the letter itself (when it was written or issued)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE footer. HINT: This is the end of the receipt: often a date, a transaction number and thanks.\n(the text of this zone is in the letter above)\nIs «27.09.2026» (context: printed on the line: Datum: 27.09.2026 Zeit: 18:42:07; line above: PAN:; line below: Bon-Nr.: 4711 Kasse: 03 Bediener: 017) the date of the letter itself (when it was written or issued)? Answer:",
+   "answer": "0.6379623413085938,-0.18860244750976562",
+   "ms": 2670,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:total",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «19,15» (context: printed on the line: A 7% 19,15 1,34; line above: Netto MwSt Brutto; line below: B19% 2,50 0,48) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «1,34» (context: printed on the line: A 7% 19,15 1,34; line above: Netto MwSt Brutto; line below: B19% 2,50 0,48) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «2,50» (context: printed on the line: B19% 2,50 0,48; line above: A 7% 19,15 1,34; line below: Kartenzahlung) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «0,48» (context: printed on the line: B19% 2,50 0,48; line above: A 7% 19,15 1,34; line below: Kartenzahlung) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «7£» (context: printed on the line: 7£6a6fO fb2 3c6f5da2 cec255404e4 fb4; line above: Seriennummer:; line below: Transaktionsnummer: 1049233) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «1,19» (context: printed on the line: 1,19 A; line above: Kartenzahlung girocard; line below: 3,29 A) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «3,29» (context: printed on the line: 3,29 A; line above: 1,19 A; line below: 1,51 A) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «1,51» (context: printed on the line: 1,51 A; line above: 3,29 A; line below: 2,49 A) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «2,49» (context: printed on the line: 2,49 A; line above: 1,51 A; line below: 2,19 A) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «2,19» (context: printed on the line: 2,19 A; line above: 2,49 A; line below: 2,04 A) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «2,04» (context: printed on the line: 2,04 A; line above: 2,19 A; line below: 0,79 A) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «0,79» (context: printed on the line: 0,79 A; line above: 2,04 A; line below: 6,99 A) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «6,99» (context: printed on the line: 6,99 A; line above: 0,79 A; line below: 1,49 B) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «1,49» (context: printed on the line: 1,49 B; line above: 6,99 A; line below: 1,49 B) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «23,47» (context: line above: 1,49 B; line below: 23, 47) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «20,49» (context: line above: 23, 47; line below: 2,98) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «2,98» (context: line above: 20,49; line below: ********4821) the main amount of this document: what the reader has to pay, or the total? Answer:",
+   "answer": "0.011415481567382812,-0.17889404296875,-0.26177024841308594,-0.09533500671386719,-0.02161407470703125,-0.55859375,-0.22188377380371094,-0.3972797393798828,-0.2984352111816406,-0.09866714477539062,-0.29755210876464844,-0.40161895751953125,-0.06542205810546875,-0.22566604614257812,0.021097183227539062,-0.15785598754882812,-0.22820281982421875",
+   "ms": 38040,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:due_date",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «27.09.2026 18:42» (context: printed on the line: Datum: 27.09.2026 18:42; line above: ********4821; line below: ZAHLUNG EREFOLGT) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «27.09.2026» (context: printed on the line: Datum: 27.09.2026 Zeit: 18:42:07; line above: PAN:; line below: Bon-Nr.: 4711 Kasse: 03 Bediener: 017) the date by which the reader must pay or act? Answer:",
+   "answer": "0.25272369384765625,-0.16119384765625",
+   "ms": 4024,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:reference",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «750g» (context: printed on the line: Landbrot 750g; line above: 0,842 kg x 1,79 EUR\/kg; line below: Butter 250g) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «250g» (context: printed on the line: Butter 250g; line above: Landbrot 750g; line below: Tomaten) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «500g» (context: printed on the line: Joghurt Natur 500g; line above: 0,512 kg x 3,99 EUR\/kg; line below: Kaffee gemahlen 500g) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «52847196» (context: printed on the line: Terminal-ID: 52847196; line above: Kartenzahlung; line below: Trace-Nr. : 004217) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «004217» (context: printed on the line: Trace-Nr. : 004217; line above: Terminal-ID: 52847196; line below: Beleg-Nr.: 7731) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «918274» (context: printed on the line: Genehmigungs-Nr.: 918274; line above: Beleg-Nr.: 7731; line below: Karte : girocard Folge-Nr. 01) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «b40928b5b7a» a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «767c76fb008f86bebb2» a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «3c6f5da2» (context: printed on the line: 7£6a6fO fb2 3c6f5da2 cec255404e4 fb4; line above: Seriennummer:; line below: Transaktionsnummer: 1049233) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «cec255404e4» (context: printed on the line: 7£6a6fO fb2 3c6f5da2 cec255404e4 fb4; line above: Seriennummer:; line below: Transaktionsnummer: 1049233) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «1049233» (context: printed on the line: Transaktionsnummer: 1049233; line above: 7£6a6fO fb2 3c6f5da2 cec255404e4 fb4; line below: TSE-Start: 2026-09-27T18:41:12) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «ecdsa-plain-SHA256» (context: printed on the line: Sig.-Alg.: ecdsa-plain-SHA256; line above: Signaturzähler: 88214; line below: Vielen Dank für Ihren Einkauf!) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
+   "answer": "0.06581687927246094,0.2060699462890625,0.5000820159912109,0.6987533569335938,0.5884532928466797,0.661590576171875,1.2851486206054688,1.1784210205078125,0.7888622283935547,1.052734375,1.1101531982421875,1.1461620330810547",
+   "ms": 29972,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:customer_no",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «750g» (context: printed on the line: Landbrot 750g; line above: 0,842 kg x 1,79 EUR\/kg; line below: Butter 250g) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «250g» (context: printed on the line: Butter 250g; line above: Landbrot 750g; line below: Tomaten) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «DE000000000» (context: printed on the line: USt-IdNr. DE000000000; line above: Tel. 01234 998877; line below: Vollmilch l,5% 1L) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «500g» (context: printed on the line: Joghurt Natur 500g; line above: 0,512 kg x 3,99 EUR\/kg; line below: Kaffee gemahlen 500g) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «52847196» (context: printed on the line: Terminal-ID: 52847196; line above: Kartenzahlung; line below: Trace-Nr. : 004217) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «004217» (context: printed on the line: Trace-Nr. : 004217; line above: Terminal-ID: 52847196; line below: Beleg-Nr.: 7731) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «918274» (context: printed on the line: Genehmigungs-Nr.: 918274; line above: Beleg-Nr.: 7731; line below: Karte : girocard Folge-Nr. 01) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «b40928b5b7a» the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «767c76fb008f86bebb2» the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «3c6f5da2» (context: printed on the line: 7£6a6fO fb2 3c6f5da2 cec255404e4 fb4; line above: Seriennummer:; line below: Transaktionsnummer: 1049233) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «cec255404e4» (context: printed on the line: 7£6a6fO fb2 3c6f5da2 cec255404e4 fb4; line above: Seriennummer:; line below: Transaktionsnummer: 1049233) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «1049233» (context: printed on the line: Transaktionsnummer: 1049233; line above: 7£6a6fO fb2 3c6f5da2 cec255404e4 fb4; line below: TSE-Start: 2026-09-27T18:41:12) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nIs «ecdsa-plain-SHA256» (context: printed on the line: Sig.-Alg.: ecdsa-plain-SHA256; line above: Signaturzähler: 88214; line below: Vielen Dank für Ihren Einkauf!) the number that identifies the reader as a customer, member or account holder? Answer:",
+   "answer": "-0.5188369750976562,-0.8013362884521484,-0.0678863525390625,-0.23527145385742188,-0.0064411163330078125,-0.3581123352050781,-0.16347885131835938,-0.11166763305664062,-0.23782730102539062,0.04207038879394531,-0.1635303497314453,0.06781005859375,-0.20743560791015625",
+   "ms": 44150,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:receipt_no",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «750g» (context: printed on the line: Landbrot 750g; line above: 0,842 kg x 1,79 EUR\/kg; line below: Butter 250g) the receipt number? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «250g» (context: printed on the line: Butter 250g; line above: Landbrot 750g; line below: Tomaten) the receipt number? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «500g» (context: printed on the line: Joghurt Natur 500g; line above: 0,512 kg x 3,99 EUR\/kg; line below: Kaffee gemahlen 500g) the receipt number? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «52847196» (context: printed on the line: Terminal-ID: 52847196; line above: Kartenzahlung; line below: Trace-Nr. : 004217) the receipt number? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «004217» (context: printed on the line: Trace-Nr. : 004217; line above: Terminal-ID: 52847196; line below: Beleg-Nr.: 7731) the receipt number? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «918274» (context: printed on the line: Genehmigungs-Nr.: 918274; line above: Beleg-Nr.: 7731; line below: Karte : girocard Folge-Nr. 01) the receipt number? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «b40928b5b7a» the receipt number? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «767c76fb008f86bebb2» the receipt number? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «3c6f5da2» (context: printed on the line: 7£6a6fO fb2 3c6f5da2 cec255404e4 fb4; line above: Seriennummer:; line below: Transaktionsnummer: 1049233) the receipt number? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «cec255404e4» (context: printed on the line: 7£6a6fO fb2 3c6f5da2 cec255404e4 fb4; line above: Seriennummer:; line below: Transaktionsnummer: 1049233) the receipt number? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «1049233» (context: printed on the line: Transaktionsnummer: 1049233; line above: 7£6a6fO fb2 3c6f5da2 cec255404e4 fb4; line below: TSE-Start: 2026-09-27T18:41:12) the receipt number? Answer:\n@@\nZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nIs «ecdsa-plain-SHA256» (context: printed on the line: Sig.-Alg.: ecdsa-plain-SHA256; line above: Signaturzähler: 88214; line below: Vielen Dank für Ihren Einkauf!) the receipt number? Answer:",
+   "answer": "-1.2735099792480469,-1.285623550415039,-0.8283367156982422,-0.18552017211914062,-0.137359619140625,-0.5214519500732422,-0.24918365478515625,-0.16464614868164062,0.0074863433837890625,-0.3239727020263672,0.032703399658203125,-0.4694786071777344",
+   "ms": 14624,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this receipt: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Yes\"",
+   "ms": 848,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Yes\"",
+   "ms": 560,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Yes\"",
+   "ms": 758,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Yes\" \"Yes\" \"Yes\"",
+   "ms": 1360,
+   "questionTokens": -1,
+   "answerTokens": -1
+  }
+ ],
+ "wallMs": 150889,
+ "model": "text.gguf"
+}

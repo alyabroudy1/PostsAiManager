@@ -1,0 +1,366 @@
+{
+ "key": "invoice-2p",
+ "interpreter": "zones",
+ "pages": 2,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Musterfirma GmbH",
+   "normalized": "Musterfirma GmbH",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Pos. Beschreibung",
+   "normalized": "Pos. Beschreibung",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Konzeption Webportal",
+   "normalized": "Konzeption Webportal",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "Menge",
+   "normalized": "Menge",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Einzelpreis € Gesamt €",
+   "normalized": "Einzelpreis € Gesamt €",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "28.09.2026",
+   "normalized": "2026-09-28",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "15.10.2026",
+   "normalized": "2026-10-15",
+   "page": 2
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "95,00",
+   "normalized": "95.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "149,90",
+   "normalized": "149.90 EUR",
+   "page": 1
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "29,00",
+   "normalized": "29.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A5",
+   "kind": "AMOUNT",
+   "raw": "380,00",
+   "normalized": "380.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A6",
+   "kind": "AMOUNT",
+   "raw": "285,00",
+   "normalized": "285.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A9",
+   "kind": "AMOUNT",
+   "raw": "18,50 €",
+   "normalized": "18.50 EUR",
+   "page": 2
+  },
+  {
+   "id": "A10",
+   "kind": "AMOUNT",
+   "raw": "1.079,41 €",
+   "normalized": "1079.41 EUR",
+   "page": 2
+  },
+  {
+   "id": "A11",
+   "kind": "AMOUNT",
+   "raw": "39,00",
+   "normalized": "39.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A13",
+   "kind": "AMOUNT",
+   "raw": "93,51",
+   "normalized": "93.51 EUR",
+   "page": 2
+  },
+  {
+   "id": "A14",
+   "kind": "AMOUNT",
+   "raw": "1.284,50 €",
+   "normalized": "1284.50 EUR",
+   "page": 2
+  },
+  {
+   "id": "A15",
+   "kind": "AMOUNT",
+   "raw": "66,00",
+   "normalized": "66.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A17",
+   "kind": "AMOUNT",
+   "raw": "37,00",
+   "normalized": "37.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A21",
+   "kind": "AMOUNT",
+   "raw": "205,09",
+   "normalized": "205.09 EUR",
+   "page": 2
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 2
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "RE-2026-0815",
+   "normalized": "RE-2026-0815",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "KD-40417",
+   "normalized": "KD-40417",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "DE000000000",
+   "normalized": "DE000000000",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 567890",
+   "normalized": "01234 567890",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "info@musterfirma.example",
+   "normalized": "info@musterfirma.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 2
+  }
+ ],
+ "call1": "sender: M1 PERSON \"Musterfirma GmbH\" HIGH\naddressee: NONE\ncare_of: NONE\ncontact: NONE\nslot:letter_date: NONE\ntype: bill de HIGH\nsubject_person: NONE\nslot:total: A10 TOTAL_DUE MEDIUM\nslot:due_date: D1 OTHER LOW\nslot:iban: NONE\nslot:reference: NONE\nslot:customer_no: NONE\nslot:invoice_no: N1 HIGH\nextras: NONE",
+ "call1Ms": 38517,
+ "call2Ms": 6516,
+ "prefixTokens": 1344,
+ "prefixMs": 9908,
+ "template": "INVOICE_TABLE",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nMusterfirma GmbH Beispielweg 7 12345 Beispielstadt \/ Musterfirma GmbH \/ Beispielweg 7 \/ 12345 Beispielstadt \/ Tel. 01234 567890 \/ info@musterfirma.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nMusterfirma GmbH Beispielweg 7- 12345 Beispielstadt\nCANDIDATES IN THESE ZONES\nM1: Musterfirma GmbH [letterhead] p.1\nQUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "M1 PERSON \"Musterfirma GmbH\" HIGH",
+   "ms": 2470,
+   "questionTokens": 193,
+   "answerTokens": 10
+  },
+  {
+   "name": "addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nCANDIDATES IN THESE ZONES\nM2: Erika Mustermann [address-field] p.1\nQUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1288,
+   "questionTokens": 183,
+   "answerTokens": 1
+  },
+  {
+   "name": "care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nCANDIDATES IN THESE ZONES\nM2: Erika Mustermann [address-field] p.1\nQUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1057,
+   "questionTokens": 144,
+   "answerTokens": 1
+  },
+  {
+   "name": "contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nCANDIDATES IN THESE ZONES\n(none)\nQUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 876,
+   "questionTokens": 110,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nCANDIDATES IN THESE ZONES\nD1: 28.09.2026 (near: \"Rechnungsdatum\" | \"Ort, Datum\") p.1\nQUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "NONE",
+   "ms": 1336,
+   "questionTokens": 166,
+   "answerTokens": 1
+  },
+  {
+   "name": "type",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nQUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "bill de HIGH",
+   "ms": 3451,
+   "questionTokens": 259,
+   "answerTokens": 3
+  },
+  {
+   "name": "subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM3: Pos. Beschreibung p.1\nM4: Konzeption Webportal p.1\nM5: Menge p.1\nM6: Einzelpreis € Gesamt € p.1\nQUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1524,
+   "questionTokens": 175,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nA1: 95,00 p.1\nA3: 149,90 p.1\nA4: 29,00 p.1\nA5: 380,00 p.1\nA6: 285,00 p.1\nA9: 18,50 € p.2\nA10: 1.079,41 € (near: \"MwSt. auf\" | \"Nettobetrag\") p.2\nA11: 39,00 p.2\nA13: 93,51 p.2\nA14: 1.284,50 € (near: \"Gesamtbetrag\") p.2\nA15: 66,00 p.2\nA17: 37,00 p.2\nA21: 205,09 (near: \"MwSt.\") p.2\nQUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A10 TOTAL_DUE MEDIUM",
+   "ms": 3503,
+   "questionTokens": 393,
+   "answerTokens": 8
+  },
+  {
+   "name": "slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nD1: 28.09.2026 (near: \"Rechnungsdatum\" | \"Ort, Datum\") p.1\nD3: 15.10.2026 (near: \"zahlbar bis\") p.2\nQUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 OTHER LOW",
+   "ms": 2385,
+   "questionTokens": 242,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:iban",
+   "question": "ZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\nMusterfirma GmbH Beispielweg 7- 12345 Beispielstadt Geschäftsführer: Max Beispiel \/ Amtsgericht Beispielstadt HRB 000000 USt-IdNr. DE000000000 Musterbank Beispielstadt \/ Seite 1 von 2 \/ Musterfirma GmbH Beispielweg 7 12345 Beispielstadt Geschäftsführer: Max Beispiel\nCANDIDATES IN THESE ZONES\nI1: DE89 3704 0044 0532 0130 00 (near: \"IBAN\") p.2\nQUESTION: Which IBAN is the account the reader should pay to?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1944,
+   "questionTokens": 233,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: RE-2026-0815 (near: \"Rechnung Nr.\" | \"Musterfirma GmbH- Rechnung\" | \"Verwendungszweck\") p.1\/2\nN2: KD-40417 (near: \"Kundennummer\") p.1\nQUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1706,
+   "questionTokens": 209,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: RE-2026-0815 (near: \"Rechnung Nr.\" | \"Musterfirma GmbH- Rechnung\" | \"Verwendungszweck\") p.1\/2\nN2: KD-40417 (near: \"Kundennummer\") p.1\nQUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1624,
+   "questionTokens": 202,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:invoice_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: RE-2026-0815 (near: \"Rechnung Nr.\" | \"Musterfirma GmbH- Rechnung\" | \"Verwendungszweck\") p.1\/2\nN2: KD-40417 (near: \"Kundennummer\") p.1\nQUESTION: Which number is the invoice number (the bill this letter is about)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 2147,
+   "questionTokens": 262,
+   "answerTokens": 3
+  },
+  {
+   "name": "extras",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM3: Pos. Beschreibung p.1\nM4: Konzeption Webportal p.1\nM5: Menge p.1\nM6: Einzelpreis € Gesamt € p.1\nD1: 28.09.2026 (near: \"Rechnungsdatum\" | \"Ort, Datum\") p.1\nA1: 95,00 p.1\nA3: 149,90 p.1\nA4: 29,00 p.1\nA5: 380,00 p.1\nA6: 285,00 p.1\nN1: RE-2026-0815 (near: \"Rechnung Nr.\" | \"Musterfirma GmbH- Rechnung\" | \"Verwendungszweck\") p.1\/2\nN2: KD-40417 (near: \"Kundennummer\") p.1\nQUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "NONE",
+   "ms": 3154,
+   "questionTokens": 390,
+   "answerTokens": 1
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this bill: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Musterfirma GmbH\"",
+   "ms": 719,
+   "questionTokens": 50,
+   "answerTokens": 5
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Hosting September 2026 1 \/ 4\"",
+   "ms": 1024,
+   "questionTokens": 31,
+   "answerTokens": 14
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"1. The letter is a business invoice for hosting services dated September 2026, issued by Musterfirma GmbH. 2. The recipient is Mustermann, and the sender is Musterfirma GmbH.\"",
+   "ms": 2779,
+   "questionTokens": 51,
+   "answerTokens": 43
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Which specific software license is included in the invoice?\" \"What is the total amount of the invoice?\" \"When is the payment due?\"",
+   "ms": 1958,
+   "questionTokens": 61,
+   "answerTokens": 28
+  }
+ ],
+ "wallMs": 45256,
+ "model": "text.gguf"
+}
