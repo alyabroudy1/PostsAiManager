@@ -57,6 +57,8 @@ object ModelProfiles {
         "qwen3.5-0.8b-q4_k_m", contextTokens = 4096, strategy = InterpreterStrategy.ZONES_SCORING,
         scoring = ScoringProfile(
             defaultThreshold = -12.0,
+            // The extras are the one question where "take the best" is wrong: a value is an extra only when the model says yes to it.
+            thresholds = mapOf(ScoringDescriptions.EXTRAS_ASK to 0.0),
             // Fitted on the 137 scored answers of the 16 letters (ConfidenceCalibrationTest). HIGH: a margin of 0.2 over the runner-up
             // (91% right in-sample; 83% held out, cuts fitted on the other half of the letters). LOW: the winner's own log-odds are
             // under -0.25, the model itself leaning No (56% right); no set of answers reached the 50% ceiling, so this is the weakest

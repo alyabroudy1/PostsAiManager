@@ -209,24 +209,15 @@ object QuestionnairePrompt {
         EXTRAS_TOKENS,
     )
 
-    /**
-     * The language and the extras in one answer, for a reading that scored everything else ([QuestionGrammars.languageAndExtras]).
-     * [offered] are the candidates the extras may point at (the table the question lists; nothing a slot or party took).
-     */
-    fun languageAndExtras(offered: OfferedCandidates): Question = question(
-        "langextras",
-        "First give the language this letter is written in, as a BCP-47 code (for example de, en, ar). Then list up to " +
-            "${StructuredGrammar.MAX_EXTRAS} other important facts of this letter (a meter number, a tariff, a policy holder, " +
-            "a vehicle plate, a school class, a phone number to call ...) that are not its main amount, due date, IBAN, " +
-            "reference or customer number. Separate the parts of the answer with \"; \". Give only the language when there are " +
-            "no such facts. Use only ids from the candidates shown.",
-        "LANGUAGE-CODE; ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" $CONFIDENCE; " +
-            "...  (NONE \"label\" english_key \"value\" $CONFIDENCE when no id fits)",
-        QuestionGrammars.languageAndExtras(offered.idsOf(*com.postsaimanager.core.domain.extraction.candidates.CandidateKind.entries.toTypedArray())),
-        EXTRAS_TOKENS + LANGUAGE_TOKENS,
+    /** The letter's language as a BCP-47 code, asked on its own: a small model answers a plain question, not one that asks for a list as well. */
+    fun language(): Question = question(
+        "lang",
+        "In which language is this letter written? Answer with its BCP-47 language code (for example de, en, ar).",
+        "the code only",
+        QuestionGrammars.language(),
+        LANGUAGE_TOKENS,
     )
 
-    /** The room the language code takes before the first extra. */
     private const val LANGUAGE_TOKENS = 8
 
     // ── the free text ────────────────────────────────────────────────────────

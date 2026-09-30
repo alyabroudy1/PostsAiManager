@@ -5,7 +5,10 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.Letters
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
+import com.postsaimanager.core.domain.extraction.v2.Prepared
+import com.postsaimanager.core.domain.extraction.v2.QuestionGrammars
 import com.postsaimanager.core.domain.extraction.v2.Slots
+import com.postsaimanager.core.domain.extraction.v2.StructuredGrammar
 import com.postsaimanager.core.testing.FakeAiEngine
 import com.postsaimanager.core.testing.FakePromptSession
 import kotlinx.coroutines.runBlocking
@@ -45,7 +48,20 @@ class ZoneScoringInterpreterTest {
         // Nothing was said yes to for the IBAN or the deadline: the answer is none, not the first candidate.
         assertThat(result.slots.keys.map { it.json }).doesNotContain("iban")
         assertThat(result.slots.keys.map { it.json }).doesNotContain("due_date")
-        assertThat(session.opens.size).isEqualTo(2)
+        // The header session, the body session that scores, and the session that writes.
+        assertThat(session.opens.size).isEqualTo(3)
+    }
+
+    @Test
+    fun `what is written is asked in a session whose instruction is not yes or no`() {
+        val (_, session) = run { false }
+        val yesNo = "single word Yes or No"
+        assertThat(session.opens.dropLast(1).all { it.contains(yesNo) }).isTrue()
+        // A small model obeys a yes/no instruction over any question: measured, every written answer was "Yes".
+        assertThat(session.opens.last()).doesNotContain(yesNo)
+        assertThat(session.opens.last()).contains("LETTER")
+        // Nothing is scored after the writing session opens, and every generated answer is asked in it.
+        assertThat(session.asks).isNotEmpty()
     }
 
     @Test
@@ -55,7 +71,8 @@ class ZoneScoringInterpreterTest {
         assertThat(session.scored).isNotEmpty()
         for (c in session.scored.flatten()) assertThat(idPattern.containsMatchIn(c)).isFalse()
         // Neither the prefixes nor the questions carry a candidate table; a question carries its zone and the zone's hint.
-        for (prefix in session.opens) assertThat(prefix).doesNotContain("CANDIDATES")
+        // (The last prefix is the writing session, under the zone readers' instruction; it scores nothing.)
+        for (prefix in session.opens.dropLast(1)) assertThat(prefix).doesNotContain("CANDIDATES")
         for (c in session.scored.flatten()) assertThat(c).doesNotContain("CANDIDATES")
         assertThat(session.scored.flatten().any { it.contains("ZONE address-field. HINT:") }).isTrue()
     }
@@ -96,27 +113,47 @@ class ZoneScoringInterpreterTest {
     }
 
     @Test
-    fun `the language and the extras come from one grammar-constrained ask in the body session`() {
+    fun `the language is asked on its own and the extras are decided by score then named by a short ask`() {
+        var named = 0
         val session = FakePromptSession().apply {
-            scorer = { -5.0 }
-            responder = { q, _ -> if (q.contains("BCP-47")) "de; NONE \"Kunde\" customer_name \"Musterfirma GmbH\" HIGH" else "\"text\"" }
+            scorer = { c -> if (c.contains(ScoringDescriptions.EXTRA) || c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
+            responder = { q, _ ->
+                when {
+                    q.contains("BCP-47") -> "de"
+                    q.contains("What does the letter call this value?") -> "\"Gegenstand ${++named}\" some_key"
+                    else -> "\"text\""
+                }
+            }
         }
-        val interpreter = ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096)
-        val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, interpreter, 4096) }
+        val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096), 4096) }
         assertThat(result.language).isEqualTo("de")
-        assertThat(result.extras.map { it.label }).contains("Kunde")
-        val asks = session.asks.filter { it.question.contains("BCP-47") }
-        assertThat(asks).hasSize(1)
-        assertThat(asks.single().grammar).contains("root ::= lang")
-        // It is asked after every scoring, in the same open session as the body questions.
-        assertThat(session.opens).hasSize(2)
+        assertThat(named).isGreaterThan(0)
+        assertThat(named).isAtMost(StructuredGrammar.MAX_EXTRAS)
+        assertThat(result.extras.map { it.label }).containsExactlyElementsIn((1..named).map { "Gegenstand $it" })
+        // The value is the candidate itself, the naming only labels it.
+        assertThat(result.extras.all { it.value.candidateId != null }).isTrue()
+        // Each ask has its own small grammar, in the same open body session as the scoring.
+        assertThat(session.asks.first { it.question.contains("BCP-47") }.grammar).isEqualTo(QuestionGrammars.language())
+        assertThat(session.asks.first { it.question.contains("What does the letter call this value?") }.grammar).isEqualTo(QuestionGrammars.labelAndKey())
+        assertThat(session.opens).hasSize(3)
     }
 
     @Test
-    fun `a failed language ask leaves the reading without a language or extras and does not fail it`() {
+    fun `a value the model says no to is not an extra and is not named`() {
         val session = FakePromptSession().apply {
             scorer = { c -> if (c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
-            responder = { q, _ -> if (q.contains("BCP-47")) null else "\"text\"" }
+            responder = { q, _ -> if (q.contains("BCP-47")) "de" else "\"text\"" }
+        }
+        val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096), 4096) }
+        assertThat(result.extras).isEmpty()
+        assertThat(session.asks.none { it.question.contains("What does the letter call this value?") }).isTrue()
+    }
+
+    @Test
+    fun `a failed language or naming ask leaves those out and does not fail the reading`() {
+        val session = FakePromptSession().apply {
+            scorer = { c -> if (c.contains(ScoringDescriptions.EXTRA) || c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
+            responder = { q, _ -> if (q.contains("BCP-47") || q.contains("What does the letter call this value?")) null else "\"text\"" }
         }
         val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096), 4096) }
         assertThat(result.language).isNull()
@@ -125,23 +162,48 @@ class ZoneScoringInterpreterTest {
     }
 
     @Test
-    fun `the extras may only point at candidates no slot or party took`() {
-        fun xids(yes: (String) -> Boolean): Pair<Set<String>, com.postsaimanager.core.domain.extraction.v2.ExtractionV2Result> {
-            val session = FakePromptSession().apply {
-                scorer = { c -> if (yes(c) || c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
-                responder = { _, _ -> "\"text\"" }
-            }
-            val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096), 4096) }
-            val line = session.asks.first { it.question.contains("BCP-47") }.grammar.lines().first { it.startsWith("xid ::=") }
-            return Regex("\"([A-Z]{1,2}\\d{1,3})\"").findAll(line).map { it.groupValues[1] }.toSet() to result
+    fun `the extras are scored only among the candidates no slot or party took, and never the names`() {
+        val yes = { c: String ->
+            c.contains("the main amount") || c.contains("the date by which") || c.contains("the sender") || c.contains("the addressee") ||
+                c.contains("Is this document an invoice or bill")
         }
-        val (none, _) = xids { false }
-        val (some, result) = xids { c -> c.contains("the main amount") || c.contains("the date by which") || c.contains("the sender") || c.contains("the addressee") }
-        val taken = result.slots.values.mapNotNull { it.candidateId } + result.parties.all.mapNotNull { it.value.candidateId }
-        assertThat(taken).isNotEmpty()
-        // What a slot or a party took is not offered to the extras; what nobody took still is.
-        assertThat(some.intersect(taken.toSet())).isEmpty()
-        assertThat(some.size).isAtMost(none.size)
+        val session = FakePromptSession().apply {
+            scorer = { c -> if (yes(c)) 5.0 else -5.0 }
+            responder = { _, _ -> "\"text\"" }
+        }
+        val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096), 4096) }
+        val offered = Prepared(letter.pages).offered
+        val takenRaw = (result.slots.values.mapNotNull { it.candidateId } + result.parties.all.mapNotNull { it.value.candidateId })
+            .mapNotNull { offered.get(it)?.raw?.replace('\n', ' ') }
+        assertThat(takenRaw).isNotEmpty()
+        val batch = session.scored.firstOrNull { b -> b.all { it.contains(ScoringDescriptions.EXTRA) } }
+        // Nothing in the extras batch is a value that was taken; none of its candidates is a name.
+        val scoredRaw = batch.orEmpty().map { it.substringAfter("Is «").substringBefore("»") }
+        assertThat(scoredRaw.intersect(takenRaw.toSet())).isEmpty()
+        val names = offered.rows.filter { it.candidate.kind == com.postsaimanager.core.domain.extraction.candidates.CandidateKind.NAME }.map { it.candidate.raw.replace('\n', ' ') }
+        assertThat(scoredRaw.intersect(names.toSet())).isEmpty()
+    }
+
+    @Test
+    fun `the extras threshold decides which scored values become extras`() {
+        fun extras(threshold: Double): Int {
+            val session = FakePromptSession().apply {
+                scorer = { c -> if (c.contains(ScoringDescriptions.EXTRA)) 2.0 else if (c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
+                responder = { q, _ -> if (q.contains("BCP-47")) "de" else if (q.contains("What does the letter call this value?")) "\"Gegenstand\" k${q.hashCode()}".replace("-", "m") else "\"text\"" }
+            }
+            return session.let { s ->
+                runBlocking {
+                    ExtractionV2Pipeline().run(
+                        letter.pages,
+                        ZoneScoringInterpreter(FakeAiEngine(), s, contextTokens = 4096, profile = ScoringProfile(thresholds = mapOf(ScoringDescriptions.EXTRAS_ASK to threshold))),
+                        4096,
+                    )
+                }
+                s.asks.count { it.question.contains("What does the letter call this value?") }
+            }
+        }
+        assertThat(extras(1.0)).isGreaterThan(0)
+        assertThat(extras(3.0)).isEqualTo(0)
     }
 
     @Test

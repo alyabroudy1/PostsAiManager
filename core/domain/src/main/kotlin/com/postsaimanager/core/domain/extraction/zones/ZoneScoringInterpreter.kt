@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.extraction.zones
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.PromptSession
+import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.domain.extraction.v2.AnswerReader
@@ -15,6 +16,7 @@ import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.Question
 import com.postsaimanager.core.domain.extraction.v2.QuestionnairePrompt
+import com.postsaimanager.core.domain.extraction.v2.RawExtra
 import com.postsaimanager.core.domain.extraction.v2.RawInterpretation
 import com.postsaimanager.core.domain.extraction.v2.RawParty
 import com.postsaimanager.core.domain.extraction.v2.RawSlot
@@ -46,9 +48,12 @@ import java.util.Locale
  * The confidence of a slot or party is derived from its scores ([ScoringProfile.confidence]): the winner's margin over
  * the runner-up and its own score, mapped to LOW, MEDIUM or HIGH by cut points that are data, fitted on recordings.
  *
- * Two things need writing and are generated, constrained by a grammar, in the same open body session: the language of
- * the letter and the extras (metadata no slot covers) in [languageAndExtras], and the free text ([ZoneFreeText]: title,
- * subject line, summary, suggested questions), which runs after the reading exactly as in the other interpreters.
+ * What needs writing is asked in the same open body session, each ask with its own small grammar: the letter's language
+ * (BCP-47, one short ask), the naming of each extra ([extras]: which values no slot or party took is decided by score, the
+ * words the letter prints next to it and an english key are written), and the free text ([ZoneFreeText]: title, subject
+ * line, summary, suggested questions), which runs after the reading exactly as in the other interpreters. One combined
+ * generation for language and extras was measured on the device first and a 0.8B model answered it with noise (it copied
+ * the example, repeated its last entry, or answered "yes"), which is why the decision is a score and the writing is small.
  */
 class ZoneScoringInterpreter(
     private val engine: AiEngine,
@@ -77,7 +82,9 @@ class ZoneScoringInterpreter(
         private set
 
     private var tail = ""
-    private var bodyOpen = false
+
+    /** The writing session is open (the language, the extras' names and the free text are asked in it). */
+    private var writingOpen = false
     private var failures = 0
 
     /** The zones whose text the open session's prefix holds (none in the header session). */
@@ -101,7 +108,7 @@ class ZoneScoringInterpreter(
     override suspend fun interpret(request: InterpretationRequest): InterpretationOutcome {
         records.clear()
         failures = 0
-        bodyOpen = false
+        writingOpen = false
         prefixTokens = 0
         prefixMs = 0
         val layout = request.layout ?: return InterpretationOutcome.Failed("zones need the zoned layout", null, "", "")
@@ -151,9 +158,10 @@ class ZoneScoringInterpreter(
         var budget = ZoneSetup.bodyBudgetChars(contextTokens)
         var opened = false
         val summary = ZonePrompt.summary(s.established)
+        var bodyUser = ""
         for (attempt in 0 until MAX_OPEN_ATTEMPTS) {
-            val text = zonedText(setup, zonesInPrefix, budget)
-            val (head, closing) = setup.frame(system, ZonePrompt.bodyUser(summary, text))
+            bodyUser = ZonePrompt.bodyUser(summary, zonedText(setup, zonesInPrefix, budget))
+            val (head, closing) = setup.frame(system, bodyUser)
             if (tryOpen(head, closing)) {
                 opened = true
                 break
@@ -161,7 +169,6 @@ class ZoneScoringInterpreter(
             budget /= 2
         }
         if (!opened) throw Abort("the model could not read the letter")
-        bodyOpen = true
         inPrefix = zonesInPrefix.toSet()
 
         val type = scoreType()
@@ -170,30 +177,60 @@ class ZoneScoringInterpreter(
         val bodySlots = (Slots.CORE + docType.slots).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) }
         (bodySlots + deferred).forEach { slot(setup, s, it, widen = true) }
 
-        val more = languageAndExtras(setup, s)
+        // Everything that is decided is decided; what is left is writing. The scoring session's instruction is "answer Yes or No"
+        // and a small model obeys it over any question (measured: the language, the title, the summary were all "Yes"), so the
+        // writing has its own session: the same letter under an instruction that only says to write what is asked.
+        val picked = pickExtras(setup, s)
+        writingOpen = switchToWriting(setup, bodyUser)
+        val language = if (writingOpen) ask(QuestionnairePrompt.language())?.let { AnswerReader.language(it) } else null
         return RawInterpretation(
-            type = type.first, typeConfidence = type.second, language = more.language,
-            parties = s.parties.take(StructuredGrammar.MAX_PARTIES), slots = s.slots, extras = more.extras,
+            type = type.first, typeConfidence = type.second, language = language,
+            parties = s.parties.take(StructuredGrammar.MAX_PARTIES), slots = s.slots, extras = if (writingOpen) nameExtras(setup, picked) else emptyList(),
         )
     }
 
+    /** A value picked as an extra: the candidate and the score that picked it. */
+    private class Picked(val candidate: Candidate, val score: Double)
+
     /**
-     * The one generation of the reading, asked in the same open body session after every scoring: the letter's language
-     * (BCP-47) and up to [StructuredGrammar.MAX_EXTRAS] other important facts, over the candidates of the extras zones
-     * that no slot or party took, or a quote. Only the language and the facts need writing; what the model chooses is
-     * verified afterwards exactly like the other readings' extras (an id already used, a quote not in the letter, a weak
-     * kind, a duplicate). A failed ask is not fatal: the letter is then read without a language or extras.
+     * Decides the extras: values of the extras zones that no slot or party took and that the model scores as an important fact of
+     * the letter ([ScoringDescriptions.EXTRA]), the best [StructuredGrammar.MAX_EXTRAS] above the `extras` threshold. A score, as
+     * for every other value. Names are never offered: the parties were scored already, and the names the extractor finds that are
+     * not a party are mostly labels and fragments of lines ("Fällig am", "Betrag €"). A failed scoring leaves no extras.
      */
-    private suspend fun languageAndExtras(setup: ZoneSetup, s: State): AnswerReader.LanguageAndExtras {
+    private suspend fun pickExtras(setup: ZoneSetup, s: State): List<Picked> {
         val zoned = setup.zoned
         val zones = setup.plan.zones(QuestionNames.EXTRAS).filter { zoned.hasText(it) }
+        if (zones.isEmpty()) return emptyList()
         val taken = s.parties.map { it.id }.toSet() + s.slots.values.flatMap { listOfNotNull(it.id) + it.ids }
-        val left = OfferedCandidates(zoned.candidatesIn(zones).rows.filter { it.candidate.id !in taken })
-        val question = QuestionnairePrompt.languageAndExtras(left)
-        val text = ZonePrompt.zoneBlock(zones, setup.plan::hint, zoned::zoneText, inPrefix, left) + question.text
-        val answer = ask(Question(question.name, text, question.grammar, question.maxTokens)) ?: return AnswerReader.LanguageAndExtras(null, emptyList())
-        val read = AnswerReader.languageAndExtras(answer)
-        return AnswerReader.LanguageAndExtras(read.language, read.extras.take(StructuredGrammar.MAX_EXTRAS))
+        val cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.id !in taken && it.kind != CandidateKind.NAME }
+        if (cands.isEmpty()) return emptyList()
+        val block = block(setup, zones)
+        val scores = scoreBatch(
+            ScoringDescriptions.EXTRAS_ASK,
+            cands.map { block + ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), ScoringDescriptions.EXTRA) },
+        ) ?: return emptyList()
+        val threshold = profile.threshold(ScoringDescriptions.EXTRAS_ASK)
+        return scores.indices.filter { scores[it] > threshold }.sortedByDescending { scores[it] }
+            .take(StructuredGrammar.MAX_EXTRAS).map { Picked(cands[it], scores[it]) }
+    }
+
+    /**
+     * Names each picked extra with one short constrained ask: the words the letter prints next to it and an english key. The value is
+     * the candidate itself: the model names it and cannot change it, and the verifier treats the extra as it does any other (an id
+     * already used, a weak kind, a duplicate). A failed naming leaves that extra out.
+     */
+    private suspend fun nameExtras(setup: ZoneSetup, picked: List<Picked>): List<RawExtra> = picked.mapNotNull { p ->
+        val c = p.candidate
+        val (label, key) = ask(ZonePrompt.extraName(c.raw.replace('\n', ' '), setup.zoned.context(c)))?.let { AnswerReader.labelAndKey(it) }
+            ?: return@mapNotNull null
+        RawExtra(label = label, key = key, id = c.id, value = "", confidence = confidenceOf(p.score, null, 1).first)
+    }
+
+    /** Reopens the session for writing: the same letter, under [ZonePrompt.writingSystem] instead of the scoring instruction. */
+    private suspend fun switchToWriting(setup: ZoneSetup, bodyUser: String): Boolean {
+        val (head, closing) = setup.frame(ZonePrompt.writingSystem(setup.template), bodyUser)
+        return tryOpen(head, closing)
     }
 
     private fun zonedText(setup: ZoneSetup, zones: List<LetterZone>, budget: Int): String {
@@ -363,6 +400,7 @@ class ZoneScoringInterpreter(
         return scores
     }
 
+    /** One generated answer, asked in the writing session (see [switchToWriting]), or null when the engine failed it. */
     private suspend fun ask(question: Question): String? {
         val started = System.nanoTime()
         val result = session.ask("\n\n" + question.text + tail, question.grammar, question.maxTokens)
@@ -372,7 +410,7 @@ class ZoneScoringInterpreter(
     }
 
     override suspend fun writeText(request: TextRequest): TextOutcome {
-        if (!bodyOpen) return TextOutcome.Failed("the letter was not read")
+        if (!writingOpen) return TextOutcome.Failed("the letter was not read")
         try {
             return ZoneFreeText.write(request) { q -> ask(q) }
         } finally {

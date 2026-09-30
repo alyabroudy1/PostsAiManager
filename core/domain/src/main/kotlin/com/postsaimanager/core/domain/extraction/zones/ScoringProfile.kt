@@ -87,4 +87,10 @@ object ScoringDescriptions {
     )
 
     const val HOUSEHOLD = "the name of a family or household (several people living together)"
+
+    /** The scoring name of the extras batch: the threshold and the statement ([EXTRA]) of a value no slot or party took. */
+    const val EXTRAS_ASK = "extras"
+
+    const val EXTRA = "an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount " +
+        "that matters), other than the letter's main amount, due date, IBAN, reference or customer number"
 }

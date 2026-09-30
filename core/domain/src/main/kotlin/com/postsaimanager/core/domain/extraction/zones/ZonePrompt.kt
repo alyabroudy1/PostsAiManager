@@ -2,6 +2,8 @@ package com.postsaimanager.core.domain.extraction.zones
 
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
+import com.postsaimanager.core.domain.extraction.v2.Question
+import com.postsaimanager.core.domain.extraction.v2.QuestionGrammars
 import com.postsaimanager.core.domain.extraction.v2.SelectionPrompt
 
 /**
@@ -27,6 +29,17 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
         "You read one scanned letter one part (zone) at a time. The letter can be in any language. For each value you are shown, " +
             "answer Yes if the value is what the question says, otherwise No. A hint says what a block usually is; it is only a prior. " +
             "Decide from what the text says. Answer with the single word Yes or No.\n\nLAYOUT: ${template.id}, ${template.description}."
+
+    /**
+     * The instruction of the writing session that follows the scoring (the language, the names of the extras, the title, the summary,
+     * the suggested questions). The scoring instruction says to answer Yes or No, and a small model obeys it over any question: measured
+     * on the device, every written answer was "Yes". So what is written is asked under this one, which only says to write what the
+     * question asks, in its format.
+     */
+    fun writingSystem(template: LayoutTemplate): String =
+        "You read one scanned letter and answer questions about it, one at a time. The letter can be in any language. " +
+            "Each question tells you what to write and the format of the answer: write exactly that, from what the letter says, " +
+            "and nothing else.\n\nLAYOUT: ${template.id}, ${template.description}."
 
     /** The user turn of the body session: what the header established, then the body zones. */
     fun bodyUser(summary: String, bodyText: String): String = buildString {
@@ -75,6 +88,28 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
         g.before?.let { (zone, text) -> append("CONTEXT ONLY, the zone just above (").append(zone.tag).append(", not part of this question): ").append(text).append('\n') }
         g.after?.let { (zone, text) -> append("CONTEXT ONLY, the zone just below (").append(zone.tag).append(", not part of this question): ").append(text).append('\n') }
     }
+
+    /**
+     * What the letter calls a value the scoring picked as an extra: its printed words and a short english key. The value is
+     * the candidate itself, so nothing here can change it; the model only names it.
+     */
+    fun extraName(candidate: String, context: ZonedLetter.Context?): Question {
+        val ctx = listOfNotNull(
+            context?.line?.takeIf { it.isNotBlank() }?.let { "it is printed on the line «$it»" },
+            context?.above?.takeIf { it.isNotBlank() }?.let { "the line above it is «$it»" },
+        )
+        val where = if (ctx.isEmpty()) "" else ": ${ctx.joinToString(", ")}"
+        return Question(
+            "extra:name",
+            "QUESTION: The value «$candidate» is an important fact of this letter$where. What does the letter call this value? " +
+                "Copy the printed words that name it (not the value itself), then give a short english key for it.\n" +
+                "ANSWER FORMAT: \"printed words\" key_name",
+            QuestionGrammars.labelAndKey(),
+            NAME_TOKENS,
+        )
+    }
+
+    private const val NAME_TOKENS = 40
 
     /** A statement of what a slot or a role is, for the scoring interpreter's question. */
     fun scoringQuestion(candidate: String, context: ZonedLetter.Context?, what: String): String = buildString {
