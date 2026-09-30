@@ -619,7 +619,7 @@ class RemoteAiEngine @Inject constructor(
             }
         }
 
-    override suspend fun score(continuations: List<String>, yes: String, no: String): PamResult<List<Double>> =
+    override suspend fun score(continuations: List<String>, yes: String, no: String, shared: String): PamResult<List<Double>> =
         engineMutex.withLock {
             withContext(ioDispatcher) {
                 val remote = service ?: connect()
@@ -629,11 +629,11 @@ class RemoteAiEngine @Inject constructor(
                 if (continuations.isEmpty()) return@withContext PamResult.Success(emptyList())
                 val array = continuations.toTypedArray()
                 withCancelHook({ runCatching { remote.cancelGeneration() } }) {
-                    var scores = runCatching { remote.promptScore(array, yes, no) }.getOrNull()
+                    var scores = runCatching { remote.promptScore(shared, array, yes, no) }.getOrNull()
                     if (scores == null && coroutineContext.isActive) {
                         Log.i(TAG, "prompt session lost while scoring — reading the prefix again")
                         if (openLocked(prefix) is PamResult.Success) {
-                            scores = runCatching { remote.promptScore(array, yes, no) }.getOrNull()
+                            scores = runCatching { remote.promptScore(shared, array, yes, no) }.getOrNull()
                         }
                     }
                     if (scores == null) {

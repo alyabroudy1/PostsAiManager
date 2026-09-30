@@ -131,7 +131,7 @@ class ZoneBenchmarkTest {
         val todo = keys.flatMap { k -> interpreters.map { k to it } }.filter { (k, n) ->
             File(bench, "$k.json").exists() && !(resume && File(outDir, "$k.$n$suffix.json").exists())
         }
-        if (todo.isEmpty()) return@runBlocking
+        if (todo.isEmpty() && args.getString("mode") != "stages") return@runBlocking
 
         val engine = LocalAiEngine(Dispatchers.IO)
         val loaded = engine.load(
@@ -140,6 +140,30 @@ class ZoneBenchmarkTest {
         )
         check(loaded is PamResult.Success) { "load failed: $loaded" }
         val pipeline = ExtractionV2Pipeline()
+
+        // `mode=stages`: no recording, only the two stages timed the way the app runs them (the first, then the second as a later
+        // call on a new interpreter that finds the letter's prefix still open), each letter with the shipped profile.
+        if (args.getString("mode") == "stages") {
+            for (key in keys.filter { File(bench, "$key.json").exists() }) {
+                val (pages, aspect) = parseFixture(File(bench, "$key.json"))
+                val shipped = com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring
+                val first = ZoneScoringInterpreter(engine, engine, contextTokens = budgetTokens, profile = shipped)
+                val t0 = System.nanoTime()
+                val one = pipeline.run(pages, first, budgetTokens, aspect, stages = ExtractionV2Pipeline.Stages.FIRST)
+                val ms1 = (System.nanoTime() - t0) / 1_000_000
+                val second = ZoneScoringInterpreter(engine, engine, contextTokens = budgetTokens, profile = shipped)
+                val t1 = System.nanoTime()
+                val two = pipeline.run(pages, second, budgetTokens, aspect, stages = ExtractionV2Pipeline.Stages.SECOND, ticket = one.enrichment)
+                val ms2 = (System.nanoTime() - t1) / 1_000_000
+                Log.i(
+                    tag,
+                    "STAGES $key stage1Ms=$ms1 stage2Ms=$ms2 type=${one.documentType?.id} slots=${one.slots.size} parties=${one.parties.all.size} " +
+                        "extras=${two.extras.size} language=${two.language} title=${two.freeText.title != null} summary=${two.freeText.summary != null}",
+                )
+            }
+            engine.unload()
+            return@runBlocking
+        }
 
         for ((key, name) in todo) {
             val (pages, aspect) = parseFixture(File(bench, "$key.json"))

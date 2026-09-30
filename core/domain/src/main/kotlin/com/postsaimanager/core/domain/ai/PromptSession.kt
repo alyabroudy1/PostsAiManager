@@ -59,10 +59,15 @@ interface PromptSession {
      *
      * Same sharing rules as [ask]: a lost state is repaired by re-decoding the prefix once.
      *
+     * [shared] is a second level of the prefix tree: text every continuation starts with, decoded once after
+     * the prefix and remembered (a checkpoint), so each continuation is rolled back to it and pays only for
+     * its own tokens. The scores are those of `prefix + shared + continuation` read as one text, so a caller
+     * may split a continuation at any point without changing its score. Empty: no shared level.
+     *
      * @return one score per continuation, in order; an error when the model or session is missing or
      *   a continuation does not fit.
      */
-    suspend fun score(continuations: List<String>, yes: String, no: String): PamResult<List<Double>>
+    suspend fun score(continuations: List<String>, yes: String, no: String, shared: String = ""): PamResult<List<Double>>
 
     /** Drops the session. Safe to call when none is open. */
     suspend fun close()

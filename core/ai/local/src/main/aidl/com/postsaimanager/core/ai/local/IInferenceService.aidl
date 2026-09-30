@@ -93,10 +93,11 @@ interface IInferenceService {
 
     /**
      * Scores continuations after the open prompt session's prefix: `logit(yes) - logit(no)` at the last
-     * position of each, rolled back after every one — see `LlamaNative.promptScore`. Blocking. Null when
-     * the session was lost, a continuation did not fit, or [cancelGeneration] stopped it.
+     * position of each, rolled back after every one — see `LlamaNative.promptScore`. [shared] (empty for
+     * none) is decoded once after the prefix and is the level the continuations are rolled back to.
+     * Blocking. Null when the session was lost, a continuation did not fit, or [cancelGeneration] stopped it.
      */
-    double[] promptScore(in String[] continuations, String yes, String no);
+    double[] promptScore(String shared, in String[] continuations, String yes, String no);
 
     /** Drops the prompt session — see `LlamaNative.promptClose`. */
     void promptClose();

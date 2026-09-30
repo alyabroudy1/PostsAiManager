@@ -89,16 +89,22 @@ class FakePromptSession : PromptSession {
     /** Every batch of continuations [score] received, in order. */
     val scored = mutableListOf<List<String>>()
 
-    override suspend fun score(continuations: List<String>, yes: String, no: String): PamResult<List<Double>> {
+    /** The shared level of every [score] call, in order (empty when the caller gave none). */
+    val sharedLevels = mutableListOf<String>()
+
+    override suspend fun score(continuations: List<String>, yes: String, no: String, shared: String): PamResult<List<Double>> {
         val head = prefix ?: return PamResult.Error(PamError.InferenceError("no prompt session is open"))
         if (state == null) {
             state = head
             prefixDecodes++
         }
-        scored += continuations
-        // Each continuation starts from the prefix and is rolled back: the state is the prefix afterwards.
+        // The scores are those of the text read as one piece, wherever the caller split it.
+        val whole = continuations.map { shared + it }
+        sharedLevels += shared
+        scored += whole
+        // Each continuation starts from the prefix (and the shared level) and is rolled back: the state is the prefix afterwards.
         stateAtAsk += continuations.map { state.orEmpty() }
-        return PamResult.Success(continuations.map(scorer))
+        return PamResult.Success(whole.map(scorer))
     }
 
     override suspend fun close() {

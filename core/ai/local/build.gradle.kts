@@ -65,6 +65,7 @@ android {
                     "-DANDROID_STL=c++_shared",
                     "-DCMAKE_BUILD_TYPE=Release",
                 )
+                (project.findProperty("pam.cpuArch") as String?)?.let { arguments += "-DPAM_CPU_ARM_ARCH=$it" }
                 if (gpuBackend == "vulkan") {
                     arguments += "-DGGML_VULKAN=ON"
 

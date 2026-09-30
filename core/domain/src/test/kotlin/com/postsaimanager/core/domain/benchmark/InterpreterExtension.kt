@@ -252,8 +252,9 @@ internal class ReplayPromptSession(private val recording: Recording, private val
     }
 
     /** A recorded scored batch (`score:*`): its questions in order, its answer the comma-separated scores. */
-    override suspend fun score(continuations: List<String>, yes: String, no: String): PamResult<List<Double>> {
-        val asked = continuations.map { withoutIds(it.removePrefix("\n\n")) }
+    override suspend fun score(continuations: List<String>, yes: String, no: String, shared: String): PamResult<List<Double>> {
+        // A recording holds each question whole; the live one arrives as the shared level and the rest, read as one text.
+        val asked = continuations.map { withoutIds((shared + it).removePrefix("\n\n")) }
         var live = asked
         // The batch as recorded; failing that, a subset of a recorded one in the same order (fewer type candidates than were recorded),
         // and failing that with the type descriptions as the recordings worded them.

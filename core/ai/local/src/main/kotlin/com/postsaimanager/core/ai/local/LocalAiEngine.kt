@@ -414,7 +414,7 @@ internal class LocalAiEngine @Inject constructor(
         }
     }
 
-    override suspend fun score(continuations: List<String>, yes: String, no: String): PamResult<List<Double>> = mutex.withLock {
+    override suspend fun score(continuations: List<String>, yes: String, no: String, shared: String): PamResult<List<Double>> = mutex.withLock {
         withContext(ioDispatcher) {
             val current = handle
             if (current == 0L) return@withContext PamResult.Error(PamError.ModelNotLoaded("No model is loaded."))
@@ -423,9 +423,9 @@ internal class LocalAiEngine @Inject constructor(
             if (continuations.isEmpty()) return@withContext PamResult.Success(emptyList())
             val array = continuations.toTypedArray()
             withCancelHook({ LlamaNative.promptCancel() }) {
-                var scores = LlamaNative.promptScore(current, array, yes, no)
+                var scores = LlamaNative.promptScore(current, shared, array, yes, no)
                 if (scores == null && coroutineContext.isActive) {
-                    if (openLocked(prefix) is PamResult.Success) scores = LlamaNative.promptScore(current, array, yes, no)
+                    if (openLocked(prefix) is PamResult.Success) scores = LlamaNative.promptScore(current, shared, array, yes, no)
                 }
                 if (scores == null) PamResult.Error(PamError.InferenceError("the continuations could not be scored")) else PamResult.Success(scores.toList())
             }
