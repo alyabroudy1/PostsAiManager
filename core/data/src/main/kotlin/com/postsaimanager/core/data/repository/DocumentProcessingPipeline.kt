@@ -417,14 +417,13 @@ class DocumentProcessingPipeline @Inject constructor(
                     return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
                 }
                 if (doc != null) {
-                    // The model's title replaces a default title, or the title at the first model
-                    // reading; never a person's, and never on a later reprocess (DocumentTitlePolicy).
+                    // The model's title replaces the default title only: never a person's, never a title
+                    // that is already real words, so no reprocess renames a document (DocumentTitlePolicy).
                     // A real title clears the default's code.
                     val newTitle = extraction.subject?.takeIf {
                         usedV2 && DocumentTitlePolicy.modelTitleMayReplace(
                             isUserTitle = doc.isUserTitle,
                             titleCode = doc.titleCode,
-                            modelHasRead = doc.extractionType != null,
                         )
                     }
                     documentDao.update(
