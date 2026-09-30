@@ -99,6 +99,12 @@ interface IInferenceService {
      */
     double[] promptScore(String shared, in String[] continuations, String yes, String no);
 
+    /**
+     * Scores every head followed by every ask after [shared] (a three-level prefix tree) — see `LlamaNative.promptScoreGrid`.
+     * Head-major result. Blocking; null under the same conditions as [promptScore].
+     */
+    double[] promptScoreGrid(String shared, in String[] heads, in String[] asks, String yes, String no);
+
     /** Drops the prompt session — see `LlamaNative.promptClose`. */
     void promptClose();
 

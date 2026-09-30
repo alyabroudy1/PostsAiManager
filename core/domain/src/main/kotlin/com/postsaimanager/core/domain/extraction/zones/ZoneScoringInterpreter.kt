@@ -174,11 +174,16 @@ class ZoneScoringInterpreter(
         unread = zoned.coverage(zonesInPrefix, budget).takeIf { it.droppedLines > 0 }?.let { UnreadText(it.droppedLines, it.firstCutPage) }
         unread?.let { traceLines += "unread lines=${it.lines} firstCutPage=${it.firstCutPage} budgetChars=$budget" }
 
-        // The parties first (the sender decides what the addressee cannot be), then the type and its slots.
-        partyNames.forEach { (name, role) -> party(setup, s, name, role, widen = true) }
+        // The type, then everything it asks about. The questions that share a zone block and the same candidates (the reference slots, the
+        // date slots, the parties of one zone) are scored ahead as grids, so the block and each value are decoded once; the parties are
+        // decided first (the sender decides what the addressee cannot be), then the slots.
         val type = scoreType(direction)
         val docType = schema.type(type.first) ?: throw Abort("no document type scored")
-        (Slots.CORE + docType.slots).distinct().forEach { slot(setup, s, it, widen = true) }
+        val slots = (Slots.CORE + docType.slots).distinct()
+        prescored.clear()
+        prescore(setup, partyNames.mapNotNull { (name, _) -> partyAsk(setup, name, widen = true) } + slots.mapNotNull { slotAsk(setup, it, widen = true) })
+        partyNames.forEach { (name, role) -> party(setup, s, name, role, widen = true) }
+        slots.forEach { slot(setup, s, it, widen = true) }
         val decoding = System.nanoTime()
         redecide(setup, s)
         timing("decode ms=${(System.nanoTime() - decoding) / NANOS_PER_MS} (includes the kind and household scoring of a changed answer)")
@@ -358,15 +363,16 @@ class ZoneScoringInterpreter(
         return types[best].id to profile.confidence(margin)
     }
 
-    // ── parties ──
+    // ── planned questions, scored as a grid where they share ──
 
-    /**
-     * Scores the names of the zones [name] is asked on; with [widen] (body session only) and no name there, the zones the
-     * registry gives as the party's fallback ([SlotPlacements.partyFallback]).
-     *
-     * @return whether any name was scored (false: nothing was offered, so the caller may ask again where the fallback is).
-     */
-    private suspend fun party(setup: ZoneSetup, s: State, name: String, role: PartyRole, widen: Boolean): Boolean {
+    /** One question of the reading, planned before it is asked: the zones it is about, the candidates it scores and what it asks of each. */
+    private class Ask(val name: String, val zones: List<LetterZone>, val cands: List<Candidate>, val what: String)
+
+    /** Scores computed ahead by [prescore], by question name; a question takes its scores from here (once) before it would score on its own. */
+    private val prescored = HashMap<String, List<Double>>()
+
+    /** The party question [name]: every name of its zones (or of its fallback zones when [widen] and none is there), or null when nothing is offered. */
+    private fun partyAsk(setup: ZoneSetup, name: String, widen: Boolean): Ask? {
         val zoned = setup.zoned
         var zones = setup.plan.zones(name).filter { zoned.hasText(it) }
         // Every name of the zone is scored, whatever was decided before: what is scored then does not depend on the
@@ -377,11 +383,90 @@ class ZoneScoringInterpreter(
             zones = SlotPlacements.partyFallback(name).map { zoned.mapped(it) }.distinct().filter { zoned.hasText(it) }
             cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME }
         }
-        if (zones.isEmpty() || cands.isEmpty()) return false
-        val what = ScoringDescriptions.ofRole(name)
+        if (zones.isEmpty() || cands.isEmpty()) return null
+        return Ask(name, zones, cands, ScoringDescriptions.ofRole(name))
+    }
+
+    /** The slot question of [slot]: every candidate of its kind in the zones the template places it on (anywhere when [widen] and none is there). */
+    private fun slotAsk(setup: ZoneSetup, slot: SlotKey, widen: Boolean): Ask? {
+        if (slot.kind == SlotKind.ACTION) return null
+        val zoned = setup.zoned
+        val name = QuestionNames.slot(slot.json)
+        val zones = setup.plan.zones(name, slot).filter { zoned.hasText(it) }
+        var cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.kind in slot.kind.candidates }
+        var asked = zones
+        if (cands.isEmpty() && widen) {
+            cands = zoned.offered.rows.map { it.candidate }.filter { it.kind in slot.kind.candidates }
+            asked = cands.flatMap { zoned.zonesOfCandidate(it.id) }.distinct().filter { zoned.hasText(it) }
+        }
+        if (cands.isEmpty()) return null
+        return Ask(name, asked, cands, ScoringDescriptions.ofSlot(slot))
+    }
+
+    /** The scores of [ask]'s candidates: the ones [prescore] computed, else scored now as a batch under [block]. */
+    private suspend fun scored(setup: ZoneSetup, ask: Ask, block: String): List<Double>? =
+        prescored.remove(ask.name) ?: scoreBatch(
+            ask.name, block, ask.cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), setup.zoned.context(it), ask.what) },
+        )
+
+    /**
+     * Scores ahead the questions that share a zone block and the same candidates (the reference slots of a letter, its date slots...) as
+     * a grid: the block is decoded once, each candidate's head once, and only each statement is decoded per candidate. The text of every
+     * cell is what a batch of its own would have read (block, head, statement), so the scores and the recording are the same; only the
+     * decoding is shared (`PromptSession.scoreGrid`). A grid the engine failed is left to the questions' own batches.
+     */
+    private suspend fun prescore(setup: ZoneSetup, asks: List<Ask>) {
+        val zoned = setup.zoned
+        for ((key, group) in asks.groupBy { block(setup, it.zones) to it.cands.map { c -> c.id } }) {
+            if (group.size < 2) continue
+            val block = key.first
+            val cands = group.first().cands
+            val heads = cands.map { ZonePrompt.scoringHead(it.raw.replace('\n', ' '), zoned.context(it)) }
+            val statements = group.map { ZonePrompt.scoringAsk(it.what) }
+            val started = System.nanoTime()
+            val result = session.scoreGrid("\n\n" + block, heads, statements.map { it + tail }, YES, NO)
+            val ms = (System.nanoTime() - started) / NANOS_PER_MS
+            val grid = (result as? PamResult.Success)?.data?.takeIf { it.size == heads.size && it.all { row -> row.size == group.size } }
+            if (grid == null) {
+                timing("score grid ${group.joinToString("+") { it.name }} FAILED ms=$ms")
+                if (++failures >= MAX_FAILURES) throw Abort("the engine failed $MAX_FAILURES scorings in a row")
+                continue
+            }
+            failures = 0
+            group.forEachIndexed { j, ask ->
+                val scores = grid.map { it[j] }
+                prescored[ask.name] = scores
+                records += AskRecord(
+                    name = "score:${ask.name}", question = heads.joinToString(BATCH_SEPARATOR) { block + it + statements[j] },
+                    answer = scores.joinToString(","), ms = ms / group.size,
+                )
+            }
+            scoreBatches += group.size
+            scoreCount += heads.size * group.size
+            scoreMs += ms
+            timing(
+                String.format(
+                    Locale.ROOT, "score grid %s heads=%d asks=%d ms=%d msPerScore=%.0f", group.joinToString("+") { it.name }, heads.size, group.size, ms,
+                    ms.toDouble() / (heads.size * group.size),
+                ),
+            )
+        }
+    }
+
+    // ── parties ──
+
+    /**
+     * Scores the names of the zones [name] is asked on; with [widen] (body session only) and no name there, the zones the
+     * registry gives as the party's fallback ([SlotPlacements.partyFallback]).
+     *
+     * @return whether any name was scored (false: nothing was offered, so the caller may ask again where the fallback is).
+     */
+    private suspend fun party(setup: ZoneSetup, s: State, name: String, role: PartyRole, widen: Boolean): Boolean {
+        val ask = partyAsk(setup, name, widen) ?: return false
+        val zones = ask.zones
+        val cands = ask.cands
         val block = block(setup, zones)
-        val questions = cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), what) }
-        val scores = scoreBatch(name, block, questions) ?: return true
+        val scores = scored(setup, ask, block) ?: return true
         collect(name, cands, scores, role = role, slot = null, block = block)
         val allowed = scores.indices.filter { role == PartyRole.SENDER || cands[it].id != s.senderId }
         val ranked = allowed.sortedByDescending { scores[it] }
@@ -436,19 +521,12 @@ class ZoneScoringInterpreter(
      */
     private suspend fun slot(setup: ZoneSetup, s: State, slot: SlotKey, widen: Boolean): Boolean {
         if (slot.kind == SlotKind.ACTION) return true
-        val zoned = setup.zoned
-        val name = QuestionNames.slot(slot.json)
-        val zones = setup.plan.zones(name, slot).filter { zoned.hasText(it) }
-        var cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.kind in slot.kind.candidates }
-        var asked = zones
-        if (cands.isEmpty() && widen) {
-            cands = zoned.offered.rows.map { it.candidate }.filter { it.kind in slot.kind.candidates }
-            asked = cands.flatMap { zoned.zonesOfCandidate(it.id) }.distinct().filter { zoned.hasText(it) }
-        }
-        if (cands.isEmpty()) return false
-        val what = ScoringDescriptions.ofSlot(slot)
+        val ask = slotAsk(setup, slot, widen) ?: return false
+        val name = ask.name
+        val asked = ask.zones
+        val cands = ask.cands
         val block = block(setup, asked)
-        val scores = scoreBatch(name, block, cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), what) }) ?: return true
+        val scores = scored(setup, ask, block) ?: return true
         if (slot.kind != SlotKind.REFERENCE_LIST) collect(name, cands, scores, role = null, slot = slot, block = block)
         val threshold = profile.threshold(name)
         val order = scores.indices.sortedByDescending { scores[it] }

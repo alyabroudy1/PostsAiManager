@@ -1832,6 +1832,160 @@ Java_com_postsaimanager_core_ai_local_LlamaNative_promptScore(
     return out;
 }
 
+/**
+ * Label-free scoring of a grid after the open prefix: every one of [heads] followed by every one of [asks], as the text
+ * `prefix + shared + head + ask`. A three-level prefix tree: [shared] is decoded once and checkpointed, each head is decoded once
+ * after it and checkpointed, and each ask is decoded after its head, read and rolled back to the head. The work is
+ * `shared + heads + heads * asks` instead of `heads * asks` times everything: what the questions about one value (the heads) under
+ * several statements (the asks) and one zone block (shared) have in common is paid for once. Scores are logit(yes) - logit(no) as
+ * in [promptScore].
+ *
+ * @return heads * asks scores, head-major (`scores[i * asks + j]` is head i under ask j), or null under the same conditions as
+ *   [promptScore]; the state is the prefix again whatever happens (or the session is closed when that failed).
+ */
+JNIEXPORT jdoubleArray JNICALL
+Java_com_postsaimanager_core_ai_local_LlamaNative_promptScoreGrid(
+        JNIEnv *env, jobject, jlong handle, jstring shared, jobjectArray heads, jobjectArray asks, jstring yes, jstring no) {
+    auto *session = reinterpret_cast<PamSession *>(handle);
+    if (session == nullptr || session->model == nullptr || !session->promptOpen) return nullptr;
+
+    g_promptCancel.store(false);
+    releaseChain(session);
+    llama_memory_t mem = llama_get_memory(session->ctx);
+    const llama_vocab *vocab = llama_model_get_vocab(session->model);
+    const int nCtx = (int) llama_n_ctx(session->ctx);
+
+    if ((llama_pos) llama_memory_seq_pos_max(mem, 0) + 1 != session->promptPos) {
+        LOGE("pam_llama: prompt session lost before grid scoring (n_past=%d, prefix=%d)",
+             (int) llama_memory_seq_pos_max(mem, 0) + 1, (int) session->promptPos);
+        session->promptOpen = false;
+        return nullptr;
+    }
+    const llama_token yesTok = firstTokenOf(vocab, jstringToStd(env, yes));
+    const llama_token noTok = firstTokenOf(vocab, jstringToStd(env, no));
+    if (yesTok < 0 || noTok < 0) {
+        LOGE("pam_llama: promptScoreGrid: the yes/no words do not tokenise");
+        return nullptr;
+    }
+
+    auto restore = [&](llama_pos pos, const std::vector<uint8_t> &checkpoint) -> bool {
+        if (!rollbackTo(session, pos, checkpoint) || (llama_pos) llama_memory_seq_pos_max(mem, 0) + 1 != pos) {
+            LOGE("pam_llama: prompt rollback failed while grid scoring — closing the session");
+            llama_memory_clear(mem, true);
+            session->promptOpen = false;
+            return false;
+        }
+        return true;
+    };
+    auto strings = [&](jobjectArray array) {
+        std::vector<std::string> out;
+        const jsize n = env->GetArrayLength(array);
+        for (jsize i = 0; i < n; ++i) {
+            auto js = (jstring) env->GetObjectArrayElement(array, i);
+            out.push_back(jstringToStd(env, js));
+            env->DeleteLocalRef(js);
+        }
+        return out;
+    };
+    const std::vector<std::string> headTexts = strings(heads);
+    const std::vector<std::string> askTexts = strings(asks);
+    const size_t nHeads = headTexts.size();
+    const size_t nAsks = askTexts.size();
+    std::vector<double> scores(nHeads * nAsks, 0.0);
+
+    const auto start = std::chrono::steady_clock::now();
+    int totalTokens = 0;
+    int sharedTokens = 0;
+    double rollbackMs = 0.0;
+
+    // Level 1: the shared text.
+    llama_pos sharedPos = session->promptPos;
+    std::vector<uint8_t> sharedCheckpoint;
+    const std::string sharedText = jstringToStd(env, shared);
+    if (!sharedText.empty()) {
+        if (!decodeIntoSession(session, sharedText, false, false, &sharedTokens)) {
+            restore(session->promptPos, session->promptCheckpoint);
+            return nullptr;
+        }
+        if (sharedTokens > 0) {
+            sharedPos = (llama_pos) llama_memory_seq_pos_max(mem, 0) + 1;
+            snapshotRecurrentState(session, sharedCheckpoint);
+            if (hasRecurrentState(session) && sharedCheckpoint.empty()) {
+                restore(session->promptPos, session->promptCheckpoint);
+                return nullptr;
+            }
+        }
+    }
+    const std::vector<uint8_t> &level1 = sharedTokens > 0 ? sharedCheckpoint : session->promptCheckpoint;
+    auto leave = [&]() -> bool { return sharedPos == session->promptPos ? true : restore(session->promptPos, session->promptCheckpoint); };
+
+    // Reads the last decoded position's yes/no log-odds.
+    auto readScore = [&](double *into) -> bool {
+        const float *logits = llama_get_logits_ith(session->ctx, -1);
+        if (logits == nullptr) return false;
+        *into = (double) logits[yesTok] - (double) logits[noTok];
+        return true;
+    };
+
+    for (size_t i = 0; i < nHeads; ++i) {
+        if (g_promptCancel.load()) {
+            if (restore(sharedPos, level1)) leave();
+            return nullptr;
+        }
+        int tokens = 0;
+        if (nAsks == 1) {
+            // Nothing to share with a single ask: the head and the ask are one continuation.
+            if (!decodeIntoSession(session, headTexts[i] + askTexts[0], false, false, &tokens) || tokens <= 0 ||
+                (int) sharedPos + tokens >= nCtx || !readScore(&scores[i])) {
+                if (restore(sharedPos, level1)) leave();
+                return nullptr;
+            }
+            totalTokens += tokens;
+            const auto r = std::chrono::steady_clock::now();
+            if (!restore(sharedPos, level1)) return nullptr;
+            rollbackMs += elapsedMs(r);
+            continue;
+        }
+
+        // Level 2: the head, decoded once for all its asks.
+        int headTokens = 0;
+        if (!headTexts[i].empty() && !decodeIntoSession(session, headTexts[i], false, false, &headTokens)) {
+            if (restore(sharedPos, level1)) leave();
+            return nullptr;
+        }
+        totalTokens += headTokens;
+        const llama_pos headPos = (llama_pos) llama_memory_seq_pos_max(mem, 0) + 1;
+        std::vector<uint8_t> headCheckpoint;
+        snapshotRecurrentState(session, headCheckpoint);
+        if (hasRecurrentState(session) && headCheckpoint.empty()) {
+            if (restore(sharedPos, level1)) leave();
+            return nullptr;
+        }
+        for (size_t j = 0; j < nAsks; ++j) {
+            int askTokens = 0;
+            if (!decodeIntoSession(session, askTexts[j], false, false, &askTokens) || askTokens <= 0 ||
+                (int) headPos + askTokens >= nCtx || !readScore(&scores[i * nAsks + j])) {
+                if (restore(headPos, headCheckpoint) && restore(sharedPos, level1)) leave();
+                return nullptr;
+            }
+            totalTokens += askTokens;
+            const auto r = std::chrono::steady_clock::now();
+            if (!restore(headPos, headCheckpoint)) return nullptr;
+            rollbackMs += elapsedMs(r);
+        }
+        if (!restore(sharedPos, level1)) return nullptr;
+    }
+    if (!leave()) return nullptr;
+    LOGI("pam_llama: prompt score grid heads=%d asks=%d tokens=%d shared_tokens=%d total_ms=%.1f rollback_ms=%.1f",
+         (int) nHeads, (int) nAsks, totalTokens, sharedTokens, elapsedMs(start), rollbackMs);
+
+    const jsize total = (jsize) scores.size();
+    jdoubleArray out = env->NewDoubleArray(total);
+    if (out == nullptr) return nullptr;
+    env->SetDoubleArrayRegion(out, 0, total, scores.data());
+    return out;
+}
+
 /** Stops a running [promptAsk] between tokens (it then returns null). Callable from any thread. */
 JNIEXPORT void JNICALL
 Java_com_postsaimanager_core_ai_local_LlamaNative_promptCancel(JNIEnv *, jobject) {

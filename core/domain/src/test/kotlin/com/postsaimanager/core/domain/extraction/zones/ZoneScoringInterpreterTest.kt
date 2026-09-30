@@ -94,7 +94,8 @@ class ZoneScoringInterpreterTest {
         assertThat(session.sharedLevels.any { it.isNotEmpty() }).isTrue()
         val tree = session.scored.indices.filter { session.sharedLevels[it].isNotEmpty() }
         assertThat(tree).isNotEmpty()
-        for (i in tree) assertThat(session.scored[i].size).isGreaterThan(1)
+        // Questions that share their zone block and candidates (the reference slots, the date slots) are scored as one grid.
+        assertThat(session.grids).isGreaterThan(0)
         // The kinds of one party are asked about the same value: the block and the value's head are shared, each statement is its own.
         val kinds = session.scored.indices.firstOrNull { session.scored[it].size == ScoringDescriptions.KINDS.size && session.sharedLevels[it].contains("Is «") }
         assertThat(kinds).isNotNull()

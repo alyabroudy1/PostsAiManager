@@ -107,6 +107,22 @@ class FakePromptSession : PromptSession {
         return PamResult.Success(whole.map(scorer))
     }
 
+    /** How many grids [scoreGrid] received (each is scored as one batch per ask, so [scored] keeps one batch per question). */
+    var grids = 0
+        private set
+
+    override suspend fun scoreGrid(shared: String, heads: List<String>, asks: List<String>, yes: String, no: String): PamResult<List<List<Double>>> {
+        grids++
+        val columns = ArrayList<List<Double>>()
+        for (ask in asks) {
+            when (val column = score(heads.map { it + ask }, yes, no, shared)) {
+                is PamResult.Error -> return column
+                is PamResult.Success -> columns += column.data
+            }
+        }
+        return PamResult.Success(heads.indices.map { i -> asks.indices.map { j -> columns[j][i] } })
+    }
+
     override suspend fun close() {
         closes++
         prefix = null

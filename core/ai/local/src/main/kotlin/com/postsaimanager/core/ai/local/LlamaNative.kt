@@ -302,6 +302,13 @@ internal object LlamaNative {
      */
     external fun promptScore(handle: Long, shared: String, continuations: Array<String>, yes: String, no: String): DoubleArray?
 
+    /**
+     * Scores a grid after the open prefix: every one of [heads] followed by every one of [asks] (`shared + head + ask`), as a three-level
+     * prefix tree (the shared text and each head decoded once, each ask rolled back to its head). Head-major result:
+     * `scores[i * asks.size + j]`. See `llama_jni.cpp`'s `promptScoreGrid`; null under the same conditions as [promptScore].
+     */
+    external fun promptScoreGrid(handle: Long, shared: String, heads: Array<String>, asks: Array<String>, yes: String, no: String): DoubleArray?
+
     /** Stops a running [promptAsk] between tokens. Callable from any thread; not tied to a handle. */
     external fun promptCancel()
 

@@ -34,6 +34,11 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.unmockkStatic
+import io.mockk.verify
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
+import com.postsaimanager.core.data.worker.DocumentEnrichmentWorker
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -197,6 +202,93 @@ class DocumentEnrichmentPipelineTest {
         assertThat(result).isInstanceOf(PamResult.Error::class.java)
         coVerify(exactly = 0) { aiExtraction(any(), any(), any(), any(), any(), any(), any()) }
         coVerify(exactly = 0) { documentDao.update(any()) }
+    }
+
+    // ── the order of the stages, and a scan going first ──
+
+    private val workManager = mockk<WorkManager>(relaxed = true)
+    private val ocrService = mockk<OcrService>()
+    private val scanPipeline = DocumentProcessingPipeline(
+        ocrService = ocrService,
+        indexDocument = mockk<IndexDocumentUseCase>().also {
+            coEvery { it(any<String>(), any<List<IndexDocumentUseCase.PageText>>()) } returns
+                PamResult.Success(IndexDocumentUseCase.Result("doc", chunkCount = 1, embedded = false))
+        },
+        mergeExtraction = MergeExtractionUseCase(),
+        aiExtraction = aiExtraction,
+        entityProfileLinker = mockk<EntityProfileLinker>(relaxed = true),
+        fieldRevisionDao = mockk<FieldRevisionDao>(relaxed = true),
+        documentMapper = mapper,
+        documentDao = documentDao,
+        timelineRepository = FakeTimelineRepository(),
+        appContext = mockk<Context>(relaxed = true),
+        ioDispatcher = dispatcher,
+    )
+
+    private fun firstStage() = DocumentUnderstanding(
+        documentType = "bill", modelUsed = true,
+        facts = listOf(RecognisedFact("Total", "64,98 EUR", FactKind.AMOUNT, 0.9f, FieldProvenance(slotKey = "total"))),
+        enrichment = ticket,
+    )
+
+    private fun scanOf(id: String) {
+        coEvery { documentDao.getById(id) } returns doc().copy(id = id, status = DocumentStatus.QUEUED.name)
+        coEvery { documentDao.getPages(id) } returns listOf(page.copy(id = "p-$id", documentId = id, ocrText = null, ocrBlocks = null))
+        coEvery { documentDao.getExtractedData(id) } returns emptyList()
+    }
+
+    @Test
+    fun `the first stage is stored and shown before the second is queued, and a scan pushes it aside and brings it back`() = runTest(dispatcher) {
+        io.mockk.mockkObject(WorkManager.Companion)
+        every { WorkManager.getInstance(any<Context>()) } returns workManager
+        try {
+            coEvery { ocrService.recognizeText(any()) } returns PamResult.Success(
+                OcrResult(fullText = "Rechnung 64,98 EUR", confidence = 0.9f, blocks = listOf(block), detectedLanguage = "de"),
+            )
+            answer(firstStage())
+            scanOf("doc-1")
+            scanOf("doc-2")
+
+            scanPipeline.processDocument("doc-1")
+
+            // Stored as EXTRACTED first, only then is the second stage queued (replacing one queued before for the same document).
+            io.mockk.coVerifyOrder {
+                documentDao.updateStatus("doc-1", DocumentStatus.EXTRACTED.name, any())
+                workManager.enqueueUniqueWork(DocumentEnrichmentWorker.workName("doc-1"), ExistingWorkPolicy.REPLACE, any<OneTimeWorkRequest>())
+            }
+            // The first stage was asked for as the first stage, and what it stored has no summary yet.
+            coVerify { aiExtraction(any(), any(), any(), any(), any(), ExtractionV2Pipeline.Stages.FIRST, any()) }
+            assertThat(scanPipeline.enrichingDocuments.first()).containsExactly("doc-1")
+
+            // A new scan never waits for a summary: every second stage is cancelled, and the screens still know it is coming.
+            scanPipeline.enqueue("doc-2")
+            verify { workManager.cancelAllWorkByTag(DocumentEnrichmentWorker.TAG) }
+            assertThat(scanPipeline.enrichingDocuments.first()).containsExactly("doc-1")
+
+            // Once that scan's first stage is stored, the second stage that was pushed aside is queued again (kept if still queued).
+            scanPipeline.processDocument("doc-2")
+            verify { workManager.enqueueUniqueWork(DocumentEnrichmentWorker.workName("doc-1"), ExistingWorkPolicy.KEEP, any<OneTimeWorkRequest>()) }
+        } finally {
+            io.mockk.unmockkObject(WorkManager.Companion)
+        }
+    }
+
+    @Test
+    fun `a reading that is complete queues no second stage`() = runTest(dispatcher) {
+        io.mockk.mockkObject(WorkManager.Companion)
+        every { WorkManager.getInstance(any<Context>()) } returns workManager
+        try {
+            coEvery { ocrService.recognizeText(any()) } returns PamResult.Success(
+                OcrResult(fullText = "Rechnung", confidence = 0.9f, blocks = listOf(block), detectedLanguage = "de"),
+            )
+            answer(firstStage().copy(enrichment = null))
+            scanOf("doc-1")
+            scanPipeline.processDocument("doc-1")
+            verify(exactly = 0) { workManager.enqueueUniqueWork(any<String>(), any<ExistingWorkPolicy>(), any<OneTimeWorkRequest>()) }
+            assertThat(scanPipeline.enrichingDocuments.first()).isEmpty()
+        } finally {
+            io.mockk.unmockkObject(WorkManager.Companion)
+        }
     }
 
     @Test

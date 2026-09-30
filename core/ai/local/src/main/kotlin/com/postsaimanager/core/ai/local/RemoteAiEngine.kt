@@ -645,6 +645,33 @@ class RemoteAiEngine @Inject constructor(
             }
         }
 
+    override suspend fun scoreGrid(shared: String, heads: List<String>, asks: List<String>, yes: String, no: String): PamResult<List<List<Double>>> =
+        engineMutex.withLock {
+            withContext(ioDispatcher) {
+                val remote = service ?: connect()
+                    ?: return@withContext PamResult.Error(PamError.ModelNotLoaded("Could not reach the AI engine."))
+                val prefix = promptPrefix
+                    ?: return@withContext PamResult.Error(PamError.InferenceError("no prompt session is open"))
+                if (heads.isEmpty() || asks.isEmpty()) return@withContext PamResult.Success(heads.map { emptyList() })
+                val headArray = heads.toTypedArray()
+                val askArray = asks.toTypedArray()
+                withCancelHook({ runCatching { remote.cancelGeneration() } }) {
+                    var flat = runCatching { remote.promptScoreGrid(shared, headArray, askArray, yes, no) }.getOrNull()
+                    if (flat == null && coroutineContext.isActive) {
+                        Log.i(TAG, "prompt session lost while scoring a grid — reading the prefix again")
+                        if (openLocked(prefix) is PamResult.Success) {
+                            flat = runCatching { remote.promptScoreGrid(shared, headArray, askArray, yes, no) }.getOrNull()
+                        }
+                    }
+                    if (flat == null || flat.size != heads.size * asks.size) {
+                        PamResult.Error(PamError.InferenceError("the grid could not be scored"))
+                    } else {
+                        PamResult.Success(heads.indices.map { i -> asks.indices.map { j -> flat[i * asks.size + j] } })
+                    }
+                }
+            }
+        }
+
     override suspend fun close() = engineMutex.withLock {
         withContext(ioDispatcher) {
             if (promptPrefix == null) return@withContext

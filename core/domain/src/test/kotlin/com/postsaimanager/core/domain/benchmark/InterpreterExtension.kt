@@ -286,6 +286,18 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         return PamResult.Success(picked.map { scores[it] })
     }
 
+    /** A grid is what several recorded batches hold: one per ask (each question's candidates), read the way the batches were recorded. */
+    override suspend fun scoreGrid(shared: String, heads: List<String>, asks: List<String>, yes: String, no: String): PamResult<List<List<Double>>> {
+        val columns = ArrayList<List<Double>>()
+        for (ask in asks) {
+            when (val column = score(heads.map { it + ask }, yes, no, shared)) {
+                is PamResult.Error -> return column
+                is PamResult.Success -> columns += column.data
+            }
+        }
+        return PamResult.Success(heads.indices.map { i -> asks.indices.map { j -> columns[j][i] } })
+    }
+
     /** A live question as the recording worded it: a type description reworded since the recording was made keeps its recorded scores. */
     private fun asRecorded(question: String): String = REWORDED.entries.fold(question) { text, (now, then) -> text.replace(now, then) }
 

@@ -432,6 +432,29 @@ internal class LocalAiEngine @Inject constructor(
         }
     }
 
+    override suspend fun scoreGrid(shared: String, heads: List<String>, asks: List<String>, yes: String, no: String): PamResult<List<List<Double>>> = mutex.withLock {
+        withContext(ioDispatcher) {
+            val current = handle
+            if (current == 0L) return@withContext PamResult.Error(PamError.ModelNotLoaded("No model is loaded."))
+            val prefix = promptPrefix
+                ?: return@withContext PamResult.Error(PamError.InferenceError("no prompt session is open"))
+            if (heads.isEmpty() || asks.isEmpty()) return@withContext PamResult.Success(heads.map { emptyList() })
+            val headArray = heads.toTypedArray()
+            val askArray = asks.toTypedArray()
+            withCancelHook({ LlamaNative.promptCancel() }) {
+                var flat = LlamaNative.promptScoreGrid(current, shared, headArray, askArray, yes, no)
+                if (flat == null && coroutineContext.isActive) {
+                    if (openLocked(prefix) is PamResult.Success) flat = LlamaNative.promptScoreGrid(current, shared, headArray, askArray, yes, no)
+                }
+                if (flat == null || flat.size != heads.size * asks.size) {
+                    PamResult.Error(PamError.InferenceError("the grid could not be scored"))
+                } else {
+                    PamResult.Success(heads.indices.map { i -> asks.indices.map { j -> flat[i * asks.size + j] } })
+                }
+            }
+        }
+    }
+
     override suspend fun close() {
         val current = handle
         if (current == 0L || promptPrefix == null) return

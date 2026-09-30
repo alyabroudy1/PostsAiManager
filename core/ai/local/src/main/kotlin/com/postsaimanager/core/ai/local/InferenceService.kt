@@ -248,6 +248,11 @@ class InferenceService : Service() {
             return submit { LlamaNative.promptScore(handle, shared, continuations, yes, no) }
         }
 
+        override fun promptScoreGrid(shared: String?, heads: Array<String>?, asks: Array<String>?, yes: String?, no: String?): DoubleArray? {
+            if (handle == 0L || shared == null || heads == null || asks == null || yes == null || no == null) return null
+            return submit { LlamaNative.promptScoreGrid(handle, shared, heads, asks, yes, no) }
+        }
+
         override fun promptClose() {
             if (handle == 0L) return
             submit { LlamaNative.promptClose(handle) }

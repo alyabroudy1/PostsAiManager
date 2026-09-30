@@ -69,6 +69,25 @@ interface PromptSession {
      */
     suspend fun score(continuations: List<String>, yes: String, no: String, shared: String = ""): PamResult<List<Double>>
 
+    /**
+     * Scores every one of [heads] followed by every one of [asks] (`shared + head + ask` read as one text): a three-level prefix tree,
+     * where what the questions have in common is decoded once. [shared] is decoded once, each head once after it, and each ask after its
+     * head. A caller whose questions are about one value (a head) under several statements (the asks) and one zone block (shared) pays
+     * for the block and the value once, not once per statement.
+     *
+     * The default reads the grid through [score] (every cell whole), which gives the same scores; an engine that can keep checkpoints at
+     * two levels overrides it to decode less.
+     *
+     * @return `scores[i][j]` for head `i` under ask `j`.
+     */
+    suspend fun scoreGrid(shared: String, heads: List<String>, asks: List<String>, yes: String, no: String): PamResult<List<List<Double>>> {
+        if (heads.isEmpty() || asks.isEmpty()) return PamResult.Success(heads.map { emptyList() })
+        return when (val flat = score(heads.flatMap { h -> asks.map { a -> h + a } }, yes, no, shared)) {
+            is PamResult.Error -> flat
+            is PamResult.Success -> PamResult.Success(heads.indices.map { i -> asks.indices.map { j -> flat.data[i * asks.size + j] } })
+        }
+    }
+
     /** Drops the session. Safe to call when none is open. */
     suspend fun close()
 
