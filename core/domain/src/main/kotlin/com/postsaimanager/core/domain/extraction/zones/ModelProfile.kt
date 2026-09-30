@@ -58,7 +58,12 @@ object ModelProfiles {
         scoring = ScoringProfile(
             defaultThreshold = -12.0,
             // The extras are the one question where "take the best" is wrong: a value is an extra only when the model says yes to it.
-            thresholds = mapOf(ScoringDescriptions.EXTRAS_ASK to 0.0),
+            // The optional people (a contact, a care-of party, the person a letter is about) are taken only when the model leans Yes:
+            // on the phone a table header was taken as a subject person at a score of -0.35 and proposed as a profile.
+            thresholds = mapOf(
+                ScoringDescriptions.EXTRAS_ASK to 0.0,
+                QuestionNames.CONTACT to 0.0, QuestionNames.CARE_OF to 0.0, QuestionNames.SUBJECT_PERSON to 0.0,
+            ),
             // Fitted on the 137 scored answers of the 16 letters (ConfidenceCalibrationTest). HIGH: a margin of 0.2 over the runner-up
             // (91% right in-sample, 85 answers; 83% held out, cuts fitted on the other half of the letters). LOW: the winner's own
             // log-odds are under -0.25, the model itself leaning No (50% right, 14 answers in-sample). The fitter, which keeps a safety
