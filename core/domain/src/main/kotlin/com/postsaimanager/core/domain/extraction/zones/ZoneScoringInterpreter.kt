@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.extraction.zones
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.PromptSession
+import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.domain.extraction.v2.AnswerReader
@@ -76,6 +77,11 @@ class ZoneScoringInterpreter(
     var templateScore: Float = 0f
         private set
 
+    private val decoder: SlotDecoder = profile.decoder.create()
+
+    /** Every question scored in this reading, for the decoder to decide again once all are in (see [redecide]). */
+    private val scored = ArrayList<Scored>()
+
     private var tail = ""
     private var bodyOpen = false
     private var failures = 0
@@ -100,6 +106,7 @@ class ZoneScoringInterpreter(
 
     override suspend fun interpret(request: InterpretationRequest): InterpretationOutcome {
         records.clear()
+        scored.clear()
         failures = 0
         bodyOpen = false
         prefixTokens = 0
@@ -169,6 +176,7 @@ class ZoneScoringInterpreter(
         (partyNames.filter { !isHeader(it.first) } + deferredParties).forEach { (name, role) -> party(setup, s, name, role, widen = true) }
         val bodySlots = (Slots.CORE + docType.slots).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) }
         (bodySlots + deferred).forEach { slot(setup, s, it, widen = true) }
+        redecide(setup, s)
 
         val more = languageAndExtras(setup, s)
         return RawInterpretation(
@@ -244,13 +252,20 @@ class ZoneScoringInterpreter(
         val block = block(setup, zones)
         val questions = cands.map { block + ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), what) }
         val scores = scoreBatch(name, questions) ?: return true
+        collect(name, cands, scores, role = role, slot = null, block = block)
         val allowed = scores.indices.filter { role == PartyRole.SENDER || cands[it].id != s.senderId }
         val ranked = allowed.sortedByDescending { scores[it] }
         val best = ranked.firstOrNull() ?: return true
         val threshold = profile.threshold(name)
         if (scores[best] <= threshold) return true
         val (confidence, note) = confidenceOf(scores[best], ranked.getOrNull(1)?.let { scores[it] }, ranked.size)
-        val c = cands[best]
+        addParty(setup, s, name, role, cands[best], block, confidence, note)
+        return true
+    }
+
+    /** The party [c] as [role]: its kind and (for an addressee) household relation scored, recorded as the sender or addressee established so far. */
+    private suspend fun addParty(setup: ZoneSetup, s: State, name: String, role: PartyRole, c: Candidate, block: String, confidence: String, note: String) {
+        val zoned = setup.zoned
         val ctx = zoned.context(c)
         val printed = c.raw.replace('\n', ' ')
 
@@ -269,7 +284,6 @@ class ZoneScoringInterpreter(
             role = role.name, id = c.id, kind = kind, relation = relation,
             confidence = confidence, name = null, scoreNote = note,
         )
-        return true
     }
 
     /**
@@ -306,6 +320,7 @@ class ZoneScoringInterpreter(
         val what = ScoringDescriptions.ofSlot(slot)
         val block = block(setup, asked)
         val scores = scoreBatch(name, cands.map { block + ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), what) }) ?: return true
+        if (slot.kind != SlotKind.REFERENCE_LIST) collect(name, cands, scores, role = null, slot = slot, block = block)
         val threshold = profile.threshold(name)
         val order = scores.indices.sortedByDescending { scores[it] }
         val best = order.first()
@@ -327,6 +342,62 @@ class ZoneScoringInterpreter(
     private fun roleOf(slot: SlotKey): String {
         val order = if (slot.kind == SlotKind.AMOUNT) Roles.AMOUNT else Roles.DATE
         return order.firstOrNull { it in slot.expects } ?: "OTHER"
+    }
+
+    // ── decoding ──
+
+    /** A scored question with what is needed to write its answer again: the slot or the party role, the zone block and the candidates asked. */
+    private class Scored(val question: ScoredQuestion, val slot: SlotKey?, val role: PartyRole?, val block: String, val cands: List<Candidate>)
+
+    private fun facts(c: Candidate) = CandidateFacts(c.id, c.kind, c.normalized, c.cents, c.currency)
+
+    private fun collect(name: String, cands: List<Candidate>, scores: List<Double>, role: PartyRole?, slot: SlotKey?, block: String) {
+        val question = ScoredQuestion(
+            name, cands.mapIndexed { i, c -> ScoredCandidate(facts(c), scores[i]) }, profile.threshold(name),
+            excludesWinnerOf = if (role != null && role != PartyRole.SENDER) QuestionNames.SENDER else null,
+        )
+        scored += Scored(question, slot, role, block, cands)
+    }
+
+    /**
+     * Once every question is scored, the profile's [SlotDecoder] decides all of them together from the same scores. The answers
+     * given as the questions were asked are kept wherever the decoder agrees (the per-slot argmax always does); where it
+     * chose another candidate, or none, the answer is written again from the scores, with the confidence of the new choice
+     * (its margin over the best other candidate of its question, so a second choice is LOW unless it was close).
+     */
+    private suspend fun redecide(setup: ZoneSetup, s: State) {
+        if (scored.isEmpty()) return
+        val decided = decoder.decode(scored.map { it.question }, setup.zoned.offered.rows.map { facts(it.candidate) })
+        for (a in scored) {
+            val q = a.question
+            val now = decided[q.name]
+            val slot = a.slot
+            val before = if (slot != null) s.slots[slot.json]?.id else s.parties.firstOrNull { it.role == a.role?.name }?.id
+            if (now == before) continue
+            val i = q.candidates.indexOfFirst { it.id == now }
+            val (confidence, note) = if (i < 0) "LOW" to "" else confidenceOf(
+                q.candidates[i].score, q.candidates.filterIndexed { j, c -> j != i && c.id != q.excludesWinnerOf?.let { w -> decided[w] } }.maxOfOrNull { it.score }, q.candidates.size,
+            )
+            if (slot != null) {
+                if (i < 0) {
+                    s.slots.remove(slot.json)
+                } else {
+                    s.slots[slot.json] = when (slot.kind) {
+                        SlotKind.AMOUNT, SlotKind.DATE, SlotKind.DEADLINE -> RawSlot(id = now, role = roleOf(slot), confidence = confidence, scoreNote = note)
+                        else -> RawSlot(id = now, confidence = confidence, scoreNote = note)
+                    }
+                }
+            } else if (a.role != null) {
+                val at = s.parties.indexOfFirst { it.role == a.role.name }
+                if (at >= 0) s.parties.removeAt(at)
+                if (i >= 0) {
+                    // What is scored again here was not scored when the question was asked; a failed scoring leaves the kind OTHER.
+                    failures = 0
+                    addParty(setup, s, q.name, a.role, a.cands[i], a.block, confidence, note)
+                    if (at >= 0) s.parties.add(at, s.parties.removeAt(s.parties.lastIndex))
+                }
+            }
+        }
     }
 
     // ── engine ──
