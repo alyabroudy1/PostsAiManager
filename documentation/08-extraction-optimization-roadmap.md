@@ -108,4 +108,4 @@ LiteRT QNN per the Google post).
 Run the JVM replay first (seconds) on the recorded score matrices. Device runs only when new scores are needed.
 Gate: `BenchmarkGateTest` (real-OCR candidate recall and zones) + the oracle + the interpreter metrics on the recordings.
 Accept only held-out (cross-fitted) gains ≥2 points without extra hallucination. The tools: `DecoderEvalTest`
-(decoders, `$DECODER_OUT`), `TypeAccuracyTest` (document type, `$TYPE_OUT`), `ExtrasThresholdTest`, `ZoneScoringTuneTest`.
+(decoders, `$DECODER_OUT`), `FamilyAccuracyTest` (document family, `$FAMILY_OUT`), `ExtrasThresholdTest`, `ZoneScoringTuneTest`.

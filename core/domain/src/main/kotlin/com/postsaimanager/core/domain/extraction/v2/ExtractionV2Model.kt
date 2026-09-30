@@ -182,7 +182,7 @@ data class Diagnostics(
  *   for review.
  */
 data class ExtractionV2Result(
-    val documentType: DocType?,
+    val documentType: DocFamily?,
     /** The model's own confidence in the type; no code check can raise or lower it. */
     val typeConfidence: Float = 0f,
     val otherLabel: String? = null,

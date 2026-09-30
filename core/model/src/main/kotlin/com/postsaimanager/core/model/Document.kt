@@ -38,6 +38,8 @@ data class Document(
     val extractionType: String? = null,
     /** The model's own confidence in [extractionType]. */
     val extractionTypeConfidence: Float? = null,
+    /** The topic ids the model found, best first (`health`, `tax`, ...); empty before a model read it. */
+    val topics: List<String> = emptyList(),
     /** Which extractor version wrote this document's machine values; drives reprocessing on a version bump. */
     val extractorVersion: String? = null,
     /** A person chose [title]; extraction must not replace it. */

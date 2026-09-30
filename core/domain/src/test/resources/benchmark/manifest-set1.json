@@ -3,6 +3,7 @@
   "documents": [
     {
       "id": "invoice-2p",
+      "topics": [],
       "folder": "invoice-2p",
       "subject": "Rechnung RE-2026-0815",
       "language": "de",
@@ -84,6 +85,7 @@
     },
     {
       "id": "tax-long-7p",
+      "topics": ["tax", "government"],
       "folder": "tax-long-7p",
       "subject": "Einkommensteuerbescheid 2025 – Festsetzung und Nachzahlung",
       "language": "de",
@@ -166,6 +168,7 @@
     },
     {
       "id": "english-ambiguous-3p",
+      "topics": ["housing_utilities"],
       "folder": "english-ambiguous-3p",
       "subject": "Your account NU-77120934 – overdue balance and payment plan",
       "language": "en",
@@ -238,6 +241,7 @@
     },
     {
       "id": "receipt-noise-1p",
+      "topics": ["shopping"],
       "folder": "receipt-noise-1p",
       "subject": "Kassenbon Beispielmarkt",
       "language": "de",
@@ -296,6 +300,7 @@
     },
     {
       "id": "degraded-3p",
+      "topics": ["housing_utilities"],
       "folder": "degraded-3p",
       "subject": "Änderung Ihres Abschlags ab 01.12.2026",
       "language": "de",
@@ -372,6 +377,7 @@
     },
     {
       "id": "arabic-rtl-1p",
+      "topics": [],
       "folder": "arabic-rtl-1p",
       "subject": "تذكير بسداد الفاتورة رقم ٠٤١٧ لسنة ٢٠٢٦ (Zahlungserinnerung Rechnung 2026-0417)",
       "language": "ar (+ de summary line)",

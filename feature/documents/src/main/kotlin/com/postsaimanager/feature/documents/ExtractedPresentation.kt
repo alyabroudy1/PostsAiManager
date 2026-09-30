@@ -67,7 +67,7 @@ object ExtractedPresenter {
     fun present(document: Document, fields: List<ExtractedData>, showAllExtras: Boolean = false, summaryComing: Boolean = false): ExtractedPresentation {
         // A field the user deleted is a tombstone that keeps extraction from bringing it back; it is not shown.
         val live = fields.filter { !it.deletedByUser }
-        val order = schema.type(document.extractionType)?.slots?.map { it.json }.orEmpty()
+        val order = schema.family(document.extractionType)?.slots?.map { it.json }.orEmpty()
 
         val (extraRows, fixedRows) = live.partition { it.isExtra }
 

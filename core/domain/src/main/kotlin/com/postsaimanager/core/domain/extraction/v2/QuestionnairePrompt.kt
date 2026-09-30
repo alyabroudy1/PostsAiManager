@@ -13,7 +13,7 @@ class Question(val name: String, val text: String, val grammar: String, val maxT
  * English on purpose, like [SelectionPrompt]: the letter may be in any language and the answers are ids,
  * enums and quotes copied from it. Nothing here names a sender, a bank or a phrase; a party is described by
  * what it *does* in the letter (wrote it, is addressed by it, is what it is about, handles it). The per-slot
- * questions are not written here: they are data on the schema ([SlotKey.question], [DocType.description]).
+ * questions are not written here: they are data on the schema ([SlotKey.question], [DocFamily.description]).
  */
 object QuestionnairePrompt {
 
@@ -104,7 +104,7 @@ object QuestionnairePrompt {
     // ── the type ─────────────────────────────────────────────────────────────
 
     fun type(schema: ExtractionSchema): Question {
-        val options = schema.types.joinToString("\n") { t ->
+        val options = schema.families.joinToString("\n") { t ->
             if (t.description.isBlank()) "- ${t.id}" else "- ${t.id}: ${t.description}"
         }
         return question(

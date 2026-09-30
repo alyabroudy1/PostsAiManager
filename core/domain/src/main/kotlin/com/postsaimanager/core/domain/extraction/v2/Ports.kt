@@ -40,7 +40,7 @@ class InterpretationRequest(
     val pageAspect: Float? = null,
     /**
      * Whose document this is. Known before reading (how it entered the app), it narrows the types offered
-     * ([ExtractionSchema.typesFor]); incoming until the app stores a direction per document.
+     * ([ExtractionSchema.familiesFor]); incoming until the app stores a direction per document.
      */
     val direction: DocDirection = DocDirection.INCOMING,
 )

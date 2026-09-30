@@ -8,9 +8,10 @@ import com.postsaimanager.core.model.DocumentType
  *
  * This file is the whole schema, as data. The grammar, the prompt, the verifier and the adapter
  * all read [ExtractionSchema], so:
- * - **a new slot** is one [SlotKey] line in [Slots] plus its name in the [DocType]s that use it;
- * - **a new document type** is one [DocType] line in [ExtractionSchema.DEFAULT], usually just its
- *   type-specific slots (the universal core in [Slots.CORE] is added by [DocType.of]);
+ * - **a new slot** is one [SlotKey] line in [Slots] plus its name in the [DocFamily]s or [Topic]s that use it;
+ * - **a new document family** is one [DocFamily] line in [ExtractionSchema.V2], usually just its
+ *   family-specific slots (the universal core in [Slots.CORE] is added by [DocFamily.of]);
+ * - **a new topic** is one [Topic] line in [ExtractionSchema.TOPICS];
  * - **a new language** needs nothing here (nothing in the schema is language specific).
  */
 
@@ -109,7 +110,7 @@ object Slots {
         question = "Which number identifies the reader as a customer, member or account holder?",
     )
 
-    /** The slots every [DocType] has, in the order they are asked. */
+    /** The slots every [DocFamily] has, in the order they are asked. */
     val CORE = listOf(LETTER_DATE, TOTAL, DUE_DATE, IBAN, REFERENCE, CUSTOMER_NO)
 
     // ── type-specific ──
@@ -221,107 +222,249 @@ object Slots {
 enum class DocDirection { INCOMING, OUTGOING, PROOF }
 
 /**
- * A document type the model can choose.
+ * A kind of document the model can choose: what the document is, as opposed to what it is about (see [Topic]).
  *
- * @property slots the universal [Slots.CORE] followed by the type's own slots.
+ * @property slots the universal [Slots.CORE] followed by the family's own slots.
  * @property legacy what the app's stored document type becomes.
  * @property actionable the letter asks something of its reader (pay, answer, sign, attend), so the
  *   questions the model suggested for it are worth offering where no document is open. A property of
- *   the type, not a judgement about any one letter's text.
- * @property description one English line saying what the type is, for the questionnaire's type question.
- * @property directions the document directions this type can describe (a letter the user received is never an
- *   outgoing letter or a proof of payment); data, read by [ExtractionSchema.typesFor].
+ *   the family, not a judgement about any one letter's text.
+ * @property description one English line saying what the family is (a content description, for the scoring
+ *   question; it is a model prompt, not UI text).
+ * @property directions the document directions this family can describe (a letter the user received is never an
+ *   outgoing letter or a proof of payment); data, read by [ExtractionSchema.familiesFor].
+ * @property hasRecipientBlock the family is a letter with an addressee block (a structured recipient address is worth reading).
+ * @property sensitive the all-documents chat never shows these documents (health letters); see [ExtractionSchema.isSensitive].
+ * @property scored whether the classifier asks about this family. False for the abstain outcome ([ExtractionSchema.FREE_FORM]):
+ *   a scored "anything else" gets a middling Yes on every letter and wins, so it is what is chosen when no family scores above the threshold.
  */
-data class DocType(
+data class DocFamily(
     val id: String,
     val slots: List<SlotKey>,
     val legacy: DocumentType,
     val actionable: Boolean = false,
     val description: String = "",
     val directions: Set<DocDirection> = setOf(DocDirection.INCOMING),
+    val hasRecipientBlock: Boolean = false,
+    val sensitive: Boolean = false,
+    val scored: Boolean = true,
 ) {
     override fun toString() = id
 
-    /** The same type, for documents of [directions] instead of incoming ones. */
-    fun forDirections(vararg directions: DocDirection): DocType = copy(directions = directions.toSet())
+    /** The same family, for documents of [directions] instead of incoming ones. */
+    fun forDirections(vararg directions: DocDirection): DocFamily = copy(directions = directions.toSet())
 
-    /** The same type, marked as one that asks something of its reader. */
-    fun asksSomething(): DocType = copy(actionable = true)
+    /** The same family, marked as one that asks something of its reader. */
+    fun asksSomething(): DocFamily = copy(actionable = true)
 
-    /** The same type with the line that explains it to the model. */
-    fun described(text: String): DocType = copy(description = text)
+    /** The same family with the line that explains it to the model. */
+    fun described(text: String): DocFamily = copy(description = text)
+
+    /** The same family, for letters that carry an addressee block. */
+    fun withRecipientBlock(): DocFamily = copy(hasRecipientBlock = true)
+
+    /** The same family, kept out of the all-documents chat. */
+    fun markedSensitive(): DocFamily = copy(sensitive = true)
+
+    /** The same family, never asked about by the classifier (the abstain outcome). */
+    fun unscored(): DocFamily = copy(scored = false)
 
     companion object {
-        /** A type with the universal core plus [specific] slots. */
+        /** A family with the universal core plus [specific] slots. */
         fun of(id: String, legacy: DocumentType, vararg specific: SlotKey) =
-            DocType(id, (Slots.CORE + specific).distinct(), legacy)
+            DocFamily(id, (Slots.CORE + specific).distinct(), legacy)
     }
 }
 
+/** The name the family type had before extraction-v2-2; P4 removes it together with the legacy types. */
+@Deprecated("Renamed to DocFamily.", ReplaceWith("DocFamily"))
+typealias DocType = DocFamily
+
+/**
+ * What a document is about, independently of its family (a bill can be about health, a contract about insurance).
+ * Any number of topics can hold for one document; the best two contribute their [slots] (see [ExtractionSchema.slotsFor]).
+ *
+ * @property description one English phrase naming the subject ("Does this document concern <description>?"); a model prompt, not UI.
+ * @property slots the slots a document about this topic has beyond its family's.
+ * @property sensitive documents about this topic stay out of the all-documents chat.
+ */
+data class Topic(
+    val id: String,
+    val description: String,
+    val slots: List<SlotKey> = emptyList(),
+    val sensitive: Boolean = false,
+) {
+    override fun toString() = id
+}
+
 /** The registry the rest of the package reads. */
-class ExtractionSchema(val types: List<DocType>) {
+class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = emptyList()) {
 
     init {
-        require(types.isNotEmpty()) { "a schema needs at least one document type" }
-        require(types.map { it.id }.toSet().size == types.size) { "duplicate document type id" }
+        require(families.isNotEmpty()) { "a schema needs at least one document family" }
+        require(families.map { it.id }.toSet().size == families.size) { "duplicate document family id" }
+        require(topics.map { it.id }.toSet().size == topics.size) { "duplicate topic id" }
     }
 
-    fun type(id: String?): DocType? = types.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) }
+    fun family(id: String?): DocFamily? = families.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) }
 
-    /** The types a document of [direction] can be: the candidates of the type question. */
-    fun typesFor(direction: DocDirection): List<DocType> = types.filter { direction in it.directions }
+    fun topic(id: String?): Topic? = topics.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) }
 
-    /** Every slot of every type, once. */
-    val allSlots: List<SlotKey> = types.flatMap { it.slots }.distinct()
+    /** The families a document of [direction] can be, in registry order: the candidates the classifier scores. The abstain family is never among them. */
+    fun familiesFor(direction: DocDirection): List<DocFamily> = families.filter { it.scored && direction in it.directions }
 
-    /** Maps the model's type id (as stored on [com.postsaimanager.core.model.DocumentUnderstanding]) to the app's type. */
-    fun legacyType(id: String?): DocumentType? = type(id)?.legacy
+    /**
+     * The slots a document of [family] about [topics] has: the family's own, then those of the best two topics.
+     * [topics] is in the order the classifier ranked them (best first); ids this schema does not know are skipped
+     * and do not use up one of the two places.
+     */
+    fun slotsFor(family: DocFamily, topics: List<String>): List<SlotKey> {
+        val best = topics.mapNotNull(::topic).distinct().take(MAX_TOPICS_WITH_SLOTS)
+        return (family.slots + best.flatMap { it.slots }).distinct()
+    }
+
+    /** Whether a document of [familyId] about [topicIds] stays out of the all-documents chat. Unknown ids are not sensitive. */
+    fun isSensitive(familyId: String?, topicIds: List<String>): Boolean =
+        family(familyId)?.sensitive == true || topicIds.any { topic(it)?.sensitive == true }
+
+    /** Every slot of every family and topic, once. */
+    val allSlots: List<SlotKey> = (families.flatMap { it.slots } + topics.flatMap { it.slots }).distinct()
+
+    /** Maps the model's family id (as stored on [com.postsaimanager.core.model.DocumentUnderstanding]) to the app's type. */
+    fun legacyType(id: String?): DocumentType? = family(id)?.legacy
+
+    @Deprecated("Renamed to families.", ReplaceWith("families"))
+    val types: List<DocFamily> get() = families
+
+    @Deprecated("Renamed to family.", ReplaceWith("family(id)"))
+    fun type(id: String?): DocFamily? = family(id)
+
+    @Deprecated("Renamed to familiesFor.", ReplaceWith("familiesFor(direction)"))
+    fun typesFor(direction: DocDirection): List<DocFamily> = familiesFor(direction)
 
     companion object {
-        val BILL = DocType.of("bill", DocumentType.INVOICE, Slots.INVOICE_NO).asksSomething()
+        /** How many topics add their slots to a document; a third topic is kept on the document but asks nothing more. */
+        const val MAX_TOPICS_WITH_SLOTS = 2
+
+        // ── the types the pipeline stored before extraction-v2-2 (the live interpreter still scores these; P4 removes them) ──
+        val BILL = DocFamily.of("bill", DocumentType.INVOICE, Slots.INVOICE_NO).asksSomething()
             .described("an invoice or bill that asks the reader to pay")
-        val REMINDER_DUNNING = DocType.of(
+        val REMINDER_DUNNING = DocFamily.of(
             "reminder_dunning", DocumentType.INVOICE, Slots.INVOICE_NO, Slots.FEE, Slots.ORIGINAL_DUE_DATE,
         ).asksSomething().described("a payment reminder or dunning letter about an unpaid bill")
-        val AUTHORITY_TAX = DocType.of(
+        val AUTHORITY_TAX = DocFamily.of(
             "authority_tax", DocumentType.OFFICIAL_LETTER, Slots.OBJECTION_DEADLINE, Slots.CASE_NO, Slots.TAX_NO,
         ).asksSomething().described("a letter or decision from an authority, tax office or public body")
 
         /** Not actionable for the all-documents chat on purpose: health letters stay out of it (workstream G). */
-        val HEALTH = DocType.of("health", DocumentType.NOTICE, Slots.APPOINTMENT)
-            .described("a letter from a doctor, clinic or health insurer, such as an appointment")
-        val INSURANCE_CONTRACT = DocType.of(
+        val HEALTH = DocFamily.of("health", DocumentType.NOTICE, Slots.APPOINTMENT)
+            .described("a letter from a doctor, clinic or health insurer, such as an appointment").markedSensitive()
+        val INSURANCE_CONTRACT = DocFamily.of(
             "insurance_contract", DocumentType.CONTRACT,
             Slots.NEW_AMOUNT, Slots.PREVIOUS_AMOUNT, Slots.EFFECTIVE_DATE, Slots.CONTRACT_END, Slots.POLICY_NO, Slots.CONTRACT_NO,
         ).asksSomething().described("an insurance or service contract, or a change to its price or terms")
-        val SCHOOL = DocType.of("school", DocumentType.NOTICE, Slots.EVENT_DATE).asksSomething()
+        val SCHOOL = DocFamily.of("school", DocumentType.NOTICE, Slots.EVENT_DATE).asksSomething()
             .described("a letter from a school or kindergarten to parents")
-        val RECEIPT = DocType.of("receipt", DocumentType.RECEIPT, Slots.RECEIPT_NO)
-            .described("a receipt or proof of a purchase")
-        val INFO_NO_ACTION = DocType.of("info_no_action", DocumentType.NOTICE, Slots.EFFECTIVE_DATE)
+        val INFO_NO_ACTION = DocFamily.of("info_no_action", DocumentType.NOTICE, Slots.EFFECTIVE_DATE)
             .described("an information letter or statement that asks nothing of the reader")
 
+        /** Fits a document of any direction; its description is neutral (no "anything", no "any other"), so it gains no score by being vague. */
+        val OTHER = DocFamily.of("other", DocumentType.OTHER).described("a document of a kind not listed here")
+            .forDirections(*DocDirection.entries.toTypedArray())
+
+        // ── the families of extraction-v2-2 ──
+        val OFFICIAL_LETTER = DocFamily.of(
+            "official_letter", DocumentType.OFFICIAL_LETTER, Slots.APPOINTMENT, Slots.EFFECTIVE_DATE, Slots.OBJECTION_DEADLINE,
+        ).asksSomething().withRecipientBlock()
+            .described("a letter or decision from an authority, employer, school or other organisation that informs the reader or decides something")
+
+        /** Absorbs the legacy bill and reminder_dunning: a reminder is a bill with a fee and an original due date. */
+        val INVOICE_BILL = DocFamily.of(
+            "invoice_bill", DocumentType.INVOICE, Slots.INVOICE_NO, Slots.FEE, Slots.ORIGINAL_DUE_DATE,
+        ).asksSomething().withRecipientBlock()
+            .described("an invoice, a bill or a payment reminder that asks the reader to pay")
+
+        val RECEIPT = DocFamily.of("receipt", DocumentType.RECEIPT, Slots.RECEIPT_NO)
+            .described("a receipt or proof of a purchase")
+
+        val FORM_APPLICATION = DocFamily.of("form_application", DocumentType.FORM)
+            .described("a form or an application that is filled in and returned")
+
+        val STATEMENT = DocFamily.of("statement", DocumentType.NOTICE, Slots.PREVIOUS_AMOUNT).withRecipientBlock()
+            .described("a statement of account, a bank statement or a summary of transactions or consumption")
+
+        val CONTRACT_POLICY = DocFamily.of(
+            "contract_policy", DocumentType.CONTRACT, Slots.CONTRACT_NO, Slots.CONTRACT_END, Slots.EFFECTIVE_DATE, Slots.NEW_AMOUNT,
+        ).asksSomething().withRecipientBlock()
+            .described("a contract, an insurance policy, or a change to its price or terms")
+
+        val CERTIFICATE_ID = DocFamily.of("certificate_id", DocumentType.CERTIFICATE, Slots.EFFECTIVE_DATE, Slots.CONTRACT_END)
+            .described("a certificate, an identity document, a licence or a card")
+
+        val MEDICAL = DocFamily.of("medical", DocumentType.NOTICE, Slots.APPOINTMENT).withRecipientBlock().markedSensitive()
+            .described("a letter from a doctor, clinic or hospital, such as an appointment, a referral or a result")
+
+        val TICKET_BOOKING = DocFamily.of("ticket_booking", DocumentType.OTHER, Slots.EVENT_DATE)
+            .described("a ticket, a booking confirmation or a travel itinerary")
+
+        val EMAIL_PRINTOUT = DocFamily.of("email_printout", DocumentType.OTHER)
+            .described("a printout of an email message or of a web page")
+
         /** A letter the user sent (P3; the pipeline does not produce it yet). */
-        val OUTGOING_LETTER = DocType.of(
+        val OUTGOING_LETTER = DocFamily.of(
             "outgoing_letter", DocumentType.OFFICIAL_LETTER,
             Slots.RECIPIENT_ORG, Slots.SENT_DATE, Slots.ACTION_KIND, Slots.CITED_REFERENCES,
         ).described("a letter the reader wrote and sent to someone else").forDirections(DocDirection.OUTGOING)
 
         /** A payment confirmation the user holds (P3; the pipeline does not produce it yet). */
-        val PAYMENT_PROOF = DocType.of(
+        val PAYMENT_PROOF = DocFamily.of(
             "payment_proof", DocumentType.RECEIPT,
             Slots.PROOF_AMOUNT, Slots.PROOF_DATE, Slots.PROOF_RECIPIENT, Slots.PROOF_REFERENCE,
         ).described("a confirmation that a payment was made").forDirections(DocDirection.PROOF)
 
-        /** Fits a document of any direction; its description is neutral (no "anything", no "any other"), so it gains no score by being vague. */
-        val OTHER = DocType.of("other", DocumentType.OTHER).described("a document of a kind not listed here")
-            .forDirections(*DocDirection.entries.toTypedArray())
+        /** The abstain outcome: what a document is when no family scores above the threshold. Never scored, so it carries only the core. */
+        val FREE_FORM = DocFamily.of("free_form", DocumentType.OTHER)
+            .described("a document of a kind not listed here").forDirections(*DocDirection.entries.toTypedArray()).unscored()
 
+        // ── the topics ──
+        val TOPICS: List<Topic> = listOf(
+            Topic("government", "a government agency, a public authority or a public service", listOf(Slots.CASE_NO, Slots.OBJECTION_DEADLINE)),
+            Topic("tax", "taxes, a tax office or a tax return", listOf(Slots.TAX_NO, Slots.CASE_NO)),
+            Topic(
+                "health", "health, medical care, a doctor or a health insurer", listOf(Slots.APPOINTMENT),
+                sensitive = true,
+            ),
+            Topic(
+                "insurance", "an insurance policy or an insurance company",
+                listOf(Slots.POLICY_NO, Slots.NEW_AMOUNT, Slots.PREVIOUS_AMOUNT, Slots.CONTRACT_END),
+            ),
+            Topic("bank_finance", "a bank, a loan, an account, savings or other personal finance"),
+            Topic("housing_utilities", "housing, rent, a property or a household utility such as energy, water or heating", listOf(Slots.CONTRACT_NO)),
+            Topic("work", "a job, an employer, employment or a salary"),
+            Topic("school_education", "a school, a kindergarten, a university or education", listOf(Slots.EVENT_DATE)),
+            Topic("vehicle", "a car, another vehicle, a driving licence or road traffic"),
+            Topic("telecom", "a phone, mobile, internet or television service", listOf(Slots.CONTRACT_NO)),
+            Topic("shopping", "a purchase from a shop or an online order"),
+            Topic("travel", "a trip, a flight, a hotel or a holiday"),
+            Topic("legal", "a court, a lawyer or a legal dispute"),
+            Topic("personal", "a private matter, family or personal correspondence"),
+        )
+
+        /** What the live interpreter reads today: the legacy types. P4 makes [V2] the default and removes the legacy ones. */
         val DEFAULT = ExtractionSchema(
             listOf(
                 BILL, REMINDER_DUNNING, AUTHORITY_TAX, HEALTH, INSURANCE_CONTRACT, SCHOOL, RECEIPT,
                 INFO_NO_ACTION, OUTGOING_LETTER, PAYMENT_PROOF, OTHER,
             ),
+        )
+
+        /** The families and topics of extraction-v2-2, read by [com.postsaimanager.core.domain.extraction.zones.FamilyClassifier]. */
+        val V2 = ExtractionSchema(
+            listOf(
+                OFFICIAL_LETTER, INVOICE_BILL, RECEIPT, FORM_APPLICATION, STATEMENT, CONTRACT_POLICY, CERTIFICATE_ID, MEDICAL,
+                TICKET_BOOKING, EMAIL_PRINTOUT, OUTGOING_LETTER, PAYMENT_PROOF, FREE_FORM,
+            ),
+            TOPICS,
         )
     }
 }

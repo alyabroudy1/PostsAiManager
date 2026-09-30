@@ -299,6 +299,6 @@ class ZoneScoringInterpreterTest {
     @Test
     fun `the schema's core slots all have a statement of their own`() {
         for (slot in Slots.CORE) assertThat(ScoringDescriptions.ofSlot(slot)).doesNotContain("the ${slot.label.lowercase()}")
-        assertThat(ExtractionSchema.DEFAULT.types.all { it.description.isNotBlank() }).isTrue()
+        assertThat(ExtractionSchema.DEFAULT.families.all { it.description.isNotBlank() }).isTrue()
     }
 }

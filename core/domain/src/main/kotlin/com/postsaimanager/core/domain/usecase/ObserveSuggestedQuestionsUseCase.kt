@@ -17,7 +17,7 @@ import javax.inject.Inject
  * - **A document's chat** shows that document's questions, and picks them up the moment extraction
  *   stores them (a chat opened right after scanning has none yet).
  * - **The all-documents chat** has no fixed list to fall back on. It shows the questions of the most
- *   recent document whose type asks something of its reader ([com.postsaimanager.core.domain.extraction.v2.DocType.actionable]),
+ *   recent document whose type asks something of its reader ([com.postsaimanager.core.domain.extraction.v2.DocFamily.actionable]),
  *   or nothing. Health letters are not actionable in that sense, so their questions never surface
  *   outside their own chat.
  */
@@ -44,7 +44,7 @@ class ObserveSuggestedQuestionsUseCase @Inject constructor(
                 .filter { !it.isTrashed }
                 .sortedByDescending { it.createdAt }
                 .firstOrNull { doc ->
-                    schema.type(doc.extractionType)?.actionable == true && doc.suggestedQuestions.clean().isNotEmpty()
+                    schema.family(doc.extractionType)?.actionable == true && doc.suggestedQuestions.clean().isNotEmpty()
                 }
                 ?.suggestedQuestions?.clean()
                 .orEmpty()

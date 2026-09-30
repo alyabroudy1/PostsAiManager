@@ -66,7 +66,7 @@ class ParserAndSchemaTest {
 
     @Test
     fun `every document type has the universal core, first`() {
-        for (t in ExtractionSchema.DEFAULT.types) assertThat(t.slots.take(Slots.CORE.size)).isEqualTo(Slots.CORE)
+        for (t in ExtractionSchema.DEFAULT.families) assertThat(t.slots.take(Slots.CORE.size)).isEqualTo(Slots.CORE)
     }
 
     @Test
@@ -81,7 +81,7 @@ class ParserAndSchemaTest {
 
     @Test
     fun `the eleven types are the agreed ones`() {
-        assertThat(ExtractionSchema.DEFAULT.types.map { it.id }).containsExactly(
+        assertThat(ExtractionSchema.DEFAULT.families.map { it.id }).containsExactly(
             "bill", "reminder_dunning", "authority_tax", "health", "insurance_contract", "school", "receipt",
             "info_no_action", "outgoing_letter", "payment_proof", "other",
         )
@@ -89,7 +89,7 @@ class ParserAndSchemaTest {
 
     @Test
     fun `a duplicate type id is refused`() {
-        val t = DocType.of("x", DocumentType.OTHER)
+        val t = DocFamily.of("x", DocumentType.OTHER)
         val e = runCatching { ExtractionSchema(listOf(t, t)) }.exceptionOrNull()
         assertThat(e).isInstanceOf(IllegalArgumentException::class.java)
     }
@@ -97,8 +97,8 @@ class ParserAndSchemaTest {
     @Test
     fun `adding a document type is one line and the grammar, prompt and verifier follow`() = runTest {
         // A new type: the core plus one slot of its own. Nothing else is touched.
-        val energy = DocType.of("energy_tariff", DocumentType.CONTRACT, Slots.CONTRACT_NO)
-        val schema = ExtractionSchema(ExtractionSchema.DEFAULT.types + energy)
+        val energy = DocFamily.of("energy_tariff", DocumentType.CONTRACT, Slots.CONTRACT_NO)
+        val schema = ExtractionSchema(ExtractionSchema.DEFAULT.families + energy)
 
         val prepared = Prepared(Letters.n1.pages)
         val grammar = StructuredGrammar.build(prepared.offered, schema)
@@ -114,7 +114,7 @@ class ParserAndSchemaTest {
         )
         assertThat(result.documentType).isEqualTo(energy)
         assertThat(result.slots[Slots.CUSTOMER_NO]?.normalized).isEqualTo("4402917")
-        assertThat(ExtractionSchema.DEFAULT.type("energy_tariff")).isNull()
+        assertThat(ExtractionSchema.DEFAULT.family("energy_tariff")).isNull()
     }
 
     @Test

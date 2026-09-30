@@ -96,6 +96,34 @@
     <string name="doctype_payment_proof">Proof of payment</string>
     <string name="doctype_other">Other</string>
 
+    <!-- Document families (extraction-v2-2), keyed by family id; receipt, outgoing_letter and payment_proof keep the strings above -->
+    <string name="doctype_official_letter">Official letter</string>
+    <string name="doctype_invoice_bill">Invoice or bill</string>
+    <string name="doctype_form_application">Form or application</string>
+    <string name="doctype_statement">Statement</string>
+    <string name="doctype_contract_policy">Contract or policy</string>
+    <string name="doctype_certificate_id">Certificate or ID</string>
+    <string name="doctype_medical">Medical</string>
+    <string name="doctype_ticket_booking">Ticket or booking</string>
+    <string name="doctype_email_printout">Email or web page</string>
+    <string name="doctype_free_form">Other document</string>
+
+    <!-- Topics, keyed by topic id -->
+    <string name="topic_government">Government</string>
+    <string name="topic_tax">Tax</string>
+    <string name="topic_health">Health</string>
+    <string name="topic_insurance">Insurance</string>
+    <string name="topic_bank_finance">Bank and finance</string>
+    <string name="topic_housing_utilities">Housing and utilities</string>
+    <string name="topic_work">Work</string>
+    <string name="topic_school_education">School and education</string>
+    <string name="topic_vehicle">Vehicle</string>
+    <string name="topic_telecom">Phone and internet</string>
+    <string name="topic_shopping">Shopping</string>
+    <string name="topic_travel">Travel</string>
+    <string name="topic_legal">Legal</string>
+    <string name="topic_personal">Personal</string>
+
     <!-- Partial read -->
     <plurals name="extraction_partial_notice">
         <item quantity="one">Only the first %1$d of %2$d page was read by the assistant — check the rest yourself.</item>

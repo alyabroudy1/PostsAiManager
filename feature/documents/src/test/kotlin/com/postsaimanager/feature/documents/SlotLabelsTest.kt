@@ -18,7 +18,17 @@ class SlotLabelsTest {
     fun `every slot and every document type in the schema has a label to render`() {
         val slotKeys = ExtractionSchema.DEFAULT.allSlots.map { it.json }
         assertThat(SlotLabels.slotKeys).containsAtLeastElementsIn(slotKeys)
-        assertThat(SlotLabels.typeIds).containsAtLeastElementsIn(ExtractionSchema.DEFAULT.types.map { it.id })
+        assertThat(SlotLabels.typeIds).containsAtLeastElementsIn(ExtractionSchema.DEFAULT.families.map { it.id })
+    }
+
+    @Test
+    fun `every family and topic of extraction-v2-2 has a label, and every slot they add has one`() {
+        assertThat(SlotLabels.typeIds).containsAtLeastElementsIn(ExtractionSchema.V2.families.map { it.id })
+        assertThat(SlotLabels.topicIds).containsExactlyElementsIn(ExtractionSchema.V2.topics.map { it.id })
+        assertThat(SlotLabels.slotKeys).containsAtLeastElementsIn(ExtractionSchema.V2.allSlots.map { it.json })
+        assertThat(SlotLabels.type("medical")).isEqualTo(R.string.doctype_medical)
+        assertThat(SlotLabels.topic("health")).isEqualTo(R.string.topic_health)
+        assertThat(SlotLabels.topic("astrology")).isNull()
     }
 
     @Test

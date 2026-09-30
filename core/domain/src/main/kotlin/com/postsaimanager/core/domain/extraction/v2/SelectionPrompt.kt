@@ -74,7 +74,7 @@ object SelectionPrompt {
     """.trimIndent()
 
     fun system(schema: ExtractionSchema, withExample: Boolean): String {
-        val rules = rules(schema.types.joinToString(", ") { it.id })
+        val rules = rules(schema.families.joinToString(", ") { it.id })
         return if (withExample) "$rules\n\n$EXAMPLE" else rules
     }
 

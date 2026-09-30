@@ -32,6 +32,8 @@ data class ManifestDoc(
     val expected: List<ExpectedField>,
     val roles: Roles,
     val notFacts: String?,
+    /** The topic ids a reader would say the letter is about (`topics` in the manifest, judged from the letter's content); empty when none. */
+    val topics: List<String> = emptyList(),
 ) {
     /** The manifest names the sender either in `roles` or as an `expected` field. */
     val senderName: String? get() = roles.sender ?: expected.firstOrNull { it.field == "sender" }?.value
@@ -114,6 +116,7 @@ object BenchmarkFixtures {
                     addressees = (rolesObj?.get("addressees") as? JsonArray)?.mapNotNull { it.str() }.orEmpty(),
                 ),
                 notFacts = o["not_facts"]?.str(),
+                topics = (o["topics"] as? JsonArray)?.mapNotNull { it.str() }.orEmpty(),
             )
         }
 

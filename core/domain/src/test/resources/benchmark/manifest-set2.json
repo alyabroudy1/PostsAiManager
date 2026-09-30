@@ -4,6 +4,7 @@
   "documents": [
     {
       "id": "N1-mahnung-telco-qr-1p",
+      "topics": ["telecom"],
       "folder": "N1-mahnung-telco-qr-1p",
       "subject": "Zahlungserinnerung / 1. Mahnung – Rechnung 2026-08-771204",
       "language": "de",
@@ -121,6 +122,7 @@
     },
     {
       "id": "N2-kfz-verlaengerung-2p",
+      "topics": ["insurance", "vehicle"],
       "folder": "N2-kfz-verlaengerung-2p",
       "subject": "Ihre Kfz-Versicherung – Beitrag ab 01.01.2027",
       "language": "de",
@@ -216,6 +218,7 @@
     },
     {
       "id": "N3-schule-familie-2p",
+      "topics": ["school_education"],
       "folder": "N3-schule-familie-2p",
       "subject": "Klassenausflug der Klasse 3b am 24.11.2026",
       "language": "de",
@@ -306,6 +309,7 @@
     },
     {
       "id": "N4-zhd-firma-1p",
+      "topics": [],
       "folder": "N4-zhd-firma-1p",
       "subject": "Wartungsvertrag WV-2291 – Verlängerung ab 01.01.2027",
       "language": "de",
@@ -385,6 +389,7 @@
     },
     {
       "id": "N5-co-familie-1p",
+      "topics": ["school_education"],
       "folder": "N5-co-familie-1p",
       "subject": "Rückmeldung zum Wintersemester 2026/27",
       "language": "de",
@@ -466,6 +471,7 @@
     },
     {
       "id": "N6-nebenkosten-3p",
+      "topics": ["housing_utilities"],
       "folder": "N6-nebenkosten-3p",
       "subject": "Betriebskostenabrechnung 01.01.2025 – 31.12.2025",
       "language": "de",
@@ -571,6 +577,7 @@
     },
     {
       "id": "N7-beitragsservice-1p",
+      "topics": ["government"],
       "folder": "N7-beitragsservice-1p",
       "subject": "Zahlungserinnerung – Beitragsnummer 987 654 321",
       "language": "de",
@@ -652,6 +659,7 @@
     },
     {
       "id": "N8-info-bank-noaction-1p",
+      "topics": ["bank_finance"],
       "folder": "N8-info-bank-noaction-1p",
       "subject": "Informationen zu unserem neuen Kundenportal",
       "language": "de",
@@ -718,6 +726,7 @@
     },
     {
       "id": "N9-fuzzy-name-1p",
+      "topics": ["housing_utilities"],
       "folder": "N9-fuzzy-name-1p",
       "subject": "Abschlagsrechnung Oktober 2026",
       "language": "de",
@@ -801,6 +810,7 @@
     },
     {
       "id": "N10-kinderarzt-termin-1p",
+      "topics": ["health"],
       "folder": "N10-kinderarzt-termin-1p",
       "subject": "Terminerinnerung für Adam Mustermann",
       "language": "de",
