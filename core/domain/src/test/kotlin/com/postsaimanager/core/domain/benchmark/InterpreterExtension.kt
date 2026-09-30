@@ -253,8 +253,10 @@ internal class ReplayPromptSession(private val recording: Recording, private val
 
     /** A recorded scored batch (`score:*`): its questions in order, its answer the comma-separated scores. */
     override suspend fun score(continuations: List<String>, yes: String, no: String): PamResult<List<Double>> {
-        val live = continuations.map { withoutIds(asRecorded(it.removePrefix("\n\n"))) }
-        // The batch as recorded; failing that, a subset of a recorded one in the same order (fewer type candidates than were recorded).
+        val asked = continuations.map { withoutIds(it.removePrefix("\n\n")) }
+        var live = asked
+        // The batch as recorded; failing that, a subset of a recorded one in the same order (fewer type candidates than were recorded),
+        // and failing that with the type descriptions as the recordings worded them.
         var picked: List<Int> = emptyList()
         fun find(subset: Boolean): Int? = recording.asks.indices.firstOrNull { i ->
             val a = recording.asks[i]
@@ -271,8 +273,12 @@ internal class ReplayPromptSession(private val recording: Recording, private val
             picked = found
             true
         }
-        val at = find(subset = false) ?: find(subset = true)
-            ?: return PamResult.Error(PamError.InferenceError("no recorded scores for this batch"))
+        var at = find(subset = false) ?: find(subset = true)
+        if (at == null) {
+            live = asked.map { asRecorded(it) }
+            at = find(subset = false) ?: find(subset = true)
+        }
+        at ?: return PamResult.Error(PamError.InferenceError("no recorded scores for this batch"))
         used += at
         val answer = recording.asks[at].answer ?: return PamResult.Error(PamError.InferenceError("the recorded batch failed"))
         val scores = answer.split(',').map { it.trim().toDouble() }
