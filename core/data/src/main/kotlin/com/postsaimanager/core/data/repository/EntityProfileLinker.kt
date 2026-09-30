@@ -72,7 +72,12 @@ class EntityProfileLinker @Inject constructor(
         val proposals: List<Proposal>,
     )
 
-    suspend fun process(documentId: String, understanding: DocumentUnderstanding): Outcome {
+    /**
+     * @param propose false on a re-reading of a document that was already read: a question for the user ("is this the
+     *   same person?") is raised when the document is first read, never by an update nobody asked for. Linking and
+     *   creating still run. A proposal is stored once per (document, normalised name) whatever the number of runs.
+     */
+    suspend fun process(documentId: String, understanding: DocumentUnderstanding, propose: Boolean = true): Outcome {
         var linked = 0
         var created = 0
         var ignored = 0
@@ -105,7 +110,7 @@ class EntityProfileLinker @Inject constructor(
                     if (createAndLink(documentId, key, action)) created++
                 }
 
-                is EntityLinkingUseCase.Action.Propose -> {
+                is EntityLinkingUseCase.Action.Propose -> if (propose) {
                     proposals += Proposal(
                         entityName = entity.name,
                         kind = entity.kind,

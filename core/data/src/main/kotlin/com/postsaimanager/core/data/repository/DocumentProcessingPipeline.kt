@@ -155,6 +155,8 @@ class DocumentProcessingPipeline @Inject constructor(
 
                 // Step 2: Get pages
                 val pages = documentDao.getPages(documentId)
+                // A model has read this document before: a manual "Reprocess" is a re-reading, which raises no new questions.
+                val alreadyRead = documentDao.getById(documentId)?.extractionType != null
                 if (pages.isEmpty()) {
                     val detail = "No pages found for document"
                     failDocument(documentId, REASON_NO_PAGES, detail, reprocess)
@@ -259,6 +261,9 @@ class DocumentProcessingPipeline @Inject constructor(
                     // estimate — `ocrResults` is already page-ordered, matching how
                     // `allBlocks` was concatenated above.
                     pageBlockCounts = ocrResults.map { it.blocks.size },
+                    // Page 1's image shape, as the benchmark always gave it, for the layout template match.
+                    pageAspect = pages.minByOrNull { it.pageNumber }
+                        ?.takeIf { it.width > 0 && it.height > 0 }?.let { it.width.toFloat() / it.height },
                 )
 
                 val read = (understanding as? PamResult.Success)?.data
@@ -379,7 +384,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 // raise new ones. What the merge flags is all a reprocess surfaces.
                 if (understanding is PamResult.Success && usedModel && !reprocess) {
                     runCatching {
-                        entityProfileLinker.process(documentId, understanding.data)
+                        entityProfileLinker.process(documentId, understanding.data, propose = !alreadyRead)
                     }.onSuccess { outcome ->
                         Log.i(
                             TAG,
