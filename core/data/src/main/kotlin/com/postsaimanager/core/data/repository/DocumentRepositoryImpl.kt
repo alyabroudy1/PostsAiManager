@@ -19,6 +19,7 @@ import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.ReviewState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -268,13 +269,59 @@ class DocumentRepositoryImpl @Inject constructor(
             }
         }
 
-    override suspend fun confirmAllExtractedFields(documentId: String): PamResult<List<ExtractedData>> =
+    override suspend fun setFieldReviewState(fieldId: String, state: ReviewState): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                when (state) {
+                    // Confirming adopts the value and records it, exactly like confirmExtractedField.
+                    ReviewState.CONFIRMED -> attributeToUser(fieldId) { it.fieldValue }
+                    else -> {
+                        val entity = documentDao.getExtractedField(fieldId)
+                            ?: return@withContext PamResult.Error(PamError.DatabaseError())
+                        val updated = mergeExtraction.applyReviewState(
+                            mapper.extractedDataToDomain(entity),
+                            state,
+                            System.currentTimeMillis(),
+                        )
+                        documentDao.insertExtractedData(listOf(mapper.extractedDataToEntity(updated)))
+                        PamResult.Success(Unit)
+                    }
+                }
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun setDocumentFamily(documentId: String, familyId: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentDao.setFamilyByUser(documentId, familyId)
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun updateSummary(documentId: String, text: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentDao.setSummaryByUser(documentId, text.trim())
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun confirmAllExtractedFields(
+        documentId: String,
+        onlyConfident: Boolean,
+    ): PamResult<List<ExtractedData>> =
         withContext(ioDispatcher) {
             try {
                 val now = System.currentTimeMillis()
                 val toConfirm = documentDao.getExtractedData(documentId)
                     .map(mapper::extractedDataToDomain)
-                    .filter { !it.isConfirmed && !it.deletedByUser }
+                    .filter { !it.isConfirmed && !it.deletedByUser && (!onlyConfident || !it.needsReview) }
                 if (toConfirm.isEmpty()) return@withContext PamResult.Success(emptyList())
 
                 // Same per-field rule as confirmExtractedField/attributeToUser
@@ -323,6 +370,7 @@ class DocumentRepositoryImpl @Inject constructor(
                         confidence = field.confidence,
                         pageNumber = field.pageNumber,
                         isConfirmed = field.isConfirmed,
+                        reviewState = field.reviewState.name,
                     )
                 )
                 PamResult.Success(Unit)

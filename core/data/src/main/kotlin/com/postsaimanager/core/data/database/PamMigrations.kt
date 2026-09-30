@@ -412,6 +412,55 @@ object PamMigrations {
         }
     }
 
+    /**
+     * The final extraction architecture's storage (P0b). Additive: every new column is nullable or has a
+     * default, and existing rows are backfilled from what they already say.
+     *
+     * - `extracted_data.reviewState` becomes the owner of review state. Backfill, later rule wins:
+     *   confirmed -> CONFIRMED; a person's value that is confirmed -> EDITED; deletedByUser -> IGNORED.
+     *   `isConfirmed` and `deletedByUser` stay and are written in step. `alternatives` is a JSON list.
+     * - `documents`: `topics` (JSON list), `familySource`, `titleSource` (a person's title -> USER, a
+     *   default with a code -> DEFAULT, other real words -> MODEL), `summarySource` (an existing summary
+     *   -> MODEL), `summaryCode`/`summaryArgs` and `layoutTemplate`.
+     * - `documents.extractionType` now holds a family id: the legacy type ids are rewritten and their
+     *   topics filled by [LegacyTypeSql] from `LegacyTypes`, so old documents render before a re-read.
+     *
+     * TODO(P4): drop `entity_proposals` here (v15 is unreleased, so the drop is folded into this
+     * migration). It stays until P4 because its users live in the pipeline files another workstream owns.
+     */
+    val MIGRATION_14_15 = object : Migration(14, 15) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `reviewState` TEXT NOT NULL DEFAULT 'UNREVIEWED'")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `alternatives` TEXT")
+            db.execSQL("UPDATE `extracted_data` SET `reviewState` = 'CONFIRMED' WHERE `isConfirmed` = 1")
+            db.execSQL(
+                "UPDATE `extracted_data` SET `reviewState` = 'EDITED' WHERE `source` = 'USER' AND `isConfirmed` = 1",
+            )
+            db.execSQL("UPDATE `extracted_data` SET `reviewState` = 'IGNORED' WHERE `deletedByUser` = 1")
+
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `topics` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `familySource` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `titleSource` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `summarySource` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `summaryCode` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `summaryArgs` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `layoutTemplate` TEXT")
+
+            db.execSQL(
+                """
+                UPDATE `documents` SET `titleSource` = CASE
+                    WHEN `isUserTitle` = 1 THEN 'USER'
+                    WHEN `titleCode` IS NOT NULL THEN 'DEFAULT'
+                    ELSE 'MODEL' END
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "UPDATE `documents` SET `summarySource` = 'MODEL' WHERE `summary` IS NOT NULL AND trim(`summary`) != ''",
+            )
+            LegacyTypeSql.statements().forEach(db::execSQL)
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -426,5 +475,6 @@ object PamMigrations {
         MIGRATION_11_12,
         MIGRATION_12_13,
         MIGRATION_13_14,
+        MIGRATION_14_15,
     )
 }

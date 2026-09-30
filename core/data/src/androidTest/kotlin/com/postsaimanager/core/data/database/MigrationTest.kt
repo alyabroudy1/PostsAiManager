@@ -714,6 +714,107 @@ class MigrationTest {
         }
     }
 
+    /**
+     * v14 rows covering the four review-state backfill cases, the title and summary sources, and every
+     * legacy type id. Needs a device (P4 runs it); `LegacyTypeSqlTest` covers the SQL builder on the JVM.
+     */
+    @Test
+    fun migrate14To15_backfillsReviewStateSourcesAndTheLegacyTypeMapping() {
+        helper.createDatabase(TEST_DB, 14).apply {
+            val legacy = listOf(
+                "bill", "reminder_dunning", "authority_tax", "health", "insurance_contract",
+                "school", "receipt", "info_no_action", "other",
+            )
+            legacy.forEachIndexed { i, type ->
+                execSQL(
+                    """
+                    INSERT INTO documents
+                        (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus,
+                         extractionType, isUserTitle, titleCode, summary)
+                    VALUES ('legacy-$i', 'Real words $i', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL',
+                            '$type', 0, NULL, ${if (i == 0) "'A summary'" else "NULL"})
+                    """.trimIndent(),
+                )
+            }
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus,
+                     extractionType, isUserTitle, titleCode)
+                VALUES ('family', 'Scanned 2 page(s)', 'EXTRACTED', 'CAMERA', 2, 0, 1, 1, 'LOCAL',
+                        'receipt', 0, 'scanned_pages'),
+                       ('mine', 'My own title', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL', NULL, 1, NULL),
+                       ('untyped', 'Untyped', 'NEW', 'CAMERA', 1, 0, 1, 1, 'LOCAL', NULL, 0, NULL)
+                """.trimIndent(),
+            )
+            fun field(id: String, confirmed: Int, source: String, deleted: Int) = execSQL(
+                """
+                INSERT INTO extracted_data
+                    (id, documentId, fieldName, fieldValue, fieldType, confidence, pageNumber,
+                     isConfirmed, source, machineValue, machineConfidence, deletedByUser,
+                     hasUnreviewedMachineChange, updatedAt)
+                VALUES ('$id', 'family', '$id', 'v', 'OTHER', 0.9, 1, $confirmed, '$source', 'v', 0.9, $deleted, 0, 1)
+                """.trimIndent(),
+            )
+            field("untouched", 0, "MACHINE", 0)
+            field("confirmed", 1, "MACHINE", 0)
+            field("edited", 1, "USER", 0)
+            field("ignored", 0, "MACHINE", 1)
+            field("ignored-edited", 1, "USER", 1)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 15, true, PamMigrations.MIGRATION_14_15)
+
+        fun reviewState(id: String) =
+            db.query("SELECT reviewState, alternatives FROM extracted_data WHERE id = '$id'").use { c ->
+                assertTrue("the field $id was lost in migration", c.moveToFirst())
+                assertTrue("alternatives start empty", c.isNull(1))
+                c.getString(0)
+            }
+        assertEquals("UNREVIEWED", reviewState("untouched"))
+        assertEquals("CONFIRMED", reviewState("confirmed"))
+        assertEquals("EDITED", reviewState("edited"))
+        assertEquals("IGNORED", reviewState("ignored"))
+        assertEquals("a tombstone wins over an edit", "IGNORED", reviewState("ignored-edited"))
+
+        fun document(id: String): List<String?> =
+            db.query(
+                "SELECT extractionType, topics, familySource, titleSource, summarySource FROM documents WHERE id = '$id'",
+            ).use { c ->
+                assertTrue("the document $id was lost in migration", c.moveToFirst())
+                (0..4).map { if (c.isNull(it)) null else c.getString(it) }
+            }
+        val expected = mapOf(
+            "legacy-0" to listOf("invoice_bill", null),
+            "legacy-1" to listOf("invoice_bill", null),
+            "legacy-2" to listOf("official_letter", "[\"government\"]"),
+            "legacy-3" to listOf("medical", "[\"health\"]"),
+            "legacy-4" to listOf("contract_policy", "[\"insurance\"]"),
+            "legacy-5" to listOf("official_letter", "[\"school_education\"]"),
+            "legacy-6" to listOf("receipt", null),
+            "legacy-7" to listOf("official_letter", null),
+            "legacy-8" to listOf("free_form", null),
+        )
+        for ((id, typeAndTopics) in expected) {
+            val row = document(id)
+            assertEquals("family of $id", typeAndTopics[0], row[0])
+            assertEquals("topics of $id", typeAndTopics[1], row[1])
+            assertEquals("MODEL", row[2])
+            assertEquals("real words are the model's title", "MODEL", row[3])
+        }
+        assertEquals("MODEL", document("legacy-0")[4])
+        assertEquals(null, document("legacy-1")[4])
+
+        assertEquals("DEFAULT", document("family")[3])
+        assertEquals("a person's title", "USER", document("mine")[3])
+        assertEquals("a document with no type has no family source", null, document("untyped")[2])
+        assertEquals(null, document("untyped")[0])
+
+        // The new columns are writable.
+        db.execSQL("UPDATE documents SET layoutTemplate = 'din5008_b', summaryCode = 'template', summaryArgs = '[]' WHERE id = 'family'")
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

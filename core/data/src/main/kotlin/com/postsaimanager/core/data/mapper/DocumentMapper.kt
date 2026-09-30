@@ -10,7 +10,11 @@ import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.DocumentType
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.FamilySource
 import com.postsaimanager.core.model.FieldRevision
+import com.postsaimanager.core.model.ReviewState
+import com.postsaimanager.core.model.SummarySource
+import com.postsaimanager.core.model.TitleSource
 import com.postsaimanager.core.model.ValueSource
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.SourceType
@@ -48,6 +52,16 @@ class DocumentMapper @Inject constructor() {
         summary = entity.summary,
         titleCode = entity.titleCode,
         titleArgs = JsonColumns.decodeStrings(entity.titleArgs),
+        topics = JsonColumns.decodeStrings(entity.topics),
+        familySource = FamilySource.parse(entity.familySource),
+        titleSource = TitleSource.parse(entity.titleSource) ?: titleSourceOf(
+            entity.isUserTitle, entity.titleCode, TitleSource.MODEL,
+        ),
+        summarySource = SummarySource.parse(entity.summarySource)
+            ?: SummarySource.MODEL.takeIf { !entity.summary.isNullOrBlank() },
+        summaryCode = entity.summaryCode,
+        summaryArgs = JsonColumns.decodeStrings(entity.summaryArgs),
+        layoutTemplate = entity.layoutTemplate,
     )
 
     fun toEntity(domain: Document): DocumentEntity = DocumentEntity(
@@ -73,7 +87,26 @@ class DocumentMapper @Inject constructor() {
         summary = domain.summary,
         titleCode = domain.titleCode,
         titleArgs = JsonColumns.encodeStrings(domain.titleArgs),
+        topics = JsonColumns.encodeStrings(domain.topics),
+        familySource = domain.familySource.name,
+        // Kept honest for writers that still change the title or summary without setting the source.
+        titleSource = titleSourceOf(domain.isUserTitle, domain.titleCode, domain.titleSource).name,
+        summarySource = (domain.summarySource ?: SummarySource.MODEL.takeIf { !domain.summary.isNullOrBlank() })?.name,
+        summaryCode = domain.summaryCode,
+        summaryArgs = JsonColumns.encodeStrings(domain.summaryArgs),
+        layoutTemplate = domain.layoutTemplate,
     )
+
+    /**
+     * The title's source from what is certain: a person's title is USER and a default with a code is
+     * DEFAULT, whatever [declared] says; real words that claim to be a default are the model's.
+     */
+    private fun titleSourceOf(isUserTitle: Boolean, titleCode: String?, declared: TitleSource): TitleSource = when {
+        isUserTitle -> TitleSource.USER
+        titleCode != null -> TitleSource.DEFAULT
+        declared == TitleSource.DEFAULT -> TitleSource.MODEL
+        else -> declared
+    }
 
     fun pageToDomain(entity: DocumentPageEntity): DocumentPage = DocumentPage(
         id = entity.id,
@@ -140,6 +173,8 @@ class DocumentMapper @Inject constructor() {
         aiConfidence = entity.aiConfidence,
         evidence = entity.evidence,
         bbox = JsonColumns.decodeBounds(entity.bbox),
+        reviewState = ReviewState.parse(entity.reviewState),
+        alternatives = JsonColumns.decodeAlternatives(entity.alternatives),
     )
 
     /** A list row's slice of a field: everything the row reads, the rest at its defaults. */
@@ -156,6 +191,7 @@ class DocumentMapper @Inject constructor() {
         hasUnreviewedMachineChange = row.hasUnreviewedMachineChange,
         slotKey = row.slotKey,
         role = row.role,
+        reviewState = ReviewState.parse(row.reviewState),
     )
 
     fun extractedDataToEntity(domain: ExtractedData): ExtractedDataEntity = ExtractedDataEntity(
@@ -180,6 +216,8 @@ class DocumentMapper @Inject constructor() {
         aiConfidence = domain.aiConfidence,
         evidence = domain.evidence,
         bbox = JsonColumns.encodeBounds(domain.bbox),
+        reviewState = domain.reviewState.name,
+        alternatives = JsonColumns.encodeAlternatives(domain.alternatives),
     )
 
     fun revisionToEntity(domain: FieldRevision) = FieldRevisionEntity(

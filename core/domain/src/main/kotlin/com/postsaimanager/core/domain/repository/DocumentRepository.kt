@@ -5,6 +5,7 @@ import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.TimelineEvent
 import kotlinx.coroutines.flow.Flow
 
@@ -35,13 +36,31 @@ interface DocumentRepository {
 
     /**
      * Confirms every field of [documentId] that is not already confirmed and has not been
-     * user-deleted, in one batched write rather than one [confirmExtractedField] call per
+     * user-deleted (with [onlyConfident], only those that do not need review: the "Confirm n
+     * confident" button), in one batched write rather than one [confirmExtractedField] call per
      * field (5.3) — see `DocumentRepositoryImpl` for how that batching is done.
      *
      * @return the confirmed fields exactly as they were *before* confirming — nothing but a
      *   caller passing this list straight back to [restoreExtractedFields] undoes the action.
      */
-    suspend fun confirmAllExtractedFields(documentId: String): PamResult<List<ExtractedData>>
+    suspend fun confirmAllExtractedFields(documentId: String, onlyConfident: Boolean = false): PamResult<List<ExtractedData>>
+
+    /**
+     * Sets a field's review state: [ReviewState.CONFIRMED] adopts the stored value, [ReviewState.EDITED]
+     * marks it a person's, [ReviewState.IGNORED] tombstones it (a re-read never brings it back) and
+     * [ReviewState.UNREVIEWED] restores an ignored or confirmed field to "nobody has looked". The
+     * legacy `isConfirmed` and `deletedByUser` columns are written in step. An unknown id is an error.
+     */
+    suspend fun setFieldReviewState(fieldId: String, state: ReviewState): PamResult<Unit>
+
+    /**
+     * A person chose the family of [documentId] ("Change type"): it is stored as the document's
+     * extraction type with `familySource = USER`, so a re-read keeps it. Topics are left as they are.
+     */
+    suspend fun setDocumentFamily(documentId: String, familyId: String): PamResult<Unit>
+
+    /** A person wrote the summary of [documentId]: stored with `summarySource = USER`, never replaced by a re-read. */
+    suspend fun updateSummary(documentId: String, text: String): PamResult<Unit>
 
     /**
      * Writes [fields] back verbatim — the undo half of [confirmAllExtractedFields]. Cheap:

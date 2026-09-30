@@ -78,10 +78,23 @@ interface DocumentDao {
 
     /** A person's title: kept by extraction from now on, and no longer a default with a code. */
     @Query(
-        "UPDATE documents SET title = :title, isUserTitle = 1, titleCode = NULL, titleArgs = NULL, " +
-            "modifiedAt = :modifiedAt WHERE id = :id",
+        "UPDATE documents SET title = :title, isUserTitle = 1, titleSource = 'USER', titleCode = NULL, " +
+            "titleArgs = NULL, modifiedAt = :modifiedAt WHERE id = :id",
     )
     suspend fun renameByUser(id: String, title: String, modifiedAt: Long = System.currentTimeMillis())
+
+    /** A person's choice of family: kept by every re-read from now on. Topics stay as they are. */
+    @Query(
+        "UPDATE documents SET extractionType = :familyId, familySource = 'USER', modifiedAt = :modifiedAt WHERE id = :id",
+    )
+    suspend fun setFamilyByUser(id: String, familyId: String, modifiedAt: Long = System.currentTimeMillis())
+
+    /** A person's summary: a template code and its arguments no longer describe it, and a re-read keeps it. */
+    @Query(
+        "UPDATE documents SET summary = :text, summarySource = 'USER', summaryCode = NULL, summaryArgs = NULL, " +
+            "modifiedAt = :modifiedAt WHERE id = :id",
+    )
+    suspend fun setSummaryByUser(id: String, text: String, modifiedAt: Long = System.currentTimeMillis())
 
     @Query("UPDATE documents SET status = :status, modifiedAt = :modifiedAt WHERE id = :id")
     suspend fun updateStatus(id: String, status: String, modifiedAt: Long = System.currentTimeMillis())
@@ -109,7 +122,7 @@ interface DocumentDao {
     @Query("SELECT * FROM extracted_data WHERE documentId = :docId")
     fun observeExtractedData(docId: String): Flow<List<ExtractedDataEntity>>
 
-    @Query("UPDATE extracted_data SET isConfirmed = 1 WHERE id = :id")
+    @Query("UPDATE extracted_data SET isConfirmed = 1, reviewState = 'CONFIRMED' WHERE id = :id")
     suspend fun confirmExtraction(id: String)
 
     @Query("SELECT * FROM extracted_data WHERE id = :id")
@@ -135,7 +148,7 @@ interface DocumentDao {
     /** The columns a list row reads from every field of every live document (no evidence, no bounds). */
     @Query(
         "SELECT id, documentId, fieldName, fieldValue, fieldType, confidence, isConfirmed, source, " +
-            "deletedByUser, hasUnreviewedMachineChange, slotKey, role FROM extracted_data " +
+            "deletedByUser, hasUnreviewedMachineChange, slotKey, role, reviewState FROM extracted_data " +
             "WHERE documentId IN (SELECT id FROM documents WHERE deletedAt IS NULL)",
     )
     fun observeListFields(): Flow<List<ListFieldRow>>
@@ -163,6 +176,7 @@ data class ListFieldRow(
     val hasUnreviewedMachineChange: Boolean,
     val slotKey: String?,
     val role: String?,
+    val reviewState: String,
 )
 
 /** Page 1's image of a document; see [DocumentDao.observeFirstPages]. */
