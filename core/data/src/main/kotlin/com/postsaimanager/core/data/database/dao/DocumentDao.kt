@@ -129,4 +129,44 @@ interface DocumentDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSingleExtractedData(data: ExtractedDataEntity)
+
+    // ── List rows: one query each for the whole list, never one per document ──
+
+    /** The columns a list row reads from every field of every live document (no evidence, no bounds). */
+    @Query(
+        "SELECT id, documentId, fieldName, fieldValue, fieldType, confidence, isConfirmed, source, " +
+            "deletedByUser, hasUnreviewedMachineChange, slotKey, role FROM extracted_data " +
+            "WHERE documentId IN (SELECT id FROM documents WHERE deletedAt IS NULL)",
+    )
+    fun observeListFields(): Flow<List<ListFieldRow>>
+
+    /** Page 1 of every live document: the lowest page number it has. */
+    @Query(
+        "SELECT p.documentId AS documentId, p.imagePath AS imagePath FROM document_pages p " +
+            "WHERE p.documentId IN (SELECT id FROM documents WHERE deletedAt IS NULL) " +
+            "AND p.pageNumber = (SELECT MIN(q.pageNumber) FROM document_pages q WHERE q.documentId = p.documentId)",
+    )
+    fun observeFirstPages(): Flow<List<FirstPageRow>>
 }
+
+/** A field as a list row reads it; see [DocumentDao.observeListFields]. */
+data class ListFieldRow(
+    val id: String,
+    val documentId: String,
+    val fieldName: String,
+    val fieldValue: String,
+    val fieldType: String,
+    val confidence: Float,
+    val isConfirmed: Boolean,
+    val source: String,
+    val deletedByUser: Boolean,
+    val hasUnreviewedMachineChange: Boolean,
+    val slotKey: String?,
+    val role: String?,
+)
+
+/** Page 1's image of a document; see [DocumentDao.observeFirstPages]. */
+data class FirstPageRow(
+    val documentId: String,
+    val imagePath: String,
+)

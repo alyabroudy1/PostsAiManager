@@ -1,5 +1,6 @@
 package com.postsaimanager.core.data.mapper
 
+import com.postsaimanager.core.data.database.dao.ListFieldRow
 import com.postsaimanager.core.data.database.entity.DocumentEntity
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
@@ -139,6 +140,22 @@ class DocumentMapper @Inject constructor() {
         aiConfidence = entity.aiConfidence,
         evidence = entity.evidence,
         bbox = JsonColumns.decodeBounds(entity.bbox),
+    )
+
+    /** A list row's slice of a field: everything the row reads, the rest at its defaults. */
+    fun listFieldToDomain(row: ListFieldRow): ExtractedData = ExtractedData(
+        id = row.id,
+        documentId = row.documentId,
+        fieldName = row.fieldName,
+        fieldValue = row.fieldValue,
+        fieldType = runCatching { ExtractedFieldType.valueOf(row.fieldType) }.getOrDefault(ExtractedFieldType.OTHER),
+        confidence = row.confidence,
+        isConfirmed = row.isConfirmed,
+        source = runCatching { ValueSource.valueOf(row.source) }.getOrDefault(ValueSource.MACHINE),
+        deletedByUser = row.deletedByUser,
+        hasUnreviewedMachineChange = row.hasUnreviewedMachineChange,
+        slotKey = row.slotKey,
+        role = row.role,
     )
 
     fun extractedDataToEntity(domain: ExtractedData): ExtractedDataEntity = ExtractedDataEntity(

@@ -11,6 +11,7 @@ import com.postsaimanager.core.model.SourceType
 import com.postsaimanager.core.model.ValueSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 /**
@@ -204,6 +205,20 @@ class FakeDocumentRepository : DocumentRepository {
 
     override fun observeExtractedData(documentId: String): Flow<List<ExtractedData>> =
         extracted.map { it[documentId].orEmpty() }
+
+    override fun observeListFields(): Flow<Map<String, List<ExtractedData>>> =
+        combine(documents, extracted) { docs, fields ->
+            val live = docs.filterNot { it.isTrashed }.map { it.id }.toSet()
+            fields.filterKeys { it in live }.filterValues { it.isNotEmpty() }
+        }
+
+    override fun observeFirstPagePaths(): Flow<Map<String, String>> =
+        combine(documents, pages) { docs, allPages ->
+            val live = docs.filterNot { it.isTrashed }.map { it.id }.toSet()
+            allPages.filterKeys { it in live }
+                .mapNotNull { (id, list) -> list.minByOrNull { it.pageNumber }?.let { id to it.imagePath } }
+                .toMap()
+        }
 }
 
 /** Convenience builder for test documents. */

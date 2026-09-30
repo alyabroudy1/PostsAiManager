@@ -376,4 +376,14 @@ class DocumentRepositoryImpl @Inject constructor(
         documentDao.observeExtractedData(documentId)
             .map { entities -> entities.map(mapper::extractedDataToDomain) }
             .flowOn(ioDispatcher)
+
+    override fun observeListFields(): Flow<Map<String, List<ExtractedData>>> =
+        documentDao.observeListFields()
+            .map { rows -> rows.map(mapper::listFieldToDomain).groupBy { it.documentId } }
+            .flowOn(ioDispatcher)
+
+    override fun observeFirstPagePaths(): Flow<Map<String, String>> =
+        documentDao.observeFirstPages()
+            .map { rows -> rows.associate { it.documentId to it.imagePath } }
+            .flowOn(ioDispatcher)
 }
