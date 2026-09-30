@@ -21,6 +21,7 @@ Living documentation for the PostsAiManager Android application.
 | [04-task-list.md](04-task-list.md) | **Stepwise checklist.** The single source of truth for progress. | Every completed task |
 | [05-test-harness.md](05-test-harness.md) | Agent-driven device testing via adb — protocol, safety, command vocabulary. | When a new case class is added |
 | [07-document-pipeline.md](07-document-pipeline.md) | **Ingest to indexed.** Stages, fingerprints, edit provenance and the reprocessing merge, PDF handling. | When the pipeline changes |
+| [08-extraction-optimization-roadmap.md](08-extraction-optimization-roadmap.md) | **Extraction quality.** What is shipped, what was measured, and the ranked list of what to try next. | After each extraction experiment |
 | [06-llama-spike.md](06-llama-spike.md) | The llama.cpp spike: what is blocked, what is wired, the four questions to answer. | When the spike runs |
 | [testing/cases/](testing/cases/) | Executable test cases. | Per feature |
 

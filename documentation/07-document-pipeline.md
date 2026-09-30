@@ -438,3 +438,40 @@ OS-reclaimable, not the source of truth.
 Auto-purge (`PurgeExpiredDocumentsUseCase`, 30-day retention) runs once on app start, gated
 behind `isMainProcess()` exactly like `DocumentProcessingRecovery` — see
 `PostsAiManagerApp.onCreate`.
+
+## 12. Extraction v2: how a letter becomes fields
+
+The extraction stage (`extractionInput`, §3) is the v2 pipeline in `core/domain/.../extraction`. The model is never
+asked to *find* a value; code finds every value, the model *decides what each one means*, and code verifies the
+decision. One owner per step:
+
+```
+OCR blocks -> layout -> candidates -> template + zones -> scoring interpreter -> joint decoder -> verifier -> adapter -> storage
+ (ML Kit)   (geometry) (extractor)   (DIN 5008 ...)      (Yes/No log-odds)      (one value,       (checks)   (stored
+                                                                                  one question)              understanding)
+```
+
+| Step | Owner | What it does |
+|---|---|---|
+| Layout | `extraction/layout` | Reads OCR blocks into lines and geometric zones (header, sender, address window, reference block, body, footer). |
+| Candidates | `extraction/candidates` | A language-neutral extractor finds every amount, date, IBAN, reference, phone and name in the letter, each with an id. Recall is measured (96.8% on the benchmark). |
+| Template and zones | `extraction/zones` (`TemplateMatcher`, `LayoutTemplates`, `SlotPlacements`) | Matches the page to a layout template (DIN 5008 A/B, invoice table, receipt, form, RTL, generic) and maps each question to the zones where its answer usually sits. A placement is a prior, never a rule. |
+| Scoring interpreter | `ZoneScoringInterpreter` | For each slot, asks the model "Is «X» the <slot>?" for every candidate of the zone and reads its own log-odds of Yes against No (`PromptSession.score`). Nothing is offered as a list, so the model cannot prefer the first option. The document type is scored the same way, over the types a document of its direction can be (`ExtractionSchema.typesFor`). Extras are values no slot took that score above a threshold. The free text (language, extra names, title, summary) is written afterwards in a separate writing session. |
+| Joint decoder | `SlotDecoder` port, `JointAssignment` | Decides all questions together from the same scores: a value answers one question, so a best candidate goes to the question that needs it more. Sharing rules and the secondary party tier are data (`DecoderSpec`). |
+| Verifier | `SelectionVerifier` | Checks ids, quotes and plausibility against the letter, and derives the final confidence. |
+| Adapter and storage | `ExtractionV2Adapter` | Maps the verified result to the stored `DocumentUnderstanding`; revisions, provenance and the merge are §4. |
+
+The confidence word of a slot or party comes from the scores (`ScoreCuts`: the winner's margin over the runner-up and its
+own score), not from the model's self-report.
+
+### The ModelProfile registry
+
+How a model reads a letter is data, not code: `ModelProfiles` maps a catalogue model id to a `ModelProfile` (window,
+`InterpreterStrategy`, and for `ZONES_SCORING` a `ScoringProfile` holding the abstain thresholds, confidence cuts and
+decoder). `ProfileInterpreterFactory` builds the interpreter from it. A model with no profile falls back to the single
+JSON call. A new model, or a new reading strategy for an existing one, is a registry entry plus a benchmark run; no
+pipeline code changes. Shipped: Qwen3.5-0.8B on `ZONES_SCORING` with the joint decoder and scored extras.
+
+The strategy is evaluated offline first: benchmark recordings hold the model's raw scores per letter, so thresholds,
+decoders and type sets are re-decided in the JVM in seconds, and the device is only needed when new scores are required.
+See [08-extraction-optimization-roadmap.md](08-extraction-optimization-roadmap.md).
