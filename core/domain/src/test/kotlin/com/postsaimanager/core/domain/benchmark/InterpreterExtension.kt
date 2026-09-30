@@ -253,23 +253,45 @@ internal class ReplayPromptSession(private val recording: Recording, private val
 
     /** A recorded scored batch (`score:*`): its questions in order, its answer the comma-separated scores. */
     override suspend fun score(continuations: List<String>, yes: String, no: String): PamResult<List<Double>> {
-        val live = continuations.map { withoutIds(it.removePrefix("\n\n")) }
-        val at = recording.asks.indices.firstOrNull { i ->
+        val live = continuations.map { withoutIds(asRecorded(it.removePrefix("\n\n"))) }
+        // The batch as recorded; failing that, a subset of a recorded one in the same order (fewer type candidates than were recorded).
+        var picked: List<Int> = emptyList()
+        fun find(subset: Boolean): Int? = recording.asks.indices.firstOrNull { i ->
             val a = recording.asks[i]
             if (i in used || !a.name.startsWith("score:")) return@firstOrNull false
             val questions = a.question.split(SCORE_SEPARATOR).map { withoutIds(it) }
-            questions.size == live.size && questions.indices.all { live[it].startsWith(questions[it]) }
-        } ?: return PamResult.Error(PamError.InferenceError("no recorded scores for this batch"))
+            if (!subset && questions.size != live.size) return@firstOrNull false
+            val found = ArrayList<Int>()
+            var from = 0
+            for (l in live) {
+                val j = (from until questions.size).firstOrNull { l.startsWith(questions[it]) } ?: return@firstOrNull false
+                found += j
+                from = j + 1
+            }
+            picked = found
+            true
+        }
+        val at = find(subset = false) ?: find(subset = true)
+            ?: return PamResult.Error(PamError.InferenceError("no recorded scores for this batch"))
         used += at
         val answer = recording.asks[at].answer ?: return PamResult.Error(PamError.InferenceError("the recorded batch failed"))
-        return PamResult.Success(answer.split(',').map { it.trim().toDouble() })
+        val scores = answer.split(',').map { it.trim().toDouble() }
+        return PamResult.Success(picked.map { scores[it] })
     }
+
+    /** A live question as the recording worded it: a type description reworded since the recording was made keeps its recorded scores. */
+    private fun asRecorded(question: String): String = REWORDED.entries.fold(question) { text, (now, then) -> text.replace(now, then) }
 
     private fun withoutIds(text: String) = ID_TOKEN.replace(text, "#")
 
     private companion object {
         val ID_TOKEN = Regex("\\b[A-Z]{1,2}\\d{1,3}\\b")
         const val SCORE_SEPARATOR = "\n@@\n"
+
+        /** Type descriptions as the recordings worded them, by today's wording (the recorded scores stand until the device re-records). */
+        val REWORDED = mapOf(
+            "Is this document ${ExtractionSchema.OTHER.description}? Answer:" to "Is this document anything that fits none of the other types? Answer:",
+        )
     }
 
     override suspend fun close() = Unit

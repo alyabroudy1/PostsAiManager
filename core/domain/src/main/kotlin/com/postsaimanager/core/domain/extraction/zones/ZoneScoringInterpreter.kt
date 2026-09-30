@@ -8,6 +8,7 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.domain.extraction.v2.AnswerReader
 import com.postsaimanager.core.domain.extraction.v2.AskRecord
+import com.postsaimanager.core.domain.extraction.v2.DocDirection
 import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.InterpretationOutcome
@@ -122,14 +123,14 @@ class ZoneScoringInterpreter(
         templateId = setup.template.id
         templateScore = setup.match.score
         return try {
-            InterpretationOutcome.Answered(read(setup), transcriptText(), ZonePrompt.scoringSystem(setup.template), "")
+            InterpretationOutcome.Answered(read(setup, request.direction), transcriptText(), ZonePrompt.scoringSystem(setup.template), "")
         } catch (e: Abort) {
             session.close()
             InterpretationOutcome.Failed(e.reason, transcriptText().take(FAILED_RAW_CHARS), ZonePrompt.scoringSystem(setup.template), "")
         }
     }
 
-    private suspend fun read(setup: ZoneSetup): RawInterpretation {
+    private suspend fun read(setup: ZoneSetup, direction: DocDirection): RawInterpretation {
         val plan = setup.plan
         val zoned = setup.zoned
         val system = ZonePrompt.scoringSystem(setup.template)
@@ -177,7 +178,7 @@ class ZoneScoringInterpreter(
         if (!opened) throw Abort("the model could not read the letter")
         inPrefix = zonesInPrefix.toSet()
 
-        val type = scoreType()
+        val type = scoreType(direction)
         val docType = schema.type(type.first) ?: throw Abort("no document type scored")
         (partyNames.filter { !isHeader(it.first) } + deferredParties).forEach { (name, role) -> party(setup, s, name, role, widen = true) }
         val bodySlots = (Slots.CORE + docType.slots).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) }
@@ -257,8 +258,9 @@ class ZoneScoringInterpreter(
 
     // ── the type ──
 
-    private suspend fun scoreType(): Pair<String, String> {
-        val types = schema.types.filter { it.description.isNotBlank() }
+    /** The type among those a document of [direction] can be ([ExtractionSchema.typesFor]): a received letter is never offered "a letter the reader sent". */
+    private suspend fun scoreType(direction: DocDirection): Pair<String, String> {
+        val types = schema.typesFor(direction).filter { it.description.isNotBlank() }
         val questions = types.map { "Is this document ${it.description}? Answer:" }
         val scores = scoreBatch("type", questions) ?: throw Abort("the type could not be scored")
         val order = scores.indices.sortedByDescending { scores[it] }
@@ -365,16 +367,21 @@ class ZoneScoringInterpreter(
         val best = order.first()
         if (scores[best] <= threshold) return true
         val (confidence, note) = confidenceOf(scores[best], order.getOrNull(1)?.let { scores[it] }, order.size)
-        s.slots[slot.json] = when (slot.kind) {
-            SlotKind.AMOUNT, SlotKind.DATE, SlotKind.DEADLINE ->
-                RawSlot(id = cands[best].id, role = roleOf(slot), confidence = confidence, scoreNote = note)
-            SlotKind.REFERENCE_LIST -> RawSlot(
+        s.slots[slot.json] = if (slot.kind == SlotKind.REFERENCE_LIST) {
+            RawSlot(
                 ids = order.filter { scores[it] > threshold }.take(StructuredGrammar.MAX_REF_IDS).map { cands[it].id },
                 confidence = confidence, scoreNote = note,
             )
-            else -> RawSlot(id = cands[best].id, confidence = confidence, scoreNote = note)
+        } else {
+            rawSlot(slot, cands[best].id, confidence, note)
         }
         return true
+    }
+
+    /** The answer of a single-valued [slot] won by [id]: the one place that maps a slot's kind to the role the value gets. */
+    private fun rawSlot(slot: SlotKey, id: String, confidence: String, note: String): RawSlot = when (slot.kind) {
+        SlotKind.AMOUNT, SlotKind.DATE, SlotKind.DEADLINE -> RawSlot(id = id, role = roleOf(slot), confidence = confidence, scoreNote = note)
+        else -> RawSlot(id = id, confidence = confidence, scoreNote = note)
     }
 
     /** The role a value has by winning [slot]: the slot's own expected role, in the schema's order. */
@@ -421,10 +428,7 @@ class ZoneScoringInterpreter(
                 if (i < 0) {
                     s.slots.remove(slot.json)
                 } else {
-                    s.slots[slot.json] = when (slot.kind) {
-                        SlotKind.AMOUNT, SlotKind.DATE, SlotKind.DEADLINE -> RawSlot(id = now, role = roleOf(slot), confidence = confidence, scoreNote = note)
-                        else -> RawSlot(id = now, confidence = confidence, scoreNote = note)
-                    }
+                    s.slots[slot.json] = rawSlot(slot, now!!, confidence, note)
                 }
             } else if (a.role != null) {
                 val at = s.parties.indexOfFirst { it.role == a.role.name }

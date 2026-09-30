@@ -213,6 +213,14 @@ object Slots {
 }
 
 /**
+ * Whose document it is: what a scanned page can be. [INCOMING] is a letter the user received; [OUTGOING] one the user
+ * wrote and sent; [PROOF] a confirmation the user holds of something they did (a payment). The direction is known
+ * before the model reads the letter (how the document entered the app), so it narrows the types the model can pick
+ * from rather than being guessed from text.
+ */
+enum class DocDirection { INCOMING, OUTGOING, PROOF }
+
+/**
  * A document type the model can choose.
  *
  * @property slots the universal [Slots.CORE] followed by the type's own slots.
@@ -221,6 +229,8 @@ object Slots {
  *   questions the model suggested for it are worth offering where no document is open. A property of
  *   the type, not a judgement about any one letter's text.
  * @property description one English line saying what the type is, for the questionnaire's type question.
+ * @property directions the document directions this type can describe (a letter the user received is never an
+ *   outgoing letter or a proof of payment); data, read by [ExtractionSchema.typesFor].
  */
 data class DocType(
     val id: String,
@@ -228,8 +238,12 @@ data class DocType(
     val legacy: DocumentType,
     val actionable: Boolean = false,
     val description: String = "",
+    val directions: Set<DocDirection> = setOf(DocDirection.INCOMING),
 ) {
     override fun toString() = id
+
+    /** The same type, for documents of [directions] instead of incoming ones. */
+    fun forDirections(vararg directions: DocDirection): DocType = copy(directions = directions.toSet())
 
     /** The same type, marked as one that asks something of its reader. */
     fun asksSomething(): DocType = copy(actionable = true)
@@ -253,6 +267,9 @@ class ExtractionSchema(val types: List<DocType>) {
     }
 
     fun type(id: String?): DocType? = types.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) }
+
+    /** The types a document of [direction] can be: the candidates of the type question. */
+    fun typesFor(direction: DocDirection): List<DocType> = types.filter { direction in it.directions }
 
     /** Every slot of every type, once. */
     val allSlots: List<SlotKey> = types.flatMap { it.slots }.distinct()
@@ -288,14 +305,17 @@ class ExtractionSchema(val types: List<DocType>) {
         val OUTGOING_LETTER = DocType.of(
             "outgoing_letter", DocumentType.OFFICIAL_LETTER,
             Slots.RECIPIENT_ORG, Slots.SENT_DATE, Slots.ACTION_KIND, Slots.CITED_REFERENCES,
-        ).described("a letter the reader wrote and sent to someone else")
+        ).described("a letter the reader wrote and sent to someone else").forDirections(DocDirection.OUTGOING)
 
         /** A payment confirmation the user holds (P3; the pipeline does not produce it yet). */
         val PAYMENT_PROOF = DocType.of(
             "payment_proof", DocumentType.RECEIPT,
             Slots.PROOF_AMOUNT, Slots.PROOF_DATE, Slots.PROOF_RECIPIENT, Slots.PROOF_REFERENCE,
-        ).described("a confirmation that a payment was made")
-        val OTHER = DocType.of("other", DocumentType.OTHER).described("anything that fits none of the other types")
+        ).described("a confirmation that a payment was made").forDirections(DocDirection.PROOF)
+
+        /** Fits a document of any direction; its description is neutral (no "anything", no "any other"), so it gains no score by being vague. */
+        val OTHER = DocType.of("other", DocumentType.OTHER).described("a document of a kind not listed here")
+            .forDirections(*DocDirection.entries.toTypedArray())
 
         val DEFAULT = ExtractionSchema(
             listOf(

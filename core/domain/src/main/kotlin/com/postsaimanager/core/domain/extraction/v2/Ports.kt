@@ -38,6 +38,11 @@ class InterpretationRequest(
     val layout: LetterLayout? = null,
     /** Width over height of the first page when known, for the layout template match; null otherwise. */
     val pageAspect: Float? = null,
+    /**
+     * Whose document this is. Known before reading (how it entered the app), it narrows the types offered
+     * ([ExtractionSchema.typesFor]); incoming until the app stores a direction per document.
+     */
+    val direction: DocDirection = DocDirection.INCOMING,
 )
 
 /** What call 2 is given: the letter again (the engine starts every call from an empty cache) and what call 1 decided. */
