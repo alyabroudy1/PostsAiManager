@@ -28,6 +28,8 @@ class ExtractionV2Pipeline(
      * @param contextTokens the window the model is loaded with; the letter is budgeted against it.
      * @param pageAspect width over height of page 1 when the caller knows it (only the layout template match uses it).
      * @param direction whose document it is; narrows the types the interpreter can choose from (incoming until P3 stores it).
+     * @param traceContent adds page 1's lines (zone, position, text) and the name candidates to the trace. Only for a document
+     *   its owner listed for diagnostics (a synthetic test letter): the trace is otherwise structure only.
      */
     suspend fun run(
         pages: List<List<OcrBlock>>,
@@ -35,6 +37,7 @@ class ExtractionV2Pipeline(
         contextTokens: Int,
         pageAspect: Float? = null,
         direction: DocDirection = DocDirection.INCOMING,
+        traceContent: Boolean = false,
     ): ExtractionV2Result {
         val layout = layoutReader.read(pages)
         val candidates = candidateSource.find(pages, layout)
@@ -76,7 +79,7 @@ class ExtractionV2Pipeline(
                 textError = (textOutcome as? TextOutcome.Failed)?.reason,
             ),
         )
-        return verified.withReading(layoutTrace(pages, layout, candidates, offered, description) + interpreter.trace, interpreter.unread, pages.size)
+        return verified.withReading(layoutTrace(pages, layout, candidates, offered, description, traceContent) + interpreter.trace, interpreter.unread, pages.size)
     }
 
     /**
@@ -102,17 +105,27 @@ class ExtractionV2Pipeline(
         candidates: CandidateSet,
         offered: OfferedCandidates,
         description: LayoutDescription,
+        withContent: Boolean,
     ): List<String> {
         val perPage = layout.pages.joinToString(",") { p ->
             "p${p.pageNumber}:${pages.getOrNull(p.pageNumber - 1)?.size ?: 0}blocks/${p.lines.size}lines/${p.lines.count { it.isNoise }}noise"
         }
         val perZone = layout.pages.firstOrNull()?.lines.orEmpty().filter { !it.isNoise }.groupingBy { it.zone.tag }.eachCount()
         val perKind = candidates.candidates.groupingBy { it.kind.name }.eachCount()
-        return listOf(
+        val structure = listOf(
             "layout pages=[$perPage] page1Zones=$perZone",
             "candidates found=${candidates.candidates.size} offered=${offered.size} byKind=$perKind dropped=${offered.dropped.mapKeys { it.key.name }}",
             "layoutText sent=${description.text.length} complete=${description.isComplete} pagesRead=${description.pagesRead}/${description.totalPages}",
         )
+        if (!withContent) return structure
+        val lines = layout.pages.firstOrNull()?.lines.orEmpty().map { l ->
+            "line ${l.zone.tag}${if (l.isNoise) " NOISE" else ""} x=%.2f-%.2f y=%.2f-%.2f '%s'".format(
+                java.util.Locale.ROOT, l.bounds.left, l.bounds.right, l.bounds.top, l.bounds.bottom, l.text.take(48),
+            )
+        }
+        val names = offered.rows.filter { it.candidate.kind == CandidateKind.NAME }
+            .map { "name ${it.candidate.id} zoneAttr=${it.candidate.attrs["zone"]} '${it.candidate.raw.take(48)}'" }
+        return structure + lines + names
     }
 
     /**

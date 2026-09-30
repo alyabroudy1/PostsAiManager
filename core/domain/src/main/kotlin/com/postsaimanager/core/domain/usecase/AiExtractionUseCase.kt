@@ -57,12 +57,14 @@ class AiExtractionUseCase @Inject constructor(
      *   truncation is recorded without a page estimate.
      * @param pageAspect width over height of page 1's image when known: the layout template match uses it (the
      *   benchmark always passed it; without it the page's shape is only guessed from the text).
+     * @param traceContent the reading trace also carries page 1's lines and names; only for a document listed for diagnostics.
      */
     suspend operator fun invoke(
         blocks: List<OcrBlock>,
         contextTokens: Int? = null,
         pageBlockCounts: List<Int> = emptyList(),
         pageAspect: Float? = null,
+        traceContent: Boolean = false,
     ): PamResult<DocumentUnderstanding> {
         if (blocks.isEmpty()) return PamResult.Success(DocumentUnderstanding())
 
@@ -73,7 +75,7 @@ class AiExtractionUseCase @Inject constructor(
         val modelId = activeModelProvider.extractionModelId()
         val interpreter = loadedInterpreter(config, modelId)
 
-        val result = pipeline.run(pages(blocks, pageBlockCounts), interpreter, window, pageAspect)
+        val result = pipeline.run(pages(blocks, pageBlockCounts), interpreter, window, pageAspect, traceContent = traceContent)
         // What was chosen to read with, first in the trace: the strategy follows from the model's profile, and an
         // unknown model silently reading with the fallback is exactly what a trace must make visible.
         val header = "model=${modelId ?: "none"} profile=${if (ModelProfiles.isKnown(modelId)) "known" else "UNKNOWN"} " +

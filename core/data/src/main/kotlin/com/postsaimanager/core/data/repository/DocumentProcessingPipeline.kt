@@ -264,6 +264,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     // Page 1's image shape, as the benchmark always gave it, for the layout template match.
                     pageAspect = pages.minByOrNull { it.pageNumber }
                         ?.takeIf { it.width > 0 && it.height > 0 }?.let { it.width.toFloat() / it.height },
+                    traceContent = traceContentFor(documentId),
                 )
 
                 val read = (understanding as? PamResult.Success)?.data
@@ -554,9 +555,18 @@ class DocumentProcessingPipeline @Inject constructor(
     private fun logReadingTrace(documentId: String, trace: List<String>) {
         val header = trace.firstOrNull() ?: return
         if (header.contains("profile=UNKNOWN")) Log.w(TAG, "reading $documentId: $header (no profile, fallback strategy)") else Log.i(TAG, "reading $documentId: $header")
-        val debuggable = (appContext.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
-        if (debuggable) trace.drop(1).forEach { Log.i(TAG, "reading $documentId: $it") }
+        if (isDebuggable()) trace.drop(1).forEach { Log.i(TAG, "reading $documentId: $it") }
     }
+
+    private fun isDebuggable() = (appContext.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+    /**
+     * Whether the reading trace of [documentId] may carry the letter's lines: only in a debuggable build, and only for a document whose
+     * id the developer listed in the app-private file `debug-trace-docs.txt` (one id per line). Empty by default, so no content is logged.
+     */
+    private fun traceContentFor(documentId: String): Boolean = isDebuggable() && runCatching {
+        java.io.File(appContext.filesDir, "debug-trace-docs.txt").takeIf { it.isFile }?.readLines().orEmpty().any { it.trim() == documentId }
+    }.getOrDefault(false)
 
     /**
      * Every non-cancellation exit of [processDocument] that isn't a success routes through
