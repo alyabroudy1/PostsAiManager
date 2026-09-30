@@ -152,11 +152,11 @@
    "page": 1
   }
  ],
- "call1": "score:sender: 0.3434295654296875,-0.0039081573486328125\nscore:kind:sender: -0.15467262268066406,-0.09728050231933594,0.8373203277587891\nscore:addressee: 0.51776123046875\nscore:kind:addressee: 0.3558197021484375,-1.2767677307128906,-0.6735744476318359\nscore:household: -0.2879905700683594\nscore:care_of: 0.3826713562011719\nscore:kind:care_of: 0.3558197021484375,-1.2767677307128906,-0.6735744476318359\nscore:slot:letter_date: 0.18830299377441406\nscore:type: -1.417572021484375,-0.6801548004150391,-0.249786376953125,-1.3810901641845703,-1.4123268127441406,-1.188568115234375,-1.387552261352539,-0.46361351013183594,0.1615447998046875,-0.8424797058105469,0.3444328308105469\nscore:subject_person: -1.4680709838867188\nscore:slot:total: -0.3424720764160156,-0.0157928466796875,-0.8515567779541016,-0.47690773010253906\nscore:slot:due_date: -0.2308826446533203,-0.1615734100341797,-0.0653228759765625\nscore:slot:iban: 0.2840690612792969\nscore:slot:reference: 0.14599990844726562,0.4961585998535156,-0.2653179168701172\nscore:slot:customer_no: -0.12319183349609375,0.15246200561523438,-1.0652179718017578",
- "call1Ms": 57112,
- "call2Ms": 3922,
- "prefixTokens": 1083,
- "prefixMs": 12180,
+ "call1": "score:sender: 0.3434295654296875,-0.0039081573486328125\nscore:kind:sender: -0.15467262268066406,-0.09728050231933594,0.8373203277587891\nscore:addressee: 0.51776123046875\nscore:kind:addressee: 0.3558197021484375,-1.2767677307128906,-0.6735744476318359\nscore:household: -0.2879905700683594\nscore:care_of: 0.3826713562011719\nscore:kind:care_of: 0.3558197021484375,-1.2767677307128906,-0.6735744476318359\nscore:slot:letter_date: 0.18830299377441406\nscore:type: -1.417572021484375,-0.6801548004150391,-0.249786376953125,-1.3810901641845703,-1.4123268127441406,-1.188568115234375,-1.387552261352539,-0.46361351013183594,0.1615447998046875,-0.8424797058105469,0.3444328308105469\nscore:subject_person: -1.4680709838867188\nscore:slot:total: -0.3424720764160156,-0.0157928466796875,-0.8515567779541016,-0.47690773010253906\nscore:slot:due_date: -0.2308826446533203,-0.1615734100341797,-0.0653228759765625\nscore:slot:iban: 0.2840690612792969\nscore:slot:reference: 0.14599990844726562,0.4961585998535156,-0.2653179168701172\nscore:slot:customer_no: -0.12319183349609375,0.15246200561523438,-1.0652179718017578\nscore:extras: -0.11612129211425781,-0.12136650085449219,-0.6398429870605469,-0.24959373474121094,-0.141357421875,-0.22774314880371094,-0.2875251770019531,-0.24074172973632812,-0.26978302001953125\nlang: de\nextra:name: \"01.12.2026\"\nextra:name: \"01.10.2025-30.09.2026\"\nextra:name: \"1.068.00\"\nextra:name: \"Vertragskonto\"\nextra:name: \"Stadtwerke\"\nextra:name: \"Verbrauch kWh\"",
+ "call1Ms": 81245,
+ "call2Ms": 7327,
+ "prefixTokens": 1898,
+ "prefixMs": 14958,
  "template": "DIN5008_B",
  "templateScore": 1,
  "asks": [
@@ -164,7 +164,7 @@
    "name": "score:sender",
    "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nStadtwerke Beispielstadt Energieweg 3 \/ 12345 Beispielstadt \/ Tel. 01234 000111 \/ Stadtwerke BeispielstadtEnergieweg 3 12345 Beispielstadt \/ kundenservice@stadtwerke-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nStadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt\nIs «Stadtwerke Beispielstadt» (context: line below: Energieweg 3) the sender: the party that wrote and sent this letter? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nStadtwerke Beispielstadt Energieweg 3 \/ 12345 Beispielstadt \/ Tel. 01234 000111 \/ Stadtwerke BeispielstadtEnergieweg 3 12345 Beispielstadt \/ kundenservice@stadtwerke-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nStadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt\nIs «Erika Mustermann» (context: line above: Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt; line below: Musterstraße 12) the sender: the party that wrote and sent this letter? Answer:",
    "answer": "0.3434295654296875,-0.0039081573486328125",
-   "ms": 2853,
+   "ms": 3093,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -172,7 +172,7 @@
    "name": "score:kind:sender",
    "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nStadtwerke Beispielstadt Energieweg 3 \/ 12345 Beispielstadt \/ Tel. 01234 000111 \/ Stadtwerke BeispielstadtEnergieweg 3 12345 Beispielstadt \/ kundenservice@stadtwerke-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nStadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt\nIs «Stadtwerke Beispielstadt» (context: line below: Energieweg 3) the name of a private person? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nStadtwerke Beispielstadt Energieweg 3 \/ 12345 Beispielstadt \/ Tel. 01234 000111 \/ Stadtwerke BeispielstadtEnergieweg 3 12345 Beispielstadt \/ kundenservice@stadtwerke-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nStadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt\nIs «Stadtwerke Beispielstadt» (context: line below: Energieweg 3) the name of an authority or public body? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nStadtwerke Beispielstadt Energieweg 3 \/ 12345 Beispielstadt \/ Tel. 01234 000111 \/ Stadtwerke BeispielstadtEnergieweg 3 12345 Beispielstadt \/ kundenservice@stadtwerke-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nStadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt\nIs «Stadtwerke Beispielstadt» (context: line below: Energieweg 3) the name of a company or other organisation? Answer:",
    "answer": "-0.15467262268066406,-0.09728050231933594,0.8373203277587891",
-   "ms": 4129,
+   "ms": 4205,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -180,7 +180,7 @@
    "name": "score:addressee",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt; line below: Musterstraße 12) the addressee: the party this letter is addressed to? Answer:",
    "answer": "0.51776123046875",
-   "ms": 922,
+   "ms": 972,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -188,7 +188,7 @@
    "name": "score:kind:addressee",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
    "answer": "0.3558197021484375,-1.2767677307128906,-0.6735744476318359",
-   "ms": 2546,
+   "ms": 2656,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -196,7 +196,7 @@
    "name": "score:household",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt; line below: Musterstraße 12) the name of a family or household (several people living together)? Answer:",
    "answer": "-0.2879905700683594",
-   "ms": 1593,
+   "ms": 989,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -204,7 +204,7 @@
    "name": "score:care_of",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt; line below: Musterstraße 12) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:",
    "answer": "0.3826713562011719",
-   "ms": 1656,
+   "ms": 956,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -212,7 +212,7 @@
    "name": "score:kind:care_of",
    "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Stadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
    "answer": "0.3558197021484375,-1.2767677307128906,-0.6735744476318359",
-   "ms": 5464,
+   "ms": 2716,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -220,7 +220,7 @@
    "name": "score:slot:letter_date",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nIs «25.09.2026» (context: printed on the line: Beispielstadt, 25.09.2026; line above: 54321 Beispieldorf; line below: Änderung lhres Abschlags ab 01.12.2026) the date of the letter itself (when it was written or issued)? Answer:",
    "answer": "0.18830299377441406",
-   "ms": 1498,
+   "ms": 1199,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -228,7 +228,7 @@
    "name": "score:type",
    "question": "Is this document an invoice or bill that asks the reader to pay? Answer:\n@@\nIs this document a payment reminder or dunning letter about an unpaid bill? Answer:\n@@\nIs this document a letter or decision from an authority, tax office or public body? Answer:\n@@\nIs this document a letter from a doctor, clinic or health insurer, such as an appointment? Answer:\n@@\nIs this document an insurance or service contract, or a change to its price or terms? Answer:\n@@\nIs this document a letter from a school or kindergarten to parents? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document an information letter or statement that asks nothing of the reader? Answer:\n@@\nIs this document a letter the reader wrote and sent to someone else? Answer:\n@@\nIs this document a confirmation that a payment was made? Answer:\n@@\nIs this document anything that fits none of the other types? Answer:",
    "answer": "-1.417572021484375,-0.6801548004150391,-0.249786376953125,-1.3810901641845703,-1.4123268127441406,-1.188568115234375,-1.387552261352539,-0.46361351013183594,0.1615447998046875,-0.8424797058105469,0.3444328308105469",
-   "ms": 2876,
+   "ms": 2675,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -236,7 +236,7 @@
    "name": "score:subject_person",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Stadtwerke Beispielstadt» (context: line below: Energieweg 3) a person the letter is about, other than the addressee? Answer:",
    "answer": "-1.4680709838867188",
-   "ms": 715,
+   "ms": 707,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -244,7 +244,7 @@
    "name": "score:slot:total",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «89,00 €» (context: printed on the line: monatlichen Abschlag für Strom an. Ihr neuer Abschlag beträgt 89,00 € ; line above: aufgrund der gestiegenen Beschaffungskosten und Ihres bisherigen Verbr; line below: 01.12.2026. Bisher haben Sie 74,00 € monatlich gezahlt.) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «74,00 €» (context: printed on the line: 01.12.2026. Bisher haben Sie 74,00 € monatlich gezahlt.; line above: monatlichen Abschlag für Strom an. Ihr neuer Abschlag beträgt 89,00 € ; line below: Der neue Betrag wird zu den bekannten Terminen von Ihrem Konto eingezo) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «888,00» (context: line above: Verbrauch kWh; line below: 2940) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.068.00» (context: line above: 01.10.2025-30.09.2026; line below: 3.150) the main amount of this document: what the reader has to pay, or the total? Answer:",
    "answer": "-0.3424720764160156,-0.0157928466796875,-0.8515567779541016,-0.47690773010253906",
-   "ms": 5609,
+   "ms": 5006,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -252,7 +252,7 @@
    "name": "score:slot:due_date",
    "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «01.12.2026» (context: printed on the line: Änderung lhres Abschlags ab 01.12.2026; line above: Beispielstadt, 25.09.2026; line below: Vertragskonto: 3300 5521 08 Zählernummer: 1EMHO000123456) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «01.10.2025» (context: printed on the line: 01.10.2025-30.09.2026; line above: 2940; line below: 1.068.00) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «30.09.2026» (context: printed on the line: 01.10.2025-30.09.2026; line above: 2940; line below: 1.068.00) the date by which the reader must pay or act? Answer:",
    "answer": "-0.2308826446533203,-0.1615734100341797,-0.0653228759765625",
-   "ms": 4116,
+   "ms": 4060,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -260,7 +260,7 @@
    "name": "score:slot:iban",
    "question": "ZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\n(the text of this zone is in the letter above)\nIs «DE89 3704 0044 0532 0130 00» the IBAN of the account the reader should pay to? Answer:",
    "answer": "0.2840690612792969",
-   "ms": 1059,
+   "ms": 1110,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -268,7 +268,7 @@
    "name": "score:slot:reference",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «3300 5521 08» (context: printed on the line: Vertragskonto: 3300 5521 08 Zählernummer: 1EMHO000123456; line above: Änderung lhres Abschlags ab 01.12.2026; line below: Sehr geehrte Frau Mustermann,) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «1EMHO000123456» (context: printed on the line: Vertragskonto: 3300 5521 08 Zählernummer: 1EMHO000123456; line above: Änderung lhres Abschlags ab 01.12.2026; line below: Sehr geehrte Frau Mustermann,) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «2026\/27» (context: printed on the line: Prognose 2026\/27; line above: 3.150; line below: 89,00) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
    "answer": "0.14599990844726562,0.4961585998535156,-0.2653179168701172",
-   "ms": 4850,
+   "ms": 4694,
    "questionTokens": -1,
    "answerTokens": -1
   },
@@ -276,51 +276,115 @@
    "name": "score:slot:customer_no",
    "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «3300 5521 08» (context: printed on the line: Vertragskonto: 3300 5521 08 Zählernummer: 1EMHO000123456; line above: Änderung lhres Abschlags ab 01.12.2026; line below: Sehr geehrte Frau Mustermann,) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «1EMHO000123456» (context: printed on the line: Vertragskonto: 3300 5521 08 Zählernummer: 1EMHO000123456; line above: Änderung lhres Abschlags ab 01.12.2026; line below: Sehr geehrte Frau Mustermann,) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «2026\/27» (context: printed on the line: Prognose 2026\/27; line above: 3.150; line below: 89,00) the number that identifies the reader as a customer, member or account holder? Answer:",
    "answer": "-0.12319183349609375,0.15246200561523438,-1.0652179718017578",
-   "ms": 5011,
+   "ms": 4185,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:extras",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «01.12.2026» (context: printed on the line: Änderung lhres Abschlags ab 01.12.2026; line above: Beispielstadt, 25.09.2026; line below: Vertragskonto: 3300 5521 08 Zählernummer: 1EMHO000123456) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «01.10.2025» (context: printed on the line: 01.10.2025-30.09.2026; line above: 2940; line below: 1.068.00) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «89,00 €» (context: printed on the line: monatlichen Abschlag für Strom an. Ihr neuer Abschlag beträgt 89,00 € ; line above: aufgrund der gestiegenen Beschaffungskosten und Ihres bisherigen Verbr; line below: 01.12.2026. Bisher haben Sie 74,00 € monatlich gezahlt.) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «888,00» (context: line above: Verbrauch kWh; line below: 2940) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.068.00» (context: line above: 01.10.2025-30.09.2026; line below: 3.150) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «3300 5521 08» (context: printed on the line: Vertragskonto: 3300 5521 08 Zählernummer: 1EMHO000123456; line above: Änderung lhres Abschlags ab 01.12.2026; line below: Sehr geehrte Frau Mustermann,) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «2026\/27» (context: printed on the line: Prognose 2026\/27; line above: 3.150; line below: 89,00) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «DEO0ZZZ0000000o000» (context: printed on the line: Beispieistadt Energieweg 3 12345 Beispielstadt Glaubiger-D DEO0ZZZ0000; line above: Stadtwerke; line below: Zeitraum) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «0532 0130 00» (context: line above: abgebucht IBAN DE89 3704 0044; line below: (Kontoinhaberin: Erika Mustermann)) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:",
+   "answer": "-0.11612129211425781,-0.12136650085449219,-0.6398429870605469,-0.24959373474121094,-0.141357421875,-0.22774314880371094,-0.2875251770019531,-0.24074172973632812,-0.26978302001953125",
+   "ms": 17137,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "lang",
+   "question": "QUESTION: In which language is this letter written? Answer with its BCP-47 language code (for example de, en, ar).\nANSWER FORMAT: the code only",
+   "answer": "de",
+   "ms": 556,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «01.12.2026» is an important fact of this letter: it is printed on the line «Änderung lhres Abschlags ab 01.12.2026», the line above it is «Beispielstadt, 25.09.2026». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"01.12.2026\"",
+   "ms": 1774,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «01.10.2025» is an important fact of this letter: it is printed on the line «01.10.2025-30.09.2026», the line above it is «2940». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"01.10.2025-30.09.2026\"",
+   "ms": 2446,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «1.068.00» is an important fact of this letter: it is printed on the line «1.068.00», the line above it is «01.10.2025-30.09.2026». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"1.068.00\"",
+   "ms": 1549,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «3300 5521 08» is an important fact of this letter: it is printed on the line «Vertragskonto: 3300 5521 08 Zählernummer: 1EMHO000123456», the line above it is «Änderung lhres Abschlags ab 01.12.2026». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"Vertragskonto\"",
+   "ms": 1333,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «DEO0ZZZ0000000o000» is an important fact of this letter: it is printed on the line «Beispieistadt Energieweg 3 12345 Beispielstadt Glaubiger-D DEO0ZZZ0000», the line above it is «Stadtwerke». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"Stadtwerke\"",
+   "ms": 1028,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «888,00» is an important fact of this letter: it is printed on the line «888,00», the line above it is «Verbrauch kWh». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"Verbrauch kWh\"",
+   "ms": 1035,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
    "name": "text:other",
    "question": "QUESTION: Give a short name for this kind of document. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
-   "answer": "\"Yes\"",
-   "ms": 644,
+   "answer": "\"Vertragskonto\"",
+   "ms": 792,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
    "name": "text:title",
    "question": "QUESTION: Write a title of at most 8 words for this other: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
-   "answer": "\"Yes\"",
-   "ms": 732,
+   "answer": "\"Dear Mustermann, this letter is from Stadtwerke Beispielstadt regarding a new electricity bill adjustment.\"",
+   "ms": 1829,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
    "name": "text:subject",
    "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
-   "answer": "\"Yes\"",
-   "ms": 528,
+   "answer": "\"LETTER\"",
+   "ms": 645,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
    "name": "text:summary",
    "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
-   "answer": "\"Yes\"",
-   "ms": 718,
+   "answer": "\"Sie müssen nichts weiter veranlassen.\"",
+   "ms": 1087,
    "questionTokens": -1,
    "answerTokens": -1
   },
   {
    "name": "text:questions",
    "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
-   "answer": "\"Yes\" \"Yes\" \"Yes\"",
-   "ms": 1279,
+   "answer": "\"Was ist der neue monatliche Abschlag?\" \"Wie lange ist der Zeitraum für die Anpassung?\" \"Kann ich eine SEPA-Lastschriftmandat anstellen?\"",
+   "ms": 2963,
    "questionTokens": -1,
    "answerTokens": -1
   }
  ],
- "wallMs": 61197,
+ "wallMs": 88727,
  "model": "text.gguf"
 }
