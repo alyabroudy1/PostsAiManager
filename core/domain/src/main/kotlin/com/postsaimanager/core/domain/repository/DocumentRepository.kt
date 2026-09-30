@@ -59,6 +59,16 @@ interface DocumentRepository {
     fun observePages(documentId: String): Flow<List<DocumentPage>>
     fun observeExtractedData(documentId: String): Flow<List<ExtractedData>>
 
+    /**
+     * The fields of every non-trashed document, grouped by document id, in one query: what a list
+     * row needs (who, when, how much, which need review) without one read per row. Only the columns
+     * a row reads are filled (no evidence, no bounds); a document without fields has no entry.
+     */
+    fun observeListFields(): Flow<Map<String, List<ExtractedData>>>
+
+    /** The image path of page 1 of every non-trashed document that has a page, by document id. */
+    fun observeFirstPagePaths(): Flow<Map<String, String>>
+
     // ── Trash — see documentation/07-document-pipeline.md, "Deleting documents" ──
 
     /** Trashed documents, most recently deleted first. Powers the "Recently deleted" screen. */

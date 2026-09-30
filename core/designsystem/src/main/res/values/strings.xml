@@ -4,4 +4,22 @@
         <item quantity="one">Scanned %d page</item>
         <item quantity="other">Scanned %d pages</item>
     </plurals>
+
+    <!-- A document list row (Home's recent documents and the Documents list). -->
+    <string name="doc_row_from_for">From %1$s · For %2$s</string>
+    <string name="doc_row_from">From %1$s</string>
+    <string name="doc_row_for">For %1$s</string>
+    <string name="doc_row_due">Due %1$s</string>
+    <string name="doc_row_overdue">Overdue</string>
+    <string name="doc_row_action_needed">Action needed</string>
+    <plurals name="doc_row_to_check">
+        <item quantity="one">%d to check</item>
+        <item quantity="other">%d to check</item>
+    </plurals>
+    <string name="doc_row_status_waiting">Waiting to be read</string>
+    <string name="doc_row_status_processing">Being read</string>
+    <string name="doc_row_status_ready">Read, nothing to check</string>
+    <string name="doc_row_status_failed">Reading failed</string>
+    <string name="doc_row_favorite">Favorite</string>
+    <string name="doc_row_toggle_favorite">Toggle favorite</string>
 </resources>
