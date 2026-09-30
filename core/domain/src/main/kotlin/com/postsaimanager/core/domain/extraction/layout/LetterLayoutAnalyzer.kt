@@ -2,6 +2,14 @@ package com.postsaimanager.core.domain.extraction.layout
 
 import com.postsaimanager.core.domain.extraction.candidates.AmountConsistency
 import com.postsaimanager.core.domain.extraction.candidates.OcrText
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.ALNUM_POSTCODE
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.COUNTRY_GAP
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.DIGIT_RUN
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.MAX_LEFT_DRIFT
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.MAX_LINE_GAP
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.STREET_NUMBER
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.isCountryText
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.isPostcodeLine
 import com.postsaimanager.core.domain.usecase.DocumentLayout
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.TextBounds
@@ -363,10 +371,7 @@ object LetterLayoutAnalyzer {
 
     /** The line after "postcode place": short, no digit, one to three words, close under it. Any language. */
     private fun isCountryShape(l: Work, prev: Work): Boolean {
-        val t = l.text.trim()
-        if (t.length !in 3..25 || t.any { it.isDigit() } || t.last() in ",:;.") return false
-        if (t.split(Regex("\\s+")).size > 3 || !t.all { it.isLetter() || it in " -'" }) return false
-        return l.cy - prev.cy <= COUNTRY_GAP
+        return isCountryText(l.text) && l.cy - prev.cy <= COUNTRY_GAP
     }
 
     /**
@@ -480,8 +485,6 @@ object LetterLayoutAnalyzer {
     private val IBAN_TOKEN = Regex("[A-Z]{2}\\d{2}[A-Z0-9]{10,30}")
 
     // Shapes first; the German patterns below are extra hints, never gates.
-    private val DIGIT_RUN = Regex("(?<!\\d)\\d{4,6}(?!\\d)")
-    private val ALNUM_POSTCODE = Regex("\\b[A-Z]{1,2}\\d[A-Z\\d]?\\s?\\d[A-Z]{2}\\b")
     private val STRONG_SEPARATOR = Regex("[·•|]|\\s[-–—]\\s")
     private val COLON_LABEL = Regex("^\\s*\\p{L}[\\p{L} .\\-/]{1,28}:(\\s.*)?$")
     /** An account number in any language: two letters, two digits, then groups. Amounts alone are not payment sections. */
@@ -490,21 +493,18 @@ object LetterLayoutAnalyzer {
         "(?<![A-Za-z0-9])[A-Z]{2}(?:[0-9][0-9OoIl]|[OoIl][0-9])(?:\\s?[A-Za-z0-9]{2,4}){3,}",
     )
 
-    /** A short line holding a 4 to 6 digit run (postcode) or an alphanumeric postcode, with letters. */
-    private fun isPostcodeLine(t: String) =
-        t.length in 4..45 && t.any { it.isLetter() } && (DIGIT_RUN.containsMatchIn(t) || ALNUM_POSTCODE.containsMatchIn(t))
+    private fun isRightToLeft(lines: List<Work>): Boolean = isRightToLeftText(lines.map { it.text })
 
-    /** More than half of the letters are in a right-to-left script. */
-    private fun isRightToLeft(lines: List<Work>): Boolean {
+    /** More than half of the letters of [texts] are in a right-to-left script. */
+    internal fun isRightToLeftText(texts: List<String>): Boolean {
         var rtl = 0
         var letters = 0
-        for (l in lines) for (ch in l.text) if (ch.isLetter()) {
+        for (l in texts) for (ch in l) if (ch.isLetter()) {
             letters++
             if (ch in '֐'..'ࣿ' || ch in 'יִ'..'﷿' || ch in 'ﹰ'..'﻿') rtl++
         }
         return letters > 0 && rtl * 2 > letters
     }
-    private val STREET_NUMBER = Regex("\\p{L}[\\p{L}.\\-]*\\s*\\d{1,4}\\s?[a-zA-Z]?(?![\\d\\p{L}])")
     private val RETURN_SEPARATOR = Regex("[·•|]|\\s[-–]\\s|,")
     private val NUMERIC_DATE = Regex("(?<!\\d)(?:\\d{1,2}[./]\\s?\\d{1,2}[./]\\s?\\d{2,4}|\\d{4}-\\d{2}-\\d{2})(?!\\d)")
 
@@ -544,7 +544,6 @@ object LetterLayoutAnalyzer {
     private const val SMALL_FONT_RATIO = 0.8f
     private const val FONT_JUMP = 1.5f
     private const val RETURN_GAP = 0.05f
-    private const val COUNTRY_GAP = 0.03f
     private const val MIN_PITCH = 0.02f
     private const val PITCH_FACTOR = 1.7f
     private const val NEIGHBOUR_DRIFT = 0.15f
@@ -564,8 +563,6 @@ object LetterLayoutAnalyzer {
     private const val FALLBACK_PLZ_MIN_Y = 0.12f
     private const val FALLBACK_PLZ_MAX_Y = 0.42f
     private const val MAX_ADDRESS_LINES = 6
-    private const val MAX_LINE_GAP = 0.045f
-    private const val MAX_LEFT_DRIFT = 0.06f
     private const val SUBJECT_MAX_Y = 0.60f
     private const val ISOLATED_GAP = 0.025f
     private const val PAYMENT_NEIGHBOUR_GAP = 0.035f

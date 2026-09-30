@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.extraction.v2
 
+import com.postsaimanager.core.domain.extraction.address.AddressRows
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EntityKind
@@ -67,6 +68,16 @@ class ExtractionV2Adapter : UnderstandingAdapter {
             // the printed label is never altered, and the screen shows the key's words for it.
             val label = if (x.label.lowercase() in usedLabels) x.identity else x.label
             add(label, x.value.value, FactKind.OTHER, x.value.confidence, provenanceOf(x.identity, x.value))
+        }
+
+        // The structured addresses: one row per part (`addressee.street`, `sender.postcode`...), next to the unchanged party name rows.
+        for ((role, address) in result.addresses) {
+            for (row in AddressRows.rows(role, address)) {
+                add(
+                    row.key, row.value, FactKind.OTHER, row.confidence,
+                    FieldProvenance(slotKey = row.key, role = row.role.name, origin = AddressRows.ORIGIN, page = row.page, bbox = row.bbox),
+                )
+            }
         }
 
         if (!result.diagnostics.modelUsed) addFound(result, ::add)

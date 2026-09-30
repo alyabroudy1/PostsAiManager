@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.extraction.v2
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.Validation
 import com.postsaimanager.core.model.EnrichmentTicket
+import com.postsaimanager.core.model.PostalAddress
 import com.postsaimanager.core.model.TextBounds
 import java.time.LocalDate
 
@@ -190,6 +191,11 @@ data class ExtractionV2Result(
     val slots: Map<SlotKey, SlotValue>,
     val slotLists: Map<SlotKey, List<SlotValue>> = emptyMap(),
     val parties: Parties = Parties(),
+    /**
+     * The structured postal address of the addressee ([PartyRole.ADDRESSEE]) and of the sender ([PartyRole.SENDER]), when the letter
+     * prints one and the reading stage ran (see `StructuredAddressReader`). Empty until the interpreter calls it (TODO(P4)).
+     */
+    val addresses: Map<PartyRole, PostalAddress> = emptyMap(),
     val freeText: FreeText = FreeText(),
     /** Verified open metadata, at most [StructuredGrammar.MAX_EXTRAS]. */
     val extras: List<ExtraValue> = emptyList(),

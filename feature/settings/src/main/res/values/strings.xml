@@ -20,4 +20,7 @@
     <string name="settings_open_security_settings">Open security settings</string>
     <string name="settings_ok">OK</string>
     <string name="settings_not_now">Not now</string>
+
+    <!-- The attribution CC-BY-4.0 asks for; the same text as AddressFormats.ATTRIBUTION in :core:domain. For Settings > About. -->
+    <string name="settings_address_data_attribution">Address formats are derived from the Google libaddressinput address data (https://github.com/google/libaddressinput), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Only the postcode patterns, the order of the parts, the required parts and country names of a few countries are kept, adapted.</string>
 </resources>
