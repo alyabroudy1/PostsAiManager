@@ -72,6 +72,12 @@ interface DocumentInterpreter {
      */
     val trace: List<String> get() = emptyList()
 
+    /**
+     * What the last [interpret] left unread of the letter because it did not fit the window it reads with (an interpreter that
+     * renders the letter itself, zone by zone, cuts on its own budget, not the pipeline's); null when it read all of it.
+     */
+    val unread: UnreadText? get() = null
+
     /** Tokens call 1 may use; the pipeline subtracts them from the context window. */
     val maxAnswerTokens: Int
 
@@ -98,6 +104,9 @@ interface DocumentInterpreter {
 
     suspend fun writeText(request: TextRequest): TextOutcome
 }
+
+/** Text an interpreter left out to fit: how many lines, and the first page that lost some. */
+class UnreadText(val lines: Int, val firstCutPage: Int)
 
 sealed interface InterpretationOutcome {
     /** The prompt and grammar that were sent, kept for diagnostics and tests. */

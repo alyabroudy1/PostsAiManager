@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.extraction.zones
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.Letters
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
@@ -50,6 +51,23 @@ class ZoneScoringInterpreterTest {
         assertThat(result.slots.keys.map { it.json }).doesNotContain("due_date")
         // The header session, the body session that scores, and the session that writes.
         assertThat(session.opens.size).isEqualTo(3)
+    }
+
+    @Test
+    fun `a body that does not fit the interpreter's own window makes the reading partial`() {
+        val session = FakePromptSession().apply { scorer = { -5.0 }; responder = { _, _ -> "\"text\"" } }
+        // The interpreter's window is tiny, the pipeline's is not: the pipeline's layout text is complete, the zone render is cut.
+        val small = ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 1100)
+        val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, small, 4096) }
+        assertThat(small.unread).isNotNull()
+        assertThat(result.diagnostics.unreadLines).isGreaterThan(0)
+        assertThat(result.diagnostics.layoutComplete).isFalse()
+        assertThat(ExtractionV2Adapter().adapt(result).inputTruncation).isNotNull()
+
+        val roomy = ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 100_000)
+        val whole = runBlocking { ExtractionV2Pipeline().run(letter.pages, roomy, 100_000) }
+        assertThat(roomy.unread).isNull()
+        assertThat(whole.diagnostics.unreadLines).isEqualTo(0)
     }
 
     @Test

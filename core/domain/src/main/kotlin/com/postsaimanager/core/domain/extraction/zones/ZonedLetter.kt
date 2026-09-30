@@ -188,7 +188,30 @@ class ZonedLetter(
      * When it does not fit, whole runs are dropped: payment and subject runs first kept, then the last page's
      * body, then the rest; what was left out is counted in a closing line.
      */
-    fun render(zones: Collection<LetterZone>, budgetChars: Int = Int.MAX_VALUE): String {
+    fun render(zones: Collection<LetterZone>, budgetChars: Int = Int.MAX_VALUE): String = select(zones, budgetChars).let { sel ->
+        val multiPage = layout.pages.size > 1
+        val sb = StringBuilder()
+        var page = -1
+        for (r in sel.all.filter { it in sel.chosen }.sortedWith(compareBy({ it.page }, { it.order }))) {
+            if (multiPage && r.page != page) {
+                sb.append("=== PAGE ${r.page} ===\n")
+                page = r.page
+            }
+            sb.append(r.text).append('\n')
+        }
+        if (sel.dropped > 0) sb.append("[... ${sel.dropped} more lines not shown]\n")
+        sb.toString().trimEnd()
+    }
+
+    /** What [render] leaves out within [budgetChars]: how many lines, and the first page that lost a run (0 when nothing is left out). */
+    class Coverage(val droppedLines: Int, val firstCutPage: Int)
+
+    fun coverage(zones: Collection<LetterZone>, budgetChars: Int): Coverage =
+        select(zones, budgetChars).let { sel -> Coverage(sel.dropped, sel.all.filter { it !in sel.chosen }.minOfOrNull { it.page } ?: 0) }
+
+    private class Selection(val all: List<Run>, val chosen: Set<Run>, val dropped: Int)
+
+    private fun select(zones: Collection<LetterZone>, budgetChars: Int): Selection {
         val all = runs(zones)
         val lastPage = layout.pages.lastOrNull()?.pageNumber ?: 1
         fun tier(r: Run) = when {
@@ -196,7 +219,6 @@ class ZonedLetter(
             r.zone == LetterZone.BODY && r.page == lastPage -> 2
             else -> 3
         }
-        val multiPage = layout.pages.size > 1
         val chosen = HashSet<Run>()
         var used = 0
         var dropped = 0
@@ -209,17 +231,7 @@ class ZonedLetter(
                 dropped += r.lineCount
             }
         }
-        val sb = StringBuilder()
-        var page = -1
-        for (r in all.filter { it in chosen }.sortedWith(compareBy({ it.page }, { it.order }))) {
-            if (multiPage && r.page != page) {
-                sb.append("=== PAGE ${r.page} ===\n")
-                page = r.page
-            }
-            sb.append(r.text).append('\n')
-        }
-        if (dropped > 0) sb.append("[... $dropped more lines not shown]\n")
-        return sb.toString().trimEnd()
+        return Selection(all, chosen, dropped)
     }
 
     companion object {

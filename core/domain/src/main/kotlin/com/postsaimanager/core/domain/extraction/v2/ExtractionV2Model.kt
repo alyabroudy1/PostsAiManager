@@ -165,8 +165,10 @@ data class Diagnostics(
     val prompt: String? = null,
     /** The reading's structure, no letter text (see [DocumentInterpreter.trace]); the pipeline adds the layout's own lines. */
     val trace: List<String> = emptyList(),
+    /** Lines the interpreter left out to fit its own window, beyond what the layout text cut; 0 when it read everything. */
+    val unreadLines: Int = 0,
 ) {
-    val layoutComplete: Boolean get() = layoutCharsSent >= layoutCharsTotal
+    val layoutComplete: Boolean get() = layoutCharsSent >= layoutCharsTotal && unreadLines == 0
 }
 
 /**

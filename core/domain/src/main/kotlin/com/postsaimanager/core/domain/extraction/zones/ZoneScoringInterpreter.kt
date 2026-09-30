@@ -28,6 +28,7 @@ import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.extraction.v2.StructuredGrammar
 import com.postsaimanager.core.domain.extraction.v2.TextOutcome
 import com.postsaimanager.core.domain.extraction.v2.TextRequest
+import com.postsaimanager.core.domain.extraction.v2.UnreadText
 import java.util.Locale
 
 /**
@@ -86,6 +87,9 @@ class ZoneScoringInterpreter(
     var templateScore: Float = 0f
         private set
 
+    override var unread: UnreadText? = null
+        private set
+
     private val decoder: SlotDecoder = profile.decoder.create()
 
     /** Every question scored in this reading, for the decoder to decide again once all are in (see [redecide]). */
@@ -119,6 +123,7 @@ class ZoneScoringInterpreter(
         records.clear()
         scored.clear()
         traceLines.clear()
+        unread = null
         failures = 0
         writingOpen = false
         prefixTokens = 0
@@ -183,6 +188,8 @@ class ZoneScoringInterpreter(
         }
         if (!opened) throw Abort("the model could not read the letter")
         inPrefix = zonesInPrefix.toSet()
+        unread = zoned.coverage(zonesInPrefix, budget).takeIf { it.droppedLines > 0 }?.let { UnreadText(it.droppedLines, it.firstCutPage) }
+        unread?.let { traceLines += "unread lines=${it.lines} firstCutPage=${it.firstCutPage} budgetChars=$budget" }
 
         val type = scoreType(direction)
         val docType = schema.type(type.first) ?: throw Abort("no document type scored")

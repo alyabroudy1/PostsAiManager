@@ -76,10 +76,24 @@ class ExtractionV2Pipeline(
                 textError = (textOutcome as? TextOutcome.Failed)?.reason,
             ),
         )
-        return verified.withTrace(layoutTrace(pages, layout, candidates, offered, description) + interpreter.trace)
+        return verified.withReading(layoutTrace(pages, layout, candidates, offered, description) + interpreter.trace, interpreter.unread, pages.size)
     }
 
-    private fun ExtractionV2Result.withTrace(lines: List<String>) = copy(diagnostics = diagnostics.copy(trace = lines))
+    /**
+     * The reading's trace, and what the interpreter left unread to fit its own window: it renders the letter itself, so its cut
+     * is not the layout text's ([fitLayout]). A cut makes the reading partial, so the notice shows.
+     */
+    private fun ExtractionV2Result.withReading(lines: List<String>, unread: UnreadText?, pageCount: Int): ExtractionV2Result {
+        val d = diagnostics
+        if (unread == null) return copy(diagnostics = d.copy(trace = lines))
+        val read = (unread.firstCutPage - 1).coerceIn(1, pageCount)
+        return copy(
+            diagnostics = d.copy(
+                trace = lines, unreadLines = unread.lines,
+                pagesRead = if (d.totalPages > 0) minOf(d.pagesRead, read) else read, totalPages = pageCount,
+            ),
+        )
+    }
 
     /** The letter's shape, counts only: pages and their blocks and lines per zone, candidates per kind, what was sent. */
     private fun layoutTrace(
