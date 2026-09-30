@@ -63,9 +63,11 @@ object StructuredGrammar {
     fun build(offered: OfferedCandidates, schema: ExtractionSchema): String {
         val rules = LinkedHashMap<String, String>()
 
-        // No bounded repetition anywhere (`x{0,5}`, `qchar{1,100}`): llama.cpp expands each into a chain
-        // of helper rules, and every token then advances dozens of parser stacks. Lists and strings are
-        // unbounded here; the token limit stops a runaway and the parser truncates to the MAX_* caps.
+        // No `{m,n}` repetition anywhere (`x{0,5}`, `qchar{1,100}`): llama.cpp expands each into a chain
+        // of helper rules, and every token then advances dozens of parser stacks. Strings are unbounded (the
+        // token limit stops a runaway and the parser truncates to the MAX_* caps). The short lists (parties,
+        // extras, cited references) are bounded by unrolled optional repeats instead, [GrammarSyntax.list]:
+        // a few fixed alternatives, not a counter, so a small model cannot list on without end.
         //
         // The parts every type shares are single rules, so the type alternative is only its own literal
         // and its own slots after the shared core (every type starts with Slots.CORE).
@@ -89,7 +91,7 @@ object StructuredGrammar {
         rules["conf"] = GrammarSyntax.enumRule(CONFIDENCE_WORDS)
         rules["lang"] = "\"\\\"\" [a-z] [a-z] [a-z]? (\"-\" [A-Za-z0-9]+)? \"\\\"\""
 
-        rules["parties"] = "\"[\" ws (party (ws \",\" ws party)*)? ws \"]\""
+        rules["parties"] = "\"[\" ws (${GrammarSyntax.list("party", MAX_PARTIES)})? ws \"]\""
         rules["party"] = GrammarSyntax.obj(
             "r" to "prole", "id" to "nameref", "n" to "pname", "k" to "pkind", "rel" to "prel", "c" to "conf",
         )
@@ -112,7 +114,7 @@ object StructuredGrammar {
         rules["refs"] = if (refIds.isEmpty()) {
             GrammarSyntax.lit(NONE)
         } else {
-            "${GrammarSyntax.lit(NONE)} | \"{\" ws ${GrammarSyntax.key("ids")} ws \"[\" ws refid (ws \",\" ws refid)* ws \"]\" " +
+            "${GrammarSyntax.lit(NONE)} | \"{\" ws ${GrammarSyntax.key("ids")} ws \"[\" ws ${GrammarSyntax.list("refid", MAX_REF_IDS)} ws \"]\" " +
                 "\",\" ws ${GrammarSyntax.key("c")} ws conf ws \"}\""
         }
         if (refIds.isNotEmpty()) rules["refid"] = refIds.joinToString(" | ") { GrammarSyntax.lit(it) }
@@ -122,7 +124,7 @@ object StructuredGrammar {
         rules["name"] = "${GrammarSyntax.lit(NONE)} | " + GrammarSyntax.obj("id" to "nameref", "c" to "conf")
 
         val extraIds = offered.idsOf(*EXTRA_KINDS)
-        rules["xlist"] = "\"[\" ws (extra (ws \",\" ws extra)*)? ws \"]\""
+        rules["xlist"] = "\"[\" ws (${GrammarSyntax.list("extra", MAX_EXTRAS)})? ws \"]\""
         rules["extra"] = GrammarSyntax.obj("lb" to "xlabel", "k" to "xkey", "id" to "xid", "v" to "xvalue", "c" to "conf")
         rules["xlabel"] = GrammarSyntax.string(nonEmpty = true)
         rules["xkey"] = "\"\\\"\" [a-z] [a-z_]+ \"\\\"\""
@@ -216,6 +218,17 @@ internal object GrammarSyntax {
         fields.joinToString(" \",\" ws ", prefix = "\"{\" ws ", postfix = " ws \"}\"") { (k, rule) -> "${key(k)} ws $rule" }
 
     fun enumRule(values: List<String>): String = values.joinToString(" | ") { lit(it) }
+
+    /**
+     * One to [max] entries of [item] joined by [separator], as nested optional repeats and no `{m,n}`:
+     * `item (sep item (sep item)?)?` for a max of 3. The grammar physically cannot list a fourth entry.
+     */
+    fun list(item: String, max: Int, separator: String = "ws \",\" ws"): String {
+        require(max >= 1) { "a list holds at least one entry" }
+        var tail = ""
+        repeat(max - 1) { tail = " ($separator $item$tail)?" }
+        return item + tail
+    }
 
     /** A JSON string, unbounded: `qchar+` or `qchar*`. Lengths are capped by the parser, not counted here. */
     fun string(nonEmpty: Boolean): String = "\"\\\"\" qchar${if (nonEmpty) "+" else "*"} \"\\\"\""

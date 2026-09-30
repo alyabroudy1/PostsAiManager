@@ -36,6 +36,19 @@ class GrammarAcceptanceTest {
         return JsonObject(root + ("s" to slots)).toString()
     }
 
+    /** [root] with [parties] copies of its first party and [extras] long extras. */
+    private fun withLists(root: JsonObject, parties: Int, extras: Int): String {
+        val party = (root.getValue("parties") as JsonArray).first()
+        val extra = buildJsonObject {
+            put("lb", "L".repeat(80))
+            put("k", "meter_number")
+            put("id", "NONE")
+            put("v", "v".repeat(300))
+            put("c", "LOW")
+        }
+        return JsonObject(root + ("parties" to JsonArray(List(parties) { party })) + ("x" to JsonArray(List(extras) { extra }))).toString()
+    }
+
     @Nested
     inner class Accepts {
         @Test
@@ -52,21 +65,12 @@ class GrammarAcceptanceTest {
         }
 
         @Test
-        fun `lists and strings longer than the old counted limits`() {
+        fun `strings longer than the old counted limits, and the short lists at their bounds`() {
             val c = cases.first { it.letter.id == Letters.invoice.id }
             val root = kotlinx.serialization.json.Json.parseToJsonElement(c.oracle).jsonObject
-            val party = (root.getValue("parties") as JsonArray).first()
-            val extra = buildJsonObject {
-                put("lb", "L".repeat(80))
-                put("k", "meter_number")
-                put("id", "NONE")
-                put("v", "v".repeat(300))
-                put("c", "LOW")
-            }
-            val long = JsonObject(
-                root + ("parties" to JsonArray(List(9) { party })) + ("x" to JsonArray(List(9) { extra })),
-            ).toString()
-            assertThat(c.matcher.accepts(long)).isTrue()
+            // Strings are unbounded (a 300 character value); the lists are bounded by unrolled optional repeats.
+            assertThat(c.matcher.accepts(withLists(root, StructuredGrammar.MAX_PARTIES, StructuredGrammar.MAX_EXTRAS))).isTrue()
+            assertThat(c.matcher.accepts(withLists(root, 1, 0))).isTrue()
         }
 
         @Test
@@ -138,6 +142,13 @@ class GrammarAcceptanceTest {
             assertThat(c.matcher.accepts(extraWith("fine"))).isTrue()
             // A raw line feed inside a string is not allowed (Json escapes it as \n, so break the text by hand).
             assertThat(c.matcher.accepts(extraWith("fine").replace("fine", "a\nb"))).isFalse()
+        }
+
+        @Test
+        fun `a list longer than its bound, which a small model must not run on into`() {
+            val root = kotlinx.serialization.json.Json.parseToJsonElement(c.oracle).jsonObject
+            assertThat(c.matcher.accepts(withLists(root, StructuredGrammar.MAX_PARTIES + 1, 0))).isFalse()
+            assertThat(c.matcher.accepts(withLists(root, 1, StructuredGrammar.MAX_EXTRAS + 1))).isFalse()
         }
 
         @Test

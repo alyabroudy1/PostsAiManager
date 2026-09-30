@@ -106,9 +106,14 @@ class GrammarAndPromptTest {
         }
 
         @Test
-        fun `extras may point at any offered candidate, and the list is a star not a counted repetition`() {
+        fun `extras may point at any offered candidate, and the list is unrolled optional repeats not a counted repetition`() {
             val r = rules(grammar)
-            assertThat(r.getValue("xlist")).contains(")*")
+            // Bounded by nesting (`extra (sep extra (sep extra)?)?`): no star that can run on, and no `{m,n}`.
+            assertThat(r.getValue("xlist")).doesNotContain(")*")
+            assertThat(r.getValue("xlist")).doesNotContain("{")
+            assertThat(Regex("\\bextra\\b").findAll(r.getValue("xlist")).count()).isEqualTo(StructuredGrammar.MAX_EXTRAS)
+            assertThat(Regex("\\bparty\\b").findAll(r.getValue("parties")).count()).isEqualTo(StructuredGrammar.MAX_PARTIES)
+            assertThat(Regex("\\brefid\\b").findAll(r.getValue("refs")).count()).isAtMost(StructuredGrammar.MAX_REF_IDS)
             val all = invoice.offered.rows.map { it.candidate.id }
             assertThat(idsIn(r.getValue("xid"))).containsExactlyElementsIn(all)
         }
