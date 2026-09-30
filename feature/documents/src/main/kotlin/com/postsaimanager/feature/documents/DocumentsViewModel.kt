@@ -4,11 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.document.DocumentProcessor
-import com.postsaimanager.core.domain.document.GetDocumentsUseCase
 import com.postsaimanager.core.domain.document.MoveDocumentToTrashUseCase
 import com.postsaimanager.core.domain.document.RestoreDocumentUseCase
+import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
-import com.postsaimanager.core.model.Document
+import com.postsaimanager.core.model.DocumentListItem
 import com.postsaimanager.core.model.ProcessingState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,6 +29,7 @@ class DocumentsViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val moveToTrashUseCase: MoveDocumentToTrashUseCase,
     private val restoreDocumentUseCase: RestoreDocumentUseCase,
+    private val observeDocumentListItems: ObserveDocumentListItemsUseCase,
     documentProcessor: DocumentProcessor,
 ) : ViewModel() {
 
@@ -46,14 +47,8 @@ class DocumentsViewModel @Inject constructor(
 
     val uiState: StateFlow<DocumentsUiState> =
         _searchQuery
-            .flatMapLatest { query ->
-                if (query.isBlank()) {
-                    documentRepository.getDocuments()
-                } else {
-                    documentRepository.searchDocuments(query)
-                }
-            }
-            .map<List<Document>, DocumentsUiState> { documents ->
+            .flatMapLatest { query -> observeDocumentListItems(query) }
+            .map<List<DocumentListItem>, DocumentsUiState> { documents ->
                 if (documents.isEmpty()) DocumentsUiState.Empty
                 else DocumentsUiState.Success(documents)
             }
@@ -92,6 +87,6 @@ class DocumentsViewModel @Inject constructor(
 sealed interface DocumentsUiState {
     data object Loading : DocumentsUiState
     data object Empty : DocumentsUiState
-    data class Success(val documents: List<Document>) : DocumentsUiState
+    data class Success(val documents: List<DocumentListItem>) : DocumentsUiState
     data class Error(val message: String) : DocumentsUiState
 }

@@ -3,8 +3,8 @@ package com.postsaimanager.feature.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.domain.document.DocumentProcessor
-import com.postsaimanager.core.domain.document.GetDocumentsUseCase
-import com.postsaimanager.core.model.Document
+import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
+import com.postsaimanager.core.model.DocumentListItem
 import com.postsaimanager.core.model.ProcessingState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +17,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    getDocumentsUseCase: GetDocumentsUseCase,
+    observeDocumentListItems: ObserveDocumentListItemsUseCase,
     documentProcessor: DocumentProcessor,
 ) : ViewModel() {
 
@@ -26,8 +26,8 @@ class HomeViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProcessingState.Idle)
 
     val uiState: StateFlow<HomeUiState> =
-        getDocumentsUseCase()
-            .map<List<Document>, HomeUiState> { documents ->
+        observeDocumentListItems()
+            .map<List<DocumentListItem>, HomeUiState> { documents ->
                 if (documents.isEmpty()) {
                     HomeUiState.Empty
                 } else {
@@ -49,7 +49,7 @@ sealed interface HomeUiState {
     data object Loading : HomeUiState
     data object Empty : HomeUiState
     data class Success(
-        val recentDocuments: List<Document>,
+        val recentDocuments: List<DocumentListItem>,
         val totalCount: Int,
     ) : HomeUiState
     data class Error(val message: String) : HomeUiState
