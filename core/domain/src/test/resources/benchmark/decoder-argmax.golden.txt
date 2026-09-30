@@ -1,5 +1,5 @@
 == invoice-2p
-type bill language null
+type bill language de
 slot customer_no N2 KD-40417 null 0.9 0.9 [score margin +0.64 (winner -0.63 of 2)]
 slot due_date D3 2026-10-15 DUE_DATE 0.9 0.9 [score margin +0.81 (winner +0.47 of 2)]
 slot iban I1 DE89370400440532013000 null 0.4 0.4 [score margin -0.30 (winner -0.30 of 1)]
@@ -11,8 +11,14 @@ party SENDER M1 Musterfirma GmbH COMPANY NONE 0.9 [score margin +0.86 (winner +0
 party ADDRESSEE M2 Erika Mustermann PERSON NONE 0.9 [score margin +0.50 (winner +0.50 of 1)]
 party CARE_OF M2 Erika Mustermann PERSON NONE 0.9 [score margin +0.62 (winner +0.62 of 1)]
 party SUBJECT_PERSON M3 Pos. Beschreibung COMPANY NONE 0.9 [score margin +0.33 (winner +0.16 of 4)]
+extra 66.00 EUR
+extra 29.00 EUR
+extra 1079.41 EUR
+extra 285.00 EUR
+extra 37.00 EUR
+extra 93.51 EUR
 == tax-long-7p
-type other language null
+type other language de
 slot customer_no N1 123/456/78901 null 0.9 0.9 [score margin +0.52 (winner +0.51 of 2)]
 slot due_date D3 2026-11-03 DUE_DATE 0.9 0.9 [score margin +0.38 (winner +1.15 of 2)]
 slot iban I1 DE89370400440532013000 null 0.9 0.9 [score margin +1.10 (winner +1.10 of 1)]
@@ -23,8 +29,13 @@ party SENDER M1 Finanzamt Beispielstadt COMPANY NONE 0.7 [score margin +0.03 (wi
 party ADDRESSEE M2 Erika Mustermann PERSON NONE 0.9 [score margin +0.47 (winner +0.47 of 1)]
 party CARE_OF M2 Erika Mustermann PERSON NONE 0.9 [score margin +0.77 (winner +0.77 of 1)]
 party SUBJECT_PERSON M3 Festsetzung der Einkommensteuer und Nachzahlung AUTHORITY NONE 0.9 [score margin +0.39 (winner +0.39 of 1)]
+extra 46020.00 EUR
+extra 260.00 EUR
+extra 10117.00 EUR
+extra 44610.00 EUR
+extra 4720.00 EUR
 == english-ambiguous-3p
-type reminder_dunning language null
+type reminder_dunning language en
 slot customer_no N1 NU-77120934 null 0.9 0.9 [score margin +0.42 (winner +0.63 of 2)]
 slot due_date D2 2026-10-10 DUE_DATE 0.9 0.9 [score margin +1.03 (winner +1.41 of 2)]
 slot fee A1 142.80 GBP FEE 0.7 0.7 [score margin +0.18 (winner +0.49 of 2)]
@@ -36,8 +47,9 @@ slot total A1 142.80 GBP TOTAL_DUE 0.9 0.9 [score margin +0.23 (winner +0.39 of 
 party SENDER M1 Northwind Utilities Ltd. COMPANY NONE 0.9 [score margin +0.93 (winner +0.93 of 1)]
 party ADDRESSEE M2 Mr John Sample PERSON NONE 0.7 [score margin +0.14 (winner +0.14 of 1)]
 party CARE_OF M2 Mr John Sample PERSON NONE 0.7 [score margin -0.22 (winner -0.22 of 1)]
+extra 57.00 GBP
 == receipt-noise-1p
-type receipt language null
+type receipt language ar
 slot customer_no N13 1049233 null 0.7 0.7 [score margin +0.03 (winner +0.07 of 13)]
 slot due_date DT1 2026-09-27T18:42 DUE_DATE 0.9 0.9 [score margin +0.41 (winner +0.25 of 2)]
 slot letter_date DT1 2026-09-27T18:42 LETTER_DATE 0.9 0.9 [score margin +0.83 (winner +0.64 of 2)]
@@ -45,8 +57,14 @@ slot receipt_no N13 1049233 null 0.7 0.7 [score margin +0.03 (winner +0.03 of 12
 slot reference N9 b40928b5b7a null 0.7 0.7 [score margin +0.11 (winner +1.29 of 12)]
 slot total A16 23.47 EUR TOTAL_DUE 0.7 0.6 [no currency next to the amount, score margin +0.01 (winner +0.02 of 17)]
 party SENDER M2 BEISPIELMARKT COMPANY NONE 0.9 [the name is a guess from its position, score margin +0.23 (winner +0.23 of 1)]
+extra ecdsa-plain-SHA256
+extra 0.79 EUR
+extra 3.29 EUR
+extra 2.50 EUR
+extra cec255404e4
+extra 19.15 EUR
 == degraded-3p
-type other language null
+type other language de
 slot customer_no N2 1EMH0000123456 null 0.9 0.6 [read with an OCR character repair (1EMHO000123456 -> 1EMH0000123456), score margin +0.28 (winner +0.15 of 3)]
 slot due_date D5 2026-09-30 DUE_DATE 0.7 0.7 [score margin +0.10 (winner -0.07 of 3)]
 slot iban I1 DE89370400440532013000 null 0.9 0.9 [score margin +0.28 (winner +0.28 of 1)]
@@ -57,7 +75,7 @@ party SENDER M1 Stadtwerke Beispielstadt COMPANY NONE 0.9 [score margin +0.35 (w
 party ADDRESSEE M2 Erika Mustermann PERSON NONE 0.9 [ADDRESSEE was taken from the return address, which contradicts the layout, score margin +0.52 (winner +0.52 of 1)]
 party CARE_OF M2 Erika Mustermann PERSON NONE 0.9 [CARE_OF was taken from the return address, which contradicts the layout, score margin +0.38 (winner +0.38 of 1)]
 == arabic-rtl-1p
-type outgoing_letter language null
+type outgoing_letter language de
 slot customer_no N1 2026-041 null 0.4 0.4 [score margin -0.55 (winner -0.55 of 1)]
 slot due_date D1 2026-10-20 DUE_DATE 0.9 0.9 [score margin +0.38 (winner +0.38 of 1)]
 slot letter_date D1 2026-10-20 LETTER_DATE 0.7 0.7 [score margin +0.09 (winner +0.09 of 1)]
@@ -66,7 +84,7 @@ slot sent_date D1 2026-10-20 LETTER_DATE 0.7 0.7 [score margin +0.20 (winner +0.
 slot total A1 450.00 EUR TOTAL_DUE 0.7 0.7 [score margin +0.09 (winner +0.09 of 1)]
 list cited_references N1:2026-041
 == N1-mahnung-telco-qr-1p
-type other language null
+type other language de
 slot customer_no N7 FIB-Mahn 4402917 4402917 null 0.9 0.9 [score margin +0.31 (winner +0.04 of 3)]
 slot due_date D1 2026-08-05 DUE_DATE 0.7 0.5 [due_date 2026-08-05 is before the letter date 2026-09-25, score margin +0.16 (winner +0.54 of 2)]
 slot iban I1 DE02120300000000202051 null 0.9 0.9 [score margin +0.51 (winner +0.51 of 1)]
@@ -78,8 +96,13 @@ party ADDRESSEE M1 Erika Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.84 (wi
 party CARE_OF M1 Erika Mustermann PERSON NONE 0.9 [score margin +0.92 (winner +0.92 of 1)]
 party ROUTING M7 Team Forderungen COMPANY NONE 0.9 [score margin +1.03 (winner +1.03 of 1)]
 party SUBJECT_PERSON M2 Position PERSON NONE 0.4 [the name is a guess from its position, score margin +0.12 (winner -0.33 of 4)]
+extra 5.00 EUR
+extra 59.98 EUR
+extra 2026-08-19
+extra 2026-08-771204
+extra COBADEFFXXX
 == N2-kfz-verlaengerung-2p
-type other language null
+type other language de
 slot customer_no N1 KFZ-4471-882-19 null 0.9 0.9 [score margin +0.79 (winner +0.79 of 1)]
 slot due_date D1 2027-01-01 DUE_DATE 0.9 0.9 [score margin +0.38 (winner +1.18 of 3)]
 slot iban I1 DE89370400440532013000 null 0.9 0.9 [score margin +0.24 (winner +0.24 of 1)]
@@ -90,8 +113,10 @@ party SENDER M1 Nordstern Direkt Versicherung AG COMPANY NONE 0.9 [score margin 
 party ADDRESSEE M3 Max und Erika Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.38 (winner +0.97 of 2)]
 party CARE_OF M3 Max und Erika Mustermann PERSON NONE 0.9 [score margin +0.63 (winner +0.62 of 2)]
 party SUBJECT_PERSON M5 Kfz-Haftpflicht und Teilkasko COMPANY NONE 0.9 [score margin +0.45 (winner -0.38 of 3)]
+extra 579.10 EUR
+extra 01234 555 210
 == N3-schule-familie-2p
-type school language null
+type school language de
 slot customer_no N1 30-12 null 0.4 0.4 [score margin -0.73 (winner -0.73 of 1)]
 slot due_date D3 2026-10-16 DUE_DATE 0.9 0.9 [score margin +0.22 (winner +0.08 of 2)]
 slot event_date D1 2026-11-24 APPOINTMENT 0.9 0.9 [score margin +0.77 (winner +0.70 of 2)]
@@ -104,7 +129,7 @@ party ADDRESSEE M2 Familie Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.51 (
 party CARE_OF M2 Familie Mustermann PERSON NONE 0.9 [score margin +0.25 (winner +0.25 of 1)]
 party ROUTING M4 Frau S. Sommer PERSON NONE 0.9 [score margin +0.69 (winner +0.69 of 1)]
 == N4-zhd-firma-1p
-type outgoing_letter language null
+type outgoing_letter language de
 slot customer_no N7 wV-2291 null 0.9 0.9 [score margin +0.28 (winner -0.04 of 4)]
 slot due_date D4 2026-10-15 DUE_DATE 0.9 0.9 [score margin +0.40 (winner -0.23 of 4)]
 slot iban I1 DE89370400440532013000 null 0.9 0.9 [score margin +0.36 (winner +0.36 of 1)]
@@ -118,8 +143,13 @@ party ADDRESSEE M1 Mustermann Consulting GmbH COMPANY NONE 0.9 [score margin +0.
 party CARE_OF M2 Frau Erika Mustermann PERSON NONE 0.7 [score margin +0.11 (winner +1.14 of 2)]
 party ROUTING M9 Herr T. Muster PERSON NONE 0.9 [score margin +0.29 (winner +0.29 of 1)]
 party SUBJECT_PERSON M1 Mustermann Consulting GmbH COMPANY NONE 0.9 [score margin +0.45 (winner -0.47 of 4)]
+extra vertrieb@buero-partner.example
+extra 2026-12-31
+extra 01234 888 44
+extra 1428.00 EUR
+extra 2027-12-31
 == N5-co-familie-1p
-type bill language null
+type bill language de
 slot customer_no N3 1234567 null 0.9 0.9 [score margin +0.74 (winner +0.23 of 4)]
 slot due_date D1 2026-10-12 DUE_DATE 0.9 0.9 [score margin +0.90 (winner +1.00 of 2)]
 slot iban I1 DE02100100100006820101 null 0.9 0.6 [read with an OCR character repair (DEo2 10o1 0010 0006 8201 01 -> DE02100100100006820101), score margin +0.69 (winner +0.69 of 1)]
@@ -132,8 +162,9 @@ party ADDRESSEE M3 Jonas Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.33 (wi
 party CARE_OF M3 Jonas Mustermann PERSON NONE 0.9 [score margin +0.74 (winner +0.17 of 2)]
 party ROUTING M8 Frau L. Test PERSON NONE 0.9 [score margin +0.25 (winner +0.25 of 1)]
 party SUBJECT_PERSON M2 Studierendensekretariat COMPANY NONE 0.4 [the name is a guess from its position, score margin -0.60 (winner -0.60 of 1)]
+extra O1234
 == N6-nebenkosten-3p
-type bill language null
+type bill language de
 slot customer_no N2 BK-2025-0318 null 0.4 0.4 [score margin -0.58 (winner -0.58 of 1)]
 slot due_date D6 2026-10-31 DUE_DATE 0.9 0.9 [score margin +0.26 (winner -0.22 of 4)]
 slot iban I1 DE89370400440532013000 null 0.7 0.7 [score margin +0.12 (winner +0.12 of 1)]
@@ -146,8 +177,10 @@ party ADDRESSEE M1 Mohammad Mustermann PERSON NONE 0.9 [score margin +0.50 (winn
 party CARE_OF M1 Mohammad Mustermann PERSON NONE 0.7 [score margin +0.12 (winner +0.12 of 1)]
 party ROUTING M7 Frau H. Muster PERSON NONE 0.7 [score margin +0.15 (winner +0.15 of 1)]
 party SUBJECT_PERSON M8 Ihr Anteil € PERSON NONE 0.4 [score margin +0.04 (winner -0.79 of 3)]
+extra 186.32 EUR
+extra 301.77 EUR
 == N7-beitragsservice-1p
-type reminder_dunning language null
+type reminder_dunning language de
 slot customer_no N1 987 654 321 null 0.9 0.9 [score margin +0.29 (winner +0.29 of 1)]
 slot due_date D1 2026-10-01 DUE_DATE 0.7 0.7 [score margin +0.00 (winner +0.67 of 3)]
 slot fee A1 55.08 EUR FEE 0.9 0.9 [score margin +0.92 (winner +0.92 of 1)]
@@ -161,8 +194,10 @@ party SENDER M3 Beitragsservice Beispiel COMPANY NONE 0.9 [score margin +0.35 (w
 party ADDRESSEE M1 Erika Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.84 (winner +0.84 of 1)]
 party CARE_OF M1 Erika Mustermann PERSON NONE 0.9 [score margin +0.92 (winner +0.92 of 1)]
 party SUBJECT_PERSON M2 Zeitraum COMPANY NONE 0.4 [the name is a guess from its position, score margin +0.09 (winner -0.87 of 3)]
+extra BELADEBEXXX
+extra 2026-12-31
 == N8-info-bank-noaction-1p
-type outgoing_letter language null
+type outgoing_letter language de
 slot customer_no N1 7788123 null 0.9 0.9 [score margin +0.25 (winner +0.25 of 1)]
 slot due_date D1 2026-11-01 DUE_DATE 0.7 0.7 [score margin +0.08 (winner +0.08 of 1)]
 slot letter_date D2 2026-09-21 LETTER_DATE 0.9 0.9 [score margin +0.27 (winner +0.27 of 1)]
@@ -173,7 +208,7 @@ party SENDER M1 Beispielbank eG COMPANY NONE 0.9 [score margin +0.37 (winner +0.
 party ADDRESSEE M2 Max Mustermann PERSON NONE 0.9 [score margin +0.44 (winner +0.44 of 1)]
 party CARE_OF M2 Max Mustermann PERSON NONE 0.9 [score margin +0.45 (winner +0.45 of 1)]
 == N9-fuzzy-name-1p
-type bill language null
+type bill language de
 slot customer_no N3 AB-2026-10-4471 null 0.9 0.9 [score margin +0.47 (winner +0.23 of 2)]
 slot due_date D1 2026-10-12 DUE_DATE 0.9 0.9 [score margin +1.37 (winner +1.37 of 1)]
 slot iban I1 DE89370400440532013000 null 0.9 0.9 [score margin +1.07 (winner +1.07 of 1)]
@@ -186,8 +221,11 @@ party ADDRESSEE M1 Mohamad Mustermann PERSON NONE 0.9 [score margin +0.29 (winne
 party CARE_OF M1 Mohamad Mustermann PERSON NONE 0.9 [score margin +0.31 (winner +0.31 of 1)]
 party ROUTING M7 Zeitraum PERSON NONE 0.4 [the name is a guess from its position, score margin -0.89 (winner -0.89 of 1)]
 party SUBJECT_PERSON M2 Leistung COMPANY NONE 0.9 [the name is a guess from its position, score margin +0.74 (winner -0.44 of 2)]
+extra 01234 600
+extra 60012987
+extra 01234 600 10
 == N10-kinderarzt-termin-1p
-type outgoing_letter language null
+type outgoing_letter language de
 slot customer_no N1 512345 null 0.7 0.7 [score margin -0.15 (winner -0.15 of 1)]
 slot due_date DT1 2026-11-12T09:30 DUE_DATE 0.9 0.9 [score margin +0.31 (winner +0.31 of 1)]
 slot letter_date D1 2026-09-25 LETTER_DATE 0.9 0.9 [score margin +0.26 (winner +0.26 of 1)]
@@ -199,3 +237,4 @@ party ADDRESSEE M3 Adam Mustermann PERSON NONE 0.9 [score margin +1.03 (winner +
 party CARE_OF M3 Adam Mustermann PERSON NONE 0.9 [score margin +0.70 (winner +0.97 of 3)]
 party ROUTING M7 Beispiel PERSON NONE 0.7 [the name is a guess from its position, score margin +0.02 (winner +0.02 of 1)]
 party SUBJECT_PERSON M3 Adam Mustermann PERSON NONE 0.9 [score margin +0.21 (winner -0.74 of 2)]
+extra 01234 700 20

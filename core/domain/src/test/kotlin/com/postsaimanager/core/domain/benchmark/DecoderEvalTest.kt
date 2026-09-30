@@ -23,7 +23,8 @@ class DecoderEvalTest {
     private val recordings = Recordings.load(File("src/test/resources/benchmark/recordings"))
     private val variant = InterpreterMetrics.SCORING_VARIANT
     private val scoring = recordings.filter { it.variant == variant }
-    private val base: ScoringProfile = ModelProfiles.QWEN35_08B.scoring
+    /** The model's scoring profile with the plain per-slot argmax: the baseline every decoder is compared with. */
+    private val base: ScoringProfile = ModelProfiles.QWEN35_08B.scoring.copy(decoder = DecoderSpec())
     private val tuner = ScoringTuner(docs, recordings)
     private val folds = tuner.folds(variant)
 
@@ -112,7 +113,7 @@ class DecoderEvalTest {
     private fun facts(): Int = docs.sumOf { (m, f) -> ExtractionBenchmark.score(m, f).facts.count { it.found } }
 
     private fun row(label: String, s: InterpreterScore, extra: String = "") =
-        "| $label | ${pct(s.fieldMatch)} | ${pct(s.rolesMatch)} | ${pct(s.hallucination)} | $extra |"
+        "| $label | ${pct(s.fieldMatch)} | ${pct(s.rolesMatch)} | ${pct(s.hallucination)} | ${String.format(Locale.ROOT, "%.2f", s.extrasPerDoc)} | $extra |"
 
     @Test
     fun evaluate() {
@@ -124,15 +125,15 @@ class DecoderEvalTest {
         val shipped = detail { base }
         val argmaxCf = detail(tuner.crossFitted(variant))
         sb.appendLine("## Baselines\n")
-        sb.appendLine("| variant | field match | roles | hallucination | note |\n|---|---|---|---|---|")
-        sb.appendLine(row("argmax, shipped profile (t = -12: always answer)", shipped.score, "what ships"))
+        sb.appendLine("| variant | field match | roles | hallucination | extras/doc | note |\n|---|---|---|---|---|---|")
+        sb.appendLine(row("argmax (t = -12: always answer)", shipped.score, "plain per-slot baseline"))
         sb.appendLine(row("argmax, thresholds cross-fitted", argmaxCf.score, "Z's tuner, held out"))
         sb.appendLine()
 
         val heldOut = LinkedHashMap<String, Detail>()
         val chosen = LinkedHashMap<String, Pair<DecoderSpec, DecoderSpec>>()
         sb.appendLine("## Decoders, parameters tuned on one fold and tested on the other (both ways; every letter is decided with parameters fitted on the other 8)\n")
-        sb.appendLine("| decoder | grid | held-out field match | held-out roles | held-out hallucination | in-sample best (not a result) | tuned on A | tuned on B |\n|---|---|---|---|---|---|---|---|")
+        sb.appendLine("| decoder | grid | held-out field match | held-out roles | held-out hallucination | held-out extras/doc | in-sample best (not a result) | tuned on A | tuned on B |\n|---|---|---|---|---|---|---|---|---|")
         for (f in families) {
             val onA = tune(f, a)
             val onB = tune(f, b)
@@ -142,7 +143,7 @@ class DecoderEvalTest {
             val inSample = f.grid.maxOf { spec -> tuner.eval(variant, a + b, withDecoder(spec))?.fieldMatch ?: 0.0 }
             fun p(s: DecoderSpec) = "pen ${s.dateOrderPenalty}, bonus ${s.tripleBonus}, tau ${s.temperature}, abstain ${s.abstain}"
             sb.appendLine(
-                "| ${f.label} | ${f.grid.size} | ${pct(d.score.fieldMatch)} | ${pct(d.score.rolesMatch)} | ${pct(d.score.hallucination)} | ${pct(inSample)} | ${if (f.grid.size > 1) p(onA) else "-"} | ${if (f.grid.size > 1) p(onB) else "-"} |",
+                "| ${f.label} | ${f.grid.size} | ${pct(d.score.fieldMatch)} | ${pct(d.score.rolesMatch)} | ${pct(d.score.hallucination)} | ${String.format(Locale.ROOT, "%.2f", d.score.extrasPerDoc)} | ${pct(inSample)} | ${if (f.grid.size > 1) p(onA) else "-"} | ${if (f.grid.size > 1) p(onB) else "-"} |",
             )
         }
         sb.appendLine()
