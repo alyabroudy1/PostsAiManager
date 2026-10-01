@@ -102,10 +102,10 @@ class ExtractionV2AdapterAddressTest {
     }
 
     @Test
-    fun `a locker shares the po box row and a part a letter does not print has no row`() {
+    fun `a locker has its own row and a part a letter does not print has no row`() {
         val locker = PostalAddress(lines = listOf("Packstation 123"), packstation = AddressPartValue("Packstation 123", 0, box(0.1f), 0.9f))
         val rows = AddressRows.rows(PartyRole.ADDRESSEE, locker)
-        assertThat(rows.map { it.key }).containsExactly("addressee.po_box", "addressee.raw")
+        assertThat(rows.map { it.key }).containsExactly("addressee.packstation", "addressee.raw")
         assertThat(AddressRows.rows(PartyRole.SUBJECT_PERSON, locker)).isEmpty()
     }
 

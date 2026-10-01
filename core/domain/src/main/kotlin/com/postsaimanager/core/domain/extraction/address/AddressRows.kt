@@ -14,8 +14,8 @@ class AddressRow(val key: String, val value: String, val confidence: Float, val 
  * feeds which row, and the raw-lines row that keeps the whole block. The existing `sender` and `addressee` rows (the party names)
  * are unrelated and unchanged.
  *
- * A post office box and a locker share the `po_box` row (the printed line says which); the salutation and the attention line are kept
- * in the model and in `raw`, not as rows of their own.
+ * A post office box (`po_box`) and a locker (`packstation`) each have their own row. Every row's label is rendered from its key
+ * (`SlotLabels` in the documents feature); a new part needs a label there.
  */
 object AddressRows {
 
@@ -62,7 +62,8 @@ object AddressRows {
         single(AddressPart.CITY, address.city)
         single(AddressPart.REGION, address.region)
         single(AddressPart.COUNTRY, address.countryIso2)
-        single(AddressPart.PO_BOX, address.poBox ?: address.packstation)
+        single(AddressPart.PO_BOX, address.poBox)
+        single(AddressPart.PACKSTATION, address.packstation)
         add(RAW, address.lines.joinToString("\n"), address.confidence, union(address.parts.mapNotNull { it.second.bbox }))
         return rows
     }
