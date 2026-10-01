@@ -10,43 +10,47 @@ import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.DocumentProcessor
-import com.postsaimanager.core.domain.document.EntityCoverageFilter
-import com.postsaimanager.core.domain.document.EntityProposalService
 import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
-import com.postsaimanager.core.domain.document.ProfileMatchingService
+import com.postsaimanager.core.domain.document.ReadAgainAsFamilyUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
-import com.postsaimanager.core.domain.repository.ProfileRepository
+import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
+import com.postsaimanager.core.model.DocumentPreview
 import com.postsaimanager.core.model.DocumentStatus
-import com.postsaimanager.core.model.EntityProposal
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
-import com.postsaimanager.core.model.MatchType
 import com.postsaimanager.core.model.ProcessingState
-import com.postsaimanager.core.model.Profile
-import com.postsaimanager.core.model.ProfileRole
-import com.postsaimanager.core.model.ProfileSuggestion
+import com.postsaimanager.core.model.ReviewState
+import com.postsaimanager.core.model.TextBounds
+import com.postsaimanager.core.model.ValueSource
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
+/** The page preview opened by "Show on page": loading, then the pages with the field's box marked. */
+data class FieldPreviewState(
+    val loading: Boolean = true,
+    val preview: DocumentPreview? = null,
+    /** Index into [DocumentPreview.pages] of the field's page. */
+    val initialPageIndex: Int = 0,
+)
+
 @HiltViewModel
 class DocumentDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     getDocumentDetailUseCase: GetDocumentDetailUseCase,
     private val documentRepository: DocumentRepository,
-    private val profileRepository: ProfileRepository,
     private val documentProcessor: DocumentProcessor,
-    private val profileMatchingService: ProfileMatchingService,
-    private val entityProposalService: EntityProposalService,
+    private val readAgainAsFamily: ReadAgainAsFamilyUseCase,
+    private val getDocumentPreview: GetDocumentPreviewUseCase,
     private val documentExporter: DocumentExporter,
     private val externalFlowGuard: ExternalFlowGuard,
 ) : ViewModel() {
@@ -79,51 +83,6 @@ class DocumentDetailViewModel @Inject constructor(
 
     private val _processingProgress = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     val processingProgress: StateFlow<ProcessingState> = _processingProgress.asStateFlow()
-
-    /**
-     * Every field-based suggestion `ProfileMatchingService` produced, before
-     * [EntityCoverageFilter] removes the ones the entity path already covers — see
-     * [profileSuggestions]. Kept separate so [linkSuggestionToProfile] and friends, which
-     * update this list by identity, are not fighting the filtered view over what "the list"
-     * means.
-     */
-    private val _profileSuggestions = MutableStateFlow<List<ProfileSuggestion>>(emptyList())
-
-    /**
-     * Entities the app found but would not act on automatically — see
-     * [EntityProposalService]. Document-scoped and answered here, not a global inbox: see
-     * [EntityProposal]'s class doc.
-     */
-    val entityProposals: StateFlow<List<EntityProposal>> =
-        entityProposalService.pendingProposals(documentId)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    /**
-     * Field-based suggestions actually worth showing: [EntityCoverageFilter] drops any that
-     * ask about a person [entityProposals] already asks about, or that a profile the entity
-     * path linked to this document already covers (task 7.14.11d — a Jobcenter letter used to
-     * be able to put up two differently-worded cards asking about the same Jobcenter).
-     *
-     * Combined here, in the ViewModel, rather than behind a new domain port: the two inputs
-     * ([entityProposalService.pendingProposals] and [profileRepository.getProfilesForDocument])
-     * are already domain-level flows this ViewModel holds a reference to for other reasons, and
-     * the actual dedupe rule is [EntityCoverageFilter] — a pure, independently-tested function
-     * in `:core:domain`. A new port here would only wrap the same two calls this class already
-     * makes, without moving any decision out of the ViewModel.
-     */
-    val profileSuggestions: StateFlow<List<ProfileSuggestion>> = combine(
-        _profileSuggestions,
-        entityProposals,
-        profileRepository.getProfilesForDocument(documentId),
-    ) { suggestions, proposals, linkedProfiles ->
-        EntityCoverageFilter.apply(
-            suggestions, proposals, linkedProfiles.map { (profile, _) -> profile },
-        )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    /** Holds the suggestion that triggered profile creation — shown in ProfileEditSheet */
-    private val _editingProfileSuggestion = MutableStateFlow<ProfileSuggestion?>(null)
-    val editingProfileSuggestion: StateFlow<ProfileSuggestion?> = _editingProfileSuggestion.asStateFlow()
 
     val uiState: StateFlow<DocumentDetailUiState> =
         getDocumentDetailUseCase(documentId)
@@ -160,10 +119,7 @@ class DocumentDetailViewModel @Inject constructor(
                     is ProcessingState.Failed -> state.documentId
                     ProcessingState.Idle -> null
                 }
-                if (documentIdOfState == documentId) {
-                    _processingProgress.value = state
-                    if (state is ProcessingState.Completed) runProfileMatching()
-                }
+                if (documentIdOfState == documentId) _processingProgress.value = state
             }
         }
         viewModelScope.launch {
@@ -177,25 +133,6 @@ class DocumentDetailViewModel @Inject constructor(
                 if (state.document.status == DocumentStatus.NEW && !autoEnqueued) {
                     autoEnqueued = true
                     documentProcessor.enqueue(documentId)
-                }
-
-                if (state.extractedData.isNotEmpty() && _profileSuggestions.value.isEmpty()) {
-                    runProfileMatching()
-                }
-            }
-        }
-    }
-
-    private suspend fun runProfileMatching() {
-        val state = uiState.value
-        if (state is DocumentDetailUiState.Success) {
-            val suggestions = profileMatchingService.matchProfiles(documentId, state.extractedData)
-            _profileSuggestions.value = suggestions
-            // Auto-link exact matches
-            suggestions.filter { it.matchType == MatchType.EXACT_MATCH && !it.isAutoLinked }.forEach { suggestion ->
-                profileMatchingService.linkExistingProfile(suggestion)
-                _profileSuggestions.value = _profileSuggestions.value.map {
-                    if (it === suggestion) it.copy(isAutoLinked = true) else it
                 }
             }
         }
@@ -214,41 +151,68 @@ class DocumentDetailViewModel @Inject constructor(
      * by `DocumentProcessingWorker`, so processing survives this screen closing.
      */
     fun startProcessing(force: Boolean = false) {
-        viewModelScope.launch {
-            _profileSuggestions.value = emptyList()
-            documentProcessor.enqueue(documentId, force = force)
-        }
+        viewModelScope.launch { documentProcessor.enqueue(documentId, force = force) }
     }
 
+    // ── The family chip ──
+    /** "Change type": the person says what the document is. The sections re-present at once; nothing is re-read. */
+    fun changeFamily(familyId: String) {
+        viewModelScope.launch { documentRepository.setDocumentFamily(documentId, familyId) }
+    }
+
+    /** "Read again as …": a fresh read with the family forced; rows a person already reviewed are kept. */
+    fun readAgainAs(familyId: String) {
+        viewModelScope.launch { readAgainAsFamily(documentId, familyId) }
+    }
+
+    // ── Review ──
     /**
-     * The fields [confirmAllFields] just confirmed, exactly as they were before — non-null
-     * only while an undo is still offered. `DocumentDetailScreen` shows the Snackbar for
-     * this and clears it via [undoConfirmAll]/[dismissUndo] once the Snackbar resolves.
+     * The fields a confirm-many just confirmed, exactly as they were before — non-null only while an undo is still
+     * offered. `DocumentDetailScreen` shows the Snackbar for this and clears it via [undoConfirmAll]/[dismissConfirmAllUndo]
+     * once the Snackbar resolves.
      */
     private val _pendingConfirmAllUndo = MutableStateFlow<List<ExtractedData>?>(null)
     val pendingConfirmAllUndo: StateFlow<List<ExtractedData>?> = _pendingConfirmAllUndo.asStateFlow()
 
-    // ── Field CRUD ──
-    fun confirmField(fieldId: String) { viewModelScope.launch { documentRepository.confirmExtractedField(fieldId) } }
+    /** ✓ on a row: the person accepts the value as it is. */
+    fun confirmField(fieldId: String) = setReviewState(listOf(fieldId), ReviewState.CONFIRMED)
+
+    /** ✕ on a row: the person does not want this value. It moves to "Ignored" and a re-read never brings it back. */
+    fun ignoreField(fieldId: String) = setReviewState(listOf(fieldId), ReviewState.IGNORED)
+
+    /** "Restore" in the Ignored footer: back to unreviewed. */
+    fun restoreField(fieldId: String) = setReviewState(listOf(fieldId), ReviewState.UNREVIEWED)
+
+    /** Block-level Confirm (an address block): every row of the block. */
+    fun confirmFields(fieldIds: List<String>) = setReviewState(fieldIds, ReviewState.CONFIRMED)
+
+    /** Block-level Ignore (an address block): every row of the block. */
+    fun ignoreFields(fieldIds: List<String>) = setReviewState(fieldIds, ReviewState.IGNORED)
+
+    // EDITED is never set here: an edit carries a value and goes through updateField.
+    private fun setReviewState(fieldIds: List<String>, state: ReviewState) {
+        viewModelScope.launch { fieldIds.forEach { documentRepository.setFieldReviewState(it, state) } }
+    }
 
     /**
-     * "Confirm all" (5.3) — one batched repository call rather than [confirmField] looped
-     * over every remaining field; see [DocumentRepository.confirmAllExtractedFields].
-     * Whether a low-confidence field is among them, and therefore whether the "N fields are
-     * worth checking — confirm anyway?" prompt is needed first, is `DocumentDetailScreen`'s
-     * call to make (it already has [ExtractedData.needsReview] on every field on screen) —
-     * this just performs the confirm once asked to.
+     * "Confirm n confident": confirms every open field the extraction was sure of and leaves the uncertain ones for the
+     * person (a field nobody has looked at is never confirmed on their behalf). Offers the undo.
      */
-    fun confirmAllFields() {
+    fun confirmConfidentFields() = confirmMany(onlyConfident = true)
+
+    /** "Confirm all": once nothing uncertain is left, confirms every open field. Offers the undo. */
+    fun confirmAllFields() = confirmMany(onlyConfident = false)
+
+    private fun confirmMany(onlyConfident: Boolean) {
         viewModelScope.launch {
-            val result = documentRepository.confirmAllExtractedFields(documentId)
+            val result = documentRepository.confirmAllExtractedFields(documentId, onlyConfident = onlyConfident)
             if (result is PamResult.Success && result.data.isNotEmpty()) {
                 _pendingConfirmAllUndo.value = result.data
             }
         }
     }
 
-    /** Reverts the last "Confirm all" to exactly what it was before — the Snackbar's Undo. */
+    /** Reverts the last confirm-many to exactly what it was before — the Snackbar's Undo. */
     fun undoConfirmAll() {
         val fields = _pendingConfirmAllUndo.value ?: return
         _pendingConfirmAllUndo.value = null
@@ -258,95 +222,54 @@ class DocumentDetailViewModel @Inject constructor(
     /** The Snackbar timed out or was dismissed without Undo — nothing left to revert. */
     fun dismissConfirmAllUndo() { _pendingConfirmAllUndo.value = null }
 
+    // ── Field CRUD ──
+    /** A field the person adds by hand: their own value, so it is theirs from the start. */
     fun addField(name: String, value: String, type: ExtractedFieldType) {
         viewModelScope.launch {
             documentRepository.addExtractedField(ExtractedData(
                 id = UuidGenerator.generate(), documentId = documentId,
                 fieldName = name, fieldValue = value, fieldType = type,
-                confidence = 1.0f, isConfirmed = true,
+                confidence = 1.0f, isConfirmed = true, source = ValueSource.USER,
             ))
         }
     }
 
+    /** ✎ Edit: the person's value (and name, for a row they named themselves). The repository marks the row edited. */
     fun updateField(fieldId: String, name: String, value: String) {
         viewModelScope.launch { documentRepository.updateExtractedField(fieldId, name, value) }
     }
 
-    fun deleteField(fieldId: String) {
-        viewModelScope.launch { documentRepository.deleteExtractedField(fieldId) }
+    // ── Summary ──
+    /** The person's own summary: kept from now on, never replaced by a later reading. */
+    fun updateSummary(text: String) {
+        viewModelScope.launch { documentRepository.updateSummary(documentId, text) }
     }
 
-    // ── Profile linking ──
-    fun linkSuggestionToProfile(suggestion: ProfileSuggestion) {
-        viewModelScope.launch {
-            profileMatchingService.linkExistingProfile(suggestion)
-            _profileSuggestions.value = _profileSuggestions.value.map {
-                if (it.role == suggestion.role && it.existingProfile?.id == suggestion.existingProfile?.id) {
-                    it.copy(isAutoLinked = true)
-                } else it
-            }
-        }
-    }
+    // ── "Show on page" ──
+    private val _fieldPreview = MutableStateFlow<FieldPreviewState?>(null)
 
-    /** Opens the ProfileEditSheet pre-filled with extracted data */
-    fun openProfileCreation(suggestion: ProfileSuggestion) {
-        _editingProfileSuggestion.value = suggestion
-    }
+    /** The page preview opened by "Show on page", or null while it is closed. */
+    val fieldPreview: StateFlow<FieldPreviewState?> = _fieldPreview.asStateFlow()
 
-    fun dismissProfileCreation() {
-        _editingProfileSuggestion.value = null
-    }
+    private var previewJob: Job? = null
 
-    /** Called when user confirms profile creation from the edit sheet */
-    fun saveProfileFromForm(formData: ProfileFormData, suggestion: ProfileSuggestion) {
-        viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            val profile = Profile(
-                id = UuidGenerator.generate(),
-                type = formData.type,
-                name = formData.name.ifBlank { formData.organization },
-                organization = formData.organization.ifBlank { null },
-                department = formData.department.ifBlank { null },
-                street = formData.street.ifBlank { null },
-                city = formData.city.ifBlank { null },
-                postalCode = formData.postalCode.ifBlank { null },
-                country = formData.country.ifBlank { null },
-                phone = formData.phone.ifBlank { null },
-                email = formData.email.ifBlank { null },
-                website = formData.website.ifBlank { null },
-                reference = formData.reference.ifBlank { null },
-                notes = formData.notes.ifBlank { null },
-                createdAt = now,
-                modifiedAt = now,
+    /** Opens the pages on [page] with [bbox] marked. */
+    fun showOnPage(page: Int?, bbox: TextBounds?) {
+        previewJob?.cancel()
+        _fieldPreview.value = FieldPreviewState(loading = true)
+        previewJob = viewModelScope.launch {
+            val loaded = getDocumentPreview.forField(documentId, page, bbox)
+            _fieldPreview.value = FieldPreviewState(
+                loading = false,
+                preview = loaded,
+                initialPageIndex = loaded?.pages?.indexOfFirst { it.pageNumber == page }?.coerceAtLeast(0) ?: 0,
             )
-
-            val result = profileRepository.createProfile(profile)
-            if (result is PamResult.Success) {
-                profileRepository.linkProfileToDocument(profile.id, documentId, suggestion.role)
-                _profileSuggestions.value = _profileSuggestions.value.map {
-                    if (it.role == suggestion.role && it.matchType == MatchType.NEW_PROFILE) {
-                        it.copy(isAutoLinked = true, existingProfile = profile)
-                    } else it
-                }
-            }
-            _editingProfileSuggestion.value = null
         }
     }
 
-    fun dismissSuggestion(suggestion: ProfileSuggestion) {
-        _profileSuggestions.value = _profileSuggestions.value.filter { it !== suggestion }
-    }
-
-    // ── Entity proposals ──
-    // Both answers are fire-and-forget from the UI's perspective: entityProposals is backed by
-    // the same Room row the service just resolved, so the list updates on its own once the
-    // write lands — there is no local list to reconcile here, unlike profileSuggestions above.
-    fun acceptProposal(proposal: EntityProposal) {
-        viewModelScope.launch { entityProposalService.accept(proposal) }
-    }
-
-    fun dismissProposal(proposal: EntityProposal) {
-        viewModelScope.launch { entityProposalService.dismiss(proposal) }
+    fun closeFieldPreview() {
+        previewJob?.cancel()
+        _fieldPreview.value = null
     }
 
     // ── PDF generation ──
