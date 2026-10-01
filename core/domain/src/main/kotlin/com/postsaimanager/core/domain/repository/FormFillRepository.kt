@@ -33,6 +33,9 @@ interface FormFillRepository {
     /** Stores [fields] as the fields of [fillId]; a field a person reviewed keeps its value, source and state. */
     suspend fun saveFields(fillId: String, fields: List<FormField>)
 
+    /** Deletes every field of [fillId], reviewed or not (the reading they came from is out of date). */
+    suspend fun deleteFields(fillId: String)
+
     /**
      * Writes a value a person gave or confirmed ([reviewState] EDITED or CONFIRMED, source USER or the field's own),
      * clearing "skipped" and "reconfirm". A null [value] empties the field.

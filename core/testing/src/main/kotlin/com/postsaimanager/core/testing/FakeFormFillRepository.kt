@@ -40,6 +40,10 @@ class FakeFormFillRepository : FormFillRepository {
         allFields.value = allFields.value.filterNot { it.formFillId == fillId } + merged
     }
 
+    override suspend fun deleteFields(fillId: String) {
+        allFields.value = allFields.value.filterNot { it.formFillId == fillId }
+    }
+
     override suspend fun setValue(
         fieldId: String,
         value: String?,

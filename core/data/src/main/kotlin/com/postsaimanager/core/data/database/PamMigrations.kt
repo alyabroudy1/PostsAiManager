@@ -479,6 +479,13 @@ object PamMigrations {
         }
     }
 
+    /** v16 to v17: a form fill records the reading (way of reading plus OCR) it was built from, so an out-of-date fill is never resumed. */
+    val MIGRATION_16_17 = object : Migration(16, 17) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `form_fills` ADD COLUMN `readingKey` TEXT")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -495,5 +502,6 @@ object PamMigrations {
         MIGRATION_13_14,
         MIGRATION_14_15,
         MIGRATION_15_16,
+        MIGRATION_16_17,
     )
 }

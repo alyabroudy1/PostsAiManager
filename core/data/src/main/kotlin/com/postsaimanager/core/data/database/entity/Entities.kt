@@ -176,6 +176,8 @@ data class FormFillEntity(
     val roundAsked: Int,
     val createdAt: Long,
     val updatedAt: Long,
+    /** The way of reading plus the OCR the fields were built from (see `FormFill.readingKey`). */
+    val readingKey: String? = null,
 )
 
 /** One blank of a form (see `FormField`); `labelBox`, `fillBox` and `options` are JSON text. Gone with its fill. */

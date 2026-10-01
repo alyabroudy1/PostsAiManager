@@ -50,6 +50,10 @@ class FormFillRepositoryImpl @Inject constructor(
         dao.replaceFields(fillId, merged.map(FormFillMapper::toEntity))
     }
 
+    override suspend fun deleteFields(fillId: String) = withContext(ioDispatcher) {
+        dao.deleteFields(fillId)
+    }
+
     override suspend fun setValue(
         fieldId: String,
         value: String?,

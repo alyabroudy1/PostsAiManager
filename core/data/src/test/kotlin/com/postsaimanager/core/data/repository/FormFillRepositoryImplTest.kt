@@ -46,6 +46,7 @@ class FormFillRepositoryImplTest {
             currentFieldId = "f1",
             awaiting = FormAwaiting(FormAwaitKind.ROLE, role = FormRole.PAYER),
             roundAsked = 3,
+            readingKey = "v4-0123456789abcdef",
             conversationId = "conv-d",
         )
 
@@ -108,6 +109,18 @@ class FormFillRepositoryImplTest {
         val emptied = repository.fields("fill-d").single()
         assertThat(emptied.value).isNull()
         assertThat(emptied.valueSource).isEqualTo(FormValueSource.NONE)
+    }
+
+    @Test
+    fun `deleting the fields drops reviewed ones too`() = runTest {
+        repository.saveFill(fill())
+        repository.saveFields("fill-d", listOf(field("a"), field("b")))
+        repository.setValue("a", "Ja", FormValueSource.USER, ReviewState.EDITED, "ahmad", nowMs = 5)
+
+        repository.deleteFields("fill-d")
+
+        assertThat(repository.fields("fill-d")).isEmpty()
+        assertThat(repository.getFill("fill-d")).isNotNull()
     }
 
     @Test

@@ -38,6 +38,7 @@ internal object FormFillMapper {
         localeTag = e.localeTag,
         awaiting = e.awaiting?.let { decode(FormAwaiting.serializer(), it) },
         roundAsked = e.roundAsked,
+        readingKey = e.readingKey,
         createdAt = e.createdAt,
         updatedAt = e.updatedAt,
     )
@@ -53,6 +54,7 @@ internal object FormFillMapper {
         localeTag = f.localeTag,
         awaiting = f.awaiting?.let { json.encodeToString(FormAwaiting.serializer(), it) },
         roundAsked = f.roundAsked,
+        readingKey = f.readingKey,
         createdAt = f.createdAt,
         updatedAt = f.updatedAt,
     )

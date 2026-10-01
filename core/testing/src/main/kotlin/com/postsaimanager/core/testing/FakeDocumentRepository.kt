@@ -295,7 +295,9 @@ fun testDocument(
     deletedAt: Long? = null,
     extractorVersion: String? = null,
     extractionType: String? = null,
+    language: String? = null,
 ) = Document(
+    language = language,
     extractionType = extractionType,
     id = id,
     title = title,

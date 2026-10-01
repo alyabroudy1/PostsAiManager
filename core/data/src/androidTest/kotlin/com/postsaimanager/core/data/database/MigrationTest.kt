@@ -938,6 +938,36 @@ class MigrationTest {
         }
     }
 
+    /** v16 fills keep every row and gain a NULL reading key (so they read as out of date and are read again). Needs a device. */
+    @Test
+    fun migrate16To17_addsTheReadingKeyToFormFills() {
+        helper.createDatabase(TEST_DB, 16).apply {
+            execSQL(
+                """
+                INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus,
+                                       isUserTitle, enrichmentAttempts, enrichmentPending)
+                VALUES ('doc-1', 'Anmeldung', 'EXTRACTED', 'CAMERA', 2, 0, 1, 1, 'LOCAL', 0, 0, 0)
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO form_fills (id, documentId, status, roleProfiles, confirmedRoles, conversationId, currentFieldId,
+                                        localeTag, awaiting, roundAsked, createdAt, updatedAt)
+                VALUES ('fill-doc-1', 'doc-1', 'ASKING', '{}', '[]', 'conv-doc-1', NULL, 'de', NULL, 0, 1, 1)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 17, true, PamMigrations.MIGRATION_16_17)
+
+        db.query("SELECT status, readingKey FROM form_fills WHERE id = 'fill-doc-1'").use { c ->
+            assertTrue("the fill survived", c.moveToFirst())
+            assertEquals("ASKING", c.getString(0))
+            assertTrue(c.isNull(1))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

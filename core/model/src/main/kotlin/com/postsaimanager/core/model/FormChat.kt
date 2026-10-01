@@ -100,11 +100,17 @@ enum class FormText {
 
     /** The search (embedding) model is not on the device, so reading the form is slower; a chip opens the model download. */
     SEARCH_MODEL_MISSING,
+
+    /** The first line of a new fill: form filling is a beta feature. */
+    BETA_NOTICE,
+
+    /** A filled or stopped form was asked for again: continue it or start over. */
+    ASK_REOPEN,
 }
 
 /** The labels of chips that are not data (a name, an option, a value are shown as they are). */
 @Serializable
-enum class FormChipLabel { YES, NO, SKIP, CONTINUE, BY_HAND, SOMEONE_ELSE, ME_SETUP, CONTINUE_READING, DOWNLOAD }
+enum class FormChipLabel { YES, NO, SKIP, CONTINUE, BY_HAND, SOMEONE_ELSE, ME_SETUP, CONTINUE_READING, DOWNLOAD, START_OVER }
 
 @Serializable
 enum class FormChipAction {
@@ -124,6 +130,12 @@ enum class FormChipAction {
 
     /** Open the model download screen. Handled by the UI; never an answer to a question. */
     OPEN_MODELS,
+
+    /** Pick a finished or stopped fill up again. */
+    REOPEN_CONTINUE,
+
+    /** Discard a finished or stopped fill and read the form afresh. */
+    START_OVER,
 }
 
 /** One tappable answer. [label] is shown verbatim; when null, [labelCode] is rendered from resources. */

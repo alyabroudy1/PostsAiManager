@@ -105,6 +105,8 @@ data class FormFill(
     val awaiting: FormAwaiting? = null,
     /** How many questions were asked in the current round (at most five, then the user decides to continue). */
     val roundAsked: Int = 0,
+    /** The way of reading plus the OCR this fill's fields were built from; a fill whose key is not the current one is out of date. */
+    val readingKey: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
 )
@@ -137,6 +139,9 @@ enum class FormAwaitKind {
 
     /** Reading the form was stopped (Stop, or the chat was left): it continues only when the user says so. */
     READING,
+
+    /** "Continue where you left off, or start over?" for a finished or stopped fill the user asked to fill again. */
+    REOPEN,
 }
 
 /** The kind of value a data key holds; drives verification and formatting. */
