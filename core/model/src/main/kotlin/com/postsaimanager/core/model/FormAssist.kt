@@ -39,7 +39,7 @@ enum class FormRole { SUBJECT, GUARDIAN, PAYER, SIGNER, EMERGENCY_CONTACT, OTHER
 
 /** Where a field's value came from. */
 @Serializable
-enum class FormValueSource { PROFILE, FACT, USER, FORM_OPTION, NONE }
+enum class FormValueSource { PROFILE, FACT, USER, FORM_OPTION, TODAY, NONE }
 
 /** Where a fill conversation stands. */
 @Serializable
@@ -79,6 +79,10 @@ data class FormField(
     val required: Boolean = false,
     /** Text OCR found inside [fillBox]: the field was already filled by hand. */
     val alreadyFilled: String? = null,
+    /** [value] came from a stored detail old enough to be asked about again ("still right?"). */
+    val reconfirm: Boolean = false,
+    /** The user skipped the question: the field is left for the user to write by hand. */
+    val skipped: Boolean = false,
     val orderIndex: Int = 0,
     val updatedAt: Long = 0L,
 )
@@ -93,9 +97,44 @@ data class FormFill(
     val roleProfiles: Map<FormRole, String> = emptyMap(),
     val conversationId: String? = null,
     val currentFieldId: String? = null,
+    /** The roles the user confirmed (the subject in "Who is this form for?", a chosen guardian): sensitive values need one. */
+    val confirmedRoles: Set<FormRole> = emptySet(),
+    /** The form's language tag (what understanding detected), so values are written the same way after a restart. */
+    val localeTag: String? = null,
+    /** What the last message of the conversation waits for; null when nothing does (DONE, STOPPED, UNDERSTANDING). */
+    val awaiting: FormAwaiting? = null,
+    /** How many questions were asked in the current round (at most five, then the user decides to continue). */
+    val roundAsked: Int = 0,
     val createdAt: Long,
     val updatedAt: Long,
 )
+
+/** What a fill conversation waits for. [fieldId], [role] and [value] say which field, which role and which verified value. */
+@Serializable
+data class FormAwaiting(
+    val kind: FormAwaitKind,
+    val fieldId: String? = null,
+    val role: FormRole? = null,
+    val value: String? = null,
+)
+
+@Serializable
+enum class FormAwaitKind {
+    /** "Who is this form for?" */
+    SUBJECT,
+
+    /** "Who is the guardian / payer?" ([FormAwaiting.role]). */
+    ROLE,
+
+    /** The answer to the question about [FormAwaiting.fieldId]. */
+    ANSWER,
+
+    /** "Remember [FormAwaiting.value] for the person?" for [FormAwaiting.fieldId]. */
+    REMEMBER,
+
+    /** "N more questions: continue or do the rest by hand?" */
+    CONTINUE,
+}
 
 /** The kind of value a data key holds; drives verification and formatting. */
 @Serializable

@@ -9,15 +9,8 @@ import com.postsaimanager.core.model.Profile
  */
 object ProfileColumns {
 
-    /**
-     * Keys whose value the profile owns although the registry does not name a column for them yet: the birth date lives
-     * in [Profile.birthDate] (one owner, with a date picker), so `birth_date` must never be stored as a fact too.
-     * Drop an entry here once `FormDataKeys` names the column itself.
-     */
-    private val IMPLICIT_COLUMNS: Map<String, String> = mapOf("birth_date" to "birthDate")
-
     /** The profile column that holds [key], or null when it is a saved fact. */
-    fun columnOf(key: FormDataKey): String? = key.profileColumn ?: IMPLICIT_COLUMNS[key.id]
+    fun columnOf(key: FormDataKey): String? = key.profileColumn
 
     /** Every column a data key may name. */
     val SUPPORTED: Set<String> = setOf("name", "street", "postalCode", "city", "country", "phone", "email", "birthDate")

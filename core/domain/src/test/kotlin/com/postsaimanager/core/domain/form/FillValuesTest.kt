@@ -177,4 +177,27 @@ class FillValuesTest {
         assertThat(values).isNotEmpty()
         assertThat(stored).containsAtLeastElementsIn(values)
     }
+
+    @Test
+    fun `today's date is written in the form's format and the place is the Me city, both from today`() = runTest {
+        val result = fill(
+            field("date", "today_date", null, FormFieldKind.DATE),
+            field("place", "today_place", null),
+            ctx = context().copy(todayPlaceProfileId = "ahmad"),
+        )
+        val byId = result.fields.associateBy { it.id }
+        assertThat(byId.getValue("date").value).isEqualTo("01.10.2026")
+        assertThat(byId.getValue("date").valueSource).isEqualTo(FormValueSource.TODAY)
+        assertThat(byId.getValue("place").value).isEqualTo("Beispieldorf")
+        assertThat(byId.getValue("place").valueSource).isEqualTo(FormValueSource.TODAY)
+    }
+
+    @Test
+    fun `the place of signing stays empty when the Me city is unknown, and a typed value is never replaced`() = runTest {
+        val unknown = fill(field("place", "today_place", null), ctx = context().copy(todayPlaceProfileId = "dad"))
+        assertThat(unknown.fields.single().value).isNull()
+
+        val typed = fill(field("date", "today_date", null, FormFieldKind.DATE, review = ReviewState.EDITED, value = "1.1.2026"))
+        assertThat(typed.fields.single().value).isEqualTo("1.1.2026")
+    }
 }

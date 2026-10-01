@@ -16,7 +16,7 @@ object FormDataKeys {
     val FULL_NAME = FormDataKey("full_name", FormValueKind.NAME, "the person's full name", profileColumn = "name")
     val GIVEN_NAME = FormDataKey("given_name", FormValueKind.NAME, "the person's first name or given name")
     val FAMILY_NAME = FormDataKey("family_name", FormValueKind.NAME, "the person's last name, surname or family name")
-    val BIRTH_DATE = FormDataKey("birth_date", FormValueKind.DATE, "the person's date of birth")
+    val BIRTH_DATE = FormDataKey("birth_date", FormValueKind.DATE, "the person's date of birth", profileColumn = "birthDate")
     val BIRTH_PLACE = FormDataKey("birth_place", FormValueKind.TEXT, "the person's place of birth")
     val NATIONALITY = FormDataKey("nationality", FormValueKind.TEXT, "the person's nationality or citizenship")
     val GENDER = FormDataKey("gender", FormValueKind.TEXT, "the person's gender or sex")

@@ -1,9 +1,11 @@
 package com.postsaimanager.core.domain.form
 
+import com.postsaimanager.core.model.FormDataKey
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.FormFieldKind
 import com.postsaimanager.core.model.FormRole
 import com.postsaimanager.core.model.FormValueKind
+import com.postsaimanager.core.model.FormValueSource
 import com.postsaimanager.core.model.ReviewState
 import java.time.Instant
 import java.time.ZoneId
@@ -23,6 +25,8 @@ data class FillContext(
     val confirmedRoles: Set<FormRole>,
     val locale: Locale,
     val countryIso2: String? = null,
+    /** "Me": the person whose city answers a "place of signing" field; null when unknown (the field is then asked). */
+    val todayPlaceProfileId: String? = null,
     val nowMs: Long = System.currentTimeMillis(),
     val zone: ZoneId = ZoneId.systemDefault(),
 )
@@ -53,6 +57,9 @@ class FillValues(
         val filled = fields.map { field ->
             val profileId = field.role?.let(context.roleProfiles::get)
             val key = FormDataKeys.of(field.dataKey)
+            if (key != null && fillable(field)) {
+                today(key, context)?.let { return@map field.copy(value = it, valueSource = FormValueSource.TODAY) }
+            }
             if (profileId == null || key == null || !fillable(field)) return@map field
             if (key.sensitive && field.role !in context.confirmedRoles) return@map field
             val facts = stored.getOrPut(profileId) { source.allOf(profileId) }
@@ -63,6 +70,15 @@ class FillValues(
             field.copy(value = text, valueSource = found.source, profileId = profileId)
         }
         return FillResult(filled, reconfirm)
+    }
+
+    /** The value of a "today" key: the date of filling in (the form's format) or the "Me" city; null for any other key or when unknown. */
+    private suspend fun today(key: FormDataKey, context: FillContext): String? = when (key.id) {
+        FormDataKeys.TODAY_DATE.id ->
+            FormValueFormatter.date(Instant.ofEpochMilli(context.nowMs).atZone(context.zone).toLocalDate(), context.locale)
+        FormDataKeys.TODAY_PLACE.id ->
+            context.todayPlaceProfileId?.let { source.valueOf(it, FormDataKeys.CITY.id)?.value }
+        else -> null
     }
 
     private fun fillable(f: FormField) =
