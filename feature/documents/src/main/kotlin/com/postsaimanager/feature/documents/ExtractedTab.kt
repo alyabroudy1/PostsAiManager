@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -109,9 +110,11 @@ internal fun ExtractedTab(
     onUpdateSummary: (String) -> Unit,
     onShowOnPage: (page: Int?, bbox: TextBounds?) -> Unit,
 ) {
-    var editingField by remember { mutableStateOf<ExtractedData?>(null) }
-    var editingSummary by remember { mutableStateOf(false) }
-    var picker by remember { mutableStateOf<PickerMode?>(null) }
+    // Kept across a rotation: the row being edited is stored as its id and resolved from the data, so the sheet shows the latest row.
+    var editingFieldId by rememberSaveable { mutableStateOf<String?>(null) }
+    val editingField = editingFieldId?.let { id -> data.firstOrNull { it.id == id } }
+    var editingSummary by rememberSaveable { mutableStateOf(false) }
+    var picker by rememberSaveable { mutableStateOf<PickerMode?>(null) }
     var showAllExtras by remember { mutableStateOf(false) }
     var extrasExpanded by remember { mutableStateOf(false) }
     var ignoredExpanded by remember { mutableStateOf(false) }
@@ -121,7 +124,7 @@ internal fun ExtractedTab(
     }
     // The ✎ of any row opens the same sheet.
     val rowActions = remember(actions) {
-        FieldActions(actions.confirm, actions.ignore, actions.restore) { editingField = it }
+        FieldActions(actions.confirm, actions.ignore, actions.restore) { editingFieldId = it.id }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -226,10 +229,10 @@ internal fun ExtractedTab(
     editingField?.let { field ->
         EditFieldSheet(
             field = field,
-            onDismiss = { editingField = null },
+            onDismiss = { editingFieldId = null },
             onSave = { name, value ->
                 onUpdateField(field.id, name, value)
-                editingField = null
+                editingFieldId = null
             },
             onShowOnPage = onShowOnPage,
         )
@@ -470,7 +473,7 @@ private fun SummaryRow(label: String, line: CardLine) {
 
 @Composable
 private fun EditSummaryDialog(initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
-    var text by remember { mutableStateOf(initial) }
+    var text by rememberSaveable { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.summary_edit_title)) },
@@ -809,9 +812,11 @@ private fun EditFieldSheet(
     val keyed = SlotLabels.found(field.slotKey) != null || SlotLabels.extraKeyName(field.fieldName) != null
     val nameEditable = SlotLabels.labelFor(field) == null
     val shownName = fieldLabelText(field)
-    var name by remember(field.id) { mutableStateOf(if (keyed) shownName else field.fieldName) }
-    var value by remember(field.id) { mutableStateOf(field.fieldValue) }
-    var chosen by remember(field.id) { mutableStateOf<FieldAlternative?>(null) }
+    var name by rememberSaveable(field.id) { mutableStateOf(if (keyed) shownName else field.fieldName) }
+    var value by rememberSaveable(field.id) { mutableStateOf(field.fieldValue) }
+    // The picked alternative as its position (an alternative itself is not saved): resolved against the field's own list.
+    var chosenIndex by rememberSaveable(field.id) { mutableStateOf<Int?>(null) }
+    val chosen: FieldAlternative? = chosenIndex?.let { field.alternatives.getOrNull(it) }
     val page = chosen?.page ?: field.pageNumber
     val bbox = chosen?.bbox ?: field.bbox
 
@@ -834,9 +839,9 @@ private fun EditFieldSheet(
             if (field.alternatives.isNotEmpty()) {
                 Text(stringResource(R.string.edit_alternatives), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    field.alternatives.forEach { alt ->
+                    field.alternatives.forEachIndexed { index, alt ->
                         AssistChip(
-                            onClick = { chosen = alt; value = alt.value },
+                            onClick = { chosenIndex = index; value = alt.value },
                             label = {
                                 Text(
                                     alt.page?.let { stringResource(R.string.edit_alternative_on_page, alt.value, it) } ?: alt.value,

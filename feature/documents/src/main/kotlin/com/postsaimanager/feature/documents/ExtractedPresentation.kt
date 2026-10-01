@@ -234,7 +234,7 @@ object ExtractedPresenter {
             hiddenExtras = hiddenExtras.size,
             showAllExtras = showAllExtras,
             ignored = ignored,
-            review = reviewOf(live, blocks.values),
+            review = reviewOf(live, blocks.values, notShown = hiddenExtras.map { it.id }.toSet()),
         )
     }
 
@@ -252,10 +252,11 @@ object ExtractedPresenter {
     }
 
     /** Counts what the main button works on. A block's raw row is not drawn but is confirmed with the block, so it is open but never uncertain. */
-    private fun reviewOf(live: List<ExtractedData>, blocks: Collection<AddressBlock>): ReviewSummary {
+    private fun reviewOf(live: List<ExtractedData>, blocks: Collection<AddressBlock>, notShown: Set<String>): ReviewSummary {
         val hiddenRaw = blocks.filter { it.lines.isNotEmpty() }.mapNotNull { it.rawRow?.id }.toSet()
         val open = live.filter { it.reviewState == ReviewState.UNREVIEWED }
-        val uncertain = live.count { it.isUncertain && it.id !in hiddenRaw }
+        // Only rows a person can see: the very unsure extras behind "Show all" are not drawn, so they are not counted as uncertain.
+        val uncertain = live.count { it.isUncertain && it.id !in hiddenRaw && it.id !in notShown }
         return ReviewSummary(uncertain = uncertain, confidentOpen = open.count { !it.needsReview || it.id in hiddenRaw }, open = open.size)
     }
 

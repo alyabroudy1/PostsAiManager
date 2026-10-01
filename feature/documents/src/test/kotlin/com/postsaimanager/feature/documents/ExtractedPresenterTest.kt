@@ -547,6 +547,13 @@ class ExtractedPresenterTest {
         }
 
         @Test
+        fun `a very unsure extra behind Show all is not counted as uncertain until it is shown`() {
+            val fields = listOf(field("Amount", "1 €", "total", confidence = 0.4f), extra("Faint", confidence = 0.2f))
+            assertThat(present(fields).review.uncertain).isEqualTo(1)
+            assertThat(present(fields, showAll = true).review.uncertain).isEqualTo(2)
+        }
+
+        @Test
         fun `once nothing is uncertain it confirms all`() {
             val p = present(listOf(field("Amount", "1 €", "total"), field("IBAN", "DE89", "iban")))
             assertThat(p.review.mode).isEqualTo(ConfirmMode.ALL)
