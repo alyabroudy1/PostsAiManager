@@ -108,6 +108,8 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         evidence = v.evidence.takeIf { it.isNotBlank() },
         page = v.page,
         bbox = v.bbox,
+        // TODO(P4): fill from the interpreter's runner-up candidates; a SlotValue carries none yet.
+        alternatives = emptyList(),
     )
 
     /**

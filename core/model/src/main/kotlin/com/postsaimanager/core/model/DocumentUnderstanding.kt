@@ -66,6 +66,8 @@ data class FieldProvenance(
     val evidence: String? = null,
     val page: Int? = null,
     val bbox: TextBounds? = null,
+    /** The runner-up readings of the slot (the Edit sheet's chips), best first; carried to `ExtractedData.alternatives`. */
+    val alternatives: List<FieldAlternative> = emptyList(),
 )
 
 /** What kind of fact a value is, so the app knows what it can do with it. */

@@ -6,6 +6,8 @@ import com.postsaimanager.core.model.EntityKind
 import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.FactKind
+import com.postsaimanager.core.model.FieldAlternative
+import com.postsaimanager.core.model.FieldProvenance
 import com.postsaimanager.core.model.RecognisedEntity
 import com.postsaimanager.core.model.RecognisedFact
 import org.junit.jupiter.api.DisplayName
@@ -101,6 +103,22 @@ class UnderstandingToFieldsTest {
         assertThat(fields[UnderstandingToFields.DEADLINE]?.fieldType)
             .isEqualTo(ExtractedFieldType.DEADLINE)
         assertThat(fields).doesNotContainKey("Frist")
+    }
+
+    @Test
+    fun `the alternatives of a fact's provenance reach the stored field`() {
+        val alt = FieldAlternative(value = "BG 1234/5679", score = 0.4f)
+        val withAlternatives = DocumentUnderstanding(
+            language = "de",
+            facts = listOf(
+                RecognisedFact(
+                    "Aktenzeichen", "BG 1234/5678", FactKind.REFERENCE, 0.9f,
+                    provenance = FieldProvenance(slotKey = "reference", alternatives = listOf(alt)),
+                ),
+            ),
+        )
+
+        assertThat(map(withAlternatives).single().alternatives).containsExactly(alt)
     }
 
     @Test

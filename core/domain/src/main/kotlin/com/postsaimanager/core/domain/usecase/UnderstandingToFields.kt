@@ -65,6 +65,7 @@ object UnderstandingToFields {
                 aiConfidence = provenance?.aiConfidence,
                 evidence = provenance?.evidence,
                 bbox = provenance?.bbox,
+                alternatives = provenance?.alternatives.orEmpty(),
             )
         }
 
