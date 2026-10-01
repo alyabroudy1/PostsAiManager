@@ -10,6 +10,7 @@ import com.postsaimanager.core.model.FormChip
 import com.postsaimanager.core.model.FormChipLabel
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.FormMessage
+import com.postsaimanager.core.model.FormMessageKind
 import com.postsaimanager.core.model.FormText
 import com.postsaimanager.core.model.FormValueSource
 import java.util.IllegalFormatException
@@ -22,8 +23,20 @@ internal object FormChatTexts {
 
     /** The line a message says: the question the model wrote when there is one, otherwise the template for its code. */
     fun line(resources: Resources, form: FormMessage, content: String): String {
-        if (content.isNotBlank()) return content
-        return form.text?.let { text(resources, it, form.args) }.orEmpty()
+        val body = if (content.isNotBlank()) content else form.text?.let { text(resources, it, form.args) }.orEmpty()
+        val context = questionContext(form)
+        return if (context == null || body.isBlank()) body else "$context\n$body"
+    }
+
+    /**
+     * Where the question's field is on the form ("Section · p.2"): the same in front of the model's wording and of the template, so
+     * a generic question still says which field is meant. A question carries it as its label, section and page arguments.
+     */
+    fun questionContext(form: FormMessage): String? {
+        if (form.kind != FormMessageKind.QUESTION || form.fieldId == null || form.args.size < 3) return null
+        val section = form.args[1].trim()
+        val page = form.args[2].trim().takeIf { it.isNotEmpty() }?.let { "p.$it" }
+        return listOfNotNull(section.takeIf { it.isNotEmpty() }, page).joinToString(" · ").ifEmpty { null }
     }
 
     fun text(r: Resources, code: FormText, args: List<String>): String = when (code) {

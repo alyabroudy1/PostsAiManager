@@ -30,6 +30,9 @@ class FakeFormModel : FormModel {
     /** Every prompt the model was asked to write for. */
     val written = mutableListOf<String>()
 
+    /** The instruction of every prompt the model was asked to write for. */
+    val writtenSystem = mutableListOf<String>()
+
     override suspend fun ensureLoaded(): PamResult<Unit> = load
 
     override suspend fun score(system: String, context: String, statements: List<String>): PamResult<List<Double>> {
@@ -53,6 +56,7 @@ class FakeFormModel : FormModel {
 
     override suspend fun write(system: String, user: String, maxTokens: Int): String? {
         written += user
+        writtenSystem += system
         return question(user)
     }
 

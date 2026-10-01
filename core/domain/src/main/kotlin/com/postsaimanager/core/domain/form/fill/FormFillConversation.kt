@@ -109,6 +109,9 @@ class FormFillConversation(
 ) {
 
     private val lock = Mutex()
+
+    /** The last sentence the user typed to the conversation: the language the questions are asked in (kept while the app runs). */
+    private var typedSample: String? = null
     private var lastStamp = 0L
 
     // ── Entry points ──
@@ -134,11 +137,14 @@ class FormFillConversation(
         if (fill == null || fill.status !in ACTIVE) {
             if (!detector.asksForFill(text, documentIsForm(documentId))) return@withLock FormRoute.NOT_FOR_FORM
             userSaid(documentId, text)
+            typedSample = text
             startLocked(documentId)
             return@withLock FormRoute.HANDLED
         }
         val intent = classifier.classify(describeAwaiting(fill), text)
         trace.event("route", "fill=${fill.id} status=${fill.status} intent=$intent")
+        // An answer is a value (a name, a number), a poor sign of the language; anything else the user says is a sentence.
+        if (intent != FormIntent.ANSWER) typedSample = text
         if (intent == FormIntent.ASK_ABOUT_FORM) return@withLock FormRoute.ASK_ABOUT_FORM
         userSaid(documentId, text)
         when (intent) {
@@ -426,11 +432,18 @@ class FormFillConversation(
             val shown = if (FormDataKeys.isSensitive(field.dataKey)) FormMask.of(field.value!!) else field.value!!
             return post(fill.documentId, FormMessage(FormMessageKind.QUESTION, FormText.STILL_RIGHT, listOf(field.labelText, shown), chips, fieldId = field.id))
         }
-        val written = writer.write(field, personFor(fill, field)?.let { findProfile(it)?.name })
+        val context = QuestionContext(
+            person = personFor(fill, field)?.let { findProfile(it) }?.let { choiceOf(it).description },
+            typedSample = typedSample,
+            formLocale = fill.localeTag?.let(Locale::forLanguageTag),
+        )
+        val written = writer.write(field, context)
+        // Args: the printed label, then the section and page the chat puts in front of the question.
+        val args = listOf(field.labelText, field.section.orEmpty(), field.page.toString())
         if (written != null) {
-            post(fill.documentId, FormMessage(FormMessageKind.QUESTION, null, listOf(field.labelText), chips, fieldId = field.id), content = written)
+            post(fill.documentId, FormMessage(FormMessageKind.QUESTION, null, args, chips, fieldId = field.id), content = written)
         } else {
-            post(fill.documentId, FormMessage(FormMessageKind.QUESTION, templateFor(field), listOf(field.labelText), chips, fieldId = field.id))
+            post(fill.documentId, FormMessage(FormMessageKind.QUESTION, templateFor(field), args, chips, fieldId = field.id))
         }
     }
 

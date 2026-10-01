@@ -494,7 +494,10 @@ class FormFillConversationTest {
         val (question, content) = h.lastQuestion()
         assertThat(content).isEmpty()
         assertThat(question.text).isEqualTo(FormText.ASK_CHOICE)
-        assertThat(question.args).containsExactly("Hat Ihr Kind das Seepferdchen bereits?")
+        // The printed label, then the section and page the chat puts in front of the question.
+        assertThat(question.args).hasSize(3)
+        assertThat(question.args.first()).isEqualTo("Hat Ihr Kind das Seepferdchen bereits?")
+        assertThat(question.args[2]).isEqualTo(h.field("Hat Ihr Kind das Seepferdchen bereits?").page.toString())
         h.say("nein"); h.tap(FormChipLabel.NO.name)
         h.say("Samstag")
         h.say("keine"); h.tap(FormChipLabel.NO.name)

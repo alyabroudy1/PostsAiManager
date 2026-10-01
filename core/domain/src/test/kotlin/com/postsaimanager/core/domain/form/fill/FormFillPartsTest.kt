@@ -135,13 +135,50 @@ class FormFillPartsTest {
     @Test
     fun `the written question is kept when sensible and dropped when empty, echoing the label or too long`() = runTest {
         val f = field("Telefon", key = "phone")
-        assertThat(writerFor("  \"Welche Telefonnummer sollen wir eintragen?\"\nZweite Zeile").write(f, "Ahmad")).isEqualTo("Welche Telefonnummer sollen wir eintragen?")
-        assertThat(writerFor(null).write(f, null)).isNull()
-        assertThat(writerFor("   ").write(f, null)).isNull()
-        assertThat(writerFor("Telefon").write(f, null)).isNull()
-        assertThat(writerFor("1234 5678").write(f, null)).isNull()
-        assertThat(writerFor("x".repeat(300)).write(f, null)).isNull()
-        assertThat(writerFor("<think> (The user wants a friendly, one-line question to fill in the field").write(f, null)).isNull()
+        assertThat(writerFor("  \"Welche Telefonnummer sollen wir eintragen?\"\nZweite Zeile").write(f, QuestionContext(person = "Ahmad"))).isEqualTo("Welche Telefonnummer sollen wir eintragen?")
+        assertThat(writerFor(null).write(f)).isNull()
+        assertThat(writerFor("   ").write(f)).isNull()
+        assertThat(writerFor("Telefon").write(f)).isNull()
+        assertThat(writerFor("1234 5678").write(f)).isNull()
+        assertThat(writerFor("x".repeat(300)).write(f)).isNull()
+        assertThat(writerFor("<think> (The user wants a friendly, one-line question to fill in the field").write(f)).isNull()
+    }
+
+    @Test
+    fun `a specific question of a couple of hundred characters is kept`() = runTest {
+        val long = "Welche Telefonnummer der Erziehungsberechtigten soll ich für den Notfall eintragen, unter der Sie tagsüber erreichbar sind?"
+        assertThat(long.length).isGreaterThan(100)
+        assertThat(writerFor(long).write(field("Telefon", key = "phone"))).isEqualTo(long)
+    }
+
+    @Test
+    fun `the model is told the role, the person behind it, the section and the page`() = runTest {
+        val model = FakeFormModel().also { it.question = { "Wie lautet der Vorname?" } }
+        val f = field("Vorname", key = "first_name").copy(section = "Erziehungsberechtigte/r", page = 2, role = com.postsaimanager.core.model.FormRole.GUARDIAN)
+
+        FormQuestionWriter(model).write(f, QuestionContext(person = "the user's parent Mohammad"))
+
+        val told = model.written.single()
+        assertThat(told).contains("SECTION: Erziehungsberechtigte/r")
+        assertThat(told).contains("PAGE: 2")
+        assertThat(told).contains("ROLE: the parent or guardian")
+        assertThat(told).contains("FOR: the user's parent Mohammad")
+    }
+
+    @Test
+    fun `the language is the user's typed message, else the form's, else the UI's`() = runTest {
+        suspend fun systemFor(context: QuestionContext): String {
+            val model = FakeFormModel().also { it.question = { "Welche Option gilt?" } }
+            FormQuestionWriter(model, { java.util.Locale.FRENCH }).write(field("Kurs", key = "course"), context)
+            return model.writtenSystem.single()
+        }
+
+        assertThat(systemFor(QuestionContext(typedSample = "hilf mir das auszufüllen", formLocale = java.util.Locale.ENGLISH)))
+            .contains("same language as this message from the user: \"hilf mir das auszufüllen\"")
+        assertThat(systemFor(QuestionContext(formLocale = java.util.Locale.GERMAN))).contains("in German")
+        assertThat(systemFor(QuestionContext())).contains("in French")
+        // A typed message with no letters says nothing about the language.
+        assertThat(systemFor(QuestionContext(typedSample = "12345", formLocale = java.util.Locale.GERMAN))).contains("in German")
     }
 
     @Test
@@ -149,7 +186,7 @@ class FormFillPartsTest {
         val model = FakeFormModel().also { it.question = { "Welche Option?" } }
         val f = field("Kurstermin", kind = FormFieldKind.CHOICE, options = listOf("Mo", "Mi"), value = "SECRET").copy(section = "Angaben")
 
-        FormQuestionWriter(model, { java.util.Locale.GERMAN }).write(f, "Ahmad")
+        FormQuestionWriter(model, { java.util.Locale.GERMAN }).write(f, QuestionContext(person = "Ahmad"))
 
         val told = model.written.single()
         assertThat(told).contains("FIELD: Kurstermin")
