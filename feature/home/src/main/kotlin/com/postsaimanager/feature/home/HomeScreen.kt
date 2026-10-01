@@ -110,7 +110,8 @@ private fun DocumentList(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        // The bottom clears the scan button (56dp high, 16dp margin) the screen floats over the list.
+        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + 88.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
