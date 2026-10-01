@@ -19,8 +19,17 @@ class AddressRow(val key: String, val value: String, val confidence: Float, val 
  */
 object AddressRows {
 
-    /** [FieldProvenance.origin][com.postsaimanager.core.model.FieldProvenance.origin] of an address part. */
+    /**
+     * [FieldProvenance.origin][com.postsaimanager.core.model.FieldProvenance.origin] of an address part stored before verification was
+     * recorded: it may belong to an address that failed its checks, so it is not shown ([isShown]).
+     */
     const val ORIGIN = "ADDRESS"
+
+    /** The origin of a part of an address that passed [PostalAddress.verified]: the only kind that is stored now and shown. */
+    const val ORIGIN_VERIFIED = "ADDRESS_VERIFIED"
+
+    /** Whether a stored address row with this [origin] is shown: not when it is a legacy, possibly unverified one ([ORIGIN]). */
+    fun isShown(origin: String?): Boolean = origin != ORIGIN
 
     /** The suffix of the row that holds the printed lines of the whole block. */
     const val RAW = "raw"

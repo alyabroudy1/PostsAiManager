@@ -195,7 +195,10 @@ object ExtractedPresenter {
         val family = FamilyPresentation.familyId(document.extractionType)?.let { schema.family(it) }
         val familyOrder = family?.slots?.map { it.json }.orEmpty()
 
-        val (ignored, live) = fields.partition { it.isIgnored }
+        // An address row stored before verification was recorded may belong to an address that failed its checks (it mixes lines of the
+        // letter): it is not shown. The party name rows are unaffected.
+        val shownFields = fields.filter { !AddressRows.isAddressKey(it.slotKey) || AddressRows.isShown(it.origin) }
+        val (ignored, live) = shownFields.partition { it.isIgnored }
         val (extraRows, fixedRows) = live.partition { it.isExtra }
 
         // The address blocks first: they claim the name row and the structured rows of their party.

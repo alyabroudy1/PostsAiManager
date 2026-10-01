@@ -69,7 +69,7 @@ class ExtractionV2AdapterAddressTest {
         val p = byLabel.getValue("sender.street").provenance!!
         assertThat(p.slotKey).isEqualTo("sender.street")
         assertThat(p.role).isEqualTo("SENDER")
-        assertThat(p.origin).isEqualTo(AddressRows.ORIGIN)
+        assertThat(p.origin).isEqualTo(AddressRows.ORIGIN_VERIFIED)
         assertThat(p.page).isEqualTo(1)
         assertThat(p.bbox).isEqualTo(box(0.04f))
 
@@ -92,6 +92,20 @@ class ExtractionV2AdapterAddressTest {
         // the party rows of the letter stay next to them
         assertThat(fields.map { it.slotKey }).containsAtLeast("sender", "addressee")
         assertThat(fields.count { it.slotKey == "addressee" }).isEqualTo(1)
+    }
+
+    @Test
+    fun `an address that failed verification emits no part rows and no raw row, the party names stay`() {
+        val (result, _) = adapted()
+        val unverified = adapter.adapt(
+            result.copy(addresses = mapOf(PartyRole.ADDRESSEE to addressee.copy(verified = false), PartyRole.SENDER to sender.copy(verified = false))),
+        )
+        assertThat(unverified.facts.none { AddressRows.isAddressKey(it.provenance?.slotKey) }).isTrue()
+        assertThat(unverified.entities).isEqualTo(adapter.adapt(result).entities)
+        val mixed = adapter.adapt(result.copy(addresses = mapOf(PartyRole.ADDRESSEE to addressee.copy(verified = false), PartyRole.SENDER to sender)))
+        val keys = mixed.facts.mapNotNull { it.provenance?.slotKey }
+        assertThat(keys.none { it.startsWith("addressee.") }).isTrue()
+        assertThat(keys).contains("sender.street")
     }
 
     @Test

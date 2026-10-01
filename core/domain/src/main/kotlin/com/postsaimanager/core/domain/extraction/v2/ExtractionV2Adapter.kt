@@ -80,11 +80,13 @@ class ExtractionV2Adapter(
             FieldAlternative(value = a.lines.joinToString("\n"), score = a.confidence, page = a.page)
         }
         for ((role, address) in result.addresses) {
+            // Only a verified address is stored: one that failed its checks mixes lines of the letter and would show as garbage.
+            if (!address.verified) continue
             for (row in AddressRows.rows(role, address)) {
                 add(
                     row.key, row.value, FactKind.OTHER, row.confidence,
                     FieldProvenance(
-                        slotKey = row.key, role = row.role.name, origin = AddressRows.ORIGIN, page = row.page, bbox = row.bbox,
+                        slotKey = row.key, role = row.role.name, origin = AddressRows.ORIGIN_VERIFIED, page = row.page, bbox = row.bbox,
                         alternatives = if (role == PartyRole.SENDER && row.key.endsWith(".${AddressRows.RAW}")) senderChips else emptyList(),
                     ),
                 )

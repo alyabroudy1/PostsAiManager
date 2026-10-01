@@ -1,6 +1,7 @@
 package com.postsaimanager.feature.documents
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.address.AddressRows
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.SectionKind
 import com.postsaimanager.core.model.Document
@@ -389,6 +390,24 @@ class ExtractedPresenterTest {
             // The raw lines are kept for the actions but not drawn while parts exist.
             assertThat(b.shownRows.map { it.slotKey }).doesNotContain("addressee.raw")
             assertThat(b.rows.map { it.slotKey }).contains("addressee.raw")
+        }
+
+        @Test
+        fun `a stored block of an unverified address is hidden, the party name stays, and a verified block shows`() {
+            fun rows(origin: String) = listOf(
+                field("Receiver Name", "Erika Mustermann", "addressee"),
+                part("addressee", "city", "Berlin").copy(origin = origin),
+                part("addressee", "raw", "Rechnung Nr. 1\nBerlin").copy(origin = origin),
+            )
+
+            val hidden = present(rows(AddressRows.ORIGIN), type = "invoice_bill")
+            val b = block(hidden, PartyRole.ADDRESSEE)
+            assertThat(b.nameRow!!.fieldValue).isEqualTo("Erika Mustermann")
+            assertThat(b.lines).isEmpty()
+            assertThat(b.rows.map { it.slotKey }).containsExactly("addressee")
+
+            val verified = block(present(rows(AddressRows.ORIGIN_VERIFIED), type = "invoice_bill"), PartyRole.ADDRESSEE)
+            assertThat(verified.lineValues()).containsExactly(listOf("Berlin"))
         }
 
         @Test
