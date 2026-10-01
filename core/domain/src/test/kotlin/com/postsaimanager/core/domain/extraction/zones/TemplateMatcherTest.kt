@@ -3,6 +3,8 @@ package com.postsaimanager.core.domain.extraction.zones
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import com.postsaimanager.core.domain.benchmark.BenchmarkFixtures
+import com.postsaimanager.core.domain.benchmark.ExtractionBenchmark
+import com.postsaimanager.core.domain.benchmark.Fixture
 import com.postsaimanager.core.domain.extraction.layout.LayoutLine
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterLayoutAnalyzer
@@ -18,7 +20,11 @@ import org.junit.jupiter.api.Test
  */
 class TemplateMatcherTest {
 
-    /** What a person would call each fixture's page: the invoice and the cost statement are table letters. */
+    /**
+     * The golden table: the template chosen per repo benchmark fixture. Recorded on the unmodified matcher before the
+     * UK and US conventions were added; a new convention must not move any of them. The invoice and the cost
+     * statement are table letters.
+     */
     private val expected = mapOf(
         "invoice-2p" to "INVOICE_TABLE",
         "tax-long-7p" to "DIN5008_A",
@@ -90,6 +96,54 @@ class TemplateMatcherTest {
             *body.toTypedArray(),
         )
         assertThat(matcher.match(layout).template.id).isEqualTo("RTL_DIN")
+    }
+
+    private fun synthetic(key: String) = BenchmarkFixtures.loadSynthetic().first { it.first.key == key }
+
+    private fun layoutOfFixture(f: Fixture) = LetterLayoutAnalyzer.analyze(f.pages.map { it.blocks })
+
+    private fun checkSynthetic(key: String, templateId: String) {
+        val (m, f) = synthetic(key)
+        val match = matcher.match(layoutOfFixture(f), f.pages.first().width.toFloat() / f.pages.first().height)
+        assertWithMessage("${match.template.id} ${match.scores}").that(match.template.id).isEqualTo(templateId)
+        val r = ExtractionBenchmark.score(m, f)
+        assertThat(r.addresseeInAddressField).isTrue()
+        assertThat(r.senderInSenderZones).isTrue()
+        assertThat(r.senderLeaksIntoAddressField).isFalse()
+    }
+
+    @Test
+    fun `the synthetic UK letter matches UK_LETTER and its zones are right`() = checkSynthetic("S1-uk-letter-1p", "UK_LETTER")
+
+    @Test
+    fun `the synthetic US block letter matches US_BLOCK and its zones are right`() = checkSynthetic("S2-us-block-letter-1p", "US_BLOCK")
+
+    @Test
+    fun `an unknown country or script leaves the geometry's choice unchanged`() {
+        for ((m, f) in BenchmarkFixtures.load().docs + BenchmarkFixtures.loadSynthetic()) {
+            val layout = layoutOfFixture(f)
+            val plain = matcher.match(layout).template.id
+            assertWithMessage(m.key).that(matcher.match(layout, country = "ZZ").template.id).isEqualTo(plain)
+            assertWithMessage(m.key).that(matcher.match(layout, script = "Zzzz").template.id).isEqualTo(plain)
+        }
+    }
+
+    @Test
+    fun `the locale only breaks a tie and never overrides the geometry`() {
+        val us = layoutOfFixture(synthetic("S2-us-block-letter-1p").second)
+        assertThat(matcher.match(us, country = "GB").template.id).isEqualTo("US_BLOCK")
+        val uk = layoutOfFixture(synthetic("S1-uk-letter-1p").second)
+        assertThat(matcher.match(uk, country = "US").template.id).isEqualTo("UK_LETTER")
+    }
+
+    @Test
+    fun `a convention added as data alone is picked with no code change`() {
+        val layout = layoutOfFixture(synthetic("S1-uk-letter-1p").second)
+        // A new convention with the same geometry as the UK letter and a locale of its own: data only, no matcher change.
+        val later = LayoutTemplates.UK_LETTER.copy(id = "LATER_CONVENTION", locale = LocaleHint(countries = setOf("XX")))
+        val custom = TemplateMatcher(LayoutTemplates.ALL + later)
+        assertThat(custom.match(layout, country = "XX").template.id).isEqualTo("LATER_CONVENTION")
+        assertThat(custom.match(layout, country = "GB").template.id).isEqualTo("UK_LETTER")
     }
 
     @Test

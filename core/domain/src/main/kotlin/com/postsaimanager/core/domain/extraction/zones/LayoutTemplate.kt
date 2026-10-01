@@ -66,6 +66,18 @@ typealias AskName = String
 data class ZoneSpec(val zone: LetterZone, val hint: String, val asks: List<AskName> = emptyList())
 
 /**
+ * Where a convention is used, as data: ISO 3166 country codes and ISO 15924 script codes, compared case-insensitively.
+ * Only a tie-break (see [TemplateMatcher.match]): it never makes a template match that the geometry does not.
+ * The codes live here, in template data, and nowhere in code.
+ */
+data class LocaleHint(val countries: Set<String> = emptySet(), val scripts: Set<String> = emptySet()) {
+    /** How many of the given [country] and [script] this hint names (0 to 2). */
+    fun matches(country: String?, script: String?): Int =
+        (if (country != null && countries.any { it.equals(country, ignoreCase = true) }) 1 else 0) +
+            (if (script != null && scripts.any { it.equals(script, ignoreCase = true) }) 1 else 0)
+}
+
+/**
  * @property id stable name, also told to the model ("LAYOUT: DIN5008_B").
  * @property description one English line for the model's instructions.
  * @property signature the geometry that identifies it.
@@ -73,6 +85,7 @@ data class ZoneSpec(val zone: LetterZone, val hint: String, val asks: List<AskNa
  * @property remap zones the analyzer produced that this template reads as another zone (a receipt has no
  *   address field: what the analyzer took for one is an item list). Geometry classes, not keywords.
  * @property placements where a slot is asked, for slots this template places differently from [SlotPlacements.DEFAULT].
+ * @property locale where this convention is used; a small tie-break when the address country or script is known, else unused.
  */
 data class LayoutTemplate(
     val id: String,
@@ -81,6 +94,7 @@ data class LayoutTemplate(
     val zones: List<ZoneSpec>,
     val remap: Map<LetterZone, LetterZone> = emptyMap(),
     val placements: Map<String, List<LetterZone>> = emptyMap(),
+    val locale: LocaleHint? = null,
 ) {
     fun spec(zone: LetterZone): ZoneSpec? = zones.firstOrNull { it.zone == zone }
 }

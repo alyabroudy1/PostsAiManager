@@ -76,6 +76,7 @@ object LayoutTemplates {
             rightToLeft = false,
         ),
         zones = dinZones(returnLine = false),
+        locale = LocaleHint(countries = setOf("DE", "AT", "CH")),
     )
 
     /** DIN 5008 form B: the address field starts lower (45 mm), with the return line above it. */
@@ -95,6 +96,7 @@ object LayoutTemplates {
             rightToLeft = false,
         ),
         zones = dinZones(returnLine = true),
+        locale = LocaleHint(countries = setOf("DE", "AT", "CH")),
     )
 
     /** A letter whose body is mostly a table of positions and amounts (an invoice, a statement). */
@@ -196,6 +198,67 @@ object LayoutTemplates {
             rightToLeft = true,
         ),
         zones = dinZones(returnLine = true, mirrorNote = MIRROR),
+        locale = LocaleHint(scripts = setOf("Arab", "Hebr")),
+    )
+
+    /** The zones of a letter with no return line and no reference column: the date block is just the date (and a reference). */
+    private val SINGLE_COLUMN_ZONES = dinZones(returnLine = false).map {
+        if (it.zone == LetterZone.INFO_BLOCK) {
+            it.copy(hint = "This block is usually the date of the letter, sometimes with a reference.", asks = listOf(LETTER_DATE, REFERENCE, CUSTOMER_NO, EXTRAS_SCORED))
+        } else {
+            it
+        }
+    }
+
+    /**
+     * A British business letter: the sender's letterhead block in the top right, the date below it, the recipient's
+     * address on the left below that, and no return line or reference column beside the address.
+     *
+     * Regions are soft priors from published conventions, not measurements of a standard: the UK business letter
+     * layout of the common style guides (sender's address top right, date under it, recipient's address at the left
+     * margin) and the DL window envelope (window about 90 x 35 mm, about 20 mm from the left edge, which puts the
+     * address of a letter folded in thirds at roughly 45 to 80 mm of an A4 page's 297 mm, i.e. 0.15 to 0.27).
+     * Sources recalled from those conventions, not fetched when this was written.
+     */
+    val UK_LETTER = LayoutTemplate(
+        id = "UK_LETTER",
+        description = "a British business letter: the sender's name and address block in the top right, the date below it, the recipient's address on the left below that",
+        signature = TemplateSignature(
+            zones = listOf(
+                ZoneExpectation(LetterZone.LETTERHEAD, Region(0.5f, 0f, 1f, 0.17f), 3f),
+                ZoneExpectation(LetterZone.ADDRESS_FIELD, Region(0f, 0.17f, 0.5f, 0.40f), 3f),
+            ),
+            fontRatio = PORTRAIT,
+            rightToLeft = false,
+            absent = mapOf(LetterZone.RETURN_ADDRESS_LINE to 0, LetterZone.INFO_BLOCK to 1),
+        ),
+        zones = SINGLE_COLUMN_ZONES,
+        locale = LocaleHint(countries = setOf("GB")),
+    )
+
+    /**
+     * An American full-block letter: everything flush left. The sender's letterhead top left, the date below it, the
+     * inside address on the left, and no right-hand information block.
+     *
+     * Soft priors from the full block format of the common American business-writing guides (every element at the left
+     * margin) and the #10 window envelope (4 1/8 x 9 1/2 in; window 1 1/8 x 4 1/2 in, 7/8 in from the left and 1/2 in
+     * from the bottom of the envelope). Folded in thirds, the window shows the inside address at about 2 to 3 in of an
+     * 11 in Letter page, i.e. 0.18 to 0.28. Sources recalled from those conventions, not fetched when this was written.
+     */
+    val US_BLOCK = LayoutTemplate(
+        id = "US_BLOCK",
+        description = "an American full-block business letter: the sender's letterhead top left, the date below it, the recipient's inside address on the left, everything flush left",
+        signature = TemplateSignature(
+            zones = listOf(
+                ZoneExpectation(LetterZone.LETTERHEAD, Region(0f, 0f, 0.6f, 0.17f), 3f),
+                ZoneExpectation(LetterZone.ADDRESS_FIELD, Region(0f, 0.17f, 0.55f, 0.36f), 3f),
+            ),
+            fontRatio = PORTRAIT,
+            rightToLeft = false,
+            absent = mapOf(LetterZone.RETURN_ADDRESS_LINE to 0, LetterZone.INFO_BLOCK to 1),
+        ),
+        zones = SINGLE_COLUMN_ZONES,
+        locale = LocaleHint(countries = setOf("US")),
     )
 
     /** No layout recognised: the whole letter is read as one text. */
@@ -214,7 +277,7 @@ object LayoutTemplates {
     )
 
     /** Every matchable class, most specific first; [GENERIC] is the fallback and is not scored. */
-    val ALL: List<LayoutTemplate> = listOf(DIN5008_A, DIN5008_B, INVOICE_TABLE, RECEIPT_NARROW, FORM_KV, RTL_DIN)
+    val ALL: List<LayoutTemplate> = listOf(DIN5008_A, DIN5008_B, INVOICE_TABLE, RECEIPT_NARROW, FORM_KV, RTL_DIN, UK_LETTER, US_BLOCK)
 
     fun byId(id: String): LayoutTemplate? = (ALL + GENERIC).firstOrNull { it.id == id }
 }

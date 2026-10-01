@@ -18,11 +18,18 @@ class TemplateMatcher(
     private val threshold: Float = DEFAULT_THRESHOLD,
 ) {
 
-    /** @param pageAspect width over height of the page when known; otherwise estimated from the text. */
-    fun match(layout: LetterLayout, pageAspect: Float? = null): TemplateMatch {
+    /**
+     * @param pageAspect width over height of the page when known; otherwise estimated from the text.
+     * @param country the address country code when known (from the structured address), else null.
+     * @param script the script code of the page's text when known, else null.
+     *   [country] and [script] only break near-ties: a template whose [LayoutTemplate.locale] names them gets
+     *   [LOCALE_TIE_BREAK] per match when choosing the best, and never reaches [threshold] because of it.
+     *   With both null the choice is the geometry's alone.
+     */
+    fun match(layout: LetterLayout, pageAspect: Float? = null, country: String? = null, script: String? = null): TemplateMatch {
         val features = LayoutFeatures(layout, pageAspect)
         val scores = templates.associate { it.id to score(it.signature, features) }
-        val best = templates.maxByOrNull { scores.getValue(it.id) }
+        val best = templates.maxByOrNull { scores.getValue(it.id) + LOCALE_TIE_BREAK * (it.locale?.matches(country, script) ?: 0) }
         val top = best?.let { scores.getValue(it.id) } ?: 0f
         return if (best == null || top < threshold) {
             TemplateMatch(LayoutTemplates.GENERIC, top, scores)
@@ -49,5 +56,8 @@ class TemplateMatcher(
 
     companion object {
         const val DEFAULT_THRESHOLD = 0.6f
+
+        /** Added per matching locale code when ranking; small against the geometry's score (0..1). */
+        const val LOCALE_TIE_BREAK = 0.03f
     }
 }
