@@ -10,11 +10,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class AddressPart(val key: String) {
     RECIPIENT_NAME("name"),
-    SALUTATION("salutation"),
     ORGANISATION("organisation"),
     DEPARTMENT("department"),
     CARE_OF("care_of"),
-    ATTENTION("attention"),
     STREET("street"),
     HOUSE_NUMBER("house_number"),
     ADDRESS_EXTRA("extra"),
@@ -61,11 +59,9 @@ data class PostalAddress(
     val lines: List<String>,
     val page: Int = 1,
     val recipientNames: List<AddressPartValue> = emptyList(),
-    val salutation: AddressPartValue? = null,
     val organisation: AddressPartValue? = null,
     val department: AddressPartValue? = null,
     val careOf: AddressPartValue? = null,
-    val attention: AddressPartValue? = null,
     val street: AddressPartValue? = null,
     val houseNumber: AddressPartValue? = null,
     val addressExtra: AddressPartValue? = null,
@@ -82,11 +78,9 @@ data class PostalAddress(
     /** The single value of [part]; for the names, the first one. */
     fun part(part: AddressPart): AddressPartValue? = when (part) {
         AddressPart.RECIPIENT_NAME -> recipientNames.firstOrNull()
-        AddressPart.SALUTATION -> salutation
         AddressPart.ORGANISATION -> organisation
         AddressPart.DEPARTMENT -> department
         AddressPart.CARE_OF -> careOf
-        AddressPart.ATTENTION -> attention
         AddressPart.STREET -> street
         AddressPart.HOUSE_NUMBER -> houseNumber
         AddressPart.ADDRESS_EXTRA -> addressExtra
