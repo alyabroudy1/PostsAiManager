@@ -5,68 +5,18 @@
     <string name="form_understanding_done">Finished reading the form.</string>
     <string name="form_no_model">No AI model is installed yet. Install one to fill in forms.</string>
     <string name="form_understanding_failed">I could not read this form. Ask me again to try once more.</string>
-    <string name="form_found_ask_subject">This is a form to fill in (%1$s). Who is it for?</string>
-    <string name="form_found_ask_subject_reason">This is a form to fill in (%1$s). It looks like it is for %2$s: «%3$s». Who is it for?</string>
-    <string name="form_ask_subject">Who is this form for?</string>
-    <string name="form_ask_guardian">Which parent or guardian should I use for the guardian\'s details?</string>
-    <string name="form_ask_payer">Whose account should I use for the payment details?</string>
-    <string name="form_filled_intro">I filled %1$s of %2$s from the saved details:</string>
-    <string name="form_ask_text">What should I write for «%1$s»?</string>
-    <string name="form_ask_date">Which date should I write for «%1$s»?</string>
-    <string name="form_ask_choice">Which option applies for «%1$s»?</string>
-    <string name="form_ask_yes_no">«%1$s»: yes or no?</string>
-    <string name="form_still_right">«%1$s» is saved as %2$s. Is that still right?</string>
-    <string name="form_hint_not_an_option">That is not one of the options for «%1$s». Please pick one of them.</string>
-    <string name="form_hint_not_a_date">I could not read that as a date. Please write the day, the month and the year.</string>
-    <string name="form_hint_not_a_phone">That does not look like a phone number. Please check it.</string>
-    <string name="form_hint_not_an_email">That does not look like an e-mail address. Please check it.</string>
-    <string name="form_hint_not_an_iban">That is not a valid IBAN. Please check it.</string>
-    <string name="form_hint_not_a_postcode">That does not look like a valid postcode. Please check it.</string>
-    <string name="form_hint_empty">Please give an answer for «%1$s».</string>
-    <string name="form_left_for_you">I left «%1$s» for you to write by hand.</string>
-    <string name="form_remember">Should I remember this for %1$s?</string>
-    <string name="form_remembered">Saved for %1$s.</string>
-    <string name="form_remember_failed">I could not save that.</string>
-    <string name="form_all_set">All set: %1$s of %2$s ready.</string>
-    <string name="form_all_set_signature">The signature is left for you.</string>
-    <string name="form_all_set_signature_page">The signature is left for you (page %1$s).</string>
-    <string name="form_stopped">Okay, I stopped. Ask me again any time to continue.</string>
-    <string name="form_subject_changed">Okay, switching to another person.</string>
-    <plurals name="form_more_questions">
-        <item quantity="one">%1$s more question. Continue?</item>
-        <item quantity="other">%1$s more questions. Continue?</item>
-    </plurals>
-    <plurals name="form_by_hand">
-        <item quantity="one">I left %1$s field for you to fill in by hand.</item>
-        <item quantity="other">I left %1$s fields for you to fill in by hand.</item>
-    </plurals>
-    <plurals name="form_count_fields">
-        <item quantity="one">%1$d field</item>
-        <item quantity="other">%1$d fields</item>
-    </plurals>
-    <plurals name="form_count_pages">
-        <item quantity="one">%1$d page</item>
-        <item quantity="other">%1$d pages</item>
-    </plurals>
+    <string name="form_search_model_missing">Faster form reading needs the search model.</string>
+    <string name="form_beta_notice">Form filling (beta). Please check every value before you use it.</string>
+    <string name="form_agent_paused">Paused. What is done so far is kept. Continue where I stopped?</string>
+    <string name="form_agent_stuck">I could not finish this step on my own. Continue, or tell me what to do.</string>
+    <string name="form_agent_failed">Something went wrong while filling in the form. Continue to try again.</string>
 
     <!-- Chips -->
-    <string name="form_chip_yes">Yes</string>
-    <string name="form_chip_no">No</string>
-    <string name="form_chip_skip">Skip</string>
     <string name="form_chip_continue">Continue</string>
-    <string name="form_chip_by_hand">I\'ll do the rest by hand</string>
-    <string name="form_chip_someone_else">Someone else</string>
-    <string name="form_chip_me_setup">Me (set up)</string>
-    <string name="form_chip_continue_reading">Continue reading</string>
-    <string name="form_reading_paused">Paused reading the form. What is read so far is kept.</string>
-    <string name="form_search_model_missing">Faster form reading needs the search model.</string>
     <string name="form_chip_download">Download</string>
-    <string name="form_beta_notice">Form filling (beta). Please check every value before you use it.</string>
-    <string name="form_ask_reopen">You already worked on this form. Continue where you left off, or start over?</string>
-    <string name="form_chip_start_over">Start over</string>
-    <string name="form_ask_role_name">What is their name? Type it here.</string>
-    <string name="form_me_setup_hint">You have no profile of your own yet. Add one under Profiles (type Me); until then, choose Someone else and type the name.</string>
     <string name="form_chip_description">Answer: %1$s</string>
+    <string name="form_page_chip">%1$s · p.%2$d</string>
+    <string name="form_page_chip_description">Show %1$s on page %2$d</string>
 
     <!-- The fill card -->
     <string name="form_card_title">Form fill</string>

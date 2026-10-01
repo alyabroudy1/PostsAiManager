@@ -3,9 +3,9 @@ package com.postsaimanager.feature.chat
 import androidx.lifecycle.SavedStateHandle
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.ai.AiEngine
-import com.postsaimanager.core.domain.form.fill.FormFillConversation
+import com.postsaimanager.core.domain.form.agent.FormFillAgent
+import com.postsaimanager.core.domain.form.agent.FormRoute
 import com.postsaimanager.core.domain.form.fill.FormMessageCodec
-import com.postsaimanager.core.domain.form.fill.FormRoute
 import com.postsaimanager.core.domain.usecase.ChatTurn
 import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
 import com.postsaimanager.core.domain.usecase.ObserveSuggestedQuestionsUseCase
@@ -52,7 +52,7 @@ class ChatViewModelFormFillTest {
     private val documents = FakeDocumentRepository()
     private val conversations = FakeConversationRepository()
     private val fills = FakeFormFillRepository()
-    private val formFill = mockk<FormFillConversation>(relaxed = true)
+    private val formFill = mockk<FormFillAgent>(relaxed = true)
     private val sendChat = mockk<SendChatMessageUseCase>(relaxed = true)
     private val engine = mockk<AiEngine>(relaxed = true) {
         every { state } returns MutableStateFlow(ModelLoadState.Idle)
@@ -151,22 +151,17 @@ class ChatViewModelFormFillTest {
         vm.sendMessage("when is it due?")
 
         io.mockk.verify { sendChat.invoke("conv-d1", "d1", "when is it due?", any(), any(), any()) }
-        coVerify(exactly = 0) { formFill.reask(any()) }
     }
 
     @Test
-    fun `a question about the form is answered by the chat and then the fill asks again`() = runTest {
-        coEvery { formFill.route("d1", "what is Haftung?") } returns FormRoute.ASK_ABOUT_FORM
-        chatAnswers()
+    fun `while the agent runs every message is its own, the chat is not asked`() = runTest {
+        coEvery { formFill.route("d1", "what is Haftung?") } returns FormRoute.HANDLED
         val vm = viewModel()
 
         vm.sendMessage("what is Haftung?")
 
-        coVerifyOrder {
-            formFill.route("d1", "what is Haftung?")
-            sendChat.invoke("conv-d1", "d1", "what is Haftung?", any(), any(), any())
-            formFill.reask("d1")
-        }
+        coVerify { formFill.route("d1", "what is Haftung?") }
+        io.mockk.verify(exactly = 0) { sendChat.invoke(any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -197,11 +192,8 @@ class ChatViewModelFormFillTest {
 
     @Test
     fun `stored form messages come back as form messages, chat messages stay plain`() = runTest {
-        val question = FormMessage(
-            FormMessageKind.QUESTION, FormText.REMEMBER, listOf("Ahmad"),
-            listOf(FormChip(FormChipAction.REMEMBER_YES, labelCode = FormChipLabel.YES)),
-        )
-        conversations.addMessage(FormMessageCodec.toMessage("m1", "conv-d1", 1, question, content = "Soll ich das merken?"))
+        val paused = FormMessage(FormMessageKind.STATUS, FormText.AGENT_PAUSED, chips = listOf(FormChip(FormChipAction.CONTINUE, labelCode = FormChipLabel.CONTINUE)))
+        conversations.addMessage(FormMessageCodec.toMessage("m1", "conv-d1", 1, paused))
         conversations.addMessage(
             com.postsaimanager.core.model.AiMessage("m2", "conv-d1", com.postsaimanager.core.model.MessageRole.USER, "ja", createdAt = 2),
         )
@@ -209,10 +201,34 @@ class ChatViewModelFormFillTest {
         val vm = viewModel()
 
         val messages = vm.uiState.value.messages
-        assertThat(messages.map { it.form }).containsExactly(question, null).inOrder()
-        assertThat(messages.first().text).isEqualTo("Soll ich das merken?")
+        assertThat(messages.map { it.form }).containsExactly(paused, null).inOrder()
         assertThat(messages.first().isUser).isFalse()
         assertThat(messages.last().isUser).isTrue()
+    }
+
+    private fun step(id: String, role: com.postsaimanager.core.model.MessageRole, name: String, args: String? = null, content: String = "", at: Long) =
+        com.postsaimanager.core.model.AiMessage(
+            id = id, conversationId = "conv-d1", role = role, content = content, toolCallId = "call-$id", toolName = name, toolArgs = args,
+            toolResult = if (role == com.postsaimanager.core.model.MessageRole.TOOL_RESULT) "{\"ok\":true}" else null, createdAt = at,
+        )
+
+    @Test
+    fun `the agent's questions show with their chips, its protocol steps never show`() = runTest {
+        val call = com.postsaimanager.core.model.MessageRole.TOOL_CALL
+        val result = com.postsaimanager.core.model.MessageRole.TOOL_RESULT
+        conversations.addMessage(step("a", call, "read_form", "{}", at = 1))
+        conversations.addMessage(step("b", result, "read_form", at = 2))
+        conversations.addMessage(step("c", call, "ask_user", "{\"question\":\"Wer?\",\"chips\":[\"Ahmad\",\"Ich\"]}", content = "Wer?", at = 3))
+        conversations.addMessage(step("d", call, "show_fill_card", "{}", at = 4))
+        conversations.addMessage(step("e", call, "show_on_page", "{\"field_id\":\"f2\"}", at = 5))
+
+        val vm = viewModel()
+
+        val shown = vm.uiState.value.messages
+        assertThat(shown.map { it.id }).containsExactly("c", "d", "e").inOrder()
+        assertThat(shown.map { it.form!!.kind }).containsExactly(FormMessageKind.QUESTION, FormMessageKind.CARD, FormMessageKind.PAGE).inOrder()
+        assertThat(shown.first().text).isEqualTo("Wer?")
+        assertThat(shown.first().form!!.chips.map { it.label }).containsExactly("Ahmad", "Ich").inOrder()
     }
 
     private fun field(id: String, page: Int, order: Int, value: String? = null, kind: FormFieldKind = FormFieldKind.TEXT) = FormField(

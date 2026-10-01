@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.domain.form.agent.FormRefs
 import com.postsaimanager.core.model.FormChip
 import com.postsaimanager.core.model.FormChipAction
 import com.postsaimanager.core.model.FormField
@@ -88,7 +89,23 @@ internal fun FormMessageItem(
                 FillCard(fillCard, expanded = isLatestCard, onShowOnPage = onShowOnPage, onCopy = onCopy)
             }
         }
+        FormMessageKind.PAGE -> {
+            val field = fillCard?.let { FormRefs.findField(it.fields, form.fieldId.orEmpty()) }
+            if (field != null) FormPageChip(field, onShowOnPage)
+        }
     }
+}
+
+/** A chip the assistant offers to look at a field on its page ("Unterschrift · p.2"); it opens the page with the field marked. */
+@Composable
+internal fun FormPageChip(field: FormField, onShowOnPage: (FormField) -> Unit) {
+    val resources = rememberResources()
+    val description = resources.getString(R.string.form_page_chip_description, field.labelText, field.page)
+    AssistChip(
+        onClick = { onShowOnPage(field) },
+        label = { Text(resources.getString(R.string.form_page_chip, field.labelText, field.page)) },
+        modifier = Modifier.padding(start = 40.dp).semantics { contentDescription = description }.testTag("pageChip"),
+    )
 }
 
 /** A quiet line of what the assistant is doing, with a progress bar while the form is being read. */

@@ -1,15 +1,23 @@
 package com.postsaimanager.core.domain.form.fill
 
+import com.postsaimanager.core.domain.agent.AgentModel
+import com.postsaimanager.core.domain.agent.EngineAgentModel
+import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.EmbeddingService
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.form.AiEnginePromptFraming
 import com.postsaimanager.core.domain.form.FillValues
-import com.postsaimanager.core.domain.form.GuardiansOfUseCase
 import com.postsaimanager.core.domain.form.PersonDataSource
 import com.postsaimanager.core.domain.form.PromptFraming
 import com.postsaimanager.core.domain.form.RememberDetailUseCase
 import com.postsaimanager.core.domain.form.UnderstandFormUseCase
+import com.postsaimanager.core.domain.form.agent.FieldValueGuard
+import com.postsaimanager.core.domain.form.agent.FormAgentTools
+import com.postsaimanager.core.domain.form.agent.FormChatLog
+import com.postsaimanager.core.domain.form.agent.FormFillAgent
+import com.postsaimanager.core.domain.form.agent.FormReader
+import com.postsaimanager.core.domain.form.agent.FormToolEnv
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.FormFillRepository
@@ -22,8 +30,8 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * Wires the form assist's domain classes: the model port over the standing engine, the steps that take defaults, and the one
- * [FormFillConversation] (a singleton: its lock serialises the conversation across screens).
+ * Wires the form assist: the model ports over the standing engine, the understanding steps that take defaults, the form tools
+ * and the one [FormFillAgent] (a singleton: its lock serialises the conversation across screens).
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -31,6 +39,9 @@ abstract class FormAssistModule {
 
     @Binds
     abstract fun bindFormModel(impl: EngineFormModel): FormModel
+
+    @Binds
+    abstract fun bindAgentModel(impl: EngineAgentModel): AgentModel
 
     companion object {
         @Provides
@@ -51,47 +62,48 @@ abstract class FormAssistModule {
         ): UnderstandFormUseCase = UnderstandFormUseCase(session, framing, embedder, trace = trace)
 
         @Provides
-        fun provideAnswerChips(people: PersonDataSource, profile: FormFillProfile): AnswerChips = AnswerChips(people, profile)
-
-        @Provides
-        fun provideAnswerInterpreter(model: FormModel, profile: FormFillProfile): AnswerInterpreter = AnswerInterpreter(model, profile)
-
-        @Provides
-        fun provideQuestionWriter(model: FormModel, profile: FormFillProfile, trace: FormFillTrace): FormQuestionWriter =
-            FormQuestionWriter(model, profile = profile, trace = trace)
-
-        @Provides
-        fun provideIntentClassifier(model: FormModel, profile: FormFillProfile): FormIntentClassifier = FormIntentClassifier(model, profile)
-
-        @Provides
         fun provideFillRequestDetector(model: FormModel, embedder: EmbeddingService, profile: FormFillProfile): FillRequestDetector =
             FillRequestDetector(model, embedder, profile)
 
         @Provides
         @Singleton
+        fun provideFormChatLog(conversations: ConversationRepository, documents: DocumentRepository): FormChatLog =
+            FormChatLog(conversations, documents)
+
+        @Provides
+        @Singleton
         @Suppress("LongParameterList")
-        fun provideConversation(
+        fun provideFormAgentTools(
             fills: FormFillRepository,
-            conversations: ConversationRepository,
             documents: DocumentRepository,
             profiles: ProfileRepository,
             people: PersonDataSource,
-            guardiansOf: GuardiansOfUseCase,
             remember: RememberDetailUseCase,
-            understand: UnderstandFormUseCase,
-            model: FormModel,
-            classifier: FormIntentClassifier,
-            detector: FillRequestDetector,
-            interpreter: AnswerInterpreter,
-            writer: FormQuestionWriter,
-            chips: AnswerChips,
             fillValues: FillValues,
-            profile: FormFillProfile,
+            understand: UnderstandFormUseCase,
+            log: FormChatLog,
             trace: FormFillTrace,
             ocrTrace: FormOcrTrace,
-        ): FormFillConversation = FormFillConversation(
-            fills, conversations, documents, profiles, people, guardiansOf, remember, understand, model, classifier, detector,
-            interpreter, writer, chips, fillValues, profile, trace = trace, ocrTrace = ocrTrace,
-        )
+        ): FormAgentTools = FormAgentTools { documentId ->
+            FormToolEnv(
+                documentId = documentId, fills = fills, profiles = profiles, people = people, guard = FieldValueGuard(people),
+                reader = FormReader(fills, documents, profiles, understand, log, trace = trace, ocrTrace = ocrTrace),
+                remember = remember, fillValues = fillValues,
+            )
+        }
+
+        @Provides
+        @Singleton
+        @Suppress("LongParameterList")
+        fun provideFormFillAgent(
+            fills: FormFillRepository,
+            documents: DocumentRepository,
+            log: FormChatLog,
+            tools: FormAgentTools,
+            model: AgentModel,
+            detector: FillRequestDetector,
+            activeModels: ActiveModelProvider,
+            trace: FormFillTrace,
+        ): FormFillAgent = FormFillAgent(fills, documents, log, tools, model, detector, activeModels, trace = trace)
     }
 }

@@ -1,10 +1,12 @@
 package com.postsaimanager.feature.chat
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -164,9 +166,9 @@ class FormChatUiTest {
             FormQuestion(
                 text = "Hat Ahmad das Seepferdchen schon?",
                 chips = listOf(
-                    FormChip(FormChipAction.ANSWER, label = "Ja", arg = "Ja", fieldId = "f"),
-                    FormChip(FormChipAction.ANSWER, label = "Nein", arg = "Nein", fieldId = "f"),
-                    FormChip(FormChipAction.SKIP, labelCode = FormChipLabel.SKIP, fieldId = "f"),
+                    FormChip(FormChipAction.ANSWER, label = "Ja", arg = "Ja"),
+                    FormChip(FormChipAction.ANSWER, label = "Nein", arg = "Nein"),
+                    FormChip(FormChipAction.ANSWER, label = "Weiß ich nicht", arg = "Weiß ich nicht"),
                 ),
                 enabled = enabled,
                 onChip = { chip, shown -> chips += chip to shown },
@@ -180,11 +182,82 @@ class FormChatUiTest {
 
         compose.onNodeWithText("Hat Ahmad das Seepferdchen schon?").assertIsDisplayed()
         compose.onNodeWithContentDescription("Answer: Nein").assertIsEnabled().performClick()
-        compose.onNodeWithText("Skip").performClick()
+        compose.onNodeWithText("Weiß ich nicht").performClick()
 
-        assertThat(chips.map { it.second }).containsExactly("Nein", "Skip").inOrder()
+        assertThat(chips.map { it.second }).containsExactly("Nein", "Weiß ich nicht").inOrder()
         assertThat(chips.first().first.arg).isEqualTo("Nein")
-        assertThat(chips.last().first.action).isEqualTo(FormChipAction.SKIP)
+        assertThat(chips.last().first.action).isEqualTo(FormChipAction.ANSWER)
+    }
+
+    @Test
+    fun `the agent's ask_user question and its chips are drawn from the stored call, no tool JSON in sight`() {
+        compose.setContent {
+            MaterialTheme {
+                FormMessageItem(
+                    message = ChatMessage(id = "m", text = "Für wen ist das Formular?", isUser = false),
+                    form = FormMessage(
+                        FormMessageKind.QUESTION,
+                        chips = listOf(FormChip(FormChipAction.ANSWER, label = "Ahmad", arg = "Ahmad"), FormChip(FormChipAction.ANSWER, label = "Ich", arg = "Ich")),
+                    ),
+                    fillCard = null, isLatestCard = false, chipsEnabled = true, onChip = { c, s -> chips += c to s }, onShowOnPage = {}, onCopy = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Für wen ist das Formular?").assertIsDisplayed()
+        compose.onNodeWithText("Ahmad").assertIsEnabled()
+        compose.onNodeWithText("Ich").performClick()
+        compose.onNodeWithText("Ahmad").performClick()
+
+        assertThat(chips.map { it.second }).containsExactly("Ich", "Ahmad").inOrder()
+        assertThat(chips.all { it.first.action == FormChipAction.ANSWER }).isTrue()
+    }
+
+    @Test
+    fun `a closed question (not the latest) shows its chips but they cannot be tapped`() {
+        compose.setContent {
+            MaterialTheme {
+                FormMessageItem(
+                    message = ChatMessage(id = "m", text = "Alte Frage?", isUser = false),
+                    form = FormMessage(FormMessageKind.QUESTION, chips = listOf(FormChip(FormChipAction.ANSWER, label = "Ja", arg = "Ja"))),
+                    fillCard = null, isLatestCard = false, chipsEnabled = false, onChip = { c, s -> chips += c to s }, onShowOnPage = {}, onCopy = {},
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Answer: Ja").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `the page chip of show_on_page opens the page of the field it names`() {
+        compose.setContent {
+            MaterialTheme {
+                FormMessageItem(
+                    message = ChatMessage(id = "m", text = "", isUser = false),
+                    form = FormMessage(FormMessageKind.PAGE, fieldId = "f3"), // the third field in page and reading order
+                    fillCard = state(), isLatestCard = false, chipsEnabled = false, onChip = { _, _ -> }, onShowOnPage = { shownOnPage += it }, onCopy = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("pageChip").assertIsDisplayed().performClick()
+
+        assertThat(shownOnPage.single().id).isEqualTo("allergies")
+    }
+
+    @Test
+    fun `a page chip for a field that is not on the form shows nothing`() {
+        compose.setContent {
+            MaterialTheme {
+                FormMessageItem(
+                    message = ChatMessage(id = "m", text = "", isUser = false),
+                    form = FormMessage(FormMessageKind.PAGE, fieldId = "f99"),
+                    fillCard = state(), isLatestCard = false, chipsEnabled = false, onChip = { _, _ -> }, onShowOnPage = {}, onCopy = {},
+                )
+            }
+        }
+
+        compose.onAllNodesWithTag("pageChip").assertCountEquals(0)
     }
 
     @Test
@@ -195,36 +268,35 @@ class FormChatUiTest {
     }
 
     @Test
-    fun `a stored message is rendered from its code in the user's language`() {
+    fun `a stored status line is rendered from its code in the user's language, its chip continues the run`() {
         compose.setContent {
             MaterialTheme {
                 FormMessageItem(
                     message = ChatMessage(id = "m", text = "", isUser = false),
-                    form = FormMessage(FormMessageKind.QUESTION, FormText.REMEMBER, listOf("Ahmad"), listOf(FormChip(FormChipAction.REMEMBER_YES, labelCode = FormChipLabel.YES))),
-                    fillCard = null, isLatestCard = false, chipsEnabled = true, onChip = { c, s -> chips += c to s }, onShowOnPage = {}, onCopy = {},
+                    form = FormMessage(FormMessageKind.STATUS, FormText.AGENT_PAUSED, chips = listOf(FormChip(FormChipAction.CONTINUE, labelCode = FormChipLabel.CONTINUE))),
+                    fillCard = null, isLatestCard = false, chipsEnabled = false, onChip = { c, s -> chips += c to s }, onShowOnPage = {}, onCopy = {},
                 )
             }
         }
 
-        compose.onNodeWithText("Should I remember this for Ahmad?").assertIsDisplayed()
-        compose.onNodeWithText("Yes").performClick()
-        assertThat(chips.single().first.action).isEqualTo(FormChipAction.REMEMBER_YES)
-        assertThat(chips.single().second).isEqualTo("Yes")
+        compose.onNodeWithText("Paused. What is done so far is kept. Continue where I stopped?").assertIsDisplayed()
+        compose.onNodeWithText("Continue").performClick()
+        assertThat(chips.single().first.action).isEqualTo(FormChipAction.CONTINUE)
+        assertThat(chips.single().second).isEqualTo("Continue")
     }
 
     @Test
-    fun `the card message renders the line above it and the live card`() {
+    fun `the card message renders the live card`() {
         compose.setContent {
             MaterialTheme {
                 FormMessageItem(
                     message = ChatMessage(id = "m", text = "", isUser = false),
-                    form = FormMessage(FormMessageKind.CARD, FormText.FILLED_INTRO, listOf("4", "7"), fillId = "fill"),
+                    form = FormMessage(FormMessageKind.CARD),
                     fillCard = state(), isLatestCard = true, chipsEnabled = false, onChip = { _, _ -> }, onShowOnPage = {}, onCopy = {},
                 )
             }
         }
 
-        compose.onNodeWithText("I filled 4 of 7 from the saved details:").assertIsDisplayed()
         compose.onNodeWithTag("fillCard").assertIsDisplayed()
     }
 

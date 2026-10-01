@@ -5,10 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiEngine
+import com.postsaimanager.core.domain.form.agent.FormChatLog
+import com.postsaimanager.core.domain.form.agent.FormFillAgent
+import com.postsaimanager.core.domain.form.agent.FormRoute
 import com.postsaimanager.core.domain.form.fill.FillProgress
-import com.postsaimanager.core.domain.form.fill.FormFillConversation
 import com.postsaimanager.core.domain.form.fill.FormMessageCodec
-import com.postsaimanager.core.domain.form.fill.FormRoute
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.repository.FormFillRepository
 import com.postsaimanager.core.domain.usecase.ChatErrorAction
@@ -68,7 +69,7 @@ class ChatViewModel @Inject constructor(
     private val unblockGpu: UnblockGpuUseCase,
     private val getDocumentPreview: GetDocumentPreviewUseCase,
     private val observeSuggestedQuestions: ObserveSuggestedQuestionsUseCase,
-    private val formFill: FormFillConversation,
+    private val formFill: FormFillAgent,
     private val formFills: FormFillRepository,
 ) : ViewModel() {
 
@@ -188,7 +189,7 @@ class ChatViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     val fillCard: StateFlow<FillCardState?> = (
         documentId?.let { id ->
-            formFills.observeFill(FormFillConversation.fillId(id)).flatMapLatest { fill ->
+            formFills.observeFill(FormChatLog.fillId(id)).flatMapLatest { fill ->
                 if (fill == null) flowOf(null) else formFills.observeFields(fill.id).map { FillCardState(fill, it) }
             }
         } ?: flowOf(null)
@@ -285,7 +286,9 @@ class ChatViewModel @Inject constructor(
     private fun restoreHistory() {
         viewModelScope.launch {
             conversationRepository.getMessages(conversationId).collect { messages ->
-                val chatMessages = messages.map { message ->
+                // The agent's own protocol (its stored tool calls and results) is not a message: only the calls that show
+                // something (a question, the card, a page chip, the closing message) are, and the user never sees raw tool JSON.
+                val chatMessages = messages.filter { !FormMessageCodec.isAgentStep(it) || FormMessageCodec.parse(it) != null }.map { message ->
                     val sources = message.sources.map { toChatSource(it) }
                     ChatMessage(
                         id = message.id,
@@ -361,16 +364,12 @@ class ChatViewModel @Inject constructor(
             startChatTurn(text)
             return
         }
-        // In a document chat the form conversation reads the message first: an answer to its question, a request to fill the
-        // form or an interrupt is its own; anything else (and a question about the form) is the normal grounded chat.
+        // In a document chat the form agent reads the message first: while it runs, every message is the user's next message to it
+        // (it decides what the message means); a request to fill the form starts it; anything else is the normal grounded chat.
         runFormWork {
             when (formFill.route(document, text)) {
                 FormRoute.HANDLED -> Unit
                 FormRoute.NOT_FOR_FORM -> chatTurn(text)
-                FormRoute.ASK_ABOUT_FORM -> {
-                    chatTurn(text)
-                    formFill.reask(document)
-                }
             }
         }
     }

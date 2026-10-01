@@ -3,13 +3,16 @@ package com.postsaimanager.core.model
 import kotlinx.serialization.Serializable
 
 /*
- * The messages the form-filling conversation adds to a document's chat. They are stored as ordinary messages (role
- * TOOL_RESULT, tool name [FORM_MESSAGE_TOOL], this payload in the tool arguments), so the conversation survives a restart and
- * the model never sees them as history. The domain writes CODES, never UI text: the chat renders a [FormText] from string
- * resources in the user's language, with the message's [FormMessage.args].
+ * What the form-filling conversation shows in a document's chat besides the model's own words. The conversation is run by a
+ * tool-calling agent (see `core/domain/agent`): the agent's tool calls and results are stored as TOOL_CALL / TOOL_RESULT
+ * messages with their tool id, name, arguments and result in the message's tool columns, and the chat renders the calls that
+ * have something to show (a question with chips, the fill card, a page chip, the closing message) as a [FormMessage]. Lines the
+ * assistant says that no model wrote (progress, a pause, an error) are stored as TOOL_RESULT messages with the tool name
+ * [FORM_MESSAGE_TOOL] and this payload in the tool arguments. The domain writes CODES, never UI text: the chat renders a
+ * [FormText] from string resources in the user's language, with the message's [FormMessage.args].
  */
 
-/** The `toolName` of a stored form message. */
+/** The `toolName` of a stored form status message (a line the conversation says that is not a tool call). */
 const val FORM_MESSAGE_TOOL = "form"
 
 /** The stored value of a tick box that has no printed options: the user ticked it ([YES]) or not ([NO]). Shown from resources. */
@@ -23,119 +26,54 @@ enum class FormMessageKind {
     /** A line about what the assistant is doing or has done; [FormMessage.text] says which. */
     STATUS,
 
-    /** A question with answer chips. When the model wrote it, it is the message content; otherwise [FormMessage.text] is a template. */
+    /** A question or a message the model wrote (the message content), with answer chips. */
     QUESTION,
 
-    /** The fill card: rendered live from the form's fields; [FormMessage.text] is the line above it. */
+    /** The fill card: rendered live from the form's fields. */
     CARD,
+
+    /** A chip that opens the page of a field ([FormMessage.fieldId] is the field's short id, see `FormRefs`). */
+    PAGE,
 }
 
 /** Every line the form conversation says that is not written by the model. */
 @Serializable
 enum class FormText {
-    /** args: step done, steps total. */
+    /** args: step done, steps total, the reading's key. */
     UNDERSTANDING,
     NO_MODEL,
     UNDERSTANDING_FAILED,
 
-    /** args: fields, pages. */
-    FORM_FOUND_ASK_SUBJECT,
-
-    /** args: fields, pages, the form line, the person it fits. */
-    FORM_FOUND_ASK_SUBJECT_REASON,
-    ASK_SUBJECT,
-
-    /** args: none. The guardian could not be settled from the profiles. */
-    ASK_GUARDIAN,
-    ASK_PAYER,
-
-    /** args: ready, total. The line above the first fill card. */
-    FILLED_INTRO,
-
-    /** Template questions when the model could not write one. args: the field's label. */
-    ASK_TEXT,
-    ASK_DATE,
-    ASK_CHOICE,
-    ASK_YES_NO,
-
-    /** args: the label, the stored value. */
-    STILL_RIGHT,
-
-    /** The answer was refused; asked again with a hint. args: the label. */
-    HINT_NOT_AN_OPTION,
-    HINT_NOT_A_DATE,
-    HINT_NOT_A_PHONE,
-    HINT_NOT_AN_EMAIL,
-    HINT_NOT_AN_IBAN,
-    HINT_NOT_A_POSTCODE,
-    HINT_EMPTY,
-
-    /** Refused twice: the field is left for the user. args: the label. */
-    LEFT_FOR_YOU,
-
-    /** args: the person's name. */
-    REMEMBER,
-    REMEMBERED,
-    REMEMBER_FAILED,
-
-    /** args: how many questions are left. */
-    MORE_QUESTIONS,
-
-    /** The rest was left to the user. args: how many fields. */
-    BY_HAND,
-
-    /** args: ready, total, signatures, first signature page or empty. */
-    ALL_SET,
-    STOPPED,
-    SUBJECT_CHANGED,
-
-    /** The name of the "someone else" behind a role is asked (typed in the chat). */
-    ASK_ROLE_NAME,
-
-    /** The user has no profile of their own yet: where to make one. */
-    ME_SETUP_HINT,
-
-    /** Reading the form was stopped; a chip continues it from the last finished step. */
-    READING_PAUSED,
-
     /** The search (embedding) model is not on the device, so reading the form is slower; a chip opens the model download. */
     SEARCH_MODEL_MISSING,
 
-    /** The first line of a new fill: form filling is a beta feature. */
+    /** The first line of a new fill: form filling is a beta feature. It also marks where a run of the agent begins. */
     BETA_NOTICE,
 
-    /** A filled or stopped form was asked for again: continue it or start over. */
-    ASK_REOPEN,
+    /** The run was stopped (or the chat was left): a chip continues where it stopped. */
+    AGENT_PAUSED,
+
+    /** The agent took its step limit without reaching the user: a chip lets it go on. */
+    AGENT_STUCK,
+
+    /** The model failed or kept answering with something unusable. */
+    AGENT_FAILED,
 }
 
 /** The labels of chips that are not data (a name, an option, a value are shown as they are). */
 @Serializable
-enum class FormChipLabel { YES, NO, SKIP, CONTINUE, BY_HAND, SOMEONE_ELSE, ME_SETUP, CONTINUE_READING, DOWNLOAD, START_OVER }
+enum class FormChipLabel { CONTINUE, DOWNLOAD }
 
 @Serializable
 enum class FormChipAction {
-    /** Answer the open question with [FormChip.arg]. */
+    /** Answer the open question with [FormChip.arg]: it is sent as the user's message. */
     ANSWER,
 
-    /** Choose the person [FormChip.arg] (blank: someone else) for the open subject or role question. */
-    PERSON,
-    REMEMBER_YES,
-    REMEMBER_NO,
-    SKIP,
+    /** Let the agent go on from where it stopped. */
     CONTINUE,
-    BY_HAND,
-
-    /** Continue reading a form whose reading was stopped. */
-    CONTINUE_READING,
 
     /** Open the model download screen. Handled by the UI; never an answer to a question. */
     OPEN_MODELS,
-
-    /** Pick a finished or stopped fill up again. */
-    REOPEN_CONTINUE,
-
-    /** Discard a finished or stopped fill and read the form afresh. */
-    START_OVER,
 }
 
 /** One tappable answer. [label] is shown verbatim; when null, [labelCode] is rendered from resources. */
@@ -145,21 +83,19 @@ data class FormChip(
     val label: String? = null,
     val labelCode: FormChipLabel? = null,
     val arg: String? = null,
-    /** The field an ANSWER or SKIP chip belongs to: a chip of an earlier question no longer applies. */
+    /** The field an ANSWER chip belongs to, when it answers a question about one field. */
     val fieldId: String? = null,
 )
 
-/** The payload of a stored form message. */
+/** The payload of a form message. */
 @Serializable
 data class FormMessage(
     val kind: FormMessageKind,
     val text: FormText? = null,
     val args: List<String> = emptyList(),
     val chips: List<FormChip> = emptyList(),
-    /** The field a QUESTION is about. */
+    /** The field a QUESTION is about, or the field a PAGE chip opens. */
     val fieldId: String? = null,
     /** The fill a CARD renders. */
     val fillId: String? = null,
-    /** The language (a BCP 47 tag) a template question is rendered in: the form's. Null renders in the UI language. */
-    val localeTag: String? = null,
 )

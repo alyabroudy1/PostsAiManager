@@ -9,7 +9,7 @@ import javax.inject.Inject
 
 /**
  * The guardians of a person: for a CHILD, "Me" and the PARTNER (if any), "Me" first; for anyone else, none.
- * One owner of that rule, read by the form-fill conversation to resolve the GUARDIAN role.
+ * One owner of that rule, shown to the form agent by `list_people` so it can pick the person of the GUARDIAN role (the AI decides).
  */
 class GuardiansOfUseCase @Inject constructor(
     private val profiles: ProfileRepository,

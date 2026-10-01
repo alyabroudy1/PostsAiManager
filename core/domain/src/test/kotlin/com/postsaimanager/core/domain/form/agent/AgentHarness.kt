@@ -1,23 +1,31 @@
-package com.postsaimanager.core.domain.form.fill
+package com.postsaimanager.core.domain.form.agent
 
+import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.agent.AgentContext
+import com.postsaimanager.core.domain.agent.AgentEntry
+import com.postsaimanager.core.domain.agent.QwenToolCallFormat
+import com.postsaimanager.core.domain.agent.ToolResult
+import com.postsaimanager.core.domain.agent.ScriptedAgentModel
+import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.EmbeddingService
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.form.FakeEmbedder
 import com.postsaimanager.core.domain.form.FakePersonDataSource
 import com.postsaimanager.core.domain.form.FillValues
-import com.postsaimanager.core.domain.form.FormFixtures
 import com.postsaimanager.core.domain.form.FormDataKeys
+import com.postsaimanager.core.domain.form.FormFixtures
 import com.postsaimanager.core.domain.form.FormScript
-import com.postsaimanager.core.domain.form.GuardiansOfUseCase
+import com.postsaimanager.core.domain.form.PersonValue
 import com.postsaimanager.core.domain.form.RememberDetailUseCase
 import com.postsaimanager.core.domain.form.UnderstandFormUseCase
+import com.postsaimanager.core.domain.form.fill.FillRequestDetector
+import com.postsaimanager.core.domain.form.fill.FormMessageCodec
+import com.postsaimanager.core.domain.form.fill.FormModel
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.DocumentPage
-import com.postsaimanager.core.model.FormChip
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.FormFill
 import com.postsaimanager.core.model.FormMessage
-import com.postsaimanager.core.model.FormMessageKind
 import com.postsaimanager.core.model.FormRole
 import com.postsaimanager.core.model.FormValueSource
 import com.postsaimanager.core.model.ProfileType
@@ -30,41 +38,45 @@ import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.FakePromptSession
 import com.postsaimanager.core.testing.testDocument
 import com.postsaimanager.core.testing.testProfile
+import io.mockk.coEvery
+import io.mockk.mockk
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.util.Locale
 
 /**
- * Everything a conversation test needs, over the invented German swim-course form: the fakes, the scripted models, "Me" and the
- * child Ahmad. [newConversation] builds a second conversation over the same stored state, which is how a test restarts the app.
+ * Everything an agent test needs, over the invented German swim-course form: the fakes, the scripted model, "Me" and the child
+ * Ahmad. The form is really read (the understanding pipeline over a scripted scorer); only the chat model is a script of tool calls.
+ * [newAgent] builds a second agent over the same stored state, which is how a test restarts the app.
  */
-class FillHarness(
-    val model: FakeFormModel = FakeFormModel(),
-    val profile: FormFillProfile = FormFillProfile(),
+class AgentHarness(
     val withPartner: Boolean = false,
     val documentIsForm: Boolean = true,
     val embedder: EmbeddingService = GermanSwim.embedder,
-    me: Map<String, com.postsaimanager.core.domain.form.PersonValue> = GermanSwim.me(),
-    /** Another form instead of the swim-course one (with the script that "reads" it). */
-    pages: List<List<com.postsaimanager.core.model.OcrBlock>>? = null,
-    script: FormScript = GermanSwim.script,
-    /** The language the document's extraction stored (null: none). */
-    documentLanguage: String? = null,
-    /** The phone's language: all that is left to know the form's language when nothing is stored and the OCR tags none. */
-    private val phoneLocale: Locale = Locale.GERMANY,
+    me: Map<String, PersonValue> = GermanSwim.me(),
 ) {
     val nowMs = GermanSwim.NOW
+    val today: LocalDate = LocalDate.of(2026, 10, 1)
     val fills = FakeFormFillRepository()
     val conversations = FakeConversationRepository()
     val documents = FakeDocumentRepository()
     val profiles = FakeProfileRepository()
     val facts = FakeProfileFactRepository()
-    val session = FakePromptSession().apply { scorer = script::score }
+    val session = FakePromptSession().apply { scorer = GermanSwim.script::score }
     val people = FakePersonDataSource(
         mapOf("ahmad" to GermanSwim.ahmad(), "me" to me, "anna" to mapOf("full_name" to FakePersonDataSource.profile("Anna Mustermann", GermanSwim.RECENT))),
     )
+    val log = FormChatLog(conversations, documents) { nowMs }
+    val model = ScriptedAgentModel()
+    val format = QwenToolCallFormat()
+
+    /** Messages that ask for help filling in the form (what the scoring model says Yes to). */
+    val fillRequests = mutableSetOf<String>()
 
     init {
         profiles.seed(
@@ -74,76 +86,88 @@ class FillHarness(
         if (withPartner) profiles.seed(testProfile(id = "anna", name = "Anna", type = ProfileType.FAMILY_MEMBER, relationship = Relationship.PARTNER))
         documents.seed(
             testDocument(
-                id = "doc", title = "Anmeldung", language = documentLanguage,
+                id = "doc", title = "Anmeldung", language = "de",
                 extractionType = if (documentIsForm) ExtractionSchema.FORM_APPLICATION.id else "official_letter",
             ),
         )
         documents.seedPages(
             "doc",
-            *(pages ?: FormFixtures.pages(FormFixtures.GERMAN)).mapIndexed { i, blocks ->
-                DocumentPage("page-$i", "doc", i + 1, "file:///$i.jpg", ocrBlocks = blocks)
-            }.toTypedArray(),
+            *FormFixtures.pages(FormFixtures.GERMAN).mapIndexed { i, blocks -> DocumentPage("page-$i", "doc", i + 1, "file:///$i.jpg", ocrBlocks = blocks) }.toTypedArray(),
         )
     }
 
-    /** What the OCR capture was asked to report (a test's own [FormOcrTrace] replaces it before the first start). */
-    var ocrTrace: FormOcrTrace = FormOcrTrace.NONE
-        set(value) {
-            field = value
-            conversation = newConversation()
-        }
+    private val scoringModel = object : FormModel {
+        override suspend fun score(system: String, context: String, statements: List<String>): PamResult<List<Double>> =
+            PamResult.Success(statements.map { if (fillRequests.any { r -> context.contains(r) }) 4.0 else -3.0 })
+    }
 
-    var conversation = newConversation()
+    private val understand = UnderstandFormUseCase(session, { system, user -> "<s>$system|$user<u>" to "<a>" }, embedder)
 
-    fun newConversation(): FormFillConversation {
-        val interpreter = AnswerInterpreter(model, profile)
-        return FormFillConversation(
-            fills = fills, conversations = conversations, documents = documents, profiles = profiles, people = people,
-            guardiansOf = GuardiansOfUseCase(profiles), remember = RememberDetailUseCase(profiles, facts),
-            understand = UnderstandFormUseCase(session, { system, user -> "<s>$system|$user<u>" to "<a>" }, embedder),
-            model = model, classifier = FormIntentClassifier(model, profile), detector = FillRequestDetector(model, embedder, profile),
-            interpreter = interpreter, writer = FormQuestionWriter(model, { Locale.GERMAN }, profile),
-            answerChips = AnswerChips(people, profile), fillValues = FillValues(people), profile = profile,
-            clock = { nowMs }, today = { LocalDate.of(2026, 10, 1) }, fallbackLocale = { phoneLocale },
-            ocrTrace = ocrTrace,
+    val tools = FormAgentTools { documentId ->
+        FormToolEnv(
+            documentId = documentId, fills = fills, profiles = profiles, people = people,
+            guard = FieldValueGuard(people, today = { today }),
+            reader = FormReader(fills, documents, profiles, understand, log, clock = { nowMs }, today = { today }, fallbackLocale = { Locale.GERMANY }),
+            remember = RememberDetailUseCase(profiles, facts), fillValues = FillValues(people),
+            clock = { nowMs }, today = { today }, fallbackLocale = { Locale.GERMANY },
         )
     }
+
+    private val activeModels = mockk<ActiveModelProvider> { coEvery { activeModelId() } returns null }
+
+    var agent = newAgent()
+
+    fun newAgent() = FormFillAgent(fills, documents, log, tools, model, FillRequestDetector(scoringModel, embedder), activeModels, clock = { nowMs })
+
+    // ── Scripting the model: a call is written the way the model's own template would ──
+
+    private val specs get() = tools.specFor("doc").tools.specs()
+
+    /** The reply of a model that calls [name] with string arguments. */
+    fun call(name: String, vararg args: Pair<String, String>): String = callJson(name, *args.map { it.first to JsonPrimitive(it.second) as JsonElement }.toTypedArray())
+
+    fun callJson(name: String, vararg args: Pair<String, JsonElement>): String = format.renderCall(name, JsonObject(mapOf(*args)), specs)
+
+    fun ask(question: String, vararg chips: String): String = callJson(
+        "ask_user",
+        "question" to JsonPrimitive(question),
+        "chips" to kotlinx.serialization.json.JsonArray(chips.map(::JsonPrimitive)),
+    )
+
+    /** Runs one tool directly (as the loop would after validating), with what the user wrote so far in [replies]. */
+    suspend fun exec(
+        tool: String,
+        vararg args: Pair<String, String>,
+        replies: List<String> = emptyList(),
+        previousEnd: AgentEntry.Call? = null,
+        json: Map<String, JsonElement> = emptyMap(),
+    ): ToolResult {
+        val registry = tools.specFor("doc").tools
+        val context = AgentContext(replies, emptyList(), previousEnd, turnStartedByUser = replies.isNotEmpty())
+        val arguments = JsonObject(args.associate { it.first to JsonPrimitive(it.second) as JsonElement } + json)
+        return registry[tool]!!.execute(arguments, context)
+    }
+
+    // ── Reading the stored state ──
 
     suspend fun messages(): List<AiMessage> = conversations.getMessages("conv-doc").first()
 
-    suspend fun forms(): List<FormMessage> = messages().mapNotNull(FormMessageCodec::parse)
-
-    /** The most recent question, with the text the model wrote for it (blank for a template). */
-    suspend fun lastQuestion(): Pair<FormMessage, String> {
-        val message = messages().last { FormMessageCodec.parse(it)?.kind == FormMessageKind.QUESTION }
-        return FormMessageCodec.parse(message)!! to message.content
-    }
+    /** What the chat renders (status lines, questions, cards, page chips), in order. */
+    suspend fun shown(): List<Pair<FormMessage, String>> = messages().mapNotNull { m -> FormMessageCodec.parse(m)?.let { it to m.content } }
 
     suspend fun fields(): List<FormField> = fills.fields("fill-doc")
 
     suspend fun field(label: String): FormField = fields().single { it.labelText == label }
 
+    /** The short id the model uses for the field with [label]. */
+    suspend fun alias(label: String): String = FormRefs.fieldAlias(fields(), field(label))
+
     suspend fun fill(): FormFill = fills.getFill("fill-doc")!!
 
-    fun shown(chip: FormChip): String = chip.label ?: chip.labelCode!!.name
-
-    suspend fun tap(chip: FormChip) = conversation.chip("doc", chip, shown(chip))
-
-    /** Taps the chip of the last question whose label is [label]. */
-    suspend fun tap(label: String) {
-        val chip = lastQuestion().first.chips.first { shown(it) == label }
-        tap(chip)
-    }
-
-    suspend fun say(text: String): FormRoute = conversation.route("doc", text)
-
-    /** Starts the fill and answers "Who is this form for?" with Ahmad. */
-    suspend fun startForAhmad() {
-        conversation.start("doc")
-        tap("Ahmad")
-    }
-
     fun userTexts(messages: List<AiMessage>): List<String> = messages.filter { it.role == com.postsaimanager.core.model.MessageRole.USER }.map { it.content }
+
+    /** The stored tool results as the model read them. */
+    suspend fun results(): List<String> = messages().filter { it.role == com.postsaimanager.core.model.MessageRole.TOOL_RESULT && it.toolCallId != null }.mapNotNull { it.toolResult }
 }
 
 /** The scripted knowledge about the German swim-course form (what the model "reads") and the two people it is filled from. */

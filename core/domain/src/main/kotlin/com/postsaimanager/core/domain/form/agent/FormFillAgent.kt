@@ -1,0 +1,173 @@
+package com.postsaimanager.core.domain.form.agent
+
+import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.agent.AgentEntry
+import com.postsaimanager.core.domain.agent.AgentLoop
+import com.postsaimanager.core.domain.agent.AgentModel
+import com.postsaimanager.core.domain.agent.AgentOutcome
+import com.postsaimanager.core.domain.ai.ActiveModelProvider
+import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
+import com.postsaimanager.core.domain.form.fill.FillRequestDetector
+import com.postsaimanager.core.domain.form.fill.FormFillTrace
+import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.domain.repository.FormFillRepository
+import com.postsaimanager.core.model.FormChip
+import com.postsaimanager.core.model.FormChipAction
+import com.postsaimanager.core.model.FormChipLabel
+import com.postsaimanager.core.model.FormFill
+import com.postsaimanager.core.model.FormFillStatus
+import com.postsaimanager.core.model.FormMessage
+import com.postsaimanager.core.model.FormMessageKind
+import com.postsaimanager.core.model.FormText
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+
+/** What the form agent did with a message the user typed in a document chat. */
+enum class FormRoute {
+    /** Nothing to do with a form fill: the normal chat answers it. */
+    NOT_FOR_FORM,
+
+    /** The agent took it (and stored it as the user's message). */
+    HANDLED,
+}
+
+/**
+ * The form-filling conversation of a document's AI chat, run by the tool-calling agent ([AgentLoop]) with the form tools. The AI
+ * decides every step (who the form is for, what to ask and how, how to read a reply, when to remember, when it is done); this
+ * class only starts a run, hands the user's messages to the loop, and says what went wrong in plain status lines.
+ *
+ * - **Start**: the card's "Help me fill it" or a typed request (recognised by [FillRequestDetector], a model score) begins a run:
+ *   the beta-notice line marks its start, the agent reads the form and takes it from there.
+ * - **Reply**: while a run is going, every typed message and every tapped chip is the user's next message to the agent.
+ * - **Stop / leave**: the run pauses (what it did is stored); a chip, or the next open of the chat after a crash, continues it from
+ *   the stored steps.
+ *
+ * One run at a time (a lock serialises everything). The fill's stored state (`form_fills`, `form_fields`) is the one owner of
+ * the form's values; the agent's conversation is the stored tool calls and results.
+ */
+class FormFillAgent(
+    private val fills: FormFillRepository,
+    private val documents: DocumentRepository,
+    private val log: FormChatLog,
+    private val tools: FormAgentTools,
+    private val model: AgentModel,
+    private val detector: FillRequestDetector,
+    private val activeModels: ActiveModelProvider,
+    private val clock: () -> Long = System::currentTimeMillis,
+    private val trace: FormFillTrace = FormFillTrace.NONE,
+) {
+
+    private val lock = Mutex()
+
+    /** "Help me fill it": starts a run on the document, or picks the stored one up where it stands. */
+    suspend fun start(documentId: String) = lock.withLock {
+        val fill = fills.fillForDocument(documentId)
+        if (fill == null || fill.status == FormFillStatus.DONE || !hasRun(documentId)) beginRun(documentId)
+        run(documentId)
+    }
+
+    /**
+     * The chat was opened: a run that was cut off (the user left, the process died) goes on from its stored steps. One that waits
+     * for the user, was stopped on purpose or is done is left alone, so opening a chat never costs a model call.
+     */
+    suspend fun resume(documentId: String) = lock.withLock {
+        val fill = fills.fillForDocument(documentId) ?: return@withLock
+        if (fill.status != FormFillStatus.UNDERSTANDING && fill.status != FormFillStatus.ASKING) return@withLock
+        if (!hasRun(documentId) || isWaiting(documentId)) return@withLock
+        run(documentId)
+    }
+
+    /** A message the user typed in the document chat. */
+    suspend fun route(documentId: String, text: String): FormRoute = lock.withLock {
+        val fill = fills.fillForDocument(documentId)
+        val active = fill != null && (fill.status == FormFillStatus.UNDERSTANDING || fill.status == FormFillStatus.ASKING) && hasRun(documentId)
+        if (active) {
+            log.userSaid(documentId, text)
+            run(documentId)
+            return@withLock FormRoute.HANDLED
+        }
+        if (!detector.asksForFill(text, documentIsForm(documentId))) return@withLock FormRoute.NOT_FOR_FORM
+        beginRun(documentId)
+        log.userSaid(documentId, text)
+        run(documentId)
+        FormRoute.HANDLED
+    }
+
+    /** The user tapped [chip]; [shownText] is its label as the user saw it, sent to the agent as the user's message. */
+    suspend fun chip(documentId: String, chip: FormChip, shownText: String) = lock.withLock {
+        trace.event("chip", "doc=$documentId action=${chip.action}")
+        when (chip.action) {
+            FormChipAction.ANSWER -> if (hasRun(documentId)) {
+                log.userSaid(documentId, shownText)
+                run(documentId)
+            }
+            FormChipAction.CONTINUE -> if (hasRun(documentId)) run(documentId)
+            FormChipAction.OPEN_MODELS -> Unit // opens a screen: the UI handles it, it is never an answer
+        }
+    }
+
+    // ── A run ──
+
+    private suspend fun beginRun(documentId: String) {
+        val conversation = log.ensureConversation(documentId)
+        val now = clock()
+        val fill = fills.fillForDocument(documentId)?.copy(awaiting = null, currentFieldId = null)
+            ?: FormFill(
+                id = FormChatLog.fillId(documentId), documentId = documentId, status = FormFillStatus.ASKING,
+                conversationId = conversation, createdAt = now, updatedAt = now,
+            )
+        fills.saveFill(fill.copy(status = FormFillStatus.ASKING, updatedAt = now))
+        log.post(documentId, FormMessage(FormMessageKind.STATUS, FormText.BETA_NOTICE))
+        trace.event("begin", "fill=${fill.id}")
+    }
+
+    private suspend fun run(documentId: String) {
+        if (fills.fillForDocument(documentId) == null) return
+        if (model.ensureLoaded() is PamResult.Error) return log.post(documentId, FormMessage(FormMessageKind.STATUS, FormText.NO_MODEL))
+        setStatus(documentId, FormFillStatus.ASKING)
+        val modelProfile = ModelProfiles.of(activeModels.activeModelId())
+        val agent = modelProfile.agent.copy(contextTokens = modelProfile.contextTokens)
+        val loop = AgentLoop(model, agent.format.create(), agent)
+        val outcome = try {
+            loop.run(tools.specFor(documentId), FormAgentTranscript(documentId, log))
+        } catch (e: CancellationException) {
+            // Stop, or the chat was left: the run pauses (what it did is stored) until the user continues it.
+            withContext(NonCancellable) { pause(documentId, FormText.AGENT_PAUSED) }
+            throw e
+        }
+        trace.event("outcome", "doc=$documentId ${outcome::class.simpleName}")
+        when (outcome) {
+            is AgentOutcome.StepLimit -> pause(documentId, FormText.AGENT_STUCK)
+            is AgentOutcome.Failed -> pause(documentId, FormText.AGENT_FAILED)
+            is AgentOutcome.EndedTurn, is AgentOutcome.Waiting, AgentOutcome.Idle -> Unit
+        }
+    }
+
+    private suspend fun pause(documentId: String, text: FormText) {
+        setStatus(documentId, FormFillStatus.STOPPED)
+        log.post(
+            documentId,
+            FormMessage(FormMessageKind.STATUS, text, chips = listOf(FormChip(FormChipAction.CONTINUE, labelCode = FormChipLabel.CONTINUE))),
+        )
+    }
+
+    private suspend fun setStatus(documentId: String, status: FormFillStatus) {
+        val fill = fills.fillForDocument(documentId) ?: return
+        if (fill.status != status && fill.status != FormFillStatus.DONE) fills.saveFill(fill.copy(status = status, updatedAt = clock()))
+    }
+
+    private suspend fun hasRun(documentId: String): Boolean = log.messages(documentId).any(FormAgentTranscript::isRunStart)
+
+    /** Whether the run already handed the conversation to the user (its last stored step is a turn-ending call). */
+    private suspend fun isWaiting(documentId: String): Boolean {
+        val last = FormAgentTranscript(documentId, log).entries().lastOrNull() ?: return true
+        return last is AgentEntry.Call && tools.specFor(documentId).tools[last.name]?.endsTurn == true
+    }
+
+    private suspend fun documentIsForm(documentId: String): Boolean =
+        (documents.getDocumentById(documentId) as? PamResult.Success)?.data?.extractionType == ExtractionSchema.FORM_APPLICATION.id
+}
