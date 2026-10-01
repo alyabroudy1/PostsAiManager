@@ -27,7 +27,9 @@ internal object FormChatTexts {
     }
 
     fun text(r: Resources, code: FormText, args: List<String>): String = when (code) {
-        FormText.UNDERSTANDING -> r.format(R.string.form_understanding, args)
+        // The last step finished: the progress line becomes a plain "done" line instead of staying at "step 5 of 5".
+        FormText.UNDERSTANDING ->
+            if (args.size >= 2 && args[0] == args[1]) r.getString(R.string.form_understanding_done) else r.format(R.string.form_understanding, args)
         FormText.NO_MODEL -> r.getString(R.string.form_no_model)
         FormText.UNDERSTANDING_FAILED -> r.getString(R.string.form_understanding_failed)
         FormText.FORM_FOUND_ASK_SUBJECT -> r.format(R.string.form_found_ask_subject, listOf(counts(r, args)))

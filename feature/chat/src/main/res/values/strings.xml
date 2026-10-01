@@ -2,6 +2,7 @@
 <resources>
     <!-- The form-filling conversation: lines the assistant says (the questions the model words are not here) -->
     <string name="form_understanding">Reading the form… (step %1$s of %2$s)</string>
+    <string name="form_understanding_done">Finished reading the form.</string>
     <string name="form_no_model">No AI model is installed yet. Install one to fill in forms.</string>
     <string name="form_understanding_failed">I could not read this form. Ask me again to try once more.</string>
     <string name="form_found_ask_subject">This is a form to fill in (%1$s). Who is it for?</string>
