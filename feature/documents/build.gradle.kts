@@ -62,7 +62,7 @@ dependencies {
     // Compose UI tests on the JVM: Robolectric hosts them, and the Vintage engine lets the JUnit 5 platform
     // (pam.test-conventions) run their JUnit 4 rule.
     testImplementation(libs.compose.ui.test.junit4)
-    testImplementation("org.robolectric:robolectric:${libs.versions.robolectric.get()}")
-    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
+    testImplementation(libs.robolectric)
+    testRuntimeOnly(libs.junit.vintage.engine)
     debugImplementation(libs.compose.ui.test.manifest)
 }
