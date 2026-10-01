@@ -47,6 +47,13 @@ class FillHarness(
     val documentIsForm: Boolean = true,
     val embedder: EmbeddingService = GermanSwim.embedder,
     me: Map<String, com.postsaimanager.core.domain.form.PersonValue> = GermanSwim.me(),
+    /** Another form instead of the swim-course one (with the script that "reads" it). */
+    pages: List<List<com.postsaimanager.core.model.OcrBlock>>? = null,
+    script: FormScript = GermanSwim.script,
+    /** The language the document's extraction stored (null: none). */
+    documentLanguage: String? = null,
+    /** The phone's language: all that is left to know the form's language when nothing is stored and the OCR tags none. */
+    private val phoneLocale: Locale = Locale.GERMANY,
 ) {
     val nowMs = GermanSwim.NOW
     val fills = FakeFormFillRepository()
@@ -54,7 +61,7 @@ class FillHarness(
     val documents = FakeDocumentRepository()
     val profiles = FakeProfileRepository()
     val facts = FakeProfileFactRepository()
-    val session = FakePromptSession().apply { scorer = GermanSwim.script::score }
+    val session = FakePromptSession().apply { scorer = script::score }
     val people = FakePersonDataSource(
         mapOf("ahmad" to GermanSwim.ahmad(), "me" to me, "anna" to mapOf("full_name" to FakePersonDataSource.profile("Anna Mustermann", GermanSwim.RECENT))),
     )
@@ -65,14 +72,26 @@ class FillHarness(
             testProfile(id = "ahmad", name = "Ahmad", type = ProfileType.FAMILY_MEMBER, relationship = Relationship.CHILD, birthDate = "2019-03-12"),
         )
         if (withPartner) profiles.seed(testProfile(id = "anna", name = "Anna", type = ProfileType.FAMILY_MEMBER, relationship = Relationship.PARTNER))
-        documents.seed(testDocument(id = "doc", title = "Anmeldung", extractionType = if (documentIsForm) ExtractionSchema.FORM_APPLICATION.id else "official_letter"))
+        documents.seed(
+            testDocument(
+                id = "doc", title = "Anmeldung", language = documentLanguage,
+                extractionType = if (documentIsForm) ExtractionSchema.FORM_APPLICATION.id else "official_letter",
+            ),
+        )
         documents.seedPages(
             "doc",
-            *FormFixtures.pages(FormFixtures.GERMAN).mapIndexed { i, blocks ->
+            *(pages ?: FormFixtures.pages(FormFixtures.GERMAN)).mapIndexed { i, blocks ->
                 DocumentPage("page-$i", "doc", i + 1, "file:///$i.jpg", ocrBlocks = blocks)
             }.toTypedArray(),
         )
     }
+
+    /** What the OCR capture was asked to report (a test's own [FormOcrTrace] replaces it before the first start). */
+    var ocrTrace: FormOcrTrace = FormOcrTrace.NONE
+        set(value) {
+            field = value
+            conversation = newConversation()
+        }
 
     var conversation = newConversation()
 
@@ -85,7 +104,8 @@ class FillHarness(
             model = model, classifier = FormIntentClassifier(model, profile), detector = FillRequestDetector(model, embedder, profile),
             interpreter = interpreter, writer = FormQuestionWriter(model, { Locale.GERMAN }, profile),
             answerChips = AnswerChips(people, profile), fillValues = FillValues(people), profile = profile,
-            clock = { nowMs }, today = { LocalDate.of(2026, 10, 1) }, fallbackLocale = { Locale.GERMANY },
+            clock = { nowMs }, today = { LocalDate.of(2026, 10, 1) }, fallbackLocale = { phoneLocale },
+            ocrTrace = ocrTrace,
         )
     }
 

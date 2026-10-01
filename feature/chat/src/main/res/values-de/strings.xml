@@ -61,6 +61,9 @@
     <string name="form_reading_paused">Das Lesen des Formulars wurde angehalten. Was bisher gelesen ist, bleibt erhalten.</string>
     <string name="form_search_model_missing">Schnelleres Lesen von Formularen braucht das Suchmodell.</string>
     <string name="form_chip_download">Herunterladen</string>
+    <string name="form_beta_notice">Formularhilfe (Beta). Bitte prüfe jeden Wert, bevor du ihn verwendest.</string>
+    <string name="form_ask_reopen">Du hast dieses Formular schon bearbeitet. Soll es dort weitergehen, wo du aufgehört hast, oder möchtest du neu beginnen?</string>
+    <string name="form_chip_start_over">Neu beginnen</string>
     <string name="form_ask_role_name">Wie heißt die Person? Schreibe den Namen hier.</string>
     <string name="form_me_setup_hint">Du hast noch kein eigenes Profil. Lege eines unter Profile an (Typ Ich); bis dahin wähle Jemand anderes und schreibe den Namen.</string>
     <string name="form_chip_description">Antwort: %1$s</string>

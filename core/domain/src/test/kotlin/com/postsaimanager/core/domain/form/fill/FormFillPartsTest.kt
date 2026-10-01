@@ -154,9 +154,9 @@ class FormFillPartsTest {
     @Test
     fun `German labels get the label-language rule, the label as printed and a German question is kept`() = runTest {
         val model = FakeFormModel().also { it.question = { "Wie lautet der Vorname des Kindes?" } }
-        // The OCR tagged no language, so the form's locale is only the phone's (English): the label must lead.
+        // No language is known for the form: the printed label's own language leads.
         val written = FormQuestionWriter(model, { java.util.Locale.ENGLISH })
-            .write(field("Vorname", key = "given_name").copy(section = "Angaben zum Kind"), QuestionContext(formLocale = java.util.Locale.ENGLISH))
+            .write(field("Vorname", key = "given_name").copy(section = "Angaben zum Kind"), QuestionContext())
 
         assertThat(written).isEqualTo("Wie lautet der Vorname des Kindes?")
         assertThat(model.writtenSystem.single()).contains("Write the question in the same language as the printed FIELD label")
@@ -189,10 +189,11 @@ class FormFillPartsTest {
 
         // The form's language wins: a typed "stop" or "nein" says little about the language to ask in.
         // The label's own language leads; the form's (or the UI's) is only the fallback.
-        assertThat(systemFor(QuestionContext(typedSample = "stop", formLocale = java.util.Locale.GERMAN))).contains("language as the printed FIELD label (otherwise German)")
+        // A known form language is named outright (the model is told to write German), never left to "the label's language".
+        assertThat(systemFor(QuestionContext(typedSample = "stop", formLocale = java.util.Locale.GERMAN))).contains("Write the question in German")
         assertThat(systemFor(QuestionContext(typedSample = "hilf mir das auszufüllen"))).contains("the user writes like this: \"hilf mir das auszufüllen\"")
         assertThat(systemFor(QuestionContext())).contains("otherwise French")
-        assertThat(systemFor(QuestionContext(typedSample = "12345", formLocale = java.util.Locale.GERMAN))).contains("otherwise German")
+        assertThat(systemFor(QuestionContext(typedSample = "12345", formLocale = java.util.Locale.GERMAN))).contains("Write the question in German")
     }
 
     @Test

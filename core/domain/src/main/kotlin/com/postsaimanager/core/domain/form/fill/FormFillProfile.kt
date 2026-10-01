@@ -7,6 +7,11 @@ package com.postsaimanager.core.domain.form.fill
 data class FormFillProfile(
     /** A message is read as an intent other than "answer" only when that intent's score is above this and the best. */
     val intentThreshold: Double = 0.0,
+    /** ...and beats the "gives the answer" score by this much: a plain answer is by far the most likely thing to be typed, so it has a head start. */
+    val answerPrior: Double = 1.5,
+    /** A reply of at most this many characters and words is a candidate for being taken as the answer without asking the model. */
+    val shortAnswerChars: Int = 80,
+    val shortAnswerWords: Int = 8,
     /** A free answer names an option (or yes/no, or a person, or a field) only when its score is above this... */
     val choiceThreshold: Double = 0.0,
     /** ...and beats the runner-up by at least this. */

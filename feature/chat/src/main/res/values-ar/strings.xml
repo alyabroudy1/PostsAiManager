@@ -77,6 +77,9 @@
     <string name="form_reading_paused">توقفت قراءة النموذج. ما قُرئ حتى الآن محفوظ.</string>
     <string name="form_search_model_missing">قراءة النماذج بشكل أسرع تحتاج إلى نموذج البحث.</string>
     <string name="form_chip_download">تنزيل</string>
+    <string name="form_beta_notice">تعبئة النماذج (تجريبي). يرجى التحقق من كل قيمة قبل استخدامها.</string>
+    <string name="form_ask_reopen">سبق أن عملت على هذا النموذج. هل تتابع من حيث توقفت أم تبدأ من جديد؟</string>
+    <string name="form_chip_start_over">البدء من جديد</string>
     <string name="form_ask_role_name">ما اسمه؟ اكتبه هنا.</string>
     <string name="form_me_setup_hint">ليس لديك ملف شخصي خاص بك بعد. أضف واحدًا ضمن الملفات الشخصية (النوع أنا)؛ وحتى ذلك الحين اختر شخصًا آخر واكتب الاسم.</string>
     <string name="form_chip_description">الإجابة: %1$s</string>

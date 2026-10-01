@@ -56,8 +56,13 @@ class FormIntentClassifier(
         val statements = intents.map { "Does the user's message ${FormIntents.descriptions.getValue(it)}? Answer:" }
         val scores = (model.score(FormIntents.SYSTEM, context, statements) as? PamResult.Success)?.data
             ?: return FormIntent.ANSWER
-        val best = scores.indices.maxByOrNull { scores[it] } ?: return FormIntent.ANSWER
-        return if (scores[best] > profile.intentThreshold) intents[best] else FormIntent.ANSWER
+        // A plain answer is the likeliest thing typed to a question: another intent needs an explicit meaning, clearly above the
+        // score of "gives the answer" (a name like "Mia" was once read as "skip").
+        val answer = intents.indexOf(FormIntent.ANSWER)
+        val answerScore = scores.getOrNull(answer) ?: Double.NEGATIVE_INFINITY
+        val best = scores.indices.filter { it != answer }.maxByOrNull { scores[it] } ?: return FormIntent.ANSWER
+        val clear = scores[best] > profile.intentThreshold && scores[best] > answerScore + profile.answerPrior
+        return if (clear) intents[best] else FormIntent.ANSWER
     }
 }
 

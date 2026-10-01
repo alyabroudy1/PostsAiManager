@@ -27,7 +27,7 @@ class FormFillConversationTest {
         "Seepferdchen" to "Hat Ahmad das Seepferdchen schon?",
         "Kurstermin" to "Welcher Kurstermin passt?",
         "Allergien" to "Hat Ahmad Allergien oder Hinweise zur Gesundheit?",
-        "Ich willige" to "Dürfen Fotos veröffentlicht werden?",
+        "Ich willige" to "Ich willige in die Veröffentlichung von Fotos ein: ja oder nein?",
     )
 
     private fun FillHarness.writeQuestions() {
@@ -53,7 +53,10 @@ class FormFillConversationTest {
         assertThat(progress).hasSize(1) // one line, updated in place
         // The finished line also carries the key of the OCR it was read from.
         assertThat(progress.single().args.take(2)).containsExactly("5", "5").inOrder()
-        assertThat(progress.single().args[2]).startsWith("v3-")
+        assertThat(progress.single().args[2]).startsWith("v4-")
+        // The fill records the reading it was built from, and the form filling is announced as a beta as the first line.
+        assertThat(h.fill().readingKey).isEqualTo(progress.single().args[2])
+        assertThat(h.forms().first().text).isEqualTo(FormText.BETA_NOTICE)
 
         // One tap on Ahmad: his father ("Me", the only guardian) is settled without a question, and the form is filled from both.
         h.tap("Ahmad")
@@ -108,7 +111,7 @@ class FormFillConversationTest {
 
         // Question 4: the photo consent (a tick box with no printed options) answered with a chip.
         val photo = h.lastQuestion()
-        assertThat(photo.second).isEqualTo("Dürfen Fotos veröffentlicht werden?")
+        assertThat(photo.second).isEqualTo("Ich willige in die Veröffentlichung von Fotos ein: ja oder nein?")
         assertThat(photo.first.chips.map(h::shown)).containsExactly(FormChipLabel.YES.name, FormChipLabel.NO.name, FormChipLabel.SKIP.name).inOrder()
         h.tap(FormChipLabel.YES.name)
         assertThat(h.field("Ich willige in die Veröffentlichung von Fotos ein").value).isEqualTo(CheckboxValue.YES)
@@ -360,9 +363,11 @@ class FormFillConversationTest {
         h.say("lass uns aufhören")
         assertThat(h.fill().status).isEqualTo(FormFillStatus.STOPPED)
         assertThat(h.forms().last().text).isEqualTo(FormText.STOPPED)
-        // Typing "fill the form" again opens it again: the form is read afresh and the person is asked once more.
+        // Asking to fill the form again on a stopped fill offers to continue or start over; starting over reads it afresh.
         h.model.fillRequests += "nochmal"
         assertThat(h.say("nochmal")).isEqualTo(FormRoute.HANDLED)
+        assertThat(h.lastQuestion().first.text).isEqualTo(FormText.ASK_REOPEN)
+        h.tap(FormChipLabel.START_OVER.name)
         assertThat(h.lastQuestion().first.text).isIn(listOf(FormText.FORM_FOUND_ASK_SUBJECT, FormText.FORM_FOUND_ASK_SUBJECT_REASON))
     }
 
@@ -472,6 +477,8 @@ class FormFillConversationTest {
         val scoredBefore = h.session.scored.flatten().size
         h.model.fillRequests += "nochmal"
         h.say("nochmal")
+        assertThat(h.lastQuestion().first.text).isEqualTo(FormText.ASK_REOPEN)
+        h.tap(FormChipLabel.CONTINUE.name)
 
         assertThat(h.session.scored.flatten().size).isEqualTo(scoredBefore)
         assertThat(h.lastQuestion().first.text).isEqualTo(FormText.FORM_FOUND_ASK_SUBJECT)

@@ -61,6 +61,9 @@
     <string name="form_reading_paused">Paused reading the form. What is read so far is kept.</string>
     <string name="form_search_model_missing">Faster form reading needs the search model.</string>
     <string name="form_chip_download">Download</string>
+    <string name="form_beta_notice">Form filling (beta). Please check every value before you use it.</string>
+    <string name="form_ask_reopen">You already worked on this form. Continue where you left off, or start over?</string>
+    <string name="form_chip_start_over">Start over</string>
     <string name="form_ask_role_name">What is their name? Type it here.</string>
     <string name="form_me_setup_hint">You have no profile of your own yet. Add one under Profiles (type Me); until then, choose Someone else and type the name.</string>
     <string name="form_chip_description">Answer: %1$s</string>

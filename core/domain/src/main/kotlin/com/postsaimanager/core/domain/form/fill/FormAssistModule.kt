@@ -88,9 +88,10 @@ abstract class FormAssistModule {
             fillValues: FillValues,
             profile: FormFillProfile,
             trace: FormFillTrace,
+            ocrTrace: FormOcrTrace,
         ): FormFillConversation = FormFillConversation(
             fills, conversations, documents, profiles, people, guardiansOf, remember, understand, model, classifier, detector,
-            interpreter, writer, chips, fillValues, profile, trace = trace,
+            interpreter, writer, chips, fillValues, profile, trace = trace, ocrTrace = ocrTrace,
         )
     }
 }

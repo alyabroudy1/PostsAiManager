@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.form.fill
 
+import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.FormFieldKind
 import com.postsaimanager.core.model.FormRole
@@ -12,11 +13,15 @@ import java.util.Locale
  * @property person how the person behind the field's role is described to the model (their relation and name), null when none.
  * @property typedSample the user's latest typed chat message: the question is asked in its language when there is one.
  * @property formLocale the form's language, used when the user has typed nothing; the UI language is the last resort.
+ * @property vocabulary the words the form prints, for [QuestionLanguageCheck]; null skips the check (the line is only cleaned).
+ * @property personName the name of that person alone (a name says nothing about a question's language).
  */
 data class QuestionContext(
     val person: String? = null,
+    val personName: String? = null,
     val typedSample: String? = null,
     val formLocale: Locale? = null,
+    val vocabulary: Set<String>? = null,
 )
 
 /**
@@ -49,22 +54,46 @@ class FormQuestionWriter(
             if (field.options.isNotEmpty()) append("\nOPTIONS: ").append(field.options.joinToString(" | "))
             context.person?.takeIf { it.isNotBlank() }?.let { append("\nFOR: ").append(it) }
         }
-        val raw = try {
-            model.write(system, user, profile.questionTokens)
+        // The engine may still be loading or priming the chat (the first question of a chat): wait for it, and if the first
+        // attempt still comes back empty, ask once more once the engine is ready. An empty line is never a question.
+        var raw = attempt(system, user) { return null }
+        if (raw.isNullOrBlank()) {
+            trace.event("question_write", "ok=false why=no_output retry=true")
+            raw = attempt(system, user) { return null }
+        }
+        val line = clean(raw, field)?.takeIf { passesLanguage(it, field, context) }
+        if (line != null) {
+            trace.event("question_write", "ok=true chars=${line.length}")
+        } else {
+            val why = when {
+                raw.isNullOrBlank() -> "no_output"
+                clean(raw, field) != null -> "rejected_language"
+                else -> "rejected rawChars=${raw.length} think=${raw.contains("think", ignoreCase = true)}"
+            }
+            trace.event("question_write", "ok=false why=$why")
+        }
+        return line
+    }
+
+    /** One generation after the engine reports ready; [failed] returns from [write] with null when it cannot be loaded or throws. */
+    private suspend inline fun attempt(system: String, user: String, failed: () -> Nothing): String? {
+        try {
+            if (model.ensureLoaded() is PamResult.Error) {
+                trace.event("question_write", "ok=false why=not_ready")
+                failed()
+            }
+            return model.write(system, user, profile.questionTokens)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             trace.event("question_write", "ok=false why=exception type=${e.javaClass.simpleName}")
-            return null
+            failed()
         }
-        val line = clean(raw, field)
-        if (line != null) {
-            trace.event("question_write", "ok=true chars=${line.length}")
-        } else {
-            val why = if (raw == null) "no_output" else "rejected rawChars=${raw.length} think=${raw.contains("think", ignoreCase = true)}"
-            trace.event("question_write", "ok=false why=$why")
-        }
-        return line
+    }
+
+    private fun passesLanguage(line: String, field: FormField, context: QuestionContext): Boolean {
+        val vocabulary = context.vocabulary ?: return true
+        return QuestionLanguageCheck.accepts(line, field.labelText, context.formLocale?.language, vocabulary, context.personName)
     }
 
     private fun languageRule(context: QuestionContext): String {
@@ -72,7 +101,12 @@ class FormQuestionWriter(
         val sample = context.typedSample?.trim()?.takeIf { it.any(Char::isLetter) }?.take(SAMPLE_CHARS)
         val locale = context.formLocale ?: uiLanguage()
         val language = locale.getDisplayLanguage(Locale.ENGLISH).ifBlank { "English" }
-        val fallback = if (sample != null && context.formLocale == null) " (the user writes like this: \"$sample\")" else " (otherwise $language)"
+        if (context.formLocale != null) {
+            // The form's language is known (the document's stored language): say it outright, a small model follows that best.
+            return "Write the question in $language, the language of the form and of the printed FIELD label. " +
+                "Keep the field's label exactly as printed, do not translate it."
+        }
+        val fallback = if (sample != null) " (the user writes like this: \"$sample\")" else " (otherwise $language)"
         return "Write the question in the same language as the printed FIELD label$fallback. Keep the field's label exactly as printed."
     }
 

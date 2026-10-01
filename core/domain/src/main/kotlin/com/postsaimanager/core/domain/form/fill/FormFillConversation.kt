@@ -113,9 +113,16 @@ class FormFillConversation(
     private val today: () -> LocalDate = LocalDate::now,
     private val fallbackLocale: () -> Locale = Locale::getDefault,
     private val trace: FormFillTrace = FormFillTrace.NONE,
+    private val ocrTrace: FormOcrTrace = FormOcrTrace.NONE,
 ) {
 
     private val lock = Mutex()
+
+    /** The answers of a fill that is being read again, restored onto the new fields when the reading ends (see [reread]). */
+    private val carried = HashMap<String, List<FormField>>()
+
+    /** The words the form prints, per document: the question writer's language check compares a question with them. */
+    private val vocabularies = HashMap<String, Set<String>>()
 
     /** The last sentence the user typed to the conversation: the language the questions are asked in (kept while the app runs). */
     private var typedSample: String? = null
@@ -140,7 +147,7 @@ class FormFillConversation(
 
     /** A message the user typed in the document chat. */
     suspend fun route(documentId: String, text: String): FormRoute = lock.withLock {
-        val fill = fills.fillForDocument(documentId)
+        val fill = fills.fillForDocument(documentId)?.let { inSync(it) }
         if (fill == null || fill.status !in ACTIVE) {
             if (!detector.asksForFill(text, documentIsForm(documentId))) return@withLock FormRoute.NOT_FOR_FORM
             userSaid(documentId, text)
@@ -155,7 +162,8 @@ class FormFillConversation(
             acceptRoleName(fill, naming, text)
             return@withLock FormRoute.HANDLED
         }
-        val intent = classifier.classify(describeAwaiting(fill), text)
+        // A short reply that the open question's own check accepts is the answer: no model call, no chance to read a name as "skip".
+        val intent = if (looksLikeAnswer(fill, text)) FormIntent.ANSWER else classifier.classify(describeAwaiting(fill), text)
         trace.event("route", "fill=${fill.id} status=${fill.status} intent=$intent")
         // An answer is a value (a name, a number), a poor sign of the language; anything else the user says is a sentence.
         if (intent != FormIntent.ANSWER) typedSample = text
@@ -174,7 +182,7 @@ class FormFillConversation(
 
     /** The user tapped [chip]; [shownText] is its label as the user saw it, stored as the user's message. */
     suspend fun chip(documentId: String, chip: FormChip, shownText: String) = lock.withLock {
-        val fill = fills.fillForDocument(documentId) ?: return@withLock
+        val fill = fills.fillForDocument(documentId)?.let { inSync(it) } ?: return@withLock
         val awaiting = fill.awaiting ?: return@withLock
         val matches = when (chip.action) {
             FormChipAction.ANSWER, FormChipAction.SKIP ->
@@ -183,6 +191,7 @@ class FormFillConversation(
             FormChipAction.REMEMBER_YES, FormChipAction.REMEMBER_NO -> awaiting.kind == FormAwaitKind.REMEMBER
             FormChipAction.CONTINUE, FormChipAction.BY_HAND -> awaiting.kind == FormAwaitKind.CONTINUE
             FormChipAction.CONTINUE_READING -> awaiting.kind == FormAwaitKind.READING
+            FormChipAction.REOPEN_CONTINUE, FormChipAction.START_OVER -> awaiting.kind == FormAwaitKind.REOPEN
             FormChipAction.OPEN_MODELS -> false // opens a screen: the UI handles it, it is never an answer
         }
         trace.event("chip", "fill=${fill.id} action=${chip.action} awaiting=${awaiting.kind} matches=$matches")
@@ -197,6 +206,8 @@ class FormFillConversation(
             FormChipAction.CONTINUE -> continueRound(fill)
             FormChipAction.BY_HAND -> finish(fill, byHand = true)
             FormChipAction.CONTINUE_READING -> continueReading(fill)
+            FormChipAction.REOPEN_CONTINUE -> reopen(fill.copy(awaiting = null), fills.fields(fill.id))
+            FormChipAction.START_OVER -> reread(fill, keepAnswers = false)
             FormChipAction.OPEN_MODELS -> Unit
         }
     }
@@ -215,22 +226,47 @@ class FormFillConversation(
 
     private suspend fun startLocked(documentId: String) {
         val conversation = ensureConversation(documentId)
-        val fill = fills.fillForDocument(documentId)
+        val existing = fills.fillForDocument(documentId)
+        val fill = existing
             ?: FormFill(
                 id = fillId(documentId), documentId = documentId, status = FormFillStatus.UNDERSTANDING,
                 conversationId = conversation, createdAt = clock(), updatedAt = clock(),
             ).also { fills.saveFill(it) }
+        if (existing == null) announceBeta(documentId)
         val fields = fills.fields(fill.id)
-        trace.event("start", "fill=${fill.id} status=${fill.status} fields=${fields.size}")
+        val current = readingKey(pagesOf(documentId))
+        trace.event(
+            "start",
+            "fill=${fill.id} status=${fill.status} fields=${fields.size} key=${if (fill.readingKey == current) "current" else "stale"}",
+        )
         when {
             fill.awaiting?.kind == FormAwaitKind.READING -> continueReading(fill)
             fill.status == FormFillStatus.UNDERSTANDING -> understandForm(fill, continuing = lastProgress(fill.documentId))
             fields.isEmpty() -> understandForm(fill)
-            // The reading is kept per document: it is read again only when the stored OCR (or the way of reading) changed.
-            !understoodCurrent(fill) -> reread(fill)
-            fill.status == FormFillStatus.DONE || fill.status == FormFillStatus.STOPPED -> reopen(fill, fields)
+            // The fill records the reading it was built from: one built by another way of reading (or from another OCR) is
+            // discarded, never resumed. What the user answered still applies where the same field is found again.
+            fill.readingKey != current -> reread(fill, keepAnswers = true)
+            fill.status == FormFillStatus.DONE || fill.status == FormFillStatus.STOPPED -> offerReopen(fill)
             else -> reaskCurrent(fill)
         }
+    }
+
+    /** The first line of a new fill: form filling is a beta feature. */
+    private suspend fun announceBeta(documentId: String) = post(documentId, FormMessage(FormMessageKind.STATUS, FormText.BETA_NOTICE))
+
+    /** A finished or stopped fill was asked for again: it is not silently reopened, the user picks. */
+    private suspend fun offerReopen(fill: FormFill) {
+        fills.saveFill(fill.copy(awaiting = FormAwaiting(FormAwaitKind.REOPEN), updatedAt = clock()))
+        post(
+            fill.documentId,
+            FormMessage(
+                FormMessageKind.QUESTION, FormText.ASK_REOPEN,
+                chips = listOf(
+                    FormChip(FormChipAction.REOPEN_CONTINUE, labelCode = FormChipLabel.CONTINUE),
+                    FormChip(FormChipAction.START_OVER, labelCode = FormChipLabel.START_OVER),
+                ),
+            ),
+        )
     }
 
     /** The last "reading the form" progress line of the document's chat, or null when none. */
@@ -241,22 +277,39 @@ class FormFillConversation(
     private suspend fun pagesOf(documentId: String): List<List<OcrBlock>> =
         (documents.getDocumentPages(documentId) as? PamResult.Success)?.data?.sortedBy { it.pageNumber }?.map { it.ocrBlocks }.orEmpty()
 
-    /** The stored reading belongs to the document's current OCR: its finished progress line carries the OCR's key. */
-    private suspend fun understoodCurrent(fill: FormFill): Boolean {
-        val finished = lastProgress(fill.documentId)?.let(FormMessageCodec::parse)?.args ?: return false
-        return finished.size >= 3 && finished[0] == finished[1] && finished[2] == readingKey(pagesOf(fill.documentId))
-    }
-
-    /** The form is read from the start again (an earlier reading is out of date); what the user answered stays. */
-    private suspend fun reread(fill: FormFill) {
+    /**
+     * The fill is discarded (its fields are deleted) and the form is read afresh, ending in "Who is it for?". With [keepAnswers]
+     * what the user typed or chose is carried over to the new fields that have the same label, page and section.
+     */
+    private suspend fun reread(fill: FormFill, keepAnswers: Boolean) {
+        val old = fills.fields(fill.id)
+        if (keepAnswers) carried[fill.id] = old.filter { it.reviewState != ReviewState.UNREVIEWED && it.valueSource == FormValueSource.USER && it.value != null }
+        else carried.remove(fill.id)
+        fills.deleteFields(fill.id)
+        vocabularies.remove(fill.documentId)
         val again = fill.copy(
             status = FormFillStatus.UNDERSTANDING, roleProfiles = emptyMap(), confirmedRoles = emptySet(), awaiting = null,
-            currentFieldId = null, roundAsked = 0, updatedAt = clock(),
+            currentFieldId = null, roundAsked = 0, readingKey = null, updatedAt = clock(),
         )
         fills.saveFill(again)
-        trace.event("reread", "fill=${fill.id}")
+        trace.event("reread", "fill=${fill.id} dropped=${old.size} carried=${carried[fill.id]?.size ?: 0}")
+        announceBeta(fill.documentId)
         understandForm(again)
     }
+
+    /** The user's earlier answers of a discarded fill go to the fields of the new reading that are the same blank. */
+    private suspend fun restoreAnswers(fillId: String, answers: List<FormField>) {
+        val fields = fills.fields(fillId)
+        answers.forEach { old ->
+            val same = fields.firstOrNull { it.value == null && sameBlank(it, old) } ?: return@forEach
+            fills.setValue(same.id, old.value, FormValueSource.USER, ReviewState.EDITED, old.profileId, clock())
+        }
+    }
+
+    private fun sameBlank(a: FormField, b: FormField): Boolean =
+        a.page == b.page && norm(a.labelText) == norm(b.labelText) && norm(a.section) == norm(b.section)
+
+    private fun norm(text: String?): String = text.orEmpty().trim().lowercase().replace(Regex("\\s+"), " ")
 
     /** "Continue reading": picks the stopped reading up after its last finished step. */
     private suspend fun continueReading(fill: FormFill) {
@@ -288,6 +341,8 @@ class FormFillConversation(
         // Every progress line carries the key of the OCR it is about: a stored step of another OCR (or way of reading) is not reused.
         val pages = pagesOf(fill.documentId)
         val key = readingKey(pages)
+        ocrTrace.lines(fill.documentId, pages)
+        val language = documentLanguage(fill.documentId)
         val earlier = continuing?.let(FormMessageCodec::parse)?.args.orEmpty()
         val doneBefore = if (earlier.getOrNull(2) == key) earlier.firstOrNull()?.toIntOrNull() ?: 0 else 0
         status(FormText.UNDERSTANDING, doneBefore.toString(), STEPS, key)
@@ -299,7 +354,7 @@ class FormFillConversation(
         val resumeAt = FormStep.entries.getOrNull(doneBefore - 1)?.takeIf { stored.isNotEmpty() && it.ordinal >= FormStep.CONFIRM.ordinal }
         val request = UnderstandFormRequest(
             documentId = fill.documentId, formFillId = fill.id, pages = pages, subjects = subjectCandidates(),
-            today = today(), nowMs = clock(), fallbackLocale = fallbackLocale(),
+            today = today(), nowMs = clock(), fallbackLocale = language ?: fallbackLocale(),
             resume = resumeAt?.let { FormCheckpoint(it, stored) },
             onCheckpoint = { checkpoint ->
                 fills.saveFields(fill.id, checkpoint.fields)
@@ -328,9 +383,12 @@ class FormFillConversation(
         }
         status(FormText.UNDERSTANDING, STEPS, STEPS, key)
         fills.saveFields(fill.id, understanding.fields)
+        carried.remove(fill.id)?.let { restoreAnswers(fill.id, it) }
         trace.event("understood", "fill=${fill.id} found=${understanding.fields.size} stored=${fills.fields(fill.id).size} pages=${pages.size}")
+        // The document's stored language (from the extraction's second stage) is the primary signal of the form's language: the
+        // OCR tags none on the device, and the phone's language says nothing about a form in another one.
         val next = fill.copy(
-            localeTag = understanding.locale.toLanguageTag(), conversationId = conversation, updatedAt = clock(),
+            localeTag = (language ?: understanding.locale).toLanguageTag(), conversationId = conversation, readingKey = key, updatedAt = clock(),
         )
         // Said once, after the reading that had to do without the search model; the fill goes on regardless.
         if (understanding.searchModelMissing) {
@@ -550,29 +608,42 @@ class FormFillConversation(
         val chips = (answerChips.forField(field, personId) + FormChip(FormChipAction.SKIP, labelCode = FormChipLabel.SKIP))
             .map { it.copy(fieldId = field.id) }
         val awaiting = FormAwaiting(FormAwaitKind.ANSWER, fieldId = field.id, value = hint?.let { HINTED })
-        fills.saveFill(fill.copy(status = FormFillStatus.ASKING, currentFieldId = field.id, awaiting = awaiting, updatedAt = clock()))
-        if (hint != null) {
-            return post(fill.documentId, FormMessage(FormMessageKind.QUESTION, hint, listOf(field.labelText), chips, fieldId = field.id, localeTag = fill.localeTag))
-        }
-        if (field.reconfirm && field.value != null) {
-            val shown = if (FormDataKeys.isSensitive(field.dataKey)) FormMask.of(field.value!!) else field.value!!
-            return post(fill.documentId, FormMessage(FormMessageKind.QUESTION, FormText.STILL_RIGHT, listOf(field.labelText, shown), chips, fieldId = field.id))
-        }
-        val context = QuestionContext(
-            person = personFor(fill, field)?.let { findProfile(it) }?.let { choiceOf(it).description },
-            typedSample = typedSample,
-            formLocale = fill.localeTag?.let(Locale::forLanguageTag),
-        )
-        val written = writer.write(field, context)
-        // Args: the printed label, then the section and page the chat puts in front of the question.
+        // The question is worded BEFORE the fill says it waits for this field, and saved and posted together: while the model
+        // writes, the chat still shows the previous question, so an answer typed then is for that one, never for this field.
         val args = listOf(field.labelText, field.section.orEmpty(), field.page.toString())
-        if (written != null) {
-            post(fill.documentId, FormMessage(FormMessageKind.QUESTION, null, args, chips, fieldId = field.id), content = written)
-        } else {
-            // The template is shown in the form's language (the question the model could not write is not left in the UI's).
-            post(fill.documentId, FormMessage(FormMessageKind.QUESTION, templateFor(field), args, chips, fieldId = field.id, localeTag = fill.localeTag))
+        var content = ""
+        val message = when {
+            hint != null ->
+                FormMessage(FormMessageKind.QUESTION, hint, listOf(field.labelText), chips, fieldId = field.id, localeTag = fill.localeTag)
+            field.reconfirm && field.value != null -> {
+                val shown = if (FormDataKeys.isSensitive(field.dataKey)) FormMask.of(field.value!!) else field.value!!
+                FormMessage(FormMessageKind.QUESTION, FormText.STILL_RIGHT, listOf(field.labelText, shown), chips, fieldId = field.id)
+            }
+            else -> {
+                val asked = personFor(fill, field)?.let { findProfile(it) }
+                val context = QuestionContext(
+                    person = asked?.let { choiceOf(it).description },
+                    personName = asked?.name,
+                    typedSample = typedSample,
+                    formLocale = fill.localeTag?.let(Locale::forLanguageTag),
+                    vocabulary = vocabularyOf(fill.documentId),
+                )
+                val written = writer.write(field, context)?.takeIf { it.isNotBlank() }
+                if (written != null) {
+                    content = written
+                    FormMessage(FormMessageKind.QUESTION, null, args, chips, fieldId = field.id)
+                } else {
+                    // The template is shown in the form's language (the question the model could not write is not left in the UI's).
+                    FormMessage(FormMessageKind.QUESTION, templateFor(field), args, chips, fieldId = field.id, localeTag = fill.localeTag)
+                }
+            }
         }
+        fills.saveFill(fill.copy(status = FormFillStatus.ASKING, currentFieldId = field.id, awaiting = awaiting, updatedAt = clock()))
+        post(fill.documentId, message, content)
     }
+
+    private suspend fun vocabularyOf(documentId: String): Set<String> =
+        vocabularies.getOrPut(documentId) { QuestionLanguageCheck.vocabularyOf(pagesOf(documentId)) }
 
     private fun templateFor(field: FormField): FormText = when {
         field.options.isNotEmpty() -> FormText.ASK_CHOICE
@@ -607,6 +678,7 @@ class FormFillConversation(
             FormAwaitKind.CONTINUE ->
                 if (interpreter.yesNo(describeAwaiting(fill), text) == false) finish(fill, byHand = true) else continueRound(fill)
             FormAwaitKind.READING -> continueReading(fill)
+            FormAwaitKind.REOPEN -> offerReopen(fill)
         }
     }
 
@@ -636,6 +708,30 @@ class FormFillConversation(
     /** A chip's value is one the conversation offered; it is checked like any answer, except that a tick box takes yes or no. */
     private suspend fun verifyChip(field: FormField, value: String, locale: Locale): Verification =
         if (field.reconfirm && value == field.value) Verification.Accepted(value) else verifyTyped(field, value, locale)
+
+    /**
+     * Whether [text], typed while a question is open, is simply its answer: short, not worded as a question, and accepted by the
+     * field's own check without any model (a printed option, a date, an e-mail address, or plain text for a name or text field).
+     * Anything else (a sentence, a question, a reply the check refuses) is read for an intent.
+     */
+    private suspend fun looksLikeAnswer(fill: FormFill, text: String): Boolean {
+        val awaiting = fill.awaiting?.takeIf { it.kind == FormAwaitKind.ANSWER } ?: return false
+        val t = text.trim()
+        if (t.isEmpty() || t.length > profile.shortAnswerChars || t.split(Regex("\\s+")).size > profile.shortAnswerWords) return false
+        if (t.any { it in QUESTION_MARKS }) return false
+        val field = fieldOf(fill, awaiting) ?: return false
+        return verifyWithoutModel(field, t, localeOf(fill)) is Verification.Accepted
+    }
+
+    /** The checks that need no model; null for an answer only the model can map (a tick box's yes or no). */
+    private fun verifyWithoutModel(field: FormField, text: String, locale: Locale): Verification? {
+        if (field.options.isNotEmpty()) return AnswerVerifiers.verifyChoice(text, field.options)
+        if (field.kind == FormFieldKind.CHECKBOX) return null
+        return AnswerVerifiers.verify(valueKindOf(field), text, locale, today = today())
+    }
+
+    private fun valueKindOf(field: FormField): FormValueKind =
+        FormDataKeys.of(field.dataKey)?.valueKind ?: if (field.kind == FormFieldKind.DATE) FormValueKind.DATE else FormValueKind.TEXT
 
     private suspend fun verifyTyped(field: FormField, text: String, locale: Locale): Verification {
         val key = FormDataKeys.of(field.dataKey)
@@ -769,6 +865,7 @@ class FormFillConversation(
         FormAwaitKind.REMEMBER -> "The assistant asked whether to remember the answer for the person (yes or no)."
         FormAwaitKind.CONTINUE -> "The assistant asked whether to continue with the remaining questions or leave the rest to the user."
         FormAwaitKind.READING -> "Reading the form was paused."
+        FormAwaitKind.REOPEN -> "The assistant asked whether to continue the finished fill or start over."
         null -> "The assistant is filling in a form."
     }
 
@@ -824,6 +921,27 @@ class FormFillConversation(
     }
 
     private fun localeOf(fill: FormFill): Locale = fill.localeTag?.let(Locale::forLanguageTag) ?: fallbackLocale()
+
+    /** The document's stored language (a language tag the extraction's second stage wrote), or null when none is stored or it is no tag. */
+    private suspend fun documentLanguage(documentId: String): Locale? {
+        val tag = (documents.getDocumentById(documentId) as? PamResult.Success)?.data?.language?.trim().orEmpty().replace('_', '-')
+        return tag.takeIf { LANGUAGE_TAG.matches(it) && !it.equals("und", ignoreCase = true) }?.let(Locale::forLanguageTag)
+    }
+
+    /**
+     * The open question the chat last SHOWED is the one an answer is for: when the fill's own record of the open field is another
+     * one (a write that failed half way, a restart between saving and posting), the question's field wins and the fill follows it.
+     */
+    private suspend fun inSync(fill: FormFill): FormFill {
+        val awaiting = fill.awaiting?.takeIf { it.kind == FormAwaitKind.ANSWER } ?: return fill
+        val shown = conversations.getMessages(conversationId(fill.documentId)).first()
+            .mapNotNull { FormMessageCodec.parse(it) }.lastOrNull { it.kind == FormMessageKind.QUESTION }?.fieldId
+        if (shown == null || shown == awaiting.fieldId) return fill
+        trace.event("resync", "fill=${fill.id} open=${awaiting.fieldId} shown=$shown")
+        val synced = fill.copy(awaiting = awaiting.copy(fieldId = shown, value = null), currentFieldId = shown)
+        fills.saveFill(synced)
+        return synced
+    }
 
     private suspend fun documentIsForm(documentId: String): Boolean =
         (documents.getDocumentById(documentId) as? PamResult.Success)?.data?.extractionType == ExtractionSchema.FORM_APPLICATION.id
@@ -892,7 +1010,12 @@ class FormFillConversation(
         fun fillId(documentId: String) = "fill-$documentId"
 
         /** The way of reading forms: bumped when a better reading should replace the stored ones (it is part of [readingKey]). */
-        private const val READING_VERSION = "v3"
+        private const val READING_VERSION = "v4"
+
+        private val LANGUAGE_TAG = Regex("[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*")
+
+        /** The marks that end a question (Latin, Arabic and full-width): a reply carrying one is asking, not answering. */
+        private val QUESTION_MARKS = setOf('?', '؟', '？')
 
         /** Identifies the reading of one OCR: the way of reading plus a hash of every block's text and place. */
         fun readingKey(pages: List<List<OcrBlock>>): String {
