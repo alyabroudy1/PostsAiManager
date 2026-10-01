@@ -28,6 +28,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.postsaimanager.feature.chat.ChatScreen
+import com.postsaimanager.feature.chat.ChatViewModel
 import com.postsaimanager.feature.chat.ChatSource
 import com.postsaimanager.feature.documents.DocumentDetailScreen
 import com.postsaimanager.feature.documents.DocumentsScreen
@@ -154,6 +155,10 @@ fun PamApp() {
                     onChatClick = { docId ->
                         navController.navigate("chat?documentId=$docId")
                     },
+                    // "Help me fill it" / "Fill in this form": the same document chat, with the form fill started.
+                    onFillForm = { docId ->
+                        navController.navigate("chat?documentId=$docId&${ChatViewModel.ARG_FILL}=true")
+                    },
                     onDeleted = { docId ->
                         navController.popBackStack()
                         scope.launch {
@@ -182,12 +187,17 @@ fun PamApp() {
             }
 
             composable(
-                route = "chat?documentId={documentId}",
+                route = "chat?documentId={documentId}&${ChatViewModel.ARG_FILL}={${ChatViewModel.ARG_FILL}}",
                 arguments = listOf(
                     navArgument("documentId") {
                         type = NavType.StringType
                         nullable = true
                         defaultValue = null
+                    },
+                    // Set only by "Help me fill it": the chat opens with the form fill started.
+                    navArgument(ChatViewModel.ARG_FILL) {
+                        type = NavType.BoolType
+                        defaultValue = false
                     },
                 ),
             ) {

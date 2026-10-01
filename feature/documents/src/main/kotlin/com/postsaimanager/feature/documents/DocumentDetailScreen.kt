@@ -95,6 +95,8 @@ import java.io.File
 fun DocumentDetailScreen(
     onNavigateBack: () -> Unit,
     onChatClick: (String) -> Unit,
+    /** "Help me fill it" / "Fill in this form": opens the document's chat with the form fill started. */
+    onFillForm: (String) -> Unit = {},
     /**
      * Called once the document has been moved to the trash. The caller navigates away and
      * owns the "moved to Recently deleted / Undo" snackbar, so it outlives this screen.
@@ -178,6 +180,16 @@ fun DocumentDetailScreen(
                                     showRenameDialog = true
                                 },
                             )
+                            // Offered on any document: a letter can come with a form to fill in, and the user can always ask.
+                            (uiState as? DocumentDetailUiState.Success)?.document?.takeUnless { it.isTrashed }?.let { document ->
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_fill_form)) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onFillForm(document.id)
+                                    },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("Delete") },
                                 onClick = {
@@ -253,6 +265,7 @@ fun DocumentDetailScreen(
                     onReadAgainAs = viewModel::readAgainAs,
                     onShowOnPage = viewModel::showOnPage,
                     onChatClick = { onChatClick(state.document.id) },
+                    onFillForm = { onFillForm(state.document.id) },
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSharePdf = { viewModel.generatePdf() },
                     externalLaunch = ExternalLaunch(
@@ -323,6 +336,7 @@ private fun DocumentDetailContent(
     onSharePdf: () -> File?,
     externalLaunch: ExternalLaunch,
     onChatClick: () -> Unit,
+    onFillForm: () -> Unit,
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -414,6 +428,7 @@ private fun DocumentDetailContent(
                 onUpdateField = onUpdateField,
                 onUpdateSummary = onUpdateSummary,
                 onShowOnPage = onShowOnPage,
+                onFillForm = onFillForm,
             )
             DetailTab.TIMELINE -> TimelineTab(state.timeline)
         }

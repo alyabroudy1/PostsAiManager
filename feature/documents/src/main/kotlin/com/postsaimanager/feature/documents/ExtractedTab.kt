@@ -87,6 +87,29 @@ internal class FieldActions(
 /** The room a floating action button takes at the bottom of a list: its height (56dp), its margin (16dp) and a gap (16dp). */
 private val FAB_CLEARANCE = 88.dp
 
+/** "This is a form to fill in · Help me fill it", shown on the Extracted tab of a form. */
+@Composable
+internal fun FillFormCard(onFillForm: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                stringResource(R.string.fill_form_card_title),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Button(onClick = onFillForm) { Text(stringResource(R.string.fill_form_card_action)) }
+        }
+    }
+}
+
 /** Which question the family picker answers: "Change type" (no re-read) or "Read again as …" (a fresh read). */
 private enum class PickerMode { CHANGE_TYPE, READ_AGAIN }
 
@@ -113,6 +136,8 @@ internal fun ExtractedTab(
     onUpdateField: (fieldId: String, name: String, value: String) -> Unit,
     onUpdateSummary: (String) -> Unit,
     onShowOnPage: (page: Int?, bbox: TextBounds?) -> Unit,
+    /** "Help me fill it": opens the document chat with the form fill started. Offered as a card on a form only; null hides it. */
+    onFillForm: (() -> Unit)? = null,
 ) {
     // Kept across a rotation: the row being edited is stored as its id and resolved from the data, so the sheet shows the latest row.
     var editingFieldId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -151,6 +176,11 @@ internal fun ExtractedTab(
                             Text(stringResource(R.string.action_re_extract), style = MaterialTheme.typography.labelSmall)
                         }
                     }
+                }
+
+                // A form is offered, never pushed: one card, and the AI chat does the rest.
+                if (onFillForm != null && document.extractionType == ExtractionSchema.FORM_APPLICATION.id) {
+                    item(key = "fill_form") { FillFormCard(onFillForm) }
                 }
 
                 // 5.4: the assistant did not see the whole document — a long letter's layout had to be cut to fit the

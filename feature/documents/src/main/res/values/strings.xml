@@ -5,6 +5,11 @@
         values-de and values-ar localise the screen without touching data or code.
     -->
 
+    <!-- Filling in a form with the AI chat -->
+    <string name="fill_form_card_title">This is a form to fill in.</string>
+    <string name="fill_form_card_action">Help me fill it</string>
+    <string name="action_fill_form">Fill in this form</string>
+
     <!-- Renaming a document -->
     <string name="action_rename">Rename</string>
     <string name="rename_title">Rename document</string>

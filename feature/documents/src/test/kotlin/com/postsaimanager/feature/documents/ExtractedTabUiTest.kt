@@ -216,6 +216,47 @@ class ExtractedTabUiTest {
         compose.onNodeWithText("Extra 30").assertIsDisplayed()
     }
 
+    private fun showTab(extractionType: String?, onFillForm: (() -> Unit)?) {
+        val document = com.postsaimanager.core.model.Document(
+            id = "d", title = "T", sourceType = com.postsaimanager.core.model.SourceType.CAMERA, createdAt = 0, modifiedAt = 0,
+            extractionType = extractionType,
+        )
+        compose.setContent {
+            MaterialTheme {
+                ExtractedTab(
+                    document = document, data = listOf(row()), summaryComing = false, actions = actions,
+                    onAddClick = {}, onReprocess = {}, onChangeFamily = {}, onReadAgainAs = {}, onConfirmConfident = {}, onConfirmAll = {},
+                    onUpdateField = { _, _, _ -> }, onUpdateSummary = {}, onShowOnPage = { _, _ -> }, onFillForm = onFillForm,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `a form offers the card Help me fill it, which starts the fill`() {
+        var started = 0
+        showTab(com.postsaimanager.core.domain.extraction.v2.ExtractionSchema.FORM_APPLICATION.id) { started++ }
+
+        compose.onNodeWithText("This is a form to fill in.").assertIsDisplayed()
+        compose.onNodeWithText("Help me fill it").performClick()
+
+        assertThat(started).isEqualTo(1)
+    }
+
+    @Test
+    fun `any other document gets no card, the overflow menu item is its entry`() {
+        showTab("invoice_bill") {}
+
+        compose.onNodeWithText("This is a form to fill in.").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a form without the callback shows no card`() {
+        showTab(com.postsaimanager.core.domain.extraction.v2.ExtractionSchema.FORM_APPLICATION.id, null)
+
+        compose.onNodeWithText("Help me fill it").assertDoesNotExist()
+    }
+
     @Test
     fun `while the summary is coming the card says so and offers nothing to edit`() {
         compose.setContent {
