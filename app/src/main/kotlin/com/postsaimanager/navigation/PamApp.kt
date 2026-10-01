@@ -33,6 +33,8 @@ import com.postsaimanager.feature.documents.DocumentDetailScreen
 import com.postsaimanager.feature.documents.DocumentsScreen
 import com.postsaimanager.feature.documents.TrashScreen
 import com.postsaimanager.feature.home.HomeScreen
+import com.postsaimanager.feature.profiles.ProfileDetailScreen
+import com.postsaimanager.feature.profiles.ProfileDetailViewModel
 import com.postsaimanager.feature.profiles.ProfilesScreen
 import com.postsaimanager.feature.scanner.ScannerScreen
 import com.postsaimanager.feature.models.ModelsScreen
@@ -105,8 +107,15 @@ fun PamApp() {
             }
             composable(TopLevelDestination.PROFILES.route) {
                 ProfilesScreen(
-                    onProfileClick = { /* TODO: profile detail */ },
+                    onProfileClick = { id -> navController.navigate("profile/$id") },
+                    onAddPerson = { navController.navigate("profile/${ProfileDetailViewModel.NEW}") },
                 )
+            }
+            composable(
+                route = "profile/{${ProfileDetailViewModel.ARG_PROFILE_ID}}",
+                arguments = listOf(navArgument(ProfileDetailViewModel.ARG_PROFILE_ID) { type = NavType.StringType }),
+            ) {
+                ProfileDetailScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(TopLevelDestination.SETTINGS.route) {
                 SettingsScreen(
