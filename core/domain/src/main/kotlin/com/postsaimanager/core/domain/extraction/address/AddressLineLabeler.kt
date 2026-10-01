@@ -3,6 +3,10 @@ package com.postsaimanager.core.domain.extraction.address
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.layout.AddressShapes
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.COUNTRY_CODE_PREFIX
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.LEADING_NUMBER
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.SEPARATORS
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.TRAILING_NUMBER
 import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner
 import com.postsaimanager.core.domain.extraction.v2.Parties
 import com.postsaimanager.core.domain.extraction.v2.Party
@@ -430,9 +434,5 @@ class AddressLineLabeler(
 
         private const val MIN_NAME_CHARS = 4
         private const val BLOCK_TITLE = "[address-block]"
-        private val SEPARATORS = charArrayOf(',', ';', ':', '-', '–', '·', '•', '|', ' ')
-        private val COUNTRY_CODE_PREFIX = Regex("^\\s*[A-Za-z]{1,3}\\s*[-–]\\s*$")
-        private val TRAILING_NUMBER = Regex("^(.*\\p{L}.*?)[\\s,]+(\\d{1,4}\\s?[A-Za-z]?(?:\\s?[-/]\\s?\\d{1,4}\\s?[A-Za-z]?)?)$")
-        private val LEADING_NUMBER = Regex("^(\\d{1,4}\\s?[A-Za-z]?(?:\\s?[-/]\\s?\\d{1,4}[A-Za-z]?)?)[\\s,]+(\\p{L}.*)$")
     }
 }

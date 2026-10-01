@@ -8,6 +8,7 @@ import com.postsaimanager.core.domain.extraction.layout.AddressShapes.DIGIT_RUN
 import com.postsaimanager.core.domain.extraction.layout.AddressShapes.MAX_LEFT_DRIFT
 import com.postsaimanager.core.domain.extraction.layout.AddressShapes.MAX_LINE_GAP
 import com.postsaimanager.core.domain.extraction.layout.AddressShapes.STREET_NUMBER
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.STRONG_SEPARATOR
 import com.postsaimanager.core.domain.extraction.layout.AddressShapes.isCountryText
 import com.postsaimanager.core.domain.extraction.layout.AddressShapes.isPostcodeLine
 import com.postsaimanager.core.domain.usecase.DocumentLayout
@@ -485,7 +486,6 @@ object LetterLayoutAnalyzer {
     private val IBAN_TOKEN = Regex("[A-Z]{2}\\d{2}[A-Z0-9]{10,30}")
 
     // Shapes first; the German patterns below are extra hints, never gates.
-    private val STRONG_SEPARATOR = Regex("[·•|]|\\s[-–—]\\s")
     private val COLON_LABEL = Regex("^\\s*\\p{L}[\\p{L} .\\-/]{1,28}:(\\s.*)?$")
     /** An account number in any language: two letters, two digits, then groups. Amounts alone are not payment sections. */
     private val PAYMENT_SHAPE = Regex(

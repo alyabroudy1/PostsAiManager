@@ -25,6 +25,24 @@ object AddressShapes {
     /** A word followed by a long number, possibly in groups (`Postfach 10 11 22`): a delivery point, not a house number. */
     val LONG_NUMBER_TAIL = Regex("\\p{L}[\\p{L}.\\- ]*\\s\\d[\\d ]{3,}\\d$")
 
+    /** A street name followed by its number (`Musterstraße 12a`) split in two: the name, then the number with an optional range. */
+    val TRAILING_NUMBER = Regex("^(.*\\p{L}.*?)[\\s,]+(\\d{1,4}\\s?[A-Za-z]?(?:\\s?[-/]\\s?\\d{1,4}\\s?[A-Za-z]?)?)$")
+
+    /** A house number followed by the street name (`10 Main Street`) split in two: the number, then the name. */
+    val LEADING_NUMBER = Regex("^(\\d{1,4}\\s?[A-Za-z]?(?:\\s?[-/]\\s?\\d{1,4}[A-Za-z]?)?)[\\s,]+(\\p{L}.*)$")
+
+    /** A house number (with an optional letter) at the end of a text. */
+    val STREET_END = Regex("\\d\\s?[A-Za-z]?$")
+
+    /** A country code joined to a postcode with a dash (`D-`), as a whole. */
+    val COUNTRY_CODE_PREFIX = Regex("^\\s*[A-Za-z]{1,3}\\s*[-–]\\s*$")
+
+    /** The characters that separate the parts of one address line. */
+    val SEPARATORS = charArrayOf(',', ';', ':', '-', '–', '·', '•', '|', ' ')
+
+    /** A separator that cuts a line into independent pieces: a dot, a bar or a spaced dash. */
+    val STRONG_SEPARATOR = Regex("[·•|]|\\s[-–—]\\s")
+
     /** The largest vertical gap (page fraction) between two lines of one address block. */
     const val MAX_LINE_GAP = 0.045f
 

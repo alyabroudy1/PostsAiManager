@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.extraction.address
 
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.STRONG_SEPARATOR
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
 
@@ -46,9 +47,5 @@ class SenderCandidateFinder(
         val lines = AddressLines.splitCombined(AddressLines.of(layout.zone(zone)), formats)
         val anchor = lines.indexOfLast { formats.byPostcodeShape(it.text).isNotEmpty() }
         return if (anchor < 0) emptyList() else AddressLines.stackEndingAt(lines, anchor)
-    }
-
-    private companion object {
-        val STRONG_SEPARATOR = Regex("[·•|]|\\s[-–—]\\s")
     }
 }

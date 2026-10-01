@@ -1,5 +1,9 @@
 package com.postsaimanager.core.domain.extraction.address
 
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.COUNTRY_CODE_PREFIX
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.SEPARATORS
+import com.postsaimanager.core.domain.extraction.layout.AddressShapes.STREET_END
 import com.postsaimanager.core.domain.extraction.v2.QuoteVerifier
 import com.postsaimanager.core.model.AddressPart
 import kotlinx.serialization.Serializable
@@ -69,8 +73,6 @@ class AddressFormat(
     private val names: Set<String> = countryNames.map(::compact).toSet()
 
     internal companion object {
-        private val COUNTRY_CODE_PREFIX = Regex("[A-Za-z]{1,3}\\s*[-–]")
-
         /** Lowercased, folded (accents, Arabic spellings, digits) with everything but letters and digits removed. */
         fun compact(s: String): String = QuoteVerifier.fold(s).filter { it.isLetterOrDigit() }
     }
@@ -120,11 +122,6 @@ class AddressFormatRegistry(val formats: List<AddressFormat>) {
         return (preferred.ifEmpty { pool }).map { it.first }
     }
 }
-
-private val SEPARATORS = charArrayOf(',', ';', ':', '-', '–', '·', '•', '|', ' ')
-
-/** A house number (with an optional letter) at the end of a text. */
-private val STREET_END = Regex("\\d\\s?[A-Za-z]?$")
 
 @Serializable
 private class FormatsFile(val formats: List<FormatEntry>)
