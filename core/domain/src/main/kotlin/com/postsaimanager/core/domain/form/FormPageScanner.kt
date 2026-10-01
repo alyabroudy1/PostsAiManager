@@ -35,6 +35,18 @@ internal class FormPageScanner(private val page: FormPage) {
     fun headings(): List<Pair<Int, String>> =
         page.rows.filter { it.index in headingRows }.mapNotNull { r -> FormShapes.cleanLabel(r.toks.first().text)?.let { r.index to it } }
 
+    /**
+     * The row index of the form's title: the page's first heading-like line when it stands above every blank and is set larger than
+     * every heading after it (a title is not the section of the fields below a real heading). A lone heading is a section: with
+     * nothing after it there is nothing to tell a title from a section by.
+     */
+    fun titleRow(firstBlankRow: Int?): Int? {
+        val first = page.rows.firstOrNull { it.index in headingRows } ?: return null
+        if (firstBlankRow != null && first.index > firstBlankRow) return null
+        val later = page.rows.filter { it.index in headingRows && it.index > first.index }.maxOfOrNull { it.toks.first().height } ?: return null
+        return first.index.takeIf { first.toks.first().height > TITLE_OVER_LATER * later }
+    }
+
     fun scan(): List<RawField> {
         boxes()
         runs()
@@ -331,5 +343,6 @@ internal class FormPageScanner(private val page: FormPage) {
         const val PARAGRAPH_WIDTH = 0.55f
         const val BLANK_LINES = 1.9f
         const val EDGE_BAND = 0.07f
+        const val TITLE_OVER_LATER = 1.1f
     }
 }

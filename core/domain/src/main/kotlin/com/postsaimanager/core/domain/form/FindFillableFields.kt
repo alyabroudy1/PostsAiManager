@@ -31,9 +31,11 @@ class FindFillableFields {
             Triple(page, scanner, scanner.scan())
         }
         val repeated = repeatedLabels(scanned.map { (_, _, raws) -> raws })
-        scanned.forEach { (page, scanner, scan) ->
+        scanned.forEachIndexed { pageIndex, (page, scanner, scan) ->
             val raws = scan.filterNot { !it.evidence.strong && repeated(it) }.sortedWith(compareBy({ it.rowIndex }, { it.uLeft }))
-            val headings = scanner.headings()
+            // The form's title (first page only) is not the section of the blanks below a real heading.
+            val title = if (pageIndex == 0) scanner.titleRow(raws.firstOrNull()?.rowIndex) else null
+            val headings = scanner.headings().filter { it.first != title }
             for (raw in raws) {
                 val heading = headings.lastOrNull { it.first < raw.rowIndex }?.let { it.second to page.number } ?: carried
                 toCandidate(raw, page, heading)?.let { all += it }
