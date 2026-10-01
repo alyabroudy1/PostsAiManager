@@ -871,8 +871,9 @@ class MigrationTest {
             )
             execSQL(
                 """
-                INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus)
-                VALUES ('doc-1', 'Anmeldung', 'EXTRACTED', 'CAMERA', 2, 0, 1, 1, 'LOCAL')
+                INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus,
+                                       isUserTitle, enrichmentAttempts, enrichmentPending)
+                VALUES ('doc-1', 'Anmeldung', 'EXTRACTED', 'CAMERA', 2, 0, 1, 1, 'LOCAL', 0, 0, 0)
                 """.trimIndent(),
             )
             close()
