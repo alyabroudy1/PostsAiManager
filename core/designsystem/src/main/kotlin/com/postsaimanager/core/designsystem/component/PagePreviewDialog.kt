@@ -1,4 +1,4 @@
-package com.postsaimanager.feature.chat
+package com.postsaimanager.core.designsystem.component
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -58,9 +58,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import androidx.compose.ui.res.stringResource
+import com.postsaimanager.core.designsystem.R
 import com.postsaimanager.core.designsystem.icon.PamIcons
-import com.postsaimanager.core.domain.usecase.DocumentPreview
-import com.postsaimanager.core.domain.usecase.PreviewPage
+import com.postsaimanager.core.model.DocumentPreview
+import com.postsaimanager.core.model.PreviewPage
 
 private const val MAX_ZOOM = 6f
 private const val DOUBLE_TAP_ZOOM = 2.5f
@@ -72,41 +74,48 @@ private const val PAGE_DECODE_PX = 2400
 private val HighlightColor = Color(0xFFFFC107)
 
 /**
- * A full-screen, in-place preview of a cited document, opened on the cited page.
+ * A full-screen, in-place preview of a document's pages, opened on one of them with the passage or field marked.
+ * Shared by the chat (a cited passage) and the Extracted tab (the box a field was read from).
  *
  * A [Dialog] rather than a bottom sheet: back closes it natively, it draws edge to edge, and
  * — the deciding reason — a sheet's own vertical drag would fight panning a zoomed page.
- * It sits on top of the chat rather than replacing it, so the transcript underneath keeps
- * its scroll position untouched.
+ * It sits on top of the screen rather than replacing it, so what is underneath keeps its scroll position untouched.
+ *
+ * @param title shown while [preview] is not there (loading, or unavailable); the loaded document's own title replaces it
+ * @param preview the pages, or null while [loading] or when the document can't be previewed
+ * @param initialPageIndex index into [DocumentPreview.pages] to open on
+ * @param onOpenDocument called with the page number being viewed when "Open document" is tapped; null hides the button
  */
 @Composable
-internal fun CitationPreviewDialog(
-    state: CitationPreviewState,
+fun PagePreviewDialog(
+    title: String?,
+    preview: DocumentPreview?,
+    loading: Boolean,
+    initialPageIndex: Int,
     onClose: () -> Unit,
-    onOpenDocument: (ChatSource) -> Unit,
+    onOpenDocument: ((pageNumber: Int) -> Unit)?,
 ) {
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-            val preview = state.preview
             Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))) {
-                if (preview == null) {
-                    PreviewHeader(title = state.source.title ?: "Document preview", onClose = onClose)
+                if (preview == null || preview.pages.isEmpty()) {
+                    PreviewHeader(title = title ?: stringResource(R.string.page_preview_default_title), onClose = onClose)
                     Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        if (state.loading) {
+                        if (loading) {
                             CircularProgressIndicator()
                         } else {
                             Text(
-                                "This document can't be previewed.",
+                                stringResource(R.string.page_preview_unavailable),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 } else {
-                    PreviewPager(state, preview, onClose, onOpenDocument)
+                    PreviewPager(preview, initialPageIndex, onClose, onOpenDocument)
                 }
             }
         }
@@ -115,39 +124,33 @@ internal fun CitationPreviewDialog(
 
 @Composable
 private fun ColumnScope.PreviewPager(
-    state: CitationPreviewState,
     preview: DocumentPreview,
+    initialPageIndex: Int,
     onClose: () -> Unit,
-    onOpenDocument: (ChatSource) -> Unit,
+    onOpenDocument: ((pageNumber: Int) -> Unit)?,
 ) {
     val pages = preview.pages
     val pagerState = rememberPagerState(
-        initialPage = state.initialPageIndex.coerceIn(0, pages.lastIndex),
+        initialPage = initialPageIndex.coerceIn(0, pages.lastIndex),
         pageCount = { pages.size },
     )
     val current = pages[pagerState.currentPage.coerceIn(0, pages.lastIndex)]
 
     PreviewHeader(
-        title = "${preview.title} · Page ${pagerState.currentPage + 1} of ${pages.size}",
+        title = stringResource(R.string.page_preview_title_page, preview.title, pagerState.currentPage + 1, pages.size),
         onClose = onClose,
     )
     // Above the pager, not below it: a Dialog window does not always get navigation-bar
     // insets, and a bottom button would sit under the 3-button bar.
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.Start,
-    ) {
-        OutlinedButton(
-            onClick = {
-                onOpenDocument(
-                    state.source.copy(
-                        documentId = preview.documentId,
-                        pageNumber = current.pageNumber,
-                        title = preview.title,
-                    ),
-                )
-            },
-        ) { Text("Open document") }
+    if (onOpenDocument != null) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.Start,
+        ) {
+            OutlinedButton(onClick = { onOpenDocument(current.pageNumber) }) {
+                Text(stringResource(R.string.page_preview_open_document))
+            }
+        }
     }
     HorizontalPager(
         state = pagerState,
@@ -155,7 +158,7 @@ private fun ColumnScope.PreviewPager(
     ) { index ->
         ZoomablePage(
             page = pages[index],
-            description = "Page ${index + 1} of ${pages.size} of ${preview.title}",
+            description = stringResource(R.string.page_preview_page_description, index + 1, pages.size, preview.title),
         )
     }
 }
@@ -174,7 +177,7 @@ private fun PreviewHeader(title: String, onClose: () -> Unit) {
             modifier = Modifier.weight(1f),
         )
         IconButton(onClick = onClose) {
-            Icon(PamIcons.Close, contentDescription = "Close preview")
+            Icon(PamIcons.Close, contentDescription = stringResource(R.string.page_preview_close))
         }
     }
 }

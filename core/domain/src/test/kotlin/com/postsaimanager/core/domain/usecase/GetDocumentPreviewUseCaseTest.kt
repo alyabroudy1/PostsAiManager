@@ -80,5 +80,20 @@ class GetDocumentPreviewUseCaseTest {
         seed(trashedAt = 5)
         assertThat(useCase("d1")).isNull()
         assertThat(useCase("nope")).isNull()
+        assertThat(useCase.forField("d1", 1, bounds)).isNull()
+    }
+
+    @Test
+    fun `forField marks the box on its page only`() = runTest {
+        seed()
+        val preview = useCase.forField("d1", page = 2, bbox = bounds)!!
+        assertThat(preview.pages.map { it.highlights }).containsExactly(emptyList<TextBounds>(), listOf(bounds)).inOrder()
+    }
+
+    @Test
+    fun `forField without a box gives plain pages`() = runTest {
+        seed()
+        assertThat(useCase.forField("d1", page = 1, bbox = null)!!.pages.flatMap { it.highlights }).isEmpty()
+        assertThat(useCase.forField("d1", page = null, bbox = bounds)!!.pages.flatMap { it.highlights }).isEmpty()
     }
 }

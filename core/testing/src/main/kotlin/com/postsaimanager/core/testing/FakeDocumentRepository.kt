@@ -239,7 +239,17 @@ class FakeDocumentRepository : DocumentRepository {
         value: String,
     ): PamResult<Unit> = guard {
         extracted.value = extracted.value.mapValues { (_, fields) ->
-            fields.map { if (it.id == fieldId) it.copy(fieldName = name, fieldValue = value) else it }
+            // Like the real merge: a person's value protects the row (EDITED), and it is theirs from now on.
+            fields.map {
+                if (it.id == fieldId) {
+                    it.copy(
+                        fieldName = name, fieldValue = value, source = ValueSource.USER, isConfirmed = true,
+                        deletedByUser = false, reviewState = ReviewState.EDITED,
+                    )
+                } else {
+                    it
+                }
+            }
         }
         PamResult.Success(Unit)
     }

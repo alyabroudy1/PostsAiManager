@@ -88,6 +88,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.designsystem.component.MarkdownText
+import com.postsaimanager.core.designsystem.component.PagePreviewDialog
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import kotlinx.coroutines.flow.collectLatest
@@ -194,12 +195,21 @@ fun ChatScreen(
     // Layered over the chat, not navigated to: the transcript (and `listState`) underneath
     // stays composed, so closing returns to exactly where the user was reading.
     preview?.let { state ->
-        CitationPreviewDialog(
-            state = state,
+        PagePreviewDialog(
+            title = state.source.title,
+            preview = state.preview,
+            loading = state.loading,
+            initialPageIndex = state.initialPageIndex,
             onClose = viewModel::closePreview,
-            onOpenDocument = { source ->
+            onOpenDocument = { pageNumber ->
                 viewModel.closePreview()
-                onSourceClick(source)
+                onSourceClick(
+                    state.source.copy(
+                        documentId = state.preview?.documentId ?: state.source.documentId,
+                        pageNumber = pageNumber,
+                        title = state.preview?.title ?: state.source.title,
+                    ),
+                )
             },
         )
     }

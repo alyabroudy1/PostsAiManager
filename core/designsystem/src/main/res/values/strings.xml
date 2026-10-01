@@ -22,4 +22,12 @@
     <string name="doc_row_status_failed">Reading failed</string>
     <string name="doc_row_favorite">Favorite</string>
     <string name="doc_row_toggle_favorite">Toggle favorite</string>
+
+    <!-- The full-screen page preview (opened from a chat citation and from the Extracted tab's "Show on page"). -->
+    <string name="page_preview_default_title">Document preview</string>
+    <string name="page_preview_unavailable">This document can\'t be previewed.</string>
+    <string name="page_preview_title_page">%1$s · Page %2$d of %3$d</string>
+    <string name="page_preview_open_document">Open document</string>
+    <string name="page_preview_close">Close preview</string>
+    <string name="page_preview_page_description">Page %1$d of %2$d of %3$s</string>
 </resources>
