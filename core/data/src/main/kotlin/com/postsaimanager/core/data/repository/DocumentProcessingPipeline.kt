@@ -22,6 +22,7 @@ import com.postsaimanager.core.data.worker.DocumentEnrichmentWorker
 import com.postsaimanager.core.data.worker.DocumentProcessingWorker
 import com.postsaimanager.core.data.worker.ReprocessDocumentWorker
 import com.postsaimanager.core.domain.document.DocumentProcessor
+import com.postsaimanager.core.domain.document.EnrichmentRetryPolicy
 import com.postsaimanager.core.domain.document.EnrichmentTicketRebuilder
 import com.postsaimanager.core.domain.document.ReprocessOverwritePolicy
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
@@ -497,6 +498,8 @@ class DocumentProcessingPipeline @Inject constructor(
                                 extractionTotalPages = inputTruncation?.totalPages,
                                 suggestedQuestions = if (usedModel && !staged) read?.suggestedQuestions.orEmpty().take(MAX_SUGGESTED_QUESTIONS) else updated.suggestedQuestions,
                                 extractorVersion = engineVersion,
+                                // A new reading starts the second stage's attempts again.
+                                enrichmentAttempts = 0,
                             ),
                         ).copy(syncStatus = doc.syncStatus),
                     )
@@ -676,6 +679,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     // read a second time (it was read by an older version: the next re-read starts from the images).
                     val ocrResults = StoredOcr.reuse(pages, documentMapper)?.mapNotNull { it.second }.orEmpty()
                     if (ocrResults.isEmpty()) {
+                        settleFailedAttempt(documentId)
                         finishEnrichment(documentId)
                         return@withContext PamResult.Error(PamError.OcrFailed(detail = "No stored text to read again"))
                     }
@@ -690,6 +694,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     val read = (understanding as? PamResult.Success)?.data
                     read?.let { logReadingTrace(documentId, it.readingTrace) }
                     if (read == null || !read.modelUsed) {
+                        settleFailedAttempt(documentId)
                         finishEnrichment(documentId)
                         return@withContext PamResult.Error(PamError.ExtractionFailed(detail = "The model did not write the second stage"))
                     }
@@ -728,7 +733,10 @@ class DocumentProcessingPipeline @Inject constructor(
                             ),
                         ).copy(syncStatus = latest.syncStatus),
                     )
-                    if (read.summarySource == null) Log.w(TAG, "second stage of $documentId wrote no summary; it stays pending")
+                    if (read.summarySource == null) {
+                        Log.w(TAG, "second stage of $documentId wrote no summary; attempt counted")
+                        settleFailedAttempt(documentId)
+                    }
                     Log.i(TIMING_TAG, "$documentId TOTAL enrichDocument (inside the lock) ms=${msSince(started)} extras=${fields.size}")
                     finishEnrichment(documentId)
                     PamResult.Success(Unit)
@@ -737,11 +745,23 @@ class DocumentProcessingPipeline @Inject constructor(
                     throw e
                 } catch (e: Exception) {
                     Log.w(TAG, "second stage failed for $documentId: ${e.message}")
+                    runCatching { settleFailedAttempt(documentId) }
                     finishEnrichment(documentId)
                     PamResult.Error(PamError.ExtractionFailed(detail = e.message ?: "Second stage failed", cause = e))
                 }
             }
         }
+
+    /**
+     * A second stage ended without settling a summary: counts the attempt on the document and, at [EnrichmentRetryPolicy.MAX_ATTEMPTS],
+     * stores the template summary of its verified fields, so recovery on app start stops queueing it.
+     */
+    private suspend fun settleFailedAttempt(documentId: String) {
+        val latest = documentDao.getById(documentId)?.takeIf { it.deletedAt == null } ?: return
+        val fields = documentDao.getExtractedData(documentId).map(documentMapper::extractedDataToDomain)
+        val updated = EnrichmentRetryPolicy.afterFailure(documentMapper.toDomain(latest), fields)
+        documentDao.update(documentMapper.toEntity(updated).copy(syncStatus = latest.syncStatus))
+    }
 
     /**
      * The reading's structure in logcat: the chosen model, profile and interpreter always (an unknown model

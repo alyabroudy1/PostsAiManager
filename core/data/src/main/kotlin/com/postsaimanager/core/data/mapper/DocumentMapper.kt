@@ -63,6 +63,7 @@ class DocumentMapper @Inject constructor() {
         summaryCode = entity.summaryCode,
         summaryArgs = JsonColumns.decodeStrings(entity.summaryArgs),
         layoutTemplate = entity.layoutTemplate,
+        enrichmentAttempts = entity.enrichmentAttempts,
     )
 
     fun toEntity(domain: Document): DocumentEntity = DocumentEntity(
@@ -96,6 +97,7 @@ class DocumentMapper @Inject constructor() {
         summaryCode = domain.summaryCode,
         summaryArgs = JsonColumns.encodeStrings(domain.summaryArgs),
         layoutTemplate = domain.layoutTemplate,
+        enrichmentAttempts = domain.enrichmentAttempts,
     )
 
     /**

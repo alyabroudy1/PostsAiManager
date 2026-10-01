@@ -52,6 +52,8 @@ data class DocumentEntity(
     /** JSON list of strings. */
     val summaryArgs: String? = null,
     val layoutTemplate: String? = null,
+    /** See [com.postsaimanager.core.model.Document.enrichmentAttempts]. */
+    val enrichmentAttempts: Int = 0,
 )
 
 @Entity(

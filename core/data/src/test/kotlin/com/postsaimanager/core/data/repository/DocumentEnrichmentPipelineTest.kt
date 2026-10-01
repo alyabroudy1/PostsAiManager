@@ -11,6 +11,8 @@ import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.data.mapper.JsonColumns
+import com.postsaimanager.core.domain.document.EnrichmentRetryPolicy
+import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
@@ -236,12 +238,54 @@ class DocumentEnrichmentPipelineTest {
     }
 
     @Test
-    fun `a second stage that wrote no summary leaves the summary pending`() = runTest(dispatcher) {
+    fun `a second stage that wrote no summary leaves the summary pending and counts the attempt`() = runTest(dispatcher) {
         answer(understanding(summary = "").copy(summarySource = null))
         pipeline.enrichDocument("doc-1", ticket)
-        val updated = slot<DocumentEntity>()
-        coVerify { documentDao.update(capture(updated)) }
-        assertThat(updated.captured.summarySource).isNull()
+        val updates = mutableListOf<DocumentEntity>()
+        coVerify { documentDao.update(capture(updates)) }
+        assertThat(updates.last().summarySource).isNull()
+        assertThat(updates.last().enrichmentAttempts).isEqualTo(1)
+    }
+
+    /** The document as the dao holds it: every update replaces it, so a run sees what the run before stored. */
+    private fun statefulDocument(start: DocumentEntity): () -> DocumentEntity {
+        var stored = start
+        coEvery { documentDao.getById("doc-1") } answers { stored }
+        coEvery { documentDao.update(any()) } answers { stored = firstArg() }
+        return { stored }
+    }
+
+    @Test
+    fun `a second stage that keeps failing settles on the template summary after its last attempt, never retried again`() = runTest(dispatcher) {
+        val stored = statefulDocument(doc(titleCode = null).copy(extractionType = "invoice_bill"))
+        answer(understanding().copy(modelUsed = false))
+
+        for (attempt in 1 until EnrichmentRetryPolicy.MAX_ATTEMPTS) {
+            assertThat(pipeline.enrichDocument("doc-1", null)).isInstanceOf(PamResult.Error::class.java)
+            assertThat(stored().enrichmentAttempts).isEqualTo(attempt)
+            assertThat(stored().summarySource).isNull()
+        }
+        assertThat(pipeline.enrichDocument("doc-1", null)).isInstanceOf(PamResult.Error::class.java)
+
+        // Settled: the template summary, rendered from the verified fields, and nothing awaits a summary any more.
+        assertThat(stored().enrichmentAttempts).isEqualTo(EnrichmentRetryPolicy.MAX_ATTEMPTS)
+        assertThat(stored().summarySource).isEqualTo(SummarySource.TEMPLATE.name)
+        assertThat(stored().summaryCode).isEqualTo(SummaryWriter.TEMPLATE_CODE)
+        assertThat(JsonColumns.decodeStrings(stored().summaryArgs)).containsExactly("invoice_bill", "Stadtwerke", "", "64,98 EUR", "", "").inOrder()
+        assertThat(stored().summary).isNull()
+        assertThat(pipeline.enrichingDocuments.first()).isEmpty()
+    }
+
+    @Test
+    fun `an engine error counts as an attempt too, and a summary a person wrote is never replaced by the template`() = runTest(dispatcher) {
+        val stored = statefulDocument(doc(titleCode = null).copy(extractionType = "invoice_bill", summary = "Mine", summarySource = SummarySource.USER.name))
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } throws IllegalStateException("engine died")
+
+        repeat(EnrichmentRetryPolicy.MAX_ATTEMPTS) { pipeline.enrichDocument("doc-1", null) }
+
+        assertThat(stored().enrichmentAttempts).isEqualTo(EnrichmentRetryPolicy.MAX_ATTEMPTS)
+        assertThat(stored().summarySource).isEqualTo(SummarySource.USER.name)
+        assertThat(stored().summary).isEqualTo("Mine")
     }
 
     @Test
@@ -322,12 +366,16 @@ class DocumentEnrichmentPipelineTest {
     }
 
     @Test
-    fun `a second stage the model did not write changes nothing and the screens stop waiting`() = runTest(dispatcher) {
+    fun `a second stage the model did not write changes only the attempt count and the screens stop waiting`() = runTest(dispatcher) {
         answer(understanding().copy(modelUsed = false))
         val result = pipeline.enrichDocument("doc-1", ticket)
         assertThat(result).isInstanceOf(PamResult.Error::class.java)
         coVerify(exactly = 0) { documentDao.insertExtractedData(any()) }
-        coVerify(exactly = 0) { documentDao.update(any()) }
+        val updated = slot<DocumentEntity>()
+        coVerify(exactly = 1) { documentDao.update(capture(updated)) }
+        assertThat(updated.captured.enrichmentAttempts).isEqualTo(1)
+        assertThat(updated.captured.title).isEqualTo("Scan 30 Sep")
+        assertThat(updated.captured.summarySource).isNull()
         assertThat(pipeline.enrichingDocuments.first()).isEmpty()
     }
 

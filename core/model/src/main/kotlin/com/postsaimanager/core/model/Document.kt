@@ -67,6 +67,8 @@ data class Document(
     val summaryArgs: List<String> = emptyList(),
     /** The id of the layout template the letter matched, for display and debugging; null when none. */
     val layoutTemplate: String? = null,
+    /** How many times the reading's second stage ran without settling a summary; at the limit the template summary is stored. */
+    val enrichmentAttempts: Int = 0,
 ) {
     val isTrashed: Boolean get() = deletedAt != null
 

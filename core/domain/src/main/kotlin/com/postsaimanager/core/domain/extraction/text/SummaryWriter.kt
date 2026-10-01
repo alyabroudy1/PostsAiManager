@@ -40,8 +40,7 @@ class SummaryWriter(
     }
 
     /** The summary rendered from the verified fields; nothing was asked. */
-    fun template(facts: SummaryFacts): SummaryResult =
-        SummaryResult(null, SummarySource.TEMPLATE, TEMPLATE_CODE, facts.templateArgs())
+    fun template(facts: SummaryFacts): SummaryResult = templateOf(facts)
 
     internal fun prompt(facts: SummaryFacts, languageCode: String?, antiCopy: Boolean): String = buildString {
         append("FACTS (verified; use only these):\n")
@@ -56,6 +55,10 @@ class SummaryWriter(
     companion object {
         /** The `summaryCode` of a summary rendered from the verified fields. */
         const val TEMPLATE_CODE = "template"
+
+        /** The template summary of [facts], needing no session: also what a second stage that kept failing settles on. */
+        fun templateOf(facts: SummaryFacts): SummaryResult =
+            SummaryResult(null, SummarySource.TEMPLATE, TEMPLATE_CODE, facts.templateArgs())
 
         const val MAX_ASKS = 2
         const val MAX_WORDS = 30

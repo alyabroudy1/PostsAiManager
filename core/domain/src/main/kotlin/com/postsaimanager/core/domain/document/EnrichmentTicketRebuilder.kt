@@ -24,24 +24,36 @@ import com.postsaimanager.core.model.ReviewState
 object EnrichmentTicketRebuilder {
 
     fun rebuild(document: Document, fields: List<ExtractedData>): EnrichmentTicket {
-        val live = fields.filter { it.reviewState != ReviewState.IGNORED && !it.deletedByUser && it.fieldValue.isNotBlank() }
+        val live = liveFields(fields)
+        // What the second stage itself owns (the extras and the subject line) is not "taken": it is what the stage writes.
+        val taken = live.filterNot(UnderstandingToFields::writtenInSecondStage).flatMap { listOfNotNull(it.fieldValue.trim(), it.machineValue?.trim()) }
+        return EnrichmentTicket(
+            typeId = document.extractionType,
+            topics = document.topics,
+            facts = factsOf(document, fields).carried(),
+            takenValues = taken.filter { it.isNotEmpty() }.distinct(),
+        )
+    }
+
+    /**
+     * The verified facts of [document] as its stored [fields] hold them now, the stored subject line included: what a summary rests on,
+     * and what the template summary is rendered from when no model sentence could be written.
+     */
+    fun factsOf(document: Document, fields: List<ExtractedData>): SummaryFacts {
+        val live = liveFields(fields)
         fun value(slotKey: String): String? = live.firstOrNull { it.slotKey == slotKey }?.fieldValue?.trim()
-        val facts = SummaryFacts(
+        return SummaryFacts(
             familyId = document.extractionType.orEmpty(),
             sender = value(UnderstandingToFields.SLOT_SENDER),
             addressee = value(UnderstandingToFields.SLOT_ADDRESSEE),
             amount = value(Slots.TOTAL.json),
             dueDate = value(Slots.DUE_DATE.json),
             date = value(Slots.LETTER_DATE.json),
+            subject = value(UnderstandingToFields.SLOT_SUBJECT),
             reference = value(Slots.REFERENCE.json),
         )
-        // What the second stage itself owns (the extras and the subject line) is not "taken": it is what the stage writes.
-        val taken = live.filterNot(UnderstandingToFields::writtenInSecondStage).flatMap { listOfNotNull(it.fieldValue.trim(), it.machineValue?.trim()) }
-        return EnrichmentTicket(
-            typeId = document.extractionType,
-            topics = document.topics,
-            facts = facts.carried(),
-            takenValues = taken.filter { it.isNotEmpty() }.distinct(),
-        )
     }
+
+    private fun liveFields(fields: List<ExtractedData>): List<ExtractedData> =
+        fields.filter { it.reviewState != ReviewState.IGNORED && !it.deletedByUser && it.fieldValue.isNotBlank() }
 }
