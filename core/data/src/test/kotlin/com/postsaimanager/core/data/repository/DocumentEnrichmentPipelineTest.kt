@@ -10,6 +10,8 @@ import com.postsaimanager.core.data.database.entity.DocumentEntity
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
+import com.postsaimanager.core.data.mapper.JsonColumns
+import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
@@ -21,10 +23,14 @@ import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.FactKind
+import com.postsaimanager.core.model.FamilySource
 import com.postsaimanager.core.model.FieldProvenance
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.RecognisedFact
+import com.postsaimanager.core.model.ReviewState
+import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.model.TextBounds
+import com.postsaimanager.core.model.TitleSource
 import com.postsaimanager.core.model.ValueSource
 import com.postsaimanager.core.testing.FakeTimelineRepository
 import io.mockk.coEvery
@@ -101,6 +107,9 @@ class DocumentEnrichmentPipelineTest {
 
     private fun understanding(title: String = "Rechnung Stadtwerke", summary: String = "Eine Rechnung über 64,98 EUR.") = DocumentUnderstanding(
         language = "de", documentType = "bill", title = title, summary = summary, suggestedQuestions = listOf("Bis wann muss ich zahlen?"),
+        // What the second stage composes and writes: a coded title and the writer's summary (the model's sentences).
+        titleCode = TitleComposer.CODE, titleArgs = listOf("invoice_bill", "Stadtwerke", "Rechnung Juli"),
+        summarySource = SummarySource.MODEL,
         facts = listOf(
             RecognisedFact("Zählernummer", "4711-X", FactKind.OTHER, 0.7f, FieldProvenance(slotKey = "x:zaehlernummer")),
             RecognisedFact("Vertrag", "V-99", FactKind.OTHER, 0.7f, FieldProvenance(slotKey = "x:vertrag")),
@@ -161,15 +170,20 @@ class DocumentEnrichmentPipelineTest {
     }
 
     @Test
-    fun `the language and summary land on the document and the model's title replaces a default title only`() = runTest(dispatcher) {
+    fun `the language and summary land on the document and the composed title replaces a default title only`() = runTest(dispatcher) {
         answer(understanding())
         pipeline.enrichDocument("doc-1", ticket)
         val updated = slot<DocumentEntity>()
         coVerify { documentDao.update(capture(updated)) }
         assertThat(updated.captured.language).isEqualTo("de")
         assertThat(updated.captured.summary).isEqualTo("Eine Rechnung über 64,98 EUR.")
+        assertThat(updated.captured.summarySource).isEqualTo(SummarySource.MODEL.name)
+        assertThat(updated.captured.summaryCode).isNull()
+        // The title is the composed one: its code and args, and the plain text as the fallback.
         assertThat(updated.captured.title).isEqualTo("Rechnung Stadtwerke")
-        assertThat(updated.captured.titleCode).isNull()
+        assertThat(updated.captured.titleCode).isEqualTo(TitleComposer.CODE)
+        assertThat(updated.captured.titleArgs).isEqualTo(JsonColumns.encodeStrings(listOf("invoice_bill", "Stadtwerke", "Rechnung Juli")))
+        assertThat(updated.captured.titleSource).isEqualTo(TitleSource.COMPOSED.name)
         // The status is not touched: the document stays as shown.
         coVerify(exactly = 0) { documentDao.updateStatus(any(), any(), any()) }
     }
@@ -182,7 +196,129 @@ class DocumentEnrichmentPipelineTest {
         val updated = slot<DocumentEntity>()
         coVerify { documentDao.update(capture(updated)) }
         assertThat(updated.captured.title).isEqualTo("Meine Stromrechnung")
+        assertThat(updated.captured.titleCode).isNull()
+        assertThat(updated.captured.titleSource).isEqualTo(TitleSource.USER.name)
         assertThat(updated.captured.summary).isNotNull()
+    }
+
+    @Test
+    fun `a title in real words from an older reading is never touched by the second stage`() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns doc(title = "Stromrechnung Stadtwerke", titleCode = null, isUserTitle = false)
+        answer(understanding())
+        pipeline.enrichDocument("doc-1", ticket)
+        val updated = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(updated)) }
+        assertThat(updated.captured.title).isEqualTo("Stromrechnung Stadtwerke")
+        assertThat(updated.captured.titleCode).isNull()
+    }
+
+    @Test
+    fun `a summary a person wrote stays, and a template summary is stored as its code and arguments`() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns doc(summary = "Meine Notiz").copy(summarySource = SummarySource.USER.name)
+        answer(understanding())
+        pipeline.enrichDocument("doc-1", ticket)
+        val kept = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(kept)) }
+        assertThat(kept.captured.summary).isEqualTo("Meine Notiz")
+        assertThat(kept.captured.summarySource).isEqualTo(SummarySource.USER.name)
+
+        coEvery { documentDao.getById("doc-1") } returns doc()
+        val args = listOf("invoice_bill", "Stadtwerke", "", "64,98 EUR", "", "")
+        answer(understanding(summary = "").copy(summarySource = SummarySource.TEMPLATE, summaryCode = "template", summaryArgs = args))
+        pipeline.enrichDocument("doc-1", ticket)
+        val written = mutableListOf<DocumentEntity>()
+        coVerify(atLeast = 2) { documentDao.update(capture(written)) }
+        val last = written.last()
+        assertThat(last.summary).isNull()
+        assertThat(last.summarySource).isEqualTo(SummarySource.TEMPLATE.name)
+        assertThat(last.summaryCode).isEqualTo("template")
+        assertThat(last.summaryArgs).isEqualTo(JsonColumns.encodeStrings(args))
+    }
+
+    @Test
+    fun `a second stage that wrote no summary leaves the summary pending`() = runTest(dispatcher) {
+        answer(understanding(summary = "").copy(summarySource = null))
+        pipeline.enrichDocument("doc-1", ticket)
+        val updated = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(updated)) }
+        assertThat(updated.captured.summarySource).isNull()
+    }
+
+    @Test
+    fun `topics scored in the second stage are stored unless a person chose the family`() = runTest(dispatcher) {
+        answer(understanding().copy(topics = listOf("tax", "government")))
+        pipeline.enrichDocument("doc-1", ticket)
+        val stored = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(stored)) }
+        assertThat(stored.captured.topics).isEqualTo(JsonColumns.encodeStrings(listOf("tax", "government")))
+
+        coEvery { documentDao.getById("doc-1") } returns doc().copy(familySource = FamilySource.USER.name, topics = JsonColumns.encodeStrings(listOf("health")))
+        pipeline.enrichDocument("doc-1", ticket)
+        val kept = mutableListOf<DocumentEntity>()
+        coVerify(atLeast = 2) { documentDao.update(capture(kept)) }
+        assertThat(kept.last().topics).isEqualTo(JsonColumns.encodeStrings(listOf("health")))
+    }
+
+    // ── a ticket lost on process death is rebuilt from the stored document ──
+
+    @Test
+    fun `a lost ticket is rebuilt from the stored family, topics and first stage fields, so the second stage still runs`() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns doc().copy(extractionType = "invoice_bill", topics = JsonColumns.encodeStrings(listOf("insurance")))
+        val asked = slot<EnrichmentTicket>()
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), capture(asked), any()) } returns PamResult.Success(understanding())
+
+        val result = pipeline.enrichDocument("doc-1", null)
+
+        assertThat(result).isInstanceOf(PamResult.Success::class.java)
+        assertThat(asked.captured.typeId).isEqualTo("invoice_bill")
+        assertThat(asked.captured.topics).containsExactly("insurance")
+        // The facts the summary rests on are the stored first stage values; the candidate ids are not stored, so the values stand for them.
+        assertThat(asked.captured.facts).containsEntry("sender", "Stadtwerke")
+        assertThat(asked.captured.facts).containsEntry("amount", "64,98 EUR")
+        assertThat(asked.captured.takenValues).containsAtLeast("Stadtwerke", "64,98 EUR")
+        // What the second stage owns (an extra, the subject) is not "taken".
+        assertThat(asked.captured.takenValues).doesNotContain("Basis")
+        // And the result is written like any second stage's.
+        coVerify { documentDao.update(any()) }
+    }
+
+    @Test
+    fun `a value a person ignored is no fact of a rebuilt ticket`() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns doc().copy(extractionType = "invoice_bill")
+        val ignoredTotal = total.copy(reviewState = ReviewState.IGNORED, deletedByUser = true)
+        coEvery { documentDao.getExtractedData("doc-1") } returns listOf(sender, ignoredTotal).map(mapper::extractedDataToEntity)
+        val asked = slot<EnrichmentTicket>()
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), capture(asked), any()) } returns PamResult.Success(understanding())
+        pipeline.enrichDocument("doc-1", null)
+        assertThat(asked.captured.facts).doesNotContainKey("amount")
+        assertThat(asked.captured.takenValues).doesNotContain("64,98 EUR")
+    }
+
+    @Test
+    fun `a document no model has read has nothing to enrich, ticket or not`() = runTest(dispatcher) {
+        // extractionType is null: the first stage never ran, so there is no reading to complete.
+        val result = pipeline.enrichDocument("doc-1", null)
+        assertThat(result).isInstanceOf(PamResult.Error::class.java)
+        coVerify(exactly = 0) { aiExtraction(any(), any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `a second stage queued without a ticket is kept if one is queued, and the screens wait for it`() = runTest(dispatcher) {
+        val workManager = mockk<WorkManager>(relaxed = true)
+        io.mockk.mockkObject(WorkManager.Companion)
+        every { WorkManager.getInstance(any<Context>()) } returns workManager
+        try {
+            pipeline.enqueueEnrichment("doc-1")
+            verify { workManager.enqueueUniqueWork(DocumentEnrichmentWorker.workName("doc-1"), ExistingWorkPolicy.KEEP, any<OneTimeWorkRequest>()) }
+            assertThat(pipeline.enrichingDocuments.first()).containsExactly("doc-1")
+            // Once it ran (or failed), nothing is coming any more.
+            coEvery { documentDao.getById("doc-1") } returns doc().copy(extractionType = "invoice_bill")
+            answer(understanding())
+            pipeline.enrichDocument("doc-1", null)
+            assertThat(pipeline.enrichingDocuments.first()).isEmpty()
+        } finally {
+            io.mockk.unmockkObject(WorkManager.Companion)
+        }
     }
 
     @Test

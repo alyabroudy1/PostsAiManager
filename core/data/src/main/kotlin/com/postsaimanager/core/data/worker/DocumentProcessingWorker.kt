@@ -67,7 +67,8 @@ class DocumentProcessingWorker @AssistedInject constructor(
         }
 
         try {
-            when (val result = documentProcessor.processDocument(documentId)) {
+            val forcedFamily = inputData.getString(KEY_FORCED_FAMILY)?.takeIf { it.isNotBlank() }
+            when (val result = documentProcessor.processDocument(documentId, forcedFamily = forcedFamily)) {
                 is PamResult.Success -> Result.success()
                 is PamResult.Error -> {
                     // The pipeline itself already logged (and recorded on the timeline) the
@@ -133,6 +134,9 @@ class DocumentProcessingWorker @AssistedInject constructor(
         const val CHANNEL_ID = DocumentProcessingNotifications.CHANNEL_ID
         const val NOTIFICATION_ID_BASE = 5711
         const val KEY_DOCUMENT_ID = "documentId"
+
+        /** The family a person chose for "Read again as ..."; empty or absent for every other run. */
+        const val KEY_FORCED_FAMILY = "forcedFamily"
 
         /**
          * One unique work name per document, so opening the same `NEW` document twice, or a

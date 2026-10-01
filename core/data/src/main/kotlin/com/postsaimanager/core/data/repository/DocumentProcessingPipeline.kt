@@ -22,7 +22,8 @@ import com.postsaimanager.core.data.worker.DocumentEnrichmentWorker
 import com.postsaimanager.core.data.worker.DocumentProcessingWorker
 import com.postsaimanager.core.data.worker.ReprocessDocumentWorker
 import com.postsaimanager.core.domain.document.DocumentProcessor
-import com.postsaimanager.core.domain.document.DocumentTitlePolicy
+import com.postsaimanager.core.domain.document.EnrichmentTicketRebuilder
+import com.postsaimanager.core.domain.document.ReprocessOverwritePolicy
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
@@ -36,6 +37,7 @@ import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.ExtractionResult
 import com.postsaimanager.core.model.FactKind
+import com.postsaimanager.core.model.FamilySource
 import com.postsaimanager.core.model.ProcessingStage
 import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.TimelineCodes
@@ -102,10 +104,13 @@ class DocumentProcessingPipeline @Inject constructor(
      * stage that a new scan pushed aside can be scheduled again, and so a screen can say "Summary coming…" meanwhile.
      */
     private val pendingEnrichment = java.util.concurrent.ConcurrentHashMap<String, EnrichmentTicket>()
+
+    /** Documents whose second stage is queued without a ticket (it is rebuilt when the work runs); see [enqueueEnrichment]. */
+    private val pendingRebuild: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
     private val _enriching = MutableStateFlow<Set<String>>(emptySet())
     override val enrichingDocuments: Flow<Set<String>> = _enriching.asStateFlow()
 
-    override suspend fun enqueue(documentId: String, force: Boolean) = withContext(ioDispatcher) {
+    override suspend fun enqueue(documentId: String, force: Boolean, forcedFamily: String?) = withContext(ioDispatcher) {
         // A new scan never waits for a summary: second stages step aside (cancelled, their tickets kept) and come back
         // once the scan's first stage is stored (see [resumeEnrichment]).
         workManager.cancelAllWorkByTag(DocumentEnrichmentWorker.TAG)
@@ -117,7 +122,12 @@ class DocumentProcessingPipeline @Inject constructor(
         }
 
         val request = OneTimeWorkRequestBuilder<DocumentProcessingWorker>()
-            .setInputData(workDataOf(DocumentProcessingWorker.KEY_DOCUMENT_ID to documentId))
+            .setInputData(
+                workDataOf(
+                    DocumentProcessingWorker.KEY_DOCUMENT_ID to documentId,
+                    DocumentProcessingWorker.KEY_FORCED_FAMILY to (forcedFamily ?: ""),
+                ),
+            )
             .build()
         workManager.enqueueUniqueWork(
             DocumentProcessingWorker.workName(documentId),
@@ -148,6 +158,7 @@ class DocumentProcessingPipeline @Inject constructor(
     override suspend fun processDocument(
         documentId: String,
         reprocess: Boolean,
+        forcedFamily: String?,
     ): PamResult<ExtractionResult> =
         processingMutex.withLock {
         withContext(ioDispatcher) {
@@ -172,8 +183,12 @@ class DocumentProcessingPipeline @Inject constructor(
 
                 // Step 2: Get pages
                 val pages = documentDao.getPages(documentId)
-                // A model has read this document before: a manual "Reprocess" is a re-reading, which raises no new questions.
-                val alreadyRead = documentDao.getById(documentId)?.extractionType != null
+                val before = documentDao.getById(documentId)
+                // A family a person chose is read as that one, now and on every later re-read ("Read again as ..." names it; a family set
+                // earlier by the person is the document's own). An id the schema does not know is not a family.
+                val chosenFamily = (
+                    forcedFamily ?: before?.extractionType?.takeIf { FamilySource.parse(before.familySource) == FamilySource.USER }
+                    )?.takeIf { ExtractionSchema.DEFAULT.family(it) != null }
                 if (pages.isEmpty()) {
                     val detail = "No pages found for document"
                     failDocument(documentId, REASON_NO_PAGES, detail, reprocess)
@@ -292,6 +307,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     // What a person needs to see first: the type, the parties, the amounts and dates. The language, the extras and the
                     // free text follow as the second stage, in the background, once this is stored.
                     stages = ExtractionV2Pipeline.Stages.FIRST,
+                    forcedFamily = chosenFamily,
                 )
 
                 val read = (understanding as? PamResult.Success)?.data
@@ -328,8 +344,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     ExtractionResult(
                         documentId = documentId,
                         language = read.language.ifBlank { null },
-                        // The model's own title (sender and purpose, in the letter's language),
-                        // else the subject line it quoted.
+                        // The composed title as plain text (the family, the sender, the subject line it quoted).
                         subject = read.title.ifBlank { null }
                             ?: read.facts.firstOrNull { it.kind == FactKind.SUBJECT }?.value,
                         documentType = ExtractionSchema.DEFAULT.legacyType(read.documentType),
@@ -418,7 +433,9 @@ class DocumentProcessingPipeline @Inject constructor(
                 val linkStarted = System.nanoTime()
                 if (understanding is PamResult.Success && usedModel && !reprocess) {
                     runCatching {
-                        entityProfileLinker.process(documentId, understanding.data, propose = !alreadyRead)
+                        // No proposals: the pipeline no longer raises "is this you?" questions (the silent identity of a later phase
+                        // replaces them). Organisations are still linked and created automatically.
+                        entityProfileLinker.process(documentId, understanding.data, propose = false)
                     }.onSuccess { outcome ->
                         Log.i(TIMING_TAG, "$documentId profile linking ms=${msSince(linkStarted)}")
                         Log.i(
@@ -457,43 +474,32 @@ class DocumentProcessingPipeline @Inject constructor(
                     return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
                 }
                 if (doc != null) {
-                    // The model's title replaces the default title only: never a person's, never a title
-                    // that is already real words, so no reprocess renames a document (DocumentTitlePolicy).
-                    // A real title clears the default's code.
-                    val newTitle = extraction.subject?.takeIf {
-                        usedV2 && DocumentTitlePolicy.modelTitleMayReplace(
-                            isUserTitle = doc.isUserTitle,
-                            titleCode = doc.titleCode,
-                        )
+                    // The family, the topics, the title and the summary are written through ReprocessOverwritePolicy: a family a person
+                    // chose, a title a person set (or real words an older reading wrote) and a summary a person wrote are never replaced.
+                    // Only a run in which a model read the document replaces what the model understood: a run with no model must not wipe
+                    // an earlier, real reading. (A staged reading's first stage has no summary or questions yet: an earlier reading's stay
+                    // until the second stage.)
+                    var updated = documentMapper.toDomain(doc)
+                    if (usedModel && read != null) {
+                        updated = ReprocessOverwritePolicy.applyFamily(updated, read, forcedFamily?.takeIf { ExtractionSchema.DEFAULT.family(it) != null })
+                        updated = ReprocessOverwritePolicy.applyTitle(updated, read)
+                        if (!staged) updated = ReprocessOverwritePolicy.applySummary(updated, read)
                     }
                     documentDao.update(
-                        doc.copy(
-                            documentType = extraction.documentType?.name ?: doc.documentType,
-                            language = extraction.language ?: doc.language,
-                            title = newTitle ?: doc.title,
-                            titleCode = if (newTitle != null) null else doc.titleCode,
-                            titleArgs = if (newTitle != null) null else doc.titleArgs,
-                            // Always overwritten with this run's own answer, null included —
-                            // a reprocess that happens to read the whole document (a bigger
-                            // context window, say) must clear a stale notice from an earlier
-                            // truncated run, not leave it lingering.
-                            extractionPagesRead = inputTruncation?.pagesRead,
-                            extractionTotalPages = inputTruncation?.totalPages,
-                            // What the model understood about the document as a whole. Only a run
-                            // in which a model read the document replaces these: a run with no
-                            // model must not wipe an earlier, real reading.
-                            extractionType = if (usedModel) read?.documentType?.ifBlank { null } else doc.extractionType,
-                            extractionTypeConfidence =
-                                if (usedModel) read?.documentTypeConfidence else doc.extractionTypeConfidence,
-                            // (A staged reading's first stage has no summary or questions yet: an earlier reading's stay until the second stage.)
-                            summary = if (usedModel && !staged) read?.summary?.ifBlank { null } else doc.summary,
-                            suggestedQuestions = if (usedModel && !staged) {
-                                JsonColumns.encodeStrings(read?.suggestedQuestions.orEmpty().take(MAX_SUGGESTED_QUESTIONS))
-                            } else {
-                                doc.suggestedQuestions
-                            },
-                            extractorVersion = engineVersion,
-                        )
+                        documentMapper.toEntity(
+                            updated.copy(
+                                documentType = ExtractionSchema.DEFAULT.legacyType(updated.extractionType) ?: updated.documentType,
+                                language = extraction.language ?: updated.language,
+                                // Always overwritten with this run's own answer, null included —
+                                // a reprocess that happens to read the whole document (a bigger
+                                // context window, say) must clear a stale notice from an earlier
+                                // truncated run, not leave it lingering.
+                                extractionPagesRead = inputTruncation?.pagesRead,
+                                extractionTotalPages = inputTruncation?.totalPages,
+                                suggestedQuestions = if (usedModel && !staged) read?.suggestedQuestions.orEmpty().take(MAX_SUGGESTED_QUESTIONS) else updated.suggestedQuestions,
+                                extractorVersion = engineVersion,
+                            ),
+                        ).copy(syncStatus = doc.syncStatus),
                     )
                 }
 
@@ -596,16 +602,35 @@ class DocumentProcessingPipeline @Inject constructor(
 
     /** Queues [ticket]'s second stage for [documentId] (replacing one queued earlier for the same document). */
     private fun scheduleEnrichment(documentId: String, ticket: EnrichmentTicket) {
+        pendingRebuild.remove(documentId)
         pendingEnrichment[documentId] = ticket
-        _enriching.value = pendingEnrichment.keys.toSet()
+        publishEnriching()
         workManager.enqueueUniqueWork(
             DocumentEnrichmentWorker.workName(documentId), ExistingWorkPolicy.REPLACE, DocumentEnrichmentWorker.request(documentId, ticket),
         )
     }
 
+    /**
+     * The second stage of a document whose ticket was lost (the process died after its first stage was stored, before the second was
+     * queued, or while a scan had pushed it aside): queued without a ticket, which [enrichDocument] rebuilds from what is stored.
+     * `KEEP`: a second stage that is genuinely queued is left alone.
+     */
+    override suspend fun enqueueEnrichment(documentId: String) = withContext(ioDispatcher) {
+        if (!pendingEnrichment.containsKey(documentId)) pendingRebuild += documentId
+        publishEnriching()
+        workManager.enqueueUniqueWork(
+            DocumentEnrichmentWorker.workName(documentId), ExistingWorkPolicy.KEEP, DocumentEnrichmentWorker.request(documentId, null),
+        )
+        Unit
+    }
+
+    private fun publishEnriching() {
+        _enriching.value = pendingEnrichment.keys.toSet() + pendingRebuild
+    }
+
     /** Puts back every second stage that a new scan pushed aside (work that is still queued is left as it is), unless a scan is waiting. */
     private suspend fun resumeEnrichment() {
-        if (pendingEnrichment.isEmpty()) return
+        if (pendingEnrichment.isEmpty() && pendingRebuild.isEmpty()) return
         val scansWaiting = documentDao.getByStatus(DocumentStatus.QUEUED.name).isNotEmpty() ||
             documentDao.getByStatus(DocumentStatus.PROCESSING.name).isNotEmpty()
         if (scansWaiting) return
@@ -614,15 +639,21 @@ class DocumentProcessingPipeline @Inject constructor(
                 DocumentEnrichmentWorker.workName(documentId), ExistingWorkPolicy.KEEP, DocumentEnrichmentWorker.request(documentId, ticket),
             )
         }
+        pendingRebuild.forEach { documentId ->
+            workManager.enqueueUniqueWork(
+                DocumentEnrichmentWorker.workName(documentId), ExistingWorkPolicy.KEEP, DocumentEnrichmentWorker.request(documentId, null),
+            )
+        }
     }
 
     /** The second stage of [documentId] is over (written, failed or no longer wanted): nothing is coming any more. */
     private fun finishEnrichment(documentId: String) {
         pendingEnrichment.remove(documentId)
-        _enriching.value = pendingEnrichment.keys.toSet()
+        pendingRebuild.remove(documentId)
+        publishEnriching()
     }
 
-    override suspend fun enrichDocument(documentId: String, ticket: EnrichmentTicket): PamResult<Unit> =
+    override suspend fun enrichDocument(documentId: String, ticket: EnrichmentTicket?): PamResult<Unit> =
         processingMutex.withLock {
             withContext(ioDispatcher) {
                 val started = System.nanoTime()
@@ -631,6 +662,15 @@ class DocumentProcessingPipeline @Inject constructor(
                     if (doc == null || doc.deletedAt != null) {
                         finishEnrichment(documentId)
                         return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
+                    }
+                    // A ticket that was lost is rebuilt from the stored family, topics and fields; a document no model has read has nothing to enrich.
+                    val storedFields = documentDao.getExtractedData(documentId).map(documentMapper::extractedDataToDomain)
+                    val usedTicket = ticket ?: run {
+                        if (doc.extractionType == null) {
+                            finishEnrichment(documentId)
+                            return@withContext PamResult.Error(PamError.ExtractionFailed(detail = "No reading to complete"))
+                        }
+                        EnrichmentTicketRebuilder.rebuild(documentMapper.toDomain(doc), storedFields)
                     }
                     val pages = documentDao.getPages(documentId)
                     // The same blocks the first stage read, so the candidate ids are its ids; a document without stored text cannot be
@@ -646,7 +686,7 @@ class DocumentProcessingPipeline @Inject constructor(
                         pageAspect = pages.minByOrNull { it.pageNumber }
                             ?.takeIf { it.width > 0 && it.height > 0 }?.let { it.width.toFloat() / it.height },
                         stages = ExtractionV2Pipeline.Stages.SECOND,
-                        ticket = ticket,
+                        ticket = usedTicket,
                     )
                     val read = (understanding as? PamResult.Success)?.data
                     read?.let { logReadingTrace(documentId, it.readingTrace) }
@@ -659,11 +699,10 @@ class DocumentProcessingPipeline @Inject constructor(
                     val fields = UnderstandingToFields.invoke(documentId, read.copy(entities = emptyList()), newId = { UuidGenerator.generate() })
                         .filter(UnderstandingToFields::writtenInSecondStage)
                     val now = System.currentTimeMillis()
-                    val stored = documentDao.getExtractedData(documentId).map(documentMapper::extractedDataToDomain)
                     // The merge keeps every value a person wrote or confirmed and every deletion, flagging a differing reading
                     // instead of applying it; only rows this stage owns are offered to it, so nothing of the first stage can be dropped.
                     val merged = mergeExtraction(
-                        existing = stored.filter(UnderstandingToFields::writtenInSecondStage),
+                        existing = storedFields.filter(UnderstandingToFields::writtenInSecondStage),
                         extracted = fields, engineVersion = AI_ENGINE_VERSION, now = now, newId = { UuidGenerator.generate() },
                     )
                     merged.idsToDelete.forEach { documentDao.deleteExtractedField(it) }
@@ -676,25 +715,21 @@ class DocumentProcessingPipeline @Inject constructor(
                         finishEnrichment(documentId)
                         return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
                     }
-                    // The model's title replaces the default title only (DocumentTitlePolicy), as in the first stage of old.
-                    val modelTitle = read.title.ifBlank { null } ?: read.facts.firstOrNull { it.kind == FactKind.SUBJECT }?.value
-                    val newTitle = modelTitle?.takeIf {
-                        DocumentTitlePolicy.modelTitleMayReplace(isUserTitle = latest.isUserTitle, titleCode = latest.titleCode)
-                    }
+                    // The composed title, the summary and (for a profile that scores them here) the topics go through ReprocessOverwritePolicy:
+                    // never a person's title, family or summary, never real words an older reading wrote.
+                    var updated = documentMapper.toDomain(latest)
+                    updated = ReprocessOverwritePolicy.applyTitle(updated, read)
+                    updated = ReprocessOverwritePolicy.applySummary(updated, read)
+                    updated = ReprocessOverwritePolicy.applyLateTopics(updated, read)
                     documentDao.update(
-                        latest.copy(
-                            language = read.language.ifBlank { null } ?: latest.language,
-                            title = newTitle ?: latest.title,
-                            titleCode = if (newTitle != null) null else latest.titleCode,
-                            titleArgs = if (newTitle != null) null else latest.titleArgs,
-                            summary = read.summary.ifBlank { null } ?: latest.summary,
-                            suggestedQuestions = if (read.suggestedQuestions.isNotEmpty()) {
-                                JsonColumns.encodeStrings(read.suggestedQuestions.take(MAX_SUGGESTED_QUESTIONS))
-                            } else {
-                                latest.suggestedQuestions
-                            },
-                        ),
+                        documentMapper.toEntity(
+                            updated.copy(
+                                language = read.language.ifBlank { null } ?: updated.language,
+                                suggestedQuestions = read.suggestedQuestions.take(MAX_SUGGESTED_QUESTIONS).ifEmpty { updated.suggestedQuestions },
+                            ),
+                        ).copy(syncStatus = latest.syncStatus),
                     )
+                    if (read.summarySource == null) Log.w(TAG, "second stage of $documentId wrote no summary; it stays pending")
                     Log.i(TIMING_TAG, "$documentId TOTAL enrichDocument (inside the lock) ms=${msSince(started)} extras=${fields.size}")
                     finishEnrichment(documentId)
                     PamResult.Success(Unit)
