@@ -80,7 +80,8 @@ class DocumentMapperTest {
             id = "d1", title = "Rechnung · Nordlicht", sourceType = SourceType.CAMERA, createdAt = 1, modifiedAt = 2,
             extractionType = "invoice_bill", extractionTypeConfidence = 0.8f,
             topics = listOf("telecom", "bank_finance"), familySource = FamilySource.USER,
-            titleSource = TitleSource.COMPOSED, summary = "Pay 64,98 EUR.", summarySource = SummarySource.TEMPLATE,
+            titleSource = TitleSource.COMPOSED, titleCode = "composed", titleArgs = listOf("invoice_bill", "Nordlicht"),
+            summary = "Pay 64,98 EUR.", summarySource = SummarySource.TEMPLATE,
             summaryCode = "template", summaryArgs = listOf("Nordlicht", "64,98 EUR"), layoutTemplate = "din5008_b",
         )
 

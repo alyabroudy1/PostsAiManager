@@ -5,6 +5,7 @@ import com.postsaimanager.core.data.database.entity.DocumentEntity
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.database.entity.FieldRevisionEntity
+import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
@@ -98,11 +99,12 @@ class DocumentMapper @Inject constructor() {
     )
 
     /**
-     * The title's source from what is certain: a person's title is USER and a default with a code is
-     * DEFAULT, whatever [declared] says; real words that claim to be a default are the model's.
+     * The title's source from what is certain: a person's title is USER, a composed title's code is COMPOSED and any
+     * other code is an app default (DEFAULT), whatever [declared] says; real words that claim to be a default are the model's.
      */
     private fun titleSourceOf(isUserTitle: Boolean, titleCode: String?, declared: TitleSource): TitleSource = when {
         isUserTitle -> TitleSource.USER
+        titleCode == TitleComposer.CODE -> TitleSource.COMPOSED
         titleCode != null -> TitleSource.DEFAULT
         declared == TitleSource.DEFAULT -> TitleSource.MODEL
         else -> declared
