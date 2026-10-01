@@ -7,8 +7,8 @@
 
     <!-- Filling in a form with the AI chat -->
     <string name="fill_form_card_title">This is a form to fill in.</string>
-    <string name="fill_form_card_action">Help me fill it</string>
-    <string name="action_fill_form">Fill in this form</string>
+    <string name="fill_form_card_action">Form filling (beta)</string>
+    <string name="action_fill_form">Form filling (beta)</string>
 
     <!-- Renaming a document -->
     <string name="action_rename">Rename</string>
