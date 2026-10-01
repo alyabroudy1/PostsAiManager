@@ -81,12 +81,26 @@ class EngineFormModel @Inject constructor(
      * on reasoning (the "question" was the model's chain of thought, cut off). The block is closed empty, so the first generated
      * token is the question itself.
      */
-    private fun withoutThinking(tail: String): String =
-        if (tail.trimEnd().endsWith(THINK_OPEN)) tail.trimEnd() + "\n\n$THINK_CLOSE\n\n" else tail
+    private fun withoutThinking(tail: String): String = closeThinking(tail)
 
-    private companion object {
+    internal companion object {
         const val THINK_OPEN = "<think>"
         const val THINK_CLOSE = "</think>"
+
+        /**
+         * The generation prompt [tail] with an empty, closed reasoning block, as the chat does for a turn without thinking. The
+         * on-device template ends at the bare assistant tag (it cannot pass the thinking flag), and a reasoning model then opens
+         * `<think>` itself: the one-line grammar stopped at its first newline, so the "question" was just `<think>`. Closing the
+         * block first makes the model's first token the question.
+         */
+        fun closeThinking(tail: String): String {
+            val trimmed = tail.trimEnd()
+            return when {
+                trimmed.endsWith(THINK_CLOSE) -> tail
+                trimmed.endsWith(THINK_OPEN) -> "$trimmed\n\n$THINK_CLOSE\n\n"
+                else -> "$tail$THINK_OPEN\n\n$THINK_CLOSE\n\n"
+            }
+        }
 
         /** One line of free text: no newline, at least a few characters. */
         const val ONE_LINE = "root ::= [^\\n]{4,200}\n"

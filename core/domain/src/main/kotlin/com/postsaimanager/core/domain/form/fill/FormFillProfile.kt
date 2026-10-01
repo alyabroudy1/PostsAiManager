@@ -20,7 +20,7 @@ data class FormFillProfile(
     /** At most this many answer chips under a question (plus Skip). */
     val maxChips: Int = 6,
     /** The token budget of a question the model writes. */
-    val questionTokens: Int = 60,
+    val questionTokens: Int = 120,
     /** At most this many fields are scored when the user asks to change a value. */
     val maxFieldScores: Int = 16,
 )

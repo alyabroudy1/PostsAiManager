@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.form.fill
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.FormFieldKind
 import com.postsaimanager.core.model.FormRole
+import kotlinx.coroutines.CancellationException
 import java.util.Locale
 
 /**
@@ -24,12 +25,14 @@ data class QuestionContext(
  * conversation uses a template question from string resources, so it never blocks on the engine. The chat puts the section and
  * page in front of every question (see `FormChatTexts`), so the user always knows which field is meant.
  *
- * Language: the language of the user's latest typed message, else the form's language, else the UI language.
+ * Language: the form's language (a typed "stop" or "nein" says little about the language to ask in); when it is unknown, the
+ * language of the user's latest typed message, else the UI language.
  */
 class FormQuestionWriter(
     private val model: FormModel,
     private val uiLanguage: () -> Locale = { Locale.getDefault() },
     private val profile: FormFillProfile = FormFillProfile(),
+    private val trace: FormFillTrace = FormFillTrace.NONE,
 ) {
 
     /** The question for [field], or null when the model could not write a usable one. */
@@ -46,12 +49,27 @@ class FormQuestionWriter(
             if (field.options.isNotEmpty()) append("\nOPTIONS: ").append(field.options.joinToString(" | "))
             context.person?.takeIf { it.isNotBlank() }?.let { append("\nFOR: ").append(it) }
         }
-        return clean(model.write(system, user, profile.questionTokens), field)
+        val raw = try {
+            model.write(system, user, profile.questionTokens)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            trace.event("question_write", "ok=false why=exception type=${e.javaClass.simpleName}")
+            return null
+        }
+        val line = clean(raw, field)
+        if (line != null) {
+            trace.event("question_write", "ok=true chars=${line.length}")
+        } else {
+            val why = if (raw == null) "no_output" else "rejected rawChars=${raw.length} think=${raw.contains("think", ignoreCase = true)}"
+            trace.event("question_write", "ok=false why=$why")
+        }
+        return line
     }
 
     private fun languageRule(context: QuestionContext): String {
         val sample = context.typedSample?.trim()?.takeIf { it.any(Char::isLetter) }?.take(SAMPLE_CHARS)
-        if (sample != null) return "Write the question in the same language as this message from the user: \"$sample\"."
+        if (sample != null && context.formLocale == null) return "Write the question in the same language as this message from the user: \"$sample\"."
         val locale = context.formLocale ?: uiLanguage()
         val language = locale.getDisplayLanguage(Locale.ENGLISH).ifBlank { "English" }
         return "Write the question in $language. Keep the field's label exactly as printed."

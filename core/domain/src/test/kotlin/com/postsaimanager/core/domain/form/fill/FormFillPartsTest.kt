@@ -173,7 +173,9 @@ class FormFillPartsTest {
             return model.writtenSystem.single()
         }
 
-        assertThat(systemFor(QuestionContext(typedSample = "hilf mir das auszufüllen", formLocale = java.util.Locale.ENGLISH)))
+        // The form's language wins: a typed "stop" or "nein" says little about the language to ask in.
+        assertThat(systemFor(QuestionContext(typedSample = "stop", formLocale = java.util.Locale.GERMAN))).contains("in German")
+        assertThat(systemFor(QuestionContext(typedSample = "hilf mir das auszufüllen")))
             .contains("same language as this message from the user: \"hilf mir das auszufüllen\"")
         assertThat(systemFor(QuestionContext(formLocale = java.util.Locale.GERMAN))).contains("in German")
         assertThat(systemFor(QuestionContext())).contains("in French")

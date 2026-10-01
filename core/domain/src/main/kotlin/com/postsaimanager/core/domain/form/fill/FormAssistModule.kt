@@ -43,8 +43,12 @@ abstract class FormAssistModule {
         fun provideFillValues(people: PersonDataSource): FillValues = FillValues(people)
 
         @Provides
-        fun provideUnderstandForm(session: PromptSession, framing: PromptFraming, embedder: EmbeddingService): UnderstandFormUseCase =
-            UnderstandFormUseCase(session, framing, embedder)
+        fun provideUnderstandForm(
+            session: PromptSession,
+            framing: PromptFraming,
+            embedder: EmbeddingService,
+            trace: FormFillTrace,
+        ): UnderstandFormUseCase = UnderstandFormUseCase(session, framing, embedder, trace = trace)
 
         @Provides
         fun provideAnswerChips(people: PersonDataSource, profile: FormFillProfile): AnswerChips = AnswerChips(people, profile)
@@ -53,8 +57,8 @@ abstract class FormAssistModule {
         fun provideAnswerInterpreter(model: FormModel, profile: FormFillProfile): AnswerInterpreter = AnswerInterpreter(model, profile)
 
         @Provides
-        fun provideQuestionWriter(model: FormModel, profile: FormFillProfile): FormQuestionWriter =
-            FormQuestionWriter(model, profile = profile)
+        fun provideQuestionWriter(model: FormModel, profile: FormFillProfile, trace: FormFillTrace): FormQuestionWriter =
+            FormQuestionWriter(model, profile = profile, trace = trace)
 
         @Provides
         fun provideIntentClassifier(model: FormModel, profile: FormFillProfile): FormIntentClassifier = FormIntentClassifier(model, profile)

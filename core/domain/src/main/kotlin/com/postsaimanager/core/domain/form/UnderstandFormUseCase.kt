@@ -5,6 +5,7 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.EmbeddingService
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.layout.LayoutLine
+import com.postsaimanager.core.domain.form.fill.FormFillTrace
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.OcrBlock
 import kotlinx.coroutines.NonCancellable
@@ -65,6 +66,7 @@ class UnderstandFormUseCase(
     private val embedder: EmbeddingService,
     private val profile: FormScoringProfile = FormScoringProfile(),
     private val finder: FindFillableFields = FindFillableFields(),
+    private val trace: FormFillTrace = FormFillTrace.NONE,
 ) {
 
     suspend operator fun invoke(request: UnderstandFormRequest, onProgress: (FormProgress) -> Unit = {}): PamResult<FormUnderstanding> {
@@ -98,10 +100,12 @@ class UnderstandFormUseCase(
         val found = finder.findInLines(lines)
         step(FormStep.FIND)
         val candidates = ConfirmFields(scorer, profile).confirm(found).mapIndexed { i, c -> c.copy(orderIndex = i) }
+        trace.event("confirm", "found=${found.size} kept=${candidates.size} strong=${candidates.count { it.strong }}")
         step(FormStep.CONFIRM)
-        val keys = ClassifyFields(scorer, embedder, profile).classify(candidates)
+        val keys = ClassifyFields(scorer, embedder, profile, trace = trace).classify(candidates)
         step(FormStep.CLASSIFY)
         val roles = AssignRoles(scorer, profile).assign(candidates.mapIndexed { i, c -> RoleInput(c.labelText, c.section, keys[i].dataKey) })
+        trace.event("roles", "sections=${roles.sections.size} withRole=${roles.fieldRoles.count { it != null }}")
         step(FormStep.ROLES)
         val ranking = SuggestSubject(scorer, profile).suggest(intro, request.subjects, request.today)
         step(FormStep.SUBJECT)
