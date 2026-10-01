@@ -51,14 +51,10 @@ data class ScoringProfile(
     /** A topic holds when its score is above this. */
     val topicsThreshold: Double get() = threshold(TOPICS)
 
-    /** An address line takes a label (a person, an organisation, a department, a routing part) when its score is above this. */
-    val addrThreshold: Double get() = threshold(ADDR)
-
     companion object {
-        /** The question names of the classification and of the address labelling, for [thresholds]. */
+        /** The question names of the classification, for [thresholds]. The address asks are named in `LineAsk`. */
         const val FAMILY = "family"
         const val TOPICS = "topics"
-        const val ADDR = "addr"
     }
 }
 

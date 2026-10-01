@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.zones
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.address.LineAsk
 import com.postsaimanager.core.domain.extraction.v2.AskRecord
 import com.postsaimanager.core.domain.extraction.v2.DocDirection
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
@@ -125,7 +126,8 @@ class FamilyClassifierTest {
         assertThat(qwen.topicsInFirstStage).isTrue()
         assertThat(qwen.scoring.thresholds).containsKey(ScoringProfile.FAMILY)
         assertThat(qwen.scoring.thresholds).containsKey(ScoringProfile.TOPICS)
-        assertThat(qwen.scoring.thresholds).containsKey(ScoringProfile.ADDR)
+        assertThat(qwen.scoring.thresholds).containsKey(LineAsk.LABEL_ASK)
+        assertThat(qwen.scoring.thresholds).containsKey(LineAsk.DELIVERY_ASK)
         assertThat(qwen.scoring.familyThreshold).isGreaterThan(qwen.scoring.defaultThreshold)
     }
 }

@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.extraction.address
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner
+import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
 import com.postsaimanager.core.domain.extraction.v2.Parties
 import com.postsaimanager.core.domain.extraction.v2.PartyKind
 import com.postsaimanager.core.domain.extraction.v2.PartyRelation
@@ -72,6 +73,16 @@ class AddressLineLabelerTest {
         assertThat(address.recipientNames).isEmpty()
         assertThat(address.addressExtra?.value).isEqualTo("Gebäude B")
         assertThat(address.addressExtra!!.confidence).isAtMost(ConfidenceCombiner.LOW)
+    }
+
+    @Test
+    fun `under the production profile a line no label wins stays raw`() {
+        val production = AddressLineLabeler(profile = ModelProfiles.QWEN35_08B.scoring)
+        val lines = listOf(line("Gebäude B", 0.10f), line("Musterstraße 12", 0.12f), line("54321 Beispieldorf", 0.14f))
+        val labeled = runBlocking { production.label(lines, Parties(), AddressLineLabeler.Scoring(sessionSaying(), 16)) }
+        val address = verifier.verify(labeled, emptyList())
+        assertThat(address.recipientNames).isEmpty()
+        assertThat(address.addressExtra?.value).isEqualTo("Gebäude B")
     }
 
     @Test

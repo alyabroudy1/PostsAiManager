@@ -76,7 +76,9 @@ object ModelProfiles {
                 // point that P4 refits on the family scores re-recorded on the device.
                 // The topics and the address labels have no recording yet (they are new questions); they start at the same 0.0 indifference,
                 // the threshold the other optional questions here use (a contact, a care-of party), and are fitted in P4.
-                ScoringProfile.FAMILY to 0.0, ScoringProfile.TOPICS to 0.0, ScoringProfile.ADDR to 0.0,
+                ScoringProfile.FAMILY to 0.0, ScoringProfile.TOPICS to 0.0,
+                // An address line takes a label only when its best label scores above this (LineAsk.LABEL_ASK).
+                LineAsk.LABEL_ASK to 0.0,
                 // A street-shaped address line is a post office box or a locker only when the model leans Yes (not yet fitted: P4 measures it).
                 LineAsk.DELIVERY_ASK to 0.0,
             ),
