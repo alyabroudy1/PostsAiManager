@@ -4,6 +4,7 @@ import com.postsaimanager.core.common.dispatcher.Dispatcher
 import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.domain.document.DocumentProcessor
+import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.model.DocumentStatus
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -47,6 +48,12 @@ class DocumentProcessingRecovery @Inject constructor(
             documentDao.getByStatus(status.name).forEach { entity ->
                 documentProcessor.enqueue(entity.id)
             }
+        }
+        // A reading whose first stage was stored but whose second never completed (the process died before the second was queued,
+        // or while a scan had pushed it aside, and the ticket lived only in memory): the second stage is queued again, its ticket
+        // rebuilt from the stored document. Idempotent (`KEEP`), so a second stage that is genuinely queued is left alone.
+        documentDao.getAwaitingEnrichment(ExtractorVersion.CURRENT).forEach { entity ->
+            documentProcessor.enqueueEnrichment(entity.id)
         }
     }
 

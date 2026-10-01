@@ -10,7 +10,7 @@ import com.postsaimanager.core.domain.extraction.v2.InterpretationOutcome
 import com.postsaimanager.core.domain.extraction.v2.InterpretationRequest
 import com.postsaimanager.core.domain.extraction.v2.TextOutcome
 import com.postsaimanager.core.domain.extraction.v2.TextRequest
-import com.postsaimanager.core.domain.extraction.zones.ScoringProfile
+import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
 import com.postsaimanager.core.domain.extraction.zones.ZoneInterpreter
 import com.postsaimanager.core.domain.extraction.zones.ZoneScoringInterpreter
 import com.postsaimanager.core.model.InferenceConfig
@@ -35,14 +35,18 @@ import java.io.File
  *
  * Nothing is scored here. Each letter records its raw answers or raw scores, the offered candidates and the timings as
  * `<key>.<interpreter><suffix>.json`; the JVM benchmark replays them through the real interpreters and the verifier.
- * A scoring run is recorded with an abstain threshold of minus infinity: every candidate is scored and nothing is
- * decided on the device, so the thresholds can be tuned offline on the recorded scores.
+ * A scoring run is recorded with `ModelProfiles.recordingProfile`: the shipped profile without the thresholds nothing else depends on
+ * (family, topics, extras, address labels and delivery points: every candidate is scored, so they can be fitted offline on the recorded
+ * scores), but with the shipped decoder and the shipped thresholds of the optional people, so the questions that depend on those decisions
+ * (the address lines the parties settle, the summary's facts) are asked again as recorded. A recording holds both stages (`score:family`, the scores, `score:addr`,
+ * the second stage's asks and `text:summary`) and a `trace` of the stage timings; `mode=stages` times the two stages as the app runs them.
  *
  * Resumable per letter and interpreter: a recording that exists is skipped (`resume` argument, default true), so a run
  * that lost the USB connection is started again with the same arguments and continues.
  *
  * Staging (all under /data/local/tmp/z10, deleted afterwards): `text.gguf` (or `model`), `bench/<key>.json`.
- * Arguments: `keys`, `interpreters` (default `zones,zonesscoring`), `model` (default text.gguf), `suffix`, `resume`, `dir` (default /data/local/tmp/z10).
+ * Arguments: `keys`, `interpreters` (default `zones,zonesscoring`), `model` (default text.gguf), `suffix`, `resume`, `dir` (default /data/local/tmp/z10),
+ * `mode=stages` (time the two stages), `topics1=false` (keep the topic scores out of the first stage), `tree=true` (the prefix tree).
  */
 @RunWith(AndroidJUnit4::class)
 class ZoneBenchmarkTest {
@@ -149,19 +153,25 @@ class ZoneBenchmarkTest {
                 // `tree=true` times the prefix tree (faster, scores not bit-identical to the recorded ones); default: the shipped profile as is.
                 val shipped = com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring
                     .let { if (args.getString("tree") == "true") it.copy(prefixTree = true) else it }
-                val first = ZoneScoringInterpreter(engine, engine, contextTokens = budgetTokens, profile = shipped)
+                // `topics1=false` keeps the topic scores out of the first stage (ModelProfile.topicsInFirstStage) to time the other setting.
+                val topicsFirst = args.getString("topics1") != "false"
+                val first = ZoneScoringInterpreter(engine, engine, contextTokens = budgetTokens, profile = shipped, topicsInFirstStage = topicsFirst)
                 val t0 = System.nanoTime()
                 val one = pipeline.run(pages, first, budgetTokens, aspect, stages = ExtractionV2Pipeline.Stages.FIRST)
                 val ms1 = (System.nanoTime() - t0) / 1_000_000
-                val second = ZoneScoringInterpreter(engine, engine, contextTokens = budgetTokens, profile = shipped)
+                val second = ZoneScoringInterpreter(engine, engine, contextTokens = budgetTokens, profile = shipped, topicsInFirstStage = topicsFirst)
                 val t1 = System.nanoTime()
                 val two = pipeline.run(pages, second, budgetTokens, aspect, stages = ExtractionV2Pipeline.Stages.SECOND, ticket = one.enrichment)
                 val ms2 = (System.nanoTime() - t1) / 1_000_000
                 Log.i(
                     tag,
-                    "STAGES tree=${shipped.prefixTree} $key stage1Ms=$ms1 stage2Ms=$ms2 type=${one.documentType?.id} slots=${one.slots.size} parties=${one.parties.all.size} " +
-                        "extras=${two.extras.size} language=${two.language} title=${two.freeText.title != null} summary=${two.freeText.summary != null}",
+                    "STAGES tree=${shipped.prefixTree} topics1=$topicsFirst $key stage1Ms=$ms1 stage2Ms=$ms2 family=${one.documentType?.id} topics=${one.topics} " +
+                        "slots=${one.slots.size} parties=${one.parties.all.size} addresses=${one.addresses.keys} extras=${two.extras.size} language=${two.language} " +
+                        "title=${two.composedTitle?.code} summary=${two.summary?.origin}",
                 )
+                // The stage's own breakdown (`t ...` lines: counts and milliseconds, never a word of the letter).
+                one.diagnostics.trace.filter { it.startsWith("t ") }.forEach { Log.i(tag, "STAGE1T $key $it") }
+                two.diagnostics.trace.filter { it.startsWith("t ") }.forEach { Log.i(tag, "STAGE2T $key $it") }
             }
             engine.unload()
             return@runBlocking
@@ -176,9 +186,13 @@ class ZoneBenchmarkTest {
             var template: () -> Pair<String, Float> = { "" to 0f }
             val capture = when {
                 name.startsWith("zonesscoring") -> {
+                    // The shipped profile without its abstain thresholds (its default of -12 abstains from nothing that matters), so every
+                    // candidate is scored and nothing is decided on the device, but with the shipped decoder: the decisions the summary's facts
+                    // rest on are the ones a replay under the shipped profile makes again, so its question is found in the recording.
                     val i = ZoneScoringInterpreter(
                         engine, engine, contextTokens = budgetTokens, neighbourContext = ctx,
-                        profile = ScoringProfile(defaultThreshold = Double.NEGATIVE_INFINITY),
+                        profile = ModelProfiles.recordingProfile(ModelProfiles.QWEN35_08B.scoring),
+                        topicsInFirstStage = args.getString("topics1") != "false",
                     )
                     transcript = { i.transcript }
                     prefix = { i.prefixTokens to i.prefixMs }
@@ -196,7 +210,9 @@ class ZoneBenchmarkTest {
             }
             val t0 = System.nanoTime()
             try {
-                pipeline.run(pages, capture, budgetTokens, aspect)
+                val out = pipeline.run(pages, capture, budgetTokens, aspect)
+                // Where the time went, as the interpreter and the pipeline measured it (`t ...` lines: counts and milliseconds only).
+                rec.put("trace", JSONArray(out.diagnostics.trace.filter { it.startsWith("t ") }))
             } catch (e: Exception) {
                 Log.e(tag, "$key/$name failed", e)
                 rec.put("error", e.toString())

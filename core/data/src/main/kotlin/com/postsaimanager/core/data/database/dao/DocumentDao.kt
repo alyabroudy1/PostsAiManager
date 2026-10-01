@@ -29,6 +29,16 @@ interface DocumentDao {
     @Query("SELECT * FROM documents WHERE status = :status AND deletedAt IS NULL ORDER BY createdAt DESC")
     suspend fun getByStatus(status: String): List<DocumentEntity>
 
+    /**
+     * The documents a model of [version] read whose second stage never completed: EXTRACTED, with a family and no summary source (the
+     * second stage always settles one, the model's sentences or the template). For startup recovery of a lost ticket.
+     */
+    @Query(
+        "SELECT * FROM documents WHERE status = 'EXTRACTED' AND deletedAt IS NULL AND extractionType IS NOT NULL " +
+            "AND summarySource IS NULL AND extractorVersion = :version ORDER BY createdAt DESC",
+    )
+    suspend fun getAwaitingEnrichment(version: String): List<DocumentEntity>
+
     @Query("SELECT * FROM documents WHERE isFavorite = 1 AND deletedAt IS NULL ORDER BY createdAt DESC")
     fun observeFavorites(): Flow<List<DocumentEntity>>
 

@@ -80,10 +80,10 @@ class ParserAndSchemaTest {
     }
 
     @Test
-    fun `the eleven types are the agreed ones`() {
+    fun `the thirteen families are the agreed ones`() {
         assertThat(ExtractionSchema.DEFAULT.families.map { it.id }).containsExactly(
-            "bill", "reminder_dunning", "authority_tax", "health", "insurance_contract", "school", "receipt",
-            "info_no_action", "outgoing_letter", "payment_proof", "other",
+            "official_letter", "invoice_bill", "receipt", "form_application", "statement", "contract_policy", "certificate_id", "medical",
+            "ticket_booking", "email_printout", "outgoing_letter", "payment_proof", "free_form",
         )
     }
 
@@ -118,10 +118,10 @@ class ParserAndSchemaTest {
     }
 
     @Test
-    fun `legacy types map to the app's stored document type`() {
-        assertThat(ExtractionSchema.DEFAULT.legacyType("bill")).isEqualTo(DocumentType.INVOICE)
-        assertThat(ExtractionSchema.DEFAULT.legacyType("authority_tax")).isEqualTo(DocumentType.OFFICIAL_LETTER)
-        assertThat(ExtractionSchema.DEFAULT.legacyType("insurance_contract")).isEqualTo(DocumentType.CONTRACT)
+    fun `families map to the app's stored document type`() {
+        assertThat(ExtractionSchema.DEFAULT.legacyType("invoice_bill")).isEqualTo(DocumentType.INVOICE)
+        assertThat(ExtractionSchema.DEFAULT.legacyType("official_letter")).isEqualTo(DocumentType.OFFICIAL_LETTER)
+        assertThat(ExtractionSchema.DEFAULT.legacyType("contract_policy")).isEqualTo(DocumentType.CONTRACT)
         assertThat(ExtractionSchema.DEFAULT.legacyType("receipt")).isEqualTo(DocumentType.RECEIPT)
         assertThat(ExtractionSchema.DEFAULT.legacyType("nonsense")).isNull()
         assertThat(ExtractionSchema.DEFAULT.legacyType(null)).isNull()

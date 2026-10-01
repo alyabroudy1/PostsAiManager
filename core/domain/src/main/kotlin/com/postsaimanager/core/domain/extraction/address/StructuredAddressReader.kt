@@ -34,7 +34,8 @@ class AddressReading(
  *   verifies, and only the winner's leftover word lines are scored, within the sender budget. The other candidates are the alternatives.
  *
  * Every address goes through [AddressVerifier]. The scores run on the letter's open [PromptSession] (the interpreter's session).
- * TODO(P4): the interpreter calls [read] after the parties are settled and puts the result into `ExtractionV2Result.addresses`.
+ * `ZoneScoringInterpreter` calls [read] after the parties are settled, for a family with a recipient block; the verifier carries the
+ * result into `ExtractionV2Result.addresses` and `senderAddressAlternatives`.
  */
 class StructuredAddressReader(
     private val labeler: AddressLineLabeler,

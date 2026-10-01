@@ -10,13 +10,21 @@ import com.postsaimanager.core.data.database.entity.DocumentEntity
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
+import com.postsaimanager.core.data.mapper.JsonColumns
+import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.DocumentType
+import com.postsaimanager.core.model.FamilySource
+import com.postsaimanager.core.model.FieldProvenance
 import com.postsaimanager.core.model.OcrBlock
+import com.postsaimanager.core.model.ReviewState
+import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.model.TextBounds
+import com.postsaimanager.core.model.TitleSource
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import com.postsaimanager.core.model.DocumentUnderstanding
@@ -215,7 +223,7 @@ class DocumentReprocessPipelineTest {
     private suspend fun titleAfterRun(doc: DocumentEntity, reprocess: Boolean): DocumentEntity {
         coEvery { documentDao.getById("doc-1") } returns doc
         coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns
-            PamResult.Success(understanding().copy(title = "Nordlicht Mahnung"))
+            PamResult.Success(understanding().copy(title = "Nordlicht Mahnung", titleCode = TitleComposer.CODE, titleArgs = listOf("invoice_bill", "Nordlicht", "Mahnung")))
         pipeline.processDocument("doc-1", reprocess = reprocess)
         val updated = slot<DocumentEntity>()
         coVerify { documentDao.update(capture(updated)) }
@@ -230,14 +238,198 @@ class DocumentReprocessPipelineTest {
     }
 
     @Test
-    @DisplayName("the model's title replaces the default title, on a scan and on a reprocess alike")
+    @DisplayName("the composed title replaces the default title, on a scan and on a reprocess alike")
     fun defaultTitleIsReplaced() = runTest(dispatcher) {
         val after = titleAfterRun(
             extractedDoc.copy(extractionType = "bill", titleCode = "scanned_pages", titleArgs = "[\"2\"]"),
             reprocess = true,
         )
+        // The plain text stays as the fallback; the code and its args are what the screen renders the title from.
         assertThat(after.title).isEqualTo("Nordlicht Mahnung")
-        assertThat(after.titleCode).isNull()
+        assertThat(after.titleCode).isEqualTo(TitleComposer.CODE)
+        assertThat(after.titleArgs).isEqualTo(JsonColumns.encodeStrings(listOf("invoice_bill", "Nordlicht", "Mahnung")))
+        assertThat(after.titleSource).isEqualTo(TitleSource.COMPOSED.name)
+    }
+
+    @Test
+    @DisplayName("a composed title is composed again by a reprocess, a legacy title in real words is not")
+    fun composedTitleIsRecomposedRealWordsAreNot() = runTest(dispatcher) {
+        val again = titleAfterRun(
+            extractedDoc.copy(extractionType = "invoice_bill", title = "Alt", titleCode = TitleComposer.CODE, titleArgs = JsonColumns.encodeStrings(listOf("invoice_bill", "Alt", ""))),
+            reprocess = true,
+        )
+        assertThat(again.title).isEqualTo("Nordlicht Mahnung")
+        io.mockk.clearMocks(documentDao, answers = false)
+        val legacy = titleAfterRun(extractedDoc.copy(extractionType = "bill", title = "Mahnung Nordlicht", titleCode = null), reprocess = true)
+        assertThat(legacy.title).isEqualTo("Mahnung Nordlicht")
+        assertThat(legacy.titleCode).isNull()
+    }
+
+    // ── a document read by the previous extractor: what a person decided survives the new version ──
+
+    private fun stored(
+        id: String, name: String, value: String, slot: String, machine: String = value, state: ReviewState = ReviewState.UNREVIEWED,
+        source: ValueSource = ValueSource.MACHINE, type: ExtractedFieldType = ExtractedFieldType.TEXT,
+    ) = ExtractedData(
+        id = id, documentId = "doc-1", fieldName = name, fieldValue = value, fieldType = type, confidence = 0.8f,
+        source = source, machineValue = machine, slotKey = slot, reviewState = state,
+        isConfirmed = state == ReviewState.CONFIRMED || state == ReviewState.EDITED, deletedByUser = state == ReviewState.IGNORED,
+    )
+
+    /** What the new reading says: a different total, a different street, the IBAN again, a composed title and a new family. */
+    private fun newReading() = DocumentUnderstanding(
+        documentType = "invoice_bill", topics = listOf("tax"), layoutTemplate = "din5008_b",
+        title = "Neuer Titel", titleCode = TitleComposer.CODE, titleArgs = listOf("invoice_bill", "Neu", ""),
+        summary = "Neue Zusammenfassung.", summarySource = SummarySource.MODEL,
+        facts = listOf(
+            RecognisedFact("Total", "99,00 EUR", FactKind.AMOUNT, 0.9f, FieldProvenance(slotKey = "total")),
+            RecognisedFact("addressee.street", "Musterweg 3", FactKind.OTHER, 0.9f, FieldProvenance(slotKey = "addressee.street")),
+            RecognisedFact("IBAN", "DE02120300000000202051", FactKind.IBAN, 0.9f, FieldProvenance(slotKey = "iban")),
+        ),
+    )
+
+    private val v14Doc get() = extractedDoc.copy(
+        extractorVersion = "extraction-v2-1", extractionType = "bill", title = "Meine Rechnung", titleCode = null, isUserTitle = true,
+        titleSource = TitleSource.USER.name, summary = "Meine Notiz", summarySource = SummarySource.USER.name,
+    )
+
+    @Test
+    @DisplayName("a v14-era document keeps its confirmed field, edited address part, ignored field and user title when reprocessed")
+    fun v14DocumentKeepsWhatAPersonDecided() = runTest(dispatcher) {
+        val confirmed = stored("f-total", "Amount", "64,98 EUR", "total", state = ReviewState.CONFIRMED)
+        val edited = stored("f-street", "addressee.street", "Neue Str. 5", "addressee.street", machine = "Alte Str. 1", state = ReviewState.EDITED, source = ValueSource.USER)
+        val ignored = stored("f-iban", "IBAN", "DE89370400440532013000", "iban", state = ReviewState.IGNORED, type = ExtractedFieldType.IBAN)
+        coEvery { documentDao.getById("doc-1") } returns v14Doc
+        coEvery { documentDao.getExtractedData("doc-1") } returns listOf(confirmed, edited, ignored).map(mapper::extractedDataToEntity)
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(newReading())
+
+        val result = pipeline.processDocument("doc-1", reprocess = true)
+
+        assertThat(result).isInstanceOf(PamResult.Success::class.java)
+        val rows = slot<List<ExtractedDataEntity>>()
+        coVerify { documentDao.insertExtractedData(capture(rows)) }
+        val byId = rows.captured.associateBy { it.id }
+        // The confirmed value stands; the different reading is only flagged.
+        assertThat(byId.getValue("f-total").fieldValue).isEqualTo("64,98 EUR")
+        assertThat(byId.getValue("f-total").reviewState).isEqualTo(ReviewState.CONFIRMED.name)
+        assertThat(byId.getValue("f-total").hasUnreviewedMachineChange).isTrue()
+        // The edited address part stands, the person's.
+        assertThat(byId.getValue("f-street").fieldValue).isEqualTo("Neue Str. 5")
+        assertThat(byId.getValue("f-street").source).isEqualTo(ValueSource.USER.name)
+        assertThat(byId.getValue("f-street").reviewState).isEqualTo(ReviewState.EDITED.name)
+        // The ignored field is a tombstone: kept, not deleted and not brought back.
+        assertThat(byId.getValue("f-iban").reviewState).isEqualTo(ReviewState.IGNORED.name)
+        assertThat(byId.getValue("f-iban").fieldValue).isEqualTo("DE89370400440532013000")
+        assertThat(byId.getValue("f-iban").deletedByUser).isTrue()
+        coVerify(exactly = 0) { documentDao.deleteExtractedField("f-total") }
+        coVerify(exactly = 0) { documentDao.deleteExtractedField("f-street") }
+        coVerify(exactly = 0) { documentDao.deleteExtractedField("f-iban") }
+        // The user's title and summary are untouched; the family the model chose is replaced by the new reading's.
+        val updated = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(updated)) }
+        assertThat(updated.captured.title).isEqualTo("Meine Rechnung")
+        assertThat(updated.captured.isUserTitle).isTrue()
+        assertThat(updated.captured.titleCode).isNull()
+        assertThat(updated.captured.titleSource).isEqualTo(TitleSource.USER.name)
+        assertThat(updated.captured.summary).isEqualTo("Meine Notiz")
+        assertThat(updated.captured.summarySource).isEqualTo(SummarySource.USER.name)
+        assertThat(updated.captured.extractionType).isEqualTo("invoice_bill")
+        assertThat(updated.captured.topics).isEqualTo(JsonColumns.encodeStrings(listOf("tax")))
+        assertThat(updated.captured.layoutTemplate).isEqualTo("din5008_b")
+        assertThat(updated.captured.extractorVersion).isEqualTo(ExtractorVersion.CURRENT)
+    }
+
+    @Test
+    @DisplayName("a document whose family a person chose keeps its family and topics, and is read as that family")
+    fun userFamilyIsKeptAndRead() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns v14Doc.copy(
+            extractionType = "official_letter", familySource = FamilySource.USER.name, topics = JsonColumns.encodeStrings(listOf("health")),
+            isUserTitle = false, titleCode = "scanned_pages", summary = null, summarySource = null,
+        )
+        val forced = slot<String>()
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any(), capture(forced)) } returns
+            PamResult.Success(newReading().copy(documentType = "official_letter"))
+
+        pipeline.processDocument("doc-1", reprocess = true)
+
+        // The reading is told the person's family, so it asks that family's questions.
+        assertThat(forced.captured).isEqualTo("official_letter")
+        val updated = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(updated)) }
+        assertThat(updated.captured.extractionType).isEqualTo("official_letter")
+        assertThat(updated.captured.familySource).isEqualTo(FamilySource.USER.name)
+        assertThat(updated.captured.topics).isEqualTo(JsonColumns.encodeStrings(listOf("health")))
+    }
+
+    @Test
+    @DisplayName("Read again as a family reads the letter as it and stores it as the person's choice")
+    fun readAgainAsAFamily() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns v14Doc.copy(extractionType = "invoice_bill", isUserTitle = false, titleCode = "scanned_pages")
+        val forced = slot<String>()
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any(), capture(forced)) } returns
+            PamResult.Success(newReading().copy(documentType = "receipt", topics = listOf("shopping")))
+
+        pipeline.processDocument("doc-1", reprocess = false, forcedFamily = "receipt")
+
+        assertThat(forced.captured).isEqualTo("receipt")
+        val updated = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(updated)) }
+        assertThat(updated.captured.extractionType).isEqualTo("receipt")
+        assertThat(updated.captured.familySource).isEqualTo(FamilySource.USER.name)
+        assertThat(updated.captured.topics).isEqualTo(JsonColumns.encodeStrings(listOf("shopping")))
+    }
+
+    @Test
+    @DisplayName("a family the schema does not know is not forced")
+    fun unknownForcedFamilyIsIgnored() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns v14Doc
+        val seen = mutableListOf<String?>()
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any(), captureNullable(seen)) } returns PamResult.Success(newReading())
+
+        pipeline.processDocument("doc-1", reprocess = true, forcedFamily = "spaceship")
+
+        assertThat(seen).containsExactly(null)
+    }
+
+    @Test
+    @DisplayName("a summary a person wrote stays, and one the model wrote is replaced, when the reading is not staged")
+    fun summaryFollowsItsSource() = runTest(dispatcher) {
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(newReading())
+        coEvery { documentDao.getById("doc-1") } returns v14Doc
+        pipeline.processDocument("doc-1", reprocess = true)
+        val kept = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(kept)) }
+        assertThat(kept.captured.summary).isEqualTo("Meine Notiz")
+
+        coEvery { documentDao.getById("doc-1") } returns v14Doc.copy(summary = "Alt", summarySource = SummarySource.MODEL.name)
+        pipeline.processDocument("doc-1", reprocess = true)
+        val written = mutableListOf<DocumentEntity>()
+        coVerify(atLeast = 2) { documentDao.update(capture(written)) }
+        assertThat(written.last().summary).isEqualTo("Neue Zusammenfassung.")
+        assertThat(written.last().summarySource).isEqualTo(SummarySource.MODEL.name)
+    }
+
+    @Test
+    @DisplayName("a family the model chose is replaced by the new reading's, with its topics and layout template")
+    fun modelFamilyIsReplaced() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns v14Doc.copy(extractionType = "health", topics = JsonColumns.encodeStrings(listOf("health")))
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(newReading())
+        pipeline.processDocument("doc-1", reprocess = true)
+        val updated = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(updated)) }
+        assertThat(updated.captured.extractionType).isEqualTo("invoice_bill")
+        assertThat(updated.captured.familySource).isEqualTo(FamilySource.MODEL.name)
+        assertThat(updated.captured.topics).isEqualTo(JsonColumns.encodeStrings(listOf("tax")))
+        assertThat(updated.captured.documentType).isEqualTo(DocumentType.INVOICE.name)
+    }
+
+    @Test
+    @DisplayName("the pipeline raises no proposal: organisations are linked, nobody is asked")
+    fun noProposalsAreRaised() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns v14Doc.copy(extractionType = null, isUserTitle = false, titleCode = "scanned_pages")
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(newReading())
+        pipeline.processDocument("doc-1", reprocess = false)
+        coVerify { entityProfileLinker.process("doc-1", any(), false) }
     }
 
     @Test

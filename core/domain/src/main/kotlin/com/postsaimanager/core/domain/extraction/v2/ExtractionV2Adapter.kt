@@ -6,10 +6,12 @@ import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EntityKind
 import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.FactKind
+import com.postsaimanager.core.model.FieldAlternative
 import com.postsaimanager.core.model.FieldProvenance
 import com.postsaimanager.core.model.InputTruncation
 import com.postsaimanager.core.model.RecognisedEntity
 import com.postsaimanager.core.model.RecognisedFact
+import com.postsaimanager.core.model.SummarySource
 
 /**
  * Maps an [ExtractionV2Result] onto [DocumentUnderstanding], the shape the pipeline, the merge and
@@ -22,7 +24,9 @@ import com.postsaimanager.core.model.RecognisedFact
  * - The confidence carried is the final one from [ConfidenceCombiner].
  * - Without a model the found values become fields keyed `found:KIND:N` with low confidence and no role.
  */
-class ExtractionV2Adapter : UnderstandingAdapter {
+class ExtractionV2Adapter(
+    private val schema: ExtractionSchema = ExtractionSchema.DEFAULT,
+) : UnderstandingAdapter {
 
     override fun adapt(result: ExtractionV2Result): DocumentUnderstanding {
         val facts = mutableListOf<RecognisedFact>()
@@ -37,7 +41,7 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         val type = result.documentType
         if (type != null) {
             val canonicalTaken = mutableSetOf<Canonical>()
-            for (slot in type.slots) {
+            for (slot in schema.slotsFor(type, result.topics)) {
                 val v = result.slots[slot]
                 if (v != null) {
                     val canonical = slot.canonical?.takeIf { canonicalTaken.add(it) }
@@ -71,16 +75,28 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         }
 
         // The structured addresses: one row per part (`addressee.street`, `sender.postcode`...), next to the unchanged party name rows.
+        // The sender's other address candidates are the chips of the sender's raw-lines row.
+        val senderChips = result.senderAddressAlternatives.map { a ->
+            FieldAlternative(value = a.lines.joinToString("\n"), score = a.confidence, page = a.page)
+        }
         for ((role, address) in result.addresses) {
             for (row in AddressRows.rows(role, address)) {
                 add(
                     row.key, row.value, FactKind.OTHER, row.confidence,
-                    FieldProvenance(slotKey = row.key, role = row.role.name, origin = AddressRows.ORIGIN, page = row.page, bbox = row.bbox),
+                    FieldProvenance(
+                        slotKey = row.key, role = row.role.name, origin = AddressRows.ORIGIN, page = row.page, bbox = row.bbox,
+                        alternatives = if (role == PartyRole.SENDER && row.key.endsWith(".${AddressRows.RAW}")) senderChips else emptyList(),
+                    ),
                 )
             }
         }
 
         if (!result.diagnostics.modelUsed) addFound(result, ::add)
+
+        // The summary: the writer's own result when the second stage wrote one, else the model's sentences of a one-go reading.
+        val summary = result.summary
+        val summarySource = summary?.origin ?: SummarySource.MODEL.takeIf { result.freeText.summary != null }
+        val composed = result.composedTitle
 
         return DocumentUnderstanding(
             language = result.language.orEmpty(),
@@ -91,12 +107,20 @@ class ExtractionV2Adapter : UnderstandingAdapter {
             entities = entities(result),
             facts = facts,
             inputTruncation = truncation(result),
-            title = result.freeText.title?.value.orEmpty(),
-            summary = result.freeText.summary?.value.orEmpty(),
+            // The title is always the composed one (a code and its args, rendered in the user's language); its plain text is the fallback.
+            title = composed?.title.orEmpty(),
+            titleCode = composed?.code,
+            titleArgs = composed?.args.orEmpty(),
+            summary = summary?.text ?: result.freeText.summary?.value.orEmpty(),
+            summarySource = summarySource,
+            summaryCode = summary?.code,
+            summaryArgs = summary?.args.orEmpty(),
             suggestedQuestions = result.freeText.suggestedQuestions,
             modelUsed = result.diagnostics.modelUsed,
             readingTrace = result.diagnostics.trace,
             enrichment = result.enrichment,
+            topics = result.topics,
+            layoutTemplate = result.layoutTemplate,
         )
     }
 
@@ -108,8 +132,7 @@ class ExtractionV2Adapter : UnderstandingAdapter {
         evidence = v.evidence.takeIf { it.isNotBlank() },
         page = v.page,
         bbox = v.bbox,
-        // TODO(P4): fill from the interpreter's runner-up candidates; a SlotValue carries none yet.
-        alternatives = emptyList(),
+        alternatives = v.alternatives,
     )
 
     /**

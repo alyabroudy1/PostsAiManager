@@ -9,7 +9,7 @@ import com.postsaimanager.core.model.DocumentType
  * This file is the whole schema, as data. The grammar, the prompt, the verifier and the adapter
  * all read [ExtractionSchema], so:
  * - **a new slot** is one [SlotKey] line in [Slots] plus its name in the [DocFamily]s or [Topic]s that use it;
- * - **a new document family** is one [DocFamily] line in [ExtractionSchema.V2], usually just its
+ * - **a new document family** is one [DocFamily] line in [ExtractionSchema.DEFAULT], usually just its
  *   family-specific slots (the universal core in [Slots.CORE] is added by [DocFamily.of]);
  * - **a new topic** is one [Topic] line in [ExtractionSchema.TOPICS];
  * - **a new language** needs nothing here (nothing in the schema is language specific).
@@ -276,10 +276,6 @@ data class DocFamily(
     }
 }
 
-/** The name the family type had before extraction-v2-2; P4 removes it together with the legacy types. */
-@Deprecated("Renamed to DocFamily.", ReplaceWith("DocFamily"))
-typealias DocType = DocFamily
-
 /**
  * What a document is about, independently of its family (a bill can be about health, a contract about insurance).
  * Any number of topics can hold for one document; the best two contribute their [slots] (see [ExtractionSchema.slotsFor]).
@@ -310,6 +306,9 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
 
     fun topic(id: String?): Topic? = topics.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) }
 
+    /** The abstain family: what a document is when no family fits ([DocFamily.scored] false), or null for a schema that has none. */
+    val abstain: DocFamily? get() = families.firstOrNull { !it.scored }
+
     /** The families a document of [direction] can be, in registry order: the candidates the classifier scores. The abstain family is never among them. */
     fun familiesFor(direction: DocDirection): List<DocFamily> = families.filter { it.scored && direction in it.directions }
 
@@ -333,46 +332,11 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
     /** Maps the model's family id (as stored on [com.postsaimanager.core.model.DocumentUnderstanding]) to the app's type. */
     fun legacyType(id: String?): DocumentType? = family(id)?.legacy
 
-    @Deprecated("Renamed to families.", ReplaceWith("families"))
-    val types: List<DocFamily> get() = families
-
-    @Deprecated("Renamed to family.", ReplaceWith("family(id)"))
-    fun type(id: String?): DocFamily? = family(id)
-
-    @Deprecated("Renamed to familiesFor.", ReplaceWith("familiesFor(direction)"))
-    fun typesFor(direction: DocDirection): List<DocFamily> = familiesFor(direction)
-
     companion object {
         /** How many topics add their slots to a document; a third topic is kept on the document but asks nothing more. */
         const val MAX_TOPICS_WITH_SLOTS = 2
 
-        // ── the types the pipeline stored before extraction-v2-2 (the live interpreter still scores these; P4 removes them) ──
-        val BILL = DocFamily.of("bill", DocumentType.INVOICE, Slots.INVOICE_NO).asksSomething()
-            .described("an invoice or bill that asks the reader to pay")
-        val REMINDER_DUNNING = DocFamily.of(
-            "reminder_dunning", DocumentType.INVOICE, Slots.INVOICE_NO, Slots.FEE, Slots.ORIGINAL_DUE_DATE,
-        ).asksSomething().described("a payment reminder or dunning letter about an unpaid bill")
-        val AUTHORITY_TAX = DocFamily.of(
-            "authority_tax", DocumentType.OFFICIAL_LETTER, Slots.OBJECTION_DEADLINE, Slots.CASE_NO, Slots.TAX_NO,
-        ).asksSomething().described("a letter or decision from an authority, tax office or public body")
-
-        /** Not actionable for the all-documents chat on purpose: health letters stay out of it (workstream G). */
-        val HEALTH = DocFamily.of("health", DocumentType.NOTICE, Slots.APPOINTMENT)
-            .described("a letter from a doctor, clinic or health insurer, such as an appointment").markedSensitive()
-        val INSURANCE_CONTRACT = DocFamily.of(
-            "insurance_contract", DocumentType.CONTRACT,
-            Slots.NEW_AMOUNT, Slots.PREVIOUS_AMOUNT, Slots.EFFECTIVE_DATE, Slots.CONTRACT_END, Slots.POLICY_NO, Slots.CONTRACT_NO,
-        ).asksSomething().described("an insurance or service contract, or a change to its price or terms")
-        val SCHOOL = DocFamily.of("school", DocumentType.NOTICE, Slots.EVENT_DATE).asksSomething()
-            .described("a letter from a school or kindergarten to parents")
-        val INFO_NO_ACTION = DocFamily.of("info_no_action", DocumentType.NOTICE, Slots.EFFECTIVE_DATE)
-            .described("an information letter or statement that asks nothing of the reader")
-
-        /** Fits a document of any direction; its description is neutral (no "anything", no "any other"), so it gains no score by being vague. */
-        val OTHER = DocFamily.of("other", DocumentType.OTHER).described("a document of a kind not listed here")
-            .forDirections(*DocDirection.entries.toTypedArray())
-
-        // ── the families of extraction-v2-2 ──
+        // ── the families ──
         val OFFICIAL_LETTER = DocFamily.of(
             "official_letter", DocumentType.OFFICIAL_LETTER, Slots.APPOINTMENT, Slots.EFFECTIVE_DATE, Slots.OBJECTION_DEADLINE,
         ).asksSomething().withRecipientBlock()
@@ -450,21 +414,16 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
             Topic("personal", "a private matter, family or personal correspondence"),
         )
 
-        /** What the live interpreter reads today: the legacy types. P4 makes [V2] the default and removes the legacy ones. */
+        /** The families and topics of extraction-v2-2: what every reader of the schema uses. */
         val DEFAULT = ExtractionSchema(
-            listOf(
-                BILL, REMINDER_DUNNING, AUTHORITY_TAX, HEALTH, INSURANCE_CONTRACT, SCHOOL, RECEIPT,
-                INFO_NO_ACTION, OUTGOING_LETTER, PAYMENT_PROOF, OTHER,
-            ),
-        )
-
-        /** The families and topics of extraction-v2-2, read by [com.postsaimanager.core.domain.extraction.zones.FamilyClassifier]. */
-        val V2 = ExtractionSchema(
             listOf(
                 OFFICIAL_LETTER, INVOICE_BILL, RECEIPT, FORM_APPLICATION, STATEMENT, CONTRACT_POLICY, CERTIFICATE_ID, MEDICAL,
                 TICKET_BOOKING, EMAIL_PRINTOUT, OUTGOING_LETTER, PAYMENT_PROOF, FREE_FORM,
             ),
             TOPICS,
         )
+
+        /** The same registry under the name the schema had while the families were introduced; kept for readers that still say `V2`. */
+        val V2: ExtractionSchema get() = DEFAULT
     }
 }

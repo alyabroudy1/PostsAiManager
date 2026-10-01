@@ -27,8 +27,12 @@ interface DocumentProcessor {
      * `MergeExtractionUseCase`). Called only by the background worker the implementation
      * schedules from [enqueue] — a feature should never call this directly, or processing
      * stops the moment the user leaves the screen.
+     *
+     * @param forcedFamily a family a person chose ("Read again as ..."): the letter is read as this family, which is stored as the
+     *   person's choice and kept by every later re-read. Null reads the family as the model decides it, except that a family a
+     *   person chose earlier is read as that one.
      */
-    suspend fun processDocument(documentId: String, reprocess: Boolean = false): PamResult<ExtractionResult>
+    suspend fun processDocument(documentId: String, reprocess: Boolean = false, forcedFamily: String? = null): PamResult<ExtractionResult>
 
     /**
      * Schedules a quiet, low-priority re-read of an already finished document by the current
@@ -49,9 +53,10 @@ interface DocumentProcessor {
      *
      * Work is unique per document (`process-document-<id>`): a plain call while processing
      * is already queued or running joins it rather than starting a second run. [force]
-     * requests a fresh run even so — for a manual Reprocess/Retry.
+     * requests a fresh run even so — for a manual Reprocess/Retry. [forcedFamily] is the family a person chose for "Read again as ..."
+     * (see [processDocument]); null for every other run.
      */
-    suspend fun enqueue(documentId: String, force: Boolean = false)
+    suspend fun enqueue(documentId: String, force: Boolean = false, forcedFamily: String? = null)
 
     /**
      * Schedules a fresh read of [documentId] in which the document's family is [forcedFamily] instead of the one the classifier
@@ -84,6 +89,18 @@ interface DocumentProcessor {
      * text and merges them into what is stored (never over a value a person wrote or confirmed, and the title only where
      * `DocumentTitlePolicy` allows). Called only by the background worker that [processDocument] schedules once the first stage is
      * stored; it never runs while a scan is being read.
+     *
+     * A null [ticket] is a second stage whose ticket was lost (the process died between the first stage and the queueing of the
+     * second, or a scan pushed the second stage aside and the ticket was never put back): the ticket is rebuilt from what is stored
+     * (the family, the topics and the first stage's fields) and the document's own OCR, so every document eventually gets its
+     * second stage.
      */
-    suspend fun enrichDocument(documentId: String, ticket: EnrichmentTicket): PamResult<Unit> = PamResult.Success(Unit)
+    suspend fun enrichDocument(documentId: String, ticket: EnrichmentTicket? = null): PamResult<Unit> = PamResult.Success(Unit)
+
+    /**
+     * Schedules the second stage of [documentId] without a ticket (it is rebuilt when the work runs), for a document the first stage
+     * stored whose second stage never completed. Unique work per document and `KEEP`, so a second stage that is genuinely queued is
+     * left alone. Called on app start (`DocumentProcessingRecovery`).
+     */
+    suspend fun enqueueEnrichment(documentId: String) = Unit
 }

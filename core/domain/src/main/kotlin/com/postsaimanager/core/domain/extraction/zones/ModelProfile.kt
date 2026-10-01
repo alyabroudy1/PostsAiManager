@@ -74,12 +74,19 @@ object ModelProfiles {
                 // gives 11 right (10 at or below -0.25, 9 from 0.4); 0.0 is taken from the plateau, not tuned to a letter: it turns the
                 // N4 offer (best score -0.14) into the abstain the letter honestly is. In-sample and on 13 letters, so it is a starting
                 // point that P4 refits on the family scores re-recorded on the device.
-                // The topics and the address labels have no recording yet (they are new questions); they start at the same 0.0 indifference,
-                // the threshold the other optional questions here use (a contact, a care-of party), and are fitted in P4.
+                // Refit on the device recordings of extraction-v2-2 (`zonesscoring3`, P4ThresholdFitTest, artifacts17/threshold-fit.md):
+                // - family: on the 13 letters the best plateau runs from -1.0 to 0.3 (9 right at every point; 0.4 and above is worse), the
+                //   leave-one-out is 9 as well, so 0.0 stays: inside the plateau, and the model's own indifference.
+                // - topics: micro F1 against the manifests' topics is 0.43 at 0.0 and 0.48 at the plateau middle 0.1, but the cross-fitted
+                //   (leave-one-out) F1 of the fitted threshold is 0.34, below the 0.43 of the fixed 0.0: the fit gains nothing out of sample, so 0.0 stays.
+                // - address labels: 10 scored word-only lines, 2 with a manifest truth label (both argmax right): too few to fit, 0.0 stays;
+                //   an unlabelled line stays a raw line, which is the safe side.
+                // - delivery points: the highest score the model gave a street-shaped line for a box or a locker is -0.32 (no letter has either),
+                //   so 0.0 is above every score and there is no false positive.
                 ScoringProfile.FAMILY to 0.0, ScoringProfile.TOPICS to 0.0,
                 // An address line takes a label only when its best label scores above this (LineAsk.LABEL_ASK).
                 LineAsk.LABEL_ASK to 0.0,
-                // A street-shaped address line is a post office box or a locker only when the model leans Yes (not yet fitted: P4 measures it).
+                // A street-shaped address line is a post office box or a locker only when the model leans Yes.
                 LineAsk.DELIVERY_ASK to 0.0,
             ),
             // Fitted on the 137 scored answers of the 16 letters (ConfidenceCalibrationTest). HIGH: a margin of 0.2 over the runner-up
@@ -96,6 +103,19 @@ object ModelProfiles {
             decoder = DecoderSpec(DecoderKind.JOINT),
         ),
     )
+
+    /**
+     * What a device run records with: [shipped] without the abstain thresholds of the questions whose decision nothing else depends on (the
+     * family and the topics, the extras, the address labels and delivery points: a threshold can be fitted offline on recorded scores of
+     * every candidate). The thresholds of the optional people (a contact, a care-of party, a subject person) stay: whether they are taken
+     * decides what the other values may take, the address lines the parties settle and the facts of the summary, so the recording must
+     * make the decisions the shipped profile makes for the questions it holds to be found again on replay. The decoder is the shipped one.
+     */
+    fun recordingProfile(shipped: ScoringProfile): ScoringProfile = shipped.copy(
+        thresholds = shipped.thresholds.filterKeys { it in PARTY_THRESHOLDS },
+    )
+
+    private val PARTY_THRESHOLDS = setOf(QuestionNames.CONTACT, QuestionNames.CARE_OF, QuestionNames.SUBJECT_PERSON)
 
     val QWEN35_2B = ModelProfile("qwen3.5-2b-q4_k_m", contextTokens = 4096, strategy = InterpreterStrategy.ZONES)
 
@@ -141,7 +161,8 @@ class ProfileInterpreterFactory @Inject constructor(
             InterpreterStrategy.QUESTIONNAIRE ->
                 QuestionnaireInterpreter(engine, session, contextTokens = window, restateOptions = profile.restateOptions)
             InterpreterStrategy.ZONES -> ZoneInterpreter(engine, session, contextTokens = window)
-            InterpreterStrategy.ZONES_SCORING -> ZoneScoringInterpreter(engine, session, contextTokens = window, profile = profile.scoring)
+            InterpreterStrategy.ZONES_SCORING ->
+                ZoneScoringInterpreter(engine, session, contextTokens = window, profile = profile.scoring, topicsInFirstStage = profile.topicsInFirstStage)
         }
     }
 }

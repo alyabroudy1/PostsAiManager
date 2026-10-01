@@ -25,7 +25,6 @@ object QuestionnairePrompt {
     const val RULE_SLOT_TOKENS = 64
     const val REFERENCES_TOKENS = 32
     const val EXTRAS_TOKENS = 280
-    const val TITLE_TOKENS = 40
     const val SUBJECT_TOKENS = 56
     const val SUMMARY_TOKENS = 120
     const val SUGGESTIONS_TOKENS = 110
@@ -223,24 +222,6 @@ object QuestionnairePrompt {
     // ── the free text ────────────────────────────────────────────────────────
 
     private const val IN_LETTER_LANGUAGE = "Write it in the letter's own language."
-
-    @Deprecated("The title is composed from verified fields (TitleComposer); P4 removes this with the title ask in ZoneFreeText/the interpreter.")
-    fun otherLabel(): Question = question(
-        "text:other",
-        "Give a short name for this kind of document. $IN_LETTER_LANGUAGE",
-        "one line of text in double quotes",
-        QuestionGrammars.line(),
-        TITLE_TOKENS,
-    )
-
-    @Deprecated("The title is composed from verified fields (TitleComposer); P4 removes this with the title ask in ZoneFreeText/the interpreter.")
-    fun title(typeId: String?): Question = question(
-        "text:title",
-        "Write a title of at most 8 words for this ${typeId?.replace('_', ' ') ?: "document"}: who wrote it and what it is for. $IN_LETTER_LANGUAGE",
-        "one line of text in double quotes",
-        QuestionGrammars.line(),
-        TITLE_TOKENS,
-    )
 
     fun subjectLine(): Question = question(
         "text:subject",

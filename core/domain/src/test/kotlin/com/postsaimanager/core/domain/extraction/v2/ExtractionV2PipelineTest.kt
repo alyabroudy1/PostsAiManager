@@ -24,9 +24,9 @@ class ExtractionV2PipelineTest {
             val r = pipeline.run(Letters.n1.pages, model, 4096)
             assertThat(model.interpretCalls).isEqualTo(1)
             assertThat(model.textCalls).isEqualTo(1)
-            assertThat(model.lastTextRequest!!.documentTypeId).isEqualTo("reminder_dunning")
+            assertThat(model.lastTextRequest!!.documentTypeId).isEqualTo("invoice_bill")
             assertThat(r.freeText.subject).isNotNull()
-            assertThat(r.documentType).isEqualTo(ExtractionSchema.REMINDER_DUNNING)
+            assertThat(r.documentType).isEqualTo(ExtractionSchema.INVOICE_BILL)
         }
 
         @Test
@@ -112,7 +112,7 @@ class ExtractionV2PipelineTest {
         @Test
         fun `an English letter is typed and assigned through the model path`() = runTest {
             val r = pipeline.run(Letters.english.pages, oracle(Letters.english), 4096)
-            assertThat(r.documentType).isEqualTo(ExtractionSchema.REMINDER_DUNNING)
+            assertThat(r.documentType).isEqualTo(ExtractionSchema.INVOICE_BILL)
             assertThat(r.language).isEqualTo("en")
             assertThat(r.slots.getValue(Slots.TOTAL).normalized).isEqualTo("142.80 GBP")
             assertThat(r.parties.sender!!.name).isEqualTo("Northwind Utilities Ltd.")
@@ -165,14 +165,14 @@ class ExtractionV2PipelineTest {
             val sender = p.findName("Stadtlicht Versorgung AG")!!
             val addressee = p.findName("Ida Beispiel")!!
             val refSlot = ref?.let { """"reference":{"id":"${it.id}","c":"MEDIUM"},""" }.orEmpty()
-            val json = """{"type":"bill","tc":"MEDIUM","lang":"de",
+            val json = """{"type":"invoice_bill","tc":"MEDIUM","lang":"de",
                 "parties":[{"r":"SENDER","id":"${sender.id}","k":"COMPANY","rel":"NONE","c":"HIGH"},
                            {"r":"ADDRESSEE","id":"${addressee.id}","k":"PERSON","rel":"NONE","c":"HIGH"}],
                 "s":{"total":{"id":"${amount.id}","r":"TOTAL_DUE","c":"HIGH"},"due_date":{"id":"${due.id}","r":"DUE_DATE","c":"HIGH"},
                      $refSlot"iban":{"id":"${iban.id}","c":"HIGH"}},"x":[]}"""
             val r = pipeline.run(pages, ScriptedInterpreter(json, null), 4096)
 
-            assertThat(r.documentType).isEqualTo(ExtractionSchema.BILL)
+            assertThat(r.documentType).isEqualTo(ExtractionSchema.INVOICE_BILL)
             assertThat(r.slots.getValue(Slots.TOTAL).normalized).isEqualTo("45.90 EUR")
             assertThat(r.slots.getValue(Slots.DUE_DATE).normalized).startsWith("2026-10-30")
             assertThat(r.slots.getValue(Slots.IBAN).validation.isValid).isTrue()

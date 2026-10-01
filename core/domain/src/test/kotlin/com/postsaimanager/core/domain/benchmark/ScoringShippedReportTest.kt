@@ -19,7 +19,7 @@ class ScoringShippedReportTest {
 
     private val docs = BenchmarkFixtures.load().docs
     private val recordings = Recordings.load(File(System.getenv("ZONES_RECORDINGS_DIR") ?: "src/test/resources/benchmark/recordings"))
-        .filter { it.variant == "zonesscoring" }
+        .filter { it.variant == (System.getenv("ZONES_VARIANT") ?: "zonesscoring") }
     private val profile = ModelProfiles.QWEN35_08B.scoring
 
     private fun languages(): Map<String, String?> =

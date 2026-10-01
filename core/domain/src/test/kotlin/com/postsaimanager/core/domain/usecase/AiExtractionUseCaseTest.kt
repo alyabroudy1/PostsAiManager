@@ -72,7 +72,7 @@ class AiExtractionUseCaseTest {
             scripted()
             extract(blocks, pageBlockCounts = counts)
             val prompt = engine.generateRequests[1].prompt
-            assertThat(prompt).contains("DOCUMENT TYPE: reminder_dunning")
+            assertThat(prompt).contains("DOCUMENT TYPE: invoice_bill")
             assertThat(prompt).contains("=== PAGE 1 ===")
             assertThat(prompt).doesNotContain("CANDIDATES")
         }
@@ -137,7 +137,7 @@ class AiExtractionUseCaseTest {
             scripted()
             val u = (extract(blocks, pageBlockCounts = counts) as PamResult.Success).data
             assertThat(u.modelUsed).isTrue()
-            assertThat(u.documentType).isEqualTo("reminder_dunning")
+            assertThat(u.documentType).isEqualTo("invoice_bill")
             assertThat(u.language).isEqualTo("de")
             assertThat(u.entities.single { it.role == EntityRole.SENDER }.name).isEqualTo("Nordlicht Mobilfunk GmbH")
             assertThat(u.entities.single { it.role == EntityRole.RECIPIENT }.name).isEqualTo("Erika Mustermann")
@@ -238,8 +238,10 @@ class AiExtractionUseCaseTest {
             engine.responder = { request -> if (request.grammar!!.contains("\\\"tc\\\":")) structured else "not json" }
             val u = (extract(blocks, pageBlockCounts = counts) as PamResult.Success).data
             assertThat(u.modelUsed).isTrue()
-            assertThat(u.documentType).isEqualTo("reminder_dunning")
-            assertThat(u.title).isEmpty()
+            assertThat(u.documentType).isEqualTo("invoice_bill")
+            // No free text, so no subject: the title is still composed, from the family and the sender.
+            assertThat(u.titleCode).isEqualTo("composed")
+            assertThat(u.titleArgs).containsExactly("invoice_bill", "Nordlicht Mobilfunk GmbH", "").inOrder()
             assertThat(u.facts.any { it.label == "Amount" }).isTrue()
         }
     }

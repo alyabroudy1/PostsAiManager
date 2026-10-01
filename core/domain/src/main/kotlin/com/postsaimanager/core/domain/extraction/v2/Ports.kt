@@ -2,8 +2,10 @@ package com.postsaimanager.core.domain.extraction.v2
 
 import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
+import com.postsaimanager.core.domain.extraction.text.SummaryResult
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.OcrBlock
+import com.postsaimanager.core.model.PostalAddress
 
 /**
  * The seams of extraction v2. Each unit does one job and can be replaced or faked on its own:
@@ -43,6 +45,11 @@ class InterpretationRequest(
      * ([ExtractionSchema.familiesFor]); incoming until the app stores a direction per document.
      */
     val direction: DocDirection = DocDirection.INCOMING,
+    /**
+     * A family a person chose ("Read again as ..."): the interpreter does not decide the family, it reads the letter as this one.
+     * An id the schema does not know is ignored.
+     */
+    val forcedFamily: String? = null,
 )
 
 /** What call 2 is given: the letter again (the engine starts every call from an empty cache) and what call 1 decided. */
@@ -130,10 +137,30 @@ class EnrichmentRequest(
     val documentTypeId: String? = null,
     /** What the first stage established (see [RawInterpretation.established]); empty when it established nothing. */
     val established: String = "",
+    /** The topics the first stage found (empty when it left them to the second stage, or found none). */
+    val topics: List<String> = emptyList(),
+    /** The verified values the summary is built from (see [com.postsaimanager.core.model.EnrichmentTicket.facts]). */
+    val facts: Map<String, String> = emptyMap(),
+    /** The letter's text as the verifier reads it, the reference the summary's numbers and names are checked against. */
+    val ocrText: String = "",
 )
 
-/** What the second stage wrote, parsed but not trusted; any part may be missing. */
-class Enrichment(val language: String?, val extras: List<RawExtra>, val text: RawText?, val textError: String? = null, val rawText: String? = null)
+/**
+ * What the second stage wrote, parsed but not trusted; any part may be missing.
+ *
+ * @property summary the summary the writer settled on (the model's sentences, or the template that renders from the verified
+ *   fields); null when the second stage could not write at all, so the summary stays pending.
+ * @property topics the topics, when this stage scored them (a profile that keeps them out of the first stage); null otherwise.
+ */
+class Enrichment(
+    val language: String?,
+    val extras: List<RawExtra>,
+    val text: RawText?,
+    val textError: String? = null,
+    val rawText: String? = null,
+    val summary: SummaryResult? = null,
+    val topics: List<String>? = null,
+)
 
 sealed interface EnrichmentOutcome {
     class Done(val enrichment: Enrichment) : EnrichmentOutcome
@@ -191,7 +218,12 @@ data class RawParty(
     val zoneNote: String? = null,
     /** A scoring interpreter's raw numbers behind [confidence] (the margin and the winner's score), shown in the value's notes; it changes nothing. */
     val scoreNote: String? = null,
+    /** The runner-up names of the question, best first (a scoring interpreter); the verifier turns them into the value's alternatives. */
+    val alternatives: List<RawAlternative> = emptyList(),
 )
+
+/** A candidate the question scored below its winner: the id and the score, for the Edit sheet's chips. */
+data class RawAlternative(val id: String, val score: Double)
 
 /** One value slot as the model wrote it, never checked yet. */
 data class RawSlot(
@@ -206,6 +238,8 @@ data class RawSlot(
     val zoneNote: String? = null,
     /** Like [RawParty.scoreNote]. */
     val scoreNote: String? = null,
+    /** Like [RawParty.alternatives]. */
+    val alternatives: List<RawAlternative> = emptyList(),
 )
 
 /**
@@ -235,6 +269,14 @@ data class RawInterpretation(
     val truncated: Boolean = false,
     /** What a scoring interpreter's first stage told its second ("sender: M1 «...»; addressee: ..."): the second stage reads the letter under it. */
     val established: String = "",
+    /** The topic ids the reading found, best first (a scoring interpreter); the verifier keeps those the schema knows. */
+    val topics: List<String> = emptyList(),
+    /** The layout template the letter matched (a zone interpreter); null for one that reads no layout. */
+    val layoutTemplate: String? = null,
+    /** The structured postal address of the addressee and of the sender (a scoring interpreter, for a family with a recipient block). */
+    val addresses: Map<PartyRole, PostalAddress> = emptyMap(),
+    /** The sender's other address candidates, best first (see `AddressReading.senderAlternatives`). */
+    val senderAddressAlternatives: List<PostalAddress> = emptyList(),
 )
 
 /** Call 2's answer, parsed but not trusted. */

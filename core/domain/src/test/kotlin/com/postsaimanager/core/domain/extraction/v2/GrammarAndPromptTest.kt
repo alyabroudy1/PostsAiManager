@@ -37,12 +37,12 @@ class GrammarAndPromptTest {
             // The core slots are one shared rule; the type's own follow it.
             val core = r.getValue("core")
             for (s in Slots.CORE) assertThat(core).contains("\\\"${s.json}\\\":")
-            val health = r.getValue("t-health") + r.getValue("core")
-            for (s in ExtractionSchema.HEALTH.slots) assertThat(health).contains("\\\"${s.json}\\\":")
+            val health = r.getValue("t-medical") + r.getValue("core")
+            for (s in ExtractionSchema.MEDICAL.slots) assertThat(health).contains("\\\"${s.json}\\\":")
             assertThat(health).doesNotContain("\\\"invoice_no\\\":")
             assertThat(health).doesNotContain("\\\"policy_no\\\":")
-            assertThat(r.getValue("t-health")).contains(" core ")
-            val bill = r.getValue("t-bill")
+            assertThat(r.getValue("t-medical")).contains(" core ")
+            val bill = r.getValue("t-invoice-bill")
             assertThat(bill).contains("\\\"invoice_no\\\":")
             assertThat(bill).doesNotContain("\\\"appointment\\\":")
         }

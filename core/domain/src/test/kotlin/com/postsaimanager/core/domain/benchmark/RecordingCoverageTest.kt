@@ -1,32 +1,50 @@
 package com.postsaimanager.core.domain.benchmark
 
-import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
+import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import java.io.File
 
 /**
- * Which recorded scoring letters the current code can still replay in full: a letter whose recording has no answer for a question the
- * interpreter now asks (a batch of candidates or a question that changed) has to be recorded again on the device; the others replay
- * as they are. Writes `$ZONES_COVERAGE_OUT` when set; a tool, it asserts nothing.
+ * Which recorded scoring letters the current code can still replay in full, and what it has to make up for the others.
+ *
+ * - A recording made for the current interpreter (a real `score:family` batch) must replay with no miss: a question that changed since the
+ *   device run is a failing test here, naming the question, never a quiet zero ([everyRecordingOfTheCurrentInterpreterReplaysInFull]).
+ * - A recording made before the families answers its family and topics from its legacy type scores ([LegacyFamilyBridge]: SCRIPTED); every
+ *   other question it never held (the address labels, the summary, a slot the old type did not ask) is a MISS the report lists, and only
+ *   a new device recording (variant `zonesscoring3`) removes it.
+ *
+ * Writes `$ZONES_COVERAGE_OUT` when set (the report); the replay is the shipped profile's.
  */
 class RecordingCoverageTest {
 
     private val docs = BenchmarkFixtures.load().docs
-    private val recordings = Recordings.load(File("src/test/resources/benchmark/recordings")).filter { it.variant == "zonesscoring" }
+    private val recordings = Recordings.load(File("src/test/resources/benchmark/recordings")).filter { it.variant.startsWith(InterpreterMetrics.SCORING_VARIANT) }
+    private val profile = ModelProfiles.QWEN35_08B.scoring
+
+    private fun isCurrent(rec: Recording) = rec.asks.any { it.name == "score:family" }
+
+    @Test
+    fun everyRecordingOfTheCurrentInterpreterReplaysInFull() {
+        for ((m, f) in docs) {
+            for (rec in recordings.filter { it.key == m.key && isCurrent(it) }) {
+                assertThat(InterpreterMetrics.replayMisses(rec, f, profile).hard).isEmpty()
+            }
+        }
+    }
 
     @Test
     fun coverage() {
         val out = System.getenv("ZONES_COVERAGE_OUT") ?: return
-        val sb = StringBuilder()
+        val sb = StringBuilder("# Recording coverage under the current interpreter (shipped profile)\n\n")
         for ((m, f) in docs) {
-            val rec = recordings.firstOrNull { it.key == m.key } ?: continue
-            val replay = ZoneReplay(rec, ModelProfiles.QWEN35_08B.scoring)
-            val first = f.pages.firstOrNull()?.takeIf { it.height > 0 }
-            runBlocking { ExtractionV2Pipeline().run(f.pages.map { it.blocks }, replay, rec.contextTokens, first?.let { it.width.toFloat() / it.height }) }
-            val unanswered = replay.transcript.filter { it.answer == null }.map { it.name }
-            sb.appendLine("${m.key}: " + if (unanswered.isEmpty()) "replays in full" else "RE-RECORD, no recorded answer for ${unanswered.joinToString()}")
+            for (rec in recordings.filter { it.key == m.key }) {
+                val misses = InterpreterMetrics.replayMisses(rec, f, profile)
+                val kind = if (isCurrent(rec)) "CURRENT" else "LEGACY (family and topics SCRIPTED from the legacy type scores)"
+                val hard = if (misses.hard.isEmpty()) "no question to record again" else "${misses.hard.size} NOT RECORDED: ${misses.hard.joinToString("; ")}"
+                val scripted = if (misses.scripted.isEmpty()) "" else "; ${misses.scripted.size} summary ask(s) SCRIPTED as the template (the facts differ from the recorded run's)"
+                sb.appendLine("${m.key}.${rec.variant}: $kind: $hard$scripted")
+            }
         }
         File(out).writeText(sb.toString())
     }

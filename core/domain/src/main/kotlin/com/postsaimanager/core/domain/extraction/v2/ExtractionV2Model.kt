@@ -2,7 +2,10 @@ package com.postsaimanager.core.domain.extraction.v2
 
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.Validation
+import com.postsaimanager.core.domain.extraction.text.SummaryResult
+import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.model.EnrichmentTicket
+import com.postsaimanager.core.model.FieldAlternative
 import com.postsaimanager.core.model.PostalAddress
 import com.postsaimanager.core.model.TextBounds
 import java.time.LocalDate
@@ -47,6 +50,8 @@ enum class QuoteMatch { EXACT, NORMALIZED, FUZZY }
  * @property notes the checks that capped the confidence, in words, for diagnostics and the benchmark.
  * @property idLogProb reserved for a later export of the sampler's log-probability of the chosen id
  *   (a second, model-internal confidence signal). Always null today.
+ * @property alternatives the runner-up readings of the question (a scoring interpreter), best first, each a value the letter offered
+ *   that the model scored below the chosen one; the Edit sheet's chips.
  */
 data class SlotValue(
     val slot: SlotKey?,
@@ -65,6 +70,7 @@ data class SlotValue(
     val quoteMatch: QuoteMatch? = null,
     val role: String? = null,
     val idLogProb: Double? = null,
+    val alternatives: List<FieldAlternative> = emptyList(),
 ) {
     val needsReview: Boolean get() = blocked || confidence < ConfidenceCombiner.REVIEW_BELOW
 }
@@ -193,9 +199,20 @@ data class ExtractionV2Result(
     val parties: Parties = Parties(),
     /**
      * The structured postal address of the addressee ([PartyRole.ADDRESSEE]) and of the sender ([PartyRole.SENDER]), when the letter
-     * prints one and the reading stage ran (see `StructuredAddressReader`). Empty until the interpreter calls it (TODO(P4)).
+     * prints one and the reading stage ran (see `StructuredAddressReader`, called by the scoring interpreter for a family with a recipient
+     * block). Empty for any other reading.
      */
     val addresses: Map<PartyRole, PostalAddress> = emptyMap(),
+    /** The sender's other address candidates (letterhead, return line, footer that did not win), best first. */
+    val senderAddressAlternatives: List<PostalAddress> = emptyList(),
+    /** The topics the reading found and the schema knows, best first. */
+    val topics: List<String> = emptyList(),
+    /** The layout template the letter matched; null when the interpreter read no layout. */
+    val layoutTemplate: String? = null,
+    /** The summary as the writer settled on it (the model's sentences or the template); null when none was written (a first stage, or a failed second one). */
+    val summary: SummaryResult? = null,
+    /** The title composed from the family, the sender and the verified subject; null when nothing could be composed (no model read the letter). */
+    val composedTitle: TitleComposer.Composed? = null,
     val freeText: FreeText = FreeText(),
     /** Verified open metadata, at most [StructuredGrammar.MAX_EXTRAS]. */
     val extras: List<ExtraValue> = emptyList(),

@@ -19,6 +19,13 @@ class ExtractorVersionTest {
     }
 
     @Test
+    @DisplayName("the families extractor is extraction-v2-2, and a document the previous one read is outdated")
+    fun familiesVersion() {
+        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-2")
+        assertThat(ExtractorVersion.isOutdated("extraction-v2-1")).isTrue()
+    }
+
+    @Test
     @DisplayName("a lower model version is outdated, an equal or higher one is not")
     fun modelVersionsAreOrdered() {
         assertThat(ExtractorVersion.isOutdated("extraction-v2-1", current = "extraction-v2-2")).isTrue()

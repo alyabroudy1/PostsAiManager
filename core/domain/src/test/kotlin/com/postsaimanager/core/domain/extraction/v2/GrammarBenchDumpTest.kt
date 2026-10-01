@@ -19,7 +19,7 @@ class GrammarBenchDumpTest {
         val out = File(dir!!).apply { mkdirs() }
         for (letter in listOf(Letters.n1, Letters.n6, Letters.invoice)) {
             val prepared = Prepared(letter.pages)
-            val oracle = Oracle.structured(letter, prepared)
+            val oracle = Oracle.structured(letter, prepared, withTopics = false)
             val model = ScriptedInterpreter(oracle.json, Oracle.text(letter))
             kotlinx.coroutines.runBlocking { ExtractionV2Pipeline().run(letter.pages, model, 4096) }
             val request = model.lastRequest!!

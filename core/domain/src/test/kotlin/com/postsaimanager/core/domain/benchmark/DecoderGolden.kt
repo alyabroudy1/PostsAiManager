@@ -16,14 +16,16 @@ internal object DecoderGolden {
             val rec = recordings.firstOrNull { it.key == m.key && it.variant == InterpreterMetrics.SCORING_VARIANT } ?: continue
             val r = InterpreterMetrics.replayResult(rec, f, profile)
             sb.appendLine("== ${m.key}")
-            sb.append(lines(r))
+            // The golden was written when the reader chose among the legacy types; its type line stays the legacy type the recording's scores
+            // chose, so the file holds what it always held: the decoder's readings of the questions that were recorded.
+            sb.append(lines(r, LegacyFamilyBridge.viewOf(rec)?.bestLegacyId))
         }
         return sb.toString()
     }
 
-    fun lines(r: ExtractionV2Result): String {
+    fun lines(r: ExtractionV2Result, type: String? = r.documentType?.id): String {
         val sb = StringBuilder()
-        sb.appendLine("type ${r.documentType?.id} language ${r.language}")
+        sb.appendLine("type $type language ${r.language}")
         for ((k, v) in r.slots.entries.sortedBy { it.key.json }) {
             sb.appendLine("slot ${k.json} ${v.candidateId} ${v.normalized} ${v.role} ${v.aiConfidence} ${v.confidence} ${v.notes}")
         }
