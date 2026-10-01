@@ -13,7 +13,7 @@ import kotlin.math.exp
  */
 data class FormScoringProfile(
     /** A weak candidate is a field when its score is above this. */
-    val confirmThreshold: Double = 0.0,
+    val confirmThreshold: Double = 1.0,
     /** The best data key is taken only when its score is above this and above "none". */
     val keyThreshold: Double = 0.0,
     /** The best key must beat the runner-up (another key or "none") by at least this. */
@@ -28,6 +28,8 @@ data class FormScoringProfile(
     val subjectThreshold: Double = 0.0,
     val maxConfirmScores: Int = 40,
     val maxClassifyScores: Int = 96,
+    /** Without an embedding model every key is scored per field (all keys + "none"); the cap over all fields. */
+    val maxFallbackClassifyScores: Int = 800,
     /** Role scores for sections (one per role per section) and for role-bearing fields (one per role per field). */
     val maxSectionScores: Int = 48,
     val maxFieldRoleScores: Int = 24,

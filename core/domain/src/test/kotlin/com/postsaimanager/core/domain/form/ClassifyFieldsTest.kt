@@ -101,10 +101,28 @@ class ClassifyFieldsTest {
     }
 
     @Test
-    fun `without an embedding model no field gets a key and nothing is scored`() = runTest {
-        val session = session(FormScript())
+    fun `without an embedding model the model scores every key per field, the label read once`() = runTest {
+        val session = FakePromptSession().apply {
+            open("prefix")
+            // The shared level carries the label; each question names one key.
+            scorer = { whole ->
+                val key = FormDataKeys.ALL.firstOrNull { whole.contains("ask for ${it.description}?") }
+                if (whole.contains("«Geburtsdatum»") && key?.id == "birth_date") FormScript.YES else FormScript.NO
+            }
+        }
         val result = ClassifyFields(FormScorer(session), FakeEmbedder(ready = false)).classify(listOf(candidate("Geburtsdatum")))
-        assertThat(result.single().dataKey).isNull()
-        assertThat(session.scored).isEmpty()
+        assertThat(result.single().dataKey).isEqualTo("birth_date")
+        assertThat(result.single().kind).isEqualTo(FormFieldKind.DATE)
+        assertThat(session.scored.flatten()).hasSize(FormDataKeys.ALL.size + 1)
+        assertThat(session.sharedLevels.single()).contains("«Geburtsdatum»")
+    }
+
+    @Test
+    fun `the fallback spends at most its budget and leaves the later fields without a key`() = runTest {
+        val session = FakePromptSession().apply { open("prefix") }
+        val profile = FormScoringProfile(maxFallbackClassifyScores = FormDataKeys.ALL.size + 1)
+        val result = ClassifyFields(FormScorer(session), FakeEmbedder(ready = false), profile).classify(List(3) { candidate("Hobby") })
+        assertThat(session.scored.flatten()).hasSize(FormDataKeys.ALL.size + 1)
+        assertThat(result.drop(1).all { it.dataKey == null }).isTrue()
     }
 }
