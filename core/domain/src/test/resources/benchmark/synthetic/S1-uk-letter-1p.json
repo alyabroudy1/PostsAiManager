@@ -1,0 +1,23 @@
+{
+    "key": "S1-uk-letter-1p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {"text": "Brightwater Energy Ltd\n14 Canal Street\nLeeds\nLS1 4AB", "bounds": {"left": 0.690, "top": 0.050, "right": 0.899, "bottom": 0.128}, "confidence": 0.91, "language": "und"},
+                {"text": "14 September 2026", "bounds": {"left": 0.738, "top": 0.150, "right": 0.8995, "bottom": 0.1695}, "confidence": 0.93, "language": "und"},
+                {"text": "Mr David Okafor\n27 Rosemount Avenue\nManchester\nM14 5TQ", "bounds": {"left": 0.100, "top": 0.240, "right": 0.2805, "bottom": 0.318}, "confidence": 0.90, "language": "und"},
+                {"text": "Your energy bill for August 2026", "bounds": {"left": 0.100, "top": 0.372, "right": 0.404, "bottom": 0.3915}, "confidence": 0.92, "language": "und"},
+                {"text": "Dear Mr Okafor,", "bounds": {"left": 0.100, "top": 0.425, "right": 0.2425, "bottom": 0.4445}, "confidence": 0.94, "language": "und"},
+                {"text": "Thank you for being a Brightwater customer. Your bill for\nAugust 2026 is now ready.\nThe amount due is £84.20. Please pay by 3 October 2026\nto avoid a late payment charge.\nYour account number is 40 281 773.", "bounds": {"left": 0.100, "top": 0.465, "right": 0.651, "bottom": 0.5625}, "confidence": 0.88, "language": "und"},
+                {"text": "You can pay online, by phone on 0113 496 0000 or by\nbank transfer to sort code 20-40-60, account 55779911.", "bounds": {"left": 0.100, "top": 0.585, "right": 0.613, "bottom": 0.624}, "confidence": 0.87, "language": "und"},
+                {"text": "Yours sincerely,", "bounds": {"left": 0.100, "top": 0.650, "right": 0.252, "bottom": 0.6695}, "confidence": 0.93, "language": "und"},
+                {"text": "Customer Services\nBrightwater Energy Ltd", "bounds": {"left": 0.100, "top": 0.700, "right": 0.309, "bottom": 0.739}, "confidence": 0.90, "language": "und"},
+                {"text": "Brightwater Energy Ltd. Registered in England and Wales No. 01234567.\nRegistered office: 14 Canal Street, Leeds, LS1 4AB.", "bounds": {"left": 0.100, "top": 0.920, "right": 0.625, "bottom": 0.944}, "confidence": 0.84, "language": "und"}
+            ]
+        }
+    ]
+}

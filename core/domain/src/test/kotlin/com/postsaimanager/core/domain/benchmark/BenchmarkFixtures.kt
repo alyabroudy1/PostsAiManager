@@ -77,6 +77,17 @@ object BenchmarkFixtures {
         return Loaded(docs, skipped)
     }
 
+    /**
+     * The invented layout fixtures of `benchmark/synthetic` (a UK and a US letter, for the template matcher). They are
+     * deliberately not in [load]: they carry no recordings and must not move the benchmark gate's baseline.
+     */
+    fun loadSynthetic(): List<Pair<ManifestDoc, Fixture>> {
+        val text = resource("/benchmark/manifest-synthetic.json") ?: return emptyList()
+        return parseManifest(text, "synthetic", web = false).mapNotNull { m ->
+            resource("/benchmark/synthetic/${m.key}.json")?.let { m to parseFixture(it) }
+        }
+    }
+
     private fun resource(path: String): String? =
         BenchmarkFixtures::class.java.getResourceAsStream(path)?.bufferedReader()?.use { it.readText() }
 
