@@ -101,28 +101,51 @@ class ClassifyFieldsTest {
     }
 
     @Test
-    fun `without an embedding model the model scores every key per field, the label read once`() = runTest {
+    fun `without an embedding model the groups are scored first, then only the best group's keys`() = runTest {
         val session = FakePromptSession().apply {
             open("prefix")
-            // The shared level carries the label; each question names one key.
+            // The shared level carries the label; each question names one group or one key.
             scorer = { whole ->
+                val group = FormKeyGroups.ALL.firstOrNull { whole.contains("ask for ${it.description}?") }
                 val key = FormDataKeys.ALL.firstOrNull { whole.contains("ask for ${it.description}?") }
-                if (whole.contains("«Geburtsdatum»") && key?.id == "birth_date") FormScript.YES else FormScript.NO
+                when {
+                    !whole.contains("«Geburtsdatum»") -> FormScript.NO
+                    group?.id == "personal" -> FormScript.YES
+                    key?.id == "birth_date" -> FormScript.YES
+                    else -> FormScript.NO
+                }
             }
         }
         val result = ClassifyFields(FormScorer(session), FakeEmbedder(ready = false)).classify(listOf(candidate("Geburtsdatum")))
         assertThat(result.single().dataKey).isEqualTo("birth_date")
         assertThat(result.single().kind).isEqualTo(FormFieldKind.DATE)
-        assertThat(session.scored.flatten()).hasSize(FormDataKeys.ALL.size + 1)
-        assertThat(session.sharedLevels.single()).contains("«Geburtsdatum»")
+        // 8 groups, then the 4 keys of "personal" and none: far fewer than every key.
+        assertThat(session.scored.flatten()).hasSize(FormKeyGroups.ALL.size + 4 + 1)
+        assertThat(session.scored.flatten().none { it.contains(FormDataKeys.IBAN.description) }).isTrue()
+        assertThat(session.sharedLevels.distinct().single()).contains("«Geburtsdatum»")
+    }
+
+    @Test
+    fun `a field no group fits costs only the group scores`() = runTest {
+        val session = FakePromptSession().apply { open("prefix") }
+        val result = ClassifyFields(FormScorer(session), FakeEmbedder(ready = false)).classify(listOf(candidate("Hobby")))
+        assertThat(result.single().dataKey).isNull()
+        assertThat(session.scored.flatten()).hasSize(FormKeyGroups.ALL.size)
+    }
+
+    @Test
+    fun `every key is in exactly one group`() {
+        val grouped = FormKeyGroups.ALL.flatMap { it.keyIds }
+        assertThat(grouped).containsNoDuplicates()
+        assertThat(grouped).containsExactlyElementsIn(FormDataKeys.ALL.map { it.id })
     }
 
     @Test
     fun `the fallback spends at most its budget and leaves the later fields without a key`() = runTest {
         val session = FakePromptSession().apply { open("prefix") }
-        val profile = FormScoringProfile(maxFallbackClassifyScores = FormDataKeys.ALL.size + 1)
+        val profile = FormScoringProfile(maxFallbackClassifyScores = FormKeyGroups.ALL.size + 4)
         val result = ClassifyFields(FormScorer(session), FakeEmbedder(ready = false), profile).classify(List(3) { candidate("Hobby") })
-        assertThat(session.scored.flatten()).hasSize(FormDataKeys.ALL.size + 1)
-        assertThat(result.drop(1).all { it.dataKey == null }).isTrue()
+        assertThat(session.scored.flatten()).hasSize(FormKeyGroups.ALL.size)
+        assertThat(result.all { it.dataKey == null }).isTrue()
     }
 }

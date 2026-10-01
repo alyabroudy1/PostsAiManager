@@ -183,6 +183,7 @@ class FormFillConversation(
             FormChipAction.REMEMBER_YES, FormChipAction.REMEMBER_NO -> awaiting.kind == FormAwaitKind.REMEMBER
             FormChipAction.CONTINUE, FormChipAction.BY_HAND -> awaiting.kind == FormAwaitKind.CONTINUE
             FormChipAction.CONTINUE_READING -> awaiting.kind == FormAwaitKind.READING
+            FormChipAction.OPEN_MODELS -> false // opens a screen: the UI handles it, it is never an answer
         }
         trace.event("chip", "fill=${fill.id} action=${chip.action} awaiting=${awaiting.kind} matches=$matches")
         if (!matches) return@withLock // a chip of an earlier question
@@ -196,6 +197,7 @@ class FormFillConversation(
             FormChipAction.CONTINUE -> continueRound(fill)
             FormChipAction.BY_HAND -> finish(fill, byHand = true)
             FormChipAction.CONTINUE_READING -> continueReading(fill)
+            FormChipAction.OPEN_MODELS -> Unit
         }
     }
 
@@ -330,6 +332,16 @@ class FormFillConversation(
         val next = fill.copy(
             localeTag = understanding.locale.toLanguageTag(), conversationId = conversation, updatedAt = clock(),
         )
+        // Said once, after the reading that had to do without the search model; the fill goes on regardless.
+        if (understanding.searchModelMissing) {
+            post(
+                fill.documentId,
+                FormMessage(
+                    FormMessageKind.STATUS, FormText.SEARCH_MODEL_MISSING,
+                    chips = listOf(FormChip(FormChipAction.OPEN_MODELS, labelCode = FormChipLabel.DOWNLOAD)),
+                ),
+            )
+        }
         askSubject(next, understanding.subjectRanking, understanding.fields.size, pages.size)
     }
 

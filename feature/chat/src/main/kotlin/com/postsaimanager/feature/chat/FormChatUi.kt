@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.FormChip
+import com.postsaimanager.core.model.FormChipAction
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.FormMessage
 import com.postsaimanager.core.model.FormMessageKind
@@ -65,12 +66,22 @@ internal fun FormMessageItem(
     onChip: (FormChip, String) -> Unit,
     onShowOnPage: (FormField) -> Unit,
     onCopy: (String) -> Unit,
+    onOpenModels: () -> Unit = {},
 ) {
     val resources = rememberResources()
     val line = FormChatTexts.line(resources, form, message.text)
+    // A chip that opens a screen is not an answer: it never reaches the conversation.
+    val chipTapped: (FormChip, String) -> Unit = { chip, shown ->
+        if (chip.action == FormChipAction.OPEN_MODELS) onOpenModels() else onChip(chip, shown)
+    }
     when (form.kind) {
-        FormMessageKind.STATUS -> FormStatusLine(line, working = form.text == FormText.UNDERSTANDING && form.args.firstOrNull() != form.args.getOrNull(1))
-        FormMessageKind.QUESTION -> FormQuestion(line, form.chips, chipsEnabled, onChip)
+        FormMessageKind.STATUS ->
+            if (form.chips.isEmpty()) {
+                FormStatusLine(line, working = form.text == FormText.UNDERSTANDING && form.args.firstOrNull() != form.args.getOrNull(1))
+            } else {
+                FormQuestion(line, form.chips, enabled = true, onChip = chipTapped)
+            }
+        FormMessageKind.QUESTION -> FormQuestion(line, form.chips, chipsEnabled, chipTapped)
         FormMessageKind.CARD -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (line.isNotBlank()) AssistantBubble(line)
             if (fillCard != null) {

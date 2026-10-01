@@ -18,7 +18,8 @@ data class KeyDecision(val dataKey: String?, val confidence: Float, val kind: Fo
  *
  * The best key is taken when its score is above the threshold and above "none"; its confidence comes from its margin over the
  * runner-up. A signature, a date or a yes/no key then refines the field's kind. The model only chooses among the registry's keys:
- * it never writes a value. Without an embedding model the model scores every key per field instead ([classifyByModel]).
+ * it never writes a value. Without an embedding model the model shortlists instead ([classifyByModel]): it scores the key groups
+ * ([FormKeyGroups]) per field, then only the keys of the best one or two groups (about 8 + 6 scores per field, none when no group fits).
  */
 class ClassifyFields(
     private val scorer: FormScorer,
@@ -29,6 +30,10 @@ class ClassifyFields(
 ) {
 
     private var keyVectors: List<FloatArray>? = null
+
+    /** Whether the last [classify] found no embedding model on the device (so it took the slower fallback). */
+    var searchModelMissing: Boolean = false
+        private set
 
     /** One decision per candidate, in order. Throws [FormScoringException] when the engine fails. */
     suspend fun classify(candidates: List<FieldCandidate>): List<KeyDecision> {
@@ -42,6 +47,7 @@ class ClassifyFields(
         if (candidates.isEmpty() || keys.isEmpty()) return none
         val ready = embedder.checkReady()
         trace.event("classify_embeddings", "ready=$ready")
+        searchModelMissing = !ready
         val vectors = (if (ready) keyVectors ?: embedKeys() else null) ?: return classifyByModel(candidates)
         val labelVectors = (embedder.embedAll(candidates.map { it.labelText }) as? PamResult.Success)?.data
             ?.takeIf { it.size == candidates.size } ?: return classifyByModel(candidates)
@@ -60,21 +66,32 @@ class ClassifyFields(
     }
 
     /**
-     * The fallback without an embedding model: the model scores every key for each field, the field's label read once as the shared
-     * prefix of that field's questions (so a field costs its label once plus one short question per key). At most
+     * The fallback without an embedding model: a two-stage shortlist. The model scores the key groups for each field, then only the
+     * keys of the best one or two groups; the field's label is read once as the shared prefix of all its questions. At most
      * [FormScoringProfile.maxFallbackClassifyScores] scores are spent, over the fields in order; the rest get no key.
      */
     private suspend fun classifyByModel(candidates: List<FieldCandidate>): List<KeyDecision> {
-        val all = keys.indices.toList()
-        val perField = all.size + 1
-        val scored = (profile.maxFallbackClassifyScores / perField).coerceAtMost(candidates.size)
-        return candidates.mapIndexed { i, c ->
-            if (i >= scored) return@mapIndexed KeyDecision(null, 0f, c.kind)
+        val groups = FormKeyGroups.ALL.map { g -> g to g.keyIds.mapNotNull { id -> keys.indexOfFirst { it.id == id }.takeIf { it >= 0 } } }
+            .filter { it.second.isNotEmpty() }
+        var spent = 0
+        return candidates.map { c ->
+            if (groups.isEmpty() || spent + groups.size + 1 > profile.maxFallbackClassifyScores) return@map KeyDecision(null, 0f, c.kind)
             val where = c.section?.let { " (in the part «$it»)" }.orEmpty()
             val shared = "Field «${c.labelText}»$where."
-            val questions = all.map { "Does the field above ask for ${keys[it].description}? Answer:" } +
+            // Stage 1: which families of details does the field ask for (the label is read once for all of them).
+            val groupScores = scorer.yesNo(groups.map { "Does the field above ask for ${it.first.description}? Answer:" }, shared)
+            spent += groups.size
+            val order = groups.indices.sortedByDescending { groupScores[it] }
+            val best = order.first()
+            if (groupScores[best] <= profile.keyThreshold) return@map KeyDecision(null, 0f, c.kind)
+            // Stage 2: only the keys of the best group, and of the runner-up when it is nearly as likely.
+            val shortlist = order.take(FALLBACK_GROUPS)
+                .filter { it == best || groupScores[it] > profile.keyThreshold && groupScores[best] - groupScores[it] < GROUP_TIE_MARGIN }
+                .flatMap { groups[it].second }.take(FALLBACK_MAX_KEYS)
+            val questions = shortlist.map { "Does the field above ask for ${keys[it].description}? Answer:" } +
                 "Does the field above ask for something other than the details listed? Answer:"
-            decide(c, all, scorer.yesNo(questions, shared))
+            spent += questions.size
+            decide(c, shortlist, scorer.yesNo(questions, shared))
         }
     }
 
@@ -109,5 +126,14 @@ class ClassifyFields(
         key.valueKind == FormValueKind.DATE && kind != FormFieldKind.CHECKBOX -> FormFieldKind.DATE
         key.valueKind == FormValueKind.BOOLEAN && kind == FormFieldKind.TEXT -> FormFieldKind.CHECKBOX
         else -> kind
+    }
+
+    private companion object {
+        /** The fallback keeps the keys of at most this many groups, and at most this many keys, per field. */
+        const val FALLBACK_GROUPS = 2
+        const val FALLBACK_MAX_KEYS = 8
+
+        /** A runner-up group joins the shortlist when its score is within this of the best group's. */
+        const val GROUP_TIE_MARGIN = 1.0
     }
 }

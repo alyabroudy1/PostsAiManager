@@ -97,11 +97,14 @@ enum class FormText {
 
     /** Reading the form was stopped; a chip continues it from the last finished step. */
     READING_PAUSED,
+
+    /** The search (embedding) model is not on the device, so reading the form is slower; a chip opens the model download. */
+    SEARCH_MODEL_MISSING,
 }
 
 /** The labels of chips that are not data (a name, an option, a value are shown as they are). */
 @Serializable
-enum class FormChipLabel { YES, NO, SKIP, CONTINUE, BY_HAND, SOMEONE_ELSE, ME_SETUP, CONTINUE_READING }
+enum class FormChipLabel { YES, NO, SKIP, CONTINUE, BY_HAND, SOMEONE_ELSE, ME_SETUP, CONTINUE_READING, DOWNLOAD }
 
 @Serializable
 enum class FormChipAction {
@@ -118,6 +121,9 @@ enum class FormChipAction {
 
     /** Continue reading a form whose reading was stopped. */
     CONTINUE_READING,
+
+    /** Open the model download screen. Handled by the UI; never an answer to a question. */
+    OPEN_MODELS,
 }
 
 /** One tappable answer. [label] is shown verbatim; when null, [labelCode] is rendered from resources. */

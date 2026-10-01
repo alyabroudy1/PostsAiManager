@@ -407,6 +407,7 @@ fun ChatScreen(
                                 onChip = viewModel::onFormChip,
                                 onShowOnPage = viewModel::openFieldPreview,
                                 onCopy = ::copyToClipboard,
+                                onOpenModels = onManageModelsClick,
                             )
                             return@items
                         }

@@ -60,6 +60,8 @@ data class FormUnderstanding(
     val subjectRanking: List<SubjectSuggestion>,
     val locale: Locale,
     val scoresSpent: Int,
+    /** The embedding model is not on the device, so the keys were found by the slower shortlist. */
+    val searchModelMissing: Boolean = false,
 )
 
 /**
@@ -124,10 +126,13 @@ class UnderstandFormUseCase(
         trace.event("confirm", "found=${found.size} kept=${candidates.size} strong=${candidates.count { it.strong }}")
         if (finished < FormStep.CONFIRM.ordinal) checkpoint(FormStep.CONFIRM, fieldsOf(request, candidates, null, null))
         step(FormStep.CONFIRM)
+        var searchModelMissing = false
         val keys = if (finished >= FormStep.CLASSIFY.ordinal) {
             resume!!.fields.map { KeyDecision(it.dataKey, it.confidence, it.kind) }
         } else {
-            ClassifyFields(scorer, embedder, profile, trace = trace).classify(candidates)
+            ClassifyFields(scorer, embedder, profile, trace = trace).let { classifier ->
+                classifier.classify(candidates).also { searchModelMissing = classifier.searchModelMissing }
+            }
         }
         if (finished < FormStep.CLASSIFY.ordinal) checkpoint(FormStep.CLASSIFY, fieldsOf(request, candidates, keys, null))
         step(FormStep.CLASSIFY)
@@ -146,7 +151,7 @@ class UnderstandFormUseCase(
         step(FormStep.ROLES)
         val ranking = SuggestSubject(scorer, profile).suggest(intro, request.subjects, request.today)
         step(FormStep.SUBJECT)
-        return FormUnderstanding(fields, roles.sections, ranking, FormLocales.detect(request.pages, request.fallbackLocale), scorer.scoreCount)
+        return FormUnderstanding(fields, roles.sections, ranking, FormLocales.detect(request.pages, request.fallbackLocale), scorer.scoreCount, searchModelMissing)
     }
 
     private fun fieldsOf(request: UnderstandFormRequest, candidates: List<FieldCandidate>, keys: List<KeyDecision>?, roles: List<FormRole?>?) =
