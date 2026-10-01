@@ -429,7 +429,7 @@ class DocumentReprocessPipelineTest {
         coEvery { documentDao.getById("doc-1") } returns v14Doc.copy(extractionType = null, isUserTitle = false, titleCode = "scanned_pages")
         coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(newReading())
         pipeline.processDocument("doc-1", reprocess = false)
-        coVerify { entityProfileLinker.process("doc-1", any(), false) }
+        coVerify { entityProfileLinker.process("doc-1", any()) }
     }
 
     @Test

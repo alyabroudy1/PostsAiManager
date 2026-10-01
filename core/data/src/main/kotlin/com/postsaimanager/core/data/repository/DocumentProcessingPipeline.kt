@@ -433,15 +433,14 @@ class DocumentProcessingPipeline @Inject constructor(
                 val linkStarted = System.nanoTime()
                 if (understanding is PamResult.Success && usedModel && !reprocess) {
                     runCatching {
-                        // No proposals: the pipeline no longer raises "is this you?" questions (the silent identity of a later phase
-                        // replaces them). Organisations are still linked and created automatically.
-                        entityProfileLinker.process(documentId, understanding.data, propose = false)
+                        // Organisations are linked and created automatically; the pipeline raises no "is this you?" questions.
+                        entityProfileLinker.process(documentId, understanding.data)
                     }.onSuccess { outcome ->
                         Log.i(TIMING_TAG, "$documentId profile linking ms=${msSince(linkStarted)}")
                         Log.i(
                             TAG,
                             "profiles for $documentId linked=${outcome.linked} " +
-                                "created=${outcome.created} proposals=${outcome.proposals.size} " +
+                                "created=${outcome.created} " +
                                 "dismissed=${outcome.ignoredAsDismissed}",
                         )
                     }.onFailure { e ->

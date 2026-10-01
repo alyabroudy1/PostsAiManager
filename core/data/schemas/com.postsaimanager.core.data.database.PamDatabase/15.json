@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 15,
-    "identityHash": "869c62c66e0e16c169867a204b288503",
+    "identityHash": "b942e2fb13fb3248f24936e98341b5f4",
     "entities": [
       {
         "tableName": "documents",
@@ -1567,121 +1567,6 @@
         ]
       },
       {
-        "tableName": "entity_proposals",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `documentId` TEXT NOT NULL, `entityName` TEXT NOT NULL, `entityNameKey` TEXT NOT NULL, `kind` TEXT NOT NULL, `entityRole` TEXT NOT NULL, `relation` TEXT NOT NULL, `role` TEXT NOT NULL, `profileType` TEXT NOT NULL, `organization` TEXT, `existingProfileId` TEXT, `confidence` REAL NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`documentId`) REFERENCES `documents`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
-        "fields": [
-          {
-            "fieldPath": "id",
-            "columnName": "id",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "documentId",
-            "columnName": "documentId",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "entityName",
-            "columnName": "entityName",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "entityNameKey",
-            "columnName": "entityNameKey",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "kind",
-            "columnName": "kind",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "entityRole",
-            "columnName": "entityRole",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "relation",
-            "columnName": "relation",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "role",
-            "columnName": "role",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "profileType",
-            "columnName": "profileType",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "organization",
-            "columnName": "organization",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
-            "fieldPath": "existingProfileId",
-            "columnName": "existingProfileId",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
-            "fieldPath": "confidence",
-            "columnName": "confidence",
-            "affinity": "REAL",
-            "notNull": true
-          },
-          {
-            "fieldPath": "createdAt",
-            "columnName": "createdAt",
-            "affinity": "INTEGER",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": false,
-          "columnNames": [
-            "id"
-          ]
-        },
-        "indices": [
-          {
-            "name": "index_entity_proposals_documentId_entityNameKey",
-            "unique": true,
-            "columnNames": [
-              "documentId",
-              "entityNameKey"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_entity_proposals_documentId_entityNameKey` ON `${TABLE_NAME}` (`documentId`, `entityNameKey`)"
-          }
-        ],
-        "foreignKeys": [
-          {
-            "table": "documents",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "documentId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          }
-        ]
-      },
-      {
         "tableName": "message_sources",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `messageId` TEXT NOT NULL, `documentId` TEXT NOT NULL, `pageNumber` INTEGER, `chunkId` TEXT NOT NULL, FOREIGN KEY(`messageId`) REFERENCES `messages`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
@@ -1751,7 +1636,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '869c62c66e0e16c169867a204b288503')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b942e2fb13fb3248f24936e98341b5f4')"
     ]
   }
 }

@@ -425,11 +425,12 @@ object PamMigrations {
      * - `documents.extractionType` now holds a family id: the legacy type ids are rewritten and their
      *   topics filled by [LegacyTypeSql] from `LegacyTypes`, so old documents render before a re-read.
      *
-     * TODO(P4): drop `entity_proposals` here (v15 is unreleased, so the drop is folded into this
-     * migration). It stays until P4 because its users live in the pipeline files another workstream owns.
+     * - `entity_proposals` is dropped (the "is this you?" proposals are gone; v15 is unreleased, so the drop is part of this
+     *   migration). `dismissed_entities` stays: it keeps a deleted machine-made profile from coming back.
      */
     val MIGRATION_14_15 = object : Migration(14, 15) {
         override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("DROP TABLE IF EXISTS `entity_proposals`")
             db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `reviewState` TEXT NOT NULL DEFAULT 'UNREVIEWED'")
             db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `alternatives` TEXT")
             db.execSQL("UPDATE `extracted_data` SET `reviewState` = 'CONFIRMED' WHERE `isConfirmed` = 1")

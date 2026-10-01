@@ -4,16 +4,12 @@ import com.postsaimanager.core.data.repository.ConversationRepositoryImpl
 import com.postsaimanager.core.data.repository.DocumentChunkRepositoryImpl
 import com.postsaimanager.core.data.repository.DocumentProcessingPipeline
 import com.postsaimanager.core.data.repository.DocumentRepositoryImpl
-import com.postsaimanager.core.data.repository.EntityProfileLinker
-import com.postsaimanager.core.data.repository.ProfileMatcher
 import com.postsaimanager.core.data.repository.ProfileRepositoryImpl
 import com.postsaimanager.core.data.repository.TimelineRepositoryImpl
 import com.postsaimanager.core.data.repository.UserPreferencesRepositoryImpl
 import com.postsaimanager.core.data.util.PdfGenerator
 import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.DocumentProcessor
-import com.postsaimanager.core.domain.document.EntityProposalService
-import com.postsaimanager.core.domain.document.ProfileMatchingService
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.repository.DocumentChunkRepository
 import com.postsaimanager.core.domain.repository.DocumentRepository
@@ -65,13 +61,5 @@ abstract class DataModule {
 
     @Binds
     @Singleton
-    abstract fun bindProfileMatchingService(impl: ProfileMatcher): ProfileMatchingService
-
-    @Binds
-    @Singleton
     abstract fun bindDocumentExporter(impl: PdfGenerator): DocumentExporter
-
-    @Binds
-    @Singleton
-    abstract fun bindEntityProposalService(impl: EntityProfileLinker): EntityProposalService
 }

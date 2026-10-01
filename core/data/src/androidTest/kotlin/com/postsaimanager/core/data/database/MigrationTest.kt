@@ -720,6 +720,7 @@ class MigrationTest {
      */
     @Test
     fun migrate14To15_backfillsReviewStateSourcesAndTheLegacyTypeMapping() {
+        var tablesBefore = emptySet<String>()
         helper.createDatabase(TEST_DB, 14).apply {
             val legacy = listOf(
                 "bill", "reminder_dunning", "authority_tax", "health", "insurance_contract",
@@ -763,10 +764,37 @@ class MigrationTest {
             field("edited", 1, "USER", 0, value = "changed")
             field("ignored", 0, "MACHINE", 1)
             field("ignored-edited", 1, "USER", 1)
+            // A pending "is this you?" proposal and a dismissal: the proposal goes with its table, the dismissal stays.
+            execSQL(
+                """
+                INSERT INTO entity_proposals
+                    (id, documentId, entityName, entityNameKey, kind, entityRole, relation, role, profileType,
+                     organization, existingProfileId, confidence, createdAt)
+                VALUES ('prop-1', 'family', 'Sam', 'sam', 'PERSON', 'RECIPIENT', '', 'RECEIVER', 'USER_SELF',
+                        NULL, NULL, 0.9, 1)
+                """.trimIndent(),
+            )
+            execSQL("INSERT INTO dismissed_entities (documentId, entityName, dismissedAt) VALUES ('family', 'layla', 1)")
+            tablesBefore = query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'room_master_table' AND name != 'android_metadata'")
+                .use { c -> generateSequence { if (c.moveToNext()) c.getString(0) else null }.toSet() }
             close()
         }
 
         val db = helper.runMigrationsAndValidate(TEST_DB, 15, true, PamMigrations.MIGRATION_14_15)
+
+        // The proposals table is gone, every other table is still there, and the dismissal and every field survived.
+        val tablesAfter = db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'room_master_table' AND name != 'android_metadata'")
+            .use { c -> generateSequence { if (c.moveToNext()) c.getString(0) else null }.toSet() }
+        assertTrue("entity_proposals was in the v14 schema", "entity_proposals" in tablesBefore)
+        assertEquals("only entity_proposals is dropped", tablesBefore - "entity_proposals", tablesAfter)
+        db.query("SELECT COUNT(*) FROM dismissed_entities WHERE documentId = 'family' AND entityName = 'layla'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("a dismissal survives", 1, c.getInt(0))
+        }
+        db.query("SELECT COUNT(*) FROM extracted_data").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("no field is lost", 6, c.getInt(0))
+        }
 
         fun reviewState(id: String) =
             db.query("SELECT reviewState, alternatives FROM extracted_data WHERE id = '$id'").use { c ->
