@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.model.Document
 import kotlinx.coroutines.flow.Flow
@@ -38,16 +39,25 @@ class ObserveSuggestedQuestionsUseCase @Inject constructor(
     companion object {
         private const val MAX_QUESTIONS = 3
 
-        /** The questions of the newest document that has some and whose type is actionable; empty when none. */
-        fun pick(documents: List<Document>, schema: ExtractionSchema = ExtractionSchema.DEFAULT): List<String> =
+        private val SCHEMA = ExtractionSchema.V2
+
+        /**
+         * The questions of the newest document that has some, that the all-documents chat may show
+         * ([ObserveChatVisibleDocumentsUseCase.isChatVisible], the one privacy rule) and whose family is actionable
+         * (a legacy type id counts as the family it stands for, [LegacyTypes]); empty when none.
+         */
+        fun pick(documents: List<Document>): List<String> =
             documents
-                .filter { !it.isTrashed }
+                .filter(ObserveChatVisibleDocumentsUseCase::isChatVisible)
                 .sortedByDescending { it.createdAt }
-                .firstOrNull { doc ->
-                    schema.family(doc.extractionType)?.actionable == true && doc.suggestedQuestions.clean().isNotEmpty()
-                }
+                .firstOrNull { doc -> isActionable(doc.extractionType) && doc.suggestedQuestions.clean().isNotEmpty() }
                 ?.suggestedQuestions?.clean()
                 .orEmpty()
+
+        private fun isActionable(typeId: String?): Boolean {
+            val family = SCHEMA.family(typeId) ?: LegacyTypes.of(typeId)?.let { SCHEMA.family(it.family) }
+            return family?.actionable == true
+        }
 
         private fun List<String>.clean(): List<String> =
             map { it.trim() }.filter { it.isNotEmpty() }.distinct().take(MAX_QUESTIONS)

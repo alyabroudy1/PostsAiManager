@@ -109,6 +109,23 @@ class ChatSuggestedQuestionsTest {
     }
 
     @Test
+    fun `the all-documents chat never surfaces the questions of a sensitive topic, whatever the family`() = runTest {
+        documents.seed(
+            doc("h", "official_letter", listOf("What is my diagnosis?"), createdAt = 9).copy(topics = listOf("health")),
+            doc("ok", "bill", qs, createdAt = 1),
+        )
+
+        assertThat(source.forAllDocuments().first()).isEqualTo(qs)
+    }
+
+    @Test
+    fun `a migrated document with a family id gets starter questions too`() = runTest {
+        documents.seed(doc("m", "invoice_bill", qs, createdAt = 1))
+
+        assertThat(source.forAllDocuments().first()).isEqualTo(qs)
+    }
+
+    @Test
     fun `the all-documents chat skips a document without questions and a trashed one`() = runTest {
         documents.seed(
             doc("empty", "bill", emptyList(), createdAt = 9),
