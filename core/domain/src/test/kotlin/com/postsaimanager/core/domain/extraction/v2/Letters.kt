@@ -1003,14 +1003,29 @@ internal object Letters {
     val withRoles: List<Letter> = listOf(n1, n2, n3, n4, n5, n6, n7, n8, n9, n10)
 }
 
-/** Shorthand for the schema's types. */
+/**
+ * Shorthand for the families the test letters stand for. The names are the kinds the letters were written as (a bill, a reminder, a
+ * tax letter...); each maps to the family and the topics a document of that kind has today (`LegacyTypes`).
+ */
+internal val Letter.topics: List<String> get() = LETTER_TOPICS[id].orEmpty()
+
+/** The topics a model would find in each letter (what it is about, besides its family); a letter not listed is about none of them. */
+private val LETTER_TOPICS = mapOf(
+    "N2-kfz-verlaengerung-2p" to listOf("insurance"),
+    "N3-schule-familie-2p" to listOf("school_education"),
+    "N4-zhd-firma-1p" to listOf("insurance"),
+    "N10-kinderarzt-termin-1p" to listOf("health"),
+    "tax-long-7p" to listOf("tax", "government"),
+    "degraded-3p" to listOf("insurance"),
+)
+
 internal object DocTypes {
-    val BILL = ExtractionSchema.BILL
-    val REMINDER = ExtractionSchema.REMINDER_DUNNING
-    val TAX = ExtractionSchema.AUTHORITY_TAX
-    val HEALTH = ExtractionSchema.HEALTH
-    val INSURANCE = ExtractionSchema.INSURANCE_CONTRACT
-    val SCHOOL = ExtractionSchema.SCHOOL
+    val BILL = ExtractionSchema.INVOICE_BILL
+    val REMINDER = ExtractionSchema.INVOICE_BILL
+    val TAX = ExtractionSchema.OFFICIAL_LETTER
+    val HEALTH = ExtractionSchema.MEDICAL
+    val INSURANCE = ExtractionSchema.CONTRACT_POLICY
+    val SCHOOL = ExtractionSchema.OFFICIAL_LETTER
     val RECEIPT = ExtractionSchema.RECEIPT
-    val INFO = ExtractionSchema.INFO_NO_ACTION
+    val INFO = ExtractionSchema.OFFICIAL_LETTER
 }

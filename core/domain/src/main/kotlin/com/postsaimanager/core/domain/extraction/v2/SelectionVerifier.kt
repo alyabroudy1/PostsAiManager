@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.v2
 
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.FieldAlternative
 import com.postsaimanager.core.domain.extraction.candidates.AmountConsistency
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
@@ -56,15 +57,18 @@ class SelectionVerifier(
         fun execute(): ExtractionV2Result {
             val type = schema.family(raw.type)
             if (type == null) rejections += "type '${raw.type}' is not in the schema"
-            val docType = type ?: schema.family("other")
+            val docType = type ?: schema.abstain
 
             // The letter date the model chose anchors the other dates when code could not find one.
             if (anchor == null && docType != null) anchor = anchorFromModel(docType)
 
+            // The topics the schema knows, best first: the best two add their slots to the family's.
+            val topics = raw.topics.mapNotNull { schema.topic(it)?.id }.distinct()
             val slots = LinkedHashMap<SlotKey, SlotValue>()
             val lists = LinkedHashMap<SlotKey, List<SlotValue>>()
             if (docType != null) {
-                for (slot in docType.slots) {
+                val allowed = schema.slotsFor(docType, topics)
+                for (slot in allowed) {
                     val answer = raw.slots[slot.json] ?: continue
                     if (slot.kind == SlotKind.REFERENCE_LIST) {
                         val values = answer.ids.mapNotNull { id ->
@@ -72,10 +76,12 @@ class SelectionVerifier(
                         }
                         if (values.isNotEmpty()) lists[slot] = values.map { withScoreNote(it, answer.scoreNote) }
                     } else {
-                        slotValue(slot, answer)?.let { slots[slot] = withScoreNote(withZoneNote(it, answer.zoneNote), answer.scoreNote) }
+                        slotValue(slot, answer)?.let {
+                            slots[slot] = withAlternatives(withScoreNote(withZoneNote(it, answer.zoneNote), answer.scoreNote), answer.alternatives)
+                        }
                     }
                 }
-                raw.slots.keys.filter { key -> docType.slots.none { it.json == key } }.forEach {
+                raw.slots.keys.filter { key -> allowed.none { it.json == key } }.forEach {
                     rejections += "slot '$it' does not belong to type ${docType.id}"
                 }
             }
@@ -95,6 +101,10 @@ class SelectionVerifier(
                 freeText = freeText,
                 extras = extras,
                 letterDate = anchor,
+                addresses = raw.addresses,
+                senderAddressAlternatives = raw.senderAddressAlternatives,
+                topics = topics,
+                layoutTemplate = raw.layoutTemplate,
                 diagnostics = Diagnostics(
                     candidateCount = ctx.candidates.candidates.size,
                     offeredCount = ctx.offered.size,
@@ -348,7 +358,7 @@ class SelectionVerifier(
                     else -> null
                 }
                 var value = resolveName(rp.id.trim(), rp.confidence, expected, role.name)?.let { withModelName(it, rp.name, role.name) } ?: continue
-                value = withScoreNote(withZoneNote(value, rp.zoneNote), rp.scoreNote)
+                value = withAlternatives(withScoreNote(withZoneNote(value, rp.zoneNote), rp.scoreNote), rp.alternatives)
                 // A second SENDER is the model contradicting itself. The AI is not overruled: the value is
                 // kept, capped below the visibility threshold (hidden by default) and noted, never dropped.
                 // The first SENDER stays the sender (Parties.sender).
@@ -383,6 +393,22 @@ class SelectionVerifier(
         /** The raw numbers a scoring interpreter's confidence rests on, kept in the value's notes for diagnostics; never a cap. */
         private fun withScoreNote(value: SlotValue, note: String?): SlotValue =
             if (note == null) value else value.copy(notes = value.notes + note)
+
+        /**
+         * The runner-up readings of a scored question, as the Edit sheet's chips: each an offered candidate (an id the model's scores
+         * named; one the table does not hold is dropped), best first, without a repeat of the chosen value or of another chip, at most
+         * [MAX_ALTERNATIVES]. Never a cap: they are what else the letter offered, not claims.
+         */
+        private fun withAlternatives(value: SlotValue, runnersUp: List<RawAlternative>): SlotValue {
+            if (runnersUp.isEmpty()) return value
+            val seen = mutableSetOf(QuoteVerifier.fold(value.normalized), QuoteVerifier.fold(value.value))
+            val chips = runnersUp.mapNotNull { alt ->
+                val c = ctx.offered.get(alt.id.trim()) ?: return@mapNotNull null
+                if (!seen.add(QuoteVerifier.fold(c.normalized)) || !seen.add(QuoteVerifier.fold(c.raw.trim()))) return@mapNotNull null
+                FieldAlternative(value = c.raw.trim(), normalized = c.normalized, score = alt.score.toFloat(), page = c.page, bbox = c.bbox)
+            }.take(MAX_ALTERNATIVES)
+            return if (chips.isEmpty()) value else value.copy(alternatives = chips)
+        }
 
         /**
          * The candidate keeps the whole printed line ("Herrn Max Mustermann"); the model gives the party's
@@ -589,5 +615,10 @@ class SelectionVerifier(
 
         private fun parseDate(normalized: String): LocalDate? =
             runCatching { LocalDate.parse(normalized.take(10)) }.getOrNull()
+    }
+
+    companion object {
+        /** The most runner-up readings kept for one value. */
+        const val MAX_ALTERNATIVES = 3
     }
 }

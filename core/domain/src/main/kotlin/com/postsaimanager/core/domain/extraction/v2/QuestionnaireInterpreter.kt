@@ -180,21 +180,16 @@ class QuestionnaireInterpreter(
         try {
             // Same session as [interpret]: the letter is not read again (only if the engine lost the state
             // in between, which the PromptSession implementation repairs by itself).
-            val other = if (request.documentTypeId == ExtractionSchema.OTHER.id) {
-                AnswerReader.line(askOrNull(QuestionnairePrompt.otherLabel()).orEmpty())
-            } else {
-                null
-            }
-            val title = AnswerReader.line(askOrNull(QuestionnairePrompt.title(request.documentTypeId)).orEmpty())
+            // No title and no name for an unlisted kind are asked: the title is composed from verified fields (TitleComposer).
             val subject = AnswerReader.line(askOrNull(QuestionnairePrompt.subjectLine()).orEmpty())
             val summary = AnswerReader.line(askOrNull(QuestionnairePrompt.summary()).orEmpty())
             val questions = AnswerReader.lines(askOrNull(QuestionnairePrompt.suggestedQuestions()).orEmpty())
-            if (title == null && subject == null && summary == null && questions.isEmpty()) {
+            if (subject == null && summary == null && questions.isEmpty()) {
                 return TextOutcome.Failed("the model wrote no text")
             }
             val text = RawText(
-                otherLabel = other?.take(TextGrammar.MAX_OTHER_CHARS),
-                title = title?.take(TextGrammar.MAX_TITLE_CHARS),
+                otherLabel = null,
+                title = null,
                 subject = subject?.take(TextGrammar.MAX_SUBJECT_CHARS),
                 summary = summary?.take(TextGrammar.MAX_SUMMARY_CHARS),
                 questions = questions.map { it.take(TextGrammar.MAX_QUESTION_CHARS) }.take(TextGrammar.MAX_QUESTIONS),

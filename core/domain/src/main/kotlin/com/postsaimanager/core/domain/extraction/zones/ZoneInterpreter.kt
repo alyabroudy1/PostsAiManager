@@ -334,7 +334,7 @@ class ZoneInterpreter(
         if (!bodyOpen) return TextOutcome.Failed("the letter was not read")
         consecutiveFailures = 0
         try {
-            val out = ZoneFreeText.write(request) { q ->
+            val out = ZoneFreeText.write { q ->
                 try {
                     ask("text:" + q.name.removePrefix("text:"), q.text, q)
                 } catch (e: Abort) {

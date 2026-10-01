@@ -62,6 +62,7 @@ class AiExtractionUseCase @Inject constructor(
      * @param stages [ExtractionV2Pipeline.Stages.FIRST] stops after what a person needs to see (type, parties, slots) when the
      *   interpreter is staged, leaving [DocumentUnderstanding.enrichment] for the second stage; [ExtractionV2Pipeline.Stages.SECOND]
      *   runs that second stage from its [ticket]. An interpreter that is not staged reads everything whatever [stages] says.
+     * @param forcedFamily a family a person chose ("Read again as ..."): the letter is read as this family instead of deciding one.
      */
     suspend operator fun invoke(
         blocks: List<OcrBlock>,
@@ -71,6 +72,7 @@ class AiExtractionUseCase @Inject constructor(
         traceContent: Boolean = false,
         stages: ExtractionV2Pipeline.Stages = ExtractionV2Pipeline.Stages.ALL,
         ticket: EnrichmentTicket? = null,
+        forcedFamily: String? = null,
     ): PamResult<DocumentUnderstanding> {
         if (blocks.isEmpty()) return PamResult.Success(DocumentUnderstanding())
 
@@ -85,6 +87,7 @@ class AiExtractionUseCase @Inject constructor(
 
         val result = pipeline.run(
             pages(blocks, pageBlockCounts), interpreter, window, pageAspect, traceContent = traceContent, stages = stages, ticket = ticket,
+            forcedFamily = forcedFamily,
         )
         val adapting = System.nanoTime()
         // What was chosen to read with, first in the trace: the strategy follows from the model's profile, and an

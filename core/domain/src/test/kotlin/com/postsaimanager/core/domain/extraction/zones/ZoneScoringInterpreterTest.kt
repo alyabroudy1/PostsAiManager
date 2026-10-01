@@ -39,9 +39,9 @@ class ZoneScoringInterpreterTest {
                 says("1.284,50 €", "the main amount")(c) ||
                 says("Musterfirma GmbH", "the sender")(c) ||
                 says("Erika Mustermann", "the addressee")(c) ||
-                c.contains("Is this document an invoice or bill")
+                c.contains("Is this document an invoice, a bill")
         }
-        assertThat(result.documentType?.id).isEqualTo("bill")
+        assertThat(result.documentType?.id).isEqualTo("invoice_bill")
         assertThat(result.slots.entries.first { it.key.json == "letter_date" }.value.normalized).isEqualTo("2026-09-28")
         assertThat(result.slots.entries.first { it.key.json == "total" }.value.normalized).isEqualTo("1284.50 EUR")
         assertThat(result.parties.sender?.name).isEqualTo("Musterfirma GmbH")
@@ -169,7 +169,7 @@ class ZoneScoringInterpreterTest {
     fun `the language is asked on its own and the extras are decided by score then named by a short ask`() {
         var named = 0
         val session = FakePromptSession().apply {
-            scorer = { c -> if (c.contains(ScoringDescriptions.EXTRA) || c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
+            scorer = { c -> if (c.contains(ScoringDescriptions.EXTRA) || c.contains("Is this document an invoice, a bill")) 5.0 else -5.0 }
             responder = { q, _ ->
                 when {
                     q.contains("BCP-47") -> "de"
@@ -197,7 +197,7 @@ class ZoneScoringInterpreterTest {
     @Test
     fun `a value the model says no to is not an extra and is not named`() {
         val session = FakePromptSession().apply {
-            scorer = { c -> if (c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
+            scorer = { c -> if (c.contains("Is this document an invoice, a bill")) 5.0 else -5.0 }
             responder = { q, _ -> if (q.contains("BCP-47")) "de" else "\"text\"" }
         }
         val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096), 4096) }
@@ -208,20 +208,20 @@ class ZoneScoringInterpreterTest {
     @Test
     fun `a failed language or naming ask leaves those out and does not fail the reading`() {
         val session = FakePromptSession().apply {
-            scorer = { c -> if (c.contains(ScoringDescriptions.EXTRA) || c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
+            scorer = { c -> if (c.contains(ScoringDescriptions.EXTRA) || c.contains("Is this document an invoice, a bill")) 5.0 else -5.0 }
             responder = { q, _ -> if (q.contains("BCP-47") || q.contains("What does the letter call this value?")) null else "\"text\"" }
         }
         val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096), 4096) }
         assertThat(result.language).isNull()
         assertThat(result.extras).isEmpty()
-        assertThat(result.documentType?.id).isEqualTo("bill")
+        assertThat(result.documentType?.id).isEqualTo("invoice_bill")
     }
 
     @Test
     fun `the extras are scored only among the candidates no slot or party took, and never the names`() {
         val yes = { c: String ->
             c.contains("the main amount") || c.contains("the date by which") || c.contains("the sender") || c.contains("the addressee") ||
-                c.contains("Is this document an invoice or bill")
+                c.contains("Is this document an invoice, a bill")
         }
         val session = FakePromptSession().apply {
             scorer = { c -> if (yes(c)) 5.0 else -5.0 }
@@ -244,7 +244,7 @@ class ZoneScoringInterpreterTest {
     fun `the extras threshold decides which scored values become extras`() {
         fun extras(threshold: Double): Int {
             val session = FakePromptSession().apply {
-                scorer = { c -> if (c.contains(ScoringDescriptions.EXTRA)) 2.0 else if (c.contains("Is this document an invoice or bill")) 5.0 else -5.0 }
+                scorer = { c -> if (c.contains(ScoringDescriptions.EXTRA)) 2.0 else if (c.contains("Is this document an invoice, a bill")) 5.0 else -5.0 }
                 responder = { q, _ -> if (q.contains("BCP-47")) "de" else if (q.contains("What does the letter call this value?")) "\"Gegenstand\"" else "\"text\"" }
             }
             return session.let { s ->

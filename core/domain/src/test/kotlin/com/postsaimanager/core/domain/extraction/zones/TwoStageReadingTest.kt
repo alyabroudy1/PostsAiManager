@@ -23,7 +23,7 @@ class TwoStageReadingTest {
     private fun session() = FakePromptSession().apply {
         scorer = { c ->
             when {
-                c.contains("Is this document an invoice or bill") -> 5.0
+                c.contains("Is this document an invoice, a bill") -> 5.0
                 c.contains("«28.09.2026»") && c.contains("the date of the letter itself") -> 5.0
                 c.contains("«1.284,50 €»") && c.contains("the main amount") -> 5.0
                 c.contains("«Musterfirma GmbH»") && c.contains("the sender") -> 5.0
@@ -36,7 +36,8 @@ class TwoStageReadingTest {
             when {
                 q.contains("BCP-47") -> "de"
                 q.contains("What does the letter call this value?") -> "\"Gegenstand\""
-                q.contains("title") || q.contains("TITLE") -> "\"Rechnung Musterfirma\""
+                // The summary writer is given the verified facts; a model that keeps to them writes a sentence the gate accepts.
+                q.contains("FACTS (verified") -> "\"Musterfirma GmbH verlangt 1.284,50 € von Erika Mustermann.\""
                 else -> "\"text\""
             }
         }
@@ -53,18 +54,23 @@ class TwoStageReadingTest {
     fun `the first stage reads what a person needs and leaves a ticket, writing nothing`() {
         val session = session()
         val first = run(ExtractionV2Pipeline.Stages.FIRST, session)
-        assertThat(first.documentType?.id).isEqualTo("bill")
+        assertThat(first.documentType?.id).isEqualTo("invoice_bill")
         assertThat(first.slots.keys.map { it.json }).containsAtLeast("letter_date", "total")
         assertThat(first.parties.sender?.name).isEqualTo("Musterfirma GmbH")
-        // Nothing is written yet: no language, no extras, no free text, and not one generated answer was asked.
+        // Nothing is written yet: no language, no extras, no free text, no summary, and not one generated answer was asked.
         assertThat(first.language).isNull()
         assertThat(first.extras).isEmpty()
-        assertThat(first.freeText.title).isNull()
+        assertThat(first.freeText.subject).isNull()
+        assertThat(first.summary).isNull()
         assertThat(session.asks).isEmpty()
-        // The ticket says what the second stage must not offer again.
+        // The title is composed from what the first stage knows (the family and the sender); the second stage adds the subject.
+        assertThat(first.composedTitle?.args).containsExactly("invoice_bill", "Musterfirma GmbH", "").inOrder()
+        // The ticket says what the second stage must not offer again, and the verified facts its summary rests on.
         val ticket = first.enrichment
         assertThat(ticket).isNotNull()
-        assertThat(ticket!!.typeId).isEqualTo("bill")
+        assertThat(ticket!!.typeId).isEqualTo("invoice_bill")
+        assertThat(ticket.facts).containsAtLeast("sender", "Musterfirma GmbH", "addressed_to", "Erika Mustermann")
+        assertThat(ticket.facts).containsKey("amount")
         val taken = (first.slots.values.mapNotNull { it.candidateId } + first.parties.all.mapNotNull { it.value.candidateId }).toSet()
         assertThat(ticket.takenIds).containsAtLeastElementsIn(taken)
         // The adapter carries it to what the data layer stores.
@@ -81,7 +87,11 @@ class TwoStageReadingTest {
         val second = run(ExtractionV2Pipeline.Stages.SECOND, later, ticket)
         assertThat(second.language).isEqualTo("de")
         assertThat(second.extras).isNotEmpty()
-        assertThat(second.freeText.title?.value).isEqualTo("Rechnung Musterfirma")
+        // The summary is the writer's: the model's sentences, accepted by the gate against the ticket's verified facts.
+        assertThat(second.summary?.origin).isEqualTo(com.postsaimanager.core.model.SummarySource.MODEL)
+        assertThat(second.summary?.text).contains("1.284,50")
+        // The title is composed again, with the sender from the ticket.
+        assertThat(second.composedTitle?.args?.take(2)).containsExactly("invoice_bill", "Musterfirma GmbH").inOrder()
         // The first stage's slots and parties are not repeated.
         assertThat(second.slots).isEmpty()
         assertThat(second.parties.all).isEmpty()
@@ -109,7 +119,8 @@ class TwoStageReadingTest {
         assertThat(first.firstStage()).isEqualTo(all.firstStage())
         assertThat(second.language).isEqualTo(all.language)
         assertThat(second.extras.map { it.label to it.value.candidateId }).isEqualTo(all.extras.map { it.label to it.value.candidateId })
-        assertThat(second.freeText.title?.value).isEqualTo(all.freeText.title?.value)
+        assertThat(second.composedTitle).isEqualTo(all.composedTitle)
+        assertThat(second.summary).isEqualTo(all.summary)
     }
 
     @Test
@@ -129,5 +140,19 @@ class TwoStageReadingTest {
         assertThat(second.language).isNull()
         assertThat(second.extras).isEmpty()
         assertThat(second.freeText.summary).isNull()
+        // Every ask failed, but a summary always exists: the template renders it from the verified facts of the ticket.
+        assertThat(second.summary?.origin).isEqualTo(com.postsaimanager.core.model.SummarySource.TEMPLATE)
+        assertThat(second.summary?.code).isEqualTo("template")
+        assertThat(second.summary?.args?.take(3)).containsExactly("invoice_bill", "Musterfirma GmbH", "Erika Mustermann").inOrder()
+        // The title is still composed, from the ticket.
+        assertThat(second.composedTitle?.args?.take(2)).containsExactly("invoice_bill", "Musterfirma GmbH").inOrder()
+    }
+
+    @Test
+    fun `a second stage that cannot open its writing session leaves the summary pending`() {
+        val first = run(ExtractionV2Pipeline.Stages.FIRST, session())
+        val noWriting = session().apply { failOpensAfter = 1 }
+        val second = run(ExtractionV2Pipeline.Stages.SECOND, noWriting, first.enrichment)
+        assertThat(second.summary).isNull()
     }
 }

@@ -6,6 +6,10 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
 import com.postsaimanager.core.domain.extraction.candidates.OcrText
 import com.postsaimanager.core.domain.extraction.layout.LayoutDescription
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
+import com.postsaimanager.core.domain.extraction.text.SummaryFacts
+import com.postsaimanager.core.domain.extraction.text.SummaryFactsReader
+import com.postsaimanager.core.domain.extraction.text.SummaryResult
+import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.OcrBlock
 
@@ -31,6 +35,7 @@ class ExtractionV2Pipeline(
      * @param direction whose document it is; narrows the types the interpreter can choose from (incoming until P3 stores it).
      * @param traceContent adds page 1's lines (zone, position, text) and the name candidates to the trace. Only for a document
      *   its owner listed for diagnostics (a synthetic test letter): the trace is otherwise structure only.
+     * @param forcedFamily a family a person chose: the first stage reads the letter as this one instead of deciding it.
      */
     suspend fun run(
         pages: List<List<OcrBlock>>,
@@ -41,6 +46,7 @@ class ExtractionV2Pipeline(
         traceContent: Boolean = false,
         stages: Stages = Stages.ALL,
         ticket: EnrichmentTicket? = null,
+        forcedFamily: String? = null,
     ): ExtractionV2Result {
         // Milliseconds per stage, as `t ...` lines of the trace (no letter text): the data layer logs them under one tag.
         val timings = mutableListOf<String>()
@@ -65,7 +71,7 @@ class ExtractionV2Pipeline(
         val total = if (description.isComplete) description.text.length else layout.describe().text.length
         lap("fitLayout")
 
-        val outcome = interpreter.interpret(InterpretationRequest(description.text, offered, layout, pageAspect, direction))
+        val outcome = interpreter.interpret(InterpretationRequest(description.text, offered, layout, pageAspect, direction, forcedFamily))
         lap("interpret (everything the model decides: sessions, scoring, decoding)")
         if (outcome is InterpretationOutcome.Failed) {
             return foundOnly(
@@ -82,19 +88,44 @@ class ExtractionV2Pipeline(
         var rawText: String? = null
         var textError: String? = null
         var ticket: EnrichmentTicket? = null
+        var summary: SummaryResult? = null
+        val pageTexts = pages.map { blocks -> blocks.joinToString("\n") { OcrText.normalizeChars(it.text) } }
+        fun context(rawText: String?, textError: String?) = VerificationContext(
+            candidates = candidates,
+            offered = offered,
+            pageTexts = pageTexts,
+            layoutCharsSent = description.text.length,
+            layoutCharsTotal = total,
+            pagesRead = description.pagesRead,
+            totalPages = description.totalPages,
+            prompt = outcome.prompt,
+            grammar = outcome.grammar,
+            rawAnswer = outcome.rawText,
+            rawText = rawText,
+            textError = textError,
+        )
         if (interpreter.staged) {
-            val first = EnrichmentTicket(raw.type, takenIds(raw), raw.established)
+            // The verified first reading is what the second stage's summary and title are built from (the facts), and what a ticket carries.
+            val firstReading = verifier.verify(raw, null, context(null, null))
+            val first = EnrichmentTicket(
+                typeId = raw.type, takenIds = takenIds(raw), established = raw.established, topics = firstReading.topics,
+                facts = SummaryFactsReader.of(firstReading).carried(),
+            )
             if (stages == Stages.FIRST) {
                 ticket = first
             } else {
-                val enriched = interpreter.enrich(enrichmentRequest(layout, offered, pageAspect, direction, first))
-                lap("enrich (language, extras, free text)")
+                val enriched = interpreter.enrich(enrichmentRequest(layout, offered, pageAspect, direction, first, pageTexts.joinToString("\n")))
+                lap("enrich (language, extras, summary, free text)")
                 when (enriched) {
                     is EnrichmentOutcome.Done -> {
-                        raw = raw.copy(language = enriched.enrichment.language ?: raw.language, extras = enriched.enrichment.extras)
+                        raw = raw.copy(
+                            language = enriched.enrichment.language ?: raw.language, extras = enriched.enrichment.extras,
+                            topics = raw.topics + enriched.enrichment.topics.orEmpty(),
+                        )
                         text = enriched.enrichment.text
                         rawText = enriched.enrichment.rawText
                         textError = enriched.enrichment.textError
+                        summary = enriched.enrichment.summary
                     }
                     is EnrichmentOutcome.Failed -> textError = enriched.reason
                 }
@@ -108,26 +139,12 @@ class ExtractionV2Pipeline(
             lap("writeText (language excluded: title, subject, summary, questions)")
         }
 
-        val verified = verifier.verify(
-            raw,
-            text,
-            VerificationContext(
-                candidates = candidates,
-                offered = offered,
-                pageTexts = pages.map { blocks -> blocks.joinToString("\n") { OcrText.normalizeChars(it.text) } },
-                layoutCharsSent = description.text.length,
-                layoutCharsTotal = total,
-                pagesRead = description.pagesRead,
-                totalPages = description.totalPages,
-                prompt = outcome.prompt,
-                grammar = outcome.grammar,
-                rawAnswer = outcome.rawText,
-                rawText = rawText,
-                textError = textError,
-            ),
-        )
+        val verified = verifier.verify(raw, text, context(rawText, textError))
         lap("verify")
-        return verified.copy(enrichment = ticket).withReading(
+        return verified.copy(
+            enrichment = ticket, summary = summary,
+            composedTitle = composeTitle(verified, verified.parties.sender?.name),
+        ).withReading(
             layoutTrace(pages, layout, candidates, offered, description, traceContent) + timings + interpreter.trace,
             interpreter.unread, pages.size,
         )
@@ -150,29 +167,46 @@ class ExtractionV2Pipeline(
         timings: MutableList<String>,
     ): ExtractionV2Result {
         val started = System.nanoTime()
-        val enriched = interpreter.enrich(enrichmentRequest(layout, offered, pageAspect, direction, ticket))
-        timings += "t enrich (language, extras, free text) ms=${(System.nanoTime() - started) / NANOS_PER_MS}"
+        val pageTexts = pages.map { blocks -> blocks.joinToString("\n") { OcrText.normalizeChars(it.text) } }
+        // A ticket rebuilt from the stored document knows the values its fields hold but not their candidate ids: what reads as one of
+        // them is as taken as an id the first stage listed.
+        val storedValues = ticket.takenValues.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        val takenByValue = if (storedValues.isEmpty()) emptyList() else candidates.candidates.filter { it.raw.trim() in storedValues || it.normalized in storedValues }.map { it.id }
+        val asked = if (takenByValue.isEmpty()) ticket else ticket.copy(takenIds = (ticket.takenIds + takenByValue).distinct())
+        val enriched = interpreter.enrich(enrichmentRequest(layout, offered, pageAspect, direction, asked, pageTexts.joinToString("\n")))
+        timings += "t enrich (language, extras, summary, free text) ms=${(System.nanoTime() - started) / NANOS_PER_MS}"
         val done = (enriched as? EnrichmentOutcome.Done)?.enrichment
         val raw = RawInterpretation(
-            type = ticket.typeId ?: ExtractionSchema.OTHER.id, language = done?.language, parties = emptyList(), slots = emptyMap(),
-            extras = done?.extras.orEmpty(),
+            type = ticket.typeId ?: ExtractionSchema.FREE_FORM.id, language = done?.language, parties = emptyList(), slots = emptyMap(),
+            extras = done?.extras.orEmpty(), topics = ticket.topics + done?.topics.orEmpty(),
         )
         val verified = verifier.verify(
             raw, done?.text,
             VerificationContext(
-                candidates = candidates, offered = offered,
-                pageTexts = pages.map { blocks -> blocks.joinToString("\n") { OcrText.normalizeChars(it.text) } },
+                candidates = candidates, offered = offered, pageTexts = pageTexts,
                 layoutCharsSent = 0, layoutCharsTotal = 0, pagesRead = pages.size, totalPages = pages.size,
                 rawText = done?.rawText, textError = done?.textError ?: (enriched as? EnrichmentOutcome.Failed)?.reason,
             ),
         )
         return verified.copy(
+            summary = done?.summary,
+            composedTitle = composeTitle(verified, ticket.facts[SummaryFacts.SENDER]),
             diagnostics = verified.diagnostics.copy(modelCalled = true, modelUsed = done != null, trace = timings + interpreter.trace),
         )
     }
 
-    private fun enrichmentRequest(layout: LetterLayout, offered: OfferedCandidates, pageAspect: Float?, direction: DocDirection, ticket: EnrichmentTicket) =
-        EnrichmentRequest(offered, layout, pageAspect, direction, ticket.takenIds.toSet(), ticket.typeId, ticket.established)
+    /** The title from the family, the sender and the verified subject line; null when there is no family (no model read the letter) or nothing to say. */
+    private fun composeTitle(result: ExtractionV2Result, sender: String?): TitleComposer.Composed? {
+        val family = result.documentType?.id ?: return null
+        return TitleComposer.compose(family, sender, result.freeText.subject?.value)
+    }
+
+    private fun enrichmentRequest(
+        layout: LetterLayout, offered: OfferedCandidates, pageAspect: Float?, direction: DocDirection, ticket: EnrichmentTicket, ocrText: String,
+    ) = EnrichmentRequest(
+        offered, layout, pageAspect, direction, ticket.takenIds.toSet(), ticket.typeId, ticket.established,
+        topics = ticket.topics, facts = ticket.facts, ocrText = ocrText,
+    )
 
     /** The candidate ids the reading's slots and parties took (before verification: the ids the model's scores chose). */
     private fun takenIds(raw: RawInterpretation): List<String> =

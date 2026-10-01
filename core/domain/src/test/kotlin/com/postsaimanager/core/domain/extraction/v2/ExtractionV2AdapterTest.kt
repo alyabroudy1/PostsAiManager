@@ -62,10 +62,15 @@ class ExtractionV2AdapterTest {
     @Test
     fun `the document type, language, title, summary and questions are carried`() {
         val u = understand(Letters.n1)
-        assertThat(u.documentType).isEqualTo("reminder_dunning")
+        assertThat(u.documentType).isEqualTo("invoice_bill")
         assertThat(u.documentTypeConfidence).isEqualTo(0.9f)
         assertThat(u.language).isEqualTo("de")
+        // The title is composed (a code and the family, sender and subject), never the model's; its plain text is the fallback.
         assertThat(u.title).contains("Nordlicht")
+        assertThat(u.titleCode).isEqualTo("composed")
+        assertThat(u.titleArgs[0]).isEqualTo("invoice_bill")
+        assertThat(u.titleArgs[1]).contains("Nordlicht")
+        assertThat(u.summarySource).isEqualTo(com.postsaimanager.core.model.SummarySource.MODEL)
         assertThat(u.summary).contains("64,98")
         assertThat(u.suggestedQuestions).hasSize(3)
         assertThat(u.modelUsed).isTrue()

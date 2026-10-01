@@ -26,7 +26,7 @@ class GrammarAcceptanceTest {
     private val cases: List<Case> by lazy {
         Letters.all.map { letter ->
             val prepared = Prepared(letter.pages)
-            Case(letter, prepared, GbnfMatcher(StructuredGrammar.build(prepared.offered, schema)), Oracle.structured(letter, prepared).json)
+            Case(letter, prepared, GbnfMatcher(StructuredGrammar.build(prepared.offered, schema)), Oracle.structured(letter, prepared, withTopics = false).json)
         }
     }
 

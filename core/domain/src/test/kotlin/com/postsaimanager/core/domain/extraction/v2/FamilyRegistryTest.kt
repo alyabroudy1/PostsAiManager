@@ -103,9 +103,16 @@ class FamilyRegistryTest {
     }
 
     @Test
-    fun `the legacy types are the only ones of the live schema and the legacy health type is sensitive`() {
-        assertThat(ExtractionSchema.DEFAULT.isSensitive("health", emptyList())).isTrue()
-        assertThat(ExtractionSchema.DEFAULT.family("bill")).isNotNull()
+    fun `the live schema holds the families only, so a legacy type id is none and the medical family is sensitive`() {
+        assertThat(ExtractionSchema.DEFAULT.isSensitive("medical", emptyList())).isTrue()
+        val familyIds = ExtractionSchema.DEFAULT.families.map { it.id }.toSet()
+        for (legacy in LegacyTypes.BY_TYPE.keys - familyIds) assertThat(ExtractionSchema.DEFAULT.family(legacy)).isNull()
+        assertThat(ExtractionSchema.DEFAULT.families.map { it.id }).containsExactlyElementsIn(schema.families.map { it.id })
+    }
+
+    @Test
+    fun `the abstain family is the one unscored family`() {
+        assertThat(ExtractionSchema.DEFAULT.abstain).isEqualTo(ExtractionSchema.FREE_FORM)
     }
 
     @Test

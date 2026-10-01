@@ -165,11 +165,11 @@ class ExtractionBenchmarkTest {
     }
 
     @Test
-    fun `N8 the information letter is typed as info_no_action`() = runTest {
+    fun `N8 the information letter is typed as an official letter`() = runTest {
         val letter = Letters.n8
         val prepared = Prepared(letter.pages)
         val result = pipeline.run(letter.pages, ScriptedInterpreter(Oracle.structured(letter, prepared).json, Oracle.text(letter)), 4096)
-        assertThat(result.documentType).isEqualTo(ExtractionSchema.INFO_NO_ACTION)
+        assertThat(result.documentType).isEqualTo(ExtractionSchema.OFFICIAL_LETTER)
     }
 
     @Test

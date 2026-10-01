@@ -4,10 +4,17 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
+import com.postsaimanager.core.domain.extraction.address.AddressLineLabeler
+import com.postsaimanager.core.domain.extraction.address.AddressReading
+import com.postsaimanager.core.domain.extraction.address.StructuredAddressReader
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
+import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
+import com.postsaimanager.core.domain.extraction.text.SummaryFacts
+import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.domain.extraction.v2.AnswerReader
 import com.postsaimanager.core.domain.extraction.v2.AskRecord
+import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner
 import com.postsaimanager.core.domain.extraction.v2.DocDirection
 import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.Enrichment
@@ -17,9 +24,15 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.InterpretationOutcome
 import com.postsaimanager.core.domain.extraction.v2.InterpretationRequest
 import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
+import com.postsaimanager.core.domain.extraction.v2.Parties
+import com.postsaimanager.core.domain.extraction.v2.Party
+import com.postsaimanager.core.domain.extraction.v2.PartyKind
+import com.postsaimanager.core.domain.extraction.v2.PartyRelation
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.Question
 import com.postsaimanager.core.domain.extraction.v2.QuestionnairePrompt
+import com.postsaimanager.core.domain.extraction.v2.QuoteVerifier
+import com.postsaimanager.core.domain.extraction.v2.RawAlternative
 import com.postsaimanager.core.domain.extraction.v2.RawExtra
 import com.postsaimanager.core.domain.extraction.v2.RawInterpretation
 import com.postsaimanager.core.domain.extraction.v2.RawParty
@@ -27,6 +40,8 @@ import com.postsaimanager.core.domain.extraction.v2.RawSlot
 import com.postsaimanager.core.domain.extraction.v2.Roles
 import com.postsaimanager.core.domain.extraction.v2.SlotKey
 import com.postsaimanager.core.domain.extraction.v2.SlotKind
+import com.postsaimanager.core.domain.extraction.v2.SlotOrigin
+import com.postsaimanager.core.domain.extraction.v2.SlotValue
 import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.extraction.v2.StructuredGrammar
 import com.postsaimanager.core.domain.extraction.v2.TextOutcome
@@ -53,12 +68,24 @@ import java.util.Locale
  * The confidence of a slot or party is derived from its scores ([ScoringProfile.confidence]): the winner's margin over
  * the runner-up and its own score, mapped to LOW, MEDIUM or HIGH by cut points that are data, fitted on recordings.
  *
+ * What a document is comes first: [FamilyClassifier] scores one batch ("Is this document <family>?" for every family, "Does this
+ * document concern <topic>?" for every topic) and the family is the argmax above the `family` threshold, else the abstain family; a
+ * family a person chose is read as it is. [ExtractionSchema.slotsFor] then names the slots (the family's and those of the best two
+ * topics). After the parties are settled, a family with a recipient block has its structured address read ([StructuredAddressReader]:
+ * the line labels are scored too, never generated). Every scored question also keeps its runner-up candidates, the alternatives the
+ * Edit sheet offers.
+ *
  * What needs writing is asked in the same open body session, each ask with its own small grammar: the letter's language
  * (BCP-47, one short ask), the naming of each extra ([extras]: which values no slot or party took is decided by score, the
- * words the letter prints next to it and an english key are written), and the free text ([ZoneFreeText]: title, subject
- * line, summary, suggested questions), which runs after the reading exactly as in the other interpreters. One combined
- * generation for language and extras was measured on the device first and a 0.8B model answered it with noise (it copied
- * the example, repeated its last entry, or answered "yes"), which is why the decision is a score and the writing is small.
+ * words the letter prints next to it and an english key are written), the subject line and the suggested questions
+ * ([ZoneFreeText]), and the summary ([SummaryWriter]: it is given the verified facts and writes one or two sentences, a gate checks
+ * them, a template stands in when it cannot). There is no title ask: the title is composed from verified fields. This runs after the
+ * reading, as the second stage. One combined generation for language and extras was measured on the device first and a 0.8B model
+ * answered it with noise (it copied the example, repeated its last entry, or answered "yes"), which is why the decision is a score and
+ * the writing is small.
+ *
+ * @param topicsInFirstStage whether the topic scores run with the family scores (+14 scores in the first stage); false moves them to the
+ *   second stage ([ModelProfile.topicsInFirstStage]), where they are stored but add no slots to a letter already read.
  */
 class ZoneScoringInterpreter(
     private val engine: AiEngine,
@@ -69,6 +96,8 @@ class ZoneScoringInterpreter(
     private val profile: ScoringProfile = ScoringProfile(),
     /** As [ZoneInterpreter]'s: a labelled, context-only glimpse of the zones just above and below the one asked about. */
     private val neighbourContext: Boolean = false,
+    private val topicsInFirstStage: Boolean = true,
+    private val addressReader: StructuredAddressReader = StructuredAddressReader(AddressLineLabeler(profile = profile), profile = profile),
 ) : DocumentInterpreter {
 
     override val maxAnswerTokens: Int = QuestionnairePrompt.QUESTION_RESERVE_TOKENS
@@ -146,14 +175,14 @@ class ZoneScoringInterpreter(
         templateScore = setup.match.score
         traceSetup(setup)
         return try {
-            InterpretationOutcome.Answered(read(setup, request.direction), transcriptText(), ZonePrompt.scoringSystem(setup.template), "")
+            InterpretationOutcome.Answered(read(setup, layout, request.direction, request.forcedFamily), transcriptText(), ZonePrompt.scoringSystem(setup.template), "")
         } catch (e: Abort) {
             session.close()
             InterpretationOutcome.Failed(e.reason, transcriptText().take(FAILED_RAW_CHARS), ZonePrompt.scoringSystem(setup.template), "")
         }
     }
 
-    private suspend fun read(setup: ZoneSetup, direction: DocDirection): RawInterpretation {
+    private suspend fun read(setup: ZoneSetup, layout: LetterLayout, direction: DocDirection, forcedFamily: String?): RawInterpretation {
         val plan = setup.plan
         val zoned = setup.zoned
         val system = ZonePrompt.scoringSystem(setup.template)
@@ -196,10 +225,11 @@ class ZoneScoringInterpreter(
         unread = zoned.coverage(zonesInPrefix, budget).takeIf { it.droppedLines > 0 }?.let { UnreadText(it.droppedLines, it.firstCutPage) }
         unread?.let { traceLines += "unread lines=${it.lines} firstCutPage=${it.firstCutPage} budgetChars=$budget" }
 
-        val type = scoreType(direction)
-        val docType = schema.type(type.first) ?: throw Abort("no document type scored")
+        val classification = classify(direction, forcedFamily)
+        val family = classification.family
+        val topics = if (topicsInFirstStage) classification.topics else emptyList()
         val bodyParties = partyNames.filter { !isHeader(it.first) } + deferredParties
-        val bodySlots = (Slots.CORE + docType.slots).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) } + deferred
+        val bodySlots = (Slots.CORE + schema.slotsFor(family, topics)).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) } + deferred
         prescored.clear()
         prescore(setup, bodyParties.mapNotNull { partyAsk(setup, it.first, widen = true) } + bodySlots.mapNotNull { slotAsk(setup, it, widen = true) })
         bodyParties.forEach { (name, role) -> party(setup, s, name, role, widen = true) }
@@ -209,8 +239,11 @@ class ZoneScoringInterpreter(
         timing("decode ms=${(System.nanoTime() - decoding) / NANOS_PER_MS} (includes the kind and household scoring of a changed answer)")
         traceFinal(setup, s)
 
-        // Everything a person needs to see is decided: the type, the parties and the slots. The extras, the language and the free text
-        // are the second stage ([enrich]); the body session stays open for it, and so does what it was told of the header.
+        // The structured address of the addressee and of the sender, once the parties are settled (a letter with a recipient block only).
+        val addresses = if (family.hasRecipientBlock) readAddresses(setup, layout, s) else null
+
+        // Everything a person needs to see is decided: the family, the parties, the slots and the addresses. The extras, the language
+        // and the free text are the second stage ([enrich]); the body session stays open for it, and so does what it was told of the header.
         timing(
             String.format(
                 Locale.ROOT, "scoring total batches=%d scores=%d ms=%d msPerScore=%.0f", scoreBatches, scoreCount, scoreMs,
@@ -219,8 +252,10 @@ class ZoneScoringInterpreter(
         )
         letter = LetterSession(setup, zonesInPrefix, budget)
         return RawInterpretation(
-            type = type.first, typeConfidence = type.second, language = null,
+            type = family.id, typeConfidence = classification.familyConfidence, language = null,
             parties = s.parties.take(StructuredGrammar.MAX_PARTIES), slots = s.slots, established = summary,
+            topics = topics, layoutTemplate = setup.template.id,
+            addresses = addresses?.addresses.orEmpty(), senderAddressAlternatives = addresses?.senderAlternatives.orEmpty(),
         )
     }
 
@@ -279,16 +314,27 @@ class ZoneScoringInterpreter(
                 LetterSession(setup, zones, budget).also { letter = it }
             }
             val picked = pickExtras(open.setup, request.takenIds)
+            // A profile that keeps the topics out of the first stage scores them here, still in the body session.
+            val lateTopics = if (topicsInFirstStage || request.topics.isNotEmpty()) null else classifier().topics(tail)
             // The letter as plain text: no zone hints and no summary of the header, which a small model copies instead of the letter.
             val writing = switchToWriting(open.setup, ZonePrompt.bodyUser("", open.setup.zoned.render(open.zonesInPrefix, open.budget)))
-            if (!writing) return EnrichmentOutcome.Done(Enrichment(language = null, extras = emptyList(), text = null, textError = "the model could not read the letter again"))
+            if (!writing) {
+                return EnrichmentOutcome.Done(
+                    Enrichment(language = null, extras = emptyList(), text = null, textError = "the model could not read the letter again", topics = lateTopics),
+                )
+            }
             val language = ask(QuestionnairePrompt.language())?.let { AnswerReader.language(it) }
             val extras = nameExtras(open.setup, picked)
-            val text = ZoneFreeText.write(TextRequest("", request.documentTypeId)) { q -> ask(q) }
+            val text = ZoneFreeText.write(includeSummary = false) { q -> ask(q) }
+            val written = (text as? TextOutcome.Written)?.text
+            // The summary rests on verified facts only: the subject line counts as one when it is printed in the letter.
+            val subject = written?.subject?.takeIf { QuoteVerifier.verify(it, request.ocrText) != null }
+            val facts = SummaryFacts.of(request.documentTypeId ?: schema.abstain?.id.orEmpty(), request.facts, subject)
+            val summary = SummaryWriter(FramedSession()).write(facts, request.ocrText, language)
             return EnrichmentOutcome.Done(
                 Enrichment(
-                    language = language, extras = extras, text = (text as? TextOutcome.Written)?.text,
-                    textError = (text as? TextOutcome.Failed)?.reason,
+                    language = language, extras = extras, text = written,
+                    textError = (text as? TextOutcome.Failed)?.reason, summary = summary, topics = lateTopics,
                 ),
             )
         } catch (e: Abort) {
@@ -377,18 +423,104 @@ class ZoneScoringInterpreter(
         return ZonePrompt.zoneBlock(zones, setup.plan::hint, setup.zoned::zoneText, inPrefix, candidates = null, glimpse = glimpse)
     }
 
-    // ── the type ──
+    // ── the family and the topics ──
 
-    /** The type among those a document of [direction] can be ([ExtractionSchema.typesFor]): a received letter is never offered "a letter the reader sent". */
-    private suspend fun scoreType(direction: DocDirection): Pair<String, String> {
-        val types = schema.typesFor(direction).filter { it.description.isNotBlank() }
-        val questions = types.map { "Is this document ${it.description}? Answer:" }
-        val scores = scoreBatch("type", "", questions) ?: throw Abort("the type could not be scored")
-        val order = scores.indices.sortedByDescending { scores[it] }
-        val best = order.first()
-        val margin = if (order.size > 1) scores[best] - scores[order[1]] else scores[best]
-        traceLines += "type offered=${types.size} " + order.take(3).joinToString(" ") { types[it].id + String.format(Locale.ROOT, "=%+.2f", scores[it]) }
-        return types[best].id to profile.confidence(margin)
+    /** The one classifier of this reading: its batch is recorded and counted like every other scored batch (`score:family`). */
+    private fun classifier(): FamilyClassifier = FamilyClassifier(session, profile, schema) { record ->
+        records += record
+        val n = record.question.split(BATCH_SEPARATOR).size
+        scoreBatches++
+        scoreCount += n
+        scoreMs += record.ms
+        timing(String.format(Locale.ROOT, "score %s n=%d ms=%d msPerScore=%.0f%s", record.name.removePrefix("score:"), n, record.ms, record.ms.toDouble() / n, if (record.answer == null) " FAILED" else ""))
+    }
+
+    /**
+     * What the letter is and what it is about: the family among those a document of [direction] can be ([ExtractionSchema.familiesFor]; a
+     * received letter is never offered "a letter the reader sent"), or [forcedFamily] when a person chose one, and the topics when they
+     * are scored in this stage.
+     */
+    private suspend fun classify(direction: DocDirection, forcedFamily: String?): Classification {
+        val forced = forcedFamily?.let(schema::family)
+        val classifier = classifier()
+        val result = (if (forced != null) classifier.classify(forced, tail, topicsInFirstStage) else classifier.classify(direction, tail, topicsInFirstStage))
+            ?: throw Abort("the family could not be scored")
+        val families = result.scores.filterKeys { it.startsWith("family:") }.entries.sortedByDescending { it.value }
+        traceLines += "family offered=${families.size} forced=${forced != null} " +
+            families.take(3).joinToString(" ") { it.key.removePrefix("family:") + String.format(Locale.ROOT, "=%+.2f", it.value) } +
+            " -> ${result.family.id} topics=${result.topics.joinToString(",")}"
+        return result
+    }
+
+    // ── the structured address ──
+
+    /** The parties the reading settled, as the address reader takes them: names as printed, kind and relation, the model's own confidence. */
+    private fun partiesOf(setup: ZoneSetup, raw: List<RawParty>): Parties = Parties(
+        raw.mapNotNull { p ->
+            val role = PartyRole.entries.firstOrNull { it.name == p.role } ?: return@mapNotNull null
+            val c = setup.zoned.offered.get(p.id) ?: return@mapNotNull null
+            val ai = ConfidenceCombiner.aiScore(p.confidence)
+            val value = SlotValue(
+                slot = null, candidateId = c.id, value = c.raw.trim(), normalized = c.normalized, page = c.page, bbox = c.bbox,
+                evidence = c.evidence, origin = SlotOrigin.MODEL_CHOICE, aiConfidence = ai, confidence = ai, validation = c.validation,
+                role = role.name,
+            )
+            Party(
+                role, PartyKind.entries.firstOrNull { it.name == p.kind } ?: PartyKind.OTHER,
+                PartyRelation.entries.firstOrNull { it.name == p.relation } ?: PartyRelation.NONE, value,
+            )
+        },
+    )
+
+    /**
+     * Reads the addressee's and the sender's postal address once the parties are settled; its scored cells (a grid per block) go through
+     * [AddressSession], so they are recorded and counted like the other scores.
+     */
+    private suspend fun readAddresses(setup: ZoneSetup, layout: LetterLayout, s: State): AddressReading {
+        val started = System.nanoTime()
+        val reading = addressReader.read(layout, partiesOf(setup, s.parties), setup.match, AddressSession(), tail)
+        timing(
+            String.format(
+                Locale.ROOT, "addresses recipientCells=%d senderCells=%d retried=%s ms=%d", reading.recipientCells, reading.senderCells, reading.retried,
+                (System.nanoTime() - started) / NANOS_PER_MS,
+            ),
+        )
+        return reading
+    }
+
+    /** The letter's session as the address labeler sees it: every grid it scores is recorded (`score:addr`, one record per statement) and counted. */
+    private inner class AddressSession : PromptSession by session {
+        override suspend fun scoreGrid(shared: String, heads: List<String>, asks: List<String>, yes: String, no: String): PamResult<List<List<Double>>> {
+            val started = System.nanoTime()
+            val result = session.scoreGrid(shared, heads, asks, yes, no)
+            val ms = (System.nanoTime() - started) / NANOS_PER_MS
+            val grid = (result as? PamResult.Success)?.data?.takeIf { it.size == heads.size && it.all { row -> row.size == asks.size } }
+            asks.forEachIndexed { j, ask ->
+                records += AskRecord(
+                    name = "score:addr",
+                    question = heads.joinToString(BATCH_SEPARATOR) { shared.removePrefix("\n\n") + it + ask.removeSuffix(tail) },
+                    answer = grid?.joinToString(",") { row -> row[j].toString() }, ms = ms / asks.size,
+                )
+            }
+            scoreBatches += asks.size
+            scoreCount += heads.size * asks.size
+            scoreMs += ms
+            timing(String.format(Locale.ROOT, "score addr grid heads=%d asks=%d ms=%d%s", heads.size, asks.size, ms, if (grid == null) " FAILED" else ""))
+            return result
+        }
+    }
+
+    /** The letter's session as the summary writer sees it: its questions are framed like every other ask (the turn's opening and closing) and recorded. */
+    private inner class FramedSession : PromptSession by session {
+        override suspend fun ask(question: String, grammar: String, maxTokens: Int): PamResult<String> {
+            val started = System.nanoTime()
+            val result = session.ask("\n\n" + question + tail, grammar, maxTokens)
+            val ms = (System.nanoTime() - started) / NANOS_PER_MS
+            val answer = (result as? PamResult.Success)?.data?.trim()
+            records += AskRecord("text:summary", question, answer, ms)
+            timing("ask text:summary ms=$ms answerChars=${answer?.length ?: 0}${if (answer == null) " FAILED" else ""}")
+            return result
+        }
     }
 
     // ── planned questions, scored as a grid where they share ──
@@ -504,12 +636,15 @@ class ZoneScoringInterpreter(
         val threshold = profile.threshold(name)
         if (scores[best] <= threshold) return true
         val (confidence, note) = confidenceOf(scores[best], ranked.getOrNull(1)?.let { scores[it] }, ranked.size)
-        addParty(setup, s, name, role, cands[best], block, confidence, note)
+        addParty(setup, s, name, role, cands[best], block, confidence, note, ranked.drop(1).take(MAX_ALTERNATIVES).map { RawAlternative(cands[it].id, scores[it]) })
         return true
     }
 
     /** The party [c] as [role]: its kind and (for an addressee) household relation scored, recorded as the sender or addressee established so far. */
-    private suspend fun addParty(setup: ZoneSetup, s: State, name: String, role: PartyRole, c: Candidate, block: String, confidence: String, note: String) {
+    private suspend fun addParty(
+        setup: ZoneSetup, s: State, name: String, role: PartyRole, c: Candidate, block: String, confidence: String, note: String,
+        alternatives: List<RawAlternative> = emptyList(),
+    ) {
         val zoned = setup.zoned
         val ctx = zoned.context(c)
         val printed = c.raw.replace('\n', ' ')
@@ -528,7 +663,7 @@ class ZoneScoringInterpreter(
         }
         s.parties += RawParty(
             role = role.name, id = c.id, kind = kind, relation = relation,
-            confidence = confidence, name = null, scoreNote = note,
+            confidence = confidence, name = null, scoreNote = note, alternatives = alternatives,
         )
     }
 
@@ -572,16 +707,22 @@ class ZoneScoringInterpreter(
                 confidence = confidence, scoreNote = note,
             )
         } else {
-            rawSlot(slot, cands[best].id, confidence, note)
+            rawSlot(slot, cands[best].id, confidence, note, order.drop(1).take(MAX_ALTERNATIVES).map { RawAlternative(cands[it].id, scores[it]) })
         }
         return true
     }
 
     /** The answer of a single-valued [slot] won by [id]: the one place that maps a slot's kind to the role the value gets. */
-    private fun rawSlot(slot: SlotKey, id: String, confidence: String, note: String): RawSlot = when (slot.kind) {
-        SlotKind.AMOUNT, SlotKind.DATE, SlotKind.DEADLINE -> RawSlot(id = id, role = roleOf(slot), confidence = confidence, scoreNote = note)
-        else -> RawSlot(id = id, confidence = confidence, scoreNote = note)
+    private fun rawSlot(slot: SlotKey, id: String, confidence: String, note: String, alternatives: List<RawAlternative> = emptyList()): RawSlot = when (slot.kind) {
+        SlotKind.AMOUNT, SlotKind.DATE, SlotKind.DEADLINE ->
+            RawSlot(id = id, role = roleOf(slot), confidence = confidence, scoreNote = note, alternatives = alternatives)
+        else -> RawSlot(id = id, confidence = confidence, scoreNote = note, alternatives = alternatives)
     }
+
+    /** The runner-ups of a decided question: its other candidates by score, best first, never the one [chosen] nor the sender's party where [excluded]. */
+    private fun runnersUp(q: ScoredQuestion, chosen: Int, excluded: String?): List<RawAlternative> =
+        q.candidates.indices.filter { it != chosen && q.candidates[it].id != excluded }
+            .sortedByDescending { q.candidates[it].score }.take(MAX_ALTERNATIVES).map { RawAlternative(q.candidates[it].id, q.candidates[it].score) }
 
     /** The role a value has by winning [slot]: the slot's own expected role, in the schema's order. */
     private fun roleOf(slot: SlotKey): String {
@@ -627,7 +768,7 @@ class ZoneScoringInterpreter(
                 if (i < 0) {
                     s.slots.remove(slot.json)
                 } else {
-                    s.slots[slot.json] = rawSlot(slot, now!!, confidence, note)
+                    s.slots[slot.json] = rawSlot(slot, now!!, confidence, note, runnersUp(q, i, null))
                 }
             } else if (a.role != null) {
                 val at = s.parties.indexOfFirst { it.role == a.role.name }
@@ -635,7 +776,10 @@ class ZoneScoringInterpreter(
                 if (i >= 0) {
                     // What is scored again here was not scored when the question was asked; a failed scoring leaves the kind OTHER.
                     failures = 0
-                    addParty(setup, s, q.name, a.role, a.cands[i], a.block, confidence, note)
+                    addParty(
+                        setup, s, q.name, a.role, a.cands[i], a.block, confidence, note,
+                        runnersUp(q, i, q.excludesWinnerOf?.let { w -> decided[w] }),
+                    )
                     if (at >= 0) s.parties.add(at, s.parties.removeAt(s.parties.lastIndex))
                 }
             }
@@ -724,6 +868,9 @@ class ZoneScoringInterpreter(
         const val BATCH_SEPARATOR = "\n@@\n"
 
         private const val NANOS_PER_MS = 1_000_000L
+
+        /** The runner-up candidates kept per scored question (the Edit sheet's chips). */
+        private const val MAX_ALTERNATIVES = 3
         private const val MAX_FAILURES = 3
         private const val MAX_OPEN_ATTEMPTS = 3
         private const val FAILED_RAW_CHARS = 300

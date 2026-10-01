@@ -404,7 +404,8 @@ class QuestionnaireTest {
                 val prepared = Prepared(letter.pages)
                 val single = pipeline.run(
                     letter.pages,
-                    ScriptedInterpreter(Oracle.structured(letter, prepared).json, Oracle.text(letter)),
+                    // The questionnaire asks no topics, so the single call is compared on the family's own slots.
+                    ScriptedInterpreter(Oracle.structured(letter, prepared, withTopics = false).json, Oracle.text(letter)),
                     4096,
                 )
                 val session = FakePromptSession().apply { responder = OracleQuestionnaire.responder(letter, prepared) }
@@ -415,7 +416,8 @@ class QuestionnaireTest {
                     slots.map { (k, v) -> "${k.json}=${v.candidateId}/${v.normalized}/${v.role}/${v.aiConfidence}" }.sorted(),
                     parties.all.map { "${it.role}/${it.kind}/${it.relation}/${it.name}" }.sorted(),
                     extras.map { "${it.label}/${it.value.normalized}" }.sorted(),
-                    freeText.title?.value, freeText.subject?.value, freeText.suggestedQuestions,
+                    // (No title: the questionnaire does not ask one any more, the pipeline composes it from the family, sender and subject.)
+                    freeText.subject?.value, freeText.suggestedQuestions, composedTitle,
                 )
                 assertWithMessage(letter.id).that(asked.shape()).isEqualTo(single.shape())
                 assertThat(session.prefixDecodes).isEqualTo(1)

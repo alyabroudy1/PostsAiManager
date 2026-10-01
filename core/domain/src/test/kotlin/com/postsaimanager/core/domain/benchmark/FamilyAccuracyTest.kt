@@ -48,25 +48,13 @@ class FamilyAccuracyTest {
     private class Row(val key: String, val familyScores: Map<String, Double>, val ok: Set<String>)
 
     private fun rows(): List<Row> {
-        val all = ExtractionSchema.DEFAULT.families.filter { it.description.isNotBlank() }
-        val incoming = ExtractionSchema.DEFAULT.familiesFor(DocDirection.INCOMING).filter { it.description.isNotBlank() }
         val scoredFamilies = schema.familiesFor(DocDirection.INCOMING).map { it.id }.toSet()
         return docs.mapNotNull { (m, _) ->
             val ok = expected[m.key] ?: return@mapNotNull null
             val rec = recordings.firstOrNull { it.key == m.key && it.variant == InterpreterMetrics.SCORING_VARIANT } ?: return@mapNotNull null
-            val scores = rec.asks.first { it.name == "score:type" }.answer!!.split(',').map { it.trim().toDouble() }
             // A recording made before the direction fix scored all types; one made after scored only those an incoming document can be.
-            val scored = when (scores.size) {
-                all.size -> all
-                incoming.size -> incoming
-                else -> error("the recording was made with ${scores.size} types")
-            }
-            val byFamily = HashMap<String, Double>()
-            scored.forEachIndexed { i, legacy ->
-                val family = LegacyTypes.of(legacy.id)?.family?.takeIf { it in scoredFamilies } ?: return@forEachIndexed
-                byFamily.merge(family, scores[i], ::maxOf)
-            }
-            Row(m.key, byFamily, ok)
+            val view = LegacyFamilyBridge.viewOf(rec) ?: error("${rec.key}.${rec.variant} holds no legacy type scores")
+            Row(m.key, view.familyScores.filterKeys { it in scoredFamilies }, ok)
         }
     }
 

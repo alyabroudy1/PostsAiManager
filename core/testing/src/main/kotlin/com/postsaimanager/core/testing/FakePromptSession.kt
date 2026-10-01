@@ -29,6 +29,9 @@ class FakePromptSession : PromptSession {
     /** Make [open] fail with this. */
     var openFailsWith: PamError? = null
 
+    /** Make every [open] after this many have succeeded fail: a session that opens and cannot be opened again (the writing session). */
+    var failOpensAfter: Int? = null
+
     val opens = mutableListOf<String>()
     val asks = mutableListOf<Ask>()
     val stateAtAsk = mutableListOf<String>()
@@ -56,6 +59,7 @@ class FakePromptSession : PromptSession {
 
     override suspend fun open(prefix: String): PamResult<Int> {
         openFailsWith?.let { return PamResult.Error(it) }
+        failOpensAfter?.let { if (opens.size >= it) return PamResult.Error(PamError.InferenceError("the fake cannot open another session")) }
         opens += prefix
         this.prefix = prefix
         state = prefix

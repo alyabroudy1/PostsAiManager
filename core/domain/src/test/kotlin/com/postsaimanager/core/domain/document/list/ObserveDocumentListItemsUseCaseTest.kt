@@ -248,9 +248,15 @@ class ObserveDocumentListItemsUseCaseTest {
     }
 
     @Test
-    fun `an information letter never needs action`() = runTest {
+    fun `a statement, which asks nothing of its reader, never needs action`() = runTest {
         val fields = listOf(field("due_date", "15.10.2026"), field("total", "1 EUR", role = "TOTAL_DUE"))
-        assertThat(rowOf(doc(type = "info_no_action"), fields).openActionCount).isEqualTo(0)
+        assertThat(rowOf(doc(type = "statement"), fields).openActionCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `a letter the model could not place in a family is judged by its fields`() = runTest {
+        val fields = listOf(field("due_date", "15.10.2026"))
+        assertThat(rowOf(doc(type = "free_form"), fields).openActionCount).isEqualTo(1)
     }
 
     @Test

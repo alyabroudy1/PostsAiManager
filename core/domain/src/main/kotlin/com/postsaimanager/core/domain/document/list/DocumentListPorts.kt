@@ -49,10 +49,16 @@ fun interface ActionHint {
 class DueFieldsActionHint @Inject constructor() : ActionHint {
 
     override fun openActions(facts: ActionFacts): Int {
-        if (facts.documentType.equals(ExtractionSchema.INFO_NO_ACTION.id, ignoreCase = true)) return 0
+        if (!mayAskSomething(facts.documentType)) return 0
         val due = facts.dueDate
         if (due != null) return if (!due.isBefore(facts.today.minusDays(STALE_AFTER_DAYS))) 1 else 0
         return if (facts.hasAmountDue) 1 else 0
+    }
+
+    /** A known family that asks nothing of its reader (a receipt, a certificate, a ticket) has no action; an unknown or abstained one is judged by its fields. */
+    private fun mayAskSomething(typeId: String?): Boolean {
+        val family = ExtractionSchema.DEFAULT.family(typeId) ?: return true
+        return family.actionable || !family.scored
     }
 
     companion object {

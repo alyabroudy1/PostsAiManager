@@ -36,12 +36,12 @@ data class Classification(
  * Both entry points return null when the engine failed the batch; the caller decides what a failed classification means.
  * The batch is handed to [onRecord] as one [AskRecord] named `score:family`, the way the interpreter records its scored batches.
  *
- * @param schema the families and topics; [ExtractionSchema.V2] is the registry of extraction-v2-2.
+ * @param schema the families and topics; [ExtractionSchema.DEFAULT] is the registry of extraction-v2-2.
  */
 class FamilyClassifier(
     private val session: PromptSession,
     private val profile: ScoringProfile = ScoringProfile(),
-    private val schema: ExtractionSchema = ExtractionSchema.V2,
+    private val schema: ExtractionSchema = ExtractionSchema.DEFAULT,
     private val onRecord: (AskRecord) -> Unit = {},
 ) {
 
@@ -92,7 +92,7 @@ class FamilyClassifier(
         return topicsAbove(topics, scores)
     }
 
-    private fun abstainFamily(): DocFamily = schema.families.firstOrNull { !it.scored } ?: error("the schema has no abstain family")
+    private fun abstainFamily(): DocFamily = schema.abstain ?: error("the schema has no abstain family")
 
     private fun topicsAbove(topics: List<Topic>, scores: List<Double>): List<String> {
         val threshold = profile.threshold(ScoringProfile.TOPICS)

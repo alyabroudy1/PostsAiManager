@@ -121,12 +121,20 @@ data class RecognisedFact(
  * @property takenIds candidate ids the first stage's slots and parties took.
  * @property established what the first stage told the second about the header (who the sender and the addressee are), so the second
  *   reads the letter under the same words the first did.
+ * @property topics the topic ids the first stage found, best first (empty when the topics are scored in the second stage).
+ * @property facts the verified values the summary and the title are built from (role to value: `sender`, `addressed_to`, `amount`,
+ *   `due_date`, `date`, `reference`), so the second stage does not need the first stage's result in memory.
+ * @property takenValues the values the first stage's fields hold, as stored. Only a ticket rebuilt from the stored document has them (it
+ *   cannot know the candidate ids): a candidate that reads as one of these is never offered as an extra, as one in [takenIds] is not.
  */
 @Serializable
 data class EnrichmentTicket(
     val typeId: String? = null,
     val takenIds: List<String> = emptyList(),
     val established: String = "",
+    val topics: List<String> = emptyList(),
+    val facts: Map<String, String> = emptyMap(),
+    val takenValues: List<String> = emptyList(),
 )
 
 /**
@@ -201,6 +209,24 @@ data class DocumentUnderstanding(
      * summary, suggested questions are still unwritten); null when this reading is complete.
      */
     val enrichment: EnrichmentTicket? = null,
+
+    /** The topic ids the reading found, best first; empty when it found none (or, in a first stage, scores them later). */
+    val topics: List<String> = emptyList(),
+
+    /** The id of the layout template the letter matched; null when the reading had no layout. */
+    val layoutTemplate: String? = null,
+
+    /**
+     * The composed title as a code with its args (`composed`, family / sender / subject; see `TitleComposer`); null when nothing
+     * could be composed. [title] holds the same title as plain text, a fallback for places that cannot resolve the code.
+     */
+    val titleCode: String? = null,
+    val titleArgs: List<String> = emptyList(),
+
+    /** Where [summary] came from; null when there is none. When [SummarySource.TEMPLATE], [summary] is empty and [summaryCode] + [summaryArgs] render it. */
+    val summarySource: SummarySource? = null,
+    val summaryCode: String? = null,
+    val summaryArgs: List<String> = emptyList(),
 ) {
     val sender: RecognisedEntity? get() = entities.firstOrNull { it.role == EntityRole.SENDER }
 

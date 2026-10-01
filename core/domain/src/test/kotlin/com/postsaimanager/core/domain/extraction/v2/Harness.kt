@@ -6,12 +6,15 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterLayoutAnalyzer
 import com.postsaimanager.core.model.OcrBlock
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /** The stages before the model, run on a fixture, so tests can look candidates up by kind and value. */
@@ -73,10 +76,14 @@ internal class ScriptedInterpreter(
         lastRequest = request
         val grammar = StructuredGrammar.build(request.offered, ExtractionSchema.DEFAULT)
         return when (val parsed = InterpretationParser.parse(structured)) {
-            is InterpretationParser.Parsed.Ok -> InterpretationOutcome.Answered(parsed.value, structured, "", grammar)
+            // The single-call grammar has no topics; a test that wants some writes a `topics` array next to the answer, read here.
+            is InterpretationParser.Parsed.Ok -> InterpretationOutcome.Answered(parsed.value.copy(topics = topicsOf(structured)), structured, "", grammar)
             is InterpretationParser.Parsed.Bad -> InterpretationOutcome.Failed(parsed.reason, structured, "", grammar)
         }
     }
+
+    private fun topicsOf(json: String): List<String> =
+        (Json.parseToJsonElement(json).jsonObject["topics"] as? JsonArray)?.map { it.jsonPrimitive.content }.orEmpty()
 
     override suspend fun writeText(request: TextRequest): TextOutcome {
         textCalls++
@@ -95,17 +102,21 @@ internal object Oracle {
     /** Expectations whose value is not among the candidates (a gap in the candidate stage, not in the model). */
     class Result(val json: String, val missing: List<String>)
 
-    fun structured(letter: Letter, p: Prepared): Result {
+    /** @param withTopics the letter's topics are answered too (and their slots filled); false answers the family's own slots only, as the generating interpreters can. */
+    fun structured(letter: Letter, p: Prepared, withTopics: Boolean = true): Result {
         val missing = mutableListOf<String>()
+        val topics = if (withTopics) letter.topics else emptyList()
         val root = buildJsonObject {
             put("type", letter.type.id)
+            // The single-call grammar has no topics: the key is written only for the tests that read topics (see [ScriptedInterpreter]).
+            if (withTopics) put("topics", buildJsonArray { topics.forEach { add(JsonPrimitive(it)) } })
             put("tc", "HIGH")
             put("lang", letter.language)
             put("parties", buildJsonArray { letter.parties.forEach { add(party(it, p)) } })
             put(
                 "s",
                 buildJsonObject {
-                    for (slot in letter.type.slots) {
+                    for (slot in ExtractionSchema.DEFAULT.slotsFor(letter.type, topics)) {
                         val exp = letter.slots.firstOrNull { it.slot == slot }
                         val cand = exp?.takeIf { it.quote == null }?.let { p.find(it.kind, it.norm) }
                         if (exp != null && exp.quote == null && cand == null) missing += "${slot.json}=${exp.norm}"

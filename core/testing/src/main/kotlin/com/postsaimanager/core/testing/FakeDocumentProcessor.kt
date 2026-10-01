@@ -26,7 +26,7 @@ class FakeDocumentProcessor : DocumentProcessor {
     val enqueueCalls = mutableListOf<EnqueueCall>()
     val cancelCalls = mutableListOf<String>()
 
-    data class EnqueueCall(val documentId: String, val force: Boolean)
+    data class EnqueueCall(val documentId: String, val force: Boolean, val forcedFamily: String? = null)
 
     fun emit(state: ProcessingState) {
         _processingState.value = state
@@ -34,7 +34,7 @@ class FakeDocumentProcessor : DocumentProcessor {
 
     val reprocessCalls = mutableListOf<String>()
 
-    override suspend fun processDocument(documentId: String, reprocess: Boolean): PamResult<ExtractionResult> =
+    override suspend fun processDocument(documentId: String, reprocess: Boolean, forcedFamily: String?): PamResult<ExtractionResult> =
         processResult ?: PamResult.Success(
             ExtractionResult(documentId = documentId, language = null, fields = emptyList()),
         )
@@ -47,15 +47,22 @@ class FakeDocumentProcessor : DocumentProcessor {
     val enriching = MutableStateFlow<Set<String>>(emptySet())
     override val enrichingDocuments: kotlinx.coroutines.flow.Flow<Set<String>> = enriching
 
-    val enrichCalls = mutableListOf<Pair<String, EnrichmentTicket>>()
+    val enrichCalls = mutableListOf<Pair<String, EnrichmentTicket?>>()
 
-    override suspend fun enrichDocument(documentId: String, ticket: EnrichmentTicket): PamResult<Unit> {
+    override suspend fun enrichDocument(documentId: String, ticket: EnrichmentTicket?): PamResult<Unit> {
         enrichCalls += documentId to ticket
         return PamResult.Success(Unit)
     }
 
-    override suspend fun enqueue(documentId: String, force: Boolean) {
-        enqueueCalls += EnqueueCall(documentId, force)
+    /** The documents whose second stage was queued without a ticket ([enqueueEnrichment]). */
+    val enrichmentEnqueued = mutableListOf<String>()
+
+    override suspend fun enqueueEnrichment(documentId: String) {
+        enrichmentEnqueued += documentId
+    }
+
+    override suspend fun enqueue(documentId: String, force: Boolean, forcedFamily: String?) {
+        enqueueCalls += EnqueueCall(documentId, force, forcedFamily)
     }
 
     override fun cancel(documentId: String) {

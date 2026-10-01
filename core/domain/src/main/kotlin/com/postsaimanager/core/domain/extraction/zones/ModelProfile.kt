@@ -141,7 +141,8 @@ class ProfileInterpreterFactory @Inject constructor(
             InterpreterStrategy.QUESTIONNAIRE ->
                 QuestionnaireInterpreter(engine, session, contextTokens = window, restateOptions = profile.restateOptions)
             InterpreterStrategy.ZONES -> ZoneInterpreter(engine, session, contextTokens = window)
-            InterpreterStrategy.ZONES_SCORING -> ZoneScoringInterpreter(engine, session, contextTokens = window, profile = profile.scoring)
+            InterpreterStrategy.ZONES_SCORING ->
+                ZoneScoringInterpreter(engine, session, contextTokens = window, profile = profile.scoring, topicsInFirstStage = profile.topicsInFirstStage)
         }
     }
 }

@@ -26,7 +26,7 @@ class SelectionVerifierTest {
 
     private fun id(p: Prepared, kind: CandidateKind, norm: String): String = p.find(kind, norm)!!.id
 
-    private fun answer(type: String = "bill", parties: String = "", slots: String = "", extras: String = "") =
+    private fun answer(type: String = "invoice_bill", parties: String = "", slots: String = "", extras: String = "") =
         """{"type":"$type","tc":"HIGH","lang":"de","parties":[$parties],"s":{$slots},"x":[$extras]}"""
 
     private fun slot(key: String, id: String, role: String? = null, c: String = "HIGH") =
@@ -51,15 +51,15 @@ class SelectionVerifierTest {
 
         @Test
         fun `a slot that does not belong to the chosen type is rejected`() {
-            val r = verify(invoice, answer(type = "health", slots = slot("invoice_no", id(invoice, CandidateKind.REFERENCE, "RE-2026-0815"))))
+            val r = verify(invoice, answer(type = "medical", slots = slot("invoice_no", id(invoice, CandidateKind.REFERENCE, "RE-2026-0815"))))
             assertThat(r.slots).isEmpty()
             assertThat(r.diagnostics.rejections.single()).contains("invoice_no")
         }
 
         @Test
-        fun `an unknown document type falls back to other and is reported`() {
+        fun `an unknown document type falls back to the unscored family and is reported`() {
             val r = verify(invoice, answer(type = "spaceship"))
-            assertThat(r.documentType).isEqualTo(ExtractionSchema.OTHER)
+            assertThat(r.documentType).isEqualTo(ExtractionSchema.FREE_FORM)
             assertThat(r.diagnostics.rejections.single()).contains("spaceship")
         }
 
@@ -188,7 +188,7 @@ class SelectionVerifierTest {
             val letterDate = id(n1, CandidateKind.DATE, "2026-09-25")
             val v = verify(
                 n1,
-                answer(type = "reminder_dunning", slots = slot("letter_date", letterDate, "LETTER_DATE") + "," + slot("due_date", original, "DUE_DATE")),
+                answer(type = "invoice_bill", slots = slot("letter_date", letterDate, "LETTER_DATE") + "," + slot("due_date", original, "DUE_DATE")),
             )
             assertThat(v.slots.getValue(Slots.DUE_DATE).confidence).isAtMost(Caps.DATE_ORDER)
             assertThat(v.diagnostics.conflicts.single()).contains("before the letter date")
@@ -459,7 +459,7 @@ class SelectionVerifierTest {
             val r = verify(
                 n1,
                 answer(
-                    type = "reminder_dunning",
+                    type = "invoice_bill",
                     slots = slot("letter_date", letterDate, "LETTER_DATE"),
                     extras = extra("Rechnung vom", prev, key = "previous_invoice_date"),
                 ),
@@ -510,7 +510,7 @@ class SelectionVerifierTest {
         @Test
         fun `an extra may not repeat a value a slot or a party already holds`() {
             val total = id(n1, CandidateKind.AMOUNT, "64.98 EUR")
-            val r = verify(n1, answer(type = "reminder_dunning", slots = slot("total", total, "TOTAL_DUE"), extras = extra("Offener Betrag", total)))
+            val r = verify(n1, answer(type = "invoice_bill", slots = slot("total", total, "TOTAL_DUE"), extras = extra("Offener Betrag", total)))
             assertThat(r.extras).isEmpty()
             assertThat(r.diagnostics.rejections.single()).contains("already used")
         }
@@ -613,7 +613,7 @@ class SelectionVerifierTest {
 
         @Test
         fun `a period the model quotes as a rule is verified against the letter`() {
-            val ok = verify(n1, answer(type = "reminder_dunning", slots = rule("innerhalb von 14 Tagen")))
+            val ok = verify(n1, answer(type = "invoice_bill", slots = rule("innerhalb von 14 Tagen")))
             val v = ok.slots.getValue(Slots.DUE_DATE)
             assertThat(v.origin).isEqualTo(SlotOrigin.MODEL_QUOTED)
             assertThat(v.confidence).isAtMost(Caps.QUOTE_EXACT)
@@ -621,14 +621,14 @@ class SelectionVerifierTest {
             assertThat(v.normalized).isEqualTo("P14D")
             assertThat(v.value).isEqualTo("innerhalb von 14 Tagen")
 
-            val bad = verify(n1, answer(type = "reminder_dunning", slots = rule("within six weeks")))
+            val bad = verify(n1, answer(type = "invoice_bill", slots = rule("within six weeks")))
             assertThat(bad.slots).doesNotContainKey(Slots.DUE_DATE)
         }
 
         @Test
         fun `a quoted period without digits is kept as the quote and nothing more is claimed`() {
             val tax = Prepared(Letters.tax.pages)
-            val r = verify(tax, answer(type = "authority_tax", slots = """"objection_deadline":{"rule":"innerhalb eines Monats","r":"DEADLINE","c":"HIGH"}"""))
+            val r = verify(tax, answer(type = "official_letter", slots = """"objection_deadline":{"rule":"innerhalb eines Monats","r":"DEADLINE","c":"HIGH"}"""))
             val v = r.slots.getValue(Slots.OBJECTION_DEADLINE)
             assertThat(v.origin).isEqualTo(SlotOrigin.MODEL_QUOTED)
             assertThat(v.normalized).isEqualTo("innerhalb eines Monats")
