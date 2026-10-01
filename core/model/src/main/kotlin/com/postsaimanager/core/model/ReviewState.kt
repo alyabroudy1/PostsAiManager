@@ -24,10 +24,13 @@ enum class ReviewState {
     ;
 
     companion object {
-        /** The state implied by the pre-v15 flags, for a row or a caller that only knows those. */
-        fun fromFlags(isConfirmed: Boolean, deletedByUser: Boolean, source: ValueSource): ReviewState = when {
+        /**
+         * The state implied by the pre-v15 flags, for a row or a caller that only knows those. A confirmation also set
+         * the source to USER, so a confirmed person's value is EDITED only when it differs from the machine's ([valueChanged]).
+         */
+        fun fromFlags(isConfirmed: Boolean, deletedByUser: Boolean, source: ValueSource, valueChanged: Boolean = true): ReviewState = when {
             deletedByUser -> IGNORED
-            source == ValueSource.USER -> EDITED
+            source == ValueSource.USER && (valueChanged || !isConfirmed) -> EDITED
             isConfirmed -> CONFIRMED
             else -> UNREVIEWED
         }

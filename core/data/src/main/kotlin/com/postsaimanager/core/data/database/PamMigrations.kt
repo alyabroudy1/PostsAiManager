@@ -417,7 +417,7 @@ object PamMigrations {
      * default, and existing rows are backfilled from what they already say.
      *
      * - `extracted_data.reviewState` becomes the owner of review state. Backfill, later rule wins:
-     *   confirmed -> CONFIRMED; a person's value that is confirmed -> EDITED; deletedByUser -> IGNORED.
+     *   confirmed -> CONFIRMED; a confirmed value that differs from the machine's (or has none) -> EDITED; deletedByUser -> IGNORED.
      *   `isConfirmed` and `deletedByUser` stay and are written in step. `alternatives` is a JSON list.
      * - `documents`: `topics` (JSON list), `familySource`, `titleSource` (a person's title -> USER, a
      *   default with a code -> DEFAULT, other real words -> MODEL), `summarySource` (an existing summary
@@ -433,8 +433,10 @@ object PamMigrations {
             db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `reviewState` TEXT NOT NULL DEFAULT 'UNREVIEWED'")
             db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `alternatives` TEXT")
             db.execSQL("UPDATE `extracted_data` SET `reviewState` = 'CONFIRMED' WHERE `isConfirmed` = 1")
+            // A confirmation also set source = USER, so a confirmed value is EDITED only when it differs from the machine's.
             db.execSQL(
-                "UPDATE `extracted_data` SET `reviewState` = 'EDITED' WHERE `source` = 'USER' AND `isConfirmed` = 1",
+                "UPDATE `extracted_data` SET `reviewState` = 'EDITED' WHERE `source` = 'USER' AND `isConfirmed` = 1 " +
+                    "AND (`machineValue` IS NULL OR `fieldValue` != `machineValue`)",
             )
             db.execSQL("UPDATE `extracted_data` SET `reviewState` = 'IGNORED' WHERE `deletedByUser` = 1")
 

@@ -87,7 +87,7 @@ data class ExtractedData(
      * together, and `MergeExtractionUseCase` sets both on every edit, confirm and delete. Readers
      * that decide protection ask this.
      */
-    val reviewState: ReviewState = ReviewState.fromFlags(isConfirmed, deletedByUser, source),
+    val reviewState: ReviewState = ReviewState.fromFlags(isConfirmed, deletedByUser, source, valueChanged = fieldValue != machineValue),
 
     /** The runner-up readings for this slot (the Edit sheet's chips), best first; empty when there were none. */
     val alternatives: List<FieldAlternative> = emptyList(),

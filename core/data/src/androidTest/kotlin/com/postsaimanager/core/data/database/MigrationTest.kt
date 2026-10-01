@@ -747,18 +747,20 @@ class MigrationTest {
                        ('untyped', 'Untyped', 'NEW', 'CAMERA', 1, 0, 1, 1, 'LOCAL', NULL, 0, NULL)
                 """.trimIndent(),
             )
-            fun field(id: String, confirmed: Int, source: String, deleted: Int) = execSQL(
+            fun field(id: String, confirmed: Int, source: String, deleted: Int, value: String = "v") = execSQL(
                 """
                 INSERT INTO extracted_data
                     (id, documentId, fieldName, fieldValue, fieldType, confidence, pageNumber,
                      isConfirmed, source, machineValue, machineConfidence, deletedByUser,
                      hasUnreviewedMachineChange, updatedAt)
-                VALUES ('$id', 'family', '$id', 'v', 'OTHER', 0.9, 1, $confirmed, '$source', 'v', 0.9, $deleted, 0, 1)
+                VALUES ('$id', 'family', '$id', '$value', 'OTHER', 0.9, 1, $confirmed, '$source', 'v', 0.9, $deleted, 0, 1)
                 """.trimIndent(),
             )
             field("untouched", 0, "MACHINE", 0)
             field("confirmed", 1, "MACHINE", 0)
-            field("edited", 1, "USER", 0)
+            // The old confirm path set source = USER without changing the value: a confirmation, not an edit.
+            field("confirmed-as-user", 1, "USER", 0)
+            field("edited", 1, "USER", 0, value = "changed")
             field("ignored", 0, "MACHINE", 1)
             field("ignored-edited", 1, "USER", 1)
             close()
@@ -774,6 +776,7 @@ class MigrationTest {
             }
         assertEquals("UNREVIEWED", reviewState("untouched"))
         assertEquals("CONFIRMED", reviewState("confirmed"))
+        assertEquals("CONFIRMED", reviewState("confirmed-as-user"))
         assertEquals("EDITED", reviewState("edited"))
         assertEquals("IGNORED", reviewState("ignored"))
         assertEquals("a tombstone wins over an edit", "IGNORED", reviewState("ignored-edited"))
