@@ -1,7 +1,10 @@
 package com.postsaimanager.feature.documents
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.address.AddressRows
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.v2.PartyRole
+import com.postsaimanager.core.model.AddressPart
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.ValueSource
@@ -29,6 +32,18 @@ class SlotLabelsTest {
         assertThat(SlotLabels.type("medical")).isEqualTo(R.string.doctype_medical)
         assertThat(SlotLabels.topic("health")).isEqualTo(R.string.topic_health)
         assertThat(SlotLabels.topic("astrology")).isNull()
+    }
+
+    @Test
+    fun `every address row that AddressRows can store has a label for both roles`() {
+        val parts = AddressPart.entries.map { it.key }.filter { it != AddressPart.RECIPIENT_NAME.key } + AddressPart.RECIPIENT_NAME.key + AddressRows.RAW
+        for (role in listOf(PartyRole.ADDRESSEE, PartyRole.SENDER)) {
+            for (part in parts) {
+                val key = AddressRows.prefixOf(role) + part
+                assertThat(SlotLabels.slot(key)).isNotNull()
+            }
+        }
+        assertThat(SlotLabels.slot("addressee.street")).isNotEqualTo(SlotLabels.slot("sender.street"))
     }
 
     @Test

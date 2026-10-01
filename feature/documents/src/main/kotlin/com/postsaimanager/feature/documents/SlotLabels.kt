@@ -1,11 +1,14 @@
 package com.postsaimanager.feature.documents
 
 import androidx.annotation.StringRes
+import com.postsaimanager.core.domain.extraction.address.AddressRows
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
+import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
+import com.postsaimanager.core.model.AddressPart
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ValueSource
 
@@ -53,6 +56,36 @@ object SlotLabels {
         Slots.ACTION_KIND.json to R.string.slot_action_kind,
     )
 
+    /**
+     * The label of each stored address row, per role: `AddressRows.prefixOf(role) + part.key`, from one (addressee, sender) pair of
+     * resources per part. The raw-lines row has no part and is listed after them.
+     */
+    private val addressParts: Map<AddressPart, Pair<Int, Int>> = mapOf(
+        AddressPart.RECIPIENT_NAME to (R.string.addr_addressee_name to R.string.addr_sender_name),
+        AddressPart.ORGANISATION to (R.string.addr_addressee_organisation to R.string.addr_sender_organisation),
+        AddressPart.DEPARTMENT to (R.string.addr_addressee_department to R.string.addr_sender_department),
+        AddressPart.CARE_OF to (R.string.addr_addressee_care_of to R.string.addr_sender_care_of),
+        AddressPart.STREET to (R.string.addr_addressee_street to R.string.addr_sender_street),
+        AddressPart.HOUSE_NUMBER to (R.string.addr_addressee_house_number to R.string.addr_sender_house_number),
+        AddressPart.ADDRESS_EXTRA to (R.string.addr_addressee_extra to R.string.addr_sender_extra),
+        AddressPart.POSTCODE to (R.string.addr_addressee_postcode to R.string.addr_sender_postcode),
+        AddressPart.CITY to (R.string.addr_addressee_city to R.string.addr_sender_city),
+        AddressPart.REGION to (R.string.addr_addressee_region to R.string.addr_sender_region),
+        AddressPart.COUNTRY to (R.string.addr_addressee_country to R.string.addr_sender_country),
+        AddressPart.PO_BOX to (R.string.addr_addressee_po_box to R.string.addr_sender_po_box),
+        AddressPart.PACKSTATION to (R.string.addr_addressee_packstation to R.string.addr_sender_packstation),
+    )
+
+    /** The address rows' labels by stored key (`addressee.street`), read from [addressParts] and [AddressRows]. */
+    private val addressRows: Map<String, Int> = buildMap {
+        for (role in listOf(PartyRole.ADDRESSEE, PartyRole.SENDER)) {
+            val prefix = AddressRows.prefixOf(role) ?: continue
+            val sender = role == PartyRole.SENDER
+            for ((part, res) in addressParts) put(prefix + part.key, if (sender) res.second else res.first)
+            put(prefix + AddressRows.RAW, if (sender) R.string.addr_sender_raw else R.string.addr_addressee_raw)
+        }
+    }
+
     private val types: Map<String, Int> = mapOf(
         ExtractionSchema.BILL.id to R.string.doctype_bill,
         ExtractionSchema.REMINDER_DUNNING.id to R.string.doctype_reminder_dunning,
@@ -97,7 +130,7 @@ object SlotLabels {
 
     /** The label resource for a slot key, or null for a key with none (an extra, or a name a person typed). */
     @StringRes
-    fun slot(key: String?): Int? = key?.let(slots::get)
+    fun slot(key: String?): Int? = key?.let { slots[it] ?: addressRows[it] }
 
     /** The words of a found value's label: [res] takes [number] as its one argument ("Found date %1$d"). */
     data class FoundLabel(@StringRes val res: Int, val number: Int)
@@ -134,7 +167,7 @@ object SlotLabels {
     fun topic(id: String?): Int? = id?.let(topics::get)
 
     /** Every key that has a label; for the test that guards the schema. */
-    val slotKeys: Set<String> get() = slots.keys
+    val slotKeys: Set<String> get() = slots.keys + addressRows.keys
     val typeIds: Set<String> get() = types.keys
     val topicIds: Set<String> get() = topics.keys
 

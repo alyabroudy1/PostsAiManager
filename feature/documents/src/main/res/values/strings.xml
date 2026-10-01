@@ -46,6 +46,35 @@
     <string name="slot_contact">Contact person</string>
     <string name="slot_subject">Subject</string>
     <string name="slot_unlabelled">Detail</string>
+    <!-- The parts of a structured address, per role (see SlotLabels.addressParts) -->
+    <string name="addr_addressee_name">Receiver name</string>
+    <string name="addr_addressee_organisation">Receiver organisation</string>
+    <string name="addr_addressee_department">Receiver department</string>
+    <string name="addr_addressee_care_of">Receiver care of</string>
+    <string name="addr_addressee_street">Receiver street</string>
+    <string name="addr_addressee_house_number">Receiver house number</string>
+    <string name="addr_addressee_extra">Receiver address line</string>
+    <string name="addr_addressee_postcode">Receiver postcode</string>
+    <string name="addr_addressee_city">Receiver city</string>
+    <string name="addr_addressee_region">Receiver region</string>
+    <string name="addr_addressee_country">Receiver country</string>
+    <string name="addr_addressee_po_box">Receiver post office box</string>
+    <string name="addr_addressee_packstation">Receiver parcel locker</string>
+    <string name="addr_addressee_raw">Receiver address as printed</string>
+    <string name="addr_sender_name">Sender name</string>
+    <string name="addr_sender_organisation">Sender organisation</string>
+    <string name="addr_sender_department">Sender department</string>
+    <string name="addr_sender_care_of">Sender care of</string>
+    <string name="addr_sender_street">Sender street</string>
+    <string name="addr_sender_house_number">Sender house number</string>
+    <string name="addr_sender_extra">Sender address line</string>
+    <string name="addr_sender_postcode">Sender postcode</string>
+    <string name="addr_sender_city">Sender city</string>
+    <string name="addr_sender_region">Sender region</string>
+    <string name="addr_sender_country">Sender country</string>
+    <string name="addr_sender_po_box">Sender post office box</string>
+    <string name="addr_sender_packstation">Sender parcel locker</string>
+    <string name="addr_sender_raw">Sender address as printed</string>
     <!-- Values code found on the page that nobody classified; %1$d is the running number -->
     <string name="found_date">Found date %1$d</string>
     <string name="found_amount">Found amount %1$d</string>
