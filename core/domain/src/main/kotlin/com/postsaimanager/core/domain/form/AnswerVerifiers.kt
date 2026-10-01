@@ -126,7 +126,9 @@ object AnswerVerifiers {
         }
     }
 
+    /** A date with a written month. Only text with a letter is tried: the lenient localized parsers would clamp `31.04.2019` to the 30th. */
     private fun writtenDate(t: String, locale: Locale): LocalDate? {
+        if (t.none { it.isLetter() }) return null
         for (style in listOf(FormatStyle.LONG, FormatStyle.MEDIUM, FormatStyle.FULL)) {
             val f = DateTimeFormatter.ofLocalizedDate(style).withLocale(locale).withDecimalStyle(DecimalStyle.STANDARD)
             runCatching { return LocalDate.parse(t, f) }

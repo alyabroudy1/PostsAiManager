@@ -1,0 +1,30 @@
+{
+    "key": "F2-en-school-trip-1p",
+    "pages": [
+        {
+            "pageNumber": 1, "width": 1654, "height": 2339, "ocrFailed": false,
+            "blocks": [
+                {"text": "Year 5 Museum Trip - Parental Consent", "bounds": {"left": 0.080, "top": 0.050, "right": 0.672, "bottom": 0.076}, "confidence": 0.96, "language": "en"},
+                {"text": "Trip date: 14 May 2027. For pupils aged 9 to 11.", "bounds": {"left": 0.080, "top": 0.090, "right": 0.584, "bottom": 0.104}, "confidence": 0.95, "language": "en"},
+                {"text": "Pupil details", "bounds": {"left": 0.080, "top": 0.140, "right": 0.288, "bottom": 0.162}, "confidence": 0.96, "language": "en"},
+                {"text": "Pupil's full name: ______________________", "bounds": {"left": 0.080, "top": 0.180, "right": 0.521, "bottom": 0.194}, "confidence": 0.93, "language": "en"},
+                {"text": "Date of birth: ______________", "bounds": {"left": 0.080, "top": 0.215, "right": 0.3845, "bottom": 0.229}, "confidence": 0.93, "language": "en"},
+                {"text": "Class: __________", "bounds": {"left": 0.080, "top": 0.250, "right": 0.2585, "bottom": 0.264}, "confidence": 0.93, "language": "en"},
+                {"text": "Medical conditions or allergies:", "bounds": {"left": 0.080, "top": 0.290, "right": 0.416, "bottom": 0.304}, "confidence": 0.95, "language": "en"},
+                {"text": "Parent or guardian", "bounds": {"left": 0.080, "top": 0.350, "right": 0.368, "bottom": 0.372}, "confidence": 0.96, "language": "en"},
+                {"text": "Parent or guardian name: ________________", "bounds": {"left": 0.080, "top": 0.390, "right": 0.5105, "bottom": 0.404}, "confidence": 0.93, "language": "en"},
+                {"text": "Mobile phone: ______________", "bounds": {"left": 0.080, "top": 0.425, "right": 0.374, "bottom": 0.439}, "confidence": 0.93, "language": "en"},
+                {"text": "Email: ____________________", "bounds": {"left": 0.080, "top": 0.460, "right": 0.3635, "bottom": 0.474}, "confidence": 0.93, "language": "en"},
+                {"text": "Emergency contact (name and number): ______", "bounds": {"left": 0.080, "top": 0.495, "right": 0.521, "bottom": 0.509}, "confidence": 0.93, "language": "en"},
+                {"text": "Consent", "bounds": {"left": 0.080, "top": 0.550, "right": 0.192, "bottom": 0.572}, "confidence": 0.96, "language": "en"},
+                {"text": "I have read the trip information and agree to the conditions of the school.", "bounds": {"left": 0.080, "top": 0.590, "right": 0.878, "bottom": 0.604}, "confidence": 0.95, "language": "en"},
+                {"text": "☐ I give permission for my child to take part in the trip", "bounds": {"left": 0.080, "top": 0.630, "right": 0.6785, "bottom": 0.644}, "confidence": 0.91, "language": "en"},
+                {"text": "☐ I consent to my child being photographed", "bounds": {"left": 0.080, "top": 0.665, "right": 0.521, "bottom": 0.679}, "confidence": 0.91, "language": "en"},
+                {"text": "Payment method", "bounds": {"left": 0.080, "top": 0.720, "right": 0.230, "bottom": 0.734}, "confidence": 0.95, "language": "en"},
+                {"text": "Amount", "bounds": {"left": 0.400, "top": 0.720, "right": 0.465, "bottom": 0.734}, "confidence": 0.95, "language": "en"},
+                {"text": "Date paid", "bounds": {"left": 0.650, "top": 0.720, "right": 0.745, "bottom": 0.734}, "confidence": 0.95, "language": "en"},
+                {"text": "Signed: ______________________ Date: ______________", "bounds": {"left": 0.080, "top": 0.850, "right": 0.6365, "bottom": 0.864}, "confidence": 0.93, "language": "en"}
+            ]
+        }
+    ]
+}

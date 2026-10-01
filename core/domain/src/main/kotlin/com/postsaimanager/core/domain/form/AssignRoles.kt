@@ -33,9 +33,8 @@ class AssignRoles(
         val groups = inputs.indices.groupBy { inputs[it].section }
         val sectionRole = scoreSections(inputs, groups)
 
-        val spent = sectionRole.size * roles.size
         val bearing = inputs.indices.filter { inputs[it].dataKey in FormRoles.roleBearingKeys }
-            .take(((profile.maxRoleScores - spent) / roles.size).coerceAtLeast(0))
+            .take((profile.maxFieldRoleScores / roles.size).coerceAtLeast(0))
         val ownScores = scorer.yesNo(bearing.flatMap { fieldQuestions(inputs[it].label) })
 
         val fieldRoles = inputs.map { sectionRole[it.section]?.first }.toMutableList()
@@ -52,7 +51,7 @@ class AssignRoles(
 
     /** The role (or null) and its score of every section that fits the budget. */
     private suspend fun scoreSections(inputs: List<RoleInput>, groups: Map<String?, List<Int>>): Map<String?, Pair<FormRole?, Double>> {
-        val scored = groups.keys.take((profile.maxRoleScores / roles.size).coerceAtLeast(0))
+        val scored = groups.keys.take((profile.maxSectionScores / roles.size).coerceAtLeast(0))
         val scores = scorer.yesNo(scored.flatMap { s -> sectionQuestions(s, groups.getValue(s).map { inputs[it].label }) })
         return scored.mapIndexed { i, s ->
             val row = scores.subList(i * roles.size, (i + 1) * roles.size)

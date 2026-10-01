@@ -28,7 +28,9 @@ data class FormScoringProfile(
     val subjectThreshold: Double = 0.0,
     val maxConfirmScores: Int = 40,
     val maxClassifyScores: Int = 96,
-    val maxRoleScores: Int = 40,
+    /** Role scores for sections (one per role per section) and for role-bearing fields (one per role per field). */
+    val maxSectionScores: Int = 48,
+    val maxFieldRoleScores: Int = 24,
     /** At most this many managed profiles are scored as the form's subject. */
     val maxSubjects: Int = 6,
     /** At most this many intro lines are scored as the quoted reason for the suggested subject. */
