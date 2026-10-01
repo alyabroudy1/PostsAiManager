@@ -371,9 +371,6 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
         val TICKET_BOOKING = DocFamily.of("ticket_booking", DocumentType.OTHER, Slots.EVENT_DATE)
             .described("a ticket, a booking confirmation or a travel itinerary")
 
-        val EMAIL_PRINTOUT = DocFamily.of("email_printout", DocumentType.OTHER)
-            .described("a printout of an email message or of a web page")
-
         /** A letter the user sent (P3; the pipeline does not produce it yet). */
         val OUTGOING_LETTER = DocFamily.of(
             "outgoing_letter", DocumentType.OFFICIAL_LETTER,
@@ -418,12 +415,9 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
         val DEFAULT = ExtractionSchema(
             listOf(
                 OFFICIAL_LETTER, INVOICE_BILL, RECEIPT, FORM_APPLICATION, STATEMENT, CONTRACT_POLICY, CERTIFICATE_ID, MEDICAL,
-                TICKET_BOOKING, EMAIL_PRINTOUT, OUTGOING_LETTER, PAYMENT_PROOF, FREE_FORM,
+                TICKET_BOOKING, OUTGOING_LETTER, PAYMENT_PROOF, FREE_FORM,
             ),
             TOPICS,
         )
-
-        /** The same registry under the name the schema had while the families were introduced; kept for readers that still say `V2`. */
-        val V2: ExtractionSchema get() = DEFAULT
     }
 }

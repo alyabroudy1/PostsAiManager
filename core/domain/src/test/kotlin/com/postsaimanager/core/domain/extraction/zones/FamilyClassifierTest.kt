@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test
 
 class FamilyClassifierTest {
 
-    private val schema = ExtractionSchema.V2
+    private val schema = ExtractionSchema.DEFAULT
     private val profile = ScoringProfile(thresholds = mapOf(ScoringProfile.FAMILY to 0.0, ScoringProfile.TOPICS to 0.0))
 
     /** A session whose scores come from [scores]: a family or topic id to its log-odds; everything else scores [other]. */
@@ -70,10 +70,10 @@ class FamilyClassifierTest {
         val records = ArrayList<AskRecord>()
         val c = FamilyClassifier(session, profile, onRecord = { records += it }).classify(DocDirection.INCOMING)!!
         assertThat(session.scored).hasSize(1)
-        assertThat(session.scored.single().size).isEqualTo(24)
-        assertThat(c.scores).hasSize(24)
+        assertThat(session.scored.single().size).isEqualTo(23)
+        assertThat(c.scores).hasSize(23)
         assertThat(records.single().name).isEqualTo("score:family")
-        assertThat(records.single().answer!!.split(',')).hasSize(24)
+        assertThat(records.single().answer!!.split(',')).hasSize(23)
     }
 
     @Test
@@ -100,7 +100,7 @@ class FamilyClassifierTest {
         val c = FamilyClassifier(session, profile).classify(DocDirection.INCOMING, includeTopics = false)!!
         assertThat(c.family.id).isEqualTo("receipt")
         assertThat(c.topics).isEmpty()
-        assertThat(session.scored.single()).hasSize(10)
+        assertThat(session.scored.single()).hasSize(9)
         val later = FamilyClassifier(session, profile).topics()!!
         assertThat(later).containsExactly("shopping")
     }
@@ -123,7 +123,7 @@ class FamilyClassifierTest {
     @Test
     fun `the qwen profile has the thresholds and the stage flag`() {
         val qwen = ModelProfiles.QWEN35_08B
-        assertThat(qwen.topicsInFirstStage).isTrue()
+        assertThat(qwen.topicsInFirstStage).isFalse()
         assertThat(qwen.scoring.thresholds).containsKey(ScoringProfile.FAMILY)
         assertThat(qwen.scoring.thresholds).containsKey(ScoringProfile.TOPICS)
         assertThat(qwen.scoring.thresholds).containsKey(LineAsk.LABEL_ASK)

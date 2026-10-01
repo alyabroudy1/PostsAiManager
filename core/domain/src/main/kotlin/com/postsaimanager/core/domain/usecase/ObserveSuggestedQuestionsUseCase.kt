@@ -39,7 +39,7 @@ class ObserveSuggestedQuestionsUseCase @Inject constructor(
     companion object {
         private const val MAX_QUESTIONS = 3
 
-        private val SCHEMA = ExtractionSchema.V2
+        private val SCHEMA = ExtractionSchema.DEFAULT
 
         /**
          * The questions of the newest document that has some, that the all-documents chat may show

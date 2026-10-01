@@ -45,7 +45,7 @@ data class PresentationSpec(val sections: List<Section>) {
 
 /**
  * The one owner of how each document family is presented: data, one [PresentationSpec] per family of
- * [ExtractionSchema.V2]. `ExtractedPresenter` reads the spec; there is no when-chain on the family there. A new family is one line
+ * [ExtractionSchema.DEFAULT]. `ExtractedPresenter` reads the spec; there is no when-chain on the family there. A new family is one line
  * here (or none: an unknown family gets [FREE_FORM]); a slot a spec does not name is placed by its [SlotKind]
  * (money and deadlines under Action, dates under Dates, references under References), so a topic's extra slot needs nothing here.
  *
@@ -127,7 +127,6 @@ object FamilyPresentation {
         ExtractionSchema.FORM_APPLICATION.id to FREE_FORM,
         ExtractionSchema.CERTIFICATE_ID.id to FREE_FORM,
         ExtractionSchema.TICKET_BOOKING.id to FREE_FORM,
-        ExtractionSchema.EMAIL_PRINTOUT.id to FREE_FORM,
         ExtractionSchema.FREE_FORM.id to FREE_FORM,
     )
 

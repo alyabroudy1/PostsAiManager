@@ -59,20 +59,6 @@ interface DocumentProcessor {
     suspend fun enqueue(documentId: String, force: Boolean = false, forcedFamily: String? = null)
 
     /**
-     * Schedules a fresh read of [documentId] in which the document's family is [forcedFamily] instead of the one the classifier
-     * would pick ("Read again as ..."): the same run as `enqueue(documentId, force = true)`, with the family question skipped.
-     * Rows a person confirmed, edited or ignored stay as they are (`MergeExtractionUseCase`). A null [forcedFamily] is a plain re-read.
-     *
-     * The default is a plain re-read that ignores the family, so an implementation that cannot force one stays correct.
-     *
-     * TODO(P4): `DocumentProcessingPipeline` implements this: it hands [forcedFamily] to the interpreter and stores it with
-     * `FamilySource.USER`.
-     */
-    suspend fun enqueueReadAs(documentId: String, forcedFamily: String?) {
-        enqueue(documentId, force = true)
-    }
-
-    /**
      * Cancels any queued or running work for [documentId] (a scan and a background re-read alike) — called when the document itself
      * is deleted, so a stale worker does not resurrect rows a delete just removed.
      */

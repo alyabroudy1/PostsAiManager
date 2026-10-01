@@ -14,10 +14,10 @@ import javax.inject.Inject
 class ReadAgainAsFamilyUseCase @Inject constructor(private val processor: DocumentProcessor) {
 
     suspend operator fun invoke(documentId: String, familyId: String): PamResult<Unit> {
-        if (ExtractionSchema.V2.family(familyId) == null) {
+        if (ExtractionSchema.DEFAULT.family(familyId) == null) {
             return PamResult.Error(PamError.ValidationError("familyId", "unknown family: $familyId"))
         }
-        processor.enqueueReadAs(documentId, familyId)
+        processor.enqueue(documentId, force = true, forcedFamily = familyId)
         return PamResult.Success(Unit)
     }
 }

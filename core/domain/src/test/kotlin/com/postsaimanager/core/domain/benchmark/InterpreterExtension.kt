@@ -510,11 +510,23 @@ object InterpreterMetrics {
     private const val MID = "0.5-0.8"
     private const val HIGH = "0.8-1.0"
 
+    /**
+     * Letters whose current-interpreter recording (the scoring variant) decided the family `email_printout`, which is no family any more
+     * (it misread two postal letters). Replayed now, such a letter is read as another family and asks slot questions the device run never
+     * recorded, so it cannot replay in full. Only a new device recording of the letter closes this; until then it is left out of the
+     * replays that require a full one.
+     */
+    val PENDING_RERECORD: Set<String> = setOf("tax-long-7p")
+
+    /** The recordings in [dir] that can be replayed in full: all but those of [PENDING_RERECORD]. */
+    fun loadReplayable(dir: File): List<Recording> =
+        Recordings.load(dir).filterNot { it.key in PENDING_RERECORD && it.variant == SCORING_VARIANT + "3" }
+
     /** Scores every variant found in [dir]; empty when there are no recordings (never an error). */
     fun scoreAll(docs: List<Pair<ManifestDoc, Fixture>>, dir: File): List<InterpreterScore> =
         // The scoring variants are decided with the shipped profile: a recording of the current interpreter holds the questions that profile's
         // decisions ask (the facts of the summary, the address lines the parties settle), and the default profile would decide others.
-        Recordings.load(dir).groupBy { it.variant }.mapNotNull { (variant, recs) ->
+        loadReplayable(dir).groupBy { it.variant }.mapNotNull { (variant, recs) ->
             score(variant, docs, recs, com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring)
         }
 

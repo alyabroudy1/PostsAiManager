@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.address.AddressRows
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.FamilyPresentation
+import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.model.AddressPart
 import com.postsaimanager.core.model.ExtractedData
@@ -27,12 +28,22 @@ class SlotLabelsTest {
 
     @Test
     fun `every family and topic of extraction-v2-2 has a label, and every slot they add has one`() {
-        assertThat(SlotLabels.typeIds).containsAtLeastElementsIn(ExtractionSchema.V2.families.map { it.id })
-        assertThat(SlotLabels.topicIds).containsExactlyElementsIn(ExtractionSchema.V2.topics.map { it.id })
-        assertThat(SlotLabels.slotKeys).containsAtLeastElementsIn(ExtractionSchema.V2.allSlots.map { it.json })
+        assertThat(SlotLabels.typeIds).containsExactlyElementsIn(ExtractionSchema.DEFAULT.families.map { it.id })
+        assertThat(SlotLabels.topicIds).containsExactlyElementsIn(ExtractionSchema.DEFAULT.topics.map { it.id })
+        assertThat(SlotLabels.slotKeys).containsAtLeastElementsIn(ExtractionSchema.DEFAULT.allSlots.map { it.json })
         assertThat(SlotLabels.type("medical")).isEqualTo(R.string.doctype_medical)
         assertThat(SlotLabels.topic("health")).isEqualTo(R.string.topic_health)
         assertThat(SlotLabels.topic("astrology")).isNull()
+    }
+
+    @Test
+    fun `a legacy type id is labelled as the family it maps to, one label per family`() {
+        for ((legacy, mapping) in LegacyTypes.BY_TYPE) {
+            assertThat(SlotLabels.type(legacy)).isEqualTo(SlotLabels.type(mapping.family))
+            assertThat(SlotLabels.type(legacy)).isNotNull()
+        }
+        assertThat(SlotLabels.type("bill")).isEqualTo(R.string.doctype_invoice_bill)
+        assertThat(SlotLabels.type("astrology")).isNull()
     }
 
     @Test

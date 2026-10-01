@@ -32,7 +32,7 @@ class ObserveChatVisibleDocumentsUseCase @Inject constructor(
     suspend fun current(): List<Document> = invoke().first()
 
     companion object {
-        private val SCHEMA = ExtractionSchema.V2
+        private val SCHEMA = ExtractionSchema.DEFAULT
 
         fun isChatVisible(document: Document): Boolean = !document.isTrashed && !isSensitive(document)
 

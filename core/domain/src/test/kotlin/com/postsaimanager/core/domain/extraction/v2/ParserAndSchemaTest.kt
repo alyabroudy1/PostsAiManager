@@ -80,10 +80,10 @@ class ParserAndSchemaTest {
     }
 
     @Test
-    fun `the thirteen families are the agreed ones`() {
+    fun `the twelve families are the agreed ones`() {
         assertThat(ExtractionSchema.DEFAULT.families.map { it.id }).containsExactly(
             "official_letter", "invoice_bill", "receipt", "form_application", "statement", "contract_policy", "certificate_id", "medical",
-            "ticket_booking", "email_printout", "outgoing_letter", "payment_proof", "free_form",
+            "ticket_booking","outgoing_letter", "payment_proof", "free_form",
         )
     }
 

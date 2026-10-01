@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.extraction.address.AddressRows
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
+import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
@@ -86,19 +87,11 @@ object SlotLabels {
         }
     }
 
+    /** One label per family; a legacy type id is rendered as the family it maps to ([LegacyTypes]). */
     private val types: Map<String, Int> = mapOf(
-        ExtractionSchema.BILL.id to R.string.doctype_bill,
-        ExtractionSchema.REMINDER_DUNNING.id to R.string.doctype_reminder_dunning,
-        ExtractionSchema.AUTHORITY_TAX.id to R.string.doctype_authority_tax,
-        ExtractionSchema.HEALTH.id to R.string.doctype_health,
-        ExtractionSchema.INSURANCE_CONTRACT.id to R.string.doctype_insurance_contract,
-        ExtractionSchema.SCHOOL.id to R.string.doctype_school,
         ExtractionSchema.RECEIPT.id to R.string.doctype_receipt,
-        ExtractionSchema.INFO_NO_ACTION.id to R.string.doctype_info_no_action,
         ExtractionSchema.OUTGOING_LETTER.id to R.string.doctype_outgoing_letter,
         ExtractionSchema.PAYMENT_PROOF.id to R.string.doctype_payment_proof,
-        ExtractionSchema.OTHER.id to R.string.doctype_other,
-        // the families of extraction-v2-2 (receipt, outgoing_letter and payment_proof are the lines above)
         ExtractionSchema.OFFICIAL_LETTER.id to R.string.doctype_official_letter,
         ExtractionSchema.INVOICE_BILL.id to R.string.doctype_invoice_bill,
         ExtractionSchema.FORM_APPLICATION.id to R.string.doctype_form_application,
@@ -107,7 +100,6 @@ object SlotLabels {
         ExtractionSchema.CERTIFICATE_ID.id to R.string.doctype_certificate_id,
         ExtractionSchema.MEDICAL.id to R.string.doctype_medical,
         ExtractionSchema.TICKET_BOOKING.id to R.string.doctype_ticket_booking,
-        ExtractionSchema.EMAIL_PRINTOUT.id to R.string.doctype_email_printout,
         ExtractionSchema.FREE_FORM.id to R.string.doctype_free_form,
     )
 
@@ -160,7 +152,7 @@ object SlotLabels {
             ?.removePrefix(ExtractedData.EXTRA_KEY_PREFIX)?.replace('_', ' ')?.ifBlank { null }
 
     @StringRes
-    fun type(id: String?): Int? = id?.let(types::get)
+    fun type(id: String?): Int? = id?.let { types[it] ?: types[LegacyTypes.of(it)?.family] }
 
     /** The label resource for a topic id, or null for an id with none. */
     @StringRes

@@ -26,7 +26,7 @@ class FamilyAccuracyTest {
     private val docs = BenchmarkFixtures.load().docs
     private val recordings = Recordings.load(File("src/test/resources/benchmark/recordings"))
     private val threshold = ModelProfiles.QWEN35_08B.scoring.familyThreshold
-    private val schema = ExtractionSchema.V2
+    private val schema = ExtractionSchema.DEFAULT
 
     private val expected = FamilyExpectations.BY_KEY
 
@@ -81,9 +81,10 @@ class FamilyAccuracyTest {
             if (decided in ok) right++
         }
         assertThat(total).isEqualTo(13)
-        // Measured on the phone (P4): 9 of 13, the same at every threshold from -1.0 to 0.3. The architecture's target was 11 of 13; the
-        // misses are letters the 0.8B model scores nearest to email_printout (N6, the tax letter) or official_letter (N2, N4). This test pins
-        // the measurement, so an improvement or a regression is a visible change.
+        // The device recordings (P4) scored ten incoming families; email_printout, the tenth, is no family any more, so its column is dropped
+        // (it is the last scored one) and the replay decides among the nine that remain: 9 of 13, as before. The architecture's target was
+        // 11 of 13; the misses are letters the 0.8B model scores nearest to official_letter (N2, N4) or to another family (N6, the tax
+        // letter). This test pins that replay, so an improvement or a regression is a visible change.
         assertThat(right).isEqualTo(9)
     }
 

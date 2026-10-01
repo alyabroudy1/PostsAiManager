@@ -164,8 +164,8 @@ val ExtractedData.isIgnored: Boolean get() = reviewState == ReviewState.IGNORED 
 /** Builds an [ExtractedPresentation] from a document and its stored fields. Pure; the layout is data in `FamilyPresentation`. */
 object ExtractedPresenter {
 
-    private val schemas = listOf(ExtractionSchema.V2, ExtractionSchema.DEFAULT)
-    private val allSlots = schemas.flatMap { it.allSlots }.distinctBy { it.json }
+    private val schema = ExtractionSchema.DEFAULT
+    private val allSlots = schema.allSlots.distinctBy { it.json }
 
     /** The lines of an address block, top to bottom; a line with two parts reads as one ("Hauptstr. 12", "10115 Berlin"). */
     private val addressLines: List<List<AddressPart>> = listOf(
@@ -192,8 +192,7 @@ object ExtractedPresenter {
         summaryComing: Boolean = false,
     ): ExtractedPresentation {
         val spec = FamilyPresentation.of(document.extractionType)
-        val family = FamilyPresentation.familyId(document.extractionType)?.let { ExtractionSchema.V2.family(it) }
-            ?: schemas.firstNotNullOfOrNull { it.family(document.extractionType) }
+        val family = FamilyPresentation.familyId(document.extractionType)?.let { schema.family(it) }
         val familyOrder = family?.slots?.map { it.json }.orEmpty()
 
         val (ignored, live) = fields.partition { it.isIgnored }

@@ -34,7 +34,7 @@ class ExtractionBenchmarkTest {
             )
         }
         // Per letter and interpreter, so a recording set can be compared letter by letter.
-        val recs = Recordings.load(RECORDINGS)
+        val recs = InterpreterMetrics.loadReplayable(RECORDINGS)
         for ((m, f) in loaded.docs) {
             for ((variant, group) in recs.groupBy { it.variant }) {
                 val s = InterpreterMetrics.score(

@@ -7,12 +7,12 @@ class FamilyPresentationTest {
 
     @Test
     fun `every family of the v2 schema has a spec`() {
-        assertThat(FamilyPresentation.familyIds).containsAtLeastElementsIn(ExtractionSchema.V2.families.map { it.id })
+        assertThat(FamilyPresentation.familyIds).containsAtLeastElementsIn(ExtractionSchema.DEFAULT.families.map { it.id })
     }
 
     @Test
     fun `every slot a spec names is a slot that exists, and none is placed twice`() {
-        val known = (ExtractionSchema.V2.allSlots + ExtractionSchema.DEFAULT.allSlots).map { it.json }.toSet() +
+        val known = ExtractionSchema.DEFAULT.allSlots.map { it.json }.toSet() +
             setOf("sender", "addressee", "contact", "subject")
         for (id in FamilyPresentation.familyIds) {
             val slots = FamilyPresentation.of(id).sections.flatMap { it.slots }
@@ -35,7 +35,7 @@ class FamilyPresentationTest {
 
     @Test
     fun `the families that carry a recipient block in the schema have one in the presentation`() {
-        for (family in ExtractionSchema.V2.families.filter { it.hasRecipientBlock }) {
+        for (family in ExtractionSchema.DEFAULT.families.filter { it.hasRecipientBlock }) {
             assertThat(FamilyPresentation.of(family.id).has(SectionKind.RECIPIENT_BLOCK)).isTrue()
         }
     }

@@ -178,20 +178,10 @@
     <string name="slot_cited_references">Cited references</string>
     <string name="slot_action_kind">Action</string>
 
-    <!-- Document types, keyed by type id -->
-    <string name="doctype_bill">Bill</string>
-    <string name="doctype_reminder_dunning">Payment reminder</string>
-    <string name="doctype_authority_tax">Authority or tax letter</string>
-    <string name="doctype_health">Health</string>
-    <string name="doctype_insurance_contract">Insurance or contract</string>
-    <string name="doctype_school">School</string>
+    <!-- Document families, keyed by family id; a legacy type id is shown as the family it maps to -->
     <string name="doctype_receipt">Receipt</string>
-    <string name="doctype_info_no_action">Information</string>
     <string name="doctype_outgoing_letter">Letter you sent</string>
     <string name="doctype_payment_proof">Proof of payment</string>
-    <string name="doctype_other">Other</string>
-
-    <!-- Document families (extraction-v2-2), keyed by family id; receipt, outgoing_letter and payment_proof keep the strings above -->
     <string name="doctype_official_letter">Official letter</string>
     <string name="doctype_invoice_bill">Invoice or bill</string>
     <string name="doctype_form_application">Form or application</string>
@@ -200,7 +190,6 @@
     <string name="doctype_certificate_id">Certificate or ID</string>
     <string name="doctype_medical">Medical</string>
     <string name="doctype_ticket_booking">Ticket or booking</string>
-    <string name="doctype_email_printout">Email or web page</string>
     <string name="doctype_free_form">Other document</string>
 
     <!-- Topics, keyed by topic id -->

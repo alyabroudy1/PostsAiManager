@@ -65,13 +65,6 @@ class FakeDocumentProcessor : DocumentProcessor {
         enqueueCalls += EnqueueCall(documentId, force, forcedFamily)
     }
 
-    /** Every "Read again as" call: the document and the family it was forced to. */
-    val readAsCalls = mutableListOf<Pair<String, String?>>()
-
-    override suspend fun enqueueReadAs(documentId: String, forcedFamily: String?) {
-        readAsCalls += documentId to forcedFamily
-    }
-
     override fun cancel(documentId: String) {
         cancelCalls += documentId
     }

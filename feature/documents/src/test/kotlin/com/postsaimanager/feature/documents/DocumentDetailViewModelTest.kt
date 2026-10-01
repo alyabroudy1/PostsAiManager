@@ -348,7 +348,6 @@ class DocumentDetailViewModelTest {
             val doc = documentRepository.getDocumentById("d1").let { (it as com.postsaimanager.core.common.result.PamResult.Success).data }
             assertThat(doc.extractionType).isEqualTo("invoice_bill")
             assertThat(doc.familySource).isEqualTo(FamilySource.USER)
-            assertThat(documentProcessor.readAsCalls).isEmpty()
             assertThat(documentProcessor.enqueueCalls).isEmpty()
         }
 
@@ -360,7 +359,8 @@ class DocumentDetailViewModelTest {
 
             vm.readAgainAs("receipt")
 
-            assertThat(documentProcessor.readAsCalls).containsExactly("d1" to "receipt")
+            assertThat(documentProcessor.enqueueCalls)
+                .containsExactly(FakeDocumentProcessor.EnqueueCall("d1", force = true, forcedFamily = "receipt"))
         }
 
         @Test
@@ -371,7 +371,7 @@ class DocumentDetailViewModelTest {
 
             vm.readAgainAs("astrology")
 
-            assertThat(documentProcessor.readAsCalls).isEmpty()
+            assertThat(documentProcessor.enqueueCalls).isEmpty()
         }
     }
 

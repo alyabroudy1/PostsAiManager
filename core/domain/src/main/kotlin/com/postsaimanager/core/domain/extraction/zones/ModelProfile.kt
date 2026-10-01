@@ -59,8 +59,8 @@ object ModelProfiles {
      */
     val QWEN35_08B = ModelProfile(
         "qwen3.5-0.8b-q4_k_m", contextTokens = 4096, strategy = InterpreterStrategy.ZONES_SCORING,
-        // The +14 topic scores run with the family scores; P4 measures the time and flips this when it is over budget.
-        topicsInFirstStage = true,
+        // The topic scores run in the second stage: they added about 17 s to the first stage on the phone (planner decision, 2026-10-01).
+        topicsInFirstStage = false,
         scoring = ScoringProfile(
             defaultThreshold = -12.0,
             // The extras are the one question where "take the best" is wrong: a value is an extra only when the model says yes to it.

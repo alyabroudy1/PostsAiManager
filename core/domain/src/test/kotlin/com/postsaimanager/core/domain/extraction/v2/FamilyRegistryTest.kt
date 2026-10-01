@@ -5,13 +5,13 @@ import org.junit.jupiter.api.Test
 
 class FamilyRegistryTest {
 
-    private val schema = ExtractionSchema.V2
+    private val schema = ExtractionSchema.DEFAULT
 
     @Test
     fun `the registry has the families and topics of the architecture`() {
         assertThat(schema.families.map { it.id }).containsExactly(
             "official_letter", "invoice_bill", "receipt", "form_application", "statement", "contract_policy", "certificate_id", "medical",
-            "ticket_booking", "email_printout", "outgoing_letter", "payment_proof", "free_form",
+            "ticket_booking","outgoing_letter", "payment_proof", "free_form",
         ).inOrder()
         assertThat(schema.topics.map { it.id }).containsExactly(
             "government", "tax", "health", "insurance", "bank_finance", "housing_utilities", "work", "school_education", "vehicle",
@@ -35,9 +35,9 @@ class FamilyRegistryTest {
     }
 
     @Test
-    fun `a received letter is scored against 10 families, and never the outgoing letter or the proof`() {
+    fun `a received letter is scored against 9 families, and never the outgoing letter or the proof`() {
         val incoming = schema.familiesFor(DocDirection.INCOMING).map { it.id }
-        assertThat(incoming).hasSize(10)
+        assertThat(incoming).hasSize(9)
         assertThat(incoming).containsNoneOf("outgoing_letter", "payment_proof", "free_form")
         assertThat(incoming.size + schema.topics.size).isAtMost(24)
         assertThat(schema.familiesFor(DocDirection.OUTGOING).map { it.id }).containsExactly("outgoing_letter")

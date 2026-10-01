@@ -357,7 +357,7 @@ private fun FamilyPickerDialog(mode: PickerMode, current: String?, onDismiss: ()
         },
         text = {
             LazyColumn {
-                items(ExtractionSchema.V2.families, key = { it.id }) { family ->
+                items(ExtractionSchema.DEFAULT.families, key = { it.id }) { family ->
                     val label = SlotLabels.type(family.id)?.let { stringResource(it) } ?: family.id
                     // The current family is marked even when the stored id is a legacy one that stands for it.
                     val selected = family.id == FamilyPresentation.familyId(current)
