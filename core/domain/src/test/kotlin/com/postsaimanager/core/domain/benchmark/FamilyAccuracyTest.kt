@@ -28,21 +28,7 @@ class FamilyAccuracyTest {
     private val threshold = ModelProfiles.QWEN35_08B.scoring.familyThreshold
     private val schema = ExtractionSchema.V2
 
-    private val expected = mapOf(
-        "N1-mahnung-telco-qr-1p" to setOf("invoice_bill"),
-        "N2-kfz-verlaengerung-2p" to setOf("contract_policy"),
-        "N3-schule-familie-2p" to setOf("official_letter"),
-        "N4-zhd-firma-1p" to setOf("contract_policy", "free_form"),
-        "N5-co-familie-1p" to setOf("invoice_bill"),
-        "N6-nebenkosten-3p" to setOf("invoice_bill"),
-        "N7-beitragsservice-1p" to setOf("invoice_bill", "official_letter"),
-        "N8-info-bank-noaction-1p" to setOf("official_letter"),
-        "N9-fuzzy-name-1p" to setOf("invoice_bill"),
-        "N10-kinderarzt-termin-1p" to setOf("medical"),
-        "invoice-2p" to setOf("invoice_bill"),
-        "tax-long-7p" to setOf("official_letter"),
-        "receipt-noise-1p" to setOf("receipt"),
-    )
+    private val expected = FamilyExpectations.BY_KEY
 
     /** The scored batch of one letter as family scores (legacy view), or null when the letter has no expectation or recording. */
     private class Row(val key: String, val familyScores: Map<String, Double>, val ok: Set<String>)
@@ -77,6 +63,28 @@ class FamilyAccuracyTest {
         for (m in sixteen) for (t in m.topics) assertThat(schema.topic(t)).isNotNull()
         val sensitive = sixteen.filter { m -> m.topics.any { schema.topic(it)?.sensitive == true } }.map { it.key }
         assertThat(sensitive).containsExactly("N10-kinderarzt-termin-1p")
+    }
+
+    @Test
+    fun `family accuracy on the device recordings of the families is the measured 9 of 13, the target of 11 is not met`() {
+        val scored = schema.familiesFor(DocDirection.INCOMING)
+        val real = recordings.filter { it.variant == "zonesscoring3" }
+        assertThat(real).hasSize(16)
+        var right = 0
+        var total = 0
+        for (rec in real) {
+            val ok = expected[rec.key] ?: continue
+            val scores = rec.asks.first { it.name == "score:family" }.answer!!.split(',').map { it.trim().toDouble() }.take(scored.size)
+            val best = scores.indices.maxByOrNull { scores[it] }!!
+            val decided = if (scores[best] > threshold) scored[best].id else "free_form"
+            total++
+            if (decided in ok) right++
+        }
+        assertThat(total).isEqualTo(13)
+        // Measured on the phone (P4): 9 of 13, the same at every threshold from -1.0 to 0.3. The architecture's target was 11 of 13; the
+        // misses are letters the 0.8B model scores nearest to email_printout (N6, the tax letter) or official_letter (N2, N4). This test pins
+        // the measurement, so an improvement or a regression is a visible change.
+        assertThat(right).isEqualTo(9)
     }
 
     @Test

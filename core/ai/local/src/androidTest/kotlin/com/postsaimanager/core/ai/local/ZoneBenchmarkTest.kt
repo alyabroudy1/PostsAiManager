@@ -35,10 +35,10 @@ import java.io.File
  *
  * Nothing is scored here. Each letter records its raw answers or raw scores, the offered candidates and the timings as
  * `<key>.<interpreter><suffix>.json`; the JVM benchmark replays them through the real interpreters and the verifier.
- * A scoring run is recorded with the shipped profile minus its abstain thresholds (its default of -12 abstains from nothing that
- * matters): every candidate is scored and nothing is decided on the device, so the thresholds (family, topics, the address labels,
- * the extras...) can be tuned offline on the recorded scores, and the decoder is the shipped one, so the questions that depend on the
- * decisions (the summary's facts) are asked again as recorded. A recording holds both stages (`score:family`, the scores, `score:addr`,
+ * A scoring run is recorded with `ModelProfiles.recordingProfile`: the shipped profile without the thresholds nothing else depends on
+ * (family, topics, extras, address labels and delivery points: every candidate is scored, so they can be fitted offline on the recorded
+ * scores), but with the shipped decoder and the shipped thresholds of the optional people, so the questions that depend on those decisions
+ * (the address lines the parties settle, the summary's facts) are asked again as recorded. A recording holds both stages (`score:family`, the scores, `score:addr`,
  * the second stage's asks and `text:summary`) and a `trace` of the stage timings; `mode=stages` times the two stages as the app runs them.
  *
  * Resumable per letter and interpreter: a recording that exists is skipped (`resume` argument, default true), so a run
@@ -191,7 +191,7 @@ class ZoneBenchmarkTest {
                     // rest on are the ones a replay under the shipped profile makes again, so its question is found in the recording.
                     val i = ZoneScoringInterpreter(
                         engine, engine, contextTokens = budgetTokens, neighbourContext = ctx,
-                        profile = ModelProfiles.QWEN35_08B.scoring.copy(thresholds = emptyMap()),
+                        profile = ModelProfiles.recordingProfile(ModelProfiles.QWEN35_08B.scoring),
                         topicsInFirstStage = args.getString("topics1") != "false",
                     )
                     transcript = { i.transcript }

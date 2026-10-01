@@ -1,0 +1,549 @@
+{
+ "key": "invoice-2p",
+ "interpreter": "zonesscoring",
+ "pages": 2,
+ "trace": [
+  "t layout ms=34",
+  "t candidates ms=366",
+  "t fitLayout ms=1",
+  "t interpret (everything the model decides: sessions, scoring, decoding) ms=133626",
+  "t enrich (language, extras, summary, free text) ms=54693",
+  "t verify ms=73",
+  "t open header prefixTokens=128 ms=2481",
+  "t score sender n=1 ms=2052 msPerScore=2052",
+  "t score kind:sender n=3 ms=11410 msPerScore=3803",
+  "t score addressee n=1 ms=2215 msPerScore=2215",
+  "t score kind:addressee n=3 ms=5940 msPerScore=1980",
+  "t score household n=1 ms=1306 msPerScore=1306",
+  "t score care_of n=1 ms=3369 msPerScore=3369",
+  "t score kind:care_of n=3 ms=6315 msPerScore=2105",
+  "t score slot:letter_date n=1 ms=1795 msPerScore=1795",
+  "t open body#1 prefixTokens=1023 ms=13406",
+  "t score family n=24 ms=8876 msPerScore=370",
+  "t score subject_person n=4 ms=4605 msPerScore=1151",
+  "t score kind:subject_person n=3 ms=3261 msPerScore=1087",
+  "t score slot:total n=13 ms=21705 msPerScore=1670",
+  "t score slot:due_date n=2 ms=3646 msPerScore=1823",
+  "t score slot:iban n=1 ms=1894 msPerScore=1894",
+  "t score slot:reference n=2 ms=3941 msPerScore=1971",
+  "t score slot:customer_no n=2 ms=4115 msPerScore=2058",
+  "t score slot:invoice_no n=2 ms=4945 msPerScore=2473",
+  "t score slot:fee n=13 ms=16536 msPerScore=1272",
+  "t score slot:original_due_date n=2 ms=3418 msPerScore=1709",
+  "t score slot:event_date n=2 ms=3610 msPerScore=1805",
+  "t decode ms=6 (includes the kind and household scoring of a changed answer)",
+  "t score addr grid heads=1 asks=2 ms=1456",
+  "t score addr grid heads=1 asks=2 ms=979",
+  "t addresses recipientCells=2 senderCells=2 retried=false ms=2454",
+  "t scoring total batches=24 scores=88 ms=117389 msPerScore=1334",
+  "t score extras n=12 ms=28176 msPerScore=2348",
+  "t open writing prefixTokens=865 ms=8684",
+  "t ask lang ms=618 answerChars=2",
+  "t ask extra:name ms=1331 answerChars=7",
+  "t ask extra:name ms=1070 answerChars=3",
+  "t ask extra:name ms=2571 answerChars=33",
+  "t ask extra:name ms=1460 answerChars=22",
+  "t ask extra:name ms=1518 answerChars=7",
+  "t ask extra:name ms=1431 answerChars=7",
+  "t ask text:subject ms=1388 answerChars=30",
+  "t ask text:questions ms=2717 answerChars=144",
+  "t ask text:summary ms=3466 answerChars=130"
+ ],
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Musterfirma GmbH",
+   "normalized": "Musterfirma GmbH",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Pos. Beschreibung",
+   "normalized": "Pos. Beschreibung",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Konzeption Webportal",
+   "normalized": "Konzeption Webportal",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "Menge",
+   "normalized": "Menge",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Einzelpreis € Gesamt €",
+   "normalized": "Einzelpreis € Gesamt €",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "28.09.2026",
+   "normalized": "2026-09-28",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "15.10.2026",
+   "normalized": "2026-10-15",
+   "page": 2
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "95,00",
+   "normalized": "95.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "149,90",
+   "normalized": "149.90 EUR",
+   "page": 1
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "29,00",
+   "normalized": "29.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A5",
+   "kind": "AMOUNT",
+   "raw": "380,00",
+   "normalized": "380.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A6",
+   "kind": "AMOUNT",
+   "raw": "285,00",
+   "normalized": "285.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A9",
+   "kind": "AMOUNT",
+   "raw": "18,50 €",
+   "normalized": "18.50 EUR",
+   "page": 2
+  },
+  {
+   "id": "A10",
+   "kind": "AMOUNT",
+   "raw": "1.079,41 €",
+   "normalized": "1079.41 EUR",
+   "page": 2
+  },
+  {
+   "id": "A11",
+   "kind": "AMOUNT",
+   "raw": "39,00",
+   "normalized": "39.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A13",
+   "kind": "AMOUNT",
+   "raw": "93,51",
+   "normalized": "93.51 EUR",
+   "page": 2
+  },
+  {
+   "id": "A14",
+   "kind": "AMOUNT",
+   "raw": "1.284,50 €",
+   "normalized": "1284.50 EUR",
+   "page": 2
+  },
+  {
+   "id": "A15",
+   "kind": "AMOUNT",
+   "raw": "66,00",
+   "normalized": "66.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A17",
+   "kind": "AMOUNT",
+   "raw": "37,00",
+   "normalized": "37.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A21",
+   "kind": "AMOUNT",
+   "raw": "205,09",
+   "normalized": "205.09 EUR",
+   "page": 2
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 2
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "RE-2026-0815",
+   "normalized": "RE-2026-0815",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "KD-40417",
+   "normalized": "KD-40417",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "DE000000000",
+   "normalized": "DE000000000",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 567890",
+   "normalized": "01234 567890",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "info@musterfirma.example",
+   "normalized": "info@musterfirma.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 2
+  }
+ ],
+ "call1": "score:sender: 0.8555431365966797\nscore:kind:sender: -0.09102249145507812,-1.1406211853027344,1.4626350402832031\nscore:addressee: 0.5034351348876953\nscore:kind:addressee: -0.06741142272949219,-1.6276912689208984,-0.19963645935058594\nscore:household: -1.0926837921142578\nscore:care_of: 0.6214466094970703\nscore:kind:care_of: -0.06741142272949219,-1.6276912689208984,-0.19963645935058594\nscore:slot:letter_date: -0.2678813934326172\nscore:family: -0.8752307891845703,0.36517333984375,-1.4935874938964844,-0.8560371398925781,-0.9615325927734375,-1.1418304443359375,-1.8851547241210938,-0.9155521392822266,-0.6368999481201172,0.2261180877685547,-1.4322891235351562,-1.0994853973388672,-1.8300151824951172,-1.7445507049560547,0.029542922973632812,-1.180795669555664,-0.5410823822021484,-0.3376045227050781,-1.3748092651367188,-1.3821525573730469,-0.7373065948486328,-0.49903106689453125,-1.301626205444336,-0.7524642944335938\nscore:subject_person: 0.159576416015625,-0.2145709991455078,-0.5355587005615234,-0.1680736541748047\nscore:kind:subject_person: -0.5955543518066406,-1.3606719970703125,-0.5865001678466797\nscore:slot:total: 0.3643455505371094,0.04956626892089844,-0.20590972900390625,0.04807472229003906,-0.3202800750732422,-0.3372077941894531,-0.024568557739257812,0.4064178466796875,-0.13028907775878906,0.04334449768066406,0.15980148315429688,-0.17366600036621094,0.1380596160888672\nscore:slot:due_date: -0.3307018280029297,0.4746437072753906\nscore:slot:iban: -0.30077552795410156\nscore:slot:reference: -0.09580421447753906,0.15175437927246094\nscore:slot:customer_no: -1.2637710571289062,-0.6279563903808594\nscore:slot:invoice_no: 0.2805824279785156,-0.4978981018066406\nscore:slot:fee: -0.5557155609130859,-0.1087799072265625,-0.5415782928466797,-0.5956382751464844,-0.2751941680908203,-0.9951648712158203,-0.28093528747558594,-0.04522132873535156,-0.2450084686279297,-0.3282432556152344,-0.4383888244628906,-0.6780109405517578,-0.5438423156738281\nscore:slot:original_due_date: -1.1965465545654297,-1.1301898956298828\nscore:slot:event_date: -0.1391582489013672,-0.09134292602539062\nscore:addr: -2.188608169555664\nscore:addr: -1.582071304321289\nscore:addr: -1.5905075073242188\nscore:addr: -1.6919898986816406",
+ "call1Ms": 133625,
+ "call2Ms": 0,
+ "prefixTokens": 2016,
+ "prefixMs": 24571,
+ "template": "INVOICE_TABLE",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "score:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nMusterfirma GmbH Beispielweg 7 12345 Beispielstadt \/ Musterfirma GmbH \/ Beispielweg 7 \/ 12345 Beispielstadt \/ Tel. 01234 567890 \/ info@musterfirma.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nMusterfirma GmbH Beispielweg 7- 12345 Beispielstadt\nIs «Musterfirma GmbH» (context: line above: Musterfirma GmbH Beispielweg 7 12345 Beispielstadt; line below: Beispielweg 7) the sender: the party that wrote and sent this letter? Answer:",
+   "answer": "0.8555431365966797",
+   "ms": 2052,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nMusterfirma GmbH Beispielweg 7 12345 Beispielstadt \/ Musterfirma GmbH \/ Beispielweg 7 \/ 12345 Beispielstadt \/ Tel. 01234 567890 \/ info@musterfirma.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nMusterfirma GmbH Beispielweg 7- 12345 Beispielstadt\nIs «Musterfirma GmbH» (context: line above: Musterfirma GmbH Beispielweg 7 12345 Beispielstadt; line below: Beispielweg 7) the name of a private person? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nMusterfirma GmbH Beispielweg 7 12345 Beispielstadt \/ Musterfirma GmbH \/ Beispielweg 7 \/ 12345 Beispielstadt \/ Tel. 01234 567890 \/ info@musterfirma.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nMusterfirma GmbH Beispielweg 7- 12345 Beispielstadt\nIs «Musterfirma GmbH» (context: line above: Musterfirma GmbH Beispielweg 7 12345 Beispielstadt; line below: Beispielweg 7) the name of an authority or public body? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nMusterfirma GmbH Beispielweg 7 12345 Beispielstadt \/ Musterfirma GmbH \/ Beispielweg 7 \/ 12345 Beispielstadt \/ Tel. 01234 567890 \/ info@musterfirma.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nMusterfirma GmbH Beispielweg 7- 12345 Beispielstadt\nIs «Musterfirma GmbH» (context: line above: Musterfirma GmbH Beispielweg 7 12345 Beispielstadt; line below: Beispielweg 7) the name of a company or other organisation? Answer:",
+   "answer": "-0.09102249145507812,-1.1406211853027344,1.4626350402832031",
+   "ms": 11410,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Musterfirma GmbH Beispielweg 7- 12345 Beispielstadt; line below: Musterstraße 12) the addressee: the party this letter is addressed to? Answer:",
+   "answer": "0.5034351348876953",
+   "ms": 2215,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Musterfirma GmbH Beispielweg 7- 12345 Beispielstadt; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Musterfirma GmbH Beispielweg 7- 12345 Beispielstadt; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Musterfirma GmbH Beispielweg 7- 12345 Beispielstadt; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
+   "answer": "-0.06741142272949219,-1.6276912689208984,-0.19963645935058594",
+   "ms": 5940,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:household",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Musterfirma GmbH Beispielweg 7- 12345 Beispielstadt; line below: Musterstraße 12) the name of a family or household (several people living together)? Answer:",
+   "answer": "-1.0926837921142578",
+   "ms": 1306,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Musterfirma GmbH Beispielweg 7- 12345 Beispielstadt; line below: Musterstraße 12) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:",
+   "answer": "0.6214466094970703",
+   "ms": 3369,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Musterfirma GmbH Beispielweg 7- 12345 Beispielstadt; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Musterfirma GmbH Beispielweg 7- 12345 Beispielstadt; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Musterfirma GmbH Beispielweg 7- 12345 Beispielstadt; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
+   "answer": "-0.06741142272949219,-1.6276912689208984,-0.19963645935058594",
+   "ms": 6315,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nIs «28.09.2026» (context: printed on the line: Kundennummer: KD-40417 Rechnungsdatum: 28.09.2026; line above: Rechnung Nr. RE-2026-0815; line below: Leistungszeitraum: September 2026) the date of the letter itself (when it was written or issued)? Answer:",
+   "answer": "-0.2678813934326172",
+   "ms": 1795,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:family",
+   "question": "Is this document a letter or decision from an authority, employer, school or other organisation that informs the reader or decides something? Answer:\n@@\nIs this document an invoice, a bill or a payment reminder that asks the reader to pay? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document a form or an application that is filled in and returned? Answer:\n@@\nIs this document a statement of account, a bank statement or a summary of transactions or consumption? Answer:\n@@\nIs this document a contract, an insurance policy, or a change to its price or terms? Answer:\n@@\nIs this document a certificate, an identity document, a licence or a card? Answer:\n@@\nIs this document a letter from a doctor, clinic or hospital, such as an appointment, a referral or a result? Answer:\n@@\nIs this document a ticket, a booking confirmation or a travel itinerary? Answer:\n@@\nIs this document a printout of an email message or of a web page? Answer:\n@@\nDoes this document concern a government agency, a public authority or a public service? Answer:\n@@\nDoes this document concern taxes, a tax office or a tax return? Answer:\n@@\nDoes this document concern health, medical care, a doctor or a health insurer? Answer:\n@@\nDoes this document concern an insurance policy or an insurance company? Answer:\n@@\nDoes this document concern a bank, a loan, an account, savings or other personal finance? Answer:\n@@\nDoes this document concern housing, rent, a property or a household utility such as energy, water or heating? Answer:\n@@\nDoes this document concern a job, an employer, employment or a salary? Answer:\n@@\nDoes this document concern a school, a kindergarten, a university or education? Answer:\n@@\nDoes this document concern a car, another vehicle, a driving licence or road traffic? Answer:\n@@\nDoes this document concern a phone, mobile, internet or television service? Answer:\n@@\nDoes this document concern a purchase from a shop or an online order? Answer:\n@@\nDoes this document concern a trip, a flight, a hotel or a holiday? Answer:\n@@\nDoes this document concern a court, a lawyer or a legal dispute? Answer:\n@@\nDoes this document concern a private matter, family or personal correspondence? Answer:",
+   "answer": "-0.8752307891845703,0.36517333984375,-1.4935874938964844,-0.8560371398925781,-0.9615325927734375,-1.1418304443359375,-1.8851547241210938,-0.9155521392822266,-0.6368999481201172,0.2261180877685547,-1.4322891235351562,-1.0994853973388672,-1.8300151824951172,-1.7445507049560547,0.029542922973632812,-1.180795669555664,-0.5410823822021484,-0.3376045227050781,-1.3748092651367188,-1.3821525573730469,-0.7373065948486328,-0.49903106689453125,-1.301626205444336,-0.7524642944335938",
+   "ms": 8876,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nIs «Pos. Beschreibung» (context: line above: in der nachstehenden Tabelle.; line below: Menge) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nIs «Konzeption Webportal» (context: line above: 1; line below: Layout-Entwurf) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nIs «Menge» (context: line above: Pos. Beschreibung; line below: 4h) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nIs «Einzelpreis € Gesamt €» (context: line above: 4h; line below: 95,00) a person the letter is about, other than the addressee? Answer:",
+   "answer": "0.159576416015625,-0.2145709991455078,-0.5355587005615234,-0.1680736541748047",
+   "ms": 4605,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nIs «Pos. Beschreibung» (context: line above: in der nachstehenden Tabelle.; line below: Menge) the name of a private person? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nIs «Pos. Beschreibung» (context: line above: in der nachstehenden Tabelle.; line below: Menge) the name of an authority or public body? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nIs «Pos. Beschreibung» (context: line above: in der nachstehenden Tabelle.; line below: Menge) the name of a company or other organisation? Answer:",
+   "answer": "-0.5955543518066406,-1.3606719970703125,-0.5865001678466797",
+   "ms": 3261,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «95,00» (context: line above: Einzelpreis € Gesamt €; line below: 380,00) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «149,90» (context: line above: 1; line below: 149,90) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «29,00» (context: line above: 3; line below: 29,00) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «380,00» (context: line above: 95,00; line below: 1) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «285,00» (context: line above: 95,00; line below: 2) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «18,50 €» (context: printed on the line: Anfahrt (2 x 18,50 €); line above: 6; line below: 2) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.079,41 €» (context: printed on the line: zzgl. 19 % MwSt. auf 1.079,41 €; line above: 1.079,41; line below: 205,09) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «39,00» (context: line above: 1; line below: 39,00) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «93,51» (context: line above: 1; line below: 93,51) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.284,50 €» (context: printed on the line: Der Gesamtbetrag von 1.284,50 € ist zahlbar bis 15.10.2026 ohne Abzug ; line above: Zahlungsbedingungen; line below: Kontoinhaber: Musterfirma GmbH) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «66,00» (context: line above: 1; line below: 66,00) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «37,00» (context: line above: 18,50; line below: 7) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «205,09» (context: line above: zzgl. 19 % MwSt. auf 1.079,41 €; line below: Gesamtbetrag) the main amount of this document: what the reader has to pay, or the total? Answer:",
+   "answer": "0.3643455505371094,0.04956626892089844,-0.20590972900390625,0.04807472229003906,-0.3202800750732422,-0.3372077941894531,-0.024568557739257812,0.4064178466796875,-0.13028907775878906,0.04334449768066406,0.15980148315429688,-0.17366600036621094,0.1380596160888672",
+   "ms": 21705,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «28.09.2026» (context: printed on the line: Kundennummer: KD-40417 Rechnungsdatum: 28.09.2026; line above: Rechnung Nr. RE-2026-0815; line below: Leistungszeitraum: September 2026) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «15.10.2026» (context: printed on the line: Der Gesamtbetrag von 1.284,50 € ist zahlbar bis 15.10.2026 ohne Abzug ; line above: Zahlungsbedingungen; line below: Kontoinhaber: Musterfirma GmbH) the date by which the reader must pay or act? Answer:",
+   "answer": "-0.3307018280029297,0.4746437072753906",
+   "ms": 3646,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:iban",
+   "question": "ZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\n(the text of this zone is in the letter above)\nIs «DE89 3704 0044 0532 0130 00» (context: printed on the line: IBAN: DE89 3704 0044 0532 0130 00; line above: Kontoinhaber: Musterfirma GmbH; line below: BIC: COBADEFFXXX) the IBAN of the account the reader should pay to? Answer:",
+   "answer": "-0.30077552795410156",
+   "ms": 1894,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nIs «RE-2026-0815» (context: printed on the line: Rechnung Nr. RE-2026-0815; line above: 4; line below: Kundennummer: KD-40417 Rechnungsdatum: 28.09.2026) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nIs «KD-40417» (context: printed on the line: Kundennummer: KD-40417 Rechnungsdatum: 28.09.2026; line above: Rechnung Nr. RE-2026-0815; line below: Leistungszeitraum: September 2026) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
+   "answer": "-0.09580421447753906,0.15175437927246094",
+   "ms": 3941,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nIs «RE-2026-0815» (context: printed on the line: Rechnung Nr. RE-2026-0815; line above: 4; line below: Kundennummer: KD-40417 Rechnungsdatum: 28.09.2026) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nIs «KD-40417» (context: printed on the line: Kundennummer: KD-40417 Rechnungsdatum: 28.09.2026; line above: Rechnung Nr. RE-2026-0815; line below: Leistungszeitraum: September 2026) the number that identifies the reader as a customer, member or account holder? Answer:",
+   "answer": "-1.2637710571289062,-0.6279563903808594",
+   "ms": 4115,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:invoice_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «RE-2026-0815» (context: printed on the line: Rechnung Nr. RE-2026-0815; line above: 4; line below: Kundennummer: KD-40417 Rechnungsdatum: 28.09.2026) the invoice number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «KD-40417» (context: printed on the line: Kundennummer: KD-40417 Rechnungsdatum: 28.09.2026; line above: Rechnung Nr. RE-2026-0815; line below: Leistungszeitraum: September 2026) the invoice number? Answer:",
+   "answer": "0.2805824279785156,-0.4978981018066406",
+   "ms": 4945,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:fee",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «95,00» (context: line above: Einzelpreis € Gesamt €; line below: 380,00) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «149,90» (context: line above: 1; line below: 149,90) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «29,00» (context: line above: 3; line below: 29,00) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «380,00» (context: line above: 95,00; line below: 1) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «285,00» (context: line above: 95,00; line below: 2) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «18,50 €» (context: printed on the line: Anfahrt (2 x 18,50 €); line above: 6; line below: 2) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.079,41 €» (context: printed on the line: zzgl. 19 % MwSt. auf 1.079,41 €; line above: 1.079,41; line below: 205,09) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «39,00» (context: line above: 1; line below: 39,00) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «93,51» (context: line above: 1; line below: 93,51) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.284,50 €» (context: printed on the line: Der Gesamtbetrag von 1.284,50 € ist zahlbar bis 15.10.2026 ohne Abzug ; line above: Zahlungsbedingungen; line below: Kontoinhaber: Musterfirma GmbH) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «66,00» (context: line above: 1; line below: 66,00) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «37,00» (context: line above: 18,50; line below: 7) the fee? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «205,09» (context: line above: zzgl. 19 % MwSt. auf 1.079,41 €; line below: Gesamtbetrag) the fee? Answer:",
+   "answer": "-0.5557155609130859,-0.1087799072265625,-0.5415782928466797,-0.5956382751464844,-0.2751941680908203,-0.9951648712158203,-0.28093528747558594,-0.04522132873535156,-0.2450084686279297,-0.3282432556152344,-0.4383888244628906,-0.6780109405517578,-0.5438423156738281",
+   "ms": 16536,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:original_due_date",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «28.09.2026» (context: printed on the line: Kundennummer: KD-40417 Rechnungsdatum: 28.09.2026; line above: Rechnung Nr. RE-2026-0815; line below: Leistungszeitraum: September 2026) the original due date? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «15.10.2026» (context: printed on the line: Der Gesamtbetrag von 1.284,50 € ist zahlbar bis 15.10.2026 ohne Abzug ; line above: Zahlungsbedingungen; line below: Kontoinhaber: Musterfirma GmbH) the original due date? Answer:",
+   "answer": "-1.1965465545654297,-1.1301898956298828",
+   "ms": 3418,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:event_date",
+   "question": "ZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «28.09.2026» (context: printed on the line: Kundennummer: KD-40417 Rechnungsdatum: 28.09.2026; line above: Rechnung Nr. RE-2026-0815; line below: Leistungszeitraum: September 2026) the event date? Answer:\n@@\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «15.10.2026» (context: printed on the line: Der Gesamtbetrag von 1.284,50 € ist zahlbar bis 15.10.2026 ohne Abzug ; line above: Zahlungsbedingungen; line below: Kontoinhaber: Musterfirma GmbH) the event date? Answer:",
+   "answer": "-0.1391582489013672,-0.09134292602539062",
+   "ms": 3610,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nErika Mustermann\nMusterstraße 12\n54321 BeispieldorfIs «Musterstraße 12» (context: line above: Erika Mustermann; line below: 54321 Beispieldorf) a post office box number, not a street? Answer:",
+   "answer": "-2.188608169555664",
+   "ms": 728,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nErika Mustermann\nMusterstraße 12\n54321 BeispieldorfIs «Musterstraße 12» (context: line above: Erika Mustermann; line below: 54321 Beispieldorf) a parcel locker or pickup station, not a street? Answer:",
+   "answer": "-1.582071304321289",
+   "ms": 728,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nMusterfirma GmbH Beispielweg 7\n12345 BeispielstadtIs «Musterfirma GmbH Beispielweg 7» (context: line below: 12345 Beispielstadt) a post office box number, not a street? Answer:",
+   "answer": "-1.5905075073242188",
+   "ms": 489,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nMusterfirma GmbH Beispielweg 7\n12345 BeispielstadtIs «Musterfirma GmbH Beispielweg 7» (context: line below: 12345 Beispielstadt) a parcel locker or pickup station, not a street? Answer:",
+   "answer": "-1.6919898986816406",
+   "ms": 489,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:extras",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «149,90» (context: line above: 1; line below: 149,90) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «29,00» (context: line above: 3; line below: 29,00) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «380,00» (context: line above: 95,00; line below: 1) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «285,00» (context: line above: 95,00; line below: 2) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «18,50 €» (context: printed on the line: Anfahrt (2 x 18,50 €); line above: 6; line below: 2) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.079,41 €» (context: printed on the line: zzgl. 19 % MwSt. auf 1.079,41 €; line above: 1.079,41; line below: 205,09) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «93,51» (context: line above: 1; line below: 93,51) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.284,50 €» (context: printed on the line: Der Gesamtbetrag von 1.284,50 € ist zahlbar bis 15.10.2026 ohne Abzug ; line above: Zahlungsbedingungen; line below: Kontoinhaber: Musterfirma GmbH) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «66,00» (context: line above: 1; line below: 66,00) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «37,00» (context: line above: 18,50; line below: 7) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «205,09» (context: line above: zzgl. 19 % MwSt. auf 1.079,41 €; line below: Gesamtbetrag) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 28.09.2026\nZONE body. HINT: This is the text of the letter. Rows with several columns are a table of positions: amounts belong to the position on their row.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «COBADEFFXXX» (context: printed on the line: BIC: COBADEFFXXX; line above: IBAN: DE89 3704 0044 0532 0130 00; line below: Verwendungszweck: RE-2026-0815) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:",
+   "answer": "0.08524513244628906,0.36592674255371094,0.016643524169921875,0.23619842529296875,-0.3608531951904297,0.27651023864746094,0.1365947723388672,-0.05565643310546875,0.4461193084716797,0.23603248596191406,0.022825241088867188,-0.4024829864501953",
+   "ms": 28176,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "lang",
+   "question": "QUESTION: In which language is this letter written? Answer with its BCP-47 language code (for example de, en, ar).\nANSWER FORMAT: the code only",
+   "answer": "de",
+   "ms": 618,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «66,00» is an important fact of this letter: it is printed on the line «66,00», the line above it is «1». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"66,00\"",
+   "ms": 1331,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «29,00» is an important fact of this letter: it is printed on the line «29,00», the line above it is «3». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"3\"",
+   "ms": 1070,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «1.079,41 €» is an important fact of this letter: it is printed on the line «zzgl. 19 % MwSt. auf 1.079,41 €», the line above it is «1.079,41». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"zzgl. 19 % MwSt. auf 1.079,41 €\"",
+   "ms": 2571,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «285,00» is an important fact of this letter: it is printed on the line «285,00», the line above it is «95,00». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"Konzeption Webportal\"",
+   "ms": 1460,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «37,00» is an important fact of this letter: it is printed on the line «37,00», the line above it is «18,50». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"37,00\"",
+   "ms": 1518,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «93,51» is an important fact of this letter: it is printed on the line «93,51», the line above it is «1». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"93,51\"",
+   "ms": 1431,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Hosting September 2026 1 \/ 4\"",
+   "ms": 1388,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Which specific software license is included in the invoice?\" \"What is the total amount of the invoice?\" \"What is the deadline for the payment?\"",
+   "ms": 2717,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:summary",
+   "question": "FACTS (verified; use only these):\n- sender: Musterfirma GmbH\n- addressed_to: Erika Mustermann\n- amount: 95,00\n- due_date: 15.10.2026\n- reference: RE-2026-0815\n\nQUESTION: Write one or two sentences, at most 30 words, saying what the reader must know or do. Use only the facts above. Write in the language with the code \"de\".\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Die Rechnung für die Hosting- und Softwarelizenzleistungen von Musterfirma GmbH für Erika Mustermann ist auf 1.284,50 € gezahlt.\"",
+   "ms": 3466,
+   "questionTokens": -1,
+   "answerTokens": -1
+  }
+ ],
+ "wallMs": 188797,
+ "model": "text.gguf"
+}

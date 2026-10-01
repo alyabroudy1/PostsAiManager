@@ -19,7 +19,7 @@ class RecordingCompareTest {
     fun perLetter() {
         val out = System.getenv("REC_COMPARE_OUT") ?: return
         val dir = File(System.getenv("ZONES_RECORDINGS_DIR") ?: "src/test/resources/benchmark/recordings")
-        val recordings = Recordings.load(dir).filter { it.variant == "zonesscoring" }
+        val recordings = Recordings.load(dir).filter { it.variant == (System.getenv("ZONES_VARIANT") ?: "zonesscoring") }
         val pct = { v: Double -> String.format(Locale.ROOT, "%.1f%%", v * 100) }
         val sb = StringBuilder("# per letter, shipped profile, recordings in $dir\n\n| letter | field match | roles | hallucination | extras | s |\n|---|---|---|---|---|---|\n")
         for ((m, f) in docs) {

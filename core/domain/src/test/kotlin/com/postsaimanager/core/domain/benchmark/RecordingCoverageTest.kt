@@ -28,7 +28,7 @@ class RecordingCoverageTest {
     fun everyRecordingOfTheCurrentInterpreterReplaysInFull() {
         for ((m, f) in docs) {
             for (rec in recordings.filter { it.key == m.key && isCurrent(it) }) {
-                assertThat(InterpreterMetrics.replayMisses(rec, f, profile)).isEmpty()
+                assertThat(InterpreterMetrics.replayMisses(rec, f, profile).hard).isEmpty()
             }
         }
     }
@@ -41,7 +41,9 @@ class RecordingCoverageTest {
             for (rec in recordings.filter { it.key == m.key }) {
                 val misses = InterpreterMetrics.replayMisses(rec, f, profile)
                 val kind = if (isCurrent(rec)) "CURRENT" else "LEGACY (family and topics SCRIPTED from the legacy type scores)"
-                sb.appendLine("${m.key}.${rec.variant}: $kind: " + if (misses.isEmpty()) "replays in full" else "${misses.size} NOT RECORDED: ${misses.joinToString("; ")}")
+                val hard = if (misses.hard.isEmpty()) "no question to record again" else "${misses.hard.size} NOT RECORDED: ${misses.hard.joinToString("; ")}"
+                val scripted = if (misses.scripted.isEmpty()) "" else "; ${misses.scripted.size} summary ask(s) SCRIPTED as the template (the facts differ from the recorded run's)"
+                sb.appendLine("${m.key}.${rec.variant}: $kind: $hard$scripted")
             }
         }
         File(out).writeText(sb.toString())

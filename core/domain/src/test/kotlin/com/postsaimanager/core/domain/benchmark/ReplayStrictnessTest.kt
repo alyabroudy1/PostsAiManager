@@ -33,7 +33,7 @@ class ReplayStrictnessTest {
     private val letter: Letter = Letters.invoice
     private val profile = ModelProfiles.QWEN35_08B.scoring
     /** What the device runner records with: the shipped profile without its abstain thresholds (the default -12 abstains from nothing that matters). */
-    private val recordingProfile = ScoringProfile(defaultThreshold = profile.defaultThreshold, decoder = profile.decoder)
+    private val recordingProfile = ModelProfiles.recordingProfile(profile)
 
     /** One live run of the real interpreter on a fake session, as the device runner would have recorded it. */
     private fun liveRecording(variant: String = "zonesscoring3", keep: (String) -> Boolean = { true }): Recording {
@@ -99,11 +99,13 @@ class ReplayStrictnessTest {
     }
 
     @Test
-    fun `a recording that lacks the summary fails the replay too`() {
+    fun `a recording that lacks the summary is replayed with the template summary, and the miss is listed as scripted`() {
         val rec = liveRecording(keep = { it != "text:summary" })
-        val e = assertThrows(IllegalStateException::class.java) { InterpreterMetrics.replayResult(rec, fixture, profile) }
-        assertThat(e.message).contains("has no answer for")
-        assertThat(e.message).contains("FACTS")
+        val result = InterpreterMetrics.replayResult(rec, fixture, profile)
+        assertThat(result.summary?.code).isEqualTo("template")
+        val misses = InterpreterMetrics.replayMisses(rec, fixture, profile)
+        assertThat(misses.hard).isEmpty()
+        assertThat(misses.scripted).isNotEmpty()
     }
 
     @Test

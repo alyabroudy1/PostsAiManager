@@ -19,7 +19,7 @@ package com.postsaimanager.core.domain.extraction.v2
  */
 object ExtractorVersion {
     /** What a model-read document is stamped with today. */
-    const val CURRENT = "extraction-v2-1"
+    const val CURRENT = "extraction-v2-2"
 
     /** No model read the document: only values found by code. */
     const val FOUND_VALUES = "found-values-1"

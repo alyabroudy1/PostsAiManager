@@ -391,11 +391,19 @@ internal class ZoneReplay(private val recording: Recording, private val scoring:
      * Fails clearly when a recording made for the current interpreter (one with a real `score:family` batch) lacks an answer to something the
      * interpreter now asks: a question that changed since the device run has to be recorded again, never read as a silent zero. A recording
      * made before the families lacks the questions that did not exist then; it is exempt, and [misses] lists them.
+     *
+     * The one question that is SCRIPTED instead ([scriptedMisses]) is the summary's: its text is the facts the reading decided, so a replay
+     * under a profile that decides one fact differently from the recorded run asks a question the recording cannot hold. It is answered as the
+     * template summary (what the writer gives when it gets no answer), and listed; nothing a metric reads depends on it.
      */
     fun requireComplete() {
-        if (recording.asks.none { it.name == "score:family" } || misses.isEmpty()) return
-        error("the recording ${recording.key}.${recording.variant} has no answer for: ${misses.joinToString("; ")}; record it again on the device")
+        val hard = misses.filterNot { it in scriptedMisses }
+        if (recording.asks.none { it.name == "score:family" } || hard.isEmpty()) return
+        error("the recording ${recording.key}.${recording.variant} has no answer for: ${hard.joinToString("; ")}; record it again on the device")
     }
+
+    /** The summary asks the recording could not answer (see [requireComplete]): replayed as the template summary. */
+    val scriptedMisses: List<String> get() = misses.filter { it.startsWith("ask «FACTS") }
 
     private fun create(offered: OfferedCandidates?): DocumentInterpreter {
         val remap = offered?.let { IdRemap.between(recording.candidates, it) } ?: emptyMap()
@@ -504,7 +512,11 @@ object InterpreterMetrics {
 
     /** Scores every variant found in [dir]; empty when there are no recordings (never an error). */
     fun scoreAll(docs: List<Pair<ManifestDoc, Fixture>>, dir: File): List<InterpreterScore> =
-        Recordings.load(dir).groupBy { it.variant }.mapNotNull { (variant, recs) -> score(variant, docs, recs) }
+        // The scoring variants are decided with the shipped profile: a recording of the current interpreter holds the questions that profile's
+        // decisions ask (the facts of the summary, the address lines the parties settle), and the default profile would decide others.
+        Recordings.load(dir).groupBy { it.variant }.mapNotNull { (variant, recs) ->
+            score(variant, docs, recs, com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring)
+        }
 
     /** One recording replayed through the real interpreter of its variant, the real pipeline and the verifier. */
     fun replayResult(rec: Recording, f: Fixture, scoring: ScoringProfile = ScoringProfile()): ExtractionV2Result {
@@ -527,12 +539,15 @@ object InterpreterMetrics {
     }
 
     /** What a scoring replay asked that its recording could not answer: the questions to record again (or, for a legacy recording, the ones that never existed). */
-    fun replayMisses(rec: Recording, f: Fixture, scoring: ScoringProfile): List<String> {
+    fun replayMisses(rec: Recording, f: Fixture, scoring: ScoringProfile): Misses {
         val replay = ZoneReplay(rec, scoring)
         val first = f.pages.firstOrNull()?.takeIf { it.height > 0 }
         runBlocking { ExtractionV2Pipeline().run(f.pages.map { it.blocks }, replay, rec.contextTokens, first?.let { it.width.toFloat() / it.height }) }
-        return replay.misses
+        return Misses(replay.misses.filterNot { it in replay.scriptedMisses }, replay.scriptedMisses)
     }
+
+    /** [hard]: questions to record again; [scripted]: the summary asks replayed as the template (see [ZoneReplay.requireComplete]). */
+    class Misses(val hard: List<String>, val scripted: List<String>)
 
     /** The variants of the zone experiment: `zones`, `zonesscoring`, and either with a model suffix (`zonesscoring2b`). */
     const val ZONES_VARIANT = "zones"

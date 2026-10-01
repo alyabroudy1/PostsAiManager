@@ -37,7 +37,10 @@ class ExtractionBenchmarkTest {
         val recs = Recordings.load(RECORDINGS)
         for ((m, f) in loaded.docs) {
             for ((variant, group) in recs.groupBy { it.variant }) {
-                val s = InterpreterMetrics.score(variant, listOf(m to f), group.filter { it.key == m.key }) ?: continue
+                val s = InterpreterMetrics.score(
+                    variant, listOf(m to f), group.filter { it.key == m.key },
+                    com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring,
+                ) ?: continue
                 println(
                     String.format(
                         Locale.ROOT, "BENCHMARK letter[%s][%s] fieldMatch=%.3f roles=%.3f hallucination=%.3f extras=%.2f seconds=%s",

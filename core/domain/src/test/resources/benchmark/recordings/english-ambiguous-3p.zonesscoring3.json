@@ -1,0 +1,332 @@
+{
+ "key": "english-ambiguous-3p",
+ "interpreter": "zonesscoring",
+ "pages": 3,
+ "trace": [
+  "t layout ms=26",
+  "t candidates ms=164",
+  "t fitLayout ms=1",
+  "t interpret (everything the model decides: sessions, scoring, decoding) ms=58177",
+  "t enrich (language, extras, summary, free text) ms=25422",
+  "t verify ms=2",
+  "t open header prefixTokens=146 ms=1466",
+  "t score sender n=1 ms=1654 msPerScore=1654",
+  "t score kind:sender n=3 ms=4681 msPerScore=1560",
+  "t score addressee n=1 ms=1088 msPerScore=1088",
+  "t score kind:addressee n=3 ms=3000 msPerScore=1000",
+  "t score household n=1 ms=1067 msPerScore=1067",
+  "t score care_of n=1 ms=1117 msPerScore=1117",
+  "t score kind:care_of n=3 ms=3024 msPerScore=1008",
+  "t score slot:letter_date n=1 ms=1300 msPerScore=1300",
+  "t open body#1 prefixTokens=1320 ms=13066",
+  "t score family n=24 ms=7317 msPerScore=305",
+  "t score slot:total n=2 ms=2414 msPerScore=1207",
+  "t score slot:due_date n=2 ms=2392 msPerScore=1196",
+  "t score slot:reference n=2 ms=3612 msPerScore=1806",
+  "t score slot:customer_no n=2 ms=3053 msPerScore=1527",
+  "t score slot:appointment n=2 ms=2252 msPerScore=1126",
+  "t score slot:effective_date n=2 ms=2262 msPerScore=1131",
+  "t score slot:objection_deadline n=2 ms=2127 msPerScore=1064",
+  "t decode ms=18 (includes the kind and household scoring of a changed answer)",
+  "t score addr grid heads=1 asks=2 ms=1104",
+  "t addresses recipientCells=2 senderCells=0 retried=false ms=1124",
+  "t scoring total batches=18 scores=54 ms=43464 msPerScore=805",
+  "t score extras n=1 ms=2060 msPerScore=2060",
+  "t open writing prefixTokens=1217 ms=11829",
+  "t ask lang ms=647 answerChars=2",
+  "t ask extra:name ms=2274 answerChars=55",
+  "t ask text:subject ms=714 answerChars=16",
+  "t ask text:questions ms=3339 answerChars=204",
+  "t ask text:summary ms=4425 answerChars=146"
+ ],
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Northwind Utilities Ltd.",
+   "normalized": "Northwind Utilities Ltd.",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Mr John Sample",
+   "normalized": "Mr John Sample",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "26 September 2026",
+   "normalized": "2026-09-26",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "10 October 2026",
+   "normalized": "2026-10-10",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "1 November 2026",
+   "normalized": "2026-11-01",
+   "page": 3
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "£142.80",
+   "normalized": "142.80 GBP",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "£57.00",
+   "normalized": "57.00 GBP",
+   "page": 3
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "NU-77120934",
+   "normalized": "NU-77120934",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "NU\/REM\/2026\/03318",
+   "normalized": "NU\/REM\/2026\/03318",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "00000000",
+   "normalized": "00000000",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "0000 000 0000",
+   "normalized": "0000 000 0000",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "help@northwind.example",
+   "normalized": "help@northwind.example",
+   "page": 1
+  }
+ ],
+ "call1": "score:sender: 0.9304752349853516\nscore:kind:sender: 0.42298316955566406,-0.13541603088378906,1.0675392150878906\nscore:addressee: 0.1388721466064453\nscore:kind:addressee: 0.19755935668945312,-1.5366191864013672,-0.8704090118408203\nscore:household: -1.3590831756591797\nscore:care_of: -0.22416114807128906\nscore:kind:care_of: 0.19755935668945312,-1.5366191864013672,-0.8704090118408203\nscore:slot:letter_date: 0.13820648193359375\nscore:family: 0.10541152954101562,-0.3269157409667969,-1.6436882019042969,-0.24383544921875,-0.7512645721435547,0.09302139282226562,-1.0680313110351562,-1.2834529876708984,-0.9728832244873047,-0.3243217468261719,-0.14489173889160156,-0.9777698516845703,-1.1968555450439453,-1.2431354522705078,1.1851234436035156,0.427642822265625,-0.13995933532714844,-0.8376178741455078,-0.9584846496582031,-0.9988937377929688,-0.9106731414794922,-0.5945281982421875,0.23447418212890625,0.4611968994140625\nscore:slot:total: 0.3920707702636719,0.16057205200195312\nscore:slot:due_date: 1.4101142883300781,0.37921905517578125\nscore:slot:reference: 1.2495899200439453,1.3102092742919922\nscore:slot:customer_no: 0.6312808990478516,0.20687484741210938\nscore:slot:appointment: 1.2312431335449219,0.7615013122558594\nscore:slot:effective_date: 0.7928047180175781,0.211181640625\nscore:slot:objection_deadline: 0.8155136108398438,-0.44396400451660156\nscore:addr: -0.9295539855957031\nscore:addr: -0.3243694305419922",
+ "call1Ms": 58177,
+ "call2Ms": 0,
+ "prefixTokens": 2683,
+ "prefixMs": 26361,
+ "template": "DIN5008_B",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "score:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNorthwind Utilities Ltd. 1 Example Road \/ Sampletown SA1 OXX \/ Tel. 0000 000 0000 \/ help@northwind.example \/ Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNorthwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX\nIs «Northwind Utilities Ltd.» (context: line below: 1 Example Road) the sender: the party that wrote and sent this letter? Answer:",
+   "answer": "0.9304752349853516",
+   "ms": 1654,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNorthwind Utilities Ltd. 1 Example Road \/ Sampletown SA1 OXX \/ Tel. 0000 000 0000 \/ help@northwind.example \/ Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNorthwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX\nIs «Northwind Utilities Ltd.» (context: line below: 1 Example Road) the name of a private person? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNorthwind Utilities Ltd. 1 Example Road \/ Sampletown SA1 OXX \/ Tel. 0000 000 0000 \/ help@northwind.example \/ Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNorthwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX\nIs «Northwind Utilities Ltd.» (context: line below: 1 Example Road) the name of an authority or public body? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNorthwind Utilities Ltd. 1 Example Road \/ Sampletown SA1 OXX \/ Tel. 0000 000 0000 \/ help@northwind.example \/ Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNorthwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX\nIs «Northwind Utilities Ltd.» (context: line below: 1 Example Road) the name of a company or other organisation? Answer:",
+   "answer": "0.42298316955566406,-0.13541603088378906,1.0675392150878906",
+   "ms": 4681,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMr John Sample \/ 22 Placeholder Lane \/ Exampleton EX2 3PL\nIs «Mr John Sample» (context: line above: Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX; line below: 22 Placeholder Lane) the addressee: the party this letter is addressed to? Answer:",
+   "answer": "0.1388721466064453",
+   "ms": 1088,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMr John Sample \/ 22 Placeholder Lane \/ Exampleton EX2 3PL\nIs «Mr John Sample» (context: line above: Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX; line below: 22 Placeholder Lane) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMr John Sample \/ 22 Placeholder Lane \/ Exampleton EX2 3PL\nIs «Mr John Sample» (context: line above: Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX; line below: 22 Placeholder Lane) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMr John Sample \/ 22 Placeholder Lane \/ Exampleton EX2 3PL\nIs «Mr John Sample» (context: line above: Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX; line below: 22 Placeholder Lane) the name of a company or other organisation? Answer:",
+   "answer": "0.19755935668945312,-1.5366191864013672,-0.8704090118408203",
+   "ms": 3000,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:household",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMr John Sample \/ 22 Placeholder Lane \/ Exampleton EX2 3PL\nIs «Mr John Sample» (context: line above: Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX; line below: 22 Placeholder Lane) the name of a family or household (several people living together)? Answer:",
+   "answer": "-1.3590831756591797",
+   "ms": 1067,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMr John Sample \/ 22 Placeholder Lane \/ Exampleton EX2 3PL\nIs «Mr John Sample» (context: line above: Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX; line below: 22 Placeholder Lane) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:",
+   "answer": "-0.22416114807128906",
+   "ms": 1117,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMr John Sample \/ 22 Placeholder Lane \/ Exampleton EX2 3PL\nIs «Mr John Sample» (context: line above: Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX; line below: 22 Placeholder Lane) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMr John Sample \/ 22 Placeholder Lane \/ Exampleton EX2 3PL\nIs «Mr John Sample» (context: line above: Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX; line below: 22 Placeholder Lane) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMr John Sample \/ 22 Placeholder Lane \/ Exampleton EX2 3PL\nIs «Mr John Sample» (context: line above: Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX; line below: 22 Placeholder Lane) the name of a company or other organisation? Answer:",
+   "answer": "0.19755935668945312,-1.5366191864013672,-0.8704090118408203",
+   "ms": 3024,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nSampletown, 26 September 2026\nIs «26 September 2026» (context: printed on the line: Sampletown, 26 September 2026; line above: Exampleton EX2 3PL; line below: Your account NU-77120934 – overdue balance and payment plan) the date of the letter itself (when it was written or issued)? Answer:",
+   "answer": "0.13820648193359375",
+   "ms": 1300,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:family",
+   "question": "Is this document a letter or decision from an authority, employer, school or other organisation that informs the reader or decides something? Answer:\n@@\nIs this document an invoice, a bill or a payment reminder that asks the reader to pay? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document a form or an application that is filled in and returned? Answer:\n@@\nIs this document a statement of account, a bank statement or a summary of transactions or consumption? Answer:\n@@\nIs this document a contract, an insurance policy, or a change to its price or terms? Answer:\n@@\nIs this document a certificate, an identity document, a licence or a card? Answer:\n@@\nIs this document a letter from a doctor, clinic or hospital, such as an appointment, a referral or a result? Answer:\n@@\nIs this document a ticket, a booking confirmation or a travel itinerary? Answer:\n@@\nIs this document a printout of an email message or of a web page? Answer:\n@@\nDoes this document concern a government agency, a public authority or a public service? Answer:\n@@\nDoes this document concern taxes, a tax office or a tax return? Answer:\n@@\nDoes this document concern health, medical care, a doctor or a health insurer? Answer:\n@@\nDoes this document concern an insurance policy or an insurance company? Answer:\n@@\nDoes this document concern a bank, a loan, an account, savings or other personal finance? Answer:\n@@\nDoes this document concern housing, rent, a property or a household utility such as energy, water or heating? Answer:\n@@\nDoes this document concern a job, an employer, employment or a salary? Answer:\n@@\nDoes this document concern a school, a kindergarten, a university or education? Answer:\n@@\nDoes this document concern a car, another vehicle, a driving licence or road traffic? Answer:\n@@\nDoes this document concern a phone, mobile, internet or television service? Answer:\n@@\nDoes this document concern a purchase from a shop or an online order? Answer:\n@@\nDoes this document concern a trip, a flight, a hotel or a holiday? Answer:\n@@\nDoes this document concern a court, a lawyer or a legal dispute? Answer:\n@@\nDoes this document concern a private matter, family or personal correspondence? Answer:",
+   "answer": "0.10541152954101562,-0.3269157409667969,-1.6436882019042969,-0.24383544921875,-0.7512645721435547,0.09302139282226562,-1.0680313110351562,-1.2834529876708984,-0.9728832244873047,-0.3243217468261719,-0.14489173889160156,-0.9777698516845703,-1.1968555450439453,-1.2431354522705078,1.1851234436035156,0.427642822265625,-0.13995933532714844,-0.8376178741455078,-0.9584846496582031,-0.9988937377929688,-0.9106731414794922,-0.5945281982421875,0.23447418212890625,0.4611968994140625",
+   "ms": 7317,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «£142.80» (context: printed on the line: 2026 the overdue balance on your account is £142.80. This amount relat; line above: Our records show that your gas and electricity account is currently ov; line below: June to August 2026 and has not yet been settled.) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «£57.00» (context: printed on the line: payments. Your new monthly instalment would be £57.00, which covers yo; line above: To make repayment easier we propose that the overdue balance is added ; line below: usage and a contribution towards the overdue balance.) the main amount of this document: what the reader has to pay, or the total? Answer:",
+   "answer": "0.3920707702636719,0.16057205200195312",
+   "ms": 2414,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «10 October 2026» (context: printed on the line: reply to this letter by 10 October 2026, either by telephone, by e-mai; line above: believe the balance is incorrect, or if you have already paid it, plea; line below: enclosed with this letter.) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «1 November 2026» (context: printed on the line: If you agree, your direct debit will start on 1 November 2026 and will; line above: usage and a contribution towards the overdue balance.; line below: working day of each month from your nominated bank account. You do not) the date by which the reader must pay or act? Answer:",
+   "answer": "1.4101142883300781,0.37921905517578125",
+   "ms": 2392,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nSampletown, 26 September 2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «NU-77120934» (context: printed on the line: Your account NU-77120934 – overdue balance and payment plan; line above: Sampletown, 26 September 2026; line below: Reference: NU\/REM\/2026\/03318) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nSampletown, 26 September 2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «NU\/REM\/2026\/03318» (context: printed on the line: Reference: NU\/REM\/2026\/03318; line above: Your account NU-77120934 – overdue balance and payment plan; line below: Dear Mr Sample,) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
+   "answer": "1.2495899200439453,1.3102092742919922",
+   "ms": 3612,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nSampletown, 26 September 2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «NU-77120934» (context: printed on the line: Your account NU-77120934 – overdue balance and payment plan; line above: Sampletown, 26 September 2026; line below: Reference: NU\/REM\/2026\/03318) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nSampletown, 26 September 2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «NU\/REM\/2026\/03318» (context: printed on the line: Reference: NU\/REM\/2026\/03318; line above: Your account NU-77120934 – overdue balance and payment plan; line below: Dear Mr Sample,) the number that identifies the reader as a customer, member or account holder? Answer:",
+   "answer": "0.6312808990478516,0.20687484741210938",
+   "ms": 3053,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:appointment",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «10 October 2026» (context: printed on the line: reply to this letter by 10 October 2026, either by telephone, by e-mai; line above: believe the balance is incorrect, or if you have already paid it, plea; line below: enclosed with this letter.) the appointment? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «1 November 2026» (context: printed on the line: If you agree, your direct debit will start on 1 November 2026 and will; line above: usage and a contribution towards the overdue balance.; line below: working day of each month from your nominated bank account. You do not) the appointment? Answer:",
+   "answer": "1.2312431335449219,0.7615013122558594",
+   "ms": 2252,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:effective_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «10 October 2026» (context: printed on the line: reply to this letter by 10 October 2026, either by telephone, by e-mai; line above: believe the balance is incorrect, or if you have already paid it, plea; line below: enclosed with this letter.) the effective date? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «1 November 2026» (context: printed on the line: If you agree, your direct debit will start on 1 November 2026 and will; line above: usage and a contribution towards the overdue balance.; line below: working day of each month from your nominated bank account. You do not) the effective date? Answer:",
+   "answer": "0.7928047180175781,0.211181640625",
+   "ms": 2262,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:objection_deadline",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «10 October 2026» (context: printed on the line: reply to this letter by 10 October 2026, either by telephone, by e-mai; line above: believe the balance is incorrect, or if you have already paid it, plea; line below: enclosed with this letter.) the objection deadline? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «1 November 2026» (context: printed on the line: If you agree, your direct debit will start on 1 November 2026 and will; line above: usage and a contribution towards the overdue balance.; line below: working day of each month from your nominated bank account. You do not) the objection deadline? Answer:",
+   "answer": "0.8155136108398438,-0.44396400451660156",
+   "ms": 2127,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nMr John Sample\n22 Placeholder Lane\nExampleton EX2 3PLIs «22 Placeholder Lane» (context: line above: Mr John Sample; line below: Exampleton EX2 3PL) a post office box number, not a street? Answer:",
+   "answer": "-0.9295539855957031",
+   "ms": 552,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nMr John Sample\n22 Placeholder Lane\nExampleton EX2 3PLIs «22 Placeholder Lane» (context: line above: Mr John Sample; line below: Exampleton EX2 3PL) a parcel locker or pickup station, not a street? Answer:",
+   "answer": "-0.3243694305419922",
+   "ms": 552,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:extras",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nSampletown, 26 September 2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «£57.00» (context: printed on the line: payments. Your new monthly instalment would be £57.00, which covers yo; line above: To make repayment easier we propose that the overdue balance is added ; line below: usage and a contribution towards the overdue balance.) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:",
+   "answer": "0.11281776428222656",
+   "ms": 2060,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "lang",
+   "question": "QUESTION: In which language is this letter written? Answer with its BCP-47 language code (for example de, en, ar).\nANSWER FORMAT: the code only",
+   "answer": "en",
+   "ms": 647,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «£57.00» is an important fact of this letter: it is printed on the line «payments. Your new monthly instalment would be £57.00, which covers yo», the line above it is «To make repayment easier we propose that the overdue balance is added ». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"payments. Your new monthly instalment would be £57.00\"",
+   "ms": 2274,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Dear Mr Sample\"",
+   "ms": 714,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Which specific payment plan details are included in the proposal?\" \"What is the deadline for the customer to confirm the new monthly instalment?\" \"How does the customer's direct debit start and collect?\"",
+   "ms": 3339,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:summary",
+   "question": "FACTS (verified; use only these):\n- sender: Northwind Utilities Ltd.\n- addressed_to: Mr John Sample\n- amount: £142.80\n- due_date: 10 October 2026\n- date: 26 September 2026\n- subject: Dear Mr Sample\n- reference: NU\/REM\/2026\/03318\n\nQUESTION: Write one or two sentences, at most 30 words, saying what the reader must know or do. Use only the facts above. Write in the language with the code \"en\".\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Dear Mr Sample, your account is overdue with a balance of £142.80 and you must reply to this letter by 10 October 2026 to avoid account closure.\"",
+   "ms": 4425,
+   "questionTokens": -1,
+   "answerTokens": -1
+  }
+ ],
+ "wallMs": 83794,
+ "model": "text.gguf"
+}
