@@ -57,6 +57,15 @@ class PersonDataSourceImplTest {
     }
 
     @Test
+    fun `the birth date comes from the profile`() = runTest {
+        profiles.seed(testProfile(id = "ahmad", birthDate = "2019-03-12"))
+        facts.seed(fact("birth_date", "1999-01-01"))
+
+        assertThat(source.valueOf("ahmad", "birth_date")!!.value).isEqualTo("2019-03-12")
+        assertThat(source.allOf("ahmad")["birth_date"]!!.source).isEqualTo(FormValueSource.PROFILE)
+    }
+
+    @Test
     fun `allOf merges columns and facts`() = runTest {
         profiles.seed(testProfile(id = "ahmad", name = "Ahmad M", street = "Musterstr. 1"))
         facts.seed(fact("school", "Grundschule"))

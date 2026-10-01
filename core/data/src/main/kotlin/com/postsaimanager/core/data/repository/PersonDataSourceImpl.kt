@@ -23,8 +23,7 @@ class PersonDataSourceImpl @Inject constructor(
 ) : PersonDataSource {
 
     override suspend fun valueOf(profileId: String, keyId: String): PersonValue? {
-        val key = FormDataKeys.of(keyId)
-        val column = key?.profileColumn
+        val column = FormDataKeys.of(keyId)?.let(ProfileColumns::columnOf)
         if (column != null) {
             val profile = profile(profileId) ?: return null
             return columnValue(profile, keyId, column)
@@ -34,11 +33,11 @@ class PersonDataSourceImpl @Inject constructor(
 
     override suspend fun allOf(profileId: String): Map<String, PersonValue> {
         val result = linkedMapOf<String, PersonValue>()
-        facts.facts(profileId).filter { FormDataKeys.of(it.key)?.profileColumn == null }
+        facts.facts(profileId).filter { FormDataKeys.of(it.key)?.let(ProfileColumns::columnOf) == null }
             .forEach { result[it.key] = factValue(it) }
         profile(profileId)?.let { profile ->
             for (key in FormDataKeys.ALL) {
-                val column = key.profileColumn ?: continue
+                val column = ProfileColumns.columnOf(key) ?: continue
                 columnValue(profile, key.id, column)?.let { result[key.id] = it }
             }
         }

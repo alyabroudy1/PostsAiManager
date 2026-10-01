@@ -94,8 +94,19 @@ class ProfileDetailUseCasesTest {
 
     @Test
     fun `every profile column named by the registry is supported`() {
-        val columns = FormDataKeys.ALL.mapNotNull { it.profileColumn }
+        val columns = FormDataKeys.ALL.mapNotNull(ProfileColumns::columnOf)
         assertThat(ProfileColumns.SUPPORTED).containsAtLeastElementsIn(columns)
+    }
+
+    @Test
+    fun `the birth date key is owned by the profile, never stored as a fact, and must be ISO`() = runTest {
+        profiles.seed(ahmad())
+
+        assertThat(remember("ahmad", "birth_date", "12.03.2019", FactSource.USER)).isInstanceOf(PamResult.Error::class.java)
+        assertThat(remember("ahmad", "birth_date", "2019-03-12", FactSource.USER)).isEqualTo(PamResult.Success(Unit))
+
+        assertThat(profiles.updated.single().birthDate).isEqualTo("2019-03-12")
+        assertThat(facts.facts("ahmad")).isEmpty()
     }
 
     @Test

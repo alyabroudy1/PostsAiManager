@@ -32,7 +32,7 @@ class RememberDetailUseCase @Inject constructor(
         val clean = value.trim()
         if (clean.isEmpty()) return invalid("value", "must not be blank")
 
-        val column = dataKey.profileColumn
+        val column = ProfileColumns.columnOf(dataKey)
             ?: return facts.upsert(profileId, key, clean, source, sourceDocumentId).map { }
 
         if (column == BIRTH_DATE_COLUMN && !isIsoDate(clean)) return invalid("value", "a birth date must be yyyy-MM-dd")
