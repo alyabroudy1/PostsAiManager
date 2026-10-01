@@ -35,6 +35,8 @@ class FormQuestionWriter(
         val line = raw?.lineSequence()?.firstOrNull { it.isNotBlank() }?.trim()?.trim('"', '\'', '`', '«', '»', '*')?.trim() ?: return null
         if (line.length < MIN_CHARS || line.length > MAX_CHARS || line.none(Char::isLetter)) return null
         if (line.equals(field.labelText.trim(), ignoreCase = true)) return null
+        // A reasoning trace is not a question (and a cut-off one is worse): the template question is used instead.
+        if (line.contains("<think", ignoreCase = true) || line.contains("</think", ignoreCase = true)) return null
         return line
     }
 

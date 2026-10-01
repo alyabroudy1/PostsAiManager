@@ -141,6 +141,7 @@ class FormFillPartsTest {
         assertThat(writerFor("Telefon").write(f, null)).isNull()
         assertThat(writerFor("1234 5678").write(f, null)).isNull()
         assertThat(writerFor("x".repeat(300)).write(f, null)).isNull()
+        assertThat(writerFor("<think> (The user wants a friendly, one-line question to fill in the field").write(f, null)).isNull()
     }
 
     @Test

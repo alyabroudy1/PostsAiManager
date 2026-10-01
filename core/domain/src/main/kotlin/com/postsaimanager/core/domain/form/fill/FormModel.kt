@@ -70,13 +70,24 @@ class EngineFormModel @Inject constructor(
         val (head, tail) = framing.frame(system, user)
         if (session.open(head) is PamResult.Error) return null
         return try {
-            (session.ask(tail, ONE_LINE, maxTokens) as? PamResult.Success)?.data
+            (session.ask(withoutThinking(tail), ONE_LINE, maxTokens) as? PamResult.Success)?.data
         } finally {
             withContext(NonCancellable) { session.close() }
         }
     }
 
+    /**
+     * A reasoning model's generation prompt can end inside an open `<think>` block, and a one-line question would then be spent
+     * on reasoning (the "question" was the model's chain of thought, cut off). The block is closed empty, so the first generated
+     * token is the question itself.
+     */
+    private fun withoutThinking(tail: String): String =
+        if (tail.trimEnd().endsWith(THINK_OPEN)) tail.trimEnd() + "\n\n$THINK_CLOSE\n\n" else tail
+
     private companion object {
+        const val THINK_OPEN = "<think>"
+        const val THINK_CLOSE = "</think>"
+
         /** One line of free text: no newline, at least a few characters. */
         const val ONE_LINE = "root ::= [^\\n]{4,200}\n"
     }
