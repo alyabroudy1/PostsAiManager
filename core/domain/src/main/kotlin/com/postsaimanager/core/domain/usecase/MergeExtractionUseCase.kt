@@ -327,6 +327,7 @@ class MergeExtractionUseCase @Inject constructor() {
             // Accepting is an act of review, so the value is confirmed even though the
             // machine authored it.
             isConfirmed = true,
+            deletedByUser = false,
             reviewState = ReviewState.CONFIRMED,
             updatedAt = now,
         )

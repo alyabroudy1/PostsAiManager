@@ -92,6 +92,21 @@ data class ExtractedData(
     /** The runner-up readings for this slot (the Edit sheet's chips), best first; empty when there were none. */
     val alternatives: List<FieldAlternative> = emptyList(),
 ) {
+    /**
+     * Whether the legacy flags agree with [reviewState] (the owner): [deletedByUser] is exactly "ignored"; a confirmed or edited
+     * row is [isConfirmed]; an unreviewed row is not. An ignored row may keep whatever [isConfirmed] it had.
+     *
+     * The flags are plain constructor properties, so `copy(isConfirmed = ...)` can still desync them; a writer that changes one sets all
+     * three, and the tests of every writer (`MergeExtractionUseCase`, the mapper, the fake repository) assert this holds for what they produce.
+     */
+    val flagsMatchReviewState: Boolean
+        get() = deletedByUser == (reviewState == ReviewState.IGNORED) &&
+            when (reviewState) {
+                ReviewState.CONFIRMED, ReviewState.EDITED -> isConfirmed
+                ReviewState.UNREVIEWED -> !isConfirmed
+                ReviewState.IGNORED -> true
+            }
+
     /** True for an open extra: something the model found that no fixed slot covers, keyed by its printed label. */
     val isExtra: Boolean get() = slotKey?.startsWith(EXTRA_KEY_PREFIX) == true
 
