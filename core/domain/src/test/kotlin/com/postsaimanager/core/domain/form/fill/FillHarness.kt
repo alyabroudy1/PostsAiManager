@@ -81,7 +81,7 @@ class FillHarness(
         return FormFillConversation(
             fills = fills, conversations = conversations, documents = documents, profiles = profiles, people = people,
             guardiansOf = GuardiansOfUseCase(profiles), remember = RememberDetailUseCase(profiles, facts),
-            understand = UnderstandFormUseCase(session, { system, user -> "<s>$system|$user<u>" to "<a>" }, GermanSwim.embedder),
+            understand = UnderstandFormUseCase(session, { system, user -> "<s>$system|$user<u>" to "<a>" }, embedder),
             model = model, classifier = FormIntentClassifier(model, profile), detector = FillRequestDetector(model, embedder, profile),
             interpreter = interpreter, writer = FormQuestionWriter(model, { Locale.GERMAN }, profile),
             answerChips = AnswerChips(people, profile), fillValues = FillValues(people), profile = profile,

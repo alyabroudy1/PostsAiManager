@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Formular-Assistent im Chat: Zeilen des Assistenten (die vom Modell formulierten Fragen stehen nicht hier) -->
+    <string name="form_understanding">Ich lese das Formular… (Schritt %1$s von %2$s)</string>
+    <string name="form_understanding_done">Das Formular ist gelesen.</string>
+    <string name="form_no_model">Es ist noch kein KI-Modell installiert. Installiere eines, um Formulare auszufüllen.</string>
+    <string name="form_understanding_failed">Ich konnte dieses Formular nicht lesen. Frag mich noch einmal, um es erneut zu versuchen.</string>
+    <string name="form_found_ask_subject">Das ist ein Formular zum Ausfüllen (%1$s). Für wen ist es?</string>
+    <string name="form_found_ask_subject_reason">Das ist ein Formular zum Ausfüllen (%1$s). Es scheint für %2$s zu sein: «%3$s». Für wen ist es?</string>
+    <string name="form_ask_subject">Für wen ist dieses Formular?</string>
+    <string name="form_ask_guardian">Welchen Elternteil oder Erziehungsberechtigten soll ich für die Angaben der Erziehungsberechtigten verwenden?</string>
+    <string name="form_ask_payer">Wessen Konto soll ich für die Zahlungsangaben verwenden?</string>
+    <string name="form_filled_intro">Ich habe %1$s von %2$s aus den gespeicherten Angaben ausgefüllt:</string>
+    <string name="form_ask_text">Was soll ich bei «%1$s» eintragen?</string>
+    <string name="form_ask_date">Welches Datum soll ich bei «%1$s» eintragen?</string>
+    <string name="form_ask_choice">Welche Option trifft bei «%1$s» zu?</string>
+    <string name="form_ask_yes_no">«%1$s»: Ja oder Nein?</string>
+    <string name="form_still_right">«%1$s» ist gespeichert als %2$s. Stimmt das noch?</string>
+    <string name="form_hint_not_an_option">Das ist keine der Optionen für «%1$s». Bitte wähle eine davon.</string>
+    <string name="form_hint_not_a_date">Ich konnte das nicht als Datum lesen. Bitte schreibe Tag, Monat und Jahr.</string>
+    <string name="form_hint_not_a_phone">Das sieht nicht nach einer Telefonnummer aus. Bitte prüfe sie.</string>
+    <string name="form_hint_not_an_email">Das sieht nicht nach einer E-Mail-Adresse aus. Bitte prüfe sie.</string>
+    <string name="form_hint_not_an_iban">Das ist keine gültige IBAN. Bitte prüfe sie.</string>
+    <string name="form_hint_not_a_postcode">Das sieht nicht nach einer gültigen Postleitzahl aus. Bitte prüfe sie.</string>
+    <string name="form_hint_empty">Bitte gib eine Antwort für «%1$s» an.</string>
+    <string name="form_left_for_you">Ich habe «%1$s» für dich zum handschriftlichen Ausfüllen gelassen.</string>
+    <string name="form_remember">Soll ich mir das für %1$s merken?</string>
+    <string name="form_remembered">Für %1$s gespeichert.</string>
+    <string name="form_remember_failed">Ich konnte das nicht speichern.</string>
+    <string name="form_all_set">Fertig: %1$s von %2$s ausgefüllt.</string>
+    <string name="form_all_set_signature">Die Unterschrift bleibt für dich.</string>
+    <string name="form_all_set_signature_page">Die Unterschrift bleibt für dich (Seite %1$s).</string>
+    <string name="form_stopped">Okay, ich habe aufgehört. Frag mich jederzeit wieder, um weiterzumachen.</string>
+    <string name="form_subject_changed">Okay, ich wechsle zu einer anderen Person.</string>
+    <plurals name="form_more_questions">
+        <item quantity="one">Noch %1$s Frage. Weiter?</item>
+        <item quantity="other">Noch %1$s Fragen. Weiter?</item>
+    </plurals>
+    <plurals name="form_by_hand">
+        <item quantity="one">Ich habe %1$s Feld für dich zum handschriftlichen Ausfüllen gelassen.</item>
+        <item quantity="other">Ich habe %1$s Felder für dich zum handschriftlichen Ausfüllen gelassen.</item>
+    </plurals>
+    <plurals name="form_count_fields">
+        <item quantity="one">%1$d Feld</item>
+        <item quantity="other">%1$d Felder</item>
+    </plurals>
+    <plurals name="form_count_pages">
+        <item quantity="one">%1$d Seite</item>
+        <item quantity="other">%1$d Seiten</item>
+    </plurals>
+
+    <!-- Chips -->
+    <string name="form_chip_yes">Ja</string>
+    <string name="form_chip_no">Nein</string>
+    <string name="form_chip_skip">Überspringen</string>
+    <string name="form_chip_continue">Weiter</string>
+    <string name="form_chip_by_hand">Den Rest mache ich von Hand</string>
+    <string name="form_chip_someone_else">Jemand anderes</string>
+    <string name="form_chip_me_setup">Ich (einrichten)</string>
+    <string name="form_chip_continue_reading">Weiterlesen</string>
+    <string name="form_reading_paused">Das Lesen des Formulars wurde angehalten. Was bisher gelesen ist, bleibt erhalten.</string>
+    <string name="form_search_model_missing">Schnelleres Lesen von Formularen braucht das Suchmodell.</string>
+    <string name="form_chip_download">Herunterladen</string>
+    <string name="form_ask_role_name">Wie heißt die Person? Schreibe den Namen hier.</string>
+    <string name="form_me_setup_hint">Du hast noch kein eigenes Profil. Lege eines unter Profile an (Typ Ich); bis dahin wähle Jemand anderes und schreibe den Namen.</string>
+    <string name="form_chip_description">Antwort: %1$s</string>
+
+    <!-- Ausfüllkarte -->
+    <string name="form_card_title">Formular ausfüllen</string>
+    <string name="form_card_progress">%1$d von %2$d fertig</string>
+    <string name="form_card_need_you">%1$d brauchen dich</string>
+    <string name="form_card_signature">%1$d Unterschrift</string>
+    <string name="form_card_copy_all">Alles kopieren</string>
+    <string name="form_card_copy_field">%1$s kopieren</string>
+    <string name="form_card_show_on_page">%1$s auf Seite %2$d zeigen</string>
+    <string name="form_card_page">S.%1$d</string>
+    <string name="form_card_page_heading">Seite %1$d</string>
+    <string name="form_card_reveal">Verborgener Wert. Tippen zum Anzeigen.</string>
+    <string name="form_card_hide">Tippen zum Verbergen.</string>
+    <string name="form_card_needs_input">Braucht deine Eingabe</string>
+    <string name="form_card_sign_here">Hier unterschreiben</string>
+    <string name="form_card_by_hand">Von Hand auszufüllen</string>
+    <string name="form_card_already_filled">Bereits ausgefüllt</string>
+    <string name="form_card_to_confirm">Zu bestätigen</string>
+    <string name="form_card_earlier">Frühere Ausfüllkarte. Die neueste steht weiter unten.</string>
+    <string name="form_source_profile">Profil</string>
+    <string name="form_source_fact">Gespeicherte Angabe</string>
+    <string name="form_source_user">Du</string>
+    <string name="form_source_today">Heute</string>
+    <string name="form_source_option">Option im Formular</string>
+    <string name="form_value_yes">Ja</string>
+    <string name="form_value_no">Nein</string>
+</resources>

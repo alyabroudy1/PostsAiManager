@@ -592,6 +592,8 @@ class FormFillConversationTest {
         val (question, content) = h.lastQuestion()
         assertThat(content).isEmpty()
         assertThat(question.text).isEqualTo(FormText.ASK_CHOICE)
+        // The template is rendered in the form's language (German here), not the UI's.
+        assertThat(question.localeTag).isEqualTo("de")
         // The printed label, then the section and page the chat puts in front of the question.
         assertThat(question.args).hasSize(3)
         assertThat(question.args.first()).isEqualTo("Hat Ihr Kind das Seepferdchen bereits?")
@@ -600,6 +602,26 @@ class FormFillConversationTest {
         h.say("Samstag")
         h.say("keine"); h.tap(FormChipLabel.NO.name)
         assertThat(h.lastQuestion().first.text).isEqualTo(FormText.ASK_YES_NO)
+    }
+
+    @Test
+    fun `without the search model the reading says so once, with a chip that opens the model download`() = runTest {
+        val h = FillHarness(embedder = com.postsaimanager.core.domain.form.FakeEmbedder(ready = false))
+        h.conversation.start("doc")
+
+        val notices = h.forms().filter { it.text == FormText.SEARCH_MODEL_MISSING }
+        assertThat(notices).hasSize(1)
+        assertThat(notices.single().kind).isEqualTo(FormMessageKind.STATUS)
+        assertThat(notices.single().chips.map { it.action }).containsExactly(FormChipAction.OPEN_MODELS)
+        // The fill goes on: the subject is still asked.
+        assertThat(h.lastQuestion().first.text).isAnyOf(FormText.FORM_FOUND_ASK_SUBJECT_REASON, FormText.FORM_FOUND_ASK_SUBJECT)
+    }
+
+    @Test
+    fun `with the search model there is no download hint`() = runTest {
+        val h = FillHarness()
+        h.conversation.start("doc")
+        assertThat(h.forms().filter { it.text == FormText.SEARCH_MODEL_MISSING }).isEmpty()
     }
 
     @Test

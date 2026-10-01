@@ -1,5 +1,6 @@
 package com.postsaimanager.feature.chat
 
+import android.content.res.Configuration
 import android.content.res.Resources
 import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
@@ -14,6 +15,7 @@ import com.postsaimanager.core.model.FormMessageKind
 import com.postsaimanager.core.model.FormText
 import com.postsaimanager.core.model.FormValueSource
 import java.util.IllegalFormatException
+import java.util.Locale
 
 /**
  * Renders what the form conversation stored (codes and arguments, see [FormMessage]) from string resources, in the user's
@@ -24,7 +26,11 @@ internal object FormChatTexts {
     /** The line a message says: the question the model wrote when there is one, otherwise the template for its code. */
     fun line(resources: Resources, form: FormMessage, content: String): String {
         // An earlier build stored the model's reasoning as the question: it is never shown (the template line is).
-        val body = if (content.isNotBlank() && !content.contains("<think", ignoreCase = true)) content else form.text?.let { text(resources, it, form.args) }.orEmpty()
+        val body = if (content.isNotBlank() && !content.contains("<think", ignoreCase = true)) {
+            content
+        } else {
+            form.text?.let { text(inLanguage(resources, form.localeTag), it, form.args) }.orEmpty()
+        }
         val context = questionContext(form)
         return if (context == null || body.isBlank()) body else "$context\n$body"
     }
@@ -38,6 +44,19 @@ internal object FormChatTexts {
         val section = form.args[1].trim()
         val page = form.args[2].trim().takeIf { it.isNotEmpty() }?.let { "p.$it" }
         return listOfNotNull(section.takeIf { it.isNotEmpty() }, page).joinToString(" · ").ifEmpty { null }
+    }
+
+    /**
+     * [resources] in the language of [localeTag] (a template question follows the form's language); the same resources when the tag
+     * is absent or already the current language. A language with no strings falls back to the English defaults, as always.
+     */
+    @Suppress("DEPRECATION")
+    fun inLanguage(resources: Resources, localeTag: String?): Resources {
+        if (localeTag.isNullOrBlank()) return resources
+        val locale = Locale.forLanguageTag(localeTag)
+        if (resources.configuration.locales[0].language == locale.language) return resources
+        val configuration = Configuration(resources.configuration).apply { setLocale(locale) }
+        return Resources(resources.assets, resources.displayMetrics, configuration)
     }
 
     fun text(r: Resources, code: FormText, args: List<String>): String = when (code) {

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- مساعد تعبئة النماذج في المحادثة: أسطر المساعد (الأسئلة التي يصوغها النموذج ليست هنا) -->
+    <string name="form_understanding">أقرأ النموذج… (الخطوة %1$s من %2$s)</string>
+    <string name="form_understanding_done">انتهت قراءة النموذج.</string>
+    <string name="form_no_model">لم يتم تثبيت نموذج ذكاء اصطناعي بعد. ثبّت واحدًا لتعبئة النماذج.</string>
+    <string name="form_understanding_failed">لم أتمكن من قراءة هذا النموذج. اطلب مني مرة أخرى للمحاولة من جديد.</string>
+    <string name="form_found_ask_subject">هذا نموذج للتعبئة (%1$s). لمن هو؟</string>
+    <string name="form_found_ask_subject_reason">هذا نموذج للتعبئة (%1$s). يبدو أنه لـ %2$s: «%3$s». لمن هو؟</string>
+    <string name="form_ask_subject">لمن هذا النموذج؟</string>
+    <string name="form_ask_guardian">أي والد أو ولي أمر أستخدم لبيانات ولي الأمر؟</string>
+    <string name="form_ask_payer">حساب من أستخدم لبيانات الدفع؟</string>
+    <string name="form_filled_intro">عبّأت %1$s من %2$s من البيانات المحفوظة:</string>
+    <string name="form_ask_text">ماذا أكتب في «%1$s»؟</string>
+    <string name="form_ask_date">ما التاريخ الذي أكتبه في «%1$s»؟</string>
+    <string name="form_ask_choice">أي خيار ينطبق على «%1$s»؟</string>
+    <string name="form_ask_yes_no">«%1$s»: نعم أم لا؟</string>
+    <string name="form_still_right">«%1$s» محفوظ على أنه %2$s. هل ما زال صحيحًا؟</string>
+    <string name="form_hint_not_an_option">هذا ليس من خيارات «%1$s». اختر واحدًا منها.</string>
+    <string name="form_hint_not_a_date">لم أتمكن من قراءة هذا كتاريخ. اكتب اليوم والشهر والسنة.</string>
+    <string name="form_hint_not_a_phone">لا يبدو هذا رقم هاتف. تحقق منه.</string>
+    <string name="form_hint_not_an_email">لا يبدو هذا عنوان بريد إلكتروني. تحقق منه.</string>
+    <string name="form_hint_not_an_iban">هذا ليس رقم IBAN صالحًا. تحقق منه.</string>
+    <string name="form_hint_not_a_postcode">لا يبدو هذا رمزًا بريديًا صالحًا. تحقق منه.</string>
+    <string name="form_hint_empty">أعطني إجابة لـ «%1$s».</string>
+    <string name="form_left_for_you">تركت «%1$s» لتكتبه بخط اليد.</string>
+    <string name="form_remember">هل أتذكر هذا لـ %1$s؟</string>
+    <string name="form_remembered">تم الحفظ لـ %1$s.</string>
+    <string name="form_remember_failed">لم أتمكن من حفظ ذلك.</string>
+    <string name="form_all_set">جاهز: %1$s من %2$s معبأة.</string>
+    <string name="form_all_set_signature">التوقيع متروك لك.</string>
+    <string name="form_all_set_signature_page">التوقيع متروك لك (الصفحة %1$s).</string>
+    <string name="form_stopped">حسنًا، توقفت. اطلب مني في أي وقت للمتابعة.</string>
+    <string name="form_subject_changed">حسنًا، سأنتقل إلى شخص آخر.</string>
+    <plurals name="form_more_questions">
+        <item quantity="zero">%1$s أسئلة أخرى. هل أتابع؟</item>
+        <item quantity="one">سؤال آخر واحد. هل أتابع؟</item>
+        <item quantity="two">سؤالان آخران. هل أتابع؟</item>
+        <item quantity="few">%1$s أسئلة أخرى. هل أتابع؟</item>
+        <item quantity="many">%1$s سؤالًا آخر. هل أتابع؟</item>
+        <item quantity="other">%1$s سؤال آخر. هل أتابع؟</item>
+    </plurals>
+    <plurals name="form_by_hand">
+        <item quantity="zero">تركت %1$s حقول لتعبئتها بخط اليد.</item>
+        <item quantity="one">تركت حقلًا واحدًا لتعبئته بخط اليد.</item>
+        <item quantity="two">تركت حقلين لتعبئتهما بخط اليد.</item>
+        <item quantity="few">تركت %1$s حقول لتعبئتها بخط اليد.</item>
+        <item quantity="many">تركت %1$s حقلًا لتعبئتها بخط اليد.</item>
+        <item quantity="other">تركت %1$s حقل لتعبئتها بخط اليد.</item>
+    </plurals>
+    <plurals name="form_count_fields">
+        <item quantity="zero">%1$d حقول</item>
+        <item quantity="one">حقل واحد</item>
+        <item quantity="two">حقلان</item>
+        <item quantity="few">%1$d حقول</item>
+        <item quantity="many">%1$d حقلًا</item>
+        <item quantity="other">%1$d حقل</item>
+    </plurals>
+    <plurals name="form_count_pages">
+        <item quantity="zero">%1$d صفحات</item>
+        <item quantity="one">صفحة واحدة</item>
+        <item quantity="two">صفحتان</item>
+        <item quantity="few">%1$d صفحات</item>
+        <item quantity="many">%1$d صفحة</item>
+        <item quantity="other">%1$d صفحة</item>
+    </plurals>
+
+    <!-- الأزرار -->
+    <string name="form_chip_yes">نعم</string>
+    <string name="form_chip_no">لا</string>
+    <string name="form_chip_skip">تخطي</string>
+    <string name="form_chip_continue">متابعة</string>
+    <string name="form_chip_by_hand">سأكمل الباقي بيدي</string>
+    <string name="form_chip_someone_else">شخص آخر</string>
+    <string name="form_chip_me_setup">أنا (إعداد)</string>
+    <string name="form_chip_continue_reading">متابعة القراءة</string>
+    <string name="form_reading_paused">توقفت قراءة النموذج. ما قُرئ حتى الآن محفوظ.</string>
+    <string name="form_search_model_missing">قراءة النماذج بشكل أسرع تحتاج إلى نموذج البحث.</string>
+    <string name="form_chip_download">تنزيل</string>
+    <string name="form_ask_role_name">ما اسمه؟ اكتبه هنا.</string>
+    <string name="form_me_setup_hint">ليس لديك ملف شخصي خاص بك بعد. أضف واحدًا ضمن الملفات الشخصية (النوع أنا)؛ وحتى ذلك الحين اختر شخصًا آخر واكتب الاسم.</string>
+    <string name="form_chip_description">الإجابة: %1$s</string>
+
+    <!-- بطاقة التعبئة -->
+    <string name="form_card_title">تعبئة النموذج</string>
+    <string name="form_card_progress">%1$d من %2$d جاهزة</string>
+    <string name="form_card_need_you">%1$d تحتاج إليك</string>
+    <string name="form_card_signature">%1$d توقيع</string>
+    <string name="form_card_copy_all">نسخ الكل</string>
+    <string name="form_card_copy_field">نسخ %1$s</string>
+    <string name="form_card_show_on_page">إظهار %1$s في الصفحة %2$d</string>
+    <string name="form_card_page">ص.%1$d</string>
+    <string name="form_card_page_heading">الصفحة %1$d</string>
+    <string name="form_card_reveal">قيمة مخفية. اضغط للإظهار.</string>
+    <string name="form_card_hide">اضغط للإخفاء.</string>
+    <string name="form_card_needs_input">تحتاج إلى إدخالك</string>
+    <string name="form_card_sign_here">وقّع هنا</string>
+    <string name="form_card_by_hand">للتعبئة بخط اليد</string>
+    <string name="form_card_already_filled">معبأة مسبقًا</string>
+    <string name="form_card_to_confirm">للتأكيد</string>
+    <string name="form_card_earlier">بطاقة تعبئة سابقة. الأحدث أدناه.</string>
+    <string name="form_source_profile">الملف الشخصي</string>
+    <string name="form_source_fact">بيان محفوظ</string>
+    <string name="form_source_user">أنت</string>
+    <string name="form_source_today">اليوم</string>
+    <string name="form_source_option">خيار في النموذج</string>
+    <string name="form_value_yes">نعم</string>
+    <string name="form_value_no">لا</string>
+</resources>

@@ -552,7 +552,7 @@ class FormFillConversation(
         val awaiting = FormAwaiting(FormAwaitKind.ANSWER, fieldId = field.id, value = hint?.let { HINTED })
         fills.saveFill(fill.copy(status = FormFillStatus.ASKING, currentFieldId = field.id, awaiting = awaiting, updatedAt = clock()))
         if (hint != null) {
-            return post(fill.documentId, FormMessage(FormMessageKind.QUESTION, hint, listOf(field.labelText), chips, fieldId = field.id))
+            return post(fill.documentId, FormMessage(FormMessageKind.QUESTION, hint, listOf(field.labelText), chips, fieldId = field.id, localeTag = fill.localeTag))
         }
         if (field.reconfirm && field.value != null) {
             val shown = if (FormDataKeys.isSensitive(field.dataKey)) FormMask.of(field.value!!) else field.value!!
@@ -569,7 +569,8 @@ class FormFillConversation(
         if (written != null) {
             post(fill.documentId, FormMessage(FormMessageKind.QUESTION, null, args, chips, fieldId = field.id), content = written)
         } else {
-            post(fill.documentId, FormMessage(FormMessageKind.QUESTION, templateFor(field), args, chips, fieldId = field.id))
+            // The template is shown in the form's language (the question the model could not write is not left in the UI's).
+            post(fill.documentId, FormMessage(FormMessageKind.QUESTION, templateFor(field), args, chips, fieldId = field.id, localeTag = fill.localeTag))
         }
     }
 

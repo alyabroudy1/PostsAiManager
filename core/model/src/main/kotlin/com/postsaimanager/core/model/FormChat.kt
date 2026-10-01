@@ -148,4 +148,6 @@ data class FormMessage(
     val fieldId: String? = null,
     /** The fill a CARD renders. */
     val fillId: String? = null,
+    /** The language (a BCP 47 tag) a template question is rendered in: the form's. Null renders in the UI language. */
+    val localeTag: String? = null,
 )

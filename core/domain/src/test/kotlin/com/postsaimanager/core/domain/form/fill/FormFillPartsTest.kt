@@ -152,6 +152,20 @@ class FormFillPartsTest {
     }
 
     @Test
+    fun `German labels get the label-language rule, the label as printed and a German question is kept`() = runTest {
+        val model = FakeFormModel().also { it.question = { "Wie lautet der Vorname des Kindes?" } }
+        // The OCR tagged no language, so the form's locale is only the phone's (English): the label must lead.
+        val written = FormQuestionWriter(model, { java.util.Locale.ENGLISH })
+            .write(field("Vorname", key = "given_name").copy(section = "Angaben zum Kind"), QuestionContext(formLocale = java.util.Locale.ENGLISH))
+
+        assertThat(written).isEqualTo("Wie lautet der Vorname des Kindes?")
+        assertThat(model.writtenSystem.single()).contains("Write the question in the same language as the printed FIELD label")
+        assertThat(model.writtenSystem.single()).contains("Keep the field's label exactly as printed")
+        assertThat(model.written.single()).contains("FIELD: Vorname")
+        assertThat(model.written.single()).contains("SECTION: Angaben zum Kind")
+    }
+
+    @Test
     fun `the model is told the role, the person behind it, the section and the page`() = runTest {
         val model = FakeFormModel().also { it.question = { "Wie lautet der Vorname?" } }
         val f = field("Vorname", key = "first_name").copy(section = "Erziehungsberechtigte/r", page = 2, role = com.postsaimanager.core.model.FormRole.GUARDIAN)
