@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -83,6 +84,9 @@ internal class FieldActions(
     val edit: (ExtractedData) -> Unit,
 )
 
+/** The room a floating action button takes at the bottom of a list: its height (56dp), its margin (16dp) and a gap (16dp). */
+private val FAB_CLEARANCE = 88.dp
+
 /** Which question the family picker answers: "Change type" (no re-read) or "Read again as …" (a fresh read). */
 private enum class PickerMode { CHANGE_TYPE, READ_AGAIN }
 
@@ -131,7 +135,14 @@ internal fun ExtractedTab(
         if (data.isEmpty()) {
             EmptyExtracted(onAddClick)
         } else {
-            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            // The list state is created here, once; the rows keep stable keys, so a review-state change keeps the scroll position.
+            val listState = rememberLazyListState()
+            LazyColumn(
+                state = listState,
+                // The bottom clears the floating add button the screen puts over the tab (the screen's insets are already applied).
+                contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + FAB_CLEARANCE),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 item(key = "reread") {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                         OutlinedButton(onClick = onReprocess, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
@@ -221,7 +232,6 @@ internal fun ExtractedTab(
                         items(presentation.ignored, key = { "ignored-" + it.id }) { IgnoredRow(it, actions.restore) }
                     }
                 }
-                item(key = "end") { Spacer(modifier = Modifier.height(72.dp)) }
             }
         }
     }

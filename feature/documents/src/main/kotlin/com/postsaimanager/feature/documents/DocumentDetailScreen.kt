@@ -210,6 +210,9 @@ fun DocumentDetailScreen(
         AnimatedContent(
             targetState = uiState,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
+            // Animate between kinds of state only: every edit of the document is a new Success, and treating it as new content
+            // would rebuild the tab and reset its scroll position.
+            contentKey = { s -> if (s is DocumentDetailUiState.Success) "success-${s.document.isTrashed}" else s::class },
             label = "detail_content",
             modifier = Modifier.padding(innerPadding),
         ) { state ->

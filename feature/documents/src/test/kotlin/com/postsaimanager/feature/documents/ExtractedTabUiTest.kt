@@ -6,6 +6,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.model.ExtractedData
@@ -183,6 +186,34 @@ class ExtractedTabUiTest {
             MaterialTheme { SummaryCardView(SummaryCard(summaryText = "Mine.", summarySource = SummarySource.USER), onEditSummary = {}) }
         }
         compose.onNodeWithText("Your summary").assertIsDisplayed()
+    }
+
+    @Test
+    fun `confirming a row far down the list keeps the scroll position`() {
+        fun extra(n: Int, confirmed: Boolean) = ExtractedData(
+            id = "e$n", documentId = "d", fieldName = "Extra $n", fieldValue = "v$n", fieldType = ExtractedFieldType.OTHER,
+            confidence = 0.9f, slotKey = "x:extra_$n", isConfirmed = confirmed,
+        )
+        val document = com.postsaimanager.core.model.Document(id = "d", title = "T", sourceType = com.postsaimanager.core.model.SourceType.CAMERA, createdAt = 0, modifiedAt = 0)
+        var data by androidx.compose.runtime.mutableStateOf((1..40).map { extra(it, false) })
+        compose.setContent {
+            MaterialTheme {
+                ExtractedTab(
+                    document = document, data = data, summaryComing = false, actions = FieldActions(
+                        confirm = { ids -> data = data.map { if (it.id in ids) it.copy(isConfirmed = true) else it } },
+                        ignore = {}, restore = {}, edit = {},
+                    ),
+                    onAddClick = {}, onReprocess = {}, onChangeFamily = {}, onReadAgainAs = {}, onConfirmConfident = {}, onConfirmAll = {},
+                    onUpdateField = { _, _, _ -> }, onUpdateSummary = {}, onShowOnPage = { _, _ -> },
+                )
+            }
+        }
+        compose.onNodeWithText("Other details (40)").performClick()
+        compose.onNode(androidx.compose.ui.test.hasScrollAction()).performScrollToNode(androidx.compose.ui.test.hasText("Extra 30"))
+        compose.onNodeWithContentDescription("Confirm Extra 30").performClick()
+
+        compose.waitForIdle()
+        compose.onNodeWithText("Extra 30").assertIsDisplayed()
     }
 
     @Test
