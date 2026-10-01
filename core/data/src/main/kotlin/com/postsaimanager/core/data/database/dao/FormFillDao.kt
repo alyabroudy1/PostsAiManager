@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Upsert
 import com.postsaimanager.core.data.database.entity.FormFieldEntity
 import com.postsaimanager.core.data.database.entity.FormFillEntity
 import kotlinx.coroutines.flow.Flow
@@ -22,7 +23,11 @@ interface FormFillDao {
     @Query("SELECT * FROM form_fills WHERE documentId = :documentId ORDER BY createdAt DESC LIMIT 1")
     suspend fun latestForDocument(documentId: String): FormFillEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    /**
+     * An in-place upsert, never `REPLACE`: a replace is a delete plus an insert, and deleting the fill cascades to its fields
+     * (every saved fill lost its fields that way).
+     */
+    @Upsert
     suspend fun upsertFill(fill: FormFillEntity)
 
     @Query("SELECT * FROM form_fields WHERE formFillId = :fillId ORDER BY page ASC, orderIndex ASC")

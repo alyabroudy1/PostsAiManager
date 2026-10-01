@@ -89,6 +89,10 @@ dependencies {
     // Testing
     testImplementation(libs.room.testing)
 
+    // Real Room on the JVM: Robolectric hosts the in-memory database, the Vintage engine runs its JUnit 4 runner on the JUnit 5 platform.
+    testImplementation(libs.robolectric)
+    testRuntimeOnly(libs.junit.vintage.engine)
+
     // Instrumented migration tests (JUnit4 — the instrumentation runner is JUnit4-based,
     // independent of the JUnit 5 platform the convention plugin sets up for unit tests).
     androidTestImplementation(libs.room.testing)
