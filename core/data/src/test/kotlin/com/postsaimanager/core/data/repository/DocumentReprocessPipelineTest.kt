@@ -412,7 +412,7 @@ class DocumentReprocessPipelineTest {
     @Test
     @DisplayName("a family the model chose is replaced by the new reading's, with its topics and layout template")
     fun modelFamilyIsReplaced() = runTest(dispatcher) {
-        coEvery { documentDao.getById("doc-1") } returns v14Doc.copy(extractionType = "health", topics = JsonColumns.encodeStrings(listOf("health")))
+        coEvery { documentDao.getById("doc-1") } returns v14Doc.copy(extractionType = "official_letter", topics = JsonColumns.encodeStrings(listOf("government")))
         coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(newReading())
         pipeline.processDocument("doc-1", reprocess = true)
         val updated = slot<DocumentEntity>()
@@ -421,6 +421,18 @@ class DocumentReprocessPipelineTest {
         assertThat(updated.captured.familySource).isEqualTo(FamilySource.MODEL.name)
         assertThat(updated.captured.topics).isEqualTo(JsonColumns.encodeStrings(listOf("tax")))
         assertThat(updated.captured.documentType).isEqualTo(DocumentType.INVOICE.name)
+    }
+
+    @Test
+    @DisplayName("a migrated health letter keeps its sensitive family and topic when the model reads another family")
+    fun sensitivityIsStickyOnReprocess() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns v14Doc.copy(extractionType = "medical", topics = JsonColumns.encodeStrings(listOf("health")))
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(newReading())
+        pipeline.processDocument("doc-1", reprocess = true)
+        val updated = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(updated)) }
+        assertThat(updated.captured.extractionType).isEqualTo("medical")
+        assertThat(JsonColumns.decodeStrings(updated.captured.topics)).contains("health")
     }
 
     @Test
@@ -465,6 +477,39 @@ class DocumentReprocessPipelineTest {
         val event = timeline.recorded.single()
         assertThat(event.code).isEqualTo(TimelineCodes.REPROCESS_FAILED)
         assertThat(event.args).containsExactly("error")
+    }
+
+    @Test
+    @DisplayName("a user-added field named like a first-stage slot survives the first stage, and the second stage is marked owed")
+    fun firstStageKeepsAUserFieldNamedLikeASlot() = runTest(dispatcher) {
+        val workManager = mockk<androidx.work.WorkManager>(relaxed = true)
+        io.mockk.mockkObject(androidx.work.WorkManager.Companion)
+        every { androidx.work.WorkManager.getInstance(any<Context>()) } returns workManager
+        try {
+            // A person's extra (second-stage kind: "x:" slot key) whose name is the one the first stage's amount slot writes.
+            val mine = ExtractedData(
+                id = "f-mine", documentId = "doc-1", fieldName = "Amount", fieldValue = "99,00 EUR", fieldType = ExtractedFieldType.TEXT,
+                confidence = 1f, slotKey = "x:amount", source = ValueSource.USER, isConfirmed = true,
+            )
+            coEvery { documentDao.getExtractedData("doc-1") } returns listOf(mapper.extractedDataToEntity(mine))
+            coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns
+                PamResult.Success(understanding().copy(enrichment = com.postsaimanager.core.model.EnrichmentTicket(typeId = "invoice_bill")))
+
+            pipeline.processDocument("doc-1", reprocess = true)
+
+            val persisted = slot<List<ExtractedDataEntity>>()
+            coVerify { documentDao.insertExtractedData(capture(persisted)) }
+            val amounts = persisted.captured.filter { it.fieldName == "Amount" }
+            assertThat(amounts.map { it.id }).containsExactly("f-mine")
+            assertThat(amounts.single().fieldValue).isEqualTo("99,00 EUR")
+            coVerify(exactly = 0) { documentDao.deleteExtractedField("f-mine") }
+
+            val updated = slot<DocumentEntity>()
+            coVerify { documentDao.update(capture(updated)) }
+            assertThat(updated.captured.enrichmentPending).isTrue()
+        } finally {
+            io.mockk.unmockkObject(androidx.work.WorkManager.Companion)
+        }
     }
 
     @Test

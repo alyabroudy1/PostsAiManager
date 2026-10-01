@@ -54,6 +54,8 @@ data class DocumentEntity(
     val layoutTemplate: String? = null,
     /** See [com.postsaimanager.core.model.Document.enrichmentAttempts]. */
     val enrichmentAttempts: Int = 0,
+    /** See [com.postsaimanager.core.model.Document.enrichmentPending]. */
+    val enrichmentPending: Boolean = false,
 )
 
 @Entity(

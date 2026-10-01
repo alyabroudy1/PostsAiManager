@@ -422,7 +422,7 @@ object PamMigrations {
      * - `documents`: `topics` (JSON list), `familySource`, `titleSource` (a person's title -> USER, a
      *   default with a code -> DEFAULT, other real words -> MODEL), `summarySource` (an existing summary
      *   -> MODEL), `summaryCode`/`summaryArgs`, `layoutTemplate` and `enrichmentAttempts` (how many times the second stage ran
-     *   without settling a summary; 0).
+     *   without settling a summary; 0) and `enrichmentPending` (a second stage is owed; 0).
      * - `documents.extractionType` now holds a family id: the legacy type ids are rewritten and their
      *   topics filled by [LegacyTypeSql] from `LegacyTypes`, so old documents render before a re-read.
      *
@@ -450,6 +450,8 @@ object PamMigrations {
             db.execSQL("ALTER TABLE `documents` ADD COLUMN `summaryArgs` TEXT")
             db.execSQL("ALTER TABLE `documents` ADD COLUMN `layoutTemplate` TEXT")
             db.execSQL("ALTER TABLE `documents` ADD COLUMN `enrichmentAttempts` INTEGER NOT NULL DEFAULT 0")
+            // A second stage is owed (startup recovery keys on it; a migrated document owes none).
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `enrichmentPending` INTEGER NOT NULL DEFAULT 0")
 
             db.execSQL(
                 """

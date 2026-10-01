@@ -388,7 +388,14 @@ class DocumentProcessingPipeline @Inject constructor(
                 val merged = mergeExtraction(
                     // A staged reading's first stage produces no extras and no subject: the ones already stored (an earlier
                     // reading's) wait for the second stage to replace them instead of being deleted now.
-                    existing = if (staged) stored.filterNot(UnderstandingToFields::writtenInSecondStage) else stored,
+                    // A stored row of the second stage's kind that shares a name with a fresh row is offered too: the insert replaces on
+                    // (document, field name), so an unpaired fresh row would silently delete it, a person's reviewed value included.
+                    existing = if (staged) {
+                        val freshNames = extraction.fields.map { it.fieldName }.toSet()
+                        stored.filter { !UnderstandingToFields.writtenInSecondStage(it) || it.fieldName in freshNames }
+                    } else {
+                        stored
+                    },
                     extracted = extraction.fields,
                     engineVersion = engineVersion,
                     now = now,
@@ -500,6 +507,8 @@ class DocumentProcessingPipeline @Inject constructor(
                                 extractorVersion = engineVersion,
                                 // A new reading starts the second stage's attempts again.
                                 enrichmentAttempts = 0,
+                                // The second stage is owed from the moment the first is stored (recovery keys on it).
+                                enrichmentPending = read?.enrichment != null,
                             ),
                         ).copy(syncStatus = doc.syncStatus),
                     )
@@ -705,8 +714,11 @@ class DocumentProcessingPipeline @Inject constructor(
                     val now = System.currentTimeMillis()
                     // The merge keeps every value a person wrote or confirmed and every deletion, flagging a differing reading
                     // instead of applying it; only rows this stage owns are offered to it, so nothing of the first stage can be dropped.
+                    // A stored row of any kind that shares a name with a fresh row is offered as well: the insert replaces on
+                    // (document, field name), so an unpaired fresh row would delete it, a pre-v2 confirmed "Subject" included.
+                    val freshNames = fields.map { it.fieldName }.toSet()
                     val merged = mergeExtraction(
-                        existing = storedFields.filter(UnderstandingToFields::writtenInSecondStage),
+                        existing = storedFields.filter { UnderstandingToFields.writtenInSecondStage(it) || it.fieldName in freshNames },
                         extracted = fields, engineVersion = AI_ENGINE_VERSION, now = now, newId = { UuidGenerator.generate() },
                     )
                     merged.idsToDelete.forEach { documentDao.deleteExtractedField(it) }
@@ -730,6 +742,8 @@ class DocumentProcessingPipeline @Inject constructor(
                             updated.copy(
                                 language = read.language.ifBlank { null } ?: updated.language,
                                 suggestedQuestions = read.suggestedQuestions.take(MAX_SUGGESTED_QUESTIONS).ifEmpty { updated.suggestedQuestions },
+                                // A summary was settled: nothing is owed. Without one, settleFailedAttempt below counts the attempt.
+                                enrichmentPending = updated.enrichmentPending && read.summarySource == null,
                             ),
                         ).copy(syncStatus = latest.syncStatus),
                     )

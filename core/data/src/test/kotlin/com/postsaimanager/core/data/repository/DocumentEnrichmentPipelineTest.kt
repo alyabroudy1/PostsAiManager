@@ -339,7 +339,48 @@ class DocumentEnrichmentPipelineTest {
     }
 
     @Test
-    fun `a document no model has read has nothing to enrich, ticket or not`() = runTest(dispatcher) {
+    fun `a confirmed Subject row an older reading stored is paired with the new subject line, not replaced by it`() = runTest(dispatcher) {
+        // Stored before slot keys: no slot key, so only its name says it is the subject line.
+        val legacySubject = field("f-legacy-subject", "Subject", "Mein Betreff", slot = null, source = ValueSource.USER, confirmed = true)
+        coEvery { documentDao.getExtractedData("doc-1") } returns listOf(sender, legacySubject).map(mapper::extractedDataToEntity)
+        answer(understanding())
+        pipeline.enrichDocument("doc-1", ticket)
+
+        val persisted = slot<List<ExtractedDataEntity>>()
+        coVerify { documentDao.insertExtractedData(capture(persisted)) }
+        val subjects = persisted.captured.filter { it.fieldName == "Subject" }
+        // One row carries the name, and it is the person's: a second "Subject" row would make the insert delete theirs.
+        assertThat(subjects.map { it.id }).containsExactly("f-legacy-subject")
+        assertThat(subjects.single().fieldValue).isEqualTo("Mein Betreff")
+        assertThat(subjects.single().source).isEqualTo(ValueSource.USER.name)
+        coVerify(exactly = 0) { documentDao.deleteExtractedField("f-legacy-subject") }
+    }
+
+    @Test
+    fun `the second stage is owed until the retries run out`() = runTest(dispatcher) {
+        val stored = statefulDocument(doc(titleCode = null).copy(extractionType = "invoice_bill", enrichmentPending = true))
+        answer(understanding().copy(modelUsed = false))
+        for (attempt in 1 until EnrichmentRetryPolicy.MAX_ATTEMPTS) {
+            pipeline.enrichDocument("doc-1", null)
+            assertThat(stored().enrichmentPending).isTrue()
+        }
+        pipeline.enrichDocument("doc-1", null)
+        assertThat(stored().enrichmentPending).isFalse()
+    }
+
+    @Test
+    fun `a second stage that wrote its summary clears the pending flag, even over an earlier summary`() = runTest(dispatcher) {
+        val stored = statefulDocument(
+            doc().copy(extractionType = "invoice_bill", enrichmentPending = true, summary = "Alt", summarySource = SummarySource.MODEL.name),
+        )
+        answer(understanding())
+        pipeline.enrichDocument("doc-1", ticket)
+        assertThat(stored().enrichmentPending).isFalse()
+        assertThat(stored().summary).isEqualTo("Eine Rechnung über 64,98 EUR.")
+    }
+
+    @Test
+    fun `a document no model has read has nothing to enrich, ticket or not`()= runTest(dispatcher) {
         // extractionType is null: the first stage never ran, so there is no reading to complete.
         val result = pipeline.enrichDocument("doc-1", null)
         assertThat(result).isInstanceOf(PamResult.Error::class.java)

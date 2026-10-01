@@ -842,8 +842,18 @@ class MigrationTest {
         assertEquals("a document with no type has no family source", null, document("untyped")[2])
         assertEquals(null, document("untyped")[0])
 
+        // A migrated document owes no second stage (startup recovery keys on this flag, not on a missing summary).
+        db.query("SELECT COUNT(*) FROM documents WHERE enrichmentPending != 0").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("no migrated document is awaiting enrichment", 0, c.getInt(0))
+        }
+
         // The new columns are writable.
-        db.execSQL("UPDATE documents SET layoutTemplate = 'din5008_b', summaryCode = 'template', summaryArgs = '[]' WHERE id = 'family'")
+        db.execSQL("UPDATE documents SET layoutTemplate = 'din5008_b', summaryCode = 'template', summaryArgs = '[]', enrichmentPending = 1 WHERE id = 'family'")
+        db.query("SELECT enrichmentPending FROM documents WHERE id = 'family'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(1, c.getInt(0))
+        }
     }
 
     private companion object {

@@ -19,14 +19,16 @@ object EnrichmentRetryPolicy {
 
     /**
      * [document] after one more second stage that did not settle a summary: the attempt counted and, at the limit, the template
-     * summary stored (never over a summary a person wrote or one the document already has). Pure.
+     * summary stored (never over a summary a person wrote or one the document already has) and the document no longer pending. Pure.
      */
     fun afterFailure(document: Document, fields: List<ExtractedData>): Document {
         val attempts = document.enrichmentAttempts + 1
         val counted = document.copy(enrichmentAttempts = attempts)
         if (attempts < MAX_ATTEMPTS) return counted
-        if (document.summarySource != null || !ReprocessOverwritePolicy.mayOverwriteSummary(document)) return counted
+        // Out of retries: nothing is owed any more, whatever summary the document ends up with.
+        val settled = counted.copy(enrichmentPending = false)
+        if (document.summarySource != null || !ReprocessOverwritePolicy.mayOverwriteSummary(document)) return settled
         val template = SummaryWriter.templateOf(EnrichmentTicketRebuilder.factsOf(document, fields))
-        return counted.copy(summary = null, summarySource = template.origin, summaryCode = template.code, summaryArgs = template.args)
+        return settled.copy(summary = null, summarySource = template.origin, summaryCode = template.code, summaryArgs = template.args)
     }
 }

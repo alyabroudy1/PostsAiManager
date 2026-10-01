@@ -69,6 +69,12 @@ data class Document(
     val layoutTemplate: String? = null,
     /** How many times the reading's second stage ran without settling a summary; at the limit the template summary is stored. */
     val enrichmentAttempts: Int = 0,
+    /**
+     * A second stage is owed: set when a reading's first stage is stored, cleared when the second settles (a summary written, or the
+     * limit of retries reached). Startup recovery looks for it, since a re-read keeps its earlier summary and so cannot be found by
+     * a missing summary.
+     */
+    val enrichmentPending: Boolean = false,
 ) {
     val isTrashed: Boolean get() = deletedAt != null
 
