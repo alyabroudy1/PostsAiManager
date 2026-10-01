@@ -526,6 +526,14 @@ object InterpreterMetrics {
         return result
     }
 
+    /** What a scoring replay asked that its recording could not answer: the questions to record again (or, for a legacy recording, the ones that never existed). */
+    fun replayMisses(rec: Recording, f: Fixture, scoring: ScoringProfile): List<String> {
+        val replay = ZoneReplay(rec, scoring)
+        val first = f.pages.firstOrNull()?.takeIf { it.height > 0 }
+        runBlocking { ExtractionV2Pipeline().run(f.pages.map { it.blocks }, replay, rec.contextTokens, first?.let { it.width.toFloat() / it.height }) }
+        return replay.misses
+    }
+
     /** The variants of the zone experiment: `zones`, `zonesscoring`, and either with a model suffix (`zonesscoring2b`). */
     const val ZONES_VARIANT = "zones"
     const val SCORING_VARIANT = "zonesscoring"

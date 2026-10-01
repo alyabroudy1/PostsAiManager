@@ -634,4 +634,75 @@ class SelectionVerifierTest {
             assertThat(v.normalized).isEqualTo("innerhalb eines Monats")
         }
     }
+
+    @Nested
+    inner class TopicsAndAlternatives {
+        private val tax = Prepared(Letters.tax.pages)
+
+        private fun verifyWith(p: Prepared, raw: RawInterpretation) = SelectionVerifier().verify(raw, null, ctx(p))
+
+        private fun rawOf(type: String, topics: List<String>, slots: Map<String, RawSlot> = emptyMap()) =
+            RawInterpretation(type = type, language = "de", parties = emptyList(), slots = slots, topics = topics)
+
+        @Test
+        fun `a topic's slot is accepted only when the topic holds, and is rejected without it`() {
+            val caseNo = tax.offered.rows.map { it.candidate }.first { it.kind == CandidateKind.REFERENCE }.id
+            val slots = mapOf("case_no" to RawSlot(id = caseNo, confidence = "HIGH"))
+            val with = verifyWith(tax, rawOf("official_letter", listOf("government"), slots))
+            assertThat(with.slots.keys.map { it.json }).contains("case_no")
+            val without = verifyWith(tax, rawOf("official_letter", emptyList(), slots))
+            assertThat(without.slots).isEmpty()
+            assertThat(without.diagnostics.rejections.single()).contains("case_no")
+        }
+
+        @Test
+        fun `only the best two topics add their slots, and a topic the schema does not know is dropped`() {
+            val r = verifyWith(tax, rawOf("official_letter", listOf("astrology", "tax", "government", "insurance")))
+            assertThat(r.topics).containsExactly("tax", "government", "insurance").inOrder()
+            val policy = RawSlot(id = tax.offered.rows.first { it.candidate.kind == CandidateKind.REFERENCE }.candidate.id, confidence = "HIGH")
+            // policy_no belongs to insurance, the third topic: it adds no slot.
+            val third = verifyWith(tax, rawOf("official_letter", listOf("tax", "government", "insurance"), mapOf("policy_no" to policy)))
+            assertThat(third.slots).isEmpty()
+        }
+
+        @Test
+        fun `the runners-up become alternatives, offered candidates only, with no repeat of the value or of each other, at most three`() {
+            val amounts = invoice.offered.rows.map { it.candidate }.filter { it.kind == CandidateKind.AMOUNT }
+            val chosen = id(invoice, CandidateKind.AMOUNT, "1284.50 EUR")
+            val others = amounts.filter { it.id != chosen }
+            val raw = rawOf(
+                "invoice_bill", emptyList(),
+                mapOf(
+                    "total" to RawSlot(
+                        id = chosen, role = "GROSS", confidence = "HIGH",
+                        alternatives = listOf(RawAlternative("A99", 3.0), RawAlternative(chosen, 2.9)) +
+                            others.take(4).mapIndexed { i, c -> RawAlternative(c.id, 2.0 - i) } + RawAlternative(others.first().id, 0.1),
+                    ),
+                ),
+            )
+            val v = verifyWith(invoice, raw).slots.getValue(Slots.TOTAL)
+            // A99 is not offered, the chosen value is not its own alternative, the first of the others appears once.
+            assertThat(others.size).isAtLeast(2)
+            assertThat(v.alternatives).hasSize(minOf(SelectionVerifier.MAX_ALTERNATIVES, others.size))
+            assertThat(v.alternatives.map { it.normalized }).doesNotContain("1284.50 EUR")
+            assertThat(v.alternatives.map { it.normalized }.toSet()).hasSize(v.alternatives.size)
+            assertThat(v.alternatives.map { it.score }).containsExactlyElementsIn(listOf(2.0f, 1.0f, 0.0f).take(v.alternatives.size)).inOrder()
+            assertThat(v.alternatives.first().value).isEqualTo(others.first().raw.trim())
+            assertThat(v.alternatives.first().page).isEqualTo(others.first().page)
+            // They are what else the letter offered, never a claim: the confidence is the chosen value's own.
+            assertThat(v.confidence).isEqualTo(verifyWith(invoice, raw.copy(slots = mapOf("total" to RawSlot(id = chosen, role = "GROSS", confidence = "HIGH")))).slots.getValue(Slots.TOTAL).confidence)
+        }
+
+        @Test
+        fun `the layout template and the addresses of the reading are carried to the result`() {
+            val address = com.postsaimanager.core.model.PostalAddress(lines = listOf("Erika Mustermann", "54321 Beispieldorf"))
+            val raw = rawOf("invoice_bill", emptyList()).copy(
+                layoutTemplate = "din5008_b", addresses = mapOf(PartyRole.ADDRESSEE to address), senderAddressAlternatives = listOf(address),
+            )
+            val r = verifyWith(invoice, raw)
+            assertThat(r.layoutTemplate).isEqualTo("din5008_b")
+            assertThat(r.addresses).containsExactly(PartyRole.ADDRESSEE, address)
+            assertThat(r.senderAddressAlternatives).containsExactly(address)
+        }
+    }
 }
