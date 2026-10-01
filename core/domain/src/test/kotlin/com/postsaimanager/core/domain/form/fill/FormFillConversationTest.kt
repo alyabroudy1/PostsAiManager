@@ -53,7 +53,7 @@ class FormFillConversationTest {
         assertThat(progress).hasSize(1) // one line, updated in place
         // The finished line also carries the key of the OCR it was read from.
         assertThat(progress.single().args.take(2)).containsExactly("5", "5").inOrder()
-        assertThat(progress.single().args[2]).startsWith("v2-")
+        assertThat(progress.single().args[2]).startsWith("v3-")
 
         // One tap on Ahmad: his father ("Me", the only guardian) is settled without a question, and the form is filled from both.
         h.tap("Ahmad")
@@ -508,8 +508,9 @@ class FormFillConversationTest {
 
         // The progress line says step 2 of 5 was finished; Continue redoes only the later steps.
         val line = h.messages().last { FormMessageCodec.parse(it)?.text == FormText.UNDERSTANDING }
+        val key = FormFillConversation.readingKey(com.postsaimanager.core.domain.form.FormFixtures.pages(com.postsaimanager.core.domain.form.FormFixtures.GERMAN))
         h.conversations.updateMessage(
-            FormMessageCodec.toMessage(line.id, line.conversationId, line.createdAt, FormMessage(FormMessageKind.STATUS, FormText.UNDERSTANDING, listOf("2", "5"))),
+            FormMessageCodec.toMessage(line.id, line.conversationId, line.createdAt, FormMessage(FormMessageKind.STATUS, FormText.UNDERSTANDING, listOf("2", "5", key))),
         )
         val scoredBefore = h.session.scored.flatten().size
         h.tap(FormChipLabel.CONTINUE_READING.name)

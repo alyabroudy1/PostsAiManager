@@ -276,11 +276,14 @@ class FormFillConversation(
             progressId, conversation, FormMessage(FormMessageKind.STATUS, text, args.toList()),
         )
         // The last finished step of an interrupted reading (its progress line says how far it got): the later steps only are redone.
-        val doneBefore = continuing?.let(FormMessageCodec::parse)?.args?.firstOrNull()?.toIntOrNull() ?: 0
-        status(FormText.UNDERSTANDING, doneBefore.toString(), STEPS)
+        // Every progress line carries the key of the OCR it is about: a stored step of another OCR (or way of reading) is not reused.
+        val pages = pagesOf(fill.documentId)
+        val key = readingKey(pages)
+        val earlier = continuing?.let(FormMessageCodec::parse)?.args.orEmpty()
+        val doneBefore = if (earlier.getOrNull(2) == key) earlier.firstOrNull()?.toIntOrNull() ?: 0 else 0
+        status(FormText.UNDERSTANDING, doneBefore.toString(), STEPS, key)
 
         if (model.ensureLoaded() is PamResult.Error) return status(FormText.NO_MODEL)
-        val pages = pagesOf(fill.documentId)
         if (pages.isEmpty() || pages.all { it.isEmpty() }) return status(FormText.UNDERSTANDING_FAILED)
 
         val stored = if (doneBefore >= 2) fills.fields(fill.id) else emptyList()
@@ -297,7 +300,7 @@ class FormFillConversation(
         val result = try {
             coroutineScope {
                 val progress = Channel<FormProgress>(Channel.CONFLATED)
-                val reporter = launch { for (p in progress) status(FormText.UNDERSTANDING, p.done.toString(), p.total.toString()) }
+                val reporter = launch { for (p in progress) status(FormText.UNDERSTANDING, p.done.toString(), p.total.toString(), key) }
                 try {
                     understand(request) { progress.trySend(it) }
                 } finally {
@@ -314,7 +317,7 @@ class FormFillConversation(
             is PamResult.Error -> return status(FormText.UNDERSTANDING_FAILED)
             is PamResult.Success -> result.data
         }
-        status(FormText.UNDERSTANDING, STEPS, STEPS, readingKey(pages))
+        status(FormText.UNDERSTANDING, STEPS, STEPS, key)
         fills.saveFields(fill.id, understanding.fields)
         trace.event("understood", "fill=${fill.id} found=${understanding.fields.size} stored=${fills.fields(fill.id).size} pages=${pages.size}")
         val next = fill.copy(
@@ -869,7 +872,7 @@ class FormFillConversation(
         fun fillId(documentId: String) = "fill-$documentId"
 
         /** The way of reading forms: bumped when a better reading should replace the stored ones (it is part of [readingKey]). */
-        private const val READING_VERSION = "v2"
+        private const val READING_VERSION = "v3"
 
         /** Identifies the reading of one OCR: the way of reading plus a hash of every block's text and place. */
         fun readingKey(pages: List<List<OcrBlock>>): String {
