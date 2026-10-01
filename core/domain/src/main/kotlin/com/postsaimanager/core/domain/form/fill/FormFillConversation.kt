@@ -105,6 +105,7 @@ class FormFillConversation(
     private val clock: () -> Long = System::currentTimeMillis,
     private val today: () -> LocalDate = LocalDate::now,
     private val fallbackLocale: () -> Locale = Locale::getDefault,
+    private val trace: FormFillTrace = FormFillTrace.NONE,
 ) {
 
     private val lock = Mutex()
@@ -137,6 +138,7 @@ class FormFillConversation(
             return@withLock FormRoute.HANDLED
         }
         val intent = classifier.classify(describeAwaiting(fill), text)
+        trace.event("route", "fill=${fill.id} status=${fill.status} intent=$intent")
         if (intent == FormIntent.ASK_ABOUT_FORM) return@withLock FormRoute.ASK_ABOUT_FORM
         userSaid(documentId, text)
         when (intent) {
@@ -161,6 +163,7 @@ class FormFillConversation(
             FormChipAction.REMEMBER_YES, FormChipAction.REMEMBER_NO -> awaiting.kind == FormAwaitKind.REMEMBER
             FormChipAction.CONTINUE, FormChipAction.BY_HAND -> awaiting.kind == FormAwaitKind.CONTINUE
         }
+        trace.event("chip", "fill=${fill.id} action=${chip.action} awaiting=${awaiting.kind} matches=$matches")
         if (!matches) return@withLock // a chip of an earlier question
         userSaid(documentId, shownText)
         when (chip.action) {
@@ -194,6 +197,7 @@ class FormFillConversation(
                 conversationId = conversation, createdAt = clock(), updatedAt = clock(),
             ).also { fills.saveFill(it) }
         val fields = fills.fields(fill.id)
+        trace.event("start", "fill=${fill.id} status=${fill.status} fields=${fields.size}")
         when {
             fields.isEmpty() || fill.status == FormFillStatus.UNDERSTANDING -> understandForm(fill)
             fill.status == FormFillStatus.DONE || fill.status == FormFillStatus.STOPPED -> reopen(fill, fields)
@@ -234,6 +238,7 @@ class FormFillConversation(
         }
         status(FormText.UNDERSTANDING, STEPS, STEPS)
         fills.saveFields(fill.id, understanding.fields)
+        trace.event("understood", "fill=${fill.id} found=${understanding.fields.size} stored=${fills.fields(fill.id).size} pages=${pages.size}")
         val next = fill.copy(
             localeTag = understanding.locale.toLanguageTag(), conversationId = conversation, updatedAt = clock(),
         )
@@ -379,6 +384,7 @@ class FormFillConversation(
         val fill = start.copy(status = FormFillStatus.ASKING, awaiting = null, currentFieldId = null, roundAsked = 0, updatedAt = clock())
         fills.saveFill(fill)
         val progress = FillProgress.of(fills.fields(fill.id))
+        trace.event("filled", "fill=${fill.id} in=${fields.size} ready=${progress.ready} total=${progress.total}")
         post(
             fill.documentId,
             FormMessage(FormMessageKind.CARD, FormText.FILLED_INTRO, listOf(progress.ready.toString(), progress.total.toString()), fillId = fill.id),

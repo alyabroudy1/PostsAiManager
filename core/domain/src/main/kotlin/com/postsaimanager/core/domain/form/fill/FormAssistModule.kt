@@ -83,9 +83,10 @@ abstract class FormAssistModule {
             chips: AnswerChips,
             fillValues: FillValues,
             profile: FormFillProfile,
+            trace: FormFillTrace,
         ): FormFillConversation = FormFillConversation(
             fills, conversations, documents, profiles, people, guardiansOf, remember, understand, model, classifier, detector,
-            interpreter, writer, chips, fillValues, profile,
+            interpreter, writer, chips, fillValues, profile, trace = trace,
         )
     }
 }
