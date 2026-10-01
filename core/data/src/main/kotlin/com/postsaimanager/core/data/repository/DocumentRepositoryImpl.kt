@@ -273,6 +273,8 @@ class DocumentRepositoryImpl @Inject constructor(
         withContext(ioDispatcher) {
             try {
                 when (state) {
+                    // An edit carries a value (and a revision): it goes through updateExtractedField, never here.
+                    ReviewState.EDITED -> PamResult.Error(PamError.ValidationError("reviewState", "EDITED needs a value; use updateExtractedField"))
                     // Confirming adopts the value and records it, exactly like confirmExtractedField.
                     ReviewState.CONFIRMED -> attributeToUser(fieldId) { it.fieldValue }
                     else -> {
@@ -321,7 +323,7 @@ class DocumentRepositoryImpl @Inject constructor(
                 val now = System.currentTimeMillis()
                 val toConfirm = documentDao.getExtractedData(documentId)
                     .map(mapper::extractedDataToDomain)
-                    .filter { !it.isConfirmed && !it.deletedByUser && (!onlyConfident || !it.needsReview) }
+                    .filter { it.reviewState == ReviewState.UNREVIEWED && (!onlyConfident || !it.needsReview) }
                 if (toConfirm.isEmpty()) return@withContext PamResult.Success(emptyList())
 
                 // Same per-field rule as confirmExtractedField/attributeToUser

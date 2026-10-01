@@ -46,10 +46,13 @@ interface DocumentRepository {
     suspend fun confirmAllExtractedFields(documentId: String, onlyConfident: Boolean = false): PamResult<List<ExtractedData>>
 
     /**
-     * Sets a field's review state: [ReviewState.CONFIRMED] adopts the stored value, [ReviewState.EDITED]
-     * marks it a person's, [ReviewState.IGNORED] tombstones it (a re-read never brings it back) and
+     * Sets a field's review state: [ReviewState.CONFIRMED] adopts the stored value,
+     * [ReviewState.IGNORED] tombstones it (a re-read never brings it back) and
      * [ReviewState.UNREVIEWED] restores an ignored or confirmed field to "nobody has looked". The
      * legacy `isConfirmed` and `deletedByUser` columns are written in step. An unknown id is an error.
+     *
+     * [ReviewState.EDITED] is rejected: an edit carries a new value and its revision, so it goes through
+     * [updateExtractedField].
      */
     suspend fun setFieldReviewState(fieldId: String, state: ReviewState): PamResult<Unit>
 

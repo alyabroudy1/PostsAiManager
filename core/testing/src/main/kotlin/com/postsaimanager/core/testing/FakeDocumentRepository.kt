@@ -159,7 +159,7 @@ class FakeDocumentRepository : DocumentRepository {
     ): PamResult<List<ExtractedData>> = guard {
         val current = extracted.value[documentId].orEmpty()
         val toConfirm = current.filter {
-            !it.isConfirmed && !it.deletedByUser && (!onlyConfident || !it.needsReview)
+            it.reviewState == ReviewState.UNREVIEWED && (!onlyConfident || !it.needsReview)
         }
         if (toConfirm.isNotEmpty()) {
             val confirmIds = toConfirm.map { it.id }.toSet()
@@ -177,6 +177,9 @@ class FakeDocumentRepository : DocumentRepository {
     }
 
     override suspend fun setFieldReviewState(fieldId: String, state: ReviewState): PamResult<Unit> = guard {
+        if (state == ReviewState.EDITED) {
+            return@guard PamResult.Error(PamError.ValidationError("reviewState", "EDITED needs a value; use updateExtractedField"))
+        }
         if (extracted.value.values.none { fields -> fields.any { it.id == fieldId } }) {
             return@guard PamResult.Error(PamError.DatabaseError())
         }
