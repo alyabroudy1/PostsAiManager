@@ -88,11 +88,17 @@ enum class FormText {
     ALL_SET,
     STOPPED,
     SUBJECT_CHANGED,
+
+    /** The name of the "someone else" behind a role is asked (typed in the chat). */
+    ASK_ROLE_NAME,
+
+    /** The user has no profile of their own yet: where to make one. */
+    ME_SETUP_HINT,
 }
 
 /** The labels of chips that are not data (a name, an option, a value are shown as they are). */
 @Serializable
-enum class FormChipLabel { YES, NO, SKIP, CONTINUE, BY_HAND, SOMEONE_ELSE }
+enum class FormChipLabel { YES, NO, SKIP, CONTINUE, BY_HAND, SOMEONE_ELSE, ME_SETUP }
 
 @Serializable
 enum class FormChipAction {

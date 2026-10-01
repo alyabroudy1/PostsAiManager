@@ -254,7 +254,14 @@ class FormFillConversation(
     /** A finished fill is opened again: the earlier skips are given another chance and the subject is asked once more. */
     private suspend fun reopen(fill: FormFill, fields: List<FormField>) {
         fields.filter { it.skipped }.forEach { fills.setSkipped(it.id, false, clock()) }
-        askSubject(fill, emptyList(), fields.size, fields.maxOfOrNull { it.page } ?: 1)
+        // The form is read again (what the user answered stays, see saveFields), so a better reading replaces an earlier one.
+        val again = fill.copy(
+            status = FormFillStatus.UNDERSTANDING, roleProfiles = emptyMap(), confirmedRoles = emptySet(), awaiting = null,
+            currentFieldId = null, roundAsked = 0, updatedAt = clock(),
+        )
+        fills.saveFill(again)
+        trace.event("reopen", "fill=${fill.id} fields=${fields.size}")
+        understandForm(again)
     }
 
     // ── Who is it for ──
@@ -307,8 +314,14 @@ class FormFillConversation(
             FormAwaitKind.SUBJECT -> chooseSubject(fill, personId)
             FormAwaitKind.ROLE -> {
                 val role = awaiting.role ?: return
-                val withRole = if (personId != null) fill.withRole(role, personId, confirmed = true) else fill.withRole(role, NOBODY, confirmed = false)
-                resolveRoles(withRole.copy(awaiting = null))
+                when (personId) {
+                    null -> askRoleName(fill, role)
+                    SETUP_ME -> {
+                        post(fill.documentId, FormMessage(FormMessageKind.STATUS, FormText.ME_SETUP_HINT))
+                        reaskCurrent(fill)
+                    }
+                    else -> resolveRoles(fill.withRole(role, personId, confirmed = true).copy(awaiting = null))
+                }
             }
             else -> Unit
         }
@@ -335,7 +348,7 @@ class FormFillConversation(
                 if (guardians.size == 1) {
                     fill = fill.withRole(FormRole.GUARDIAN, guardians.single().id, confirmed = true)
                 } else {
-                    return askRole(fill, FormRole.GUARDIAN, guardians.ifEmpty { managedProfiles().filter { it.id != subjectId } })
+                    return askRole(fill, FormRole.GUARDIAN, roleCandidates(subjectId))
                 }
             }
             if (FormRole.PAYER in present && FormRole.PAYER !in fill.roleProfiles) {
@@ -344,7 +357,7 @@ class FormFillConversation(
                     guardian != null -> fill.withRole(FormRole.PAYER, guardian, confirmed = FormRole.GUARDIAN in fill.confirmedRoles)
                     !child -> fill.withRole(FormRole.PAYER, subjectId, confirmed = true)
                     guardians.size == 1 -> fill.withRole(FormRole.PAYER, guardians.single().id, confirmed = true)
-                    else -> return askRole(fill, FormRole.PAYER, guardians.ifEmpty { managedProfiles().filter { it.id != subjectId } })
+                    else -> return askRole(fill, FormRole.PAYER, roleCandidates(subjectId))
                 }
             }
             if (FormRole.SIGNER in present && FormRole.SIGNER !in fill.roleProfiles) {
@@ -363,7 +376,29 @@ class FormFillConversation(
             ),
         )
         val text = if (role == FormRole.PAYER) FormText.ASK_PAYER else FormText.ASK_GUARDIAN
-        post(fill.documentId, FormMessage(FormMessageKind.QUESTION, text, chips = personChips(candidates, withNobody = true)))
+        val noSelf = managedProfiles().none { it.isSelf }
+        post(fill.documentId, FormMessage(FormMessageKind.QUESTION, text, chips = personChips(candidates, withNobody = true, offerSetup = noSelf)))
+    }
+
+    /** "Someone else" for a role: the person has no profile, so their name is asked in the chat (nothing is created or changed). */
+    private suspend fun askRoleName(fill: FormFill, role: FormRole) {
+        fills.saveFill(
+            fill.copy(
+                status = FormFillStatus.ASK_ROLE, awaiting = FormAwaiting(FormAwaitKind.ROLE, role = role, value = NAME_ASKED),
+                currentFieldId = null, updatedAt = clock(),
+            ),
+        )
+        post(fill.documentId, FormMessage(FormMessageKind.QUESTION, FormText.ASK_ROLE_NAME))
+    }
+
+    /** The typed name goes into the role's name fields (a name is the user's own words); the role then has no profile. */
+    private suspend fun acceptRoleName(fill: FormFill, awaiting: FormAwaiting, text: String) {
+        val role = awaiting.role ?: return
+        val name = text.trim()
+        if (name.isEmpty()) return askRoleName(fill, role)
+        fills.fields(fill.id).filter { it.role == role && it.dataKey in NAME_KEYS && it.value == null }
+            .forEach { fills.setValue(it.id, name, FormValueSource.USER, ReviewState.EDITED, null, clock()) }
+        resolveRoles(fill.withRole(role, NOBODY, confirmed = false).copy(awaiting = null))
     }
 
     private fun FormFill.withRole(role: FormRole, personId: String, confirmed: Boolean): FormFill = copy(
@@ -378,11 +413,13 @@ class FormFillConversation(
 
     private suspend fun fillAndAsk(start: FormFill) {
         val fields = fills.fields(start.id)
+        val selfId = profiles.getProfiles().first().firstOrNull { it.isSelf }?.id
         val context = FillContext(
             roleProfiles = start.roleProfiles.filterValues { it != NOBODY },
             confirmedRoles = start.confirmedRoles,
             locale = localeOf(start),
-            todayPlaceProfileId = profiles.getProfiles().first().firstOrNull { it.isSelf }?.id,
+            todayPlaceProfileId = selfId,
+            addressFallbacks = listOfNotNull(start.roleProfiles[FormRole.GUARDIAN]?.takeIf { it != NOBODY }, selfId).distinct(),
             nowMs = clock(),
         )
         val result = fillValues.fill(fields, context)
@@ -460,7 +497,7 @@ class FormFillConversation(
             FormAwaitKind.ROLE -> {
                 val role = fill.awaiting?.role ?: return
                 val subjectId = fill.roleProfiles[FormRole.SUBJECT]
-                askRole(fill, role, guardiansOf(subjectId.orEmpty()).ifEmpty { managedProfiles().filter { it.id != subjectId } })
+                askRole(fill, role, roleCandidates(subjectId))
             }
             else -> askNext(fill.copy(awaiting = null))
         }
@@ -474,15 +511,17 @@ class FormFillConversation(
         val awaiting = fill.awaiting ?: return askNext(fill)
         when (awaiting.kind) {
             FormAwaitKind.ANSWER -> answerField(fill, awaiting, Typed(text))
-            FormAwaitKind.SUBJECT, FormAwaitKind.ROLE -> {
-                val choices = personChoices(fill, awaiting)
-                val picked = interpreter.pickPerson(describeAwaiting(fill), text, choices)
-                if (picked == null) reaskCurrent(fill) else choosePerson(fill, awaiting, picked)
-            }
+            FormAwaitKind.ROLE -> if (awaiting.value == NAME_ASKED) acceptRoleName(fill, awaiting, text) else pickTypedPerson(fill, awaiting, text)
+            FormAwaitKind.SUBJECT -> pickTypedPerson(fill, awaiting, text)
             FormAwaitKind.REMEMBER -> rememberAnswer(fill, awaiting, yes = interpreter.yesNo(describeAwaiting(fill), text) == true)
             FormAwaitKind.CONTINUE ->
                 if (interpreter.yesNo(describeAwaiting(fill), text) == false) finish(fill, byHand = true) else continueRound(fill)
         }
+    }
+
+    private suspend fun pickTypedPerson(fill: FormFill, awaiting: FormAwaiting, text: String) {
+        val picked = interpreter.pickPerson(describeAwaiting(fill), text, personChoices(fill, awaiting))
+        if (picked == null) reaskCurrent(fill) else choosePerson(fill, awaiting, picked)
     }
 
     private suspend fun answerField(fill: FormFill, awaiting: FormAwaiting, input: Typed) {
@@ -653,7 +692,7 @@ class FormFillConversation(
     private suspend fun personChoices(fill: FormFill, awaiting: FormAwaiting): List<PersonChoice> {
         val subjectId = fill.roleProfiles[FormRole.SUBJECT]
         val candidates = when (awaiting.kind) {
-            FormAwaitKind.ROLE -> guardiansOf(subjectId.orEmpty()).ifEmpty { managedProfiles().filter { it.id != subjectId } }
+            FormAwaitKind.ROLE -> roleCandidates(subjectId)
             else -> managedProfiles()
         }
         return candidates.map(::choiceOf)
@@ -669,8 +708,12 @@ class FormFillConversation(
         return PersonChoice(p.id, p.name, "$relation ${p.name}")
     }
 
-    private fun personChips(profiles: List<Profile>, withNobody: Boolean): List<FormChip> =
+    /** Everyone a guardian or payer can be: every managed profile except the form's subject. */
+    private suspend fun roleCandidates(subjectId: String?): List<Profile> = managedProfiles().filter { it.id != subjectId }
+
+    private fun personChips(profiles: List<Profile>, withNobody: Boolean, offerSetup: Boolean = false): List<FormChip> =
         profiles.map { FormChip(FormChipAction.PERSON, label = it.name, arg = it.id) } +
+            (if (offerSetup) listOf(FormChip(FormChipAction.PERSON, labelCode = FormChipLabel.ME_SETUP, arg = SETUP_ME)) else emptyList()) +
             if (withNobody) listOf(FormChip(FormChipAction.PERSON, labelCode = FormChipLabel.SOMEONE_ELSE, arg = "")) else emptyList()
 
     private suspend fun managedProfiles(): List<Profile> =
@@ -764,6 +807,15 @@ class FormFillConversation(
 
         /** The open question was already re-asked once with a hint. */
         private const val HINTED = "hinted"
+
+        /** The chip "Me (set up)": the user has no profile of their own yet (it is never created here). */
+        private const val SETUP_ME = "@setup-me"
+
+        /** The role question is waiting for the typed name of "someone else". */
+        private const val NAME_ASKED = "name"
+
+        /** The keys of a role's name fields, which the typed name of someone without a profile fills. */
+        private val NAME_KEYS = setOf(FormDataKeys.FULL_NAME.id, FormDataKeys.ACCOUNT_HOLDER.id)
 
         private const val SUBJECT_QUESTION = "The assistant asked who the form is for."
 

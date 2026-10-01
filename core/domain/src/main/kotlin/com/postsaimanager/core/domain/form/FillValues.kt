@@ -27,6 +27,8 @@ data class FillContext(
     val countryIso2: String? = null,
     /** "Me": the person whose city answers a "place of signing" field; null when unknown (the field is then asked). */
     val todayPlaceProfileId: String? = null,
+    /** Whose address a person without one of their own shares, in order (the guardian, then "Me"). */
+    val addressFallbacks: List<String> = emptyList(),
     val nowMs: Long = System.currentTimeMillis(),
     val zone: ZoneId = ZoneId.systemDefault(),
 )
@@ -63,13 +65,43 @@ class FillValues(
             if (profileId == null || key == null || !fillable(field)) return@map field
             if (key.sensitive && field.role !in context.confirmedRoles) return@map field
             val facts = stored.getOrPut(profileId) { source.allOf(profileId) }
-            val found = facts[key.id] ?: if (key.valueKind == FormValueKind.ADDRESS) addresses.compose(facts, context.countryIso2) else null
+            var owner = profileId
+            var found = lookup(key, facts, context)
+            if (found == null && key.id in HOUSEHOLD_KEYS) {
+                // The person has no address of their own: the household's is used (the guardian's, then "Me"), whole or not at all.
+                for (other in context.addressFallbacks.filter { it != profileId }) {
+                    val theirs = stored.getOrPut(other) { source.allOf(other) }
+                    found = lookup(key, theirs, context)
+                    if (found != null) {
+                        owner = other
+                        break
+                    }
+                }
+            }
             val text = found?.let { write(key.valueKind, it.value, field, context) }
             if (found == null || text == null) return@map field
             if (stale(key.reconfirmAfterMonths, found.updatedAt, context)) reconfirm += field.id
-            field.copy(value = text, valueSource = found.source, profileId = profileId)
+            field.copy(value = text, valueSource = found.source, profileId = owner)
         }
         return FillResult(filled, reconfirm)
+    }
+
+    /**
+     * The stored value of [key], or the one derived from stored ones: the address composed from its parts, the given or family name
+     * from the full name (the family name is the last word, the given name the rest: a split of the stored text, not a reading of it).
+     */
+    private fun lookup(key: FormDataKey, facts: Map<String, PersonValue>, context: FillContext): PersonValue? {
+        facts[key.id]?.let { return it }
+        return when (key.id) {
+            FormDataKeys.ADDRESS.id -> addresses.compose(facts, context.countryIso2)
+            FormDataKeys.GIVEN_NAME.id, FormDataKeys.FAMILY_NAME.id -> facts[FormDataKeys.FULL_NAME.id]?.let { full ->
+                val name = full.value.trim()
+                val at = name.lastIndexOf(' ')
+                val part = if (at <= 0) null else if (key.id == FormDataKeys.GIVEN_NAME.id) name.substring(0, at) else name.substring(at + 1)
+                part?.trim()?.takeIf { it.isNotEmpty() }?.let { full.copy(value = it) }
+            }
+            else -> null
+        }
     }
 
     /** The value of a "today" key: the date of filling in (the form's format) or the "Me" city; null for any other key or when unknown. */
@@ -95,6 +127,13 @@ class FillValues(
             FormValueKind.IBAN -> FormValueFormatter.iban(value)
             else -> value
         }
+    }
+
+    private companion object {
+        /** The keys of a postal address: shared by a household. */
+        val HOUSEHOLD_KEYS: Set<String> = setOf(
+            FormDataKeys.ADDRESS.id, FormDataKeys.STREET.id, FormDataKeys.POSTCODE.id, FormDataKeys.CITY.id, FormDataKeys.COUNTRY.id,
+        )
     }
 
     private fun stale(months: Int?, updatedAt: Long, context: FillContext): Boolean {

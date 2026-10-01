@@ -23,7 +23,8 @@ internal object FormChatTexts {
 
     /** The line a message says: the question the model wrote when there is one, otherwise the template for its code. */
     fun line(resources: Resources, form: FormMessage, content: String): String {
-        val body = if (content.isNotBlank()) content else form.text?.let { text(resources, it, form.args) }.orEmpty()
+        // An earlier build stored the model's reasoning as the question: it is never shown (the template line is).
+        val body = if (content.isNotBlank() && !content.contains("<think", ignoreCase = true)) content else form.text?.let { text(resources, it, form.args) }.orEmpty()
         val context = questionContext(form)
         return if (context == null || body.isBlank()) body else "$context\n$body"
     }
@@ -73,6 +74,8 @@ internal object FormChatTexts {
         FormText.ALL_SET -> allSet(r, args)
         FormText.STOPPED -> r.getString(R.string.form_stopped)
         FormText.SUBJECT_CHANGED -> r.getString(R.string.form_subject_changed)
+        FormText.ASK_ROLE_NAME -> r.getString(R.string.form_ask_role_name)
+        FormText.ME_SETUP_HINT -> r.getString(R.string.form_me_setup_hint)
     }
 
     fun chipLabel(r: Resources, chip: FormChip): String = chip.label ?: when (chip.labelCode) {
@@ -82,6 +85,7 @@ internal object FormChatTexts {
         FormChipLabel.CONTINUE -> r.getString(R.string.form_chip_continue)
         FormChipLabel.BY_HAND -> r.getString(R.string.form_chip_by_hand)
         FormChipLabel.SOMEONE_ELSE -> r.getString(R.string.form_chip_someone_else)
+        FormChipLabel.ME_SETUP -> r.getString(R.string.form_chip_me_setup)
         null -> ""
     }
 

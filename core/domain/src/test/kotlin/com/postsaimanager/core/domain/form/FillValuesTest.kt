@@ -200,4 +200,41 @@ class FillValuesTest {
         val typed = fill(field("date", "today_date", null, FormFieldKind.DATE, review = ReviewState.EDITED, value = "1.1.2026"))
         assertThat(typed.fields.single().value).isEqualTo("1.1.2026")
     }
+
+    @Test
+    fun `the given and family name come from the stored full name`() = runTest {
+        val result = fill(
+            field("given", "given_name", FormRole.SUBJECT),
+            field("family", "family_name", FormRole.SUBJECT),
+        )
+        assertThat(result.fields.map { it.value }).containsExactly("Ahmad", "Mustermann").inOrder()
+    }
+
+    @Test
+    fun `a child with no address of their own takes the guardian's, then Me's, whole`() = runTest {
+        val kind = mapOf("full_name" to p("Test Kind"), "birth_date" to p("2019-03-12"))
+        val me = mapOf("street" to p("Hauptweg 3"), "postcode" to p("10115"), "city" to p("Berlin"))
+        val people = FakePersonDataSource(mapOf("kind" to kind, "dad" to dad, "me" to me))
+        val ctx = FillContext(
+            roleProfiles = mapOf(FormRole.SUBJECT to "kind", FormRole.GUARDIAN to "dad"), confirmedRoles = setOf(FormRole.SUBJECT),
+            locale = Locale.GERMANY, addressFallbacks = listOf("dad", "me"), nowMs = now, zone = ZoneOffset.UTC,
+        )
+        val result = FillValues(people).fill(
+            listOf(field("addr", "address", FormRole.SUBJECT), field("city", "city", FormRole.SUBJECT), field("birth", "birth_date", FormRole.SUBJECT, FormFieldKind.DATE)),
+            ctx,
+        )
+        val byId = result.fields.associateBy { it.id }
+        assertThat(byId.getValue("addr").value).isEqualTo("Hauptweg 3, 10115 Berlin")
+        assertThat(byId.getValue("addr").profileId).isEqualTo("me")
+        assertThat(byId.getValue("city").value).isEqualTo("Berlin")
+        assertThat(byId.getValue("birth").value).isEqualTo("12.03.2019")
+    }
+
+    @Test
+    fun `an own address is not replaced by the household's`() = runTest {
+        val ctx = context().copy(addressFallbacks = listOf("dad"))
+        val result = fill(field("city", "city", FormRole.SUBJECT), ctx = ctx)
+        assertThat(result.fields.single().value).isEqualTo("Beispieldorf")
+        assertThat(result.fields.single().profileId).isEqualTo("ahmad")
+    }
 }

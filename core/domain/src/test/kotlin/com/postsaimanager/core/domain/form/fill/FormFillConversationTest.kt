@@ -358,10 +358,10 @@ class FormFillConversationTest {
         h.say("lass uns aufhören")
         assertThat(h.fill().status).isEqualTo(FormFillStatus.STOPPED)
         assertThat(h.forms().last().text).isEqualTo(FormText.STOPPED)
-        // Typing "fill the form" again opens it again.
+        // Typing "fill the form" again opens it again: the form is read afresh and the person is asked once more.
         h.model.fillRequests += "nochmal"
         assertThat(h.say("nochmal")).isEqualTo(FormRoute.HANDLED)
-        assertThat(h.lastQuestion().first.text).isEqualTo(FormText.FORM_FOUND_ASK_SUBJECT)
+        assertThat(h.lastQuestion().first.text).isIn(listOf(FormText.FORM_FOUND_ASK_SUBJECT, FormText.FORM_FOUND_ASK_SUBJECT_REASON))
     }
 
     @Test

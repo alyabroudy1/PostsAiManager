@@ -56,6 +56,9 @@
     <string name="form_chip_continue">Continue</string>
     <string name="form_chip_by_hand">I\'ll do the rest by hand</string>
     <string name="form_chip_someone_else">Someone else</string>
+    <string name="form_chip_me_setup">Me (set up)</string>
+    <string name="form_ask_role_name">What is their name? Type it here.</string>
+    <string name="form_me_setup_hint">You have no profile of your own yet. Add one under Profiles (type Me); until then, choose Someone else and type the name.</string>
     <string name="form_chip_description">Answer: %1$s</string>
 
     <!-- The fill card -->
