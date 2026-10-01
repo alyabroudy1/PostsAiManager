@@ -19,26 +19,92 @@
     <string name="card_type">Type</string>
     <string name="card_amount">Amount</string>
     <string name="card_due">Due</string>
-    <string name="card_ai_summary">AI summary</string>
-    <string name="card_summary_coming">Summary coming…</string>
     <string name="card_worth_checking">Worth checking</string>
+    <!-- The badge says where the summary came from -->
+    <string name="card_ai_summary">AI summary</string>
+    <string name="card_summary_from_fields">Summary from the fields</string>
+    <string name="card_summary_yours">Your summary</string>
+    <string name="card_summary_coming">Summary coming…</string>
+    <string name="summary_edit">Edit summary</string>
+    <string name="summary_edit_title">Edit summary</string>
+    <string name="summary_edit_label">Summary</string>
+
+    <!-- A summary put together from the verified fields (TemplateSummary); parts the letter did not give are left out -->
+    <string name="summary_intro">%1$s.</string>
+    <string name="summary_intro_from">%1$s from %2$s.</string>
+    <string name="summary_intro_for">%1$s for %2$s.</string>
+    <string name="summary_intro_from_for">%1$s from %2$s for %3$s.</string>
+    <string name="summary_amount_due">Amount %1$s, due %2$s.</string>
+    <string name="summary_amount">Amount %1$s.</string>
+    <string name="summary_due">Due %1$s.</string>
+    <string name="summary_subject">About: %1$s.</string>
+
+    <!-- The Extracted tab -->
+    <string name="extracted_empty_title">No extracted data yet</string>
+    <string name="extracted_empty_hint">Process the document or add data manually</string>
+    <string name="extracted_add_manually">Add Manually</string>
+    <string name="action_re_extract">Re-extract</string>
+
+    <!-- Header: the family chip, its menu and the confidence dot -->
+    <string name="header_family_chip">%1$s ▾</string>
+    <string name="header_type_unknown">Type unknown</string>
+    <string name="header_change_type">Change type</string>
+    <string name="header_read_again_as">Read again as…</string>
+    <string name="picker_change_title">Change type</string>
+    <string name="picker_read_again_title">Read again as</string>
+    <string name="picker_current">Current type</string>
+    <string name="confidence_high">The type was recognised with high confidence</string>
+    <string name="confidence_medium">The type was recognised with medium confidence</string>
+    <string name="confidence_low">The type was recognised with low confidence</string>
+
+    <!-- Review -->
+    <string name="review_confirm_confident">Confirm %1$d confident</string>
+    <string name="review_confirm_all">Confirm all</string>
+    <plurals name="fields_confirmed">
+        <item quantity="one">%1$d field confirmed</item>
+        <item quantity="other">%1$d fields confirmed</item>
+    </plurals>
+    <string name="action_undo">Undo</string>
 
     <!-- Sections -->
-    <string name="section_details">Details</string>
+    <string name="section_check">Check these (%1$d)</string>
+    <string name="section_ignored">Ignored (%1$d)</string>
+    <string name="section_recipient">Recipient</string>
+    <string name="section_sender">Sender</string>
+    <string name="section_merchant">Merchant</string>
+    <string name="section_action">Action</string>
+    <string name="section_payment">Total and payment</string>
     <string name="section_other_details">Other details</string>
     <string name="section_other_details_count">Other details (%1$d)</string>
     <string name="other_details_show_all">Show all (%1$d more)</string>
     <string name="other_details_show_fewer">Show fewer</string>
     <string name="group_parties">People and organisations</string>
-    <string name="group_money">Money</string>
     <string name="group_dates">Dates</string>
     <string name="group_references">References</string>
-    <string name="group_text">Text</string>
+    <string name="group_text">Subject and text</string>
 
-    <!-- Fields -->
+    <!-- Fields: the three inline actions name the row they act on (screen readers read these) -->
     <string name="field_worth_checking">Worth checking.</string>
     <string name="field_confidence">%1$d%% confidence</string>
-    <string name="field_you_set_this">You set this</string>
+    <string name="field_machine_changed">The document now reads \"%1$s\" here.</string>
+    <string name="field_keep_mine">Keep mine</string>
+    <string name="field_review">Review</string>
+    <string name="field_confirmed">%1$s, confirmed</string>
+    <string name="action_confirm_field">Confirm %1$s</string>
+    <string name="action_edit_field">Edit %1$s</string>
+    <string name="action_ignore_field">Ignore %1$s</string>
+    <string name="action_restore_field">Restore %1$s</string>
+    <string name="action_restore">Restore</string>
+    <string name="part_description">%1$s: %2$s</string>
+    <string name="part_description_uncertain">%1$s: %2$s, worth checking</string>
+
+    <!-- Edit sheet -->
+    <string name="edit_title">Edit %1$s</string>
+    <string name="edit_name_label">Field name</string>
+    <string name="edit_value_label">Value</string>
+    <string name="edit_alternatives">Other readings</string>
+    <string name="edit_alternative_on_page">%1$s · page %2$d</string>
+    <string name="edit_show_on_page">Show on page</string>
 
     <!-- Slot labels, keyed by slot key -->
     <string name="slot_sender">Sender</string>

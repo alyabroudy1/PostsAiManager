@@ -3,6 +3,7 @@ package com.postsaimanager.feature.documents
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.address.AddressRows
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.v2.FamilyPresentation
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.model.AddressPart
 import com.postsaimanager.core.model.ExtractedData
@@ -44,6 +45,11 @@ class SlotLabelsTest {
             }
         }
         assertThat(SlotLabels.slot("addressee.street")).isNotEqualTo(SlotLabels.slot("sender.street"))
+    }
+
+    @Test
+    fun `every family the presentation registry knows has a label for its chip`() {
+        assertThat(SlotLabels.typeIds).containsAtLeastElementsIn(FamilyPresentation.familyIds)
     }
 
     @Test
