@@ -76,6 +76,7 @@ internal object FormChatTexts {
         FormText.SUBJECT_CHANGED -> r.getString(R.string.form_subject_changed)
         FormText.ASK_ROLE_NAME -> r.getString(R.string.form_ask_role_name)
         FormText.ME_SETUP_HINT -> r.getString(R.string.form_me_setup_hint)
+        FormText.READING_PAUSED -> r.getString(R.string.form_reading_paused)
     }
 
     fun chipLabel(r: Resources, chip: FormChip): String = chip.label ?: when (chip.labelCode) {
@@ -86,6 +87,7 @@ internal object FormChatTexts {
         FormChipLabel.BY_HAND -> r.getString(R.string.form_chip_by_hand)
         FormChipLabel.SOMEONE_ELSE -> r.getString(R.string.form_chip_someone_else)
         FormChipLabel.ME_SETUP -> r.getString(R.string.form_chip_me_setup)
+        FormChipLabel.CONTINUE_READING -> r.getString(R.string.form_chip_continue_reading)
         null -> ""
     }
 

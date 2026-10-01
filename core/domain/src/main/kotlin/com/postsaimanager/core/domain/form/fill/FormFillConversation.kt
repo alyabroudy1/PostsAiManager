@@ -8,7 +8,9 @@ import com.postsaimanager.core.domain.form.FillContext
 import com.postsaimanager.core.domain.form.FillValues
 import com.postsaimanager.core.domain.form.FormDataKeys
 import com.postsaimanager.core.domain.form.FormLocales
+import com.postsaimanager.core.domain.form.FormCheckpoint
 import com.postsaimanager.core.domain.form.FormProgress
+import com.postsaimanager.core.domain.form.FormStep
 import com.postsaimanager.core.domain.form.FormValueFormatter
 import com.postsaimanager.core.domain.form.GuardiansOfUseCase
 import com.postsaimanager.core.domain.form.PersonDataSource
@@ -44,15 +46,20 @@ import com.postsaimanager.core.model.FormText
 import com.postsaimanager.core.model.FormValueKind
 import com.postsaimanager.core.model.FormValueSource
 import com.postsaimanager.core.model.MessageRole
+import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.Relationship
 import com.postsaimanager.core.model.ReviewState
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 import java.util.Locale
@@ -168,6 +175,7 @@ class FormFillConversation(
             FormChipAction.PERSON -> awaiting.kind == FormAwaitKind.SUBJECT || awaiting.kind == FormAwaitKind.ROLE
             FormChipAction.REMEMBER_YES, FormChipAction.REMEMBER_NO -> awaiting.kind == FormAwaitKind.REMEMBER
             FormChipAction.CONTINUE, FormChipAction.BY_HAND -> awaiting.kind == FormAwaitKind.CONTINUE
+            FormChipAction.CONTINUE_READING -> awaiting.kind == FormAwaitKind.READING
         }
         trace.event("chip", "fill=${fill.id} action=${chip.action} awaiting=${awaiting.kind} matches=$matches")
         if (!matches) return@withLock // a chip of an earlier question
@@ -180,6 +188,7 @@ class FormFillConversation(
             FormChipAction.REMEMBER_NO -> rememberAnswer(fill, awaiting, yes = false)
             FormChipAction.CONTINUE -> continueRound(fill)
             FormChipAction.BY_HAND -> finish(fill, byHand = true)
+            FormChipAction.CONTINUE_READING -> continueReading(fill)
         }
     }
 
@@ -205,10 +214,59 @@ class FormFillConversation(
         val fields = fills.fields(fill.id)
         trace.event("start", "fill=${fill.id} status=${fill.status} fields=${fields.size}")
         when {
-            fields.isEmpty() || fill.status == FormFillStatus.UNDERSTANDING -> understandForm(fill)
+            fill.awaiting?.kind == FormAwaitKind.READING -> continueReading(fill)
+            fill.status == FormFillStatus.UNDERSTANDING -> understandForm(fill, continuing = lastProgress(fill.documentId))
+            fields.isEmpty() -> understandForm(fill)
+            // The reading is kept per document: it is read again only when the stored OCR (or the way of reading) changed.
+            !understoodCurrent(fill) -> reread(fill)
             fill.status == FormFillStatus.DONE || fill.status == FormFillStatus.STOPPED -> reopen(fill, fields)
             else -> reaskCurrent(fill)
         }
+    }
+
+    /** The last "reading the form" progress line of the document's chat, or null when none. */
+    private suspend fun lastProgress(documentId: String): AiMessage? =
+        conversations.getMessages(conversationId(documentId)).first()
+            .lastOrNull { FormMessageCodec.parse(it)?.let { m -> m.kind == FormMessageKind.STATUS && m.text == FormText.UNDERSTANDING } == true }
+
+    private suspend fun pagesOf(documentId: String): List<List<OcrBlock>> =
+        (documents.getDocumentPages(documentId) as? PamResult.Success)?.data?.sortedBy { it.pageNumber }?.map { it.ocrBlocks }.orEmpty()
+
+    /** The stored reading belongs to the document's current OCR: its finished progress line carries the OCR's key. */
+    private suspend fun understoodCurrent(fill: FormFill): Boolean {
+        val finished = lastProgress(fill.documentId)?.let(FormMessageCodec::parse)?.args ?: return false
+        return finished.size >= 3 && finished[0] == finished[1] && finished[2] == readingKey(pagesOf(fill.documentId))
+    }
+
+    /** The form is read from the start again (an earlier reading is out of date); what the user answered stays. */
+    private suspend fun reread(fill: FormFill) {
+        val again = fill.copy(
+            status = FormFillStatus.UNDERSTANDING, roleProfiles = emptyMap(), confirmedRoles = emptySet(), awaiting = null,
+            currentFieldId = null, roundAsked = 0, updatedAt = clock(),
+        )
+        fills.saveFill(again)
+        trace.event("reread", "fill=${fill.id}")
+        understandForm(again)
+    }
+
+    /** "Continue reading": picks the stopped reading up after its last finished step. */
+    private suspend fun continueReading(fill: FormFill) {
+        val again = fill.copy(status = FormFillStatus.UNDERSTANDING, awaiting = null, updatedAt = clock())
+        fills.saveFill(again)
+        understandForm(again, continuing = lastProgress(fill.documentId))
+    }
+
+    /** Reading was stopped: it stays stopped (nothing restarts it by itself) until the user continues. */
+    private suspend fun pauseReading(fill: FormFill) {
+        fills.saveFill(fill.copy(status = FormFillStatus.STOPPED, awaiting = FormAwaiting(FormAwaitKind.READING), updatedAt = clock()))
+        trace.event("paused", "fill=${fill.id}")
+        post(
+            fill.documentId,
+            FormMessage(
+                FormMessageKind.QUESTION, FormText.READING_PAUSED,
+                chips = listOf(FormChip(FormChipAction.CONTINUE_READING, labelCode = FormChipLabel.CONTINUE_READING)),
+            ),
+        )
     }
 
     private suspend fun understandForm(fill: FormFill, continuing: AiMessage? = null) {
@@ -217,32 +275,46 @@ class FormFillConversation(
         suspend fun status(text: FormText, vararg args: String) = upsert(
             progressId, conversation, FormMessage(FormMessageKind.STATUS, text, args.toList()),
         )
-        status(FormText.UNDERSTANDING, "0", STEPS)
+        // The last finished step of an interrupted reading (its progress line says how far it got): the later steps only are redone.
+        val doneBefore = continuing?.let(FormMessageCodec::parse)?.args?.firstOrNull()?.toIntOrNull() ?: 0
+        status(FormText.UNDERSTANDING, doneBefore.toString(), STEPS)
 
         if (model.ensureLoaded() is PamResult.Error) return status(FormText.NO_MODEL)
-        val pages = (documents.getDocumentPages(fill.documentId) as? PamResult.Success)?.data
-            ?.sortedBy { it.pageNumber }?.map { it.ocrBlocks }.orEmpty()
+        val pages = pagesOf(fill.documentId)
         if (pages.isEmpty() || pages.all { it.isEmpty() }) return status(FormText.UNDERSTANDING_FAILED)
 
+        val stored = if (doneBefore >= 2) fills.fields(fill.id) else emptyList()
+        val resumeAt = FormStep.entries.getOrNull(doneBefore - 1)?.takeIf { stored.isNotEmpty() && it.ordinal >= FormStep.CONFIRM.ordinal }
         val request = UnderstandFormRequest(
             documentId = fill.documentId, formFillId = fill.id, pages = pages, subjects = subjectCandidates(),
             today = today(), nowMs = clock(), fallbackLocale = fallbackLocale(),
+            resume = resumeAt?.let { FormCheckpoint(it, stored) },
+            onCheckpoint = { checkpoint ->
+                fills.saveFields(fill.id, checkpoint.fields)
+                trace.event("checkpoint", "fill=${fill.id} step=${checkpoint.step} fields=${checkpoint.fields.size}")
+            },
         )
-        val result = coroutineScope {
-            val progress = Channel<FormProgress>(Channel.CONFLATED)
-            val reporter = launch { for (p in progress) status(FormText.UNDERSTANDING, p.done.toString(), p.total.toString()) }
-            try {
-                understand(request) { progress.trySend(it) }
-            } finally {
-                progress.close()
-                reporter.join()
+        val result = try {
+            coroutineScope {
+                val progress = Channel<FormProgress>(Channel.CONFLATED)
+                val reporter = launch { for (p in progress) status(FormText.UNDERSTANDING, p.done.toString(), p.total.toString()) }
+                try {
+                    understand(request) { progress.trySend(it) }
+                } finally {
+                    progress.close()
+                    reporter.join()
+                }
             }
+        } catch (e: CancellationException) {
+            // Stop, or the chat was left: the reading stays paused (what it finished is stored) until the user continues it.
+            withContext(NonCancellable) { pauseReading(fill) }
+            throw e
         }
         val understanding = when (result) {
             is PamResult.Error -> return status(FormText.UNDERSTANDING_FAILED)
             is PamResult.Success -> result.data
         }
-        status(FormText.UNDERSTANDING, STEPS, STEPS)
+        status(FormText.UNDERSTANDING, STEPS, STEPS, readingKey(pages))
         fills.saveFields(fill.id, understanding.fields)
         trace.event("understood", "fill=${fill.id} found=${understanding.fields.size} stored=${fills.fields(fill.id).size} pages=${pages.size}")
         val next = fill.copy(
@@ -254,14 +326,9 @@ class FormFillConversation(
     /** A finished fill is opened again: the earlier skips are given another chance and the subject is asked once more. */
     private suspend fun reopen(fill: FormFill, fields: List<FormField>) {
         fields.filter { it.skipped }.forEach { fills.setSkipped(it.id, false, clock()) }
-        // The form is read again (what the user answered stays, see saveFields), so a better reading replaces an earlier one.
-        val again = fill.copy(
-            status = FormFillStatus.UNDERSTANDING, roleProfiles = emptyMap(), confirmedRoles = emptySet(), awaiting = null,
-            currentFieldId = null, roundAsked = 0, updatedAt = clock(),
-        )
-        fills.saveFill(again)
         trace.event("reopen", "fill=${fill.id} fields=${fields.size}")
-        understandForm(again)
+        // The stored reading is reused: no step is scored again, the subject is asked at once.
+        askSubject(fill, emptyList(), fields.size, fields.maxOfOrNull { it.page } ?: 1)
     }
 
     // ── Who is it for ──
@@ -516,6 +583,7 @@ class FormFillConversation(
             FormAwaitKind.REMEMBER -> rememberAnswer(fill, awaiting, yes = interpreter.yesNo(describeAwaiting(fill), text) == true)
             FormAwaitKind.CONTINUE ->
                 if (interpreter.yesNo(describeAwaiting(fill), text) == false) finish(fill, byHand = true) else continueRound(fill)
+            FormAwaitKind.READING -> continueReading(fill)
         }
     }
 
@@ -677,6 +745,7 @@ class FormFillConversation(
         FormAwaitKind.ROLE -> "The assistant asked which person is the ${fill.awaiting?.role?.name?.lowercase()?.replace('_', ' ')} of the form."
         FormAwaitKind.REMEMBER -> "The assistant asked whether to remember the answer for the person (yes or no)."
         FormAwaitKind.CONTINUE -> "The assistant asked whether to continue with the remaining questions or leave the rest to the user."
+        FormAwaitKind.READING -> "Reading the form was paused."
         null -> "The assistant is filling in a form."
     }
 
@@ -798,6 +867,19 @@ class FormFillConversation(
 
         /** The one fill of a document. */
         fun fillId(documentId: String) = "fill-$documentId"
+
+        /** The way of reading forms: bumped when a better reading should replace the stored ones (it is part of [readingKey]). */
+        private const val READING_VERSION = "v2"
+
+        /** Identifies the reading of one OCR: the way of reading plus a hash of every block's text and place. */
+        fun readingKey(pages: List<List<OcrBlock>>): String {
+            val digest = MessageDigest.getInstance("SHA-256")
+            pages.forEach { page ->
+                page.forEach { digest.update("${it.text}|${it.bounds}".toByteArray()) }
+                digest.update(0)
+            }
+            return READING_VERSION + "-" + digest.digest().joinToString("") { "%02x".format(it) }.take(16)
+        }
 
         /** The understanding has this many steps (see [com.postsaimanager.core.domain.form.FormStep]). */
         private const val STEPS = "5"

@@ -7,6 +7,7 @@ import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.layout.LayoutLine
 import com.postsaimanager.core.domain.form.fill.FormFillTrace
 import com.postsaimanager.core.model.FormField
+import com.postsaimanager.core.model.FormRole
 import com.postsaimanager.core.model.OcrBlock
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -27,9 +28,19 @@ data class UnderstandFormRequest(
     val today: LocalDate,
     val nowMs: Long,
     val fallbackLocale: Locale = Locale.getDefault(),
+    /** What an interrupted reading had finished: the steps up to [FormCheckpoint.step] are not scored again. */
+    val resume: FormCheckpoint? = null,
+    /** Called after each model step with what it found, so the caller can store it (a stop or a restart resumes from it). */
+    val onCheckpoint: (suspend (FormCheckpoint) -> Unit)? = null,
 )
 
 enum class FormStep { FIND, CONFIRM, CLASSIFY, ROLES, SUBJECT }
+
+/**
+ * The fields as far as the reading got: after [FormStep.CONFIRM] they hold label, boxes, section, kind and options; after
+ * [FormStep.CLASSIFY] also the data key; after [FormStep.ROLES] also the role.
+ */
+data class FormCheckpoint(val step: FormStep, val fields: List<FormField>)
 
 /** [done] of [total] steps are finished; [step] is the one that just finished. */
 data class FormProgress(val step: FormStep, val done: Int, val total: Int = FormStep.entries.size)
@@ -97,20 +108,49 @@ class UnderstandFormUseCase(
     ): FormUnderstanding {
         fun step(s: FormStep) = onProgress(FormProgress(s, s.ordinal + 1))
 
+        val resume = request.resume?.takeIf { it.step.ordinal >= FormStep.CONFIRM.ordinal }
+        val finished = resume?.step?.ordinal ?: -1
+        suspend fun checkpoint(at: FormStep, fields: List<FormField>) = request.onCheckpoint?.invoke(FormCheckpoint(at, fields))
+        trace.event("understand", "resumeFrom=${resume?.step ?: "none"}")
+
+        // The blanks are found by geometry (milliseconds), so this step is never stored.
         val found = finder.findInLines(lines)
         step(FormStep.FIND)
-        val candidates = ConfirmFields(scorer, profile).confirm(found).mapIndexed { i, c -> c.copy(orderIndex = i) }
+        val candidates = if (resume != null) {
+            resume.fields.map(::candidateOf)
+        } else {
+            ConfirmFields(scorer, profile).confirm(found).mapIndexed { i, c -> c.copy(orderIndex = i) }
+        }
         trace.event("confirm", "found=${found.size} kept=${candidates.size} strong=${candidates.count { it.strong }}")
+        if (finished < FormStep.CONFIRM.ordinal) checkpoint(FormStep.CONFIRM, fieldsOf(request, candidates, null, null))
         step(FormStep.CONFIRM)
-        val keys = ClassifyFields(scorer, embedder, profile, trace = trace).classify(candidates)
+        val keys = if (finished >= FormStep.CLASSIFY.ordinal) {
+            resume!!.fields.map { KeyDecision(it.dataKey, it.confidence, it.kind) }
+        } else {
+            ClassifyFields(scorer, embedder, profile, trace = trace).classify(candidates)
+        }
+        if (finished < FormStep.CLASSIFY.ordinal) checkpoint(FormStep.CLASSIFY, fieldsOf(request, candidates, keys, null))
         step(FormStep.CLASSIFY)
-        val roles = AssignRoles(scorer, profile).assign(candidates.mapIndexed { i, c -> RoleInput(c.labelText, c.section, keys[i].dataKey) })
+        val roles = if (finished >= FormStep.ROLES.ordinal) {
+            val stored = resume!!.fields
+            RoleAssignment(
+                stored.groupBy { it.section }.map { (section, group) -> SectionRole(section, group.firstNotNullOfOrNull { it.role }) },
+                stored.map { it.role },
+            )
+        } else {
+            AssignRoles(scorer, profile).assign(candidates.mapIndexed { i, c -> RoleInput(c.labelText, c.section, keys[i].dataKey) })
+        }
         trace.event("roles", "sections=${roles.sections.size} withRole=${roles.fieldRoles.count { it != null }}")
+        val fields = fieldsOf(request, candidates, keys, roles.fieldRoles)
+        if (finished < FormStep.ROLES.ordinal) checkpoint(FormStep.ROLES, fields)
         step(FormStep.ROLES)
         val ranking = SuggestSubject(scorer, profile).suggest(intro, request.subjects, request.today)
         step(FormStep.SUBJECT)
+        return FormUnderstanding(fields, roles.sections, ranking, FormLocales.detect(request.pages, request.fallbackLocale), scorer.scoreCount)
+    }
 
-        val fields = candidates.mapIndexed { i, c ->
+    private fun fieldsOf(request: UnderstandFormRequest, candidates: List<FieldCandidate>, keys: List<KeyDecision>?, roles: List<FormRole?>?) =
+        candidates.mapIndexed { i, c ->
             FormField(
                 id = UUID.nameUUIDFromBytes("${request.formFillId}|${c.page}|${c.orderIndex}|${c.labelText}".toByteArray()).toString(),
                 formFillId = request.formFillId,
@@ -119,19 +159,24 @@ class UnderstandFormUseCase(
                 labelText = c.labelText,
                 labelBox = c.labelBox,
                 fillBox = c.fillBox,
-                kind = keys[i].kind,
+                kind = keys?.get(i)?.kind ?: c.kind,
                 section = c.section,
                 options = c.options,
-                dataKey = keys[i].dataKey,
-                role = roles.fieldRoles[i],
-                confidence = keys[i].confidence,
+                dataKey = keys?.get(i)?.dataKey,
+                role = roles?.get(i),
+                confidence = keys?.get(i)?.confidence ?: 0f,
                 alreadyFilled = c.alreadyFilled,
                 orderIndex = c.orderIndex,
                 updatedAt = request.nowMs,
             )
         }
-        return FormUnderstanding(fields, roles.sections, ranking, FormLocales.detect(request.pages, request.fallbackLocale), scorer.scoreCount)
-    }
+
+    /** A stored field as the candidate it was (what the later steps read: its label, section, kind and options). */
+    private fun candidateOf(f: FormField) = FieldCandidate(
+        page = f.page, labelText = f.labelText, labelBox = f.labelBox, fillBox = f.fillBox, kind = f.kind,
+        evidence = FieldEvidence.LABEL_SPACE, section = f.section, options = f.options, alreadyFilled = f.alreadyFilled,
+        orderIndex = f.orderIndex,
+    )
 
     /** The first rows of page 1 in reading order: the form's title and introduction. */
     private fun introLines(lines: List<List<LayoutLine>>): List<String> {

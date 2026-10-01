@@ -51,7 +51,9 @@ class FormFillConversationTest {
         assertThat(h.fill().awaiting!!.kind).isEqualTo(FormAwaitKind.SUBJECT)
         val progress = h.forms().filter { it.text == FormText.UNDERSTANDING }
         assertThat(progress).hasSize(1) // one line, updated in place
-        assertThat(progress.single().args).containsExactly("5", "5").inOrder()
+        // The finished line also carries the key of the OCR it was read from.
+        assertThat(progress.single().args.take(2)).containsExactly("5", "5").inOrder()
+        assertThat(progress.single().args[2]).startsWith("v2-")
 
         // One tap on Ahmad: his father ("Me", the only guardian) is settled without a question, and the form is filled from both.
         h.tap("Ahmad")
@@ -456,7 +458,85 @@ class FormFillConversationTest {
         assertThat(h.fill().status).isEqualTo(FormFillStatus.ASK_SUBJECT)
         val lines = h.messages().filter { FormMessageCodec.parse(it)?.text == FormText.UNDERSTANDING }
         assertThat(lines.map { it.id }).containsExactly("progress") // the same line, updated
-        assertThat(FormMessageCodec.parse(lines.single())!!.args).containsExactly("5", "5").inOrder()
+        assertThat(FormMessageCodec.parse(lines.single())!!.args.take(2)).containsExactly("5", "5").inOrder()
+    }
+
+    @Test
+    fun `a stopped fill reuses the stored reading, no step is scored again, and the subject is asked at once`() = runTest {
+        val h = FillHarness()
+        h.startForAhmad()
+        h.model.intents["Schluss"] = FormIntent.STOP
+        h.say("Schluss")
+        assertThat(h.fill().status).isEqualTo(FormFillStatus.STOPPED)
+
+        val scoredBefore = h.session.scored.flatten().size
+        h.model.fillRequests += "nochmal"
+        h.say("nochmal")
+
+        assertThat(h.session.scored.flatten().size).isEqualTo(scoredBefore)
+        assertThat(h.lastQuestion().first.text).isEqualTo(FormText.FORM_FOUND_ASK_SUBJECT)
+        assertThat(h.fields()).hasSize(16)
+    }
+
+    @Test
+    fun `a stop during reading pauses it, nothing restarts it, and Continue resumes after the last finished step`() = runTest {
+        val h = FillHarness()
+        var stopped = false
+        h.session.scorer = { question ->
+            // The user presses Stop while the keys are scored (the confirm step is finished and stored by then).
+            if (!stopped && question.contains("ask for")) {
+                stopped = true
+                throw kotlinx.coroutines.CancellationException("stop")
+            }
+            GermanSwim.script.score(question)
+        }
+        try {
+            h.conversation.start("doc")
+        } catch (_: kotlinx.coroutines.CancellationException) {
+        }
+        assertThat(h.fill().status).isEqualTo(FormFillStatus.STOPPED)
+        assertThat(h.fill().awaiting!!.kind).isEqualTo(FormAwaitKind.READING)
+        val paused = h.lastQuestion().first
+        assertThat(paused.text).isEqualTo(FormText.READING_PAUSED)
+        assertThat(paused.chips.map { it.action }).containsExactly(FormChipAction.CONTINUE_READING)
+        assertThat(h.fields()).isNotEmpty() // the finished step is stored
+
+        // Opening the chat again starts nothing by itself.
+        val before = h.messages().size
+        h.conversation.resume("doc")
+        assertThat(h.messages()).hasSize(before)
+
+        // The progress line says step 2 of 5 was finished; Continue redoes only the later steps.
+        val line = h.messages().last { FormMessageCodec.parse(it)?.text == FormText.UNDERSTANDING }
+        h.conversations.updateMessage(
+            FormMessageCodec.toMessage(line.id, line.conversationId, line.createdAt, FormMessage(FormMessageKind.STATUS, FormText.UNDERSTANDING, listOf("2", "5"))),
+        )
+        val scoredBefore = h.session.scored.flatten().size
+        h.tap(FormChipLabel.CONTINUE_READING.name)
+
+        assertThat(h.fill().status).isEqualTo(FormFillStatus.ASK_SUBJECT)
+        assertThat(h.session.scored.flatten().drop(scoredBefore).none { it.contains("something the reader must fill in") }).isTrue()
+        assertThat(h.session.scored.flatten().drop(scoredBefore).any { it.contains("ask for") }).isTrue()
+        assertThat(h.fields().any { it.dataKey != null }).isTrue()
+    }
+
+    @Test
+    fun `a document whose OCR changed is read again`() = runTest {
+        val h = FillHarness()
+        h.startForAhmad()
+        h.model.intents["Schluss"] = FormIntent.STOP
+        h.say("Schluss")
+        h.documents.seedPages(
+            "doc",
+            com.postsaimanager.core.model.DocumentPage(
+                "page-0", "doc", 1, "file:///0.jpg",
+                ocrBlocks = com.postsaimanager.core.domain.form.FormFixtures.pages(com.postsaimanager.core.domain.form.FormFixtures.GERMAN).first().drop(1),
+            ),
+        )
+        val scoredBefore = h.session.scored.flatten().size
+        h.model.fillRequests += "nochmal"
+        h.say("nochmal")
+        assertThat(h.session.scored.flatten().size).isGreaterThan(scoredBefore)
     }
 
     @Test

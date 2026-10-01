@@ -94,11 +94,14 @@ enum class FormText {
 
     /** The user has no profile of their own yet: where to make one. */
     ME_SETUP_HINT,
+
+    /** Reading the form was stopped; a chip continues it from the last finished step. */
+    READING_PAUSED,
 }
 
 /** The labels of chips that are not data (a name, an option, a value are shown as they are). */
 @Serializable
-enum class FormChipLabel { YES, NO, SKIP, CONTINUE, BY_HAND, SOMEONE_ELSE, ME_SETUP }
+enum class FormChipLabel { YES, NO, SKIP, CONTINUE, BY_HAND, SOMEONE_ELSE, ME_SETUP, CONTINUE_READING }
 
 @Serializable
 enum class FormChipAction {
@@ -112,6 +115,9 @@ enum class FormChipAction {
     SKIP,
     CONTINUE,
     BY_HAND,
+
+    /** Continue reading a form whose reading was stopped. */
+    CONTINUE_READING,
 }
 
 /** One tappable answer. [label] is shown verbatim; when null, [labelCode] is rendered from resources. */

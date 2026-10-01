@@ -134,6 +134,9 @@ enum class FormAwaitKind {
 
     /** "N more questions: continue or do the rest by hand?" */
     CONTINUE,
+
+    /** Reading the form was stopped (Stop, or the chat was left): it continues only when the user says so. */
+    READING,
 }
 
 /** The kind of value a data key holds; drives verification and formatting. */
