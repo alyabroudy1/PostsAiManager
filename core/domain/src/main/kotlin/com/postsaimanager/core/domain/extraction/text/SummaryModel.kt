@@ -1,19 +1,17 @@
 package com.postsaimanager.core.domain.extraction.text
 
-/**
- * Where a summary came from. A local twin of the model module's summary source on purpose: P4 unifies the two when the
- * summary is stored.
- */
-enum class SummaryOrigin { MODEL, TEMPLATE }
+import com.postsaimanager.core.model.SummarySource
 
 /**
  * A summary that always exists.
  *
- * - [SummaryOrigin.MODEL]: [text] is the model's sentences, [code] is null.
- * - [SummaryOrigin.TEMPLATE]: [text] is null and [code] is [SummaryWriter.TEMPLATE_CODE]; [args] are the verified fields
+ * - [SummarySource.MODEL]: [text] is the model's sentences, [code] is null.
+ * - [SummarySource.TEMPLATE]: [text] is null and [code] is [SummaryWriter.TEMPLATE_CODE]; [args] are the verified fields
  *   in the order [SummaryFacts.templateArgs] documents, and the UI renders the localised sentence from them.
+ *
+ * A writer never produces [SummarySource.USER]; that is a person's own edit.
  */
-data class SummaryResult(val text: String?, val origin: SummaryOrigin, val code: String?, val args: List<String>)
+data class SummaryResult(val text: String?, val origin: SummarySource, val code: String?, val args: List<String>)
 
 /**
  * The verified fields a summary may rest on. Every value is a verified string already (a quote-checked name, a

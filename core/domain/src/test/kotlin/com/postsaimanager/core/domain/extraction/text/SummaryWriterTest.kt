@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.text
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.testing.FakePromptSession
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -37,7 +38,7 @@ class SummaryWriterTest {
     @Test
     fun `a good first answer is kept with one ask`() {
         val (r, s) = write(good)
-        assertThat(r.origin).isEqualTo(SummaryOrigin.MODEL)
+        assertThat(r.origin).isEqualTo(SummarySource.MODEL)
         assertThat(r.text).startsWith("Erika Mustermann soll")
         assertThat(r.code).isNull()
         assertThat(s.asks).hasSize(1)
@@ -46,7 +47,7 @@ class SummaryWriterTest {
     @Test
     fun `an unverified number is asked again with the anti-copy instruction and the retry is kept`() {
         val (r, s) = write(wrongNumber, good)
-        assertThat(r.origin).isEqualTo(SummaryOrigin.MODEL)
+        assertThat(r.origin).isEqualTo(SummarySource.MODEL)
         assertThat(s.asks).hasSize(2)
         assertThat(s.asks[0].question).doesNotContain("Do not copy")
         assertThat(s.asks[1].question).contains("Do not copy")
@@ -55,7 +56,7 @@ class SummaryWriterTest {
     @Test
     fun `two rejected answers fall back to the template, never a third ask`() {
         val (r, s) = write(wrongNumber, copied, good)
-        assertThat(r.origin).isEqualTo(SummaryOrigin.TEMPLATE)
+        assertThat(r.origin).isEqualTo(SummarySource.TEMPLATE)
         assertThat(r.text).isNull()
         assertThat(r.code).isEqualTo("template")
         assertThat(r.args).containsExactly("invoice_bill", "Musterfirma GmbH", "Erika Mustermann", "1.284,50 €", "19.08.2026", "Rechnung 2026-08-771204").inOrder()
@@ -65,26 +66,26 @@ class SummaryWriterTest {
     @Test
     fun `a copied line is rejected`() {
         val (r, _) = write(copied, copied)
-        assertThat(r.origin).isEqualTo(SummaryOrigin.TEMPLATE)
+        assertThat(r.origin).isEqualTo(SummarySource.TEMPLATE)
     }
 
     @Test
     fun `an engine failure still gives a summary`() {
         val (r, s) = write(null, null)
-        assertThat(r.origin).isEqualTo(SummaryOrigin.TEMPLATE)
+        assertThat(r.origin).isEqualTo(SummarySource.TEMPLATE)
         assertThat(s.asks.size).isAtMost(SummaryWriter.MAX_ASKS)
     }
 
     @Test
     fun `an answer that is not a quoted line counts as a failed attempt`() {
         val (r, _) = write("no quotes here", good)
-        assertThat(r.origin).isEqualTo(SummaryOrigin.MODEL)
+        assertThat(r.origin).isEqualTo(SummarySource.MODEL)
     }
 
     @Test
     fun `a summary always exists, even with no facts and a silent model`() {
         val (r, _) = write(null, null, f = SummaryFacts("free_form"))
-        assertThat(r.origin).isEqualTo(SummaryOrigin.TEMPLATE)
+        assertThat(r.origin).isEqualTo(SummarySource.TEMPLATE)
         assertThat(r.code).isEqualTo("template")
         assertThat(r.args).containsExactly("free_form", "", "", "", "", "").inOrder()
     }

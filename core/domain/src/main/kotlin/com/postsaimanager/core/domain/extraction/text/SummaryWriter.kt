@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.v2.AnswerReader
 import com.postsaimanager.core.domain.extraction.v2.QuestionGrammars
 import com.postsaimanager.core.domain.extraction.v2.QuestionnairePrompt
+import com.postsaimanager.core.model.SummarySource
 
 /**
  * Writes the summary: at most [MAX_ASKS] asks, and a summary always exists.
@@ -33,14 +34,14 @@ class SummaryWriter(
             }
             if (answer == null) continue
             val verdict = gate.check(answer, ocrText, facts.values())
-            if (verdict is SummaryGate.Verdict.Accepted) return SummaryResult(verdict.text, SummaryOrigin.MODEL, null, emptyList())
+            if (verdict is SummaryGate.Verdict.Accepted) return SummaryResult(verdict.text, SummarySource.MODEL, null, emptyList())
         }
         return template(facts)
     }
 
     /** The summary rendered from the verified fields; nothing was asked. */
     fun template(facts: SummaryFacts): SummaryResult =
-        SummaryResult(null, SummaryOrigin.TEMPLATE, TEMPLATE_CODE, facts.templateArgs())
+        SummaryResult(null, SummarySource.TEMPLATE, TEMPLATE_CODE, facts.templateArgs())
 
     internal fun prompt(facts: SummaryFacts, languageCode: String?, antiCopy: Boolean): String = buildString {
         append("FACTS (verified; use only these):\n")
