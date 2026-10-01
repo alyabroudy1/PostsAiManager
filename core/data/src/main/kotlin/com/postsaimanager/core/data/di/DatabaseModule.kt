@@ -11,6 +11,7 @@ import com.postsaimanager.core.data.database.dao.DocumentChunkDao
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.database.dao.MessageDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
+import com.postsaimanager.core.data.database.dao.ProfileFactDao
 import com.postsaimanager.core.data.database.dao.TimelineDao
 import dagger.Module
 import dagger.Provides
@@ -64,4 +65,7 @@ object DatabaseModule {
     @Provides
     fun provideDismissedEntityDao(database: PamDatabase): DismissedEntityDao =
         database.dismissedEntityDao()
+
+    @Provides
+    fun provideProfileFactDao(database: PamDatabase): ProfileFactDao = database.profileFactDao()
 }
