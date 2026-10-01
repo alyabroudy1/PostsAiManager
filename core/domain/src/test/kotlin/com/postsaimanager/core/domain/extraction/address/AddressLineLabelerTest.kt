@@ -59,6 +59,14 @@ class AddressLineLabelerTest {
     }
 
     @Test
+    fun `a country inferred from the postcode shape is at most medium`() {
+        val (address, labeled) = read(listOf(line("Max Mustermann", 0.10f), line("Musterstraße 12", 0.12f), line("54321 Beispieldorf", 0.14f)))
+        assertThat(labeled.countrySource).isEqualTo(CountrySource.POSTCODE_SHAPE)
+        assertThat(address.countryIso2?.value).isEqualTo("DE")
+        assertThat(address.countryIso2!!.confidence).isAtMost(ConfidenceCombiner.MEDIUM)
+    }
+
+    @Test
     fun `the labels are scored, never generated`() {
         val session = sessionSaying("Erika Mustermann" to LineAsk.PERSON)
         read(listOf(line("Erika Mustermann", 0.10f), line("Musterstraße 12", 0.12f), line("54321 Beispieldorf", 0.14f)), session)

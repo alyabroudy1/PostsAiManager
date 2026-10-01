@@ -186,7 +186,8 @@ class AddressLineLabeler(
                 format = candidates.first()
                 source = CountrySource.POSTCODE_SHAPE
                 countryIdx = p
-                parts += LabeledPart(AddressPart.COUNTRY, candidates.first().iso2, p, HIGH_AI)
+                // Inferred from a shape, never printed: at most MEDIUM, however sure the shape is.
+                parts += LabeledPart(AddressPart.COUNTRY, candidates.first().iso2, p, ConfidenceCombiner.MEDIUM)
             }
             val matched = format != null || candidates.isNotEmpty()
             val ai = if (matched) HIGH_AI else ConfidenceCombiner.MEDIUM
