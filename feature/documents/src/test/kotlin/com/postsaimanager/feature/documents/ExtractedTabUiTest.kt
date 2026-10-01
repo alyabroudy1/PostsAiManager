@@ -233,12 +233,12 @@ class ExtractedTabUiTest {
     }
 
     @Test
-    fun `a form offers the card Help me fill it, which starts the fill`() {
+    fun `a form offers the beta card Form filling, which starts the fill`() {
         var started = 0
         showTab(com.postsaimanager.core.domain.extraction.v2.ExtractionSchema.FORM_APPLICATION.id) { started++ }
 
         compose.onNodeWithText("This is a form to fill in.").assertIsDisplayed()
-        compose.onNodeWithText("Help me fill it").performClick()
+        compose.onNodeWithText("Form filling (beta)").performClick()
 
         assertThat(started).isEqualTo(1)
     }
@@ -254,7 +254,7 @@ class ExtractedTabUiTest {
     fun `a form without the callback shows no card`() {
         showTab(com.postsaimanager.core.domain.extraction.v2.ExtractionSchema.FORM_APPLICATION.id, null)
 
-        compose.onNodeWithText("Help me fill it").assertDoesNotExist()
+        compose.onNodeWithText("Form filling (beta)").assertDoesNotExist()
     }
 
     @Test
