@@ -68,11 +68,12 @@ class FormQuestionWriter(
     }
 
     private fun languageRule(context: QuestionContext): String {
+        // The OCR often tags no language, and the locale is then only the phone's: the label itself says what language the form is in.
         val sample = context.typedSample?.trim()?.takeIf { it.any(Char::isLetter) }?.take(SAMPLE_CHARS)
-        if (sample != null && context.formLocale == null) return "Write the question in the same language as this message from the user: \"$sample\"."
         val locale = context.formLocale ?: uiLanguage()
         val language = locale.getDisplayLanguage(Locale.ENGLISH).ifBlank { "English" }
-        return "Write the question in $language. Keep the field's label exactly as printed."
+        val fallback = if (sample != null && context.formLocale == null) " (the user writes like this: \"$sample\")" else " (otherwise $language)"
+        return "Write the question in the same language as the printed FIELD label$fallback. Keep the field's label exactly as printed."
     }
 
     /** The model's line as a question, or null when it is empty, too long, echoes the label or spans several lines. */

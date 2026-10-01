@@ -174,13 +174,11 @@ class FormFillPartsTest {
         }
 
         // The form's language wins: a typed "stop" or "nein" says little about the language to ask in.
-        assertThat(systemFor(QuestionContext(typedSample = "stop", formLocale = java.util.Locale.GERMAN))).contains("in German")
-        assertThat(systemFor(QuestionContext(typedSample = "hilf mir das auszufüllen")))
-            .contains("same language as this message from the user: \"hilf mir das auszufüllen\"")
-        assertThat(systemFor(QuestionContext(formLocale = java.util.Locale.GERMAN))).contains("in German")
-        assertThat(systemFor(QuestionContext())).contains("in French")
-        // A typed message with no letters says nothing about the language.
-        assertThat(systemFor(QuestionContext(typedSample = "12345", formLocale = java.util.Locale.GERMAN))).contains("in German")
+        // The label's own language leads; the form's (or the UI's) is only the fallback.
+        assertThat(systemFor(QuestionContext(typedSample = "stop", formLocale = java.util.Locale.GERMAN))).contains("language as the printed FIELD label (otherwise German)")
+        assertThat(systemFor(QuestionContext(typedSample = "hilf mir das auszufüllen"))).contains("the user writes like this: \"hilf mir das auszufüllen\"")
+        assertThat(systemFor(QuestionContext())).contains("otherwise French")
+        assertThat(systemFor(QuestionContext(typedSample = "12345", formLocale = java.util.Locale.GERMAN))).contains("otherwise German")
     }
 
     @Test
