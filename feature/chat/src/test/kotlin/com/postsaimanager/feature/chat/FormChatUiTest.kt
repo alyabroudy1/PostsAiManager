@@ -1,0 +1,245 @@
+package com.postsaimanager.feature.chat
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.model.CheckboxValue
+import com.postsaimanager.core.model.FormChip
+import com.postsaimanager.core.model.FormChipAction
+import com.postsaimanager.core.model.FormChipLabel
+import com.postsaimanager.core.model.FormField
+import com.postsaimanager.core.model.FormFieldKind
+import com.postsaimanager.core.model.FormFill
+import com.postsaimanager.core.model.FormFillStatus
+import com.postsaimanager.core.model.FormMessage
+import com.postsaimanager.core.model.FormMessageKind
+import com.postsaimanager.core.model.FormText
+import com.postsaimanager.core.model.FormValueSource
+import com.postsaimanager.core.model.NormBox
+import com.postsaimanager.core.model.ReviewState
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+/** The fill card and the answer chips drawn for real (Robolectric, real string resources). */
+@RunWith(RobolectricTestRunner::class)
+// A tall window: the card is one item of the chat's scrolling list, which gives it all the height it needs.
+@Config(sdk = [34], qualifiers = "w411dp-h3000dp")
+class FormChatUiTest {
+
+    @get:Rule
+    val compose = createComposeRule()
+
+    private val chips = mutableListOf<Pair<FormChip, String>>()
+    private val shownOnPage = mutableListOf<FormField>()
+    private val copied = mutableListOf<String>()
+
+    private fun field(
+        id: String,
+        label: String,
+        page: Int = 1,
+        order: Int = 0,
+        value: String? = null,
+        key: String? = null,
+        kind: FormFieldKind = FormFieldKind.TEXT,
+        source: FormValueSource = FormValueSource.PROFILE,
+        reconfirm: Boolean = false,
+        skipped: Boolean = false,
+    ) = FormField(
+        id = id, formFillId = "fill", documentId = "doc", page = page, labelText = label, labelBox = null,
+        fillBox = NormBox(0.1f, 0.2f, 0.6f, 0.3f), kind = kind, dataKey = key, value = value,
+        valueSource = if (value == null) FormValueSource.NONE else source, reconfirm = reconfirm, skipped = skipped, orderIndex = order,
+        reviewState = if (source == FormValueSource.USER) ReviewState.EDITED else ReviewState.UNREVIEWED,
+    )
+
+    private val fields = listOf(
+        field("name", "Name des Kindes", value = "Ahmad Mustermann", key = "full_name"),
+        field("phone", "Telefon (Notfall)", order = 1, value = "0151 2345678", key = "phone", reconfirm = true),
+        field("allergies", "Allergien", order = 2),
+        field("photo", "Fotos erlaubt", page = 2, value = CheckboxValue.YES, kind = FormFieldKind.CHECKBOX, source = FormValueSource.USER),
+        field("iban", "IBAN", page = 2, order = 1, value = "DE89 3704 0044 0532 0130 00", key = "iban", source = FormValueSource.FACT),
+        field("hand", "Kurstermin", page = 2, order = 2, skipped = true),
+        field("sign", "Unterschrift", page = 2, order = 3, kind = FormFieldKind.SIGNATURE),
+    )
+
+    private fun state(list: List<FormField> = fields, open: String? = "allergies") = FillCardState(
+        fill = FormFill(
+            "fill", "doc", FormFillStatus.ASKING, currentFieldId = open,
+            awaiting = open?.let { com.postsaimanager.core.model.FormAwaiting(com.postsaimanager.core.model.FormAwaitKind.ANSWER, fieldId = it) },
+            createdAt = 0, updatedAt = 0,
+        ),
+        fields = list,
+    )
+
+    private fun showCard(state: FillCardState = state(), expanded: Boolean = true) = compose.setContent {
+        MaterialTheme {
+            FillCard(state, expanded = expanded, onShowOnPage = { shownOnPage += it }, onCopy = { copied += it })
+        }
+    }
+
+    @Test
+    fun `the card shows the progress header, the rows with their values and source badges`() {
+        showCard()
+
+        // 4 of 6 non-signature fields have a value (the skipped and the empty one do not), 1 signature.
+        compose.onNodeWithText("4 of 7 ready · 2 need you · 1 signature").assertIsDisplayed()
+        compose.onNodeWithText("Name des Kindes").assertIsDisplayed()
+        compose.onNodeWithText("Ahmad Mustermann").assertIsDisplayed()
+        compose.onNodeWithText("Needs your input").assertIsDisplayed() // the allergies the conversation asks about
+        compose.onNodeWithText("To fill in by hand").assertIsDisplayed()
+        compose.onNodeWithText("Sign here").assertIsDisplayed()
+        compose.onNodeWithText("To confirm").assertIsDisplayed()
+        compose.onNodeWithText("Yes").assertIsDisplayed() // a ticked box, from resources, not the stored "yes"
+        compose.onNodeWithText("Page 1").assertIsDisplayed()
+        compose.onNodeWithText("Page 2").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a sensitive value is masked until tapped and hidden again with another tap`() {
+        showCard()
+
+        compose.onNodeWithText("DE89 3704 0044 0532 0130 00").assertDoesNotExist()
+        compose.onNodeWithText("••••3000").assertIsDisplayed().performClick()
+        compose.onNodeWithText("DE89 3704 0044 0532 0130 00").assertIsDisplayed().performClick()
+        compose.onNodeWithText("••••3000").assertIsDisplayed()
+    }
+
+    @Test
+    fun `copy copies a row's value, copy all copies every value`() {
+        showCard()
+
+        compose.onNodeWithContentDescription("Copy Name des Kindes").performClick()
+        assertThat(copied.last()).isEqualTo("Ahmad Mustermann")
+
+        compose.onNodeWithText("Copy all").performClick()
+        val all = copied.last().lines()
+        assertThat(all).containsAtLeast("Name des Kindes: Ahmad Mustermann", "Fotos erlaubt: Yes", "IBAN: DE89 3704 0044 0532 0130 00")
+        assertThat(all.none { it.startsWith("Allergien") || it.startsWith("Unterschrift") }).isTrue()
+    }
+
+    @Test
+    fun `the page chip opens the page of that field`() {
+        showCard()
+
+        compose.onNodeWithContentDescription("Show IBAN on page 2").performClick()
+
+        assertThat(shownOnPage.single().id).isEqualTo("iban")
+    }
+
+    @Test
+    fun `an earlier card folds to its header`() {
+        showCard(expanded = false)
+
+        compose.onNodeWithText("4 of 7 ready · 2 need you · 1 signature").assertIsDisplayed()
+        compose.onNodeWithText("Earlier fill card. The latest one is below.").assertIsDisplayed()
+        compose.onNodeWithText("Name des Kindes").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the card re-renders when a field is answered`() {
+        val current = androidx.compose.runtime.mutableStateOf(state())
+        compose.setContent { MaterialTheme { FillCard(current.value, expanded = true, onShowOnPage = {}, onCopy = {}) } }
+        compose.onNodeWithText("Needs your input").assertIsDisplayed()
+
+        current.value = state(fields.map { if (it.id == "allergies") it.copy(value = "Nussallergie", valueSource = FormValueSource.USER) else it }, open = null)
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Nussallergie").assertIsDisplayed()
+        compose.onNodeWithText("5 of 7 ready · 1 need you · 1 signature").assertIsDisplayed()
+    }
+
+    // ── The answer chips ──
+
+    private fun question(enabled: Boolean) = compose.setContent {
+        MaterialTheme {
+            FormQuestion(
+                text = "Hat Ahmad das Seepferdchen schon?",
+                chips = listOf(
+                    FormChip(FormChipAction.ANSWER, label = "Ja", arg = "Ja", fieldId = "f"),
+                    FormChip(FormChipAction.ANSWER, label = "Nein", arg = "Nein", fieldId = "f"),
+                    FormChip(FormChipAction.SKIP, labelCode = FormChipLabel.SKIP, fieldId = "f"),
+                ),
+                enabled = enabled,
+                onChip = { chip, shown -> chips += chip to shown },
+            )
+        }
+    }
+
+    @Test
+    fun `tapping a chip sends it as the answer with its label`() {
+        question(enabled = true)
+
+        compose.onNodeWithText("Hat Ahmad das Seepferdchen schon?").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Answer: Nein").assertIsEnabled().performClick()
+        compose.onNodeWithText("Skip").performClick()
+
+        assertThat(chips.map { it.second }).containsExactly("Nein", "Skip").inOrder()
+        assertThat(chips.first().first.arg).isEqualTo("Nein")
+        assertThat(chips.last().first.action).isEqualTo(FormChipAction.SKIP)
+    }
+
+    @Test
+    fun `the chips of a question that is no longer open cannot be tapped`() {
+        question(enabled = false)
+
+        compose.onNodeWithContentDescription("Answer: Ja").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `a stored message is rendered from its code in the user's language`() {
+        compose.setContent {
+            MaterialTheme {
+                FormMessageItem(
+                    message = ChatMessage(id = "m", text = "", isUser = false),
+                    form = FormMessage(FormMessageKind.QUESTION, FormText.REMEMBER, listOf("Ahmad"), listOf(FormChip(FormChipAction.REMEMBER_YES, labelCode = FormChipLabel.YES))),
+                    fillCard = null, isLatestCard = false, chipsEnabled = true, onChip = { c, s -> chips += c to s }, onShowOnPage = {}, onCopy = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Should I remember this for Ahmad?").assertIsDisplayed()
+        compose.onNodeWithText("Yes").performClick()
+        assertThat(chips.single().first.action).isEqualTo(FormChipAction.REMEMBER_YES)
+        assertThat(chips.single().second).isEqualTo("Yes")
+    }
+
+    @Test
+    fun `the card message renders the line above it and the live card`() {
+        compose.setContent {
+            MaterialTheme {
+                FormMessageItem(
+                    message = ChatMessage(id = "m", text = "", isUser = false),
+                    form = FormMessage(FormMessageKind.CARD, FormText.FILLED_INTRO, listOf("4", "7"), fillId = "fill"),
+                    fillCard = state(), isLatestCard = true, chipsEnabled = false, onChip = { _, _ -> }, onShowOnPage = {}, onCopy = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("I filled 4 of 7 from the saved details:").assertIsDisplayed()
+        compose.onNodeWithTag("fillCard").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a progress line shows a bar while the form is being read`() {
+        compose.setContent {
+            MaterialTheme {
+                FormMessageItem(
+                    message = ChatMessage(id = "m", text = "", isUser = false),
+                    form = FormMessage(FormMessageKind.STATUS, FormText.UNDERSTANDING, listOf("2", "5")),
+                    fillCard = null, isLatestCard = false, chipsEnabled = false, onChip = { _, _ -> }, onShowOnPage = {}, onCopy = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Reading the form… (step 2 of 5)").assertIsDisplayed()
+    }
+}

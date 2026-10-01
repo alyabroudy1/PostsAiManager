@@ -7,6 +7,8 @@ import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.layout.LayoutLine
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.OcrBlock
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.util.Locale
 import java.util.UUID
@@ -79,7 +81,8 @@ class UnderstandFormUseCase(
         } catch (e: FormScoringException) {
             PamResult.Error(e.error)
         } finally {
-            session.close()
+            // Also when the user left the chat: the engine's session must be dropped even from a cancelled coroutine.
+            withContext(NonCancellable) { session.close() }
         }
     }
 

@@ -9,6 +9,7 @@ import com.postsaimanager.core.domain.usecase.ObserveSuggestedQuestionsUseCase
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.testing.FakeDocumentChunkRepository
+import com.postsaimanager.core.testing.FakeFormFillRepository
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
 import com.postsaimanager.core.testing.testDocument
@@ -45,6 +46,8 @@ class ChatViewModelPreviewTest {
         unblockGpu = mockk(relaxed = true),
         getDocumentPreview = GetDocumentPreviewUseCase(documents, FakeDocumentChunkRepository()),
         observeSuggestedQuestions = ObserveSuggestedQuestionsUseCase(documents),
+        formFill = mockk(relaxed = true),
+        formFills = FakeFormFillRepository(),
     )
 
     private fun seedThreePages() {

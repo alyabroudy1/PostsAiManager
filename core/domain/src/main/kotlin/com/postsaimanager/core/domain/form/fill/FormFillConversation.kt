@@ -680,9 +680,6 @@ class FormFillConversation(
 
     // ── Messages ──
 
-    fun conversationId(documentId: String) = "conv-$documentId"
-
-    private fun fillId(documentId: String) = "fill-$documentId"
 
     /** A strictly increasing time, so messages written in the same millisecond keep their order. */
     private fun stamp(): Long {
@@ -727,25 +724,31 @@ class FormFillConversation(
         if (first) conversations.addMessage(message) else conversations.updateMessage(message)
     }
 
-    private companion object {
+    companion object {
+        /** A document's own chat (one conversation per document, see the chat screen). */
+        fun conversationId(documentId: String) = "conv-$documentId"
+
+        /** The one fill of a document. */
+        fun fillId(documentId: String) = "fill-$documentId"
+
         /** The understanding has this many steps (see [com.postsaimanager.core.domain.form.FormStep]). */
-        const val STEPS = "5"
+        private const val STEPS = "5"
 
         /** A role the user declined to name: decided, so it is not asked again, and no profile answers for it. */
-        const val NOBODY = ""
+        private const val NOBODY = ""
 
         /** The open question was already re-asked once with a hint. */
-        const val HINTED = "hinted"
+        private const val HINTED = "hinted"
 
-        const val SUBJECT_QUESTION = "The assistant asked who the form is for."
+        private const val SUBJECT_QUESTION = "The assistant asked who the form is for."
 
-        val ACTIVE = setOf(FormFillStatus.ASK_SUBJECT, FormFillStatus.ASK_ROLE, FormFillStatus.ASKING)
+        private val ACTIVE = setOf(FormFillStatus.ASK_SUBJECT, FormFillStatus.ASK_ROLE, FormFillStatus.ASKING)
 
         /** Keys that are not a detail of a person: nothing to remember. */
-        val NOT_PERSONAL = setOf(FormDataKeys.TODAY_DATE.id, FormDataKeys.TODAY_PLACE.id, FormDataKeys.SIGNATURE.id)
+        private val NOT_PERSONAL = setOf(FormDataKeys.TODAY_DATE.id, FormDataKeys.TODAY_PLACE.id, FormDataKeys.SIGNATURE.id)
 
         /** How the model is told the relationship (English content descriptions, never shown to users). */
-        val RELATIONS: Map<Relationship?, String> = mapOf(
+        private val RELATIONS: Map<Relationship?, String> = mapOf(
             Relationship.CHILD to "the user's child",
             Relationship.PARTNER to "the user's partner",
             Relationship.PARENT to "the user's parent",

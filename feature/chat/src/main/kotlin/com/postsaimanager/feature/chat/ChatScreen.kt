@@ -91,6 +91,7 @@ import com.postsaimanager.core.designsystem.component.MarkdownText
 import com.postsaimanager.core.designsystem.component.PagePreviewDialog
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.model.FormMessageKind
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -120,6 +121,7 @@ fun ChatScreen(
     val modelSheetState by viewModel.modelSheetState.collectAsStateWithLifecycle()
     val suggestedQuestions by viewModel.suggestedQuestions.collectAsStateWithLifecycle()
     val preview by viewModel.preview.collectAsStateWithLifecycle()
+    val fillCard by viewModel.fillCard.collectAsStateWithLifecycle()
     var inputText by rememberSaveable { mutableStateOf("") }
     var showModelSheet by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -385,12 +387,29 @@ fun ChatScreen(
                     // 5.1: regenerate is offered only on the LATEST assistant reply — a
                     // finished one, not the live streaming bubble (a separate item above,
                     // never part of `uiState.messages` until it is persisted and reloaded).
-                    val latestAssistantId = uiState.messages.lastOrNull { !it.isUser }?.id
+                    val latestAssistantId = uiState.messages.lastOrNull { !it.isUser && it.form == null }?.id
+                    // The form conversation: only the newest card is shown in full, and only the open question's chips are live.
+                    val latestCardId = uiState.messages.lastOrNull { it.form?.kind == FormMessageKind.CARD }?.id
+                    val latestQuestionId = uiState.messages.lastOrNull { it.form?.kind == FormMessageKind.QUESTION }?.id
 
                     items(
                         uiState.messages.asReversed(),
                         key = { it.id.ifEmpty { it.timestamp.toString() } },
                     ) { message ->
+                        val form = message.form
+                        if (form != null) {
+                            FormMessageItem(
+                                message = message,
+                                form = form,
+                                fillCard = fillCard,
+                                isLatestCard = message.id == latestCardId,
+                                chipsEnabled = message.id == latestQuestionId && !uiState.isProcessing,
+                                onChip = viewModel::onFormChip,
+                                onShowOnPage = viewModel::openFieldPreview,
+                                onCopy = ::copyToClipboard,
+                            )
+                            return@items
+                        }
                         ChatBubble(
                             message = message,
                             documentChat = documentId != null,

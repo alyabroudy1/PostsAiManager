@@ -8,6 +8,8 @@ import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.form.FormScorer
 import com.postsaimanager.core.domain.form.FormScoringException
 import com.postsaimanager.core.domain.form.PromptFraming
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -60,7 +62,7 @@ class EngineFormModel @Inject constructor(
         } catch (e: FormScoringException) {
             PamResult.Error(e.error)
         } finally {
-            session.close()
+            withContext(NonCancellable) { session.close() }
         }
     }
 
@@ -70,7 +72,7 @@ class EngineFormModel @Inject constructor(
         return try {
             (session.ask(tail, ONE_LINE, maxTokens) as? PamResult.Success)?.data
         } finally {
-            session.close()
+            withContext(NonCancellable) { session.close() }
         }
     }
 

@@ -5,7 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiEngine
+import com.postsaimanager.core.domain.form.fill.FillProgress
+import com.postsaimanager.core.domain.form.fill.FormFillConversation
+import com.postsaimanager.core.domain.form.fill.FormMessageCodec
+import com.postsaimanager.core.domain.form.fill.FormRoute
 import com.postsaimanager.core.domain.repository.ConversationRepository
+import com.postsaimanager.core.domain.repository.FormFillRepository
 import com.postsaimanager.core.domain.usecase.ChatErrorAction
 import com.postsaimanager.core.domain.usecase.ChatTurn
 import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
@@ -20,6 +25,11 @@ import com.postsaimanager.core.domain.usecase.UpdateInferenceSettingUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.model.ConfigSpec
 import com.postsaimanager.core.model.DocumentPreview
+import com.postsaimanager.core.model.FormChip
+import com.postsaimanager.core.model.FormField
+import com.postsaimanager.core.model.FormFill
+import com.postsaimanager.core.model.FormMessage
+import com.postsaimanager.core.model.TextBounds
 import com.postsaimanager.core.model.InferenceOverrides
 import com.postsaimanager.core.model.InstalledModelSummary
 import com.postsaimanager.core.model.MessageRole
@@ -27,12 +37,16 @@ import com.postsaimanager.core.model.MessageSource
 import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.model.ThinkingEffort
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -54,6 +68,8 @@ class ChatViewModel @Inject constructor(
     private val unblockGpu: UnblockGpuUseCase,
     private val getDocumentPreview: GetDocumentPreviewUseCase,
     private val observeSuggestedQuestions: ObserveSuggestedQuestionsUseCase,
+    private val formFill: FormFillConversation,
+    private val formFills: FormFillRepository,
 ) : ViewModel() {
 
     private val _preview = MutableStateFlow<CitationPreviewState?>(null)
@@ -66,10 +82,22 @@ class ChatViewModel @Inject constructor(
     /** A citation chip was tapped: load that document's pages and show them at the cited one. */
     fun openPreview(source: ChatSource) {
         if (source.documentDeleted) return
+        showPreview(source) { getDocumentPreview(source.documentId, source.chunkId) }
+    }
+
+    /** A fill card row's page chip: the page of [field] with the box where its value goes marked. */
+    fun openFieldPreview(field: FormField) {
+        val document = documentId ?: return
+        val source = ChatSource(documentId = document, pageNumber = field.page, title = null)
+        val box = (field.fillBox ?: field.labelBox)?.let { TextBounds(it.left, it.top, it.right, it.bottom) }
+        showPreview(source) { getDocumentPreview.forField(document, field.page, box) }
+    }
+
+    private fun showPreview(source: ChatSource, load: suspend () -> DocumentPreview?) {
         previewJob?.cancel()
         _preview.value = CitationPreviewState(source = source, loading = true)
         previewJob = viewModelScope.launch {
-            val loaded = getDocumentPreview(source.documentId, source.chunkId)
+            val loaded = load()
             // Closed (or replaced) while loading: do not resurrect it.
             if (_preview.value?.source != source) return@launch
             _preview.value = if (loaded == null) {
@@ -153,10 +181,63 @@ class ChatViewModel @Inject constructor(
                 initialValue = emptyList(),
             )
 
+    /**
+     * The fill card's data: the document's fill and its fields, live, so the card re-renders on every answer. Null until a
+     * fill was started (and always for the all-documents chat).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val fillCard: StateFlow<FillCardState?> = (
+        documentId?.let { id ->
+            formFills.observeFill(FormFillConversation.fillId(id)).flatMapLatest { fill ->
+                if (fill == null) flowOf(null) else formFills.observeFields(fill.id).map { FillCardState(fill, it) }
+            }
+        } ?: flowOf(null)
+        ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     init {
         restoreHistory()
         observeEngine()
         preWarmModel()
+        openFormFill(startRequested = savedStateHandle.get<Boolean>(ARG_FILL) == true && savedStateHandle.get<Boolean>(STATE_FILL_STARTED) != true)
+        if (documentId != null) savedStateHandle[STATE_FILL_STARTED] = true
+    }
+
+    /**
+     * The form-fill side of opening a document chat: "Help me fill it" (the [ARG_FILL] argument) starts the fill; otherwise an
+     * understanding that was interrupted (the user left, the process died) is picked up again. Both run in the background with a
+     * progress line in the chat; leaving the chat cancels them.
+     */
+    private fun openFormFill(startRequested: Boolean) {
+        val document = documentId ?: return
+        runFormWork(announce = startRequested) { if (startRequested) formFill.start(document) else formFill.resume(document) }
+    }
+
+    /**
+     * Runs conversation work in the background, showing the typing state (and the Stop button, which cancels it). Cancelled with
+     * the screen; a failure is shown as the chat's own error card, never swallowed.
+     */
+    private fun runFormWork(announce: Boolean = true, block: suspend () -> Unit) {
+        if (_uiState.value.isProcessing) return
+        _uiState.update {
+            it.copy(isProcessing = true, error = null, lastSentAt = if (announce) System.currentTimeMillis() else it.lastSentAt)
+        }
+        generationJob = viewModelScope.launch {
+            try {
+                block()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = ChatError(e.message ?: "Something went wrong.", ChatErrorAction.RETRY)) }
+            } finally {
+                _uiState.update { it.copy(isProcessing = false, statusText = null) }
+            }
+        }
+    }
+
+    /** A chip of the form conversation was tapped; [shownText] is its label as the user saw it. */
+    fun onFormChip(chip: FormChip, shownText: String) {
+        val document = documentId ?: return
+        runFormWork { formFill.chip(document, chip, shownText) }
     }
 
     /**
@@ -209,6 +290,7 @@ class ChatViewModel @Inject constructor(
                     ChatMessage(
                         id = message.id,
                         text = message.content,
+                        form = FormMessageCodec.parse(message),
                         isUser = message.role == MessageRole.USER,
                         timestamp = message.createdAt,
                         thinking = message.thinking,
@@ -274,7 +356,44 @@ class ChatViewModel @Inject constructor(
     fun sendMessage(text: String) {
         if (text.isBlank() || _uiState.value.isProcessing) return
         lastSentText = text
+        val document = documentId
+        if (document == null) {
+            startChatTurn(text)
+            return
+        }
+        // In a document chat the form conversation reads the message first: an answer to its question, a request to fill the
+        // form or an interrupt is its own; anything else (and a question about the form) is the normal grounded chat.
+        runFormWork {
+            when (formFill.route(document, text)) {
+                FormRoute.HANDLED -> Unit
+                FormRoute.NOT_FOR_FORM -> chatTurn(text)
+                FormRoute.ASK_ABOUT_FORM -> {
+                    chatTurn(text)
+                    formFill.reask(document)
+                }
+            }
+        }
+    }
 
+    /** The normal chat turn, in the background of the view model (the all-documents chat). */
+    private fun startChatTurn(text: String) {
+        beginChatTurn()
+        generationJob = viewModelScope.launch { chatTurn(text) }
+    }
+
+    /** Streams the grounded reply to [text] until it completes, fails or is stopped. */
+    private suspend fun chatTurn(text: String) {
+        beginChatTurn()
+        sendChatMessage(
+            conversationId = conversationId,
+            documentId = documentId,
+            text = text,
+            // Default OFF — see InferenceOverrides.thinkingEffort's KDoc.
+            thinkingEffort = modelSheetState.value.overrides.thinkingEffort ?: ThinkingEffort.OFF,
+        ).collect(::applyTurn)
+    }
+
+    private fun beginChatTurn() {
         // The streamed reply is held separately from persisted history: it is not yet a
         // stored message, and merging the two would make history flicker as tokens arrive.
         //
@@ -293,16 +412,6 @@ class ChatViewModel @Inject constructor(
                 error = null,
                 lastSentAt = System.currentTimeMillis(),
             )
-        }
-
-        generationJob = viewModelScope.launch {
-            sendChatMessage(
-                conversationId = conversationId,
-                documentId = documentId,
-                text = text,
-                // Default OFF — see InferenceOverrides.thinkingEffort's KDoc.
-                thinkingEffort = modelSheetState.value.overrides.thinkingEffort ?: ThinkingEffort.OFF,
-            ).collect(::applyTurn)
         }
     }
 
@@ -494,10 +603,25 @@ class ChatViewModel @Inject constructor(
         super.onCleared()
     }
 
-    private companion object {
+    companion object {
         /** The one standing conversation for a document-less chat — see [conversationId]. */
-        const val STANDALONE_CONVERSATION_ID = "conv-standalone"
+        private const val STANDALONE_CONVERSATION_ID = "conv-standalone"
+
+        /** The navigation argument of "Help me fill it": open the document chat with the form fill started. */
+        const val ARG_FILL = "fill"
+
+        /** Set once the chat was opened, so a recreated view model does not start the fill again. */
+        private const val STATE_FILL_STARTED = "fillStarted"
     }
+}
+
+/**
+ * The fill card's data: the fill and its fields as stored now.
+ * [openFieldId] is the field the conversation is asking about, if any.
+ */
+data class FillCardState(val fill: FormFill, val fields: List<FormField>) {
+    val progress: FillProgress get() = FillProgress.of(fields)
+    val openFieldId: String? get() = fill.awaiting?.fieldId
 }
 
 /** See [ChatViewModel.modelSheetState]. */
@@ -570,6 +694,8 @@ data class ChatMessage(
     val cutOff: Boolean = false,
     /** The passages this reply cites/was grounded on, for [ChatScreen]'s citation chips (4.3). */
     val sources: List<ChatSource> = emptyList(),
+    /** The payload of a form-conversation message (a status line, a question with chips, the fill card); null for a chat message. */
+    val form: FormMessage? = null,
 )
 
 /**

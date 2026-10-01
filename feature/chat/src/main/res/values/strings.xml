@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The form-filling conversation: lines the assistant says (the questions the model words are not here) -->
+    <string name="form_understanding">Reading the form… (step %1$s of %2$s)</string>
+    <string name="form_no_model">No AI model is installed yet. Install one to fill in forms.</string>
+    <string name="form_understanding_failed">I could not read this form. Ask me again to try once more.</string>
+    <string name="form_found_ask_subject">This is a form to fill in (%1$s). Who is it for?</string>
+    <string name="form_found_ask_subject_reason">This is a form to fill in (%1$s). It looks like it is for %2$s: «%3$s». Who is it for?</string>
+    <string name="form_ask_subject">Who is this form for?</string>
+    <string name="form_ask_guardian">Which parent or guardian should I use for the guardian\'s details?</string>
+    <string name="form_ask_payer">Whose account should I use for the payment details?</string>
+    <string name="form_filled_intro">I filled %1$s of %2$s from the saved details:</string>
+    <string name="form_ask_text">What should I write for «%1$s»?</string>
+    <string name="form_ask_date">Which date should I write for «%1$s»?</string>
+    <string name="form_ask_choice">Which option applies for «%1$s»?</string>
+    <string name="form_ask_yes_no">«%1$s»: yes or no?</string>
+    <string name="form_still_right">«%1$s» is saved as %2$s. Is that still right?</string>
+    <string name="form_hint_not_an_option">That is not one of the options for «%1$s». Please pick one of them.</string>
+    <string name="form_hint_not_a_date">I could not read that as a date. Please write the day, the month and the year.</string>
+    <string name="form_hint_not_a_phone">That does not look like a phone number. Please check it.</string>
+    <string name="form_hint_not_an_email">That does not look like an e-mail address. Please check it.</string>
+    <string name="form_hint_not_an_iban">That is not a valid IBAN. Please check it.</string>
+    <string name="form_hint_not_a_postcode">That does not look like a valid postcode. Please check it.</string>
+    <string name="form_hint_empty">Please give an answer for «%1$s».</string>
+    <string name="form_left_for_you">I left «%1$s» for you to write by hand.</string>
+    <string name="form_remember">Should I remember this for %1$s?</string>
+    <string name="form_remembered">Saved for %1$s.</string>
+    <string name="form_remember_failed">I could not save that.</string>
+    <string name="form_all_set">All set: %1$s of %2$s ready.</string>
+    <string name="form_all_set_signature">The signature is left for you.</string>
+    <string name="form_all_set_signature_page">The signature is left for you (page %1$s).</string>
+    <string name="form_stopped">Okay, I stopped. Ask me again any time to continue.</string>
+    <string name="form_subject_changed">Okay, switching to another person.</string>
+    <plurals name="form_more_questions">
+        <item quantity="one">%1$s more question. Continue?</item>
+        <item quantity="other">%1$s more questions. Continue?</item>
+    </plurals>
+    <plurals name="form_by_hand">
+        <item quantity="one">I left %1$s field for you to fill in by hand.</item>
+        <item quantity="other">I left %1$s fields for you to fill in by hand.</item>
+    </plurals>
+    <plurals name="form_count_fields">
+        <item quantity="one">%1$d field</item>
+        <item quantity="other">%1$d fields</item>
+    </plurals>
+    <plurals name="form_count_pages">
+        <item quantity="one">%1$d page</item>
+        <item quantity="other">%1$d pages</item>
+    </plurals>
+
+    <!-- Chips -->
+    <string name="form_chip_yes">Yes</string>
+    <string name="form_chip_no">No</string>
+    <string name="form_chip_skip">Skip</string>
+    <string name="form_chip_continue">Continue</string>
+    <string name="form_chip_by_hand">I\'ll do the rest by hand</string>
+    <string name="form_chip_someone_else">Someone else</string>
+    <string name="form_chip_description">Answer: %1$s</string>
+
+    <!-- The fill card -->
+    <string name="form_card_title">Form fill</string>
+    <string name="form_card_progress">%1$d of %2$d ready</string>
+    <string name="form_card_need_you">%1$d need you</string>
+    <string name="form_card_signature">%1$d signature</string>
+    <string name="form_card_copy_all">Copy all</string>
+    <string name="form_card_copy_field">Copy %1$s</string>
+    <string name="form_card_show_on_page">Show %1$s on page %2$d</string>
+    <string name="form_card_page">p.%1$d</string>
+    <string name="form_card_page_heading">Page %1$d</string>
+    <string name="form_card_reveal">Hidden value. Tap to show.</string>
+    <string name="form_card_hide">Tap to hide.</string>
+    <string name="form_card_needs_input">Needs your input</string>
+    <string name="form_card_sign_here">Sign here</string>
+    <string name="form_card_by_hand">To fill in by hand</string>
+    <string name="form_card_already_filled">Already filled in</string>
+    <string name="form_card_to_confirm">To confirm</string>
+    <string name="form_card_earlier">Earlier fill card. The latest one is below.</string>
+    <string name="form_source_profile">Profile</string>
+    <string name="form_source_fact">Saved detail</string>
+    <string name="form_source_user">You</string>
+    <string name="form_source_today">Today</string>
+    <string name="form_source_option">Form option</string>
+    <string name="form_value_yes">Yes</string>
+    <string name="form_value_no">No</string>
+</resources>
