@@ -115,10 +115,16 @@ class FormFillConversation(
     /** "Help me fill it": starts the document's fill, or picks an existing one up where it stands. */
     suspend fun start(documentId: String) = lock.withLock { startLocked(documentId) }
 
-    /** The chat was opened: an understanding that was interrupted (the user left, the process died) runs again. */
+    /**
+     * The chat was opened: an understanding that was interrupted (the user left, the process died) runs again, continuing its
+     * own progress line. One that ended in a failure ("no model", "could not read") is not retried by merely opening the chat.
+     */
     suspend fun resume(documentId: String) = lock.withLock {
         val fill = fills.fillForDocument(documentId) ?: return@withLock
-        if (fill.status == FormFillStatus.UNDERSTANDING) understandForm(fill)
+        if (fill.status != FormFillStatus.UNDERSTANDING) return@withLock
+        val last = conversations.getMessages(conversationId(documentId)).first()
+            .lastOrNull { FormMessageCodec.parse(it)?.kind == FormMessageKind.STATUS } ?: return@withLock
+        if (FormMessageCodec.parse(last)?.text == FormText.UNDERSTANDING) understandForm(fill, continuing = last)
     }
 
     /** A message the user typed in the document chat. */
@@ -195,9 +201,9 @@ class FormFillConversation(
         }
     }
 
-    private suspend fun understandForm(fill: FormFill) {
+    private suspend fun understandForm(fill: FormFill, continuing: AiMessage? = null) {
         val conversation = ensureConversation(fill.documentId)
-        val progressId = UuidGenerator.generate()
+        val progressId = continuing?.id?.also { progressStamps[it] = continuing.createdAt } ?: UuidGenerator.generate()
         suspend fun status(text: FormText, vararg args: String) = upsert(
             progressId, conversation, FormMessage(FormMessageKind.STATUS, text, args.toList()),
         )

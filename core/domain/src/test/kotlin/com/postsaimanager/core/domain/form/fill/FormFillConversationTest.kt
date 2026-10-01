@@ -3,8 +3,12 @@ package com.postsaimanager.core.domain.form.fill
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.model.CheckboxValue
+import com.postsaimanager.core.model.AiConversation
+import com.postsaimanager.core.model.AiModelType
 import com.postsaimanager.core.model.FactSource
 import com.postsaimanager.core.model.FormAwaitKind
+import com.postsaimanager.core.model.FormFill
+import com.postsaimanager.core.model.FormMessage
 import com.postsaimanager.core.model.FormChipAction
 import com.postsaimanager.core.model.FormChipLabel
 import com.postsaimanager.core.model.FormFillStatus
@@ -417,7 +421,7 @@ class FormFillConversationTest {
     }
 
     @Test
-    fun `an interrupted understanding runs again when the chat opens, and failure never blocks`() = runTest {
+    fun `a failed understanding is said and is retried by asking again, not by opening the chat`() = runTest {
         val h = FillHarness()
         h.session.openFailsWith = PamError.InferenceError("engine down")
 
@@ -427,10 +431,46 @@ class FormFillConversationTest {
         assertThat(h.fields()).isEmpty()
 
         h.session.openFailsWith = null
+        val before = h.messages().size
+        h.conversation.resume("doc") // merely opening the chat again
+        assertThat(h.messages()).hasSize(before)
+        assertThat(h.fill().status).isEqualTo(FormFillStatus.UNDERSTANDING)
+
+        h.conversation.start("doc") // "Help me fill it" once more
+        assertThat(h.fill().status).isEqualTo(FormFillStatus.ASK_SUBJECT)
+        assertThat(h.fields()).hasSize(16)
+    }
+
+    @Test
+    fun `an understanding the user left runs again when the chat opens and continues its own progress line`() = runTest {
+        val h = FillHarness()
+        // What a restart leaves behind: a fill that is still understanding and its progress line stopped at step 2.
+        h.fills.saveFill(FormFill("fill-doc", "doc", FormFillStatus.UNDERSTANDING, conversationId = "conv-doc", createdAt = 1, updatedAt = 1))
+        h.conversations.createConversation(AiConversation("conv-doc", "doc", null, AiModelType.LOCAL, "t", 1, createdAt = 1))
+        h.conversations.addMessage(
+            FormMessageCodec.toMessage("progress", "conv-doc", 1, FormMessage(FormMessageKind.STATUS, FormText.UNDERSTANDING, listOf("2", "5"))),
+        )
+
         h.conversation.resume("doc")
 
         assertThat(h.fill().status).isEqualTo(FormFillStatus.ASK_SUBJECT)
-        assertThat(h.fields()).hasSize(16)
+        val lines = h.messages().filter { FormMessageCodec.parse(it)?.text == FormText.UNDERSTANDING }
+        assertThat(lines.map { it.id }).containsExactly("progress") // the same line, updated
+        assertThat(FormMessageCodec.parse(lines.single())!!.args).containsExactly("5", "5").inOrder()
+    }
+
+    @Test
+    fun `opening a chat with no fill, or one that is further along, starts nothing`() = runTest {
+        val h = FillHarness()
+
+        h.conversation.resume("doc")
+        assertThat(h.fills.fillForDocument("doc")).isNull()
+        assertThat(h.messages()).isEmpty()
+
+        h.startForAhmad()
+        val before = h.messages().size
+        h.conversation.resume("doc")
+        assertThat(h.messages()).hasSize(before)
     }
 
     @Test
