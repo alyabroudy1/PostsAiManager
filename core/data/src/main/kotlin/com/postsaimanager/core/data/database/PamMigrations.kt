@@ -468,6 +468,16 @@ object PamMigrations {
         }
     }
 
+    /**
+     * v15 to v16 (form assist, additive; v16 is unreleased, so later form-assist tables join this migration through
+     * [FormAssistSchemaSql]): the family-profile columns on `profiles` and the `profile_facts` table.
+     */
+    val MIGRATION_15_16 = object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            FormAssistSchemaSql.statements().forEach(db::execSQL)
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -483,5 +493,6 @@ object PamMigrations {
         MIGRATION_12_13,
         MIGRATION_13_14,
         MIGRATION_14_15,
+        MIGRATION_15_16,
     )
 }

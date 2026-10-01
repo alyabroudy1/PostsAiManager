@@ -31,6 +31,10 @@ interface ProfileDao {
     """)
     suspend fun findSimilar(name: String, organization: String?): List<ProfileEntity>
 
+    /** The id of another "Me" profile than [exceptId], or null. */
+    @Query("SELECT id FROM profiles WHERE type = 'USER_SELF' AND id != :exceptId LIMIT 1")
+    suspend fun findOtherSelfId(exceptId: String): String?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(profile: ProfileEntity)
 
@@ -73,6 +77,9 @@ data class ProfileWithRole(
     val completionScore: Float,
     val missingFields: String?,
     val avatarPath: String?,
+    val relationship: String?,
+    val birthDate: String?,
+    val sensitive: Boolean,
     val createdAt: Long,
     val modifiedAt: Long,
     val role: String,

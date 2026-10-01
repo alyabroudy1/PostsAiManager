@@ -117,6 +117,34 @@ data class ProfileEntity(
     /** See [com.postsaimanager.core.model.Profile.sourceDocumentId]. */
     val sourceDocumentId: String? = null,
     val sourceEntityName: String? = null,
+    val relationship: String? = null,
+    val birthDate: String? = null,
+    @ColumnInfo(defaultValue = "0") val sensitive: Boolean = false,
+)
+
+/** A remembered detail of a person (see `ProfileFact`); one row per (profile, key). */
+@Entity(
+    tableName = "profile_facts",
+    foreignKeys = [
+        ForeignKey(
+            entity = ProfileEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["profileId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("profileId"), Index(value = ["profileId", "key"], unique = true)],
+)
+data class ProfileFactEntity(
+    @PrimaryKey val id: String,
+    val profileId: String,
+    val key: String,
+    val value: String,
+    val source: String,
+    val sourceDocumentId: String?,
+    val sensitive: Boolean,
+    val createdAt: Long,
+    val updatedAt: Long,
 )
 
 /**

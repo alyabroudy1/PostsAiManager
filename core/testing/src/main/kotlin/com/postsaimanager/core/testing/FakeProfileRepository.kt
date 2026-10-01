@@ -6,6 +6,7 @@ import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.model.Relationship
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -66,14 +67,26 @@ class FakeProfileRepository : ProfileRepository {
             ?: PamResult.Error(PamError.FileNotFound("No profile $id"))
     }
 
+    /** Mirrors the real repository: a second "Me" is refused. */
+    private fun secondSelf(profile: Profile): PamError? =
+        if (profile.type == ProfileType.USER_SELF &&
+            profiles.value.any { it.type == ProfileType.USER_SELF && it.id != profile.id }
+        ) {
+            PamError.ValidationError("type", "there is already a \"Me\" profile")
+        } else {
+            null
+        }
+
     override suspend fun createProfile(profile: Profile): PamResult<Profile> {
         failWith?.let { return PamResult.Error(it) }
+        secondSelf(profile)?.let { return PamResult.Error(it) }
         profiles.value = profiles.value + profile
         return PamResult.Success(profile)
     }
 
     override suspend fun updateProfile(profile: Profile): PamResult<Unit> {
         failWith?.let { return PamResult.Error(it) }
+        secondSelf(profile)?.let { return PamResult.Error(it) }
         updated += profile
         profiles.value = profiles.value.map { if (it.id == profile.id) profile else it }
         return PamResult.Success(Unit)
@@ -129,6 +142,9 @@ fun testProfile(
     phone: String? = null,
     street: String? = null,
     type: ProfileType = ProfileType.AUTHORITY,
+    relationship: Relationship? = null,
+    birthDate: String? = null,
+    sensitive: Boolean = false,
 ) = Profile(
     id = id,
     type = type,
@@ -137,6 +153,9 @@ fun testProfile(
     email = email,
     phone = phone,
     street = street,
+    relationship = relationship,
+    birthDate = birthDate,
+    sensitive = sensitive,
     createdAt = 0L,
     modifiedAt = 0L,
 )

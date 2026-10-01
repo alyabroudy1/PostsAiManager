@@ -856,6 +856,57 @@ class MigrationTest {
         }
     }
 
+    /**
+     * v15 profiles keep every row and gain the family columns (NULL, NULL, 0); `profile_facts` exists, is unique per
+     * (profile, key) and is deleted with its profile. Needs a device (the final form-assist smoke runs it).
+     */
+    @Test
+    fun migrate15To16_addsFamilyProfileColumnsAndTheFactsTable() {
+        helper.createDatabase(TEST_DB, 15).apply {
+            execSQL(
+                """
+                INSERT INTO profiles (id, type, name, completionScore, createdAt, modifiedAt)
+                VALUES ('p1', 'FAMILY_MEMBER', 'Ahmad', 0.5, 1, 1)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 16, true, PamMigrations.MIGRATION_15_16)
+
+        db.query("SELECT name, relationship, birthDate, sensitive FROM profiles WHERE id = 'p1'").use { c ->
+            assertTrue("the profile survived", c.moveToFirst())
+            assertEquals("Ahmad", c.getString(0))
+            assertTrue(c.isNull(1))
+            assertTrue(c.isNull(2))
+            assertEquals(0, c.getInt(3))
+        }
+
+        db.execSQL("UPDATE profiles SET relationship = 'CHILD', birthDate = '2019-03-12', sensitive = 1 WHERE id = 'p1'")
+        db.execSQL(
+            """
+            INSERT INTO profile_facts (id, profileId, `key`, value, source, sourceDocumentId, sensitive, createdAt, updatedAt)
+            VALUES ('f1', 'p1', 'allergies', 'nuts', 'USER', NULL, 1, 1, 1)
+            """.trimIndent(),
+        )
+        val duplicate = runCatching {
+            db.execSQL(
+                """
+                INSERT INTO profile_facts (id, profileId, `key`, value, source, sourceDocumentId, sensitive, createdAt, updatedAt)
+                VALUES ('f2', 'p1', 'allergies', 'other', 'USER', NULL, 1, 1, 1)
+                """.trimIndent(),
+            )
+        }
+        assertTrue("(profileId, key) is unique", duplicate.isFailure)
+
+        db.execSQL("PRAGMA foreign_keys = ON")
+        db.execSQL("DELETE FROM profiles WHERE id = 'p1'")
+        db.query("SELECT COUNT(*) FROM profile_facts").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("facts go with their profile", 0, c.getInt(0))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

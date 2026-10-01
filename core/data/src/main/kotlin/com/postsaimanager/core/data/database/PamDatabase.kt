@@ -9,6 +9,7 @@ import com.postsaimanager.core.data.database.dao.DocumentChunkDao
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.database.dao.MessageDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
+import com.postsaimanager.core.data.database.dao.ProfileFactDao
 import com.postsaimanager.core.data.database.dao.TimelineDao
 import com.postsaimanager.core.data.database.entity.*
 
@@ -30,8 +31,9 @@ import com.postsaimanager.core.data.database.entity.*
         FieldRevisionEntity::class,
         DismissedEntityEntity::class,
         MessageSourceEntity::class,
+        ProfileFactEntity::class,
     ],
-    version = 15,
+    version = 16,
     exportSchema = true,
 )
 abstract class PamDatabase : RoomDatabase() {
@@ -43,6 +45,7 @@ abstract class PamDatabase : RoomDatabase() {
     abstract fun documentChunkDao(): DocumentChunkDao
     abstract fun fieldRevisionDao(): FieldRevisionDao
     abstract fun dismissedEntityDao(): DismissedEntityDao
+    abstract fun profileFactDao(): ProfileFactDao
 
     companion object {
         const val DATABASE_NAME = "pam_database"

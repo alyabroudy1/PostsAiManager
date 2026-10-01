@@ -26,6 +26,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +62,7 @@ import com.postsaimanager.core.model.ProfileType
 @Composable
 fun ProfilesScreen(
     onProfileClick: (String) -> Unit,
+    onAddPerson: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProfilesViewModel = hiltViewModel(),
 ) {
@@ -78,6 +82,14 @@ fun ProfilesScreen(
     Scaffold(
         topBar = { PamTopAppBar(title = "Profiles") },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onAddPerson,
+                icon = { Icon(PamIcons.Add, contentDescription = null) },
+                text = { Text(stringResource(R.string.profiles_add_person)) },
+                modifier = Modifier.testTag("add_person"),
+            )
+        },
         modifier = modifier,
     ) { innerPadding ->
         Column(
@@ -233,15 +245,10 @@ private fun ProfileListItem(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
+                val typeText = stringResource(typeLabel(profile.type))
                 val subtitle = buildString {
-                    append(
-                        when (profile.type) {
-                            ProfileType.AUTHORITY -> "Authority"
-                            ProfileType.PERSON -> "Person"
-                            ProfileType.FAMILY_MEMBER -> "Family"
-                            ProfileType.USER_SELF -> "You"
-                        }
-                    )
+                    append(typeText)
+                    profile.relationship?.let { append(" · ${stringResource(relationshipLabel(it))}") }
                     profile.organization?.let { append(" · $it") }
                 }
                 Text(

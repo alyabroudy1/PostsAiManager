@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- What a form can ask for: one label per FormDataKeys id (see FormKeyLabels). -->
+    <string name="form_key_full_name">Full name</string>
+    <string name="form_key_given_name">First name</string>
+    <string name="form_key_family_name">Last name</string>
+    <string name="form_key_birth_date">Date of birth</string>
+    <string name="form_key_birth_place">Place of birth</string>
+    <string name="form_key_nationality">Nationality</string>
+    <string name="form_key_gender">Gender</string>
+    <string name="form_key_address">Address</string>
+    <string name="form_key_street">Street and number</string>
+    <string name="form_key_postcode">Postcode</string>
+    <string name="form_key_city">City</string>
+    <string name="form_key_country">Country</string>
+    <string name="form_key_phone">Phone</string>
+    <string name="form_key_mobile">Mobile phone</string>
+    <string name="form_key_email">Email</string>
+    <string name="form_key_health_insurer">Health insurer</string>
+    <string name="form_key_insurance_no">Insurance number</string>
+    <string name="form_key_tax_id">Tax ID</string>
+    <string name="form_key_iban">IBAN</string>
+    <string name="form_key_account_holder">Account holder</string>
+    <string name="form_key_bank_name">Bank</string>
+    <string name="form_key_school">School</string>
+    <string name="form_key_school_class">Class</string>
+    <string name="form_key_employer">Employer</string>
+    <string name="form_key_occupation">Occupation</string>
+    <string name="form_key_allergies">Allergies and health notes</string>
+    <string name="form_key_swim_level">Swimming level</string>
+    <string name="form_key_today_date">Date of signing</string>
+    <string name="form_key_today_place">Place of signing</string>
+    <string name="form_key_signature">Signature</string>
+</resources>

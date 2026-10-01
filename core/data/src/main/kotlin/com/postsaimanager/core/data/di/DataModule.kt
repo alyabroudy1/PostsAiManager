@@ -4,7 +4,11 @@ import com.postsaimanager.core.data.repository.ConversationRepositoryImpl
 import com.postsaimanager.core.data.repository.DocumentChunkRepositoryImpl
 import com.postsaimanager.core.data.repository.DocumentProcessingPipeline
 import com.postsaimanager.core.data.repository.DocumentRepositoryImpl
+import com.postsaimanager.core.data.repository.PersonDataSourceImpl
+import com.postsaimanager.core.data.repository.ProfileFactRepositoryImpl
 import com.postsaimanager.core.data.repository.ProfileRepositoryImpl
+import com.postsaimanager.core.domain.form.PersonDataSource
+import com.postsaimanager.core.domain.repository.ProfileFactRepository
 import com.postsaimanager.core.data.repository.TimelineRepositoryImpl
 import com.postsaimanager.core.data.repository.UserPreferencesRepositoryImpl
 import com.postsaimanager.core.data.util.PdfGenerator
@@ -33,6 +37,14 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindProfileRepository(impl: ProfileRepositoryImpl): ProfileRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindProfileFactRepository(impl: ProfileFactRepositoryImpl): ProfileFactRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPersonDataSource(impl: PersonDataSourceImpl): PersonDataSource
 
     @Binds
     @Singleton

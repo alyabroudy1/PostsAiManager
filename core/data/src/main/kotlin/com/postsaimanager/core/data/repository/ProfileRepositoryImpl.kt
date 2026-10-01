@@ -13,6 +13,7 @@ import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.model.Relationship
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -43,6 +44,8 @@ class ProfileRepositoryImpl @Inject constructor(
                         country = pwr.country, phone = pwr.phone, email = pwr.email,
                         website = pwr.website, reference = pwr.reference, notes = pwr.notes,
                         completionScore = pwr.completionScore, avatarPath = pwr.avatarPath,
+                        relationship = relationshipOf(pwr.relationship), birthDate = pwr.birthDate,
+                        sensitive = pwr.sensitive,
                         createdAt = pwr.createdAt, modifiedAt = pwr.modifiedAt,
                     ),
                     ProfileRole.valueOf(pwr.role),
@@ -63,6 +66,7 @@ class ProfileRepositoryImpl @Inject constructor(
 
     override suspend fun createProfile(profile: Profile): PamResult<Profile> = withContext(ioDispatcher) {
         try {
+            secondSelfError(profile)?.let { return@withContext PamResult.Error(it) }
             profileDao.insert(toEntity(profile))
             PamResult.Success(profile)
         } catch (e: Exception) { PamResult.Error(PamError.DatabaseError(cause = e)) }
@@ -70,6 +74,7 @@ class ProfileRepositoryImpl @Inject constructor(
 
     override suspend fun updateProfile(profile: Profile): PamResult<Unit> = withContext(ioDispatcher) {
         try {
+            secondSelfError(profile)?.let { return@withContext PamResult.Error(it) }
             profileDao.update(toEntity(profile))
             PamResult.Success(Unit)
         } catch (e: Exception) { PamResult.Error(PamError.DatabaseError(cause = e)) }
@@ -121,6 +126,17 @@ class ProfileRepositoryImpl @Inject constructor(
             } catch (e: Exception) { PamResult.Error(PamError.DatabaseError(cause = e)) }
         }
 
+    /** "Me" ([ProfileType.USER_SELF]) is unique: a second one is refused rather than silently demoting the first. */
+    private suspend fun secondSelfError(profile: Profile): PamError? =
+        if (profile.type == ProfileType.USER_SELF && profileDao.findOtherSelfId(profile.id) != null) {
+            PamError.ValidationError("type", "there is already a \"Me\" profile")
+        } else {
+            null
+        }
+
+    private fun relationshipOf(name: String?): Relationship? =
+        Relationship.entries.firstOrNull { it.name == name }
+
     private fun toDomain(entity: ProfileEntity) = Profile(
         id = entity.id, type = ProfileType.valueOf(entity.type), name = entity.name,
         organization = entity.organization, department = entity.department,
@@ -129,6 +145,8 @@ class ProfileRepositoryImpl @Inject constructor(
         website = entity.website, reference = entity.reference, notes = entity.notes,
         completionScore = entity.completionScore, avatarPath = entity.avatarPath,
         sourceDocumentId = entity.sourceDocumentId, sourceEntityName = entity.sourceEntityName,
+        relationship = relationshipOf(entity.relationship), birthDate = entity.birthDate,
+        sensitive = entity.sensitive,
         createdAt = entity.createdAt, modifiedAt = entity.modifiedAt,
     )
 
@@ -141,6 +159,8 @@ class ProfileRepositoryImpl @Inject constructor(
         completionScore = profile.completionScore, missingFields = null,
         avatarPath = profile.avatarPath,
         sourceDocumentId = profile.sourceDocumentId, sourceEntityName = profile.sourceEntityName,
+        relationship = profile.relationship?.name, birthDate = profile.birthDate,
+        sensitive = profile.sensitive,
         createdAt = profile.createdAt, modifiedAt = profile.modifiedAt,
     )
 }
