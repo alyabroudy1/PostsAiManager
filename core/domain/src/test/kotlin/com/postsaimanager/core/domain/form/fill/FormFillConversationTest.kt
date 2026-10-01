@@ -522,6 +522,23 @@ class FormFillConversationTest {
     }
 
     @Test
+    fun `someone else for a role asks the name in the chat, whatever it looks like, and fills the name fields`() = runTest {
+        val h = FillHarness(withPartner = true)
+        h.startForAhmad() // two guardians: the guardian question is asked
+        assertThat(h.lastQuestion().first.text).isEqualTo(FormText.ASK_GUARDIAN)
+        assertThat(h.lastQuestion().first.chips.map(h::shown)).containsAtLeast("Me", "Anna", FormChipLabel.SOMEONE_ELSE.name)
+
+        h.tap(FormChipLabel.SOMEONE_ELSE.name)
+        assertThat(h.lastQuestion().first.text).isEqualTo(FormText.ASK_ROLE_NAME)
+        h.model.intents["Max Test"] = FormIntent.SKIP // a name must not be read as an intent
+        h.say("Max Test")
+
+        assertThat(h.field("Name der Erziehungsberechtigten").value).isEqualTo("Max Test")
+        assertThat(h.field("Name der Erziehungsberechtigten").valueSource).isEqualTo(FormValueSource.USER)
+        assertThat(h.fill().roleProfiles[FormRole.GUARDIAN]).isEqualTo("")
+    }
+
+    @Test
     fun `a document whose OCR changed is read again`() = runTest {
         val h = FillHarness()
         h.startForAhmad()

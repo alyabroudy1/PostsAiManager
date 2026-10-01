@@ -148,6 +148,13 @@ class FormFillConversation(
             startLocked(documentId)
             return@withLock FormRoute.HANDLED
         }
+        // A typed name is the answer to its own question: it is not read for an intent (a name can look like any of them).
+        val naming = fill.awaiting?.takeIf { it.kind == FormAwaitKind.ROLE && it.value == NAME_ASKED }
+        if (naming != null) {
+            userSaid(documentId, text)
+            acceptRoleName(fill, naming, text)
+            return@withLock FormRoute.HANDLED
+        }
         val intent = classifier.classify(describeAwaiting(fill), text)
         trace.event("route", "fill=${fill.id} status=${fill.status} intent=$intent")
         // An answer is a value (a name, a number), a poor sign of the language; anything else the user says is a sentence.
