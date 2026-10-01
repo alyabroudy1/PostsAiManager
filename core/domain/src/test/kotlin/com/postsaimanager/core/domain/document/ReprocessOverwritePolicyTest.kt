@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.document
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.usecase.ObserveChatVisibleDocumentsUseCase
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.FamilySource
@@ -40,7 +41,7 @@ class ReprocessOverwritePolicyTest {
 
     @Test
     fun `the model's family, topics and confidence replace those it chose before, and the layout template is always the latest`() {
-        val before = doc().copy(extractionType = "official_letter", topics = listOf("health"), layoutTemplate = "old")
+        val before = doc().copy(extractionType = "official_letter", topics = listOf("government"), layoutTemplate = "old")
         val after = ReprocessOverwritePolicy.applyFamily(before, read)
         assertThat(after.extractionType).isEqualTo("invoice_bill")
         assertThat(after.topics).containsExactly("tax")
@@ -81,6 +82,55 @@ class ReprocessOverwritePolicyTest {
         assertThat(ReprocessOverwritePolicy.applyLateTopics(doc(), late).topics).containsExactly("tax", "government").inOrder()
         assertThat(ReprocessOverwritePolicy.applyLateTopics(doc(family = FamilySource.USER), late).topics).isEmpty()
         assertThat(ReprocessOverwritePolicy.applyLateTopics(doc().copy(topics = listOf("health")), DocumentUnderstanding()).topics).containsExactly("health")
+    }
+
+    @Test
+    fun `a first stage with no topics scored keeps the stored topics`() {
+        val before = doc().copy(extractionType = "official_letter", topics = listOf("government"))
+        val after = ReprocessOverwritePolicy.applyFamily(before, read.copy(topics = emptyList()))
+        assertThat(after.extractionType).isEqualTo("invoice_bill")
+        assertThat(after.topics).containsExactly("government")
+    }
+
+    @Test
+    fun `a stored sensitive topic survives a re-read that scores other topics, in both stages`() {
+        val before = doc().copy(extractionType = "medical", topics = listOf("health"))
+        assertThat(ReprocessOverwritePolicy.applyFamily(before, read.copy(documentType = "medical")).topics).containsExactly("tax", "health")
+        assertThat(ReprocessOverwritePolicy.applyLateTopics(before, DocumentUnderstanding(topics = listOf("tax"))).topics).containsExactly("tax", "health")
+    }
+
+    @Test
+    fun `a stored sensitive family is not replaced by a non-sensitive model family`() {
+        val before = doc().copy(extractionType = "medical", extractionTypeConfidence = 0.7f, topics = listOf("health"))
+        val after = ReprocessOverwritePolicy.applyFamily(before, read)
+        assertThat(after.extractionType).isEqualTo("medical")
+        assertThat(after.extractionTypeConfidence).isEqualTo(0.7f)
+        assertThat(after.topics).contains("health")
+    }
+
+    @Test
+    fun `a legacy health type keeps its sensitive family and topic through a re-read`() {
+        val before = doc().copy(extractionType = "health", topics = emptyList())
+        val after = ReprocessOverwritePolicy.applyFamily(before, read.copy(documentType = "official_letter", topics = emptyList()))
+        assertThat(after.extractionType).isEqualTo("medical")
+        assertThat(after.topics).containsExactly("health")
+    }
+
+    @Test
+    fun `a person's forced family drops the sensitivity the person did not choose`() {
+        val before = doc().copy(extractionType = "medical", topics = listOf("health"))
+        val after = ReprocessOverwritePolicy.applyFamily(before, read, forcedFamily = "invoice_bill")
+        assertThat(after.extractionType).isEqualTo("invoice_bill")
+        assertThat(after.topics).containsExactly("tax")
+    }
+
+    @Test
+    fun `a migrated medical letter re-read as an official letter stays out of the all-documents chat`() {
+        val migrated = doc().copy(extractionType = "medical", topics = listOf("health"))
+        val reread = ReprocessOverwritePolicy.applyFamily(migrated, read.copy(documentType = "official_letter", topics = emptyList()))
+        assertThat(ObserveChatVisibleDocumentsUseCase.isChatVisible(reread)).isFalse()
+        val late = ReprocessOverwritePolicy.applyLateTopics(reread, DocumentUnderstanding(topics = listOf("government")))
+        assertThat(ObserveChatVisibleDocumentsUseCase.isChatVisible(late)).isFalse()
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.postsaimanager.core.domain.document
 
+import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.FamilySource
@@ -43,16 +45,48 @@ object ReprocessOverwritePolicy {
             forcedFamily != null -> withLayout.copy(
                 extractionType = family, extractionTypeConfidence = read.documentTypeConfidence, topics = read.topics, familySource = FamilySource.USER,
             )
-            mayOverwriteFamily(document) -> withLayout.copy(
-                extractionType = family, extractionTypeConfidence = read.documentTypeConfidence, topics = read.topics,
-            )
+            mayOverwriteFamily(document) -> {
+                val keptFamily = stickySensitiveFamily(document)?.takeIf { SCHEMA.family(family)?.sensitive != true }
+                withLayout.copy(
+                    extractionType = keptFamily ?: family,
+                    extractionTypeConfidence = if (keptFamily != null) document.extractionTypeConfidence else read.documentTypeConfidence,
+                    // An empty list means "not scored yet" (a first stage that leaves topics to the second), not "no topics".
+                    topics = withStickySensitive(document, read.topics.ifEmpty { document.topics }),
+                )
+            }
             else -> withLayout
         }
     }
 
-    /** The topics a second stage scored (a profile that leaves them out of the first): stored where the family is the model's to set. */
-    fun applyLateTopics(document: Document, read: DocumentUnderstanding): Document =
-        if (mayOverwriteFamily(document) && read.topics.isNotEmpty() && read.topics != document.topics) document.copy(topics = read.topics) else document
+    /**
+     * The topics a second stage scored (a profile that leaves them out of the first): stored where the family is the model's to set.
+     * A sensitive topic already stored stays, whatever the model scored.
+     */
+    fun applyLateTopics(document: Document, read: DocumentUnderstanding): Document {
+        if (!mayOverwriteFamily(document) || read.topics.isEmpty()) return document
+        val topics = withStickySensitive(document, read.topics)
+        return if (topics != document.topics) document.copy(topics = topics) else document
+    }
+
+    /**
+     * Sensitivity is sticky across every model re-read: only a person's action (Change type, an edit) may drop it. The sensitive topics
+     * the document carries, including those its legacy type stands for ([LegacyTypes]), are kept in [topics].
+     */
+    private fun withStickySensitive(document: Document, topics: List<String>): List<String> {
+        val legacyTopics = LegacyTypes.of(document.extractionType)?.topics.orEmpty()
+        val sticky = (document.topics + legacyTopics).filter { SCHEMA.topic(it)?.sensitive == true }.distinct()
+        return topics + sticky.filter { id -> topics.none { it.equals(id, ignoreCase = true) } }
+    }
+
+    /** The stored family id when it, or the family its legacy type stands for, is sensitive; else null. */
+    private fun stickySensitiveFamily(document: Document): String? {
+        val type = document.extractionType
+        SCHEMA.family(type)?.takeIf { it.sensitive }?.let { return it.id }
+        val legacyFamily = LegacyTypes.of(type)?.family
+        return SCHEMA.family(legacyFamily)?.takeIf { it.sensitive }?.id
+    }
+
+    private val SCHEMA get() = ExtractionSchema.DEFAULT
 
     /**
      * The composed title ([DocumentUnderstanding.titleCode] with its args), where [DocumentTitlePolicy] allows: over an app default or an
