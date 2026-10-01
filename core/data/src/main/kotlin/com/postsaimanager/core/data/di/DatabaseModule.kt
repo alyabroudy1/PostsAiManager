@@ -9,6 +9,7 @@ import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.data.database.dao.DocumentChunkDao
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
+import com.postsaimanager.core.data.database.dao.FormFillDao
 import com.postsaimanager.core.data.database.dao.MessageDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
 import com.postsaimanager.core.data.database.dao.ProfileFactDao
@@ -68,4 +69,7 @@ object DatabaseModule {
 
     @Provides
     fun provideProfileFactDao(database: PamDatabase): ProfileFactDao = database.profileFactDao()
+
+    @Provides
+    fun provideFormFillDao(database: PamDatabase): FormFillDao = database.formFillDao()
 }

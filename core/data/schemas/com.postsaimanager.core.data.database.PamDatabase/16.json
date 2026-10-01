@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 16,
-    "identityHash": "28cddb2cdbf3ba5be0f4745cb84a3169",
+    "identityHash": "6074063cfe406cc7e2d3a5aab2df136a",
     "entities": [
       {
         "tableName": "documents",
@@ -1762,12 +1762,303 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "form_fills",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `documentId` TEXT NOT NULL, `status` TEXT NOT NULL, `roleProfiles` TEXT NOT NULL, `confirmedRoles` TEXT NOT NULL, `conversationId` TEXT, `currentFieldId` TEXT, `localeTag` TEXT, `awaiting` TEXT, `roundAsked` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`documentId`) REFERENCES `documents`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "documentId",
+            "columnName": "documentId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "roleProfiles",
+            "columnName": "roleProfiles",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confirmedRoles",
+            "columnName": "confirmedRoles",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "conversationId",
+            "columnName": "conversationId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "currentFieldId",
+            "columnName": "currentFieldId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "localeTag",
+            "columnName": "localeTag",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "awaiting",
+            "columnName": "awaiting",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "roundAsked",
+            "columnName": "roundAsked",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_form_fills_documentId",
+            "unique": false,
+            "columnNames": [
+              "documentId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_form_fills_documentId` ON `${TABLE_NAME}` (`documentId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "documents",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "documentId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "form_fields",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `formFillId` TEXT NOT NULL, `documentId` TEXT NOT NULL, `page` INTEGER NOT NULL, `labelText` TEXT NOT NULL, `labelBox` TEXT, `fillBox` TEXT, `kind` TEXT NOT NULL, `section` TEXT, `options` TEXT, `dataKey` TEXT, `role` TEXT, `confidence` REAL NOT NULL, `value` TEXT, `valueSource` TEXT NOT NULL, `profileId` TEXT, `reviewState` TEXT NOT NULL, `required` INTEGER NOT NULL, `alreadyFilled` TEXT, `reconfirm` INTEGER NOT NULL, `skipped` INTEGER NOT NULL, `orderIndex` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`formFillId`) REFERENCES `form_fills`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "formFillId",
+            "columnName": "formFillId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "documentId",
+            "columnName": "documentId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "page",
+            "columnName": "page",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "labelText",
+            "columnName": "labelText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "labelBox",
+            "columnName": "labelBox",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "fillBox",
+            "columnName": "fillBox",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "section",
+            "columnName": "section",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "options",
+            "columnName": "options",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "dataKey",
+            "columnName": "dataKey",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "role",
+            "columnName": "role",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "valueSource",
+            "columnName": "valueSource",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "reviewState",
+            "columnName": "reviewState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "required",
+            "columnName": "required",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "alreadyFilled",
+            "columnName": "alreadyFilled",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "reconfirm",
+            "columnName": "reconfirm",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "skipped",
+            "columnName": "skipped",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orderIndex",
+            "columnName": "orderIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_form_fields_formFillId",
+            "unique": false,
+            "columnNames": [
+              "formFillId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_form_fields_formFillId` ON `${TABLE_NAME}` (`formFillId`)"
+          },
+          {
+            "name": "index_form_fields_documentId",
+            "unique": false,
+            "columnNames": [
+              "documentId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_form_fields_documentId` ON `${TABLE_NAME}` (`documentId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "form_fills",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "formFillId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '28cddb2cdbf3ba5be0f4745cb84a3169')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6074063cfe406cc7e2d3a5aab2df136a')"
     ]
   }
 }

@@ -470,7 +470,8 @@ object PamMigrations {
 
     /**
      * v15 to v16 (form assist, additive; v16 is unreleased, so later form-assist tables join this migration through
-     * [FormAssistSchemaSql]): the family-profile columns on `profiles` and the `profile_facts` table.
+     * [FormAssistSchemaSql]): the family-profile columns on `profiles`, the `profile_facts` table and the form-filling
+     * conversation's `form_fills` and `form_fields` tables.
      */
     val MIGRATION_15_16 = object : Migration(15, 16) {
         override fun migrate(db: SupportSQLiteDatabase) {

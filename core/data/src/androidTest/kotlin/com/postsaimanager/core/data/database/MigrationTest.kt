@@ -869,6 +869,12 @@ class MigrationTest {
                 VALUES ('p1', 'FAMILY_MEMBER', 'Ahmad', 0.5, 1, 1)
                 """.trimIndent(),
             )
+            execSQL(
+                """
+                INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus)
+                VALUES ('doc-1', 'Anmeldung', 'EXTRACTED', 'CAMERA', 2, 0, 1, 1, 'LOCAL')
+                """.trimIndent(),
+            )
             close()
         }
 
@@ -904,6 +910,30 @@ class MigrationTest {
         db.query("SELECT COUNT(*) FROM profile_facts").use { c ->
             assertTrue(c.moveToFirst())
             assertEquals("facts go with their profile", 0, c.getInt(0))
+        }
+
+        // The form-filling conversation: a fill per document, fields per fill, both gone with their parent.
+        db.execSQL(
+            """
+            INSERT INTO form_fills (id, documentId, status, roleProfiles, confirmedRoles, conversationId, currentFieldId,
+                                    localeTag, awaiting, roundAsked, createdAt, updatedAt)
+            VALUES ('fill-doc-1', 'doc-1', 'ASKING', '{}', '[]', 'conv-doc-1', NULL, 'de', NULL, 0, 1, 1)
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO form_fields (id, formFillId, documentId, page, labelText, labelBox, fillBox, kind, section, options,
+                                     dataKey, role, confidence, value, valueSource, profileId, reviewState, required,
+                                     alreadyFilled, reconfirm, skipped, orderIndex, updatedAt)
+            VALUES ('f1', 'fill-doc-1', 'doc-1', 1, 'Name des Kindes', NULL, NULL, 'TEXT', NULL, NULL,
+                    'full_name', 'SUBJECT', 0.9, NULL, 'NONE', NULL, 'UNREVIEWED', 0, NULL, 0, 0, 0, 1)
+            """.trimIndent(),
+        )
+        db.execSQL("DELETE FROM documents WHERE id = 'doc-1'")
+        db.query("SELECT (SELECT COUNT(*) FROM form_fills), (SELECT COUNT(*) FROM form_fields)").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("a fill goes with its document", 0, c.getInt(0))
+            assertEquals("its fields go with it", 0, c.getInt(1))
         }
     }
 

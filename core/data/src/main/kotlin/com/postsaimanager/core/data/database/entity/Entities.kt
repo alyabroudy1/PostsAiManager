@@ -148,6 +148,76 @@ data class ProfileFactEntity(
 )
 
 /**
+ * One fill of a document's form (see `FormFill`): the conversation's state. `roleProfiles`, `confirmedRoles` and `awaiting` are
+ * JSON text (lenient on read, see `FormFillMapper`). Gone with its document.
+ */
+@Entity(
+    tableName = "form_fills",
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("documentId")],
+)
+data class FormFillEntity(
+    @PrimaryKey val id: String,
+    val documentId: String,
+    val status: String,
+    val roleProfiles: String,
+    val confirmedRoles: String,
+    val conversationId: String?,
+    val currentFieldId: String?,
+    val localeTag: String?,
+    val awaiting: String?,
+    val roundAsked: Int,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
+
+/** One blank of a form (see `FormField`); `labelBox`, `fillBox` and `options` are JSON text. Gone with its fill. */
+@Entity(
+    tableName = "form_fields",
+    foreignKeys = [
+        ForeignKey(
+            entity = FormFillEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["formFillId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("formFillId"), Index("documentId")],
+)
+data class FormFieldEntity(
+    @PrimaryKey val id: String,
+    val formFillId: String,
+    val documentId: String,
+    val page: Int,
+    val labelText: String,
+    val labelBox: String?,
+    val fillBox: String?,
+    val kind: String,
+    val section: String?,
+    val options: String?,
+    val dataKey: String?,
+    val role: String?,
+    val confidence: Float,
+    val value: String?,
+    val valueSource: String,
+    val profileId: String?,
+    val reviewState: String,
+    val required: Boolean,
+    val alreadyFilled: String?,
+    val reconfirm: Boolean,
+    val skipped: Boolean,
+    val orderIndex: Int,
+    val updatedAt: Long,
+)
+
+/**
  * A recognised entity the user has said no to for one document — either by dismissing a
  * proposal outright, or by deleting a profile [EntityLinkingUseCase] auto-created from it.
  *
