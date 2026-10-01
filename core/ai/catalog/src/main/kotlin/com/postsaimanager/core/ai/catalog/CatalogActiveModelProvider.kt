@@ -48,6 +48,8 @@ class CatalogActiveModelProvider @Inject constructor(
 
     override suspend fun extractionModelId(): String? = installedStore.extractionModel()?.descriptorId
 
+    override suspend fun activeModelId(): String? = installedStore.activeModel()?.descriptorId
+
     /**
      * Sizes context, threads and the rest of [InferenceConfig] to what the device can
      * currently afford — see [InferenceConfig.defaults] for the heuristics, which used to

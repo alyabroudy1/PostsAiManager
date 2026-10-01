@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.extraction.zones
 
+import com.postsaimanager.core.domain.agent.AgentProfile
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.address.LineAsk
@@ -42,6 +43,8 @@ data class ModelProfile(
     val restateOptions: Boolean = false,
     val scoring: ScoringProfile = ScoringProfile(),
     val topicsInFirstStage: Boolean = true,
+    /** How the model runs as a tool-calling agent (the form-filling chat): its tool-call format and the limits of a run. */
+    val agent: AgentProfile = AgentProfile(),
 )
 
 /** The registry of profiles, keyed by catalogue model id. */

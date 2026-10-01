@@ -309,6 +309,12 @@ interface ActiveModelProvider {
     suspend fun activeModelConfig(): InferenceConfig
 
     /**
+     * The catalogue id of the chat model (`AiModelDescriptor.id`), which picks its agent settings (`ModelProfiles`, the
+     * form-filling chat); null when unknown or side-loaded, and the default agent settings are used.
+     */
+    suspend fun activeModelId(): String? = null
+
+    /**
      * The model that reads documents, which need not be the one that chats.
      *
      * They are different jobs. Chat is interactive, so a reply that starts quickly matters
