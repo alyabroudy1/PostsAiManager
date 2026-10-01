@@ -38,9 +38,57 @@ internal class FormPageScanner(private val page: FormPage) {
     fun scan(): List<RawField> {
         boxes()
         runs()
+        optionRows()
         tables()
         labelSpace()
-        return out
+        return out.filterNot { !it.evidence.strong && inEdgeBand(it) }
+    }
+
+    /** A weak blank in the top or bottom margin is a letterhead, a page number or a footer, never a field. */
+    private fun inEdgeBand(f: RawField): Boolean {
+        val box = f.labelBox ?: return false
+        return box.bottom <= EDGE_BAND || box.top >= 1f - EDGE_BAND
+    }
+
+    // ── Options whose boxes were drawn ──
+
+    /**
+     * A row of short evenly spaced items after a label (on the row before it, or at its start), with no fill or box glyph, is one
+     * choice: the items are its options. The label may be a heading-like line: a section that is only a choice.
+     */
+    private fun optionRows() {
+        for (row in rows) {
+            val toks = row.toks
+            if (toks.any { it in used || it.kind != TokKind.TEXT }) continue
+            val lead = toks.first()
+            val ledByLabel = toks.size > 2 && (FormShapes.endsWithColon(lead.text) || lead.text.trimEnd().endsWith('?') || lead.text.length > MAX_OPTION_CHARS) &&
+                page.isOptionItems(toks.drop(1))
+            val label: Tok
+            val items: List<Tok>
+            if (ledByLabel) {
+                label = lead
+                items = toks.drop(1)
+            } else if (page.isOptionItems(toks)) {
+                label = optionLabelAbove(row) ?: continue
+                items = toks
+            } else {
+                continue
+            }
+            val name = FormShapes.cleanLabel(label.text) ?: continue
+            used += label
+            used += items
+            out += RawField(
+                row.index, label.uLeft, name, page.box(label), union(items), FormFieldKind.CHOICE, FieldEvidence.OPTION_ROW,
+                options = items.mapNotNull { FormShapes.cleanLabel(it.text) },
+            )
+        }
+    }
+
+    /** The label of an option row: the lone line right above it (a heading-like line included), when it is unused and has no fill. */
+    private fun optionLabelAbove(row: FormRow): Tok? {
+        val prev = page.rows.getOrNull(row.index - 1) ?: return null
+        if (prev.has(TokKind.RUN) || prev.has(TokKind.BOX) || row.top - prev.bottom > MAX_LABEL_GAP * row.height) return null
+        return prev.texts.singleOrNull()?.takeIf { it !in used && it.hasLetter && prev.toks.size == 1 }
     }
 
     // ── Box glyphs ──
@@ -282,5 +330,6 @@ internal class FormPageScanner(private val page: FormPage) {
         const val EDGE = 0.005f
         const val PARAGRAPH_WIDTH = 0.55f
         const val BLANK_LINES = 1.9f
+        const val EDGE_BAND = 0.07f
     }
 }

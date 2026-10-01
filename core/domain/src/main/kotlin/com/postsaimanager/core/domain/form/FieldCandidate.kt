@@ -19,6 +19,9 @@ enum class FieldEvidence(val strong: Boolean) {
 
     /** A label followed by an empty line under it. */
     LINE_UNDER_LABEL(false),
+
+    /** Short evenly spaced items after a label, with no fill or box glyph: options whose boxes were drawn (OCR cannot see them). */
+    OPTION_ROW(false),
 }
 
 /**

@@ -18,10 +18,37 @@ internal class FormRow(val index: Int, val toks: List<Tok>) {
 /** One page as rows of tokens, with what the geometric steps need to know about it. */
 internal class FormPage(val number: Int, val rtl: Boolean, val rows: List<FormRow>, val medianHeight: Float) {
 
-    /** A row that is one short line set noticeably larger than the page's text: a heading, by shape. */
+    /**
+     * A row that is one short line with no fill of its own, by shape: set noticeably larger than the page's text, or (when it is
+     * set only slightly larger, as a bold line of the same size often is) one that leads a block: a colon-less line with more
+     * space above than the lines have between them, followed by a line of labels or fields rather than by options.
+     */
     fun isHeading(row: FormRow): Boolean {
         val only = row.toks.singleOrNull() ?: return false
-        return only.kind == TokKind.TEXT && only.hasLetter && only.height >= HEADING_FACTOR * medianHeight && only.width <= HEADING_MAX_WIDTH
+        if (only.kind != TokKind.TEXT || !only.hasLetter || only.width > HEADING_MAX_WIDTH) return false
+        if (only.height >= HEADING_FACTOR * medianHeight) return true
+        if (FormShapes.endsWithColon(only.text) || only.text.trimEnd().endsWith('?') || only.text.length > HEADING_MAX_CHARS) return false
+        val prev = rows.getOrNull(row.index - 1)
+        val next = rows.getOrNull(row.index + 1) ?: return false
+        val spaced = prev == null || row.top - prev.bottom >= BLOCK_GAP * row.height
+        val sameSize = only.height >= SOFT_HEADING_FACTOR * medianHeight
+        return spaced && sameSize && next.texts.isNotEmpty() && !next.has(TokKind.BOX) && !isOptionRow(next) &&
+            next.top - row.bottom <= BLOCK_GAP * row.height
+    }
+
+    /**
+     * A row of two to six short items spread evenly along it with no fill characters: the printed options of a choice whose boxes
+     * were drawn (invisible to OCR), so nothing marks them but their shape.
+     */
+    fun isOptionRow(row: FormRow): Boolean = isOptionItems(row.toks)
+
+    /** [items] (tokens of one row, in reading order) are such options. */
+    fun isOptionItems(items: List<Tok>): Boolean {
+        if (items.size !in 2..MAX_OPTIONS || items.any { it.kind != TokKind.TEXT || !it.hasLetterOrDigit || it.text.length > MAX_OPTION_CHARS }) return false
+        if (items.any { FormShapes.endsWithColon(it.text) }) return false
+        val gaps = items.zipWithNext { a, b -> b.uLeft - a.uRight }
+        if (gaps.any { it < MIN_OPTION_GAP }) return false
+        return gaps.max() <= EVEN_FACTOR * gaps.min() + EVEN_SLACK
     }
 
     /** The box of a region given in reading-direction coordinates, in page coordinates. */
@@ -37,7 +64,15 @@ internal class FormPage(val number: Int, val rtl: Boolean, val rows: List<FormRo
 
     companion object {
         private const val HEADING_FACTOR = 1.25f
+        private const val SOFT_HEADING_FACTOR = 0.95f
         private const val HEADING_MAX_WIDTH = 0.9f
+        private const val HEADING_MAX_CHARS = 40
+        private const val BLOCK_GAP = 1.5f
+        private const val MAX_OPTIONS = 6
+        private const val MAX_OPTION_CHARS = 28
+        private const val MIN_OPTION_GAP = 0.015f
+        private const val EVEN_FACTOR = 3f
+        private const val EVEN_SLACK = 0.04f
 
         /** Lines closer than this (or half their height) vertically are on one row. */
         private const val ROW_TOLERANCE = 0.006f

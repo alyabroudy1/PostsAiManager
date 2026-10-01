@@ -25,6 +25,7 @@ internal class Tok(
     val centerY: Float get() = (top + bottom) / 2f
     val centerU: Float get() = (uLeft + uRight) / 2f
     val hasLetter: Boolean get() = text.any { it.isLetter() }
+    val hasLetterOrDigit: Boolean get() = text.any { it.isLetterOrDigit() }
 }
 
 /**

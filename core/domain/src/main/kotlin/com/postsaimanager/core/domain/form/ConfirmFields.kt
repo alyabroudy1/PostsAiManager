@@ -23,5 +23,8 @@ class ConfirmFields(
         return candidates.filter { it.strong || it in keep }
     }
 
-    private fun question(c: FieldCandidate) = "Is «${c.labelText} …» something the reader must fill in? Answer:"
+    private fun question(c: FieldCandidate): String {
+        val options = if (c.options.size >= 2) " with the options «${c.options.joinToString(" | ")}»" else ""
+        return "Is «${c.labelText} …»$options something the reader must fill in? Answer:"
+    }
 }
