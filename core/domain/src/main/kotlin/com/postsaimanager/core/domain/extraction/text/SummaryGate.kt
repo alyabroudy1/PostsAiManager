@@ -10,7 +10,8 @@ import com.postsaimanager.core.domain.extraction.v2.QuoteVerifier
  *
  * 1. **Numbers.** Every digit run, amount and date in the answer must occur in the letter's text or in the verified facts.
  *    Both sides are folded by [QuoteVerifier.fold], so Arabic-Indic digits and separators compare equal to Western ones.
- * 2. **Names.** Every span of two or more capitalised words must be a verified name or a quote of the letter. A sentence's
+ * 2. **Names.** Every span of two or more capitalised words must be made only of words that occur in the letter or in the
+ *    verified facts (a span with a word the letter never printed is an invented name). A sentence's
  *    first word is never the start of a span (a capital there says nothing). A script without capitals has no spans,
  *    so this check simply finds nothing to reject.
  * 3. **Anti-copy.** The answer is rejected when one line of the letter holds at least [COPY_SHARE] of its words: small
@@ -59,9 +60,12 @@ class SummaryGate {
     // ── names ────────────────────────────────────────────────────────────────
 
     private fun unverifiedName(answer: String, corpus: String): String? {
+        val known = tokens(corpus).toSet()
         for (sentence in answer.split(SENTENCE_END)) {
             for (span in capitalisedSpans(sentence)) {
-                if (QuoteVerifier.verify(span, corpus) == null) return span
+                // A span is a name the letter never gave only when one of its words is not in the letter at all. A run of
+                // words that are all there ("Sie Ihre Rechnung": German capitalises its nouns and polite pronouns) is not a name.
+                if (tokens(span).any { it !in known }) return span
             }
         }
         return null

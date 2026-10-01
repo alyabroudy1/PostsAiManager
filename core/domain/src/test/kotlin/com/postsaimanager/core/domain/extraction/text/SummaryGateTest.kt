@@ -63,6 +63,13 @@ class SummaryGateTest {
     }
 
     @Test
+    fun `a german summary with capitalised nouns made of the letter's own words is accepted`() {
+        // "Sie Ihre Rechnung" is capitalised German, not a name; every word is in the letter.
+        val text = "Rechnung vom Musterfirma GmbH\nBitte begleichen\nSie die Summe\nIhre Zahlung\nIhre Rechnung\nfällig 19.08.2026"
+        assertThat(reason("Bitte, dass Sie Ihre Rechnung bis 19.08.2026 begleichen.", text = text)).isNull()
+    }
+
+    @Test
     fun `a name that is only in the facts is accepted`() {
         assertThat(reason("Die Zahlung geht an Anna Beispiel.", values = facts + "Anna Beispiel")).isNull()
     }
