@@ -145,8 +145,26 @@ R8 on. Open items:
 - ROLE_TYPED bug (agent-5, 2B: after the user typed the payer's name the model kept calling `ask_user` until
   `StepLimit`): FIXED in code (commit d88a7a2, agent-6): that stage exposes only `fill_field` and `skip_field`, the
   suggestion names the exact call, a refused fill repeats it and the second refusal skips the field with a status line
-  (`documentation/10-on-device-agent.md` 6d). NOT yet verified on the device. "Remember for <person>" and Saved
-  details are not yet verified on the device either.
+  (`documentation/10-on-device-agent.md` 6d). VERIFIED on the device (agent-6, 2B): after the typed payer name the
+  next step was `fill_field` with `tools_now=[fill_field|skip_field]`, the name was filled (5/14) and the run moved on.
+- Latest device run (agent-6, 2B, invented swim form; screenshots in `artifacts/smoke-agent7/`) reached 6 of 14,
+  then hit `StepLimit`. Open problems, most important first, which are the next round:
+  1. **Wrong field meanings from the form understanding** (this is the reading step, not the agent):
+     - `fill_from_profile` put Vorname="Test Kind", Nachname="Kind" and Anschrift="12.03.2019" (the birth date);
+     - the guardian's typed name went into "Telefon (Notfall)".
+     The next step is to capture the real OCR of the test form via the `FormOcr` trace (debug allowlist
+     `files/debug-trace-docs.txt`, only for the invented test document) and fix the key/role classification against
+     it on the JVM.
+  2. **The user-words check rejects verbatim answers:** `fill_field` got "is not what the user wrote" for the exact typed
+     "Test Kind" / "Test". That's a bug in `FieldValueGuard`'s user-reply source. The model then re-asked name/birth
+     date until `StepLimit`.
+  3. **First question:** it was "Welches Formular soll ich ausfüllen?" with no person chips. It should always be "who
+     is it for" with the managed people as chips.
+  4. **Slowness:** model calls went from 5–8 s to 60–73 s per step mid-run (2B). The cause is unknown (memory
+     pressure, or context growth with no rebuild?). Check `ctx_tokens`/`rebuilt` in the FormAgent trace.
+  5. An old failed transcript auto-resumed and its first attempt failed. Never auto-resume a FAILED run; offer Start
+     over.
+  "Remember for <person>" and Saved details are still not verified on the device (the run never reached them).
 - Test phone state: the chat model is Qwen3.5-0.8B again; the 2B is installed as the form model.
 - Honest risk: a 0.8B model is weak at multi-step tool use. Next steps: finish the device passes, decide whether the 2B
   "thorough" profile is needed, then turn the flag on for a later release (1.1) rather than 1.0.
