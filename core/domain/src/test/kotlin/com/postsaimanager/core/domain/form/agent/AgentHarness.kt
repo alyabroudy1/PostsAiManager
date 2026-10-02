@@ -113,11 +113,15 @@ class AgentHarness(
         )
     }
 
-    private val activeModels = mockk<ActiveModelProvider> { coEvery { activeModelId() } returns null }
+    private val activeModels = mockk<ActiveModelProvider> {
+        coEvery { activeModelId() } returns null
+        coEvery { formModelId() } returns null
+    }
 
     var agent = newAgent()
 
-    fun newAgent() = FormFillAgent(fills, documents, log, tools, model, FillRequestDetector(scoringModel, embedder), activeModels, clock = { nowMs })
+    fun newAgent(agentTrace: com.postsaimanager.core.domain.agent.AgentTrace = com.postsaimanager.core.domain.agent.AgentTrace.NONE) =
+        FormFillAgent(fills, documents, log, tools, model, FillRequestDetector(scoringModel, embedder), activeModels, clock = { nowMs }, agentTrace = agentTrace)
 
     // ── Scripting the model: a call is written the way the model's own template would ──
 
@@ -153,7 +157,7 @@ class AgentHarness(
     suspend fun messages(): List<AiMessage> = conversations.getMessages("conv-doc").first()
 
     /** What the chat renders (status lines, questions, cards, page chips), in order. */
-    suspend fun shown(): List<Pair<FormMessage, String>> = messages().mapNotNull { m -> FormMessageCodec.parse(m)?.let { it to m.content } }
+    suspend fun shown(): List<Pair<FormMessage, String>> = FormMessageCodec.rendered(messages()).mapNotNull { m -> FormMessageCodec.parse(m)?.let { it to m.content } }
 
     suspend fun fields(): List<FormField> = fills.fields("fill-doc")
 

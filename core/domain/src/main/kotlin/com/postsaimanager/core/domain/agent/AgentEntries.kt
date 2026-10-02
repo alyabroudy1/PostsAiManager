@@ -40,6 +40,8 @@ class AgentContext(
     val previousTurnEnd: AgentEntry.Call?,
     /** Whether the current turn began with a message the user wrote (not the opening instruction or a continue). */
     val turnStartedByUser: Boolean,
+    /** Every entry of the run so far, oldest first (a tool may look back, for example to see what the user already answered). */
+    val entries: List<AgentEntry> = emptyList(),
 ) {
     val hasUserReply: Boolean get() = userReplies.isNotEmpty()
 
@@ -52,6 +54,7 @@ class AgentContext(
                 turnCalls = if (lastUser < 0) entries.filterIsInstance<AgentEntry.Call>() else entries.drop(lastUser + 1).filterIsInstance<AgentEntry.Call>(),
                 previousTurnEnd = entries.getOrNull(lastUser - 1) as? AgentEntry.Call,
                 turnStartedByUser = user != null && !user.isStart,
+                entries = entries,
             )
         }
     }

@@ -2,6 +2,7 @@ package com.postsaimanager
 
 import android.content.Context
 import android.util.Log
+import com.postsaimanager.core.domain.agent.AgentTrace
 import com.postsaimanager.core.domain.form.fill.AllowlistedFormOcrTrace
 import com.postsaimanager.core.domain.form.fill.FormFillTrace
 import com.postsaimanager.core.domain.form.fill.FormOcrTrace
@@ -24,12 +25,19 @@ object FormFillTraceModule {
 
     private const val TAG = "FormFill"
     private const val OCR_TAG = "FormOcr"
+    private const val AGENT_TAG = "FormAgent"
     private const val ALLOWLIST = "debug-trace-docs.txt"
 
     @Provides
     @Singleton
     fun provideFormFillTrace(): FormFillTrace =
         if (BuildConfig.DEBUG) FormFillTrace { name, details -> Log.d(TAG, "$name $details") } else FormFillTrace.NONE
+
+    /** One line per agent step in debug builds (tag `FormAgent`): tool, argument names, outcome, timings, session size. No values. */
+    @Provides
+    @Singleton
+    fun provideAgentTrace(): AgentTrace =
+        if (BuildConfig.DEBUG) AgentTrace { step -> Log.d(AGENT_TAG, step.line()) } else AgentTrace.NONE
 
     @Provides
     @Singleton

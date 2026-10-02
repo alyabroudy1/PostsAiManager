@@ -12,6 +12,9 @@
     <string name="form_agent_failed">Beim Ausfüllen des Formulars ist etwas schiefgegangen. Mit „Weiter“ versuche ich es erneut.</string>
 
     <!-- Chips -->
+    <string name="form_agent_resume_offer">Du hast dieses Formular schon angefangen. Dort weitermachen, wo du aufgehört hast, oder neu beginnen?</string>
+    <string name="form_agent_done_offer">Dieses Formular ist schon ausgefüllt. Neu beginnen?</string>
+    <string name="form_chip_start_over">Neu beginnen</string>
     <string name="form_chip_continue">Weiter</string>
     <string name="form_chip_download">Herunterladen</string>
     <string name="form_chip_description">Antwort: %1$s</string>

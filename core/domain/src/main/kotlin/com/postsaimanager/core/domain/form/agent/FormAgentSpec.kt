@@ -7,7 +7,6 @@ import com.postsaimanager.core.domain.agent.AgentTranscript
 import com.postsaimanager.core.domain.agent.ToolRegistry
 import com.postsaimanager.core.domain.agent.ToolResult
 import com.postsaimanager.core.domain.agent.string
-import com.postsaimanager.core.domain.form.fill.FillProgress
 import com.postsaimanager.core.domain.form.fill.FormMessageCodec
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.FormMessageKind
@@ -15,7 +14,6 @@ import com.postsaimanager.core.model.FormText
 import com.postsaimanager.core.model.MessageRole
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import java.util.Locale
 
 /**
  * The form agent as the loop sees it: what the model is told once (the instructions, with the language to speak), the compact
@@ -23,34 +21,21 @@ import java.util.Locale
  * failed steps. There is no question order and no wording in here: the instructions tell the model what the tools are for and
  * the model decides the rest.
  */
-class FormAgentSpec(private val env: FormToolEnv, override val tools: ToolRegistry) : AgentSpec {
+class FormAgentSpec(private val env: FormToolEnv, private val guidance: FormGuidance, override val tools: ToolRegistry) : AgentSpec {
 
     override val conversationId: String = "agent-${env.documentId}"
 
-    override suspend fun systemPrompt(): String = instructions(env.locale().getDisplayLanguage(Locale.ENGLISH))
+    override suspend fun systemPrompt(): String = instructions(guidance.languageName())
 
-    override suspend fun stateSummary(): String? {
-        val fields = env.fields()
-        if (fields.isEmpty()) return "The form has not been read yet: call read_form."
-        val people = env.managed()
-        val roles = env.fill()?.roleProfiles.orEmpty().mapNotNull { (role, id) ->
-            people.firstOrNull { it.id == id }?.let { "${role.name.lowercase()}=${it.name} (${FormRefs.personAlias(people, it)})" }
-        }
-        val progress = FillProgress.of(fields)
-        val open = FormRefs.open(fields)
-        return buildString {
-            append(if (roles.isEmpty()) "No person is chosen yet." else "People: ${roles.joinToString("; ")}.")
-            append(" Filled ${progress.ready} of ${progress.total}.")
-            if (open.isEmpty()) {
-                append(" Nothing is open.")
-            } else {
-                append(" Open: ")
-                append(open.take(MAX_OPEN_SHOWN).joinToString("; ") { "${FormRefs.fieldAlias(fields, it)} ${it.labelText}" })
-                if (open.size > MAX_OPEN_SHOWN) append("; +${open.size - MAX_OPEN_SHOWN} more")
-                append(".")
-            }
-        }
-    }
+    /** The STATE block (language, people, counts, the open fields and the suggested next step) that ends every tool result. */
+    override suspend fun stateSummary(): String? = guidance.state()
+
+    override suspend fun replyResult(call: AgentEntry.Call, text: String): ToolResult? =
+        if (call.name == AskUserTool.NAME) guidance.replyResult(call, text) else null
+
+    /** Only the question of an ask goes to the debug log (written by the model; never a stored value or the user's answer). */
+    override fun traceNote(call: AgentEntry.Call): String? =
+        if (call.name == AskUserTool.NAME) "question=\"${call.args.string("question").orEmpty()}\"" else null
 
     override suspend fun stuckHint(): String? {
         val fields = env.fields()
@@ -60,18 +45,23 @@ class FormAgentSpec(private val env: FormToolEnv, override val tools: ToolRegist
     }
 
     companion object {
-        private const val MAX_OPEN_SHOWN = 8
+        /**
+         * The version of the agent as stored runs know it: bumped whenever the instructions or the way the tools talk change, so a run
+         * written by an older agent (or by the earlier code-driven chat, which has none) is not carried on, but a new one begins.
+         */
+        const val VERSION = "agent-2"
 
-        /** The standing instructions; [language] is the form's language, spoken until the user writes in another. */
+        /** The standing instructions; [language] is the form's language: every question and message is written in it. */
         fun instructions(language: String): String = """
-            You help the user fill in a paper form on their phone, together with them. You work only through the functions below: every reply is exactly one function call.
+            You help the user fill in a paper form. You work only through the functions below: every reply is exactly one function call.
+            The form is in $language: write every question in it (another language only if the user writes in it).
             - First call read_form, then list_people.
-            - Find out who the form is for (ask_user with the people's names as chips if it is unclear). Then call fill_from_profile for each role of the form, with the person who has that role.
-            - Ask about the fields still open, one question at a time, with ask_user (printed options as chips). Fill each answer with fill_field: source user with the user's own words, or source option with a printed option. Never invent a value. Copy stored details only from the tools' results; a ***token is passed unchanged.
-            - After the user gives a detail a later form could use, ask whether to remember it for that person (ask_user with a yes chip and a no chip). Call remember_detail only after they said yes.
-            - If the user does not want to answer a field, call skip_field. If they ask about the form, answer briefly with ask_user.
+            - Find out who the form is for (ask_user with the people's names as chips if unclear). Then call fill_from_profile for each role of the form, with the person who has that role.
+            - Ask about the open fields, one question at a time, with ask_user (printed options as chips). Fill each answer with fill_field: source user with the user's own words, or source option with a printed option. Never invent a value. Take stored details only from the tools' results (a ***token unchanged).
+            - ask_user's result is the user's answer: use it, never ask again. Every result ends with the state and a "suggested next" step: follow it unless you know better.
+            - After the user gives a detail a later form could use, ask (ask_user, a yes and a no chip) whether to remember it for that person; call remember_detail only after yes.
+            - If the user will not answer a field, call skip_field. If they ask about the form, answer briefly with ask_user.
             - When nothing is open, call show_fill_card, then finish.
-            Write in the language the user writes in; until they write, use $language. Keep it short.
         """.trimIndent()
     }
 }
@@ -89,8 +79,9 @@ class FormAgentTranscript(
 
     override suspend fun entries(): List<AgentEntry> {
         val messages = log.messages(documentId)
+        // The newest run start decides: a run of another agent version (or of the earlier code-driven chat) is history, never context.
         val start = messages.indexOfLast(::isRunStart)
-        if (start < 0) return emptyList()
+        if (start < 0 || !isCurrentRun(messages[start])) return emptyList()
         val entries = ArrayList<AgentEntry>()
         entries += AgentEntry.UserText(START_INSTRUCTION, isStart = true)
         for (message in messages.drop(start + 1)) {
@@ -140,5 +131,11 @@ class FormAgentTranscript(
         /** A new run begins with the beta-notice line (it is also what the user sees first). */
         fun isRunStart(message: AiMessage): Boolean =
             FormMessageCodec.parse(message)?.let { it.kind == FormMessageKind.STATUS && it.text == FormText.BETA_NOTICE } == true
+
+        /** Whether the run that [start] opens was written by this agent version (it stores [FormAgentSpec.VERSION] in the line's arguments). */
+        fun isCurrentRun(start: AiMessage): Boolean = FormMessageCodec.parse(start)?.args?.firstOrNull() == FormAgentSpec.VERSION
+
+        /** Whether the newest run of [messages] is one of this agent version; false when there is no run, or the newest is an older one. */
+        fun hasCurrentRun(messages: List<AiMessage>): Boolean = messages.lastOrNull(::isRunStart)?.let(::isCurrentRun) == true
     }
 }

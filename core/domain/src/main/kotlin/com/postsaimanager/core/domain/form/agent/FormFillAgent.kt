@@ -5,6 +5,8 @@ import com.postsaimanager.core.domain.agent.AgentEntry
 import com.postsaimanager.core.domain.agent.AgentLoop
 import com.postsaimanager.core.domain.agent.AgentModel
 import com.postsaimanager.core.domain.agent.AgentOutcome
+import com.postsaimanager.core.domain.agent.AgentTrace
+import com.postsaimanager.core.domain.form.fill.FormMessageCodec
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
@@ -59,6 +61,7 @@ class FormFillAgent(
     private val activeModels: ActiveModelProvider,
     private val clock: () -> Long = System::currentTimeMillis,
     private val trace: FormFillTrace = FormFillTrace.NONE,
+    private val agentTrace: AgentTrace = AgentTrace.NONE,
 ) {
 
     private val lock = Mutex()
@@ -66,8 +69,18 @@ class FormFillAgent(
     /** "Help me fill it": starts a run on the document, or picks the stored one up where it stands. */
     suspend fun start(documentId: String) = lock.withLock {
         val fill = fills.fillForDocument(documentId)
-        if (fill == null || fill.status == FormFillStatus.DONE || !hasRun(documentId)) beginRun(documentId)
-        run(documentId)
+        when {
+            // Nothing of this agent version is stored (a first fill, or the transcript of an older version): a fresh run. What the
+            // chat shows above stays as history; the model never sees it.
+            fill == null || !hasRun(documentId) -> {
+                beginRun(documentId)
+                run(documentId)
+            }
+            // A finished or stopped run is not silently restarted or continued: the user chooses.
+            fill.status == FormFillStatus.DONE -> offer(documentId, FormText.AGENT_DONE_OFFER, listOf(startOverChip()))
+            fill.status == FormFillStatus.STOPPED -> offer(documentId, FormText.AGENT_RESUME_OFFER, listOf(continueChip(), startOverChip()))
+            else -> run(documentId)
+        }
     }
 
     /**
@@ -106,6 +119,15 @@ class FormFillAgent(
                 run(documentId)
             }
             FormChipAction.CONTINUE -> if (hasRun(documentId)) run(documentId)
+            FormChipAction.START_OVER -> {
+                val fill = fills.fillForDocument(documentId)
+                if (fill != null) {
+                    fills.clearValues(fill.id, clock())
+                    fills.saveFill(fill.copy(roleProfiles = emptyMap(), confirmedRoles = emptySet(), awaiting = null, currentFieldId = null))
+                }
+                beginRun(documentId)
+                run(documentId)
+            }
             FormChipAction.OPEN_MODELS -> Unit // opens a screen: the UI handles it, it is never an answer
         }
     }
@@ -121,17 +143,30 @@ class FormFillAgent(
                 conversationId = conversation, createdAt = now, updatedAt = now,
             )
         fills.saveFill(fill.copy(status = FormFillStatus.ASKING, updatedAt = now))
-        log.post(documentId, FormMessage(FormMessageKind.STATUS, FormText.BETA_NOTICE))
-        trace.event("begin", "fill=${fill.id}")
+        // The agent version marks the run as this agent's: an older run (or the earlier code-driven chat) is never carried on.
+        log.post(documentId, FormMessage(FormMessageKind.STATUS, FormText.BETA_NOTICE, args = listOf(FormAgentSpec.VERSION)))
+        trace.event("begin", "fill=${fill.id} version=${FormAgentSpec.VERSION}")
     }
+
+    /** Says what the user can do with a fill that already exists (unless the chat already ends with such an offer). */
+    private suspend fun offer(documentId: String, text: FormText, chips: List<FormChip>) {
+        val last = log.messages(documentId).lastOrNull()?.let(FormMessageCodec::parse)
+        if (last != null && last.kind == FormMessageKind.STATUS && last.chips.any { it.action == FormChipAction.START_OVER }) return
+        log.post(documentId, FormMessage(FormMessageKind.STATUS, text, chips = chips))
+    }
+
+    private fun continueChip() = FormChip(FormChipAction.CONTINUE, labelCode = FormChipLabel.CONTINUE)
+
+    private fun startOverChip() = FormChip(FormChipAction.START_OVER, labelCode = FormChipLabel.START_OVER)
 
     private suspend fun run(documentId: String) {
         if (fills.fillForDocument(documentId) == null) return
         if (model.ensureLoaded() is PamResult.Error) return log.post(documentId, FormMessage(FormMessageKind.STATUS, FormText.NO_MODEL))
         setStatus(documentId, FormFillStatus.ASKING)
-        val modelProfile = ModelProfiles.of(activeModels.activeModelId())
+        // The profile of the model the run really uses (the form model, see ActiveModelProvider.formModelId), not the chat model's.
+        val modelProfile = ModelProfiles.of(activeModels.formModelId())
         val agent = modelProfile.agent.copy(contextTokens = modelProfile.contextTokens)
-        val loop = AgentLoop(model, agent.format.create(), agent)
+        val loop = AgentLoop(model, agent.format.create(), agent, trace = agentTrace)
         val outcome = try {
             loop.run(tools.specFor(documentId), FormAgentTranscript(documentId, log))
         } catch (e: CancellationException) {
@@ -151,7 +186,7 @@ class FormFillAgent(
         setStatus(documentId, FormFillStatus.STOPPED)
         log.post(
             documentId,
-            FormMessage(FormMessageKind.STATUS, text, chips = listOf(FormChip(FormChipAction.CONTINUE, labelCode = FormChipLabel.CONTINUE))),
+            FormMessage(FormMessageKind.STATUS, text, chips = listOf(continueChip(), startOverChip())),
         )
     }
 
@@ -160,7 +195,8 @@ class FormFillAgent(
         if (fill.status != status && fill.status != FormFillStatus.DONE) fills.saveFill(fill.copy(status = status, updatedAt = clock()))
     }
 
-    private suspend fun hasRun(documentId: String): Boolean = log.messages(documentId).any(FormAgentTranscript::isRunStart)
+    /** Whether the document's newest run is one of this agent version (an older run, or none, is not one to carry on). */
+    private suspend fun hasRun(documentId: String): Boolean = FormAgentTranscript.hasCurrentRun(log.messages(documentId))
 
     /** Whether the run already handed the conversation to the user (its last stored step is a turn-ending call). */
     private suspend fun isWaiting(documentId: String): Boolean {

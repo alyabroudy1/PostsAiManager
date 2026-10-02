@@ -288,7 +288,7 @@ class ChatViewModel @Inject constructor(
             conversationRepository.getMessages(conversationId).collect { messages ->
                 // The agent's own protocol (its stored tool calls and results) is not a message: only the calls that show
                 // something (a question, the card, a page chip, the closing message) are, and the user never sees raw tool JSON.
-                val chatMessages = messages.filter { !FormMessageCodec.isAgentStep(it) || FormMessageCodec.parse(it) != null }.map { message ->
+                val chatMessages = FormMessageCodec.rendered(messages).map { message ->
                     val sources = message.sources.map { toChatSource(it) }
                     ChatMessage(
                         id = message.id,

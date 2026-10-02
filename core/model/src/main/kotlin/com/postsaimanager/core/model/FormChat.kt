@@ -58,11 +58,17 @@ enum class FormText {
 
     /** The model failed or kept answering with something unusable. */
     AGENT_FAILED,
+
+    /** The user asked to fill a form that already has a fill in progress: chips continue it or start over. */
+    AGENT_RESUME_OFFER,
+
+    /** The user asked to fill a form that is already filled in: a chip starts over. */
+    AGENT_DONE_OFFER,
 }
 
 /** The labels of chips that are not data (a name, an option, a value are shown as they are). */
 @Serializable
-enum class FormChipLabel { CONTINUE, DOWNLOAD }
+enum class FormChipLabel { CONTINUE, DOWNLOAD, START_OVER }
 
 @Serializable
 enum class FormChipAction {
@@ -71,6 +77,9 @@ enum class FormChipAction {
 
     /** Let the agent go on from where it stopped. */
     CONTINUE,
+
+    /** Forget this fill's answers and begin a new run of the agent. */
+    START_OVER,
 
     /** Open the model download screen. Handled by the UI; never an answer to a question. */
     OPEN_MODELS,

@@ -64,6 +64,20 @@ object FormMessageCodec {
     /** A stored step of the agent's protocol (a call or its result): the chat shows it only through [parse], never as a message. */
     fun isAgentStep(message: AiMessage): Boolean = message.toolCallId != null
 
+    /**
+     * What the chat renders of [messages], in order: every message that is not an agent step, and the steps that show something
+     * ([parse]). A question or closing message the agent's tool rejected (it has a stored result, a turn-ending call that worked has none)
+     * was never shown to the user, so it is left out.
+     */
+    fun rendered(messages: List<AiMessage>): List<AiMessage> {
+        val rejected = messages.filter { it.role == MessageRole.TOOL_RESULT && it.toolCallId != null }.mapNotNull { it.toolCallId }.toSet()
+        return messages.filter { message ->
+            val shown = !isAgentStep(message) || parse(message) != null
+            val turnEnding = message.role == MessageRole.TOOL_CALL && (message.toolName == AskUserTool.NAME || message.toolName == FinishTool.NAME)
+            shown && !(turnEnding && message.toolCallId in rejected)
+        }
+    }
+
     private fun argsOf(message: AiMessage): JsonObject =
         message.toolArgs?.let { runCatching { json.parseToJsonElement(it) as? JsonObject }.getOrNull() } ?: JsonObject(emptyMap())
 }

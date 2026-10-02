@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.form.fill
 
 import com.postsaimanager.core.domain.agent.AgentModel
+import com.postsaimanager.core.domain.agent.AgentTrace
 import com.postsaimanager.core.domain.agent.EngineAgentModel
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.AiEngine
@@ -104,6 +105,7 @@ abstract class FormAssistModule {
             detector: FillRequestDetector,
             activeModels: ActiveModelProvider,
             trace: FormFillTrace,
-        ): FormFillAgent = FormFillAgent(fills, documents, log, tools, model, detector, activeModels, trace = trace)
+            agentTrace: AgentTrace,
+        ): FormFillAgent = FormFillAgent(fills, documents, log, tools, model, detector, activeModels, trace = trace, agentTrace = agentTrace)
     }
 }

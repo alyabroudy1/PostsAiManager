@@ -53,6 +53,9 @@ class FormToolEnv(
     suspend fun locale(): Locale =
         fill()?.localeTag?.let(Locale::forLanguageTag) ?: reader.documentLanguage(documentId) ?: fallbackLocale()
 
+    /** The language the form is in: the document's stored language, else [locale]. The agent writes its questions in it. */
+    suspend fun formLanguage(): Locale = reader.documentLanguage(documentId) ?: locale()
+
     /** "Me": whose city answers a "place of signing" field. */
     suspend fun selfId(): String? = profiles.getProfiles().first().firstOrNull { it.isSelf }?.id
 }
@@ -62,19 +65,20 @@ class FormAgentTools(private val envFor: (String) -> FormToolEnv) {
 
     fun specFor(documentId: String): FormAgentSpec {
         val env = envFor(documentId)
+        val guidance = FormGuidance(env)
         val tools: List<AgentTool> = listOf(
             ReadFormTool(env),
             ListPeopleTool(env),
             GetPersonDetailsTool(env),
             FillFromProfileTool(env),
             FillFieldTool(env),
-            AskUserTool(),
+            AskUserTool(env, guidance),
             RememberDetailTool(env),
             SkipFieldTool(env),
             ShowFillCardTool(env),
             ShowOnPageTool(env),
             FinishTool(env),
         )
-        return FormAgentSpec(env, ToolRegistry(tools))
+        return FormAgentSpec(env, guidance, ToolRegistry(tools))
     }
 }

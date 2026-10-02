@@ -12,6 +12,9 @@
     <string name="form_agent_failed">حدث خطأ أثناء تعبئة النموذج. اختر «متابعة» لأحاول مرة أخرى.</string>
 
     <!-- الأزرار -->
+    <string name="form_agent_resume_offer">بدأت تعبئة هذا النموذج من قبل. هل تتابع من حيث توقفت أم تبدأ من جديد؟</string>
+    <string name="form_agent_done_offer">هذا النموذج معبأ بالفعل. هل تبدأ من جديد؟</string>
+    <string name="form_chip_start_over">البدء من جديد</string>
     <string name="form_chip_continue">متابعة</string>
     <string name="form_chip_download">تنزيل</string>
     <string name="form_chip_description">الإجابة: %1$s</string>

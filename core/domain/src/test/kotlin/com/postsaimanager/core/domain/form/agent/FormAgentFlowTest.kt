@@ -166,7 +166,7 @@ class FormAgentFlowTest {
         assertThat(h.model.sent).hasSize(6)
         val last = h.shown().last().first
         assertThat(last.text).isEqualTo(FormText.AGENT_STUCK)
-        assertThat(last.chips.single().labelCode).isEqualTo(FormChipLabel.CONTINUE)
+        assertThat(last.chips.map { it.labelCode }).containsExactly(FormChipLabel.CONTINUE, FormChipLabel.START_OVER).inOrder()
         assertThat(h.fill().status).isEqualTo(FormFillStatus.STOPPED)
         // The repeats were answered "already done", not run again.
         assertThat(h.results().count { it.contains("already done: list_people") }).isEqualTo(5)
@@ -227,7 +227,8 @@ class FormAgentFlowTest {
 
         h.model.reply(h.call("list_people"))
         h.model.reply(h.ask("Für wen?", "Ahmad", "Ich"))
-        h.agent.chip("doc", paused.chips.single(), "Continue")
+        assertThat(paused.chips.map { it.action }).containsExactly(FormChipAction.CONTINUE, FormChipAction.START_OVER).inOrder()
+        h.agent.chip("doc", paused.chips.first(), "Continue")
 
         // The model answered the stored result of read_form: the form was not read again.
         assertThat(h.model.sent[2]).startsWith("<tool_response>")
@@ -269,7 +270,9 @@ class FormAgentFlowTest {
         val restarted = h.newAgent()
         val before = h.model.sent.size
         assertThat(restarted.route("doc", "Ahmad")).isEqualTo(FormRoute.HANDLED)
-        assertThat(h.model.sent[before]).isEqualTo("Ahmad") // the user's answer is what the model answers
+        // The user's answer reaches the model as the result of its ask_user, with what it matched.
+        assertThat(h.model.sent[before]).startsWith("<tool_response>")
+        assertThat(h.model.sent[before]).contains("\"answer\":\"Ahmad\",\"matched_chip\":\"Ahmad\",\"matched_person\":\"p2\"")
 
         val rebuilt = h.model.sessions.last()
         assertThat(rebuilt.history.map { it.role }).containsExactly(

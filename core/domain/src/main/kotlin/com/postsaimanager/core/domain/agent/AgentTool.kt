@@ -55,6 +55,12 @@ class ToolResult private constructor(val ok: Boolean, val data: JsonObject) {
     /** This result with one more entry (the running state summary, a hint). */
     fun with(key: String, value: String): ToolResult = ToolResult(ok, JsonObject(data + (key to JsonPrimitive(value))))
 
+    /** This result without the entry [key]. */
+    fun without(key: String): ToolResult = ToolResult(ok, JsonObject(data - key))
+
+    /** The text of the entry [key], when it is a string. */
+    fun text(key: String): String? = (data[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
+
     val errorMessage: String? get() = (data["error"] as? JsonPrimitive)?.takeIf { it.isString }?.content
 
     companion object {

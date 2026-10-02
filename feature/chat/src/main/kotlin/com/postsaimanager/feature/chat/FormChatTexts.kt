@@ -34,11 +34,14 @@ internal object FormChatTexts {
         FormText.AGENT_PAUSED -> r.getString(R.string.form_agent_paused)
         FormText.AGENT_STUCK -> r.getString(R.string.form_agent_stuck)
         FormText.AGENT_FAILED -> r.getString(R.string.form_agent_failed)
+        FormText.AGENT_RESUME_OFFER -> r.getString(R.string.form_agent_resume_offer)
+        FormText.AGENT_DONE_OFFER -> r.getString(R.string.form_agent_done_offer)
     }
 
     fun chipLabel(r: Resources, chip: FormChip): String = chip.label ?: when (chip.labelCode) {
         FormChipLabel.CONTINUE -> r.getString(R.string.form_chip_continue)
         FormChipLabel.DOWNLOAD -> r.getString(R.string.form_chip_download)
+        FormChipLabel.START_OVER -> r.getString(R.string.form_chip_start_over)
         null -> ""
     }
 

@@ -12,6 +12,9 @@
     <string name="form_agent_failed">Something went wrong while filling in the form. Continue to try again.</string>
 
     <!-- Chips -->
+    <string name="form_agent_resume_offer">You already started filling in this form. Continue where you stopped, or start over?</string>
+    <string name="form_agent_done_offer">This form is already filled in. Start over?</string>
+    <string name="form_chip_start_over">Start over</string>
     <string name="form_chip_continue">Continue</string>
     <string name="form_chip_download">Download</string>
     <string name="form_chip_description">Answer: %1$s</string>
