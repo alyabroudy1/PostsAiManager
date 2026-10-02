@@ -1,6 +1,15 @@
 <resources>
     <string name="app_name">Posts AI Manager</string>
 
+    <!-- Form filling: the words the agent uses for a role when the form gives none (read in the form's language) -->
+    <string name="form_role_subject">Person the form is for</string>
+    <string name="form_role_guardian">Legal guardian</string>
+    <string name="form_role_payer">Account holder</string>
+    <string name="form_role_signer">Signer</string>
+    <string name="form_role_emergency_contact">Emergency contact</string>
+    <string name="form_role_other">Other person</string>
+    <string name="form_someone_else">Someone else</string>
+
     <!-- App lock -->
     <string name="applock_locked_message">Locked</string>
     <string name="applock_unlock">Unlock</string>

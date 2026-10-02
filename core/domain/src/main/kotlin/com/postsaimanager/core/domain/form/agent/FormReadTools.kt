@@ -61,7 +61,17 @@ class ListPeopleTool(private val env: FormToolEnv) : AgentTool {
 
     override suspend fun execute(args: JsonObject, context: AgentContext): ToolResult {
         val people = env.managed()
+        val fields = env.fields()
+        val roles = fields.mapNotNull { it.role }.filter { it != com.postsaimanager.core.model.FormRole.OTHER }.distinct().sortedBy { it.ordinal }
         return ToolResult.ok(
+            "roles_in_this_form" to JsonArray(
+                roles.map { role ->
+                    buildJsonObject {
+                        put("role", role.name.lowercase())
+                        put("called_in_the_form", env.roles.nameIn(fields, role))
+                    }
+                },
+            ),
             "people" to JsonArray(
                 people.map { person ->
                     buildJsonObject {

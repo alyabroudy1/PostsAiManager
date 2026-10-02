@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">مدير البريد الذكي</string>
+
+    <string name="form_role_subject">الشخص المعني بالنموذج</string>
+    <string name="form_role_guardian">الوصي القانوني</string>
+    <string name="form_role_payer">صاحب الحساب</string>
+    <string name="form_role_signer">الموقِّع</string>
+    <string name="form_role_emergency_contact">جهة الاتصال في الطوارئ</string>
+    <string name="form_role_other">شخص آخر</string>
+    <string name="form_someone_else">شخص آخر غير مذكور</string>
 </resources>

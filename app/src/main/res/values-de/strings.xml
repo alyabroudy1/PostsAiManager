@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">Post-KI-Manager</string>
+
+    <string name="form_role_subject">Person, für die das Formular ist</string>
+    <string name="form_role_guardian">Erziehungsberechtigte/r</string>
+    <string name="form_role_payer">Kontoinhaber/in</string>
+    <string name="form_role_signer">Unterzeichnende/r</string>
+    <string name="form_role_emergency_contact">Notfallkontakt</string>
+    <string name="form_role_other">Weitere Person</string>
+    <string name="form_someone_else">Jemand anderes</string>
 </resources>

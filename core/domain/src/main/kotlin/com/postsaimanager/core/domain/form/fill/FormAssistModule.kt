@@ -19,6 +19,7 @@ import com.postsaimanager.core.domain.form.agent.FormChatLog
 import com.postsaimanager.core.domain.form.agent.FormFillAgent
 import com.postsaimanager.core.domain.form.agent.FormReader
 import com.postsaimanager.core.domain.form.agent.FormToolEnv
+import com.postsaimanager.core.domain.form.agent.FormWording
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.FormFillRepository
@@ -85,11 +86,12 @@ abstract class FormAssistModule {
             log: FormChatLog,
             trace: FormFillTrace,
             ocrTrace: FormOcrTrace,
+            wording: FormWording,
         ): FormAgentTools = FormAgentTools { documentId ->
             FormToolEnv(
                 documentId = documentId, fills = fills, profiles = profiles, people = people, guard = FieldValueGuard(people),
                 reader = FormReader(fills, documents, profiles, understand, log, trace = trace, ocrTrace = ocrTrace),
-                remember = remember, fillValues = fillValues,
+                remember = remember, fillValues = fillValues, wording = wording,
             )
         }
 

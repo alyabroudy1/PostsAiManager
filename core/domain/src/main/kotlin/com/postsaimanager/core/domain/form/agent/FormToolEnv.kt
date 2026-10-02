@@ -32,8 +32,12 @@ class FormToolEnv(
     val clock: () -> Long = System::currentTimeMillis,
     val today: () -> LocalDate = LocalDate::now,
     private val fallbackLocale: () -> Locale = Locale::getDefault,
+    val wording: FormWording = FormWording.English,
 ) {
     val fillId: String = FormChatLog.fillId(documentId)
+
+    /** What the roles are called in this form and who can have them. */
+    val roles = RoleWording(this)
 
     private val guardians = GuardiansOfUseCase(profiles)
 
@@ -72,7 +76,7 @@ class FormAgentTools(private val envFor: (String) -> FormToolEnv) {
             GetPersonDetailsTool(env),
             FillFromProfileTool(env),
             FillFieldTool(env),
-            AskUserTool(env, guidance),
+            AskUserTool(env, guidance, QuestionGuard(env, guidance)),
             RememberDetailTool(env),
             SkipFieldTool(env),
             ShowFillCardTool(env),

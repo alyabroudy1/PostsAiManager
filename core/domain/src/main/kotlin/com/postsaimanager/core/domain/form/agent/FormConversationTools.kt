@@ -20,7 +20,7 @@ import kotlinx.serialization.json.put
  * (a tapped chip or typed text) comes back as the next user message. The model writes the question and the chips in the user's
  * language; code only checks they are shown sensibly.
  */
-class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidance) : AgentTool {
+class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidance, private val guard: QuestionGuard) : AgentTool {
     override val name = NAME
     override val description = "Asks the user one question and waits for the reply. Chips are answer buttons for a short choice."
     override val parameters: JsonObject = ToolParams.schema(
@@ -38,6 +38,7 @@ class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidan
         if (chips.any { it.isEmpty() || it.length > MAX_CHIP_CHARS }) return ToolResult.error("every chip needs 1 to $MAX_CHIP_CHARS characters")
         if (chips.map { it.lowercase() }.toSet().size != chips.size) return ToolResult.error("the chips must all be different")
         wrongScript(question, context)?.let { return ToolResult.error(it) }
+        guard.check(question, chips)?.let { return ToolResult.error(it) }
         alreadyAnswered(question, chips, context)?.let { (answer) ->
             return ToolResult.error("already answered: $answer. Use it: suggested next: ${guidance.suggestionFor(answer)}")
         }

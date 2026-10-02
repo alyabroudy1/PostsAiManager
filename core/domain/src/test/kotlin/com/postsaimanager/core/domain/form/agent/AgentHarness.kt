@@ -59,6 +59,7 @@ class AgentHarness(
     val documentIsForm: Boolean = true,
     val embedder: EmbeddingService = GermanSwim.embedder,
     me: Map<String, PersonValue> = GermanSwim.me(),
+    val wording: FormWording = FormWording.English,
 ) {
     val nowMs = GermanSwim.NOW
     val today: LocalDate = LocalDate.of(2026, 10, 1)
@@ -103,15 +104,17 @@ class AgentHarness(
 
     private val understand = UnderstandFormUseCase(session, { system, user -> "<s>$system|$user<u>" to "<a>" }, embedder)
 
-    val tools = FormAgentTools { documentId ->
+    val envFor: (String) -> FormToolEnv = { documentId ->
         FormToolEnv(
             documentId = documentId, fills = fills, profiles = profiles, people = people,
             guard = FieldValueGuard(people, today = { today }),
             reader = FormReader(fills, documents, profiles, understand, log, clock = { nowMs }, today = { today }, fallbackLocale = { Locale.GERMANY }),
             remember = RememberDetailUseCase(profiles, facts), fillValues = FillValues(people),
-            clock = { nowMs }, today = { today }, fallbackLocale = { Locale.GERMANY },
+            clock = { nowMs }, today = { today }, fallbackLocale = { Locale.GERMANY }, wording = wording,
         )
     }
+
+    val tools = FormAgentTools(envFor)
 
     private val activeModels = mockk<ActiveModelProvider> {
         coEvery { activeModelId() } returns null

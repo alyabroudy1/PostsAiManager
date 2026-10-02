@@ -3,7 +3,6 @@ package com.postsaimanager.core.domain.form.agent
 import com.postsaimanager.core.domain.agent.AgentEntry
 import com.postsaimanager.core.domain.agent.ToolResult
 import com.postsaimanager.core.domain.agent.strings
-import com.postsaimanager.core.domain.extraction.v2.QuoteVerifier
 import com.postsaimanager.core.domain.form.fill.FillProgress
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.FormRole
@@ -34,7 +33,7 @@ class FormGuidance(private val env: FormToolEnv) {
         val people = env.managed()
         val chosen = env.fill()?.roleProfiles.orEmpty()
         val roles = chosen.mapNotNull { (role, id) ->
-            people.firstOrNull { it.id == id }?.let { "${role.name.lowercase()}=${it.name} (${FormRefs.personAlias(people, it)})" }
+            people.firstOrNull { it.id == id }?.let { "${env.roles.nameIn(fields, role)}=${it.name} (${FormRefs.personAlias(people, it)})" }
         }
         val progress = FillProgress.of(fields)
         val open = FormRefs.open(fields)
@@ -88,18 +87,19 @@ class FormGuidance(private val env: FormToolEnv) {
     private suspend fun suggestedNext(fields: List<FormField>, people: List<Profile>, answeredPerson: Profile?, answer: String?): String {
         val chosen = env.fill()?.roleProfiles.orEmpty()
         val open = FormRefs.open(fields)
-        val unassigned = fields.filter { it.role != null && it.role != FormRole.OTHER && FormRefs.status(it) == "open" && it.role !in chosen }
-            .mapNotNull { it.role }.distinct().sortedBy { it.ordinal }
-        val role = unassigned.firstOrNull()
+        val role = unassignedRoles(fields).firstOrNull()
         if (role != null) {
-            val candidate = answeredPerson ?: guardianCandidate(role, chosen, people)
+            val candidate = answeredPerson?.takeIf { fitsRole(role, it, chosen, people) } ?: guardianCandidate(role, chosen, people)
             if (candidate != null) return "fill_from_profile(person_id=${FormRefs.personAlias(people, candidate)}, role=${role.name.lowercase()})"
-            val names = people.joinToString(", ") { it.name }
-            return if (role == FormRole.SUBJECT) {
-                "ask_user who the form is for, with the people ($names) as chips; then fill_from_profile for that person with role=subject"
-            } else {
-                "ask_user who has the role ${role.name.lowercase()}, then fill_from_profile for that person"
+            if (role == FormRole.SUBJECT) {
+                val names = people.joinToString(", ") { it.name }
+                return "ask_user who the form is for, with the people ($names) as chips; then fill_from_profile for that person with role=subject"
             }
+            val subject = chosen[FormRole.SUBJECT]?.let { id -> people.firstOrNull { it.id == id } }
+            val chips = env.roles.candidates(role, subject, people).map { it.name } + env.roles.someoneElse()
+            val wording = env.roles.nameIn(fields, role)
+            return "ask_user who is \"$wording\" (a full question in the form's language, not the word alone), with the chips " +
+                "${chips.joinToString(", ") { "\"$it\"" }}; then fill_from_profile for that person with role=${role.name.lowercase()}"
         }
         if (open.isEmpty()) return "show_fill_card(), then finish(summary)"
         if (answer != null) {
@@ -129,7 +129,19 @@ class FormGuidance(private val env: FormToolEnv) {
         return "${FormRefs.fieldAlias(fields, field)} ${field.labelText}" + (section?.let { " ($it)" } ?: "")
     }
 
-    private fun fold(text: String): String = QuoteVerifier.fold(text).trim().replace(Regex("\\s+"), " ")
+    /** The roles of the form that still have open fields and nobody chosen, in the order of [FormRole]. */
+    suspend fun unassignedRoles(fields: List<FormField>): List<FormRole> {
+        val chosen = env.fill()?.roleProfiles.orEmpty()
+        return fields.filter { it.role != null && it.role != FormRole.OTHER && FormRefs.status(it) == "open" && it.role !in chosen }
+            .mapNotNull { it.role }.distinct().sortedBy { it.ordinal }
+    }
+
+    private fun fitsRole(role: FormRole, person: Profile, chosen: Map<FormRole, String>, people: List<Profile>): Boolean {
+        val subject = chosen[FormRole.SUBJECT]?.let { id -> people.firstOrNull { it.id == id } }
+        return env.roles.candidates(role, subject, people).any { it.id == person.id }
+    }
+
+    private fun fold(text: String): String = FormRefs.fold(text)
 
     private companion object {
         const val MAX_OPEN_SHOWN = 5

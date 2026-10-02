@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.form.agent
 
+import com.postsaimanager.core.domain.extraction.v2.QuoteVerifier
 import com.postsaimanager.core.domain.form.FormDataKeys
 import com.postsaimanager.core.domain.form.fill.FillProgress
 import com.postsaimanager.core.model.FormField
@@ -17,6 +18,12 @@ object FormRefs {
 
     private val FIELD = Regex("f(\\d+)")
     private val PERSON = Regex("p(\\d+)")
+
+    /** Case, accents and spacing ignored: how names, labels and questions are compared. */
+    fun fold(text: String): String = QuoteVerifier.fold(text).trim().replace(Regex("\\s+"), " ")
+
+    /** [fold]ed, with every run of punctuation and symbols a single space: "Name:" and "name" are the same text. */
+    fun flat(text: String): String = fold(text).replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
 
     fun ordered(fields: List<FormField>): List<FormField> = fields.sortedWith(compareBy({ it.page }, { it.orderIndex }, { it.id }))
 
