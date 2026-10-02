@@ -7,6 +7,8 @@ import com.postsaimanager.core.domain.agent.AgentTranscript
 import com.postsaimanager.core.domain.agent.ToolRegistry
 import com.postsaimanager.core.domain.agent.ToolResult
 import com.postsaimanager.core.domain.agent.string
+import com.postsaimanager.core.domain.agent.strings
+import com.postsaimanager.core.domain.form.fill.FillProgress
 import com.postsaimanager.core.domain.form.fill.FormMessageCodec
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.FormMessageKind
@@ -33,9 +35,17 @@ class FormAgentSpec(private val env: FormToolEnv, private val guidance: FormGuid
     override suspend fun replyResult(call: AgentEntry.Call, text: String): ToolResult? =
         if (call.name == AskUserTool.NAME) guidance.replyResult(call, text) else null
 
-    /** Only the question of an ask goes to the debug log (written by the model; never a stored value or the user's answer). */
-    override fun traceNote(call: AgentEntry.Call): String? =
-        if (call.name == AskUserTool.NAME) "question=\"${call.args.string("question").orEmpty()}\"" else null
+    /**
+     * The filled and open counts after every tool, and for an ask its question and chips (written by the model; never a stored value
+     * or the user's answer).
+     */
+    override suspend fun traceNote(call: AgentEntry.Call): String? {
+        val fields = env.fields()
+        val counts = if (fields.isEmpty()) "filled=0/0 open=0" else FillProgress.of(fields).let { "filled=${it.ready}/${it.total} open=${FormRefs.open(fields).size}" }
+        if (call.name != AskUserTool.NAME) return counts
+        val chips = call.args.strings("chips").orEmpty().joinToString("|")
+        return "$counts question=\"${call.args.string("question").orEmpty()}\" chips=[$chips]"
+    }
 
     override suspend fun stuckHint(): String? {
         val fields = env.fields()
@@ -49,7 +59,7 @@ class FormAgentSpec(private val env: FormToolEnv, private val guidance: FormGuid
          * The version of the agent as stored runs know it: bumped whenever the instructions or the way the tools talk change, so a run
          * written by an older agent (or by the earlier code-driven chat, which has none) is not carried on, but a new one begins.
          */
-        const val VERSION = "agent-2"
+        const val VERSION = "agent-3"
 
         /** The standing instructions; [language] is the form's language: every question and message is written in it. */
         fun instructions(language: String): String = """

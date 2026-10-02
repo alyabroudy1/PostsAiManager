@@ -255,7 +255,8 @@ class FormAgentGuidanceTest {
         assertThat(steps.first().rebuilt).isTrue()
         assertThat(steps.drop(1).none { it.rebuilt }).isTrue()
         assertThat(steps.all { it.contextTokens > 0 && it.modelMs >= 0 && it.toolMs >= 0 }).isTrue()
-        assertThat(steps.last().note).isEqualTo("question=\"Hat Ahmad das Seepferdchen schon?\"")
+        assertThat(steps.last().note).matches("filled=\\d+/\\d+ open=\\d+ question=\"Hat Ahmad das Seepferdchen schon\\?\" chips=\\[Ja\\|Nein]")
+        assertThat(steps.all { it.note!!.substringBefore(" question").matches(Regex("filled=\\d+/\\d+ open=\\d+")) }).isTrue()
         val lines = steps.joinToString("\n") { it.line() }
         assertThat(lines).contains("turn=1 step=2 tool=fill_from_profile args=person_id,role valid=ok outcome=ok")
         assertThat(lines).doesNotContain("Mustermann")

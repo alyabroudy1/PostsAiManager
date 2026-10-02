@@ -169,7 +169,15 @@ only tells it where things stand and refuses what is plainly wrong):
   run offers Continue / Start over, a finished one Start over (the chat does not silently restart or continue).
 - **Trace.** Debug builds log one line per step with tag `FormAgent` (`AgentTrace`): turn, step, tool, argument names, validation,
   outcome, model and tool milliseconds, a rough context size, whether the session was rebuilt, and the question text of an
-  `ask_user`. No field values, no answers.
+  `ask_user` with its chips, and the filled/open counts after every tool. No field values, no answers.
+- **Question guards (agent-3).** `QuestionGuard` sends an error result with a hint for an `ask_user` that (1) is only a label or
+  section title of the form (punctuation aside), (2) offers the subject as the guardian, or a minor subject as payer or signer, or
+  (3) is about an open field but whose chips are neither its printed options nor a stored value of its key. Texts are only compared
+  with the form and the people, never judged by meaning.
+- **Role wording.** `RoleWording` names a role in the form's own words (the section heading when the whole section has the role,
+  plus the first field's label: "Zahlung per Lastschrift (Kontoinhaber)"), else `FormWording` (string resources de/en/ar, read in
+  the form's language). The STATE block and `list_people` use these names; the English enum word appears only inside a call. A role
+  without a candidate person suggests asking about it with the other people and "Someone else" as chips.
 - **Form model.** `ModelProfiles.FORM_AGENT_MODELS` (Qwen3.5-2B) is the one setting: `ActiveModelProvider.formModelPath/Id/Config`
   return the first installed of them, else the chat model. The engine loads it for the run; the next chat message loads the chat
   model again (`engine.load` swaps models and drops the session).

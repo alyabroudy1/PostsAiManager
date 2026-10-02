@@ -30,7 +30,7 @@ interface AgentSpec {
     suspend fun replyResult(call: AgentEntry.Call, text: String): ToolResult? = null
 
     /** A remark for the debug log about [call] (never a value of the user's); null for none. */
-    fun traceNote(call: AgentEntry.Call): String? = null
+    suspend fun traceNote(call: AgentEntry.Call): String? = null
 }
 
 /** How a run of the loop ended. */
