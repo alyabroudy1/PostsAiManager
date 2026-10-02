@@ -15,6 +15,7 @@ Living documentation for the PostsAiManager Android application.
 
 | Document | Purpose | Update cadence |
 |---|---|---|
+| [HANDOFF.md](HANDOFF.md) | **Start here on a new machine.** Branch map and push commands, setup from scratch, models and test data not in git, status and next steps, working agreements. Design history is in [planning/](planning/README.md). | When the state changes |
 | [01-findings-report.md](01-findings-report.md) | State-of-completion audit. What is real, what is fake, what is missing. | Re-run at each phase boundary |
 | [02-architecture.md](02-architecture.md) | Current vs. target architecture, AI subsystem, tool layer, privacy boundary, error handling. | When structure changes |
 | [03-implementation-plan.md](03-implementation-plan.md) | Phased roadmap to 1.0 and beyond. | When scope changes |
