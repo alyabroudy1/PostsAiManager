@@ -9,6 +9,7 @@
     <string name="form_beta_notice">Formularhilfe (Beta). Bitte prüfe jeden Wert, bevor du ihn verwendest.</string>
     <string name="form_agent_paused">Angehalten. Was bisher erledigt ist, bleibt erhalten. Dort weitermachen, wo ich aufgehört habe?</string>
     <string name="form_agent_stuck">Diesen Schritt konnte ich nicht allein abschließen. Weiter, oder sag mir, was ich tun soll.</string>
+    <string name="form_field_left_to_user">Ich konnte „%1$s“ nicht ausfüllen. Bitte schreibe es selbst hinein.</string>
     <string name="form_agent_failed">Beim Ausfüllen des Formulars ist etwas schiefgegangen. Mit „Weiter“ versuche ich es erneut.</string>
 
     <!-- Chips -->

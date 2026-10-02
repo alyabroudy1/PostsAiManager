@@ -176,12 +176,11 @@ class FormAgentV2Test {
         }
         h.agent.chip("doc", chip("Someone else"), "Someone else")
 
-        // Turn 4: the user types the name. Only fill_field, skip_field and ask_user are exposed, and the suggestion is the fill.
+        // Turn 4: the user types the name. Only fill_field and skip_field are exposed, and the suggestion is the fill.
         val aliasGuardian = h.alias("Name der Erziehungsberechtigten")
         h.model.reply { message ->
             assertThat(message).contains("\"answer\":\"Erika Test\"")
-            assertThat(message).contains("fill_field(field_id=<one of $aliasGuardian")
-            assertThat(message).contains("value=Erika Test, source=user")
+            assertThat(message).contains("fill_field(field_id=$aliasGuardian, value=Erika Test, source=user)")
             assertThat(message).doesNotContain("suggested next: ask_user")
             h.call("fill_field", "field_id" to aliasGuardian, "value" to "Erika Test", "source" to "user")
         }

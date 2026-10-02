@@ -9,6 +9,7 @@
     <string name="form_beta_notice">تعبئة النماذج (تجريبي). يرجى التحقق من كل قيمة قبل استخدامها.</string>
     <string name="form_agent_paused">تم الإيقاف مؤقتًا. ما أُنجز حتى الآن محفوظ. هل أتابع من حيث توقفت؟</string>
     <string name="form_agent_stuck">لم أتمكن من إنهاء هذه الخطوة بنفسي. تابع، أو أخبرني بما أفعله.</string>
+    <string name="form_field_left_to_user">تعذّر عليّ تعبئة «%1$s». تركته لك لتكتبه بنفسك.</string>
     <string name="form_agent_failed">حدث خطأ أثناء تعبئة النموذج. اختر «متابعة» لأحاول مرة أخرى.</string>
 
     <!-- الأزرار -->

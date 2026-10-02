@@ -91,7 +91,7 @@ class FormAgentTools(
             ListPeopleTool(env),
             GetPersonDetailsTool(env),
             FillFromProfileTool(env),
-            FillFieldTool(env),
+            FillFieldTool(env, guidance),
             AskUserTool(env, guidance, QuestionGuard(env, guidance)),
             RememberDetailTool(env),
             SkipFieldTool(env),

@@ -9,6 +9,7 @@
     <string name="form_beta_notice">Form filling (beta). Please check every value before you use it.</string>
     <string name="form_agent_paused">Paused. What is done so far is kept. Continue where I stopped?</string>
     <string name="form_agent_stuck">I could not finish this step on my own. Continue, or tell me what to do.</string>
+    <string name="form_field_left_to_user">I could not fill \"%1$s\". It is left for you to write by hand.</string>
     <string name="form_agent_failed">Something went wrong while filling in the form. Continue to try again.</string>
 
     <!-- Chips -->

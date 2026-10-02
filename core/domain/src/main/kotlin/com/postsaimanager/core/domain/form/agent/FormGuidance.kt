@@ -71,6 +71,13 @@ class FormGuidance(private val env: FormToolEnv, private val policy: ToolPolicy 
         }
     }
 
+    /** The user's typed text as the answer to a role question (the stage ROLE_TYPED) for [reply], with the role's open name fields; else null. */
+    suspend fun typedRole(reply: UserReply?): RoleSituation.Typed? =
+        reply?.let { roleSituation(env.fields(), it) as? RoleSituation.Typed }
+
+    /** The exact call that puts the typed [text] into the name field [alias]. */
+    fun typedCall(alias: String, text: String): String = "fill_field(field_id=$alias, value=$text, source=user)"
+
     /** The suggestion alone (for the error of a repeated question), for the user's latest [reply] (what the tool exposure reads too). */
     suspend fun suggestionFor(reply: UserReply?): String {
         val fields = env.fields()
@@ -126,7 +133,8 @@ class FormGuidance(private val env: FormToolEnv, private val policy: ToolPolicy 
             if (answer == fold(env.roles.someoneElse()) || answer == fold(env.roles.me())) return RoleSituation.NeedsPerson(role, someoneElse = true)
             if (!reply.isChipOfQuestion()) {
                 val nameFields = FormRefs.ordered(FormRefs.open(fields).filter { it.role == role && it.dataKey?.let(FormDataKeys::of)?.valueKind == FormValueKind.NAME })
-                return RoleSituation.Typed(role, nameFields.ifEmpty { FormRefs.open(fields).filter { it.role == role } }, reply.text)
+                // A role with no open name field has nowhere to put the text: the stage is not ROLE_TYPED (its fields are asked like any field).
+                return if (nameFields.isEmpty()) RoleSituation.None else RoleSituation.Typed(role, nameFields, reply.text)
             }
         }
         return if (role == FormRole.SUBJECT) RoleSituation.SubjectUnknown else RoleSituation.NeedsPerson(role, someoneElse = false)
@@ -179,9 +187,9 @@ class FormGuidance(private val env: FormToolEnv, private val policy: ToolPolicy 
             }
             is RoleSituation.Typed -> {
                 val wording = env.roles.nameIn(fields, situation.role)
-                val targets = situation.nameFields.joinToString(", ") { FormRefs.fieldAlias(fields, it) }
-                return "the user typed who is \"$wording\": fill_field(field_id=<one of $targets>, value=${situation.text}, source=user) for its name " +
-                    "(not a name: skip_field instead); do not ask who it is again"
+                val first = FormRefs.fieldAlias(fields, situation.nameFields.first())
+                return "the user typed who is \"$wording\": ${typedCall(first, situation.text)} (not a name: skip_field(field_id=$first) instead); " +
+                    "do not ask who it is again"
             }
             is RoleSituation.NeedsPerson -> {
                 val wording = env.roles.nameIn(fields, situation.role)
@@ -252,14 +260,17 @@ data class UserReply(val text: String, val asked: AgentEntry.Call?) {
     fun isChipOfQuestion(): Boolean = asked?.args?.strings("chips").orEmpty().any { FormRefs.fold(it) == FormRefs.fold(text) }
 
     companion object {
+        private val USING_REPLY = setOf(FillFromProfileTool.NAME, FillFieldTool.NAME, SkipFieldTool.NAME)
+
         /**
          * The user's answer that begins the current turn, with the question it answers; null when the turn did not begin with one, or when
-         * it was already used to fill a role from a person (one answer names the person of one role, never the next role's as well).
+         * it was already used (a role filled from a person, a field filled or skipped: one answer settles one role, never the next
+         * role's as well).
          */
         fun of(context: AgentContext): UserReply? {
             if (!context.turnStartedByUser) return null
             val sinceReply = context.entries.drop(context.entries.indexOfLast { it is AgentEntry.UserText } + 1)
-            if (sinceReply.any { it is AgentEntry.Result && it.name == FillFromProfileTool.NAME && it.result.ok }) return null
+            if (sinceReply.any { it is AgentEntry.Result && it.name in USING_REPLY && it.result.ok }) return null
             return context.userReplies.lastOrNull()?.let { UserReply(it, context.previousTurnEnd) }
         }
     }
@@ -279,6 +290,6 @@ sealed interface RoleSituation {
     /** [role] has no person; the user must say who ([someoneElse]: they chose "someone else", so the name is what is missing). */
     data class NeedsPerson(val role: FormRole, val someoneElse: Boolean) : RoleSituation
 
-    /** The user typed [text] as who has [role]: it goes into the role's name fields ([nameFields]). */
+    /** The user typed [text] as who has [role]: it goes into the role's open name fields ([nameFields], never empty; the first is filled first). */
     data class Typed(val role: FormRole, val nameFields: List<FormField>, val text: String) : RoleSituation
 }

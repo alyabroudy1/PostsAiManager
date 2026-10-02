@@ -36,6 +36,7 @@ internal object FormChatTexts {
         FormText.AGENT_FAILED -> r.getString(R.string.form_agent_failed)
         FormText.AGENT_RESUME_OFFER -> r.getString(R.string.form_agent_resume_offer)
         FormText.AGENT_DONE_OFFER -> r.getString(R.string.form_agent_done_offer)
+        FormText.FIELD_LEFT_TO_USER -> r.format(R.string.form_field_left_to_user, args)
     }
 
     fun chipLabel(r: Resources, chip: FormChip): String = chip.label ?: when (chip.labelCode) {

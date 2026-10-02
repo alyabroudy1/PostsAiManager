@@ -72,7 +72,7 @@ class FormAgentSpec(
          * The version of the agent as stored runs know it: bumped whenever the instructions or the way the tools talk change, so a run
          * written by an older agent (or by the earlier code-driven chat, which has none) is not carried on, but a new one begins.
          */
-        const val VERSION = "agent-5"
+        const val VERSION = "agent-6"
 
         /** The standing instructions; [language] is the form's language: every question and message is written in it. */
         fun instructions(language: String): String = """
@@ -145,6 +145,9 @@ class FormAgentTranscript(
                 ),
             )
             if (call.name in FILLING_TOOLS && result.result.ok) showCardOnFirstFill()
+            result.result.takeIf { call.name == FillFieldTool.NAME }?.text(FillFieldTool.SKIPPED_KEY)?.let { label ->
+                log.post(documentId, FormMessage(FormMessageKind.STATUS, FormText.FIELD_LEFT_TO_USER, args = listOf(label)))
+            }
         }
     }
 

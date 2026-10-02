@@ -82,7 +82,7 @@ class ToolPolicy(private val table: Map<FormStage, List<String>> = DEFAULT) {
             FormStage.ROLE_ANSWERED to listOf(FillFromProfileTool.NAME),
             FormStage.ROLE_NEEDS_PERSON to listOf(AskUserTool.NAME, SkipFieldTool.NAME),
             FormStage.ROLE_NAME_NEEDED to listOf(AskUserTool.NAME, SkipFieldTool.NAME),
-            FormStage.ROLE_TYPED to listOf(FillFieldTool.NAME, SkipFieldTool.NAME, AskUserTool.NAME),
+            FormStage.ROLE_TYPED to listOf(FillFieldTool.NAME, SkipFieldTool.NAME),
             FormStage.OPEN_FIELDS to listOf(AskUserTool.NAME, FillFieldTool.NAME, SkipFieldTool.NAME, ShowOnPageTool.NAME),
             FormStage.NOTHING_OPEN to listOf(ShowFillCardTool.NAME, ShowOnPageTool.NAME, FinishTool.NAME),
         )

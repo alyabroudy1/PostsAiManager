@@ -64,6 +64,9 @@ enum class FormText {
 
     /** The user asked to fill a form that is already filled in: a chip starts over. */
     AGENT_DONE_OFFER,
+
+    /** A field was left for the user to write by hand after the agent could not fill it; args: the field's label. */
+    FIELD_LEFT_TO_USER,
 }
 
 /** The labels of chips that are not data (a name, an option, a value are shown as they are). */

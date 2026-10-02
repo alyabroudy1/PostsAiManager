@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.form.agent
 
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.agent.AgentContext
+import com.postsaimanager.core.domain.agent.AgentEntry
 import com.postsaimanager.core.domain.agent.AgentTool
 import com.postsaimanager.core.domain.agent.ToolParams
 import com.postsaimanager.core.domain.agent.ToolResult
@@ -33,7 +34,7 @@ private fun resultLine(fields: List<FormField>, field: FormField): JsonPrimitive
  * `fill_field(field_id, value, source, person_id?)`: writes ONE value, only when [FieldValueGuard] proves where it came from
  * (a stored detail, the user's own words, a printed option). Otherwise it returns the reason, and the model fixes the call.
  */
-class FillFieldTool(private val env: FormToolEnv) : AgentTool {
+class FillFieldTool(private val env: FormToolEnv, private val guidance: FormGuidance? = null) : AgentTool {
     override val name = NAME
     override val description = "Fills one field. source profile: a stored detail of person_id, copied exactly. source user: the user's " +
         "own words, exactly. source option: a printed option (yes or no for a tick box). Anything else is refused."
@@ -45,6 +46,32 @@ class FillFieldTool(private val env: FormToolEnv) : AgentTool {
     )
 
     override suspend fun execute(args: JsonObject, context: AgentContext): ToolResult {
+        val result = attempt(args, context)
+        return if (result.ok) result else typedRoleFallback(result, context)
+    }
+
+    /**
+     * A refused fill while the user's typed answer waits for the role's name field (the stage ROLE_TYPED): the error repeats the exact
+     * call; the second refusal in the turn leaves that field to the user (skipped, [SKIPPED_KEY] tells the chat to say so), so the run
+     * never dead-ends there.
+     */
+    private suspend fun typedRoleFallback(refused: ToolResult, context: AgentContext): ToolResult {
+        val typed = guidance?.typedRole(UserReply.of(context)) ?: return refused
+        val field = typed.nameFields.first()
+        val alias = FormRefs.fieldAlias(env.fields(), field)
+        val refusals = context.entries.drop(context.entries.indexOfLast { it is AgentEntry.UserText } + 1)
+            .count { it is AgentEntry.Result && it.name == NAME && !it.result.ok }
+        if (refusals < 1) return ToolResult.error("${refused.errorMessage}. Call exactly: ${guidance.typedCall(alias, typed.text)}")
+        env.fills.setSkipped(field.id, true, env.clock())
+        return ToolResult.ok(
+            buildJsonObject {
+                put(SKIPPED_KEY, field.labelText)
+                put("open_fields", FormRefs.open(env.fields()).size)
+            },
+        )
+    }
+
+    private suspend fun attempt(args: JsonObject, context: AgentContext): ToolResult {
         val fields = env.fields()
         if (fields.isEmpty()) return ToolResult.error(READ_FORM_FIRST)
         val field = FormRefs.findField(fields, args.string("field_id").orEmpty()) ?: return ToolResult.error("unknown field_id; use an id from read_form")
@@ -69,6 +96,9 @@ class FillFieldTool(private val env: FormToolEnv) : AgentTool {
 
     companion object {
         const val NAME = "fill_field"
+
+        /** The result entry (the field's label) of a fill that left the typed role's name field to the user after two refusals. */
+        const val SKIPPED_KEY = "skipped"
     }
 }
 
