@@ -315,6 +315,19 @@ interface ActiveModelProvider {
     suspend fun activeModelId(): String? = null
 
     /**
+     * The model the form-filling agent runs on: the first installed model of [com.postsaimanager.core.domain.extraction.zones.ModelProfiles.FORM_AGENT_MODELS]
+     * (a tool-calling agent needs more than the smallest chat model), otherwise the chat model. The engine loads it for the run; the next
+     * chat message loads the chat model again.
+     */
+    suspend fun formModelPath(): String? = activeModelPath()
+
+    /** As [activeModelConfig], for the form model. */
+    suspend fun formModelConfig(): InferenceConfig = activeModelConfig()
+
+    /** The catalogue id of the form model (picks its agent settings, see [activeModelId]). */
+    suspend fun formModelId(): String? = activeModelId()
+
+    /**
      * The model that reads documents, which need not be the one that chats.
      *
      * They are different jobs. Chat is interactive, so a reply that starts quickly matters

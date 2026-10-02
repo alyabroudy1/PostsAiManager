@@ -17,7 +17,7 @@ import javax.inject.Inject
  */
 interface AgentModel {
 
-    /** Loads the active chat model; an error when none is installed or it fails to load. */
+    /** Loads the form model (see [ActiveModelProvider.formModelPath]); an error when none is installed or it fails to load. */
     suspend fun ensureLoaded(): PamResult<Unit>
 
     /**
@@ -45,8 +45,9 @@ class EngineAgentModel @Inject constructor(
 ) : AgentModel {
 
     override suspend fun ensureLoaded(): PamResult<Unit> {
-        val path = activeModels.activeModelPath() ?: return PamResult.Error(PamError.ModelNotLoaded("chat"))
-        return when (val loaded = engine.load(path, activeModels.activeModelConfig())) {
+        // The form model (the 2B when it is installed, else the chat model): the engine swaps to it for the run, and the next chat message loads the chat model again.
+        val path = activeModels.formModelPath() ?: return PamResult.Error(PamError.ModelNotLoaded("chat"))
+        return when (val loaded = engine.load(path, activeModels.formModelConfig())) {
             is PamResult.Error -> loaded
             is PamResult.Success -> PamResult.Success(Unit)
         }

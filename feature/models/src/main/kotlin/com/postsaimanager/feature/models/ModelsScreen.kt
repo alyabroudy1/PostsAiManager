@@ -227,6 +227,14 @@ private fun InstalledCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (entry.isFormModel) {
+                // The form agent prefers this model over the chat model while it is installed (ModelProfiles.FORM_AGENT_MODELS).
+                Text(
+                    "Used for form filling (better, slower)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             if (entry.descriptor.recommendedForExtraction && !entry.isExtractionModel) {
                 // Said plainly, because the difference is not obvious from a model name and
                 // the gain is concrete: on a real letter this is the difference between

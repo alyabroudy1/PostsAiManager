@@ -131,6 +131,12 @@ object ModelProfiles {
     /** For a model with no profile: the strategy that needs no prior measurement. */
     val FALLBACK = ModelProfile("", contextTokens = 4096, strategy = InterpreterStrategy.SINGLE)
 
+    /**
+     * The models the form-filling agent prefers, best first: the first one installed runs the form (a tool-calling agent is hard for
+     * the 0.8B), and when none is installed the chat model does. The one owner of this setting; the Models screen reads it too.
+     */
+    val FORM_AGENT_MODELS: List<String> = listOf(QWEN35_2B.modelId)
+
     val ALL: List<ModelProfile> = listOf(QWEN35_08B, QWEN35_2B, QWEN35_4B, GEMMA4_E2B, GEMMA4_E4B)
 
     /** The profile of [modelId] (matched ignoring case and surrounding blanks), or [FALLBACK] for a model with none. */

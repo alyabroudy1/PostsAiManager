@@ -2,6 +2,7 @@ package com.postsaimanager.core.ai.catalog
 
 import com.postsaimanager.core.ai.catalog.download.ModelDownloadManager
 import com.postsaimanager.core.ai.catalog.download.ModelDownloadStatus
+import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
 import com.postsaimanager.core.model.AiModelDescriptor
 import com.postsaimanager.core.model.DeviceCapability
 import com.postsaimanager.core.model.InstalledModel
@@ -22,6 +23,8 @@ data class CatalogEntry(
     val isActive: Boolean,
     /** Reads scanned documents. The same model as [isActive] unless the user split them. */
     val isExtractionModel: Boolean = false,
+    /** Runs the form-filling agent: an installed model the form agent prefers over the chat model (see `ModelProfiles.FORM_AGENT_MODELS`). */
+    val isFormModel: Boolean = false,
 ) {
     val isInstalled: Boolean get() = installed != null
 }
@@ -64,6 +67,7 @@ class ModelCatalogRepository @Inject constructor(
             val usingBundled = remote.isEmpty()
             val descriptors = if (usingBundled) BundledCatalog.models else remote
             val capability = capabilityChecker.current()
+            val formModelId = ModelProfiles.FORM_AGENT_MODELS.firstOrNull { id -> index.models.any { it.descriptorId == id } }
 
             ModelCatalogState(
                 entries = descriptors.map { descriptor ->
@@ -75,6 +79,7 @@ class ModelCatalogRepository @Inject constructor(
                         isActive = installed != null && installed.id == index.activeModelId,
                         isExtractionModel = installed != null &&
                             installed.id == (index.extractionModelId ?: index.activeModelId),
+                        isFormModel = installed != null && descriptor.id == formModelId,
                     )
                 },
                 capability = capability,
