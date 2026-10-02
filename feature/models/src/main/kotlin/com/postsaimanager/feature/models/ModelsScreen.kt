@@ -48,6 +48,8 @@ import com.postsaimanager.core.model.ModelFit
 @Composable
 fun ModelsScreen(
     onNavigateBack: () -> Unit,
+    /** False when form filling is switched off: the "Used for form filling" note is hidden. */
+    showFormFillingNote: Boolean = false,
     viewModel: ModelsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -121,6 +123,7 @@ fun ModelsScreen(
                             onSetActive = { viewModel.setActive(it) },
                             onSetExtraction = { viewModel.setExtractionModel(it) },
                             onUninstall = { viewModel.uninstall(it) },
+                            showFormFillingNote = showFormFillingNote,
                         )
                     }
                 }
@@ -186,9 +189,9 @@ private fun OfflineCatalogNotice() {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Offline catalog", style = MaterialTheme.typography.titleSmall)
             Text(
-                "Showing the models bundled with the app. Downloads require a signed " +
-                    "catalog, which this build does not yet have — so nothing here can be " +
-                    "installed.",
+                "Showing the models built into the app. Each one downloads from Hugging Face " +
+                    "and is checked against a fixed fingerprint before it is used. New models " +
+                    "will appear here with a later update.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -201,6 +204,7 @@ private fun InstalledCard(
     onSetActive: (String) -> Unit,
     onSetExtraction: (String) -> Unit,
     onUninstall: (String) -> Unit,
+    showFormFillingNote: Boolean,
 ) {
     Card {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -227,7 +231,7 @@ private fun InstalledCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (entry.isFormModel) {
+            if (entry.isFormModel && showFormFillingNote) {
                 // The form agent prefers this model over the chat model while it is installed (ModelProfiles.FORM_AGENT_MODELS).
                 Text(
                     "Used for form filling (better, slower)",

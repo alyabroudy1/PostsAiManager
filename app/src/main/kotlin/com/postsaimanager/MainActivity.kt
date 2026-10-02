@@ -36,6 +36,9 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var authenticator: BiometricDeviceAuthenticator
 
+    @Inject
+    lateinit var formFillingFlag: com.postsaimanager.core.model.FormFillingFlag
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -58,7 +61,7 @@ class MainActivity : FragmentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    AppLockGate { PamApp() }
+                    AppLockGate { PamApp(formFillingEnabled = formFillingFlag.enabled) }
                 }
             }
         }

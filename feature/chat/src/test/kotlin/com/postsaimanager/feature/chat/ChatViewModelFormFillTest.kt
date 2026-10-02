@@ -17,6 +17,7 @@ import com.postsaimanager.core.model.FormChipLabel
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.FormFieldKind
 import com.postsaimanager.core.model.FormFill
+import com.postsaimanager.core.model.FormFillingFlag
 import com.postsaimanager.core.model.FormFillStatus
 import com.postsaimanager.core.model.FormMessage
 import com.postsaimanager.core.model.FormMessageKind
@@ -59,7 +60,7 @@ class ChatViewModelFormFillTest {
         every { isBusy } returns false
     }
 
-    private fun viewModel(documentId: String? = "d1", fill: Boolean = false) = ChatViewModel(
+    private fun viewModel(documentId: String? = "d1", fill: Boolean = false, flag: FormFillingFlag = FormFillingFlag.ON) = ChatViewModel(
         savedStateHandle = SavedStateHandle(
             buildMap {
                 documentId?.let { put("documentId", it) }
@@ -80,6 +81,7 @@ class ChatViewModelFormFillTest {
         observeSuggestedQuestions = ObserveSuggestedQuestionsUseCase(documents),
         formFill = formFill,
         formFills = fills,
+        formFillingFlag = flag,
     )
 
     private fun chatAnswers() {
@@ -126,6 +128,27 @@ class ChatViewModelFormFillTest {
         coVerify(exactly = 0) { formFill.resume(any()) }
         coVerify(exactly = 0) { formFill.route(any(), any()) }
         io.mockk.verify { sendChat.invoke(any(), isNull(), eq("hello"), any(), any(), any()) }
+    }
+
+    // ── The feature flag ──
+
+    @Test
+    fun `with form filling off a document chat never reads a message for a fill request`() = runTest {
+        chatAnswers()
+        val vm = viewModel(flag = FormFillingFlag.OFF)
+
+        vm.sendMessage("help me fill this in")
+
+        coVerify(exactly = 0) { formFill.route(any(), any()) }
+        io.mockk.verify { sendChat.invoke("conv-d1", "d1", "help me fill this in", any(), any(), any()) }
+    }
+
+    @Test
+    fun `with form filling off opening the chat neither starts nor resumes a fill`() = runTest {
+        viewModel(fill = true, flag = FormFillingFlag.OFF)
+
+        coVerify(exactly = 0) { formFill.start(any()) }
+        coVerify(exactly = 0) { formFill.resume(any()) }
     }
 
     // ── A typed message ──

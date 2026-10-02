@@ -43,7 +43,7 @@ import com.postsaimanager.feature.settings.SettingsScreen
 import androidx.navigation.NavGraph.Companion.findStartDestination
 
 @Composable
-fun PamApp() {
+fun PamApp(formFillingEnabled: Boolean) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
     // App-level scope and host: the "moved to Recently deleted / Undo" snackbar has to
@@ -126,7 +126,7 @@ fun PamApp() {
             }
 
             composable("models") {
-                ModelsScreen(onNavigateBack = { navController.popBackStack() })
+                ModelsScreen(onNavigateBack = { navController.popBackStack() }, showFormFillingNote = formFillingEnabled)
             }
 
             composable("trash") {
@@ -156,9 +156,9 @@ fun PamApp() {
                         navController.navigate("chat?documentId=$docId")
                     },
                     // "Help me fill it" / "Fill in this form": the same document chat, with the form fill started.
-                    onFillForm = { docId ->
+                    onFillForm = if (formFillingEnabled) { docId ->
                         navController.navigate("chat?documentId=$docId&${ChatViewModel.ARG_FILL}=true")
-                    },
+                    } else null,
                     onDeleted = { docId ->
                         navController.popBackStack()
                         scope.launch {

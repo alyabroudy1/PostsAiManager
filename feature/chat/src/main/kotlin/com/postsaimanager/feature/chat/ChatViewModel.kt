@@ -27,6 +27,7 @@ import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.model.ConfigSpec
 import com.postsaimanager.core.model.DocumentPreview
 import com.postsaimanager.core.model.FormChip
+import com.postsaimanager.core.model.FormFillingFlag
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.FormFill
 import com.postsaimanager.core.model.FormMessage
@@ -71,6 +72,7 @@ class ChatViewModel @Inject constructor(
     private val observeSuggestedQuestions: ObserveSuggestedQuestionsUseCase,
     private val formFill: FormFillAgent,
     private val formFills: FormFillRepository,
+    private val formFillingFlag: FormFillingFlag = FormFillingFlag.ON,
 ) : ViewModel() {
 
     private val _preview = MutableStateFlow<CitationPreviewState?>(null)
@@ -209,6 +211,7 @@ class ChatViewModel @Inject constructor(
      * progress line in the chat; leaving the chat cancels them.
      */
     private fun openFormFill(startRequested: Boolean) {
+        if (!formFillingFlag.enabled) return
         val document = documentId ?: return
         runFormWork(announce = startRequested) { if (startRequested) formFill.start(document) else formFill.resume(document) }
     }
@@ -237,6 +240,7 @@ class ChatViewModel @Inject constructor(
 
     /** A chip of the form conversation was tapped; [shownText] is its label as the user saw it. */
     fun onFormChip(chip: FormChip, shownText: String) {
+        if (!formFillingFlag.enabled) return
         val document = documentId ?: return
         runFormWork { formFill.chip(document, chip, shownText) }
     }
@@ -360,7 +364,8 @@ class ChatViewModel @Inject constructor(
         if (text.isBlank() || _uiState.value.isProcessing) return
         lastSentText = text
         val document = documentId
-        if (document == null) {
+        // Form filling switched off: the message is never read for a fill request (no detector, no model call).
+        if (document == null || !formFillingFlag.enabled) {
             startChatTurn(text)
             return
         }
