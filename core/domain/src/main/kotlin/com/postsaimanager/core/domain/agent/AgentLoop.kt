@@ -20,6 +20,16 @@ interface AgentSpec {
     /** A compact summary of where things stand, kept by the tools' own state: added to every result and to a rebuilt history. */
     suspend fun stateSummary(): String?
 
+    /** [stateSummary] for the run as stored so far; a spec whose summary depends on what the user just said overrides this. */
+    suspend fun stateSummary(entries: List<AgentEntry>): String? = stateSummary()
+
+    /**
+     * Dynamic tool exposure: the names of the tools that make sense in the current state (computed by code from the stored state and the
+     * run's [entries]). The model is told only these and the grammar allows only these; a call to another tool is refused. Null exposes
+     * every tool. The AI still chooses among the allowed ones and writes all wording.
+     */
+    suspend fun allowedTools(entries: List<AgentEntry>): List<String>? = null
+
     /** A nudge the model gets after two failed steps in a row (for example the next open item). Null when there is none. */
     suspend fun stuckHint(): String?
 
@@ -71,14 +81,15 @@ class AgentLoop(
     private val now: () -> Long = System::currentTimeMillis,
 ) {
 
+    /** The grammar of each exposed subset of tools, built once (a grammar is large and the subsets repeat from step to step). */
+    private val grammars = HashMap<List<String>, String>()
+
     suspend fun run(spec: AgentSpec, transcript: AgentTranscript): AgentOutcome {
         val entries = transcript.entries().toMutableList()
         val last = entries.lastOrNull() ?: return AgentOutcome.Idle
         if (last is AgentEntry.Call && spec.tools[last.name]?.endsTurn == true) return AgentOutcome.Waiting(last)
 
         val tools = spec.tools.specs()
-        val grammar = format.grammar(tools)
-        val request = profile.request(grammar)
         val system = spec.systemPrompt() + "\n\n" + format.describeTools(tools)
         // What the conversation may grow to beyond the system prompt, and how much of it a rebuilt session starts with.
         val room = profile.conversationRoom(system.length)
@@ -96,10 +107,15 @@ class AgentLoop(
             if (steps >= profile.maxStepsPerTurn) return AgentOutcome.StepLimit
             steps++
 
+            // The tools that make sense now: the grammar (built once per subset) allows only these, and the model is told which they are.
+            val exposed = spec.tools.specs(spec.allowedTools(entries)).map { it.name }
+            val narrowed = exposed.size < tools.size
+            val grammar = grammars.getOrPut(exposed) { format.grammar(tools.filter { it.name in exposed }) }
+            val request = profile.request(grammar)
             // The newest entry is what the model answers; everything before it is the history a rebuilt session starts from.
-            val pending = correction ?: renderPending(spec, entries, answers)
+            val pending = correction ?: renderPending(spec, entries, answers, exposed.takeIf { narrowed })
             val history = AgentHistory.build(if (correction != null) entries else entries.dropLast(1), format, tools, historyBudget, answers) {
-                spec.stateSummary()
+                spec.stateSummary(entries)
             }
             if (sessionChars > room) {
                 model.resetSession()
@@ -134,7 +150,11 @@ class AgentLoop(
             val tool = spec.tools[parsed.name]
             val invalid = tool?.let { ArgumentValidator.validate(it.parameters, call.args) }
             val toolStart = now()
-            var result = execute(tool, call, entries, invalid)
+            var result = if (narrowed && parsed.name !in exposed) {
+                ToolResult.error("${parsed.name} is not available now. Available now: ${exposed.joinToString(", ")}")
+            } else {
+                execute(tool, call, entries, invalid)
+            }
             val toolMs = now() - toolStart
             if (result.ok) failedInARow = 0 else failedInARow++
             if (!result.ok && failedInARow >= 2) spec.stuckHint()?.let { result = result.with("hint", it) }
@@ -149,19 +169,23 @@ class AgentLoop(
                     },
                     outcome = if (ends) "ended_turn" else if (result.ok) "ok" else "error",
                     modelMs = modelMs, toolMs = toolMs, contextTokens = contextTokens, rebuilt = rebuilt, note = spec.traceNote(call),
+                    reason = if (result.ok) null else result.errorMessage,
                 ),
             )
             if (ends) {
                 transcript.record(call, null)
                 return AgentOutcome.EndedTurn(call, result)
             }
-            spec.stateSummary()?.let { result = result.with("state", it) }
+            spec.stateSummary(entries)?.let { result = result.with("state", it) }
             val recorded = AgentEntry.Result(call.id, call.name, result)
             transcript.record(call, recorded)
             entries += call
             entries += recorded
         }
     }
+
+    private fun ToolResult.withTools(exposed: List<String>?): ToolResult =
+        if (exposed == null) this else with(NEXT_TOOLS, exposed.joinToString(", "))
 
     /** The result each user reply stands for, by the entry's index: only a reply that comes right after a turn-ending call has one. */
     private suspend fun answersOf(spec: AgentSpec, entries: List<AgentEntry>): Map<Int, ToolResult> {
@@ -194,7 +218,8 @@ class AgentLoop(
     private fun succeeded(entries: List<AgentEntry>, call: AgentEntry.Call): Boolean =
         entries.filterIsInstance<AgentEntry.Result>().any { it.callId == call.id && it.result.ok }
 
-    private suspend fun renderPending(spec: AgentSpec, entries: List<AgentEntry>, answers: Map<Int, ToolResult>): String = when (val entry = entries.last()) {
+    /** [exposed] are the tools of this step when fewer than all: the model reads them at the end of the result it answers. */
+    private suspend fun renderPending(spec: AgentSpec, entries: List<AgentEntry>, answers: Map<Int, ToolResult>, exposed: List<String>?): String = when (val entry = entries.last()) {
         is AgentEntry.UserText -> {
             val answer = answers[entries.lastIndex]
             val call = entries.getOrNull(entries.lastIndex - 1) as? AgentEntry.Call
@@ -202,15 +227,18 @@ class AgentLoop(
                 entry.text
             } else {
                 // The newest answer carries the running state, like every result the model reads.
-                val withState = if (answer.text("state") != null) answer else spec.stateSummary()?.let { answer.with("state", it) } ?: answer
-                format.renderResult(call.name, withState.toModelText())
+                val withState = if (answer.text("state") != null) answer else spec.stateSummary(entries)?.let { answer.with("state", it) } ?: answer
+                format.renderResult(call.name, withState.withTools(exposed).toModelText())
             }
         }
-        is AgentEntry.Result -> format.renderResult(entry.name, entry.result.toModelText())
+        is AgentEntry.Result -> format.renderResult(entry.name, entry.result.withTools(exposed).toModelText())
         // A call whose result was never stored (the run was interrupted while it ran): the model is told so and calls again.
         is AgentEntry.Call -> format.renderResult(entry.name, ToolResult.error("interrupted before it finished; call it again if it is still needed").toModelText())
     }
 }
+
+/** The key of the result entry that lists the tools exposed for the step the result is answered in. */
+private const val NEXT_TOOLS = "tools_now"
 
 /** The compact history a (re)built session starts from: whole recent turns within a size budget, the older ones summarised. */
 internal object AgentHistory {
