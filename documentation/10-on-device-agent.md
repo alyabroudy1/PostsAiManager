@@ -148,6 +148,32 @@ typed message and tapped chip is the user's next message to the agent. After `fi
 A new feature is an `AgentSpec` (conversation id, tools, system prompt, state summary, stuck hint), an `AgentTranscript` over
 its storage and the same loop.
 
+## 6a. Guidance for a small model (added after the first device pass)
+
+The first pass showed a 0.8B model asking "who is the form for?" again after every answer. What changed (the AI still decides; code
+only tells it where things stand and refuses what is plainly wrong):
+
+- **STATE block.** Every tool result ends with `state`: the form's language, the person chosen per role, filled/open counts, the
+  first open fields (id, label, section) and `suggested next: ...`, a call computed from the stored state (`FormGuidance`), for
+  example `fill_from_profile(person_id=p2, role=subject)` once a person was picked and the subject role has nobody.
+- **The reply is a result.** A user message right after a turn-ending call reaches the model as the tool result of that call
+  (`AgentSpec.replyResult`): `{"ok":true,"answer":"Test Kind","matched_chip":"Test Kind","matched_person":"p2","state":"..."}`.
+  Stored as before (a USER message); only the rendering changed. In a rebuilt history the state is dropped from older replies.
+- **Repeat block.** `ask_user` refuses a question the user already answered in this run (word overlap of the questions, or the
+  same chips with a similar question): `already answered: <answer>. Use it: suggested next: ...`.
+- **Language.** The system prompt names the form's language (the document's stored `language`) and every state line repeats it.
+  `ask_user` refuses a question in another script than the form's language or what the user wrote (`WritingScript`: Unicode scripts
+  plus a small language-to-script registry). Two languages of one script (English, German) cannot be told apart by code.
+- **Version.** The beta-notice line that starts a run carries `FormAgentSpec.VERSION`. A newest run without it (the earlier
+  code-driven chat) or with another version starts a fresh run; the old messages stay visible but never reach the model. A stopped
+  run offers Continue / Start over, a finished one Start over (the chat does not silently restart or continue).
+- **Trace.** Debug builds log one line per step with tag `FormAgent` (`AgentTrace`): turn, step, tool, argument names, validation,
+  outcome, model and tool milliseconds, a rough context size, whether the session was rebuilt, and the question text of an
+  `ask_user`. No field values, no answers.
+- **Form model.** `ModelProfiles.FORM_AGENT_MODELS` (Qwen3.5-2B) is the one setting: `ActiveModelProvider.formModelPath/Id/Config`
+  return the first installed of them, else the chat model. The engine loads it for the run; the next chat message loads the chat
+  model again (`engine.load` swaps models and drops the session).
+
 ## 7. Known risks (0.8B)
 
 Small models are weak at multi-step tool use. The mitigations are in the loop (grammar, limits, hints, a compact context), but
