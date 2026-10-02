@@ -408,7 +408,9 @@ fun ChatScreen(
                     val latestAssistantId = uiState.messages.lastOrNull { !it.isUser && it.form == null }?.id
                     // The form conversation: only the newest card is shown in full, and only the open question's chips are live.
                     val latestCardId = uiState.messages.lastOrNull { it.form?.kind == FormMessageKind.CARD }?.id
-                    val latestQuestionId = uiState.messages.lastOrNull { it.form?.kind == FormMessageKind.QUESTION }?.id
+                    // The one pending question: the newest of what waits for an answer (a question, a status line with chips) or was an
+                    // answer (the user's message). A question or Continue / Start over that something came after is stale: disabled.
+                    val pendingChipsId = uiState.messages.lastOrNull { isPendingChipsMessage(it) }?.id
 
                     items(
                         uiState.messages.asReversed(),
@@ -421,7 +423,7 @@ fun ChatScreen(
                                 form = form,
                                 fillCard = fillCard,
                                 isLatestCard = message.id == latestCardId,
-                                chipsEnabled = message.id == latestQuestionId && !uiState.isProcessing,
+                                chipsEnabled = message.id == pendingChipsId && !uiState.isProcessing,
                                 onChip = viewModel::onFormChip,
                                 onShowOnPage = viewModel::openFieldPreview,
                                 onCopy = ::copyToClipboard,

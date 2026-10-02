@@ -12,6 +12,7 @@ import com.postsaimanager.core.domain.agent.strings
 import com.postsaimanager.core.domain.form.fill.FillProgress
 import com.postsaimanager.core.domain.form.fill.FormMessageCodec
 import com.postsaimanager.core.model.AiMessage
+import com.postsaimanager.core.model.FormMessage
 import com.postsaimanager.core.model.FormMessageKind
 import com.postsaimanager.core.model.FormText
 import com.postsaimanager.core.model.MessageRole
@@ -71,7 +72,7 @@ class FormAgentSpec(
          * The version of the agent as stored runs know it: bumped whenever the instructions or the way the tools talk change, so a run
          * written by an older agent (or by the earlier code-driven chat, which has none) is not carried on, but a new one begins.
          */
-        const val VERSION = "agent-4"
+        const val VERSION = "agent-5"
 
         /** The standing instructions; [language] is the form's language: every question and message is written in it. */
         fun instructions(language: String): String = """
@@ -143,7 +144,19 @@ class FormAgentTranscript(
                     toolCallId = call.id, toolName = call.name, toolResult = result.result.toModelText(), createdAt = 0L,
                 ),
             )
+            if (call.name in FILLING_TOOLS && result.result.ok) showCardOnFirstFill()
         }
+    }
+
+    /**
+     * The chat shows the live fill card from the first fill on, whether or not the model ever calls show_fill_card: code renders the
+     * result. The card re-renders from the stored fields, so one card of the run is enough (the model's own later card folds the earlier).
+     */
+    private suspend fun showCardOnFirstFill() {
+        val messages = log.messages(documentId)
+        val sinceStart = messages.drop(messages.indexOfLast(::isRunStart) + 1)
+        if (sinceStart.any { FormMessageCodec.parse(it)?.kind == FormMessageKind.CARD }) return
+        log.post(documentId, FormMessage(FormMessageKind.CARD))
     }
 
     private fun jsonOf(text: String?): JsonObject =
@@ -152,6 +165,9 @@ class FormAgentTranscript(
     companion object {
         /** What the agent is told when a run begins without the user typing a request (the card's "Help me fill it"). */
         const val START_INSTRUCTION = "Help me fill in this form."
+
+        /** The tools whose success puts values into the form (the chat shows the card after them). */
+        private val FILLING_TOOLS = setOf(FillFromProfileTool.NAME, FillFieldTool.NAME)
 
         /** A new run begins with the beta-notice line (it is also what the user sees first). */
         fun isRunStart(message: AiMessage): Boolean =

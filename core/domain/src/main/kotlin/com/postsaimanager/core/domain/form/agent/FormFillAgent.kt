@@ -103,6 +103,13 @@ class FormFillAgent(
             run(documentId)
             return@withLock FormRoute.HANDLED
         }
+        // A run that stopped or failed and was not finished: what the user types is not silently sent to the plain chat. It is kept, and
+        // the user is told the fill is paused, with Continue / Start over.
+        if (fill != null && fill.status != FormFillStatus.DONE && hasRun(documentId)) {
+            log.userSaid(documentId, text)
+            log.post(documentId, FormMessage(FormMessageKind.STATUS, FormText.AGENT_PAUSED, chips = listOf(continueChip(), startOverChip())))
+            return@withLock FormRoute.HANDLED
+        }
         if (!detector.asksForFill(text, documentIsForm(documentId))) return@withLock FormRoute.NOT_FOR_FORM
         beginRun(documentId)
         log.userSaid(documentId, text)
@@ -118,7 +125,9 @@ class FormFillAgent(
                 log.userSaid(documentId, shownText)
                 run(documentId)
             }
-            FormChipAction.CONTINUE -> if (hasRun(documentId)) run(documentId)
+            // An earlier Continue chip (the run went on, or was started over since) does nothing: only a stopped run is continued.
+            FormChipAction.CONTINUE ->
+                if (hasRun(documentId) && fills.fillForDocument(documentId)?.status == FormFillStatus.STOPPED) run(documentId)
             FormChipAction.START_OVER -> {
                 val fill = fills.fillForDocument(documentId)
                 if (fill != null) {

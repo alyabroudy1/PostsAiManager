@@ -80,7 +80,7 @@ internal fun FormMessageItem(
             if (form.chips.isEmpty()) {
                 FormStatusLine(line, working = form.text == FormText.UNDERSTANDING && form.args.firstOrNull() != form.args.getOrNull(1))
             } else {
-                FormQuestion(line, form.chips, enabled = true, onChip = chipTapped)
+                FormQuestion(line, form.chips, chipsEnabled, onChip = chipTapped)
             }
         FormMessageKind.QUESTION -> FormQuestion(line, form.chips, chipsEnabled, chipTapped)
         FormMessageKind.CARD -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -94,6 +94,15 @@ internal fun FormMessageItem(
             if (field != null) FormPageChip(field, onShowOnPage)
         }
     }
+}
+
+/**
+ * Whether [message] is one the chips' state follows: the user's own message, a question, or a status line with chips. Of these only the
+ * newest has live chips, so the chips of an earlier question, run or Continue / Start over do nothing.
+ */
+internal fun isPendingChipsMessage(message: ChatMessage): Boolean {
+    val form = message.form ?: return message.isUser
+    return form.kind == FormMessageKind.QUESTION || (form.kind == FormMessageKind.STATUS && form.chips.isNotEmpty())
 }
 
 /** A chip the assistant offers to look at a field on its page ("Unterschrift · p.2"); it opens the page with the field marked. */

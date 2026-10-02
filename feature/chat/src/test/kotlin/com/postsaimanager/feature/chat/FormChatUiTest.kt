@@ -274,7 +274,7 @@ class FormChatUiTest {
                 FormMessageItem(
                     message = ChatMessage(id = "m", text = "", isUser = false),
                     form = FormMessage(FormMessageKind.STATUS, FormText.AGENT_PAUSED, chips = listOf(FormChip(FormChipAction.CONTINUE, labelCode = FormChipLabel.CONTINUE))),
-                    fillCard = null, isLatestCard = false, chipsEnabled = false, onChip = { c, s -> chips += c to s }, onShowOnPage = {}, onCopy = {},
+                    fillCard = null, isLatestCard = false, chipsEnabled = true, onChip = { c, s -> chips += c to s }, onShowOnPage = {}, onCopy = {},
                 )
             }
         }
@@ -283,6 +283,27 @@ class FormChatUiTest {
         compose.onNodeWithText("Continue").performClick()
         assertThat(chips.single().first.action).isEqualTo(FormChipAction.CONTINUE)
         assertThat(chips.single().second).isEqualTo("Continue")
+    }
+
+    @Test
+    fun `the chips of an earlier status line are disabled, and only the newest question or status with chips is pending`() {
+        compose.setContent {
+            MaterialTheme {
+                FormMessageItem(
+                    message = ChatMessage(id = "m", text = "", isUser = false),
+                    form = FormMessage(FormMessageKind.STATUS, FormText.AGENT_PAUSED, chips = listOf(FormChip(FormChipAction.START_OVER, labelCode = FormChipLabel.START_OVER))),
+                    fillCard = null, isLatestCard = false, chipsEnabled = false, onChip = { c, s -> chips += c to s }, onShowOnPage = {}, onCopy = {},
+                )
+            }
+        }
+        compose.onNodeWithText("Start over").assertIsNotEnabled()
+
+        val question = ChatMessage(id = "q", text = "Wer?", isUser = false, form = FormMessage(FormMessageKind.QUESTION))
+        val answer = ChatMessage(id = "a", text = "Ich", isUser = true)
+        val paused = ChatMessage(id = "p", text = "", isUser = false, form = FormMessage(FormMessageKind.STATUS, FormText.AGENT_PAUSED, chips = listOf(FormChip(FormChipAction.CONTINUE, labelCode = FormChipLabel.CONTINUE))))
+        val progress = ChatMessage(id = "w", text = "", isUser = false, form = FormMessage(FormMessageKind.STATUS, FormText.UNDERSTANDING))
+        assertThat(listOf(question, answer, paused, progress).lastOrNull { isPendingChipsMessage(it) }).isEqualTo(paused)
+        assertThat(listOf(question, answer).lastOrNull { isPendingChipsMessage(it) }).isEqualTo(answer)
     }
 
     @Test

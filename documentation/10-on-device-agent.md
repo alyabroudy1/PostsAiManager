@@ -218,6 +218,24 @@ same role question is never repeated; a typed answer to a role question is sugge
 name fields. Start over resets the engine session. The trace line of an error step ends with `reason="..."`, the first 60 characters
 with quoted values replaced.
 
+## 6c. Someone else, wording, language guard, card (agent-5)
+
+- **ROLE_NAME_NEEDED** (tools ask_user, skip_field): the user chose "someone else" (or "Me" when no profile of the user exists) for a
+  role. The reply result carries `note`: "The user will give the name of the <role> person. Ask for their name now (no chips)."
+  `ask_user` refuses a question that repeats the role question (word overlap, or the same chips / the someone-else chip) with that hint;
+  a new question passes. The third refusal in a turn adds the question to ask in the form's language (`FormWording.personNameQuestion`,
+  string resources). The typed reply then fills the role's name fields (ROLE_TYPED). The chip "Me" in the form's language
+  (`FormWording.me`) names the profile of the user when there is one.
+- **Role name**: a section heading names the role only when it is at most three words and does not start in lower case; otherwise the
+  role field's label alone ("Kontoinhaber/in").
+- **Language guard**: a question is refused only when it is plainly English on a non-English form: at least half of its words are in
+  `EnglishFunctionWords` (a small negative-signal list) and none is in the form's vocabulary (labels, headings, options and the stored
+  OCR words, loaded once per run).
+- **Card**: the first successful `fill_from_profile` / `fill_field` of a run posts the live card even if the model never calls
+  `show_fill_card`.
+- **Chips**: only the newest question / status line with chips is live (the UI); a Continue only acts on a stopped run. Typed text
+  after a run stopped or failed (fill not DONE) is kept and answered with the paused line and Continue / Start over.
+
 ## 7. Known risks (0.8B)
 
 Small models are weak at multi-step tool use. The mitigations are in the loop (grammar, limits, hints, a compact context), but
