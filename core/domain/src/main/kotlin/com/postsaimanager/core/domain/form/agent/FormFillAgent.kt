@@ -125,6 +125,9 @@ class FormFillAgent(
                     fills.clearValues(fill.id, clock())
                     fills.saveFill(fill.copy(roleProfiles = emptyMap(), confirmedRoles = emptySet(), awaiting = null, currentFieldId = null))
                 }
+                // The engine still holds the old run's chat under the same conversation id: drop it, so the new run starts a fresh session
+                // (a fresh history) instead of the cached one that remembers the answers just forgotten.
+                model.resetSession()
                 beginRun(documentId)
                 run(documentId)
             }

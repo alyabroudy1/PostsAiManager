@@ -202,8 +202,9 @@ class FormAgentFlowTest {
 
         val system = h.model.sessions.single().system
 
-        // About 1,600 tokens of a 4,096-token window; the rest is the conversation and one reply.
-        assertThat(system.length).isLessThan(5_500)
+        // About 1,700 tokens of a 4,096-token window; the rest is the conversation and one reply. (Raised from 5,500 for the one worked
+        // example and the tools_now line, about 500 characters, which are what helps a 0.8B call the right tool at the right time.)
+        assertThat(system.length).isLessThan(6_000)
         assertThat(system).contains("German") // the form's language is spoken until the user writes in another
         assertThat(system).contains("<function=example_function_name>")
         assertThat(com.postsaimanager.core.domain.agent.AgentProfile().conversationRoom(system.length)).isAtLeast(2_000)
@@ -275,11 +276,14 @@ class FormAgentFlowTest {
         assertThat(h.model.sent[before]).contains("\"answer\":\"Ahmad\",\"matched_chip\":\"Ahmad\",\"matched_person\":\"p2\"")
 
         val rebuilt = h.model.sessions.last()
-        assertThat(rebuilt.history.map { it.role }).containsExactly(
+        // A session is rebuilt from whole recent turns within the history budget; what does not fit is replaced by the state summary. (The
+        // standing prompt with the worked example leaves about 1,900 characters of history on the default 4,096-token window, so the
+        // rebuild in the middle of this turn may start from the summary.)
+        assertThat(rebuilt.history.first().role).isEqualTo(AiChatRole.USER)
+        assertThat(rebuilt.history.any { it.role == AiChatRole.ASSISTANT && it.content.contains("<function=") }).isTrue()
+        assertThat(h.model.sessions[1].history.map { it.role }).containsExactly(
             AiChatRole.USER, AiChatRole.ASSISTANT, AiChatRole.USER, AiChatRole.ASSISTANT, AiChatRole.USER, AiChatRole.ASSISTANT,
         ).inOrder()
-        assertThat(rebuilt.history.first().content).isEqualTo(FormAgentTranscript.START_INSTRUCTION)
-        assertThat(rebuilt.history.last().content).contains("<function=ask_user>")
         assertThat(h.field("Name des Kindes").value).isEqualTo("Ahmad Mustermann")
     }
 

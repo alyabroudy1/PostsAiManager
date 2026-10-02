@@ -60,6 +60,8 @@ class AgentHarness(
     val embedder: EmbeddingService = GermanSwim.embedder,
     me: Map<String, PersonValue> = GermanSwim.me(),
     val wording: FormWording = FormWording.English,
+    /** Dynamic tool exposure as in the app; off (every tool at every step) for the tests of what the tools themselves do. */
+    val dynamicTools: Boolean = false,
 ) {
     val nowMs = GermanSwim.NOW
     val today: LocalDate = LocalDate.of(2026, 10, 1)
@@ -114,7 +116,7 @@ class AgentHarness(
         )
     }
 
-    val tools = FormAgentTools(envFor)
+    val tools = FormAgentTools(dynamicTools, envFor)
 
     private val activeModels = mockk<ActiveModelProvider> {
         coEvery { activeModelId() } returns null

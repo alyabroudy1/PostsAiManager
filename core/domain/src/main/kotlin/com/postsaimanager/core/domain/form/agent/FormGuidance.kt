@@ -1,11 +1,15 @@
 package com.postsaimanager.core.domain.form.agent
 
+import com.postsaimanager.core.domain.agent.AgentContext
 import com.postsaimanager.core.domain.agent.AgentEntry
 import com.postsaimanager.core.domain.agent.ToolResult
 import com.postsaimanager.core.domain.agent.strings
+import com.postsaimanager.core.domain.form.FormDataKeys
 import com.postsaimanager.core.domain.form.fill.FillProgress
 import com.postsaimanager.core.model.FormField
 import com.postsaimanager.core.model.FormRole
+import com.postsaimanager.core.model.FormValueKind
+import com.postsaimanager.core.model.FormValueSource
 import com.postsaimanager.core.model.Profile
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -26,7 +30,7 @@ class FormGuidance(private val env: FormToolEnv) {
      * The STATE block: the language, the people chosen per role, how many fields are filled, the first open fields and a
      * "suggested next" line. [answeredPerson] is the person a user's reply just named, so the suggestion can use it.
      */
-    suspend fun state(answeredPerson: Profile? = null, answer: String? = null): String {
+    suspend fun state(reply: UserReply? = null, answerForFields: Boolean = false): String {
         val fields = env.fields()
         val language = languageName()
         if (fields.isEmpty()) return "language: $language (write every question in it). The form has not been read yet. suggested next: read_form()."
@@ -49,14 +53,14 @@ class FormGuidance(private val env: FormToolEnv) {
                 if (open.size > MAX_OPEN_SHOWN) append("; +${open.size - MAX_OPEN_SHOWN} more")
                 append(". ")
             }
-            append("suggested next: ").append(suggestedNext(fields, people, answeredPerson, answer)).append('.')
+            append("suggested next: ").append(suggestedNext(fields, people, reply, answerForFields)).append('.')
         }
     }
 
-    /** The suggestion alone (for the error of a repeated question), for what the user answered. */
-    suspend fun suggestionFor(answer: String): String {
+    /** The suggestion alone (for the error of a repeated question), for what the user answered to [asked]. */
+    suspend fun suggestionFor(answer: String, asked: AgentEntry.Call? = null): String {
         val fields = env.fields()
-        return suggestedNext(fields, env.managed(), matchPerson(answer), answer)
+        return suggestedNext(fields, env.managed(), UserReply(answer, asked), answerForFields = true)
     }
 
     /** The result of a turn-ending question for the user's [text]: what was answered and what it matched, with the state after it. */
@@ -69,7 +73,31 @@ class FormGuidance(private val env: FormToolEnv) {
             chip?.let { put("matched_chip", it) }
             person?.let { put("matched_person", FormRefs.personAlias(people, it)) }
         }
-        return ToolResult.ok(data).with("state", state(person, text))
+        return ToolResult.ok(data).with("state", state(UserReply(text, call), answerForFields = true))
+    }
+
+    /**
+     * Where the roles of the form stand for [reply] (the user's latest answer, when the turn began with one): the first role still
+     * without a person is either ready to be filled from a person, waiting for the subject, waiting for somebody to be named, or was
+     * answered with typed text. The state's suggestion and the tool exposure both read it, so they always agree.
+     */
+    suspend fun roleSituation(fields: List<FormField>, reply: UserReply?): RoleSituation {
+        val role = unassignedRoles(fields).firstOrNull() ?: return RoleSituation.None
+        val people = env.managed()
+        val chosen = env.fill()?.roleProfiles.orEmpty()
+        val answered = reply?.let { matchPerson(it.text) }
+        val candidate = answered?.takeIf { fitsRole(role, it, chosen, people) } ?: guardianCandidate(role, chosen, people)
+        if (candidate != null) return RoleSituation.Ready(role, candidate)
+        if (role == FormRole.SUBJECT) return RoleSituation.SubjectUnknown
+        // Somebody who is not stored: the "someone else" chip asks for a name; a name typed after the question names them.
+        if (reply != null && reply.asked != null && answered == null) {
+            if (fold(reply.text) == fold(env.roles.someoneElse())) return RoleSituation.NeedsPerson(role, someoneElse = true)
+            if (!reply.isChipOfQuestion()) {
+                val nameFields = FormRefs.ordered(FormRefs.open(fields).filter { it.role == role && it.dataKey?.let(FormDataKeys::of)?.valueKind == FormValueKind.NAME })
+                return RoleSituation.Typed(role, nameFields.ifEmpty { FormRefs.open(fields).filter { it.role == role } }, reply.text)
+            }
+        }
+        return RoleSituation.NeedsPerson(role, someoneElse = false)
     }
 
     /** The managed person whose name [text] is (the whole name or its words, case and accents ignored); null when it names nobody. */
@@ -84,22 +112,34 @@ class FormGuidance(private val env: FormToolEnv) {
         }
     }
 
-    private suspend fun suggestedNext(fields: List<FormField>, people: List<Profile>, answeredPerson: Profile?, answer: String?): String {
+    private suspend fun suggestedNext(fields: List<FormField>, people: List<Profile>, reply: UserReply?, answerForFields: Boolean): String {
         val chosen = env.fill()?.roleProfiles.orEmpty()
         val open = FormRefs.open(fields)
-        val role = unassignedRoles(fields).firstOrNull()
-        if (role != null) {
-            val candidate = answeredPerson?.takeIf { fitsRole(role, it, chosen, people) } ?: guardianCandidate(role, chosen, people)
-            if (candidate != null) return "fill_from_profile(person_id=${FormRefs.personAlias(people, candidate)}, role=${role.name.lowercase()})"
-            if (role == FormRole.SUBJECT) {
+        val answer = reply?.text?.takeIf { answerForFields }
+        when (val situation = roleSituation(fields, reply)) {
+            RoleSituation.None -> Unit
+            is RoleSituation.Ready ->
+                return "fill_from_profile(person_id=${FormRefs.personAlias(people, situation.person)}, role=${situation.role.name.lowercase()})"
+            RoleSituation.SubjectUnknown -> {
                 val names = people.joinToString(", ") { it.name }
                 return "ask_user who the form is for, with the people ($names) as chips; then fill_from_profile for that person with role=subject"
             }
-            val subject = chosen[FormRole.SUBJECT]?.let { id -> people.firstOrNull { it.id == id } }
-            val chips = env.roles.candidates(role, subject, people).map { it.name } + env.roles.someoneElse()
-            val wording = env.roles.nameIn(fields, role)
-            return "ask_user who is \"$wording\" (a full question in the form's language, not the word alone), with the chips " +
-                "${chips.joinToString(", ") { "\"$it\"" }}; then fill_from_profile for that person with role=${role.name.lowercase()}"
+            is RoleSituation.Typed -> {
+                val wording = env.roles.nameIn(fields, situation.role)
+                val targets = situation.nameFields.joinToString(", ") { FormRefs.fieldAlias(fields, it) }
+                return "the user typed who is \"$wording\": fill_field(field_id=<one of $targets>, value=${situation.text}, source=user) for its name " +
+                    "(not a name: skip_field instead); do not ask who it is again"
+            }
+            is RoleSituation.NeedsPerson -> {
+                val wording = env.roles.nameIn(fields, situation.role)
+                if (situation.someoneElse) {
+                    return "ask_user for the full name of \"$wording\" (a new question in the form's language, no chips; the user types it)"
+                }
+                val subject = chosen[FormRole.SUBJECT]?.let { id -> people.firstOrNull { it.id == id } }
+                val chips = env.roles.candidates(situation.role, subject, people).map { it.name } + env.roles.someoneElse()
+                return "ask_user who is \"$wording\" (a full question in the form's language, not the word alone), with the chips " +
+                    "${chips.joinToString(", ") { "\"$it\"" }}; then fill_from_profile for that person with role=${situation.role.name.lowercase()}"
+            }
         }
         if (open.isEmpty()) return "show_fill_card(), then finish(summary)"
         if (answer != null) {
@@ -129,10 +169,14 @@ class FormGuidance(private val env: FormToolEnv) {
         return "${FormRefs.fieldAlias(fields, field)} ${field.labelText}" + (section?.let { " ($it)" } ?: "")
     }
 
-    /** The roles of the form that still have open fields and nobody chosen, in the order of [FormRole]. */
+    /**
+     * The roles of the form that still have open fields and nobody chosen, in the order of [FormRole]. A role the user answered by hand
+     * (one of its fields holds what they typed, or was skipped) is settled: its other open fields are asked like any field.
+     */
     suspend fun unassignedRoles(fields: List<FormField>): List<FormRole> {
         val chosen = env.fill()?.roleProfiles.orEmpty()
-        return fields.filter { it.role != null && it.role != FormRole.OTHER && FormRefs.status(it) == "open" && it.role !in chosen }
+        val byHand = fields.filter { it.value != null && it.valueSource == FormValueSource.USER || it.skipped }.mapNotNull { it.role }.toSet()
+        return fields.filter { it.role != null && it.role != FormRole.OTHER && FormRefs.status(it) == "open" && it.role !in chosen && it.role !in byHand }
             .mapNotNull { it.role }.distinct().sortedBy { it.ordinal }
     }
 
@@ -146,4 +190,35 @@ class FormGuidance(private val env: FormToolEnv) {
     private companion object {
         const val MAX_OPEN_SHOWN = 5
     }
+}
+
+/** What the user just wrote ([text]) and the question it answers ([asked], the turn-ending call before it; null for a reply to nothing). */
+data class UserReply(val text: String, val asked: AgentEntry.Call?) {
+
+    /** Whether [text] is one of the answer chips of the question (the user tapped it, or typed exactly it). */
+    fun isChipOfQuestion(): Boolean = asked?.args?.strings("chips").orEmpty().any { FormRefs.fold(it) == FormRefs.fold(text) }
+
+    companion object {
+        /** The user's answer that begins the current turn, with the question it answers; null when the turn did not begin with one. */
+        fun of(context: AgentContext): UserReply? =
+            if (context.turnStartedByUser) context.userReplies.lastOrNull()?.let { UserReply(it, context.previousTurnEnd) } else null
+    }
+}
+
+/** Where the form's roles stand (see [FormGuidance.roleSituation]). */
+sealed interface RoleSituation {
+    /** Every role with open fields has a person (or none of them has a role). */
+    data object None : RoleSituation
+
+    /** [person] can be given [role]: its fields can be filled from their stored details. */
+    data class Ready(val role: FormRole, val person: Profile) : RoleSituation
+
+    /** Nobody is known as the subject yet. */
+    data object SubjectUnknown : RoleSituation
+
+    /** [role] has no person; the user must say who ([someoneElse]: they chose "someone else", so the name is what is missing). */
+    data class NeedsPerson(val role: FormRole, val someoneElse: Boolean) : RoleSituation
+
+    /** The user typed [text] as who has [role]: it goes into the role's name fields ([nameFields]). */
+    data class Typed(val role: FormRole, val nameFields: List<FormField>, val text: String) : RoleSituation
 }

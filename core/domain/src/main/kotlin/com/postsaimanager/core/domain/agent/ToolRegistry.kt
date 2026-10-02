@@ -17,4 +17,10 @@ class ToolRegistry(tools: List<AgentTool>) {
     val names: List<String> get() = ordered.map { it.name }
 
     fun specs(): List<ToolSpec> = ordered.map { it.spec() }
+
+    /** The specs of just the tools named in [allowed], in the registry's order; every tool when [allowed] is null or names none of them. */
+    fun specs(allowed: Collection<String>?): List<ToolSpec> {
+        if (allowed == null) return specs()
+        return ordered.filter { it.name in allowed }.map { it.spec() }.ifEmpty { specs() }
+    }
 }

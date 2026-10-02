@@ -15,6 +15,7 @@ package com.postsaimanager.core.domain.agent
  * @property contextTokens a rough size of the standing session after the step (system prompt and conversation).
  * @property rebuilt whether the session had to be (re)built for this step.
  * @property note an optional feature remark for the log, such as the question of an ask (see [AgentSpec.traceNote]).
+ * @property reason the error result's reason when the step failed (the log keeps its first characters, see [shortReason]).
  */
 data class AgentStepTrace(
     val turn: Int,
@@ -28,11 +29,24 @@ data class AgentStepTrace(
     val contextTokens: Int,
     val rebuilt: Boolean,
     val note: String? = null,
+    val reason: String? = null,
 ) {
     fun line(): String = buildString {
         append("turn=$turn step=$step tool=$tool args=${argKeys.joinToString(",").ifEmpty { "-" }} valid=$validation outcome=$outcome")
         append(" model_ms=$modelMs tool_ms=$toolMs ctx_tokens~=$contextTokens rebuilt=${if (rebuilt) "yes" else "no"}")
         note?.let { append(" $it") }
+        reason?.let { append(" reason=\"${shortReason(it)}\"") }
+    }
+
+    companion object {
+        const val REASON_CHARS = 60
+
+        /**
+         * The start of an error's reason for the log. Reasons are written by code, but some quote the value of the call: anything
+         * between quotation marks is replaced, so no value of the user's reaches the log.
+         */
+        fun shortReason(reason: String): String =
+            reason.replace(Regex("\"[^\"]*\""), "\"…\"").replace(Regex("\\s+"), " ").trim().take(REASON_CHARS)
     }
 }
 

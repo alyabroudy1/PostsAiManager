@@ -23,6 +23,8 @@ class RoleWording(private val env: FormToolEnv) {
         val wholeSection = section != null && fields.filter { it.section == section }.all { it.role == role }
         val label = first?.labelText?.trim().orEmpty()
         return when {
+            // A long heading is often a sentence fragment, not a person: the role field's own label ("Kontoinhaber/in") names the role.
+            wholeSection && label.isNotEmpty() && wordCount(section!!) > MAX_HEADING_WORDS -> label
             // The heading says what the part is about, the first label names the person ("Zahlung per Lastschrift (Kontoinhaber)").
             wholeSection && label.isNotEmpty() && FormRefs.flat(label) != FormRefs.flat(section!!) -> "${section!!.trim()} ($label)"
             wholeSection -> section!!.trim()
@@ -53,7 +55,12 @@ class RoleWording(private val env: FormToolEnv) {
         return if (excluded) people.filter { it.id != subject.id } else people
     }
 
+    private fun wordCount(text: String): Int = text.trim().split(Regex("\\s+")).count { it.isNotEmpty() }
+
     companion object {
+        /** A section heading longer than this many words is not used as the name of a role while the role's field has a label. */
+        const val MAX_HEADING_WORDS = 4
+
         const val ADULT_AGE = 18
 
         /** The roles of a person who acts for the subject (the form's subject can be a child, who cannot hold them). */

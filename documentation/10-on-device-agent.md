@@ -180,7 +180,34 @@ only tells it where things stand and refuses what is plainly wrong):
   without a candidate person suggests asking about it with the other people and "Someone else" as chips.
 - **Form model.** `ModelProfiles.FORM_AGENT_MODELS` (Qwen3.5-2B) is the one setting: `ActiveModelProvider.formModelPath/Id/Config`
   return the first installed of them, else the chat model. The engine loads it for the run; the next chat message loads the chat
-  model again (`engine.load` swaps models and drops the session).
+  model again (`engine.load` swaps models and drops the session). A side-loaded GGUF is tied to its catalog descriptor by SHA-256 and
+  size (`CatalogMatcher`, at import and as a migration of earlier imports on startup), so a hand-copied 2B is the form model too.
+
+## 6b. Dynamic tool exposure (agent-4)
+
+A small model does better with fewer choices. At every step the loop asks the spec `allowedTools(entries)`; the grammar is generated
+from just that subset (cached per subset within a run), each result ends with `tools_now` naming them, and a call to another tool is
+refused. The system prompt still describes every tool once (it is KV-cached; rebuilding it per step would throw the cache away).
+
+`FormToolExposure` reads the stage from the stored fill and the run (never from the meaning of a text); `ToolPolicy` is the data
+table stage to tools (`FormStage`):
+
+| Stage | Tools |
+|---|---|
+| NOT_READ | read_form |
+| SUBJECT_UNKNOWN | list_people, ask_user |
+| ROLE_READY (a person is known for the first role without one) | fill_from_profile, ask_user |
+| ROLE_NEEDS_PERSON | ask_user, skip_field |
+| ROLE_TYPED (the user typed who has the role) | fill_field, skip_field, ask_user |
+| OPEN_FIELDS | ask_user, fill_field, skip_field, show_on_page |
+| NOTHING_OPEN | show_fill_card, show_on_page, finish |
+
+`remember_detail` is added in the last two open stages when the turn began with the user's answer to a question and the fill holds
+something the user typed. `get_person_details` is exposed in no stage (fill_from_profile moves stored values). A role the user
+answered by hand (a field holds what they typed, or was skipped) is settled, so its other fields are asked like any field and the
+same role question is never repeated; a typed answer to a role question is suggested as `fill_field(..., source=user)` for the role's
+name fields. Start over resets the engine session. The trace line of an error step ends with `reason="..."`, the first 60 characters
+with quoted values replaced.
 
 ## 7. Known risks (0.8B)
 

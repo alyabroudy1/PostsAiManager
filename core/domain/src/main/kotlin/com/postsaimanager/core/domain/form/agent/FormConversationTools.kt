@@ -39,8 +39,8 @@ class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidan
         if (chips.map { it.lowercase() }.toSet().size != chips.size) return ToolResult.error("the chips must all be different")
         wrongScript(question, context)?.let { return ToolResult.error(it) }
         guard.check(question, chips)?.let { return ToolResult.error(it) }
-        alreadyAnswered(question, chips, context)?.let { (answer) ->
-            return ToolResult.error("already answered: $answer. Use it: suggested next: ${guidance.suggestionFor(answer)}")
+        alreadyAnswered(question, chips, context)?.let { (answer, asked) ->
+            return ToolResult.error("already answered: $answer. Use it: suggested next: ${guidance.suggestionFor(answer, asked)}")
         }
         return ToolResult.ok("shown" to JsonPrimitive(true))
     }
