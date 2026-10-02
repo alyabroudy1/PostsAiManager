@@ -46,4 +46,9 @@
     <string name="form_source_option">خيار في النموذج</string>
     <string name="form_value_yes">نعم</string>
     <string name="form_value_no">لا</string>
+
+    <!-- التلميح لمرة واحدة فوق حقل الكتابة -->
+    <string name="search_model_hint">يمكن للإجابات أن تعرض مصادرها بعد تثبيت نموذج البحث</string>
+    <string name="search_model_hint_install">تثبيت</string>
+    <string name="search_model_hint_dismiss">إغلاق التلميح</string>
 </resources>

@@ -59,6 +59,9 @@ class FakeUserPreferencesRepository(
 
     override suspend fun setUpdateOlderLettersAutomatically(enabled: Boolean) =
         update { it.copy(updateOlderLettersAutomatically = enabled) }
+
+    override suspend fun setSearchModelHintDismissed(dismissed: Boolean) =
+        update { it.copy(searchModelHintDismissed = dismissed) }
 }
 
 /** In-memory [InferenceSettingsRepository], the same shape as the DataStore-backed one. */

@@ -38,6 +38,7 @@ private object PrefsKeys {
     val APP_LOCK_TIMEOUT_MINUTES = intPreferencesKey("app_lock_timeout_minutes")
     val NOTIFICATION_PERMISSION_REQUESTED =booleanPreferencesKey("notification_permission_requested")
     val UPDATE_OLDER_LETTERS = booleanPreferencesKey("update_older_letters_automatically")
+    val SEARCH_MODEL_HINT_DISMISSED = booleanPreferencesKey("search_model_hint_dismissed")
 }
 
 @Singleton
@@ -64,6 +65,7 @@ class UserPreferencesRepositoryImpl @Inject constructor(
                     notificationPermissionRequested =
                         prefs[PrefsKeys.NOTIFICATION_PERMISSION_REQUESTED] ?: false,
                     updateOlderLettersAutomatically = prefs[PrefsKeys.UPDATE_OLDER_LETTERS] ?: true,
+                    searchModelHintDismissed = prefs[PrefsKeys.SEARCH_MODEL_HINT_DISMISSED] ?: false,
                 )
             }
             .catch { emit(UserPreferences()) }
@@ -98,6 +100,9 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 
     override suspend fun setUpdateOlderLettersAutomatically(enabled: Boolean): PamResult<Unit> =
         editPrefs { it[PrefsKeys.UPDATE_OLDER_LETTERS] = enabled }
+
+    override suspend fun setSearchModelHintDismissed(dismissed: Boolean): PamResult<Unit> =
+        editPrefs { it[PrefsKeys.SEARCH_MODEL_HINT_DISMISSED] = dismissed }
 
     private suspend fun editPrefs(
         block: (MutablePreferences) -> Unit,

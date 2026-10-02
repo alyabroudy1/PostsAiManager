@@ -46,4 +46,9 @@
     <string name="form_source_option">Option im Formular</string>
     <string name="form_value_yes">Ja</string>
     <string name="form_value_no">Nein</string>
+
+    <!-- Der einmalige Hinweis über der Eingabe -->
+    <string name="search_model_hint">Antworten können ihre Quellen zeigen, sobald das Suchmodell installiert ist</string>
+    <string name="search_model_hint_install">Installieren</string>
+    <string name="search_model_hint_dismiss">Hinweis schließen</string>
 </resources>
