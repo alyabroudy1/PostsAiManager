@@ -312,8 +312,10 @@ class QuestionnaireTest {
             assertThat(session.stateAtAsk.toSet()).containsExactly(session.opens.single())
             // The letter and the candidate table are in the prefix, the question is not.
             assertThat(session.opens.single()).contains("CANDIDATES")
-            assertThat(session.opens.single()).doesNotContain(QuestionnairePrompt.type(schema).text)
-            assertThat(session.asks.first().question).contains(QuestionnairePrompt.type(schema).text)
+            // The type question offers the families an incoming letter can be (the interpreter's default direction).
+            val typeQuestion = QuestionnairePrompt.type(schema.forDirection(DocDirection.INCOMING)).text
+            assertThat(session.opens.single()).doesNotContain(typeQuestion)
+            assertThat(session.asks.first().question).contains(typeQuestion)
             assertThat(session.closes).isEqualTo(1)
         }
 
