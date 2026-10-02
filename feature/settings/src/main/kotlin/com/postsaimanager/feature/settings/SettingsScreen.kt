@@ -59,6 +59,7 @@ fun SettingsScreen(
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showLockTimeoutDialog by remember { mutableStateOf(false) }
+    var showOpenSourceDialog by remember { mutableStateOf(false) }
     val appLockNotice by viewModel.appLockNotice.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -193,8 +194,16 @@ fun SettingsScreen(
             SettingsClickItem(
                 icon = PamIcons.Settings,
                 title = "Version",
-                subtitle = "1.0.0 (Phase 1)",
+                subtitle = remember(context) {
+                    runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
+                },
                 onClick = {},
+            )
+            SettingsClickItem(
+                icon = PamIcons.Settings,
+                title = stringResource(R.string.settings_open_source_title),
+                subtitle = stringResource(R.string.settings_open_source_subtitle),
+                onClick = { showOpenSourceDialog = true },
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -214,6 +223,22 @@ fun SettingsScreen(
                 showThemeDialog = false
             },
             onDismiss = { showThemeDialog = false },
+        )
+    }
+
+    if (showOpenSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showOpenSourceDialog = false },
+            title = { Text(stringResource(R.string.settings_open_source_title)) },
+            text = {
+                Text(
+                    stringResource(R.string.settings_address_data_attribution),
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showOpenSourceDialog = false }) { Text(stringResource(R.string.settings_ok)) }
+            },
         )
     }
 

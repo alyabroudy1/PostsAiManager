@@ -17,5 +17,4 @@ This file records data (not libraries) the app ships under a licence that asks f
   - `AddressFormats.ATTRIBUTION` in `:core:domain` (pinned by `AddressFormatsTest`);
   - the string resource `settings_address_data_attribution` in `feature/settings/src/main/res/values/strings.xml`, the same text, for
     a Settings > About screen.
-- **Open item:** the string exists but no screen shows it yet (no UI is wired by this change). Before a release that ships the
-  formats, show `settings_address_data_attribution` in Settings > About.
+- **Shown in the app:** Settings > About > "Open-source data" opens a dialog with `settings_address_data_attribution`.
