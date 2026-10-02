@@ -65,7 +65,11 @@ class FormToolEnv(
 }
 
 /** Every tool of the form agent for one document, in the order the model is told about them, as the agent spec. */
-class FormAgentTools(private val envFor: (String) -> FormToolEnv) {
+class FormAgentTools(
+    /** Dynamic tool exposure ([FormToolExposure]); false lets the model use every tool at every step (tests of the tools alone). */
+    private val dynamicTools: Boolean = true,
+    private val envFor: (String) -> FormToolEnv,
+) {
 
     fun specFor(documentId: String): FormAgentSpec {
         val env = envFor(documentId)
@@ -83,6 +87,6 @@ class FormAgentTools(private val envFor: (String) -> FormToolEnv) {
             ShowOnPageTool(env),
             FinishTool(env),
         )
-        return FormAgentSpec(env, guidance, ToolRegistry(tools))
+        return FormAgentSpec(env, guidance, ToolRegistry(tools), if (dynamicTools) FormToolExposure(env, guidance) else null)
     }
 }

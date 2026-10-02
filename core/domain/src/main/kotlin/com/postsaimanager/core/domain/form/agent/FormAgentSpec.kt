@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.form.agent
 
 import com.postsaimanager.core.common.util.UuidGenerator
+import com.postsaimanager.core.domain.agent.AgentContext
 import com.postsaimanager.core.domain.agent.AgentEntry
 import com.postsaimanager.core.domain.agent.AgentSpec
 import com.postsaimanager.core.domain.agent.AgentTranscript
@@ -23,7 +24,13 @@ import kotlinx.serialization.json.JsonObject
  * failed steps. There is no question order and no wording in here: the instructions tell the model what the tools are for and
  * the model decides the rest.
  */
-class FormAgentSpec(private val env: FormToolEnv, private val guidance: FormGuidance, override val tools: ToolRegistry) : AgentSpec {
+class FormAgentSpec(
+    private val env: FormToolEnv,
+    private val guidance: FormGuidance,
+    override val tools: ToolRegistry,
+    /** Which tools the model may use in the current state; null exposes them all (tests of the tools alone). */
+    private val exposure: FormToolExposure? = null,
+) : AgentSpec {
 
     override val conversationId: String = "agent-${env.documentId}"
 
@@ -31,6 +38,11 @@ class FormAgentSpec(private val env: FormToolEnv, private val guidance: FormGuid
 
     /** The STATE block (language, people, counts, the open fields and the suggested next step) that ends every tool result. */
     override suspend fun stateSummary(): String? = guidance.state()
+
+    /** The same, aware of the user's latest answer (a role answered with typed text is suggested the step that uses it). */
+    override suspend fun stateSummary(entries: List<AgentEntry>): String? = guidance.state(UserReply.of(AgentContext.of(entries)))
+
+    override suspend fun allowedTools(entries: List<AgentEntry>): List<String>? = exposure?.allowed(entries)
 
     override suspend fun replyResult(call: AgentEntry.Call, text: String): ToolResult? =
         if (call.name == AskUserTool.NAME) guidance.replyResult(call, text) else null
@@ -59,19 +71,22 @@ class FormAgentSpec(private val env: FormToolEnv, private val guidance: FormGuid
          * The version of the agent as stored runs know it: bumped whenever the instructions or the way the tools talk change, so a run
          * written by an older agent (or by the earlier code-driven chat, which has none) is not carried on, but a new one begins.
          */
-        const val VERSION = "agent-3"
+        const val VERSION = "agent-4"
 
         /** The standing instructions; [language] is the form's language: every question and message is written in it. */
         fun instructions(language: String): String = """
             You help the user fill in a paper form. You work only through the functions below: every reply is exactly one function call.
             The form is in $language: write every question in it (another language only if the user writes in it).
-            - First call read_form, then list_people.
-            - Find out who the form is for (ask_user with the people's names as chips if unclear). Then call fill_from_profile for each role of the form, with the person who has that role.
-            - Ask about the open fields, one question at a time, with ask_user (printed options as chips). Fill each answer with fill_field: source user with the user's own words, or source option with a printed option. Never invent a value. Take stored details only from the tools' results (a ***token unchanged).
-            - ask_user's result is the user's answer: use it, never ask again. Every result ends with the state and a "suggested next" step: follow it unless you know better.
-            - After the user gives a detail a later form could use, ask (ask_user, a yes and a no chip) whether to remember it for that person; call remember_detail only after yes.
+            - First read_form, then list_people. Find out who the form is for (ask_user, the people's names as chips, if unclear), then fill_from_profile for each role with the person who has it.
+            - Ask about open fields one question at a time with ask_user (printed options as chips). Fill each answer with fill_field: source user = the user's own words, source option = a printed option. Never invent a value; take stored details only from the tools' results (a ***token unchanged).
+            - ask_user's result is the user's answer: use it, never ask again. Every result ends with the state, a "suggested next" step (follow it unless you know better) and "tools_now": the only functions you may call now.
+            - After the user gives a detail a later form could use, ask (yes and no chips) whether to remember it for that person; remember_detail only after yes.
             - If the user will not answer a field, call skip_field. If they ask about the form, answer briefly with ask_user.
             - When nothing is open, call show_fill_card, then finish.
+            Example (invented pool-pass form, user's answers in brackets; write your own questions in the form's language):
+            read_form() list_people() ask_user(question="Who is the pass for?", chips=["Me","Lena"]) [Lena]
+            fill_from_profile(person_id=p2, role=subject) ask_user(question="Which shoe size?") [38]
+            fill_field(field_id=f4, value=38, source=user) show_fill_card() finish(summary="Done: only the signature is left.")
         """.trimIndent()
     }
 }
