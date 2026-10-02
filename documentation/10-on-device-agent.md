@@ -199,7 +199,7 @@ table stage to tools (`FormStage`):
 | ROLE_READY (a person is guessed for the first role without one: a child's guardian) | fill_from_profile, ask_user |
 | ROLE_ANSWERED (the user named the person by chip or typed the exact name) | fill_from_profile |
 | ROLE_NEEDS_PERSON | ask_user, skip_field |
-| ROLE_TYPED (the user typed who has the role) | fill_field, skip_field, ask_user |
+| ROLE_TYPED (the user typed who has the role; the role has an open name field) | fill_field, skip_field |
 | OPEN_FIELDS | ask_user, fill_field, skip_field, show_on_page |
 | NOTHING_OPEN | show_fill_card, show_on_page, finish |
 
@@ -235,6 +235,17 @@ with quoted values replaced.
   `show_fill_card`.
 - **Chips**: only the newest question / status line with chips is live (the UI); a Continue only acts on a stopped run. Typed text
   after a run stopped or failed (fill not DONE) is kept and answered with the paused line and Continue / Start over.
+
+## 6d. ROLE_TYPED (agent-6)
+
+After the user typed who has a role, only `fill_field` and `skip_field` are exposed, so the grammar forces a fill or a skip (the 2B
+used to call `ask_user` until `StepLimit`). The suggestion names the exact call for the role's first open name field:
+`fill_field(field_id=<that field>, value=<typed text>, source=user)`. A role with several name fields is filled one at a time: once
+the first holds the user's text the role is settled and the others are asked like any field. A role with no open name field is not
+ROLE_TYPED (its fields are asked like any field). A refused `fill_field` in this stage (a wrong field_id, a value the guard
+rejects) repeats the exact correct call in its error; the second refusal in the turn skips that field, the result carries
+`skipped=<label>` and the chat shows the status line `FormText.FIELD_LEFT_TO_USER`, so the run never dead-ends. A typed reply is used
+once: after a successful `fill_from_profile`, `fill_field` or `skip_field` it no longer decides the stage of the next role.
 
 ## 7. Known risks (0.8B)
 

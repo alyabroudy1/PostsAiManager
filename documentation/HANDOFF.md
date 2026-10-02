@@ -142,11 +142,11 @@ R8 on. Open items:
   payer role answered "someone else", then the name question without chips (that was fixed). Also fixed and seen working:
   role wording uses the field label only, German questions pass the language guard, the card appears after the first
   fill, stale chips are disabled.
-- OPEN BUG, next fix: in stage `ROLE_TYPED` (after the user typed the payer's name, an invented test name),
-  `ask_user` is still allowed and the model re-asked the role question ("who is the account holder?") until
-  `StepLimit` instead of calling `fill_field`. Fix: in `ROLE_TYPED` expose only `fill_field` and `skip_field`, or refuse
-  `ask_user` with a hint such as `fill_field(field_id=..., value=<typed>, source=user)`. "Remember for <person>" and
-  Saved details are not yet verified on the device.
+- ROLE_TYPED bug (agent-5, 2B: after the user typed the payer's name the model kept calling `ask_user` until
+  `StepLimit`): FIXED in code (commit d88a7a2, agent-6): that stage exposes only `fill_field` and `skip_field`, the
+  suggestion names the exact call, a refused fill repeats it and the second refusal skips the field with a status line
+  (`documentation/10-on-device-agent.md` 6d). NOT yet verified on the device. "Remember for <person>" and Saved
+  details are not yet verified on the device either.
 - Test phone state: the chat model is Qwen3.5-0.8B again; the 2B is installed as the form model.
 - Honest risk: a 0.8B model is weak at multi-step tool use. Next steps: finish the device passes, decide whether the 2B
   "thorough" profile is needed, then turn the flag on for a later release (1.1) rather than 1.0.
