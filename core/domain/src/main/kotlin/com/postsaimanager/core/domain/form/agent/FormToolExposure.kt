@@ -15,8 +15,11 @@ enum class FormStage {
     /** Nobody is known as the subject (whom the form is for). */
     SUBJECT_UNKNOWN,
 
-    /** A person is known for the first role without one: its fields can be filled from the stored details. */
+    /** A person is guessed for the first role without one (a child's guardian): its fields can be filled from them, or the user asked. */
     ROLE_READY,
+
+    /** The user named the person (a chip or the typed name): the only step is to fill the role from them, never to ask again. */
+    ROLE_ANSWERED,
 
     /** A role has open fields and no person: the user has to say who it is (or leave it). */
     ROLE_NEEDS_PERSON,
@@ -28,7 +31,18 @@ enum class FormStage {
     OPEN_FIELDS,
 
     /** Nothing is open. */
-    NOTHING_OPEN,
+    NOTHING_OPEN;
+
+    companion object {
+        /** The stage of a form whose roles stand at [situation]; [anyOpen] tells whether a field still waits (when no role does). */
+        fun of(situation: RoleSituation, anyOpen: Boolean): FormStage = when (situation) {
+            is RoleSituation.Ready -> if (situation.fromAnswer) ROLE_ANSWERED else ROLE_READY
+            RoleSituation.SubjectUnknown -> SUBJECT_UNKNOWN
+            is RoleSituation.NeedsPerson -> ROLE_NEEDS_PERSON
+            is RoleSituation.Typed -> ROLE_TYPED
+            RoleSituation.None -> if (anyOpen) OPEN_FIELDS else NOTHING_OPEN
+        }
+    }
 }
 
 /**
@@ -48,6 +62,10 @@ class ToolPolicy(private val table: Map<FormStage, List<String>> = DEFAULT) {
         return if (remembering) base + REMEMBER else base
     }
 
+    /** The tools of the table (and `remember_detail`) that [text] names as a word: what a suggestion mentions. */
+    fun named(text: String): List<String> =
+        (table.values.flatten() + REMEMBER).distinct().filter { Regex("(?<![\\w])${Regex.escape(it)}(?![\\w])").containsMatchIn(text) }
+
     companion object {
         private val REMEMBER = RememberDetailTool.NAME
 
@@ -58,6 +76,7 @@ class ToolPolicy(private val table: Map<FormStage, List<String>> = DEFAULT) {
             FormStage.NOT_READ to listOf(ReadFormTool.NAME),
             FormStage.SUBJECT_UNKNOWN to listOf(ListPeopleTool.NAME, AskUserTool.NAME),
             FormStage.ROLE_READY to listOf(FillFromProfileTool.NAME, AskUserTool.NAME),
+            FormStage.ROLE_ANSWERED to listOf(FillFromProfileTool.NAME),
             FormStage.ROLE_NEEDS_PERSON to listOf(AskUserTool.NAME, SkipFieldTool.NAME),
             FormStage.ROLE_TYPED to listOf(FillFieldTool.NAME, SkipFieldTool.NAME, AskUserTool.NAME),
             FormStage.OPEN_FIELDS to listOf(AskUserTool.NAME, FillFieldTool.NAME, SkipFieldTool.NAME, ShowOnPageTool.NAME),
@@ -74,17 +93,8 @@ class FormToolExposure(private val env: FormToolEnv, private val guidance: FormG
         return policy.allowed(stage(context), rememberPending(context))
     }
 
-    suspend fun stage(context: AgentContext): FormStage {
-        val fields = env.fields()
-        if (fields.isEmpty()) return FormStage.NOT_READ
-        return when (guidance.roleSituation(fields, UserReply.of(context))) {
-            is RoleSituation.Ready -> FormStage.ROLE_READY
-            RoleSituation.SubjectUnknown -> FormStage.SUBJECT_UNKNOWN
-            is RoleSituation.NeedsPerson -> FormStage.ROLE_NEEDS_PERSON
-            is RoleSituation.Typed -> FormStage.ROLE_TYPED
-            RoleSituation.None -> if (FormRefs.open(fields).isEmpty()) FormStage.NOTHING_OPEN else FormStage.OPEN_FIELDS
-        }
-    }
+    /** The stage, read by the same [FormGuidance.stage] the suggestion uses (so the two cannot disagree). */
+    suspend fun stage(context: AgentContext): FormStage = guidance.stage(env.fields(), UserReply.of(context))
 
     /**
      * The turn began with the user's answer to a question and the fill holds something the user typed: the answer may be the yes to

@@ -10,6 +10,7 @@ import com.postsaimanager.core.domain.agent.string
 import com.postsaimanager.core.domain.agent.strings
 import com.postsaimanager.core.domain.form.fill.FillProgress
 import com.postsaimanager.core.model.FormFillStatus
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -29,6 +30,15 @@ class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidan
     )
     override val endsTurn = true
 
+    /** A chip is a label the user reads: a person's `p1` (an internal id) becomes the name; the other ids are refused in [execute]. */
+    override suspend fun normalize(args: JsonObject): JsonObject {
+        val chips = args.strings("chips") ?: return args
+        val people = env.managed()
+        val named = chips.map { chip -> if (PERSON_ID.matches(chip.trim())) FormRefs.findPerson(people, chip)?.name ?: chip else chip }
+        val unique = named.distinctBy { FormRefs.fold(it) }
+        return JsonObject(args + ("chips" to JsonArray(unique.map(::JsonPrimitive))))
+    }
+
     override suspend fun execute(args: JsonObject, context: AgentContext): ToolResult {
         val question = args.string("question").orEmpty().trim()
         if (question.isEmpty()) return ToolResult.error("the question is empty")
@@ -37,12 +47,36 @@ class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidan
         if (chips.size > MAX_CHIPS) return ToolResult.error("at most $MAX_CHIPS chips")
         if (chips.any { it.isEmpty() || it.length > MAX_CHIP_CHARS }) return ToolResult.error("every chip needs 1 to $MAX_CHIP_CHARS characters")
         if (chips.map { it.lowercase() }.toSet().size != chips.size) return ToolResult.error("the chips must all be different")
+        chips.firstOrNull { ID_LIKE.matches(it) }?.let { id ->
+            val names = env.managed().joinToString(", ") { it.name }
+            return ToolResult.error("the chip \"$id\" is an internal id, not an answer the user can read: write the person's name or the option itself (people: $names)")
+        }
         wrongScript(question, context)?.let { return ToolResult.error(it) }
+        wrongLanguage(question, context)?.let { return ToolResult.error(it) }
         guard.check(question, chips)?.let { return ToolResult.error(it) }
-        alreadyAnswered(question, chips, context)?.let { (answer, asked) ->
-            return ToolResult.error("already answered: $answer. Use it: suggested next: ${guidance.suggestionFor(answer, asked)}")
+        alreadyAnswered(question, chips, context)?.let { answer ->
+            val suggestion = guidance.suggestionFor(UserReply.of(context))
+            return ToolResult.error("already answered: $answer. Use it: suggested next: $suggestion")
         }
         return ToolResult.ok("shown" to JsonPrimitive(true))
+    }
+
+    /**
+     * An error when a question of three or more words shares no word with the form (its labels, headings and printed options) while being in
+     * the script of the form's language: a model that answers in English on a German form. Cheap and data-free; a question the model repeats
+     * unchanged after this refusal is let through (a legitimate question can simply use none of the form's words).
+     */
+    private suspend fun wrongLanguage(question: String, context: AgentContext): String? {
+        val language = env.formLanguage()
+        if (WritingScript.dominant(question) != WritingScript.of(language)) return null
+        val words = wordsOf(question).filter { it.length >= MIN_WORD_CHARS }
+        if (words.size < MIN_QUESTION_WORDS) return null
+        val flat = FormRefs.flat(question)
+        if (context.turnCalls.any { it.name == NAME && FormRefs.flat(it.args.string("question").orEmpty()) == flat }) return null
+        val vocabulary = env.fields().flatMap { listOfNotNull(it.labelText, it.section) + it.options }.flatMap(::wordsOf).filter { it.length >= MIN_WORD_CHARS }.toSet()
+        if (vocabulary.size < MIN_VOCABULARY || words.any { it in vocabulary }) return null
+        val name = language.getDisplayLanguage(java.util.Locale.ENGLISH)
+        return "the question is not written in $name: write it in $name"
     }
 
     /**
@@ -58,8 +92,16 @@ class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidan
         return "the question is not written in $name: write it in $name"
     }
 
-    /** The earlier question of this run that [question] repeats and that the user answered (with that answer), or null. */
-    private fun alreadyAnswered(question: String, chips: List<String>, context: AgentContext): Pair<String, AgentEntry.Call>? {
+    /**
+     * The answer to the earlier question of this run that [question] repeats, or null. Not a repeat while nobody is registered as the subject
+     * (the answer did not name a person: asking again, with the people as chips, is what is needed).
+     */
+    private suspend fun alreadyAnswered(question: String, chips: List<String>, context: AgentContext): String? {
+        if (guidance.stage(env.fields(), UserReply.of(context)) == FormStage.SUBJECT_UNKNOWN) return null
+        return earlierAnswer(question, chips, context)
+    }
+
+    private fun earlierAnswer(question: String, chips: List<String>, context: AgentContext): String? {
         val entries = context.entries
         val words = wordsOf(question)
         val chipSet = chips.map { it.lowercase() }.toSet()
@@ -70,7 +112,7 @@ class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidan
             val similarity = jaccard(words, earlierWords)
             val earlierChips = entry.args.strings("chips").orEmpty().map { it.lowercase() }.toSet()
             val sameChips = chipSet.size >= 2 && chipSet == earlierChips
-            if (similarity >= SAME_QUESTION || (sameChips && similarity >= SAME_QUESTION_SAME_CHIPS)) return answer.text to entry
+            if (similarity >= SAME_QUESTION || (sameChips && similarity >= SAME_QUESTION_SAME_CHIPS)) return answer.text
         }
         return null
     }
@@ -85,6 +127,13 @@ class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidan
         /** How alike two questions' words must be to be the same question; with the same chips, less is enough. */
         private const val SAME_QUESTION = 0.7
         private const val SAME_QUESTION_SAME_CHIPS = 0.34
+
+        /** What a model writes when it copies a reference (`p1`, `f3`) instead of a label. */
+        private val PERSON_ID = Regex("(?i)p\\d+")
+        private val ID_LIKE = Regex("(?i)[pf]\\d+")
+        private const val MIN_WORD_CHARS = 3
+        private const val MIN_QUESTION_WORDS = 3
+        private const val MIN_VOCABULARY = 5
 
         const val NAME = "ask_user"
         const val MAX_CHIPS = 6

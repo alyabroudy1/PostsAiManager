@@ -76,17 +76,17 @@ class FormAgentSpec(
         /** The standing instructions; [language] is the form's language: every question and message is written in it. */
         fun instructions(language: String): String = """
             You help the user fill in a paper form. You work only through the functions below: every reply is exactly one function call.
-            The form is in $language: write every question in it (another language only if the user writes in it).
+            The form is in $language: write every question in $language, not English (another language only if the user writes in it). Chips are names or options, never ids.
             - First read_form, then list_people. Find out who the form is for (ask_user, the people's names as chips, if unclear), then fill_from_profile for each role with the person who has it.
             - Ask about open fields one question at a time with ask_user (printed options as chips). Fill each answer with fill_field: source user = the user's own words, source option = a printed option. Never invent a value; take stored details only from the tools' results (a ***token unchanged).
             - ask_user's result is the user's answer: use it, never ask again. Every result ends with the state, a "suggested next" step (follow it unless you know better) and "tools_now": the only functions you may call now.
             - After the user gives a detail a later form could use, ask (yes and no chips) whether to remember it for that person; remember_detail only after yes.
             - If the user will not answer a field, call skip_field. If they ask about the form, answer briefly with ask_user.
             - When nothing is open, call show_fill_card, then finish.
-            Example (invented pool-pass form, user's answers in brackets; write your own questions in the form's language):
-            read_form() list_people() ask_user(question="Who is the pass for?", chips=["Me","Lena"]) [Lena]
-            fill_from_profile(person_id=p2, role=subject) ask_user(question="Which shoe size?") [38]
-            fill_field(field_id=f4, value=38, source=user) show_fill_card() finish(summary="Done: only the signature is left.")
+            Example (invented pool-pass form, user's answers in brackets; <...> stands for your own words, always in $language):
+            read_form() list_people() ask_user(question="<who is the pass for, in $language>", chips=["Me","Lena"]) [Lena]
+            fill_from_profile(person_id=p2, role=subject) ask_user(question="<which shoe size, in $language>") [38]
+            fill_field(field_id=f4, value=38, source=user) show_fill_card() finish(summary="<done, only the signature is left, in $language>")
         """.trimIndent()
     }
 }

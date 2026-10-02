@@ -52,12 +52,17 @@ class FormAgentV2Test {
     }
 
     @Test
-    fun `a known subject whose fields are unfilled exposes fill_from_profile and ask_user`() = runTest {
+    fun `a subject the user named exposes only fill_from_profile, a guessed guardian also ask_user`() = runTest {
         val h = AgentHarness(dynamicTools = true)
         h.exec("read_form")
 
-        // The user answered the question about the subject with a stored person's name.
-        assertThat(h.allowed(askCall("Ahmad", "Me"), AgentEntry.UserText("Ahmad"))).containsExactly("fill_from_profile", "ask_user").inOrder()
+        // The user answered the question about the subject with a stored person's name (tapped or typed): the answer must be used.
+        assertThat(h.allowed(askCall("Ahmad", "Me"), AgentEntry.UserText("Ahmad"))).containsExactly("fill_from_profile")
+        assertThat(h.allowed(askCall("Ahmad", "Me"), AgentEntry.UserText("ahmad"))).containsExactly("fill_from_profile")
+
+        // The child's guardian is a guess (not an answer): it may be filled or asked about.
+        h.exec("fill_from_profile", "person_id" to "p2", "role" to "subject")
+        assertThat(h.allowed()).containsExactly("fill_from_profile", "ask_user").inOrder()
     }
 
     @Test
@@ -191,6 +196,8 @@ class FormAgentV2Test {
 
         // Turn 5: the next role, the payer, is a stored person: filled from them, then the run goes on with the open fields.
         h.model.reply(h.call("fill_from_profile", "person_id" to "p1", "role" to "payer"))
+        // A German question that uses none of the form's words is refused once by the language check; repeated unchanged, it goes through.
+        h.model.reply(h.ask("Möchten Sie noch etwas ändern?"))
         h.model.reply(h.ask("Möchten Sie noch etwas ändern?"))
         h.agent.chip("doc", chip("Me"), "Me")
 

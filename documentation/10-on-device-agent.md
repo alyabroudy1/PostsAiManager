@@ -196,11 +196,20 @@ table stage to tools (`FormStage`):
 |---|---|
 | NOT_READ | read_form |
 | SUBJECT_UNKNOWN | list_people, ask_user |
-| ROLE_READY (a person is known for the first role without one) | fill_from_profile, ask_user |
+| ROLE_READY (a person is guessed for the first role without one: a child's guardian) | fill_from_profile, ask_user |
+| ROLE_ANSWERED (the user named the person by chip or typed the exact name) | fill_from_profile |
 | ROLE_NEEDS_PERSON | ask_user, skip_field |
 | ROLE_TYPED (the user typed who has the role) | fill_field, skip_field, ask_user |
 | OPEN_FIELDS | ask_user, fill_field, skip_field, show_on_page |
 | NOTHING_OPEN | show_fill_card, show_on_page, finish |
+
+A typed reply registers like a chip tap: the folded text equals exactly one managed person's name (else the one person whose name
+has all its words) and the stage is ROLE_ANSWERED. A reply that fits several people is not registered; its result carries
+`candidates`. The stage is computed in one place (`FormGuidance.stage`), and the "suggested next" text is checked against the
+policy for that stage (`ToolPolicy.named`): a suggestion that names a tool the stage does not expose is replaced by "call one of: ...",
+so guidance and exposure cannot contradict. Chips are labels: `p1` becomes the person's name (`AgentTool.normalize`), another id is
+refused. A question of three or more words in the form's script that shares no word with the form's labels is refused once ("write it
+in German"); repeated unchanged it goes through. The trace line carries `tools_now=[...]`.
 
 `remember_detail` is added in the last two open stages when the turn began with the user's answer to a question and the fill holds
 something the user typed. `get_person_details` is exposed in no stage (fill_from_profile moves stored values). A role the user
