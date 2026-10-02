@@ -38,10 +38,11 @@ class ModelDocumentInterpreter(
     override fun textOverheadChars(): Int = SelectionPrompt.textOverheadChars()
 
     override suspend fun interpret(request: InterpretationRequest): InterpretationOutcome {
-        val grammar = StructuredGrammar.build(request.offered, schema)
+        val typeSchema = schema.forDirection(request.direction)
+        val grammar = StructuredGrammar.build(request.offered, typeSchema)
         val prompt = engine.formatPrompt(
             listOf(
-                AiChatMessage(AiChatRole.SYSTEM, SelectionPrompt.system(schema, withExample)),
+                AiChatMessage(AiChatRole.SYSTEM, SelectionPrompt.system(typeSchema, withExample)),
                 AiChatMessage(AiChatRole.USER, SelectionPrompt.user(request.layoutText, request.offered)),
             ),
         )

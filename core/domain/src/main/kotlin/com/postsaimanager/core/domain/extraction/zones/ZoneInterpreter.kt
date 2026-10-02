@@ -85,6 +85,9 @@ class ZoneInterpreter(
     private var bodyOpen = false
     private var consecutiveFailures = 0
 
+    /** The families the letter in reading can be (its direction's), what the type question offers. */
+    private var typeSchema: ExtractionSchema = schema
+
     override fun promptOverheadChars(offered: OfferedCandidates): Int = OVERHEAD_CHARS
 
     override fun textOverheadChars(): Int = OVERHEAD_CHARS
@@ -99,6 +102,7 @@ class ZoneInterpreter(
         bodyOpen = false
         prefixTokens = 0
         prefixMs = 0
+        typeSchema = schema.forDirection(request.direction)
         val layout = request.layout
             ?: return InterpretationOutcome.Failed("zones need the zoned layout", null, "", "")
         val setup = ZoneSetup(engine, layout, request.offered, matcher, request.pageAspect)
@@ -187,7 +191,7 @@ class ZoneInterpreter(
 
         val typeZones = plan.zones(QuestionNames.TYPE).ifEmpty { setup.bodyZones }
         val typeText = ZonePrompt.zoneBlock(typeZones, plan::hint, zoned::zoneText, inPrefix + typeZones, candidates = null)
-        val typeQuestion = QuestionnairePrompt.type(schema)
+        val typeQuestion = QuestionnairePrompt.type(typeSchema)
         a.type = AnswerReader.type(ask(QuestionNames.TYPE, typeText + typeQuestion.text, typeQuestion).orEmpty())
             ?: throw Abort("the model gave no document type")
         val docType: DocFamily = schema.family(a.type!!.typeId)
