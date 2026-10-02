@@ -81,6 +81,7 @@ class ChatViewModelFormFillTest {
         observeSuggestedQuestions = ObserveSuggestedQuestionsUseCase(documents),
         formFill = formFill,
         formFills = fills,
+        searchModelHint = testSearchModelHint(),
         formFillingFlag = flag,
     )
 
@@ -100,6 +101,7 @@ class ChatViewModelFormFillTest {
             resetInferenceSettings = mockk(relaxed = true), unblockGpu = mockk(relaxed = true),
             getDocumentPreview = GetDocumentPreviewUseCase(documents, FakeDocumentChunkRepository()),
             observeSuggestedQuestions = ObserveSuggestedQuestionsUseCase(documents), formFill = formFill, formFills = fills,
+            searchModelHint = testSearchModelHint(),
         )
 
         vm()

@@ -279,6 +279,33 @@ class RetrieveChunksUseCaseTest {
         }
 
         @Test
+        fun `in one document with no search model and no keyword match the passages come in reading order`() = runTest {
+            embedder.isReady = false
+            repo.seed(
+                testChunk("c2", documentId = "d1", ordinal = 1, text = "Zweiter Absatz.", embedding = null, embeddingModelId = null),
+                testChunk("c1", documentId = "d1", ordinal = 0, text = "Erster Absatz.", embedding = null, embeddingModelId = null),
+                testChunk("x", documentId = "d2", ordinal = 0, text = "Anderes Dokument.", embedding = null, embeddingModelId = null),
+            )
+
+            val result = useCase("wann muss ich das machen?", limit = 1, documentId = "d1")
+
+            assertThat(result.semanticSearchUsed).isFalse()
+            assertThat(result.chunks.map { it.chunk.id }).containsExactly("c1", "c2").inOrder()
+        }
+
+        @Test
+        fun `the reading-order fallback is for one document only and never replaces a keyword match`() = runTest {
+            embedder.isReady = false
+            repo.seed(
+                testChunk("c1", documentId = "d1", ordinal = 0, text = "Erster Absatz.", embedding = null, embeddingModelId = null),
+                testChunk("c2", documentId = "d1", ordinal = 1, text = "Aktenzeichen BG 1234/5678", embedding = null, embeddingModelId = null),
+            )
+
+            assertThat(useCase("wann muss ich das machen?").chunks).isEmpty()
+            assertThat(useCase("BG 1234/5678", documentId = "d1").chunks.map { it.chunk.id }).containsExactly("c2")
+        }
+
+        @Test
         fun `an empty corpus returns nothing`() = runTest {
             assertThat(useCase("anything").chunks).isEmpty()
         }

@@ -313,6 +313,14 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
     fun familiesFor(direction: DocDirection): List<DocFamily> = families.filter { it.scored && direction in it.directions }
 
     /**
+     * This schema as a document of [direction] sees it: the families it can be plus the abstain family, the same topics. What the
+     * interpreters that let the model name the type (rather than score the families) offer, so a received letter is never offered
+     * "a letter you sent" whichever strategy reads it.
+     */
+    fun forDirection(direction: DocDirection): ExtractionSchema =
+        ExtractionSchema(families.filter { direction in it.directions }, topics)
+
+    /**
      * The slots a document of [family] about [topics] has: the family's own, then those of the best two topics.
      * [topics] is in the order the classifier ranked them (best first); ids this schema does not know are skipped
      * and do not use up one of the two places.

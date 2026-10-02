@@ -24,4 +24,7 @@ interface UserPreferencesRepository {
 
     /** See [UserPreferences.updateOlderLettersAutomatically]. */
     suspend fun setUpdateOlderLettersAutomatically(enabled: Boolean): PamResult<Unit>
+
+    /** See [UserPreferences.searchModelHintDismissed]. */
+    suspend fun setSearchModelHintDismissed(dismissed: Boolean): PamResult<Unit>
 }

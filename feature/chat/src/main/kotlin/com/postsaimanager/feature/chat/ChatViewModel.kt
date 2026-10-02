@@ -20,6 +20,7 @@ import com.postsaimanager.core.domain.usecase.ObserveInstalledModelsUseCase
 import com.postsaimanager.core.domain.usecase.ObserveSuggestedQuestionsUseCase
 import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.SelectActiveModelUseCase
+import com.postsaimanager.core.domain.usecase.SearchModelHint
 import com.postsaimanager.core.domain.usecase.SendChatMessageUseCase
 import com.postsaimanager.core.domain.usecase.UnblockGpuUseCase
 import com.postsaimanager.core.domain.usecase.UpdateInferenceSettingUseCase
@@ -72,6 +73,7 @@ class ChatViewModel @Inject constructor(
     private val observeSuggestedQuestions: ObserveSuggestedQuestionsUseCase,
     private val formFill: FormFillAgent,
     private val formFills: FormFillRepository,
+    private val searchModelHint: SearchModelHint,
     private val formFillingFlag: FormFillingFlag = FormFillingFlag.ON,
 ) : ViewModel() {
 
@@ -183,6 +185,27 @@ class ChatViewModel @Inject constructor(
                 started = SharingStarted.WhileSubscribed(5_000),
                 initialValue = emptyList(),
             )
+
+    private val searchModelHintRefresh = MutableStateFlow(0)
+
+    /**
+     * Whether the one-time "answers can show their sources once the search model is installed" hint is shown: the search model is not
+     * installed and the user has not dismissed it. Read again by [refreshSearchModelHint] (the screen returns from the models screen).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val searchModelHintVisible: StateFlow<Boolean> = searchModelHintRefresh
+        .flatMapLatest { searchModelHint.observe() }
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = false)
+
+    /** Looks again at whether the search model is installed, e.g. when the screen is resumed. */
+    fun refreshSearchModelHint() {
+        searchModelHintRefresh.update { it + 1 }
+    }
+
+    /** The hint was dismissed, or followed to the models screen: not shown again. */
+    fun dismissSearchModelHint() {
+        viewModelScope.launch { searchModelHint.dismiss() }
+    }
 
     /**
      * The fill card's data: the document's fill and its fields, live, so the card re-renders on every answer. Null until a

@@ -35,6 +35,11 @@ data class UserPreferences(
      * or edited.
      */
     val updateOlderLettersAutomatically: Boolean = true,
+    /**
+     * Whether the user dismissed the chat's one-time hint that answers can show their sources once the search model is
+     * installed. Never shown again after that, whether or not the model is installed later.
+     */
+    val searchModelHintDismissed: Boolean = false,
 )
 
 /** The grace periods the app lock offers. 0 means "lock every time the app leaves the screen". */

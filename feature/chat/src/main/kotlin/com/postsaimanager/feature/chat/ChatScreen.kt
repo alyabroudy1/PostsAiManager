@@ -86,6 +86,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.designsystem.component.MarkdownText
 import com.postsaimanager.core.designsystem.component.PagePreviewDialog
@@ -122,6 +123,12 @@ fun ChatScreen(
     val suggestedQuestions by viewModel.suggestedQuestions.collectAsStateWithLifecycle()
     val preview by viewModel.preview.collectAsStateWithLifecycle()
     val fillCard by viewModel.fillCard.collectAsStateWithLifecycle()
+    val searchModelHintVisible by viewModel.searchModelHintVisible.collectAsStateWithLifecycle()
+    // Coming back from the models screen: the search model may be installed by now.
+    LifecycleResumeEffect(viewModel) {
+        viewModel.refreshSearchModelHint()
+        onPauseOrDispose {}
+    }
     var inputText by rememberSaveable { mutableStateOf("") }
     var showModelSheet by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -249,6 +256,16 @@ fun ChatScreen(
             )
         },
         bottomBar = {
+          Column {
+            if (searchModelHintVisible) {
+                SearchModelHintBar(
+                    onInstall = {
+                        viewModel.dismissSearchModelHint()
+                        onManageModelsClick()
+                    },
+                    onDismiss = viewModel::dismissSearchModelHint,
+                )
+            }
             ChatInputBar(
                 value = inputText,
                 onValueChange = { inputText = it },
@@ -263,6 +280,7 @@ fun ChatScreen(
                 isGenerating = uiState.isProcessing,
                 onStop = viewModel::stopGeneration,
             )
+          }
         },
         modifier = modifier.imePadding(),
     ) { innerPadding ->

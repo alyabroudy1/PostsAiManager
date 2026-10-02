@@ -48,6 +48,7 @@ class ChatViewModelPreviewTest {
         observeSuggestedQuestions = ObserveSuggestedQuestionsUseCase(documents),
         formFill = mockk(relaxed = true),
         formFills = FakeFormFillRepository(),
+        searchModelHint = testSearchModelHint(),
     )
 
     private fun seedThreePages() {

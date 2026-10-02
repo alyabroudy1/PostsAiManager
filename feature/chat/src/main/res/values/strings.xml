@@ -46,4 +46,9 @@
     <string name="form_source_option">Form option</string>
     <string name="form_value_yes">Yes</string>
     <string name="form_value_no">No</string>
+
+    <!-- The one-time hint above the composer -->
+    <string name="search_model_hint">Answers can show their sources once the search model is installed</string>
+    <string name="search_model_hint_install">Install</string>
+    <string name="search_model_hint_dismiss">Dismiss hint</string>
 </resources>

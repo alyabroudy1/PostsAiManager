@@ -73,6 +73,9 @@ class QuestionnaireInterpreter(
     private var tail: String = ""
     private var consecutiveFailures = 0
 
+    /** The families the letter in reading can be (its direction's), what the type question offers. */
+    private var typeSchema: ExtractionSchema = schema
+
     override fun promptOverheadChars(offered: OfferedCandidates): Int =
         QuestionnairePrompt.system(withExample).length + SelectionPrompt.table(offered).length + FRAME_CHARS
 
@@ -91,6 +94,7 @@ class QuestionnaireInterpreter(
     override suspend fun interpret(request: InterpretationRequest): InterpretationOutcome {
         records.clear()
         consecutiveFailures = 0
+        typeSchema = schema.forDirection(request.direction)
         val offered = request.offered
 
         val (head, closing) = frame(QuestionnairePrompt.system(withExample), QuestionnairePrompt.user(request.layoutText, offered))
@@ -105,7 +109,7 @@ class QuestionnaireInterpreter(
         }
         prefixTokens = (opened as PamResult.Success).data
 
-        val typeQuestion = QuestionnairePrompt.type(schema)
+        val typeQuestion = QuestionnairePrompt.type(typeSchema)
         return try {
             val raw = readEverything(offered)
             InterpretationOutcome.Answered(raw, transcriptText(), head, typeQuestion.grammar)
@@ -116,7 +120,7 @@ class QuestionnaireInterpreter(
     }
 
     private suspend fun readEverything(offered: OfferedCandidates): RawInterpretation {
-        val type = AnswerReader.type(ask(QuestionnairePrompt.type(schema)).orEmpty())
+        val type = AnswerReader.type(ask(QuestionnairePrompt.type(typeSchema)).orEmpty())
             ?: throw Abort("the model gave no document type")
         val docType = schema.family(type.typeId) ?: throw Abort("the model chose a document type that does not exist: ${type.typeId}")
 

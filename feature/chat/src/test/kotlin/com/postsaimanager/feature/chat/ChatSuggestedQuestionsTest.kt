@@ -58,6 +58,7 @@ class ChatSuggestedQuestionsTest {
         observeSuggestedQuestions = source,
         formFill = mockk(relaxed = true),
         formFills = FakeFormFillRepository(),
+        searchModelHint = testSearchModelHint(),
     )
 
     private fun doc(id: String, type: String?, questions: List<String>, createdAt: Long, deletedAt: Long? = null) =
