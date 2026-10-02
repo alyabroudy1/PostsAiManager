@@ -17,7 +17,7 @@ android {
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -30,6 +30,30 @@ android {
         }
     }
 
+    // Upload key: read from Gradle properties (~/.gradle/gradle.properties) or the environment.
+    // Never commit these values. When any is missing, the release build stays unsigned.
+    fun signingValue(name: String): String? =
+        (project.findProperty(name) as String?)?.takeIf { it.isNotBlank() }
+            ?: System.getenv(name)?.takeIf { it.isNotBlank() }
+
+    val uploadStoreFile = signingValue("PAM_UPLOAD_STORE_FILE")
+    val uploadStorePassword = signingValue("PAM_UPLOAD_STORE_PASSWORD")
+    val uploadKeyAlias = signingValue("PAM_UPLOAD_KEY_ALIAS")
+    val uploadKeyPassword = signingValue("PAM_UPLOAD_KEY_PASSWORD")
+    val hasUploadKey = uploadStoreFile != null && uploadStorePassword != null &&
+        uploadKeyAlias != null && uploadKeyPassword != null
+
+    signingConfigs {
+        if (hasUploadKey) {
+            create("release") {
+                storeFile = file(uploadStoreFile!!)
+                storePassword = uploadStorePassword
+                keyAlias = uploadKeyAlias
+                keyPassword = uploadKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
@@ -39,6 +63,7 @@ android {
             }
         }
         release {
+            if (hasUploadKey) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

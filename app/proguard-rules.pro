@@ -31,3 +31,11 @@
 
 # Hilt
 -dontwarn dagger.hilt.**
+
+# Release logging: strip verbose/debug/info logs (they carry document ids and timings).
+# Warnings and errors stay.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}
