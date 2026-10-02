@@ -1,0 +1,144 @@
+{
+ "key": "arabic-rtl-1p",
+ "interpreter": "zonesscoring",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "20.10.2026",
+   "normalized": "2026-10-20",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "450,00 €",
+   "normalized": "450.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "2026-041",
+   "normalized": "2026-041",
+   "page": 1
+  }
+ ],
+ "call1": "score:type: -0.1514110565185547,0.10508155822753906,-0.8796558380126953,-0.8945159912109375,-1.0496883392333984,-0.3873882293701172,-0.07800674438476562,-0.3961963653564453,0.32974815368652344,-1.546661376953125,0.20799827575683594\nscore:slot:letter_date: 0.09050941467285156\nscore:slot:total: 0.09243583679199219\nscore:slot:due_date: 0.3805561065673828\nscore:slot:reference: 0.3479423522949219\nscore:slot:customer_no: -0.5460548400878906\nscore:slot:sent_date: 0.19762611389160156\nscore:slot:cited_references: -0.3518199920654297\nlang: de",
+ "call1Ms": 13109,
+ "call2Ms": 12030,
+ "prefixTokens": 353,
+ "prefixMs": 2749,
+ "template": "GENERIC",
+ "templateScore": 0.4736842215061188,
+ "asks": [
+  {
+   "name": "score:type",
+   "question": "Is this document an invoice or bill that asks the reader to pay? Answer:\n@@\nIs this document a payment reminder or dunning letter about an unpaid bill? Answer:\n@@\nIs this document a letter or decision from an authority, tax office or public body? Answer:\n@@\nIs this document a letter from a doctor, clinic or health insurer, such as an appointment? Answer:\n@@\nIs this document an insurance or service contract, or a change to its price or terms? Answer:\n@@\nIs this document a letter from a school or kindergarten to parents? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document an information letter or statement that asks nothing of the reader? Answer:\n@@\nIs this document a letter the reader wrote and sent to someone else? Answer:\n@@\nIs this document a confirmation that a payment was made? Answer:\n@@\nIs this document anything that fits none of the other types? Answer:",
+   "answer": "-0.1514110565185547,0.10508155822753906,-0.8796558380126953,-0.8945159912109375,-1.0496883392333984,-0.3873882293701172,-0.07800674438476562,-0.3961963653564453,0.32974815368652344,-1.546661376953125,0.20799827575683594",
+   "ms": 2453,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:letter_date",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «20.10.2026» (context: printed on the line: Betrag: 450,00 €, zahlbar bis 20.10.2026.; line above: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Absender: Al-Mithal Services GmbH (fiktiv), Beispielstadt.) the date of the letter itself (when it was written or issued)? Answer:",
+   "answer": "0.09050941467285156",
+   "ms": 1199,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:total",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «450,00 €» (context: printed on the line: Betrag: 450,00 €, zahlbar bis 20.10.2026.; line above: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Absender: Al-Mithal Services GmbH (fiktiv), Beispielstadt.) the main amount of this document: what the reader has to pay, or the total? Answer:",
+   "answer": "0.09243583679199219",
+   "ms": 1194,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:due_date",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «20.10.2026» (context: printed on the line: Betrag: 450,00 €, zahlbar bis 20.10.2026.; line above: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Absender: Al-Mithal Services GmbH (fiktiv), Beispielstadt.) the date by which the reader must pay or act? Answer:",
+   "answer": "0.3805561065673828",
+   "ms": 1085,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:reference",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «2026-041» (context: printed on the line: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Betrag: 450,00 €, zahlbar bis 20.10.2026.) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
+   "answer": "0.3479423522949219",
+   "ms": 979,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:customer_no",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «2026-041» (context: printed on the line: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Betrag: 450,00 €, zahlbar bis 20.10.2026.) the number that identifies the reader as a customer, member or account holder? Answer:",
+   "answer": "-0.5460548400878906",
+   "ms": 1033,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:sent_date",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «20.10.2026» (context: printed on the line: Betrag: 450,00 €, zahlbar bis 20.10.2026.; line above: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Absender: Al-Mithal Services GmbH (fiktiv), Beispielstadt.) the sent date? Answer:",
+   "answer": "0.19762611389160156",
+   "ms": 1047,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:cited_references",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «2026-041» (context: printed on the line: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Betrag: 450,00 €, zahlbar bis 20.10.2026.) the cited references? Answer:",
+   "answer": "-0.3518199920654297",
+   "ms": 865,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "lang",
+   "question": "QUESTION: In which language is this letter written? Answer with its BCP-47 language code (for example de, en, ar).\nANSWER FORMAT: the code only",
+   "answer": "de",
+   "ms": 477,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this outgoing letter: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Zahlungserinnerung zu Rechnung 2026-041\"",
+   "ms": 1535,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Zahlungserinnerung zu Rechnung 2026-041 7. \/ Betrag: 450,00 €, zahlbar bis 20.10.2026. \/ Absender: Al-Mithal Services GmbH",
+   "ms": 3565,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Zahlungserinnerung zu Rechnung 2026-041 7. \/ Betrag: 450,00 €, zahlbar bis 20.10.2026. \/ Absender: Al-Mithal Services GmbH (fiktiv), Beispielstadt. \/ Seite 1 von 1\"",
+   "ms": 4777,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Was ist der Betrag der Rechnung?\" \"Wie lange ist die Zahlungsbilanz?\" \"Was ist der Absender?\"",
+   "ms": 2143,
+   "questionTokens": -1,
+   "answerTokens": -1
+  }
+ ],
+ "wallMs": 25186,
+ "model": "text.gguf"
+}

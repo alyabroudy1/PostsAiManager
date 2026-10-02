@@ -1,0 +1,425 @@
+{
+ "key": "N4-zhd-firma-1p",
+ "interpreter": "zonesscoring",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Mustermann Consulting GmbH",
+   "normalized": "Mustermann Consulting GmbH",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Frau Erika Mustermann",
+   "normalized": "Frau Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Leistung",
+   "normalized": "Leistung",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Büro-Partner Beispiel KG",
+   "normalized": "Büro-Partner Beispiel KG",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "BPB Verwaltungs GmbH",
+   "normalized": "BPB Verwaltungs GmbH",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "BIC COBADEFFXXX",
+   "normalized": "BIC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "Zeitraum",
+   "normalized": "Zeitraum",
+   "page": 1
+  },
+  {
+   "id": "M9",
+   "kind": "NAME",
+   "raw": "Herr T. Muster",
+   "normalized": "Herr T. Muster",
+   "page": 1
+  },
+  {
+   "id": "M10",
+   "kind": "NAME",
+   "raw": "Netto p. a.",
+   "normalized": "Netto p. a.",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "01.01.2027",
+   "normalized": "2027-01-01",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "31.12.2026",
+   "normalized": "2026-12-31",
+   "page": 1
+  },
+  {
+   "id": "D4",
+   "kind": "DATE",
+   "raw": "15.10.2026",
+   "normalized": "2026-10-15",
+   "page": 1
+  },
+  {
+   "id": "D5",
+   "kind": "DATE",
+   "raw": "31.12.2027",
+   "normalized": "2027-12-31",
+   "page": 1
+  },
+  {
+   "id": "D6",
+   "kind": "DATE",
+   "raw": "23.09.2026",
+   "normalized": "2026-09-23",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "01.01",
+   "normalized": "1.01 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "1.428,00 €",
+   "normalized": "1428.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "WN-2291",
+   "normalized": "WN-2291",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "EM\/2026 wV-2291",
+   "normalized": "EM\/2026 wV-2291",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "EM\/2026",
+   "normalized": "EM\/2026",
+   "page": 1
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "wV-2291",
+   "normalized": "wV-2291",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 888 0",
+   "normalized": "01234 888 0",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "01234 888 44",
+   "normalized": "01234 888 44",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "vertrieb@buero-partner.example",
+   "normalized": "vertrieb@buero-partner.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "score:sender: 3.6794185638427734\nscore:kind:sender: -4.824541091918945,-5.170787811279297,3.261465072631836\nscore:addressee: 2.893381118774414,5.926366806030273\nscore:kind:addressee: 0.5806884765625,-5.346158981323242,-2.6463756561279297\nscore:household: 0.5484619140625\nscore:care_of: -0.05218315124511719,1.6744575500488281\nscore:kind:care_of: 0.5806884765625,-5.346158981323242,-2.6463756561279297\nscore:contact: 0.7580604553222656\nscore:kind:contact: -0.015317916870117188,-3.4283924102783203,-3.715543746948242\nscore:slot:letter_date: 2.8720130920410156\nscore:type: -2.712430953979492,-2.313741683959961,-1.3096847534179688,-2.6159019470214844,2.2547950744628906,-4.090301513671875,-3.8310680389404297,0.001102447509765625,-3.503377914428711,-3.7450103759765625,0.7962722778320312\nscore:subject_person: -0.32921600341796875,-0.7301902770996094,1.2966327667236328,-1.81939697265625,-0.5678310394287109\nscore:kind:subject_person: -5.892345428466797,-5.173391342163086,3.4209232330322266\nscore:slot:total: -0.14150428771972656,0.5405368804931641\nscore:slot:due_date: -1.594888687133789,-2.2087230682373047,-1.5950870513916016,-2.0218639373779297\nscore:slot:iban: 1.9270343780517578\nscore:slot:reference: 2.0502891540527344,1.6940994262695312,0.3192863464355469,1.7622795104980469\nscore:slot:customer_no: -0.37748146057128906,-1.3607177734375,-0.9993019104003906,-0.4671211242675781\nscore:slot:new_amount: -0.08756446838378906,0.029932022094726562\nscore:slot:previous_amount: 0.04047584533691406,-0.8818626403808594\nscore:slot:effective_date: 1.5967864990234375,-0.14200210571289062,-1.391916275024414,-2.6690235137939453\nscore:slot:contract_end: -3.2174911499023438,1.7080211639404297,-2.136655807495117,-3.4799537658691406\nscore:slot:policy_no: -0.8513908386230469,-1.280843734741211,-2.445150375366211,-2.5999088287353516\nscore:slot:contract_no: 1.9759769439697266,1.4620780944824219,-0.23831748962402344,0.475738525390625",
+ "call1Ms": 170475,
+ "call2Ms": 15761,
+ "prefixTokens": 730,
+ "prefixMs": 12427,
+ "template": "DIN5008_B",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "score:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nBüro-Partner Beispiel KG \/ BB Industriestraße 40 \/ 12345 Beispielstadt \/ Tel. 01234 888 0 \/ vertrieb@buero-partner.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nBüro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt\nIs «Büro-Partner Beispiel KG» (context: line above: T. Muster, Vertrieb; line below: Persönlich haftende Gesellschafterin:) the sender: the party that wrote and sent this letter? Answer:",
+   "answer": "3.6794185638427734",
+   "ms": 2911,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nBüro-Partner Beispiel KG \/ BB Industriestraße 40 \/ 12345 Beispielstadt \/ Tel. 01234 888 0 \/ vertrieb@buero-partner.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nBüro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt\nIs «Büro-Partner Beispiel KG» (context: line above: T. Muster, Vertrieb; line below: Persönlich haftende Gesellschafterin:) the name of a private person? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nBüro-Partner Beispiel KG \/ BB Industriestraße 40 \/ 12345 Beispielstadt \/ Tel. 01234 888 0 \/ vertrieb@buero-partner.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nBüro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt\nIs «Büro-Partner Beispiel KG» (context: line above: T. Muster, Vertrieb; line below: Persönlich haftende Gesellschafterin:) the name of an authority or public body? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nBüro-Partner Beispiel KG \/ BB Industriestraße 40 \/ 12345 Beispielstadt \/ Tel. 01234 888 0 \/ vertrieb@buero-partner.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nBüro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt\nIs «Büro-Partner Beispiel KG» (context: line above: T. Muster, Vertrieb; line below: Persönlich haftende Gesellschafterin:) the name of a company or other organisation? Answer:",
+   "answer": "-4.824541091918945,-5.170787811279297,3.261465072631836",
+   "ms": 8847,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nIs «Mustermann Consulting GmbH» (context: line above: Büro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt; line below: z. Hd. Frau Erika Mustermann) the addressee: the party this letter is addressed to? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nIs «Frau Erika Mustermann» (context: printed on the line: z. Hd. Frau Erika Mustermann; line above: Mustermann Consulting GmbH; line below: Gewerbering 4) the addressee: the party this letter is addressed to? Answer:",
+   "answer": "2.893381118774414,5.926366806030273",
+   "ms": 4251,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nIs «Frau Erika Mustermann» (context: printed on the line: z. Hd. Frau Erika Mustermann; line above: Mustermann Consulting GmbH; line below: Gewerbering 4) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nIs «Frau Erika Mustermann» (context: printed on the line: z. Hd. Frau Erika Mustermann; line above: Mustermann Consulting GmbH; line below: Gewerbering 4) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nIs «Frau Erika Mustermann» (context: printed on the line: z. Hd. Frau Erika Mustermann; line above: Mustermann Consulting GmbH; line below: Gewerbering 4) the name of a company or other organisation? Answer:",
+   "answer": "0.5806884765625,-5.346158981323242,-2.6463756561279297",
+   "ms": 5995,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:household",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nIs «Frau Erika Mustermann» (context: printed on the line: z. Hd. Frau Erika Mustermann; line above: Mustermann Consulting GmbH; line below: Gewerbering 4) the name of a family or household (several people living together)? Answer:",
+   "answer": "0.5484619140625",
+   "ms": 1904,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nIs «Mustermann Consulting GmbH» (context: line above: Büro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt; line below: z. Hd. Frau Erika Mustermann) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nIs «Frau Erika Mustermann» (context: printed on the line: z. Hd. Frau Erika Mustermann; line above: Mustermann Consulting GmbH; line below: Gewerbering 4) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:",
+   "answer": "-0.05218315124511719,1.6744575500488281",
+   "ms": 4557,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nIs «Frau Erika Mustermann» (context: printed on the line: z. Hd. Frau Erika Mustermann; line above: Mustermann Consulting GmbH; line below: Gewerbering 4) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nIs «Frau Erika Mustermann» (context: printed on the line: z. Hd. Frau Erika Mustermann; line above: Mustermann Consulting GmbH; line below: Gewerbering 4) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMustermann Consulting GmbH \/ z. Hd. Frau Erika Mustermann \/ Gewerbering 4 \/ 54321 Beispieldorf\nIs «Frau Erika Mustermann» (context: printed on the line: z. Hd. Frau Erika Mustermann; line above: Mustermann Consulting GmbH; line below: Gewerbering 4) the name of a company or other organisation? Answer:",
+   "answer": "0.5806884765625,-5.346158981323242,-2.6463756561279297",
+   "ms": 6257,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nIs «Herr T. Muster» (context: line above: wV-2291; line below: 01234 888 44) a contact person named as the one who handles the matter? Answer:",
+   "answer": "0.7580604553222656",
+   "ms": 2499,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nIs «Herr T. Muster» (context: line above: wV-2291; line below: 01234 888 44) the name of a private person? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nIs «Herr T. Muster» (context: line above: wV-2291; line below: 01234 888 44) the name of an authority or public body? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nIs «Herr T. Muster» (context: line above: wV-2291; line below: 01234 888 44) the name of a company or other organisation? Answer:",
+   "answer": "-0.015317916870117188,-3.4283924102783203,-3.715543746948242",
+   "ms": 7275,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nIs «23.09.2026» (context: line above: 01234 888 44; line below: Telefon:) the date of the letter itself (when it was written or issued)? Answer:",
+   "answer": "2.8720130920410156",
+   "ms": 2500,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:type",
+   "question": "Is this document an invoice or bill that asks the reader to pay? Answer:\n@@\nIs this document a payment reminder or dunning letter about an unpaid bill? Answer:\n@@\nIs this document a letter or decision from an authority, tax office or public body? Answer:\n@@\nIs this document a letter from a doctor, clinic or health insurer, such as an appointment? Answer:\n@@\nIs this document an insurance or service contract, or a change to its price or terms? Answer:\n@@\nIs this document a letter from a school or kindergarten to parents? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document an information letter or statement that asks nothing of the reader? Answer:\n@@\nIs this document a letter the reader wrote and sent to someone else? Answer:\n@@\nIs this document a confirmation that a payment was made? Answer:\n@@\nIs this document anything that fits none of the other types? Answer:",
+   "answer": "-2.712430953979492,-2.313741683959961,-1.3096847534179688,-2.6159019470214844,2.2547950744628906,-4.090301513671875,-3.8310680389404297,0.001102447509765625,-3.503377914428711,-3.7450103759765625,0.7962722778320312",
+   "ms": 5236,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Mustermann Consulting GmbH» (context: line above: Büro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt; line below: z. Hd. Frau Erika Mustermann) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Leistung» (context: line above: Konditionen anbieten.; line below: Zeitraum) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Büro-Partner Beispiel KG» (context: line above: T. Muster, Vertrieb; line below: Persönlich haftende Gesellschafterin:) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Zeitraum» (context: line above: Leistung; line below: Netto p. a.) a person the letter is about, other than the addressee? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Netto p. a.» (context: line above: Zeitraum; line below: Wartung 2 Geräte inkl. Toner-Service) a person the letter is about, other than the addressee? Answer:",
+   "answer": "-0.32921600341796875,-0.7301902770996094,1.2966327667236328,-1.81939697265625,-0.5678310394287109",
+   "ms": 8347,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Mustermann Consulting GmbH» (context: line above: Büro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt; line below: z. Hd. Frau Erika Mustermann) the name of a private person? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Mustermann Consulting GmbH» (context: line above: Büro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt; line below: z. Hd. Frau Erika Mustermann) the name of an authority or public body? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Mustermann Consulting GmbH» (context: line above: Büro-Partner Beispiel KG Industriestraße 40 12345 Beispielstadt; line below: z. Hd. Frau Erika Mustermann) the name of a company or other organisation? Answer:",
+   "answer": "-5.892345428466797,-5.173391342163086,3.4209232330322266",
+   "ms": 5354,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01.01» (context: printed on the line: 01.01.-31.12.2027; line above: Wartung 2 Geräte inkl. Toner-Service; line below: 1.428,00 €) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «1.428,00 €» (context: line above: 01.01.-31.12.2027; line below: Bitte bestätigen Sie uns die Verlängerung bis 15.10.2026 durch Rücksen) the main amount of this document: what the reader has to pay, or the total? Answer:",
+   "answer": "-0.14150428771972656,0.5405368804931641",
+   "ms": 4474,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01.01.2027» (context: printed on the line: Wartungsvertrag WN-2291 - verlängerung ab 01.01.2027; line above: Mit freundlichen Grüßen; line below: Sehr geehrte Frau Mustermann,) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «31.12.2026» (context: printed on the line: zum 31.12.2026.; line above: Angebots oder per E-Mail an vertrieb@buero-partner.example. Ohne Rückm; line below: Büro-Partner Beispiel KG) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «15.10.2026» (context: printed on the line: Bitte bestätigen Sie uns die Verlängerung bis 15.10.2026 durch Rücksen; line above: 1.428,00 €; line below: Angebots oder per E-Mail an vertrieb@buero-partner.example. Ohne Rückm) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «31.12.2027» (context: printed on the line: 01.01.-31.12.2027; line above: Wartung 2 Geräte inkl. Toner-Service; line below: 1.428,00 €) the date by which the reader must pay or act? Answer:",
+   "answer": "-1.594888687133789,-2.2087230682373047,-1.5950870513916016,-2.0218639373779297",
+   "ms": 8287,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:iban",
+   "question": "ZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\n(the text of this zone is in the letter above)\nIs «DE89 3704 0044 0532 0130 00» (context: printed on the line: IBAN DE89 3704 0044 0532 0130 00; line above: BPB Verwaltungs GmbH; line below: BIC COBADEFFXXX) the IBAN of the account the reader should pay to? Answer:",
+   "answer": "1.9270343780517578",
+   "ms": 2911,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «WN-2291» (context: printed on the line: Wartungsvertrag WN-2291 - verlängerung ab 01.01.2027; line above: Mit freundlichen Grüßen; line below: Sehr geehrte Frau Mustermann,) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «EM\/2026 wV-2291» a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «EM\/2026» (context: line above: Ansprechpartner:; line below: wV-2291) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «wV-2291» (context: line above: EM\/2026; line below: Herr T. Muster) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
+   "answer": "2.0502891540527344,1.6940994262695312,0.3192863464355469,1.7622795104980469",
+   "ms": 13762,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «WN-2291» (context: printed on the line: Wartungsvertrag WN-2291 - verlängerung ab 01.01.2027; line above: Mit freundlichen Grüßen; line below: Sehr geehrte Frau Mustermann,) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «EM\/2026 wV-2291» the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «EM\/2026» (context: line above: Ansprechpartner:; line below: wV-2291) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «wV-2291» (context: line above: EM\/2026; line below: Herr T. Muster) the number that identifies the reader as a customer, member or account holder? Answer:",
+   "answer": "-0.37748146057128906,-1.3607177734375,-0.9993019104003906,-0.4671211242675781",
+   "ms": 12747,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:new_amount",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01.01» (context: printed on the line: 01.01.-31.12.2027; line above: Wartung 2 Geräte inkl. Toner-Service; line below: 1.428,00 €) the new amount? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «1.428,00 €» (context: line above: 01.01.-31.12.2027; line below: Bitte bestätigen Sie uns die Verlängerung bis 15.10.2026 durch Rücksen) the new amount? Answer:",
+   "answer": "-0.08756446838378906,0.029932022094726562",
+   "ms": 3431,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:previous_amount",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01.01» (context: printed on the line: 01.01.-31.12.2027; line above: Wartung 2 Geräte inkl. Toner-Service; line below: 1.428,00 €) the previous amount? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «1.428,00 €» (context: line above: 01.01.-31.12.2027; line below: Bitte bestätigen Sie uns die Verlängerung bis 15.10.2026 durch Rücksen) the previous amount? Answer:",
+   "answer": "0.04047584533691406,-0.8818626403808594",
+   "ms": 3530,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:effective_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01.01.2027» (context: printed on the line: Wartungsvertrag WN-2291 - verlängerung ab 01.01.2027; line above: Mit freundlichen Grüßen; line below: Sehr geehrte Frau Mustermann,) the effective date? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «31.12.2026» (context: printed on the line: zum 31.12.2026.; line above: Angebots oder per E-Mail an vertrieb@buero-partner.example. Ohne Rückm; line below: Büro-Partner Beispiel KG) the effective date? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «15.10.2026» (context: printed on the line: Bitte bestätigen Sie uns die Verlängerung bis 15.10.2026 durch Rücksen; line above: 1.428,00 €; line below: Angebots oder per E-Mail an vertrieb@buero-partner.example. Ohne Rückm) the effective date? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «31.12.2027» (context: printed on the line: 01.01.-31.12.2027; line above: Wartung 2 Geräte inkl. Toner-Service; line below: 1.428,00 €) the effective date? Answer:",
+   "answer": "1.5967864990234375,-0.14200210571289062,-1.391916275024414,-2.6690235137939453",
+   "ms": 7820,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:contract_end",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01.01.2027» (context: printed on the line: Wartungsvertrag WN-2291 - verlängerung ab 01.01.2027; line above: Mit freundlichen Grüßen; line below: Sehr geehrte Frau Mustermann,) the contract end? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «31.12.2026» (context: printed on the line: zum 31.12.2026.; line above: Angebots oder per E-Mail an vertrieb@buero-partner.example. Ohne Rückm; line below: Büro-Partner Beispiel KG) the contract end? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «15.10.2026» (context: printed on the line: Bitte bestätigen Sie uns die Verlängerung bis 15.10.2026 durch Rücksen; line above: 1.428,00 €; line below: Angebots oder per E-Mail an vertrieb@buero-partner.example. Ohne Rückm) the contract end? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «31.12.2027» (context: printed on the line: 01.01.-31.12.2027; line above: Wartung 2 Geräte inkl. Toner-Service; line below: 1.428,00 €) the contract end? Answer:",
+   "answer": "-3.2174911499023438,1.7080211639404297,-2.136655807495117,-3.4799537658691406",
+   "ms": 7467,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:policy_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «WN-2291» (context: printed on the line: Wartungsvertrag WN-2291 - verlängerung ab 01.01.2027; line above: Mit freundlichen Grüßen; line below: Sehr geehrte Frau Mustermann,) the policy number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «EM\/2026 wV-2291» the policy number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «EM\/2026» (context: line above: Ansprechpartner:; line below: wV-2291) the policy number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «wV-2291» (context: line above: EM\/2026; line below: Herr T. Muster) the policy number? Answer:",
+   "answer": "-0.8513908386230469,-1.280843734741211,-2.445150375366211,-2.5999088287353516",
+   "ms": 13595,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:contract_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «WN-2291» (context: printed on the line: Wartungsvertrag WN-2291 - verlängerung ab 01.01.2027; line above: Mit freundlichen Grüßen; line below: Sehr geehrte Frau Mustermann,) the contract number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «EM\/2026 wV-2291» the contract number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «EM\/2026» (context: line above: Ansprechpartner:; line below: wV-2291) the contract number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Ansprechpartner: \/ EM\/2026 \/ wV-2291 \/ Herr T. Muster \/ 01234 888 44 \/ 23.09.2026 \/ Telefon: \/ Datum:\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «wV-2291» (context: line above: EM\/2026; line below: Herr T. Muster) the contract number? Answer:",
+   "answer": "1.9759769439697266,1.4620780944824219,-0.23831748962402344,0.475738525390625",
+   "ms": 13855,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this insurance contract: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Wartungsvertrag Verlängerung für Multifunktionsgeräte\"",
+   "ms": 2193,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Wartungsvertrag WN-2291 - verlängerung ab 01.01.2027 \/ Sehr geehrte Frau Mustermann, \/ Ihr Wartungsvertrag WN-2291 für die Multifunktionsgeräte der Mustermann Consulting",
+   "ms": 4544,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Bitte bestätigen Sie uns die Verlängerung bis 15.10.2026 durch Rücksendung des unterschriebenen \/ Angebots oder per E-Mail an vertrieb@buero-partner.example.\"",
+   "ms": 5447,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Was ist der aktuelle Vertragslaufzeitpunkt?\" \"Wie lange wird die Verlängerung um weitere 12 Monate?\" \"Was muss ich tun, um die Verlängerung zu erhalten?\"",
+   "ms": 3559,
+   "questionTokens": -1,
+   "answerTokens": -1
+  }
+ ],
+ "wallMs": 186376,
+ "model": "q2b.gguf"
+}

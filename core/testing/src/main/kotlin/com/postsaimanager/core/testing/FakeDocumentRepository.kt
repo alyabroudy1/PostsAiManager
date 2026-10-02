@@ -7,10 +7,14 @@ import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.FamilySource
+import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.SourceType
+import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.model.ValueSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 /**
@@ -124,6 +128,16 @@ class FakeDocumentRepository : DocumentRepository {
         PamResult.Success(Unit)
     }
 
+    override suspend fun renameDocument(id: String, title: String): PamResult<Unit> = guard {
+        val trimmed = title.trim()
+        if (trimmed.isNotEmpty()) {
+            documents.value = documents.value.map {
+                if (it.id == id) it.copy(title = trimmed, isUserTitle = true, titleCode = null, titleArgs = emptyList()) else it
+            }
+        }
+        PamResult.Success(Unit)
+    }
+
     override suspend fun updateDocumentStatus(
         id: String,
         status: DocumentStatus,
@@ -134,23 +148,74 @@ class FakeDocumentRepository : DocumentRepository {
 
     override suspend fun confirmExtractedField(fieldId: String): PamResult<Unit> = guard {
         extracted.value = extracted.value.mapValues { (_, fields) ->
-            fields.map { if (it.id == fieldId) it.copy(isConfirmed = true) else it }
+            fields.map { if (it.id == fieldId) it.copy(isConfirmed = true, reviewState = ReviewState.CONFIRMED) else it }
         }
         PamResult.Success(Unit)
     }
 
-    override suspend fun confirmAllExtractedFields(documentId: String): PamResult<List<ExtractedData>> = guard {
+    override suspend fun confirmAllExtractedFields(
+        documentId: String,
+        onlyConfident: Boolean,
+    ): PamResult<List<ExtractedData>> = guard {
         val current = extracted.value[documentId].orEmpty()
-        val toConfirm = current.filter { !it.isConfirmed && !it.deletedByUser }
+        val toConfirm = current.filter {
+            it.reviewState == ReviewState.UNREVIEWED && (!onlyConfident || !it.needsReview)
+        }
         if (toConfirm.isNotEmpty()) {
             val confirmIds = toConfirm.map { it.id }.toSet()
             extracted.value = extracted.value + (
                 documentId to current.map {
-                    if (it.id in confirmIds) it.copy(isConfirmed = true, source = ValueSource.USER) else it
+                    if (it.id in confirmIds) {
+                        it.copy(isConfirmed = true, source = ValueSource.USER, reviewState = ReviewState.CONFIRMED)
+                    } else {
+                        it
+                    }
                 }
                 )
         }
         PamResult.Success(toConfirm)
+    }
+
+    override suspend fun setFieldReviewState(fieldId: String, state: ReviewState): PamResult<Unit> = guard {
+        if (state == ReviewState.EDITED) {
+            return@guard PamResult.Error(PamError.ValidationError("reviewState", "EDITED needs a value; use updateExtractedField"))
+        }
+        if (extracted.value.values.none { fields -> fields.any { it.id == fieldId } }) {
+            return@guard PamResult.Error(PamError.DatabaseError())
+        }
+        extracted.value = extracted.value.mapValues { (_, fields) ->
+            fields.map {
+                if (it.id != fieldId) {
+                    it
+                } else {
+                    it.copy(
+                        reviewState = state,
+                        isConfirmed = state == ReviewState.CONFIRMED || state == ReviewState.EDITED,
+                        deletedByUser = state == ReviewState.IGNORED,
+                        source = if (state == ReviewState.CONFIRMED || state == ReviewState.EDITED) ValueSource.USER else it.source,
+                    )
+                }
+            }
+        }
+        PamResult.Success(Unit)
+    }
+
+    override suspend fun setDocumentFamily(documentId: String, familyId: String): PamResult<Unit> = guard {
+        documents.value = documents.value.map {
+            if (it.id == documentId) it.copy(extractionType = familyId, familySource = FamilySource.USER) else it
+        }
+        PamResult.Success(Unit)
+    }
+
+    override suspend fun updateSummary(documentId: String, text: String): PamResult<Unit> = guard {
+        documents.value = documents.value.map {
+            if (it.id == documentId) {
+                it.copy(summary = text.trim(), summarySource = SummarySource.USER, summaryCode = null, summaryArgs = emptyList())
+            } else {
+                it
+            }
+        }
+        PamResult.Success(Unit)
     }
 
     override suspend fun restoreExtractedFields(fields: List<ExtractedData>): PamResult<Unit> = guard {
@@ -174,7 +239,17 @@ class FakeDocumentRepository : DocumentRepository {
         value: String,
     ): PamResult<Unit> = guard {
         extracted.value = extracted.value.mapValues { (_, fields) ->
-            fields.map { if (it.id == fieldId) it.copy(fieldName = name, fieldValue = value) else it }
+            // Like the real merge: a person's value protects the row (EDITED), and it is theirs from now on.
+            fields.map {
+                if (it.id == fieldId) {
+                    it.copy(
+                        fieldName = name, fieldValue = value, source = ValueSource.USER, isConfirmed = true,
+                        deletedByUser = false, reviewState = ReviewState.EDITED,
+                    )
+                } else {
+                    it
+                }
+            }
         }
         PamResult.Success(Unit)
     }
@@ -194,6 +269,20 @@ class FakeDocumentRepository : DocumentRepository {
 
     override fun observeExtractedData(documentId: String): Flow<List<ExtractedData>> =
         extracted.map { it[documentId].orEmpty() }
+
+    override fun observeListFields(): Flow<Map<String, List<ExtractedData>>> =
+        combine(documents, extracted) { docs, fields ->
+            val live = docs.filterNot { it.isTrashed }.map { it.id }.toSet()
+            fields.filterKeys { it in live }.filterValues { it.isNotEmpty() }
+        }
+
+    override fun observeFirstPagePaths(): Flow<Map<String, String>> =
+        combine(documents, pages) { docs, allPages ->
+            val live = docs.filterNot { it.isTrashed }.map { it.id }.toSet()
+            allPages.filterKeys { it in live }
+                .mapNotNull { (id, list) -> list.minByOrNull { it.pageNumber }?.let { id to it.imagePath } }
+                .toMap()
+        }
 }
 
 /** Convenience builder for test documents. */
@@ -204,7 +293,12 @@ fun testDocument(
     isFavorite: Boolean = false,
     createdAt: Long = 0L,
     deletedAt: Long? = null,
+    extractorVersion: String? = null,
+    extractionType: String? = null,
+    language: String? = null,
 ) = Document(
+    language = language,
+    extractionType = extractionType,
     id = id,
     title = title,
     status = status,
@@ -213,4 +307,5 @@ fun testDocument(
     createdAt = createdAt,
     modifiedAt = createdAt,
     deletedAt = deletedAt,
+    extractorVersion = extractorVersion,
 )

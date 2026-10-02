@@ -309,6 +309,25 @@ interface ActiveModelProvider {
     suspend fun activeModelConfig(): InferenceConfig
 
     /**
+     * The catalogue id of the chat model (`AiModelDescriptor.id`), which picks its agent settings (`ModelProfiles`, the
+     * form-filling chat); null when unknown or side-loaded, and the default agent settings are used.
+     */
+    suspend fun activeModelId(): String? = null
+
+    /**
+     * The model the form-filling agent runs on: the first installed model of [com.postsaimanager.core.domain.extraction.zones.ModelProfiles.FORM_AGENT_MODELS]
+     * (a tool-calling agent needs more than the smallest chat model), otherwise the chat model. The engine loads it for the run; the next
+     * chat message loads the chat model again.
+     */
+    suspend fun formModelPath(): String? = activeModelPath()
+
+    /** As [activeModelConfig], for the form model. */
+    suspend fun formModelConfig(): InferenceConfig = activeModelConfig()
+
+    /** The catalogue id of the form model (picks its agent settings, see [activeModelId]). */
+    suspend fun formModelId(): String? = activeModelId()
+
+    /**
      * The model that reads documents, which need not be the one that chats.
      *
      * They are different jobs. Chat is interactive, so a reply that starts quickly matters
@@ -324,6 +343,12 @@ interface ActiveModelProvider {
 
     /** As [activeModelConfig], for the extraction model. */
     suspend fun extractionModelConfig(): InferenceConfig
+
+    /**
+     * The catalogue id of the extraction model (`AiModelDescriptor.id`), which picks its reading strategy
+     * (`ModelProfiles`); null when unknown or side-loaded, and the strategy that needs no measurement is used.
+     */
+    suspend fun extractionModelId(): String? = null
 
     /**
      * The user-editable settings for the active model on this device — see

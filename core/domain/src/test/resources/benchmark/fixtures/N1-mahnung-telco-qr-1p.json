@@ -1,0 +1,475 @@
+{
+    "key": "N1-mahnung-telco-qr-1p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "NM",
+                    "bounds": {
+                        "left": 0.13059251,
+                        "top": 0.06797777,
+                        "right": 0.1680774,
+                        "bottom": 0.081658825
+                    },
+                    "confidence": 0.8359375,
+                    "language": "und"
+                },
+                {
+                    "text": "Nordlicht Mobilfunk GmbH Beispielweg 7 : 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.15348439,
+                        "right": 0.40266022,
+                        "bottom": 0.16075246
+                    },
+                    "confidence": 0.8160377,
+                    "language": "und"
+                },
+                {
+                    "text": "Frau",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.17357846,
+                        "right": 0.14812575,
+                        "bottom": 0.18255664
+                    },
+                    "confidence": 0.8457031,
+                    "language": "und"
+                },
+                {
+                    "text": "Erika Mustermann",
+                    "bounds": {
+                        "left": 0.12394196,
+                        "top": 0.18768704,
+                        "right": 0.25211608,
+                        "bottom": 0.1988029
+                    },
+                    "confidence": 0.8861979,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterstraße 12",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.2052159,
+                        "right": 0.2382104,
+                        "bottom": 0.21504916
+                    },
+                    "confidence": 0.88783485,
+                    "language": "und"
+                },
+                {
+                    "text": "54321 Beispieldorf",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.22146216,
+                        "right": 0.25695285,
+                        "bottom": 0.23300555
+                    },
+                    "confidence": 0.8802849,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrte Frau Mustermann,",
+                    "bounds": {
+                        "left": 0.11789601,
+                        "top": 0.3706712,
+                        "right": 0.36033857,
+                        "bottom": 0.3817871
+                    },
+                    "confidence": 0.84630406,
+                    "language": "und"
+                },
+                {
+                    "text": "Position",
+                    "bounds": {
+                        "left": 0.12636034,
+                        "top": 0.46088073,
+                        "right": 0.19105199,
+                        "bottom": 0.47071397
+                    },
+                    "confidence": 0.90625,
+                    "language": "und"
+                },
+                {
+                    "text": "Rechnung 2026-08-771204 (Mobilfunk Juli 2026)",
+                    "bounds": {
+                        "left": 0.12696493,
+                        "top": 0.48439503,
+                        "right": 0.49758163,
+                        "bottom": 0.49850363
+                    },
+                    "confidence": 0.90567833,
+                    "language": "und"
+                },
+                {
+                    "text": "Zahlungserinnerung /1. Mahnung- Rechnung 2026-08-771204",
+                    "bounds": {
+                        "left": 0.11668682,
+                        "top": 0.33475843,
+                        "right": 0.7001209,
+                        "bottom": 0.35528004
+                    },
+                    "confidence": 0.88587624,
+                    "language": "und"
+                },
+                {
+                    "text": "Mahngebühr",
+                    "bounds": {
+                        "left": 0.12756953,
+                        "top": 0.51389486,
+                        "right": 0.22370012,
+                        "bottom": 0.52543825
+                    },
+                    "confidence": 0.8222656,
+                    "language": "und"
+                },
+                {
+                    "text": "Offener Gesamtbetrag",
+                    "bounds": {
+                        "left": 0.12756953,
+                        "top": 0.5395468,
+                        "right": 0.3065296,
+                        "bottom": 0.5506627
+                    },
+                    "confidence": 0.8854852,
+                    "language": "und"
+                },
+                {
+                    "text": "Kontoinhaber: Nordlicht Mobilfunk GmbH",
+                    "bounds": {
+                        "left": 0.12212817,
+                        "top": 0.6259085,
+                        "right": 0.45405078,
+                        "bottom": 0.63787943
+                    },
+                    "confidence": 0.8854911,
+                    "language": "und"
+                },
+                {
+                    "text": "IBAN: DE02 1203 0000 0000 2020 51",
+                    "bounds": {
+                        "left": 0.12212817,
+                        "top": 0.6425823,
+                        "right": 0.40991536,
+                        "bottom": 0.6549808
+                    },
+                    "confidence": 0.8362269,
+                    "language": "und"
+                },
+                {
+                    "text": "BIC: COBADEFFXXX",
+                    "bounds": {
+                        "left": 0.122732766,
+                        "top": 0.6601111,
+                        "right": 0.2871826,
+                        "bottom": 0.67208207
+                    },
+                    "confidence": 0.81614584,
+                    "language": "und"
+                },
+                {
+                    "text": "zu unserer Rechnung 2026-08-771204 vom 05.08.2026 konnten wir bis heute keinen\nZahlungseingang feststellen. Die Rechnung war am 19.08.2026 fällig. Falls sich Ihre Zahlung mit\ndiesem Schreiben überschnitten hat, betrachten Sie es bitte als gegenstandslos.",
+                    "bounds": {
+                        "left": 0.11789601,
+                        "top": 0.39119282,
+                        "right": 0.85066503,
+                        "bottom": 0.44292432
+                    },
+                    "confidence": 0.867207,
+                    "language": "und"
+                },
+                {
+                    "text": "Verwendungszweck: RE 2026-08-771204 Kd 4402917",
+                    "bounds": {
+                        "left": 0.12938331,
+                        "top": 0.6733647,
+                        "right": 0.5471584,
+                        "bottom": 0.690466
+                    },
+                    "confidence": 0.90578496,
+                    "language": "und"
+                },
+                {
+                    "text": "GiroCode: Mit der Banking-App scannen,\nBetrag und Empfänger werden übenommen.",
+                    "bounds": {
+                        "left": 0.2859734,
+                        "top": 0.709705,
+                        "right": 0.5205562,
+                        "bottom": 0.7280889
+                    },
+                    "confidence": 0.85678995,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.12454655,
+                        "top": 0.8041898,
+                        "right": 0.3065296,
+                        "bottom": 0.8144506
+                    },
+                    "confidence": 0.875558,
+                    "language": "und"
+                },
+                {
+                    "text": "Nordlicht Mobilfunk GmbH\nForderungsmanagement",
+                    "bounds": {
+                        "left": 0.12515114,
+                        "top": 0.83625484,
+                        "right": 0.32103992,
+                        "bottom": 0.8670372
+                    },
+                    "confidence": 0.87477803,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Zeichen:",
+                    "bounds": {
+                        "left": 0.59068924,
+                        "top": 0.17015819,
+                        "right": 0.6505441,
+                        "bottom": 0.17614365
+                    },
+                    "confidence": 0.8149858,
+                    "language": "und"
+                },
+                {
+                    "text": "Nordlicht Mobilfunk GmbH\nBeispielweg 7, 12345 Beispielstadt\nGeschaftsführer: Nora Beispiel, Tim Muster\nAG Beispielstadt HRB 000000",
+                    "bounds": {
+                        "left": 0.12515114,
+                        "top": 0.9072253,
+                        "right": 0.32103992,
+                        "bottom": 0.9461308
+                    },
+                    "confidence": 0.8467299,
+                    "language": "und"
+                },
+                {
+                    "text": "Unser Zeichen:\nKundennummer.\nAnsprechpartner:.",
+                    "bounds": {
+                        "left": 0.59068924,
+                        "top": 0.18383925,
+                        "right": 0.6789601,
+                        "bottom": 0.22146216
+                    },
+                    "confidence": 0.82456636,
+                    "language": "und"
+                },
+                {
+                    "text": "Telefon:",
+                    "bounds": {
+                        "left": 0.5912938,
+                        "top": 0.22830269,
+                        "right": 0.6324063,
+                        "bottom": 0.23428816
+                    },
+                    "confidence": 0.8461914,
+                    "language": "und"
+                },
+                {
+                    "text": "Bankverbindung: Beispielbank\nIBAN DE02 1203 0000 0000 2020 51\nBIC COBADEFFXXX\nUSt-IdNr. DEO00000000",
+                    "bounds": {
+                        "left": 0.38573155,
+                        "top": 0.90594274,
+                        "right": 0.5471584,
+                        "bottom": 0.9435656
+                    },
+                    "confidence": 0.806013,
+                    "language": "und"
+                },
+                {
+                    "text": "Nordlicht Mobilfunk GmbH",
+                    "bounds": {
+                        "left": 0.64691657,
+                        "top": 0.045746047,
+                        "right": 0.8917775,
+                        "bottom": 0.05857204
+                    },
+                    "confidence": 0.89825994,
+                    "language": "und"
+                },
+                {
+                    "text": "Datum:",
+                    "bounds": {
+                        "left": 0.59189844,
+                        "top": 0.24283881,
+                        "right": 0.6281741,
+                        "bottom": 0.24925181
+                    },
+                    "confidence": 0.88671875,
+                    "language": "und"
+                },
+                {
+                    "text": "Rechnung vom",
+                    "bounds": {
+                        "left": 0.5501814,
+                        "top": 0.45874307,
+                        "right": 0.67049575,
+                        "bottom": 0.46943137
+                    },
+                    "confidence": 0.9115767,
+                    "language": "und"
+                },
+                {
+                    "text": "05.08.2026",
+                    "bounds": {
+                        "left": 0.54957676,
+                        "top": 0.48353997,
+                        "right": 0.6336155,
+                        "bottom": 0.49380076
+                    },
+                    "confidence": 0.9039062,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielweg 7\n12345 Beispielstadt\nTel. 0800 555 0100\nservice@nordlicht-mobil.example",
+                    "bounds": {
+                        "left": 0.72188634,
+                        "top": 0.063702434,
+                        "right": 0.8935913,
+                        "bottom": 0.10816588
+                    },
+                    "confidence": 0.82730526,
+                    "language": "und"
+                },
+                {
+                    "text": "FIB-Mahn 4402917\n4402917",
+                    "bounds": {
+                        "left": 0.7025393,
+                        "top": 0.18041898,
+                        "right": 0.8125756,
+                        "bottom": 0.2039333
+                    },
+                    "confidence": 0.9022136,
+                    "language": "und"
+                },
+                {
+                    "text": "Bitte überweisen Sie den offenen Betrag von 64,98€ zahlbar innerhalb von 14 Tagen nach Zugang\ndieses Schreibens auf das unten genannte Konto. Nach Ablauf dieser Frist behalten wir uns weitere\nSchritte, insbesondere die Übergabe an ein Inkassounternehmen, vor.",
+                    "bounds": {
+                        "left": 0.12091898,
+                        "top": 0.5630611,
+                        "right": 0.87847644,
+                        "bottom": 0.61564773
+                    },
+                    "confidence": 0.86878,
+                    "language": "und"
+                },
+                {
+                    "text": "Team Forderungen\n0800 555 0199",
+                    "bounds": {
+                        "left": 0.7025393,
+                        "top": 0.2103463,
+                        "right": 0.8125756,
+                        "bottom": 0.23300555
+                    },
+                    "confidence": 0.8908262,
+                    "language": "und"
+                },
+                {
+                    "text": "25.09.2026",
+                    "bounds": {
+                        "left": 0.7031439,
+                        "top": 0.23899102,
+                        "right": 0.7660218,
+                        "bottom": 0.24796923
+                    },
+                    "confidence": 0.90234375,
+                    "language": "und"
+                },
+                {
+                    "text": "Fällig am\n19.08.2026",
+                    "bounds": {
+                        "left": 0.70737606,
+                        "top": 0.45660537,
+                        "right": 0.79141474,
+                        "bottom": 0.49251816
+                    },
+                    "confidence": 0.89560544,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 0800 555 0100\nservice@nordlicht-mobil.example",
+                    "bounds": {
+                        "left": 0.6451028,
+                        "top": 0.90337753,
+                        "right": 0.7956469,
+                        "bottom": 0.922189
+                    },
+                    "confidence": 0.8024572,
+                    "language": "und"
+                },
+                {
+                    "text": "Betrag €",
+                    "bounds": {
+                        "left": 0.8174123,
+                        "top": 0.45489526,
+                        "right": 0.8827086,
+                        "bottom": 0.46900386
+                    },
+                    "confidence": 0.86941963,
+                    "language": "und"
+                },
+                {
+                    "text": "www.nordlicht-mobil. example",
+                    "bounds": {
+                        "left": 0.6451028,
+                        "top": 0.9238991,
+                        "right": 0.77569526,
+                        "bottom": 0.93244976
+                    },
+                    "confidence": 0.8208912,
+                    "language": "und"
+                },
+                {
+                    "text": "59,98",
+                    "bounds": {
+                        "left": 0.8428053,
+                        "top": 0.4826849,
+                        "right": 0.8833132,
+                        "bottom": 0.49380076
+                    },
+                    "confidence": 0.8921875,
+                    "language": "und"
+                },
+                {
+                    "text": "5,00",
+                    "bounds": {
+                        "left": 0.85308343,
+                        "top": 0.50876445,
+                        "right": 0.88512695,
+                        "bottom": 0.51945275
+                    },
+                    "confidence": 0.89160156,
+                    "language": "und"
+                },
+                {
+                    "text": "64,98",
+                    "bounds": {
+                        "left": 0.8428053,
+                        "top": 0.5339889,
+                        "right": 0.8845224,
+                        "bottom": 0.54510474
+                    },
+                    "confidence": 0.9117187,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 1",
+                    "bounds": {
+                        "left": 0.8391777,
+                        "top": 0.9568192,
+                        "right": 0.9026602,
+                        "bottom": 0.96451473
+                    },
+                    "confidence": 0.84648436,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}

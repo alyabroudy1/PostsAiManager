@@ -1,0 +1,310 @@
+{
+ "key": "N2-kfz-verlaengerung-2p",
+ "interpreter": "questionnaire",
+ "pages": 2,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Nordstern Direkt Versicherung AG",
+   "normalized": "Nordstern Direkt Versicherung AG",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Herrn und Frau",
+   "normalized": "Herrn und Frau",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Max und Erika Mustermann",
+   "normalized": "Max und Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Beitrag pro Jahr",
+   "normalized": "Beitrag pro Jahr",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "Kfz-Haftpflicht und Teilkasko",
+   "normalized": "Kfz-Haftpflicht und Teilkasko",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "BỊC COBADEFFXXX",
+   "normalized": "BỊC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "bisher",
+   "normalized": "bisher",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "01.01.2027",
+   "normalized": "2027-01-01",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "14.09.2026",
+   "normalized": "2026-09-14",
+   "page": 1
+  },
+  {
+   "id": "D5",
+   "kind": "DATE",
+   "raw": "30.11.2026",
+   "normalized": "2026-11-30",
+   "page": 2
+  },
+  {
+   "id": "D6",
+   "kind": "DATE",
+   "raw": "31.12.2026",
+   "normalized": "2026-12-31",
+   "page": 2
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "579,10 €",
+   "normalized": "579.10 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "612,40 €",
+   "normalized": "612.40 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "KFZ-4471-882-19",
+   "normalized": "KFZ-4471-882-19",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "O00000",
+   "normalized": "O00000",
+   "page": 2
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 555 200",
+   "normalized": "01234 555 200",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "01234 555 210",
+   "normalized": "01234 555 210",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "kfz@nordstern-direkt.example",
+   "normalized": "kfz@nordstern-direkt.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "type: bill de HIGH\nsender: M1 AUTHORITY \"Nordstern Direkt Versicherung AG\" HIGH\naddressee: M2 PERSON HOUSEHOLD \"Herrn und Frau\" HIGH\nsubject_person: NONE\ncontact: M1 PERSON \"Nordstern Direkt Versicherung AG\" HIGH\ncare_of: NONE\nslot:letter_date: D1 LETTER_DATE HIGH\nslot:total: A1 TOTAL_DUE HIGH\nslot:due_date: D5 DEADLINE HIGH\nslot:iban: I1 HIGH\nslot:reference: N1 HIGH\nslot:customer_no: N1 HIGH\nslot:invoice_no: N1 HIGH\nextras: N4 \"Kfz-Haftpflicht und Teilkasko\" pertainly \"Kfz-Haftpflicht und Teilkasko\" HIGH",
+ "call1Ms": 50240,
+ "call2Ms": 12360,
+ "layoutTextChars": 2086,
+ "call2": "text:title: \"Nordstern Direkt Versicherung AG - Kfz-Versicherung\"\ntext:subject: \"Kfz-Versicherung\"\ntext:summary: \"NEVER\"\ntext:questions: \"Kfz-Versicherung verlängert sich zum 01.01.2027 um ein weiteres Jahr\" \"Kfz-Versicherung verlängert sich zum 01.01.2027 um ein weiteres Jahr\" \"Kfz-Versicherung verlängert sich zum 01.01.2027 um ein weiteres Jahr\"",
+ "prefixTokens": 1812,
+ "prefixMs": 24024,
+ "asks": [
+  {
+   "name": "type",
+   "question": "QUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "bill de HIGH",
+   "ms": 3157,
+   "questionTokens": 213,
+   "answerTokens": 3
+  },
+  {
+   "name": "sender",
+   "question": "QUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "M1 AUTHORITY \"Nordstern Direkt Versicherung AG\" HIGH",
+   "ms": 1952,
+   "questionTokens": 43,
+   "answerTokens": 13
+  },
+  {
+   "name": "addressee",
+   "question": "QUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE",
+   "answer": "M2 PERSON HOUSEHOLD \"Herrn und Frau\" HIGH",
+   "ms": 2885,
+   "questionTokens": 107,
+   "answerTokens": 14
+  },
+  {
+   "name": "subject_person",
+   "question": "QUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1600,
+   "questionTokens": 77,
+   "answerTokens": 1
+  },
+  {
+   "name": "contact",
+   "question": "QUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "M1 PERSON \"Nordstern Direkt Versicherung AG\" HIGH",
+   "ms": 2121,
+   "questionTokens": 51,
+   "answerTokens": 12
+  },
+  {
+   "name": "care_of",
+   "question": "QUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1295,
+   "questionTokens": 68,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "QUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 LETTER_DATE HIGH",
+   "ms": 1579,
+   "questionTokens": 77,
+   "answerTokens": 5
+  },
+  {
+   "name": "slot:total",
+   "question": "QUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A1 TOTAL_DUE HIGH",
+   "ms": 1171,
+   "questionTokens": 83,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:due_date",
+   "question": "QUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D5 DEADLINE HIGH",
+   "ms": 1920,
+   "questionTokens": 96,
+   "answerTokens": 5
+  },
+  {
+   "name": "slot:iban",
+   "question": "QUESTION: Which IBAN is the account the reader should pay to?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "I1 HIGH",
+   "ms": 1017,
+   "questionTokens": 31,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:reference",
+   "question": "QUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 903,
+   "questionTokens": 40,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "QUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 929,
+   "questionTokens": 33,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:invoice_no",
+   "question": "QUESTION: Which number is the invoice number (the bill this letter is about)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 970,
+   "questionTokens": 33,
+   "answerTokens": 3
+  },
+  {
+   "name": "extras",
+   "question": "QUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "N4 \"Kfz-Haftpflicht und Teilkasko\" pertainly \"Kfz-Haftpflicht und Teilkasko\" HIGH",
+   "ms": 4660,
+   "questionTokens": 122,
+   "answerTokens": 32
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this bill: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Nordstern Direkt Versicherung AG - Kfz-Versicherung\"",
+   "ms": 1963,
+   "questionTokens": 50,
+   "answerTokens": 15
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Kfz-Versicherung\"",
+   "ms": 1367,
+   "questionTokens": 31,
+   "answerTokens": 8
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"NEVER\"",
+   "ms": 1175,
+   "questionTokens": 51,
+   "answerTokens": 4
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Kfz-Versicherung verlängert sich zum 01.01.2027 um ein weiteres Jahr\" \"Kfz-Versicherung verlängert sich zum 01.01.2027 um ein weiteres Jahr\" \"Kfz-Versicherung verlängert sich zum 01.01.2027 um ein weiteres Jahr\"",
+   "ms": 7839,
+   "questionTokens": 61,
+   "answerTokens": 81
+  }
+ ],
+ "wallMs": 62811,
+ "model": "text.gguf"
+}

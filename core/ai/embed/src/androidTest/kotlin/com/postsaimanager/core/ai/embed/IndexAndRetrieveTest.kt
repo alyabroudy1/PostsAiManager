@@ -4,9 +4,13 @@ import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.ai.EmbeddingService
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
+import com.postsaimanager.core.domain.usecase.ObserveChatVisibleDocumentsUseCase
 import com.postsaimanager.core.domain.usecase.RetrieveChunksUseCase
 import com.postsaimanager.core.testing.FakeDocumentChunkRepository
+import com.postsaimanager.core.testing.FakeDocumentRepository
+import com.postsaimanager.core.testing.testDocument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -104,12 +108,20 @@ class IndexAndRetrieveTest {
 
     private fun lazyService() = LazyEmbeddingService(files, OnnxEmbeddingService(Dispatchers.IO))
 
+    /** Retrieval over the corpus of one live document, "doc-1", as the all-documents chat sees it. */
+    private fun retrieval(repository: FakeDocumentChunkRepository, embedder: EmbeddingService) =
+        RetrieveChunksUseCase(
+            repository,
+            embedder,
+            ObserveChatVisibleDocumentsUseCase(FakeDocumentRepository().apply { seed(testDocument(id = "doc-1")) }),
+        )
+
     @Test
     fun answersAQuestionThatSharesNoWordsWithTheAnswer() = runBlocking {
         val repository = FakeDocumentChunkRepository()
         val embedder = lazyService()
         val index = IndexDocumentUseCase(repository, embedder)
-        val retrieve = RetrieveChunksUseCase(repository, embedder)
+        val retrieve = retrieval(repository, embedder)
 
         val indexed = index("doc-1", letter)
         assertTrue("indexing failed: $indexed", indexed is PamResult.Success)
@@ -163,7 +175,7 @@ class IndexAndRetrieveTest {
 
         // The other half of hybrid retrieval. Reference numbers sit almost on top of each
         // other in vector space, so this is the keyword side earning its place.
-        val result = RetrieveChunksUseCase(repository, embedder)("BG 1234/5678")
+        val result = retrieval(repository, embedder)("BG 1234/5678")
 
         assertTrue("nothing retrieved", result.chunks.isNotEmpty())
         assertTrue(
@@ -210,7 +222,7 @@ class IndexAndRetrieveTest {
 
         // And it is still findable by keyword, which is the whole point of storing the
         // text when the model is absent.
-        val result = RetrieveChunksUseCase(repository, embedder)("Widerspruch")
+        val result = retrieval(repository, embedder)("Widerspruch")
         assertFalse(result.semanticSearchUsed)
         assertTrue("keyword search found nothing", result.chunks.isNotEmpty())
     }

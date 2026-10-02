@@ -1,0 +1,239 @@
+{
+ "key": "english-ambiguous-3p",
+ "interpreter": "zones",
+ "pages": 3,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Northwind Utilities Ltd.",
+   "normalized": "Northwind Utilities Ltd.",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Mr John Sample",
+   "normalized": "Mr John Sample",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "26 September 2026",
+   "normalized": "2026-09-26",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "10 October 2026",
+   "normalized": "2026-10-10",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "1 November 2026",
+   "normalized": "2026-11-01",
+   "page": 3
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "£142.80",
+   "normalized": "142.80 GBP",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "£57.00",
+   "normalized": "57.00 GBP",
+   "page": 3
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "NU-77120934",
+   "normalized": "NU-77120934",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "NU\/REM\/2026\/03318",
+   "normalized": "NU\/REM\/2026\/03318",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "00000000",
+   "normalized": "00000000",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "0000 000 0000",
+   "normalized": "0000 000 0000",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "help@northwind.example",
+   "normalized": "help@northwind.example",
+   "page": 1
+  }
+ ],
+ "call1": "sender: NONE\naddressee: NONE\ncare_of: NONE\ncontact: NONE\nslot:letter_date: NONE\ntype: bill de HIGH\nsubject_person: NONE\nslot:total: A1 TOTAL_DUE MEDIUM\nslot:due_date: D2 OTHER LOW\nslot:reference: N2 HIGH\nslot:customer_no: N1 HIGH\nslot:invoice_no: N1 HIGH\nextras: A2 \"label\" english_key \"£57.00\" HIGH",
+ "call1Ms": 41470,
+ "call2Ms": 5789,
+ "prefixTokens": 1703,
+ "prefixMs": 15681,
+ "template": "DIN5008_B",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNorthwind Utilities Ltd. 1 Example Road \/ Sampletown SA1 OXX \/ Tel. 0000 000 0000 \/ help@northwind.example \/ Northwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNorthwind Utilities Ltd. 1 Example Road Sampletown SA1 0XX\nCANDIDATES IN THESE ZONES\nM1: Northwind Utilities Ltd. [letterhead] p.1\nQUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1727,
+   "questionTokens": 194,
+   "answerTokens": 1
+  },
+  {
+   "name": "addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMr John Sample \/ 22 Placeholder Lane \/ Exampleton EX2 3PL\nCANDIDATES IN THESE ZONES\nM2: Mr John Sample [address-field] p.1\nQUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1779,
+   "questionTokens": 178,
+   "answerTokens": 1
+  },
+  {
+   "name": "care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nMr John Sample \/ 22 Placeholder Lane \/ Exampleton EX2 3PL\nCANDIDATES IN THESE ZONES\nM2: Mr John Sample [address-field] p.1\nQUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1366,
+   "questionTokens": 139,
+   "answerTokens": 1
+  },
+  {
+   "name": "contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nSampletown, 26 September 2026\nCANDIDATES IN THESE ZONES\n(none)\nQUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1025,
+   "questionTokens": 107,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nSampletown, 26 September 2026\nCANDIDATES IN THESE ZONES\nD1: 26 September 2026 (near: \"Ort, Datum\") p.1\nQUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "NONE",
+   "ms": 1323,
+   "questionTokens": 154,
+   "answerTokens": 1
+  },
+  {
+   "name": "type",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nQUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "bill de HIGH",
+   "ms": 2373,
+   "questionTokens": 240,
+   "answerTokens": 3
+  },
+  {
+   "name": "subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\n(none)\nQUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1123,
+   "questionTokens": 117,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nA1: £142.80 (near: \"overdue balance\") p.1\nA2: £57.00 (near: \"monthly instalment\") p.3\nQUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A1 TOTAL_DUE MEDIUM",
+   "ms": 1831,
+   "questionTokens": 162,
+   "answerTokens": 7
+  },
+  {
+   "name": "slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nD2: 10 October 2026 (near: \"reply to this letter by\") p.1\nD3: 1 November 2026 (near: \"start\" | \"starts\") p.3\nQUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D2 OTHER LOW",
+   "ms": 2080,
+   "questionTokens": 183,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nSampletown, 26 September 2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: NU-77120934 (near: \"Your account\" | \"Account\" | \"Account number\") p.1\/2\/3\nN2: NU\/REM\/2026\/03318 (near: \"Reference\") p.1\nQUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N2 HIGH",
+   "ms": 1822,
+   "questionTokens": 183,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nSampletown, 26 September 2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: NU-77120934 (near: \"Your account\" | \"Account\" | \"Account number\") p.1\/2\/3\nN2: NU\/REM\/2026\/03318 (near: \"Reference\") p.1\nQUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 1690,
+   "questionTokens": 176,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:invoice_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nSampletown, 26 September 2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: NU-77120934 (near: \"Your account\" | \"Account\" | \"Account number\") p.1\/2\/3\nN2: NU\/REM\/2026\/03318 (near: \"Reference\") p.1\nQUESTION: Which number is the invoice number (the bill this letter is about)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 1849,
+   "questionTokens": 176,
+   "answerTokens": 3
+  },
+  {
+   "name": "extras",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nD2: 10 October 2026 (near: \"reply to this letter by\") p.1\nD3: 1 November 2026 (near: \"start\" | \"starts\") p.3\nA1: £142.80 (near: \"overdue balance\") p.1\nA2: £57.00 (near: \"monthly instalment\") p.3\nN1: NU-77120934 (near: \"Your account\" | \"Account\" | \"Account number\") p.1\/2\/3\nN2: NU\/REM\/2026\/03318 (near: \"Reference\") p.1\nQUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "A2 \"label\" english_key \"£57.00\" HIGH",
+   "ms": 5703,
+   "questionTokens": 316,
+   "answerTokens": 16
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this bill: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Northwind Utilities Ltd. pays overdue gas and electricity account\"",
+   "ms": 1017,
+   "questionTokens": 50,
+   "answerTokens": 13
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Dear Mr Sample\"",
+   "ms": 558,
+   "questionTokens": 31,
+   "answerTokens": 5
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Your account is overdue and you must reply to this letter by 10 October 2026 to resolve the balance.\"",
+   "ms": 1659,
+   "questionTokens": 51,
+   "answerTokens": 27
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Which specific payment arrangement terms are printed on page 2?\" \"What is the deadline for the customer to reply to the letter?\" \"How does the supplier propose to handle the overdue balance?\"",
+   "ms": 2543,
+   "questionTokens": 61,
+   "answerTokens": 39
+  }
+ ],
+ "wallMs": 47561,
+ "model": "text.gguf"
+}

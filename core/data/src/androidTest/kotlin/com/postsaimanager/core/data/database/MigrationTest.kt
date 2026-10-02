@@ -627,6 +627,347 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate13To14_addsTheExtractionColumnsAndKeepsEveryRow() {
+        helper.createDatabase(TEST_DB, 13).apply {
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite,
+                     createdAt, modifiedAt, syncStatus)
+                VALUES ('doc-1', 'Scanned 3 page(s)', 'EXTRACTED', 'CAMERA', 3, 0, 1, 1, 'LOCAL'),
+                       ('doc-2', 'Nordlicht Mobilfunk: Zahlungserinnerung', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL')
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO extracted_data
+                    (id, documentId, fieldName, fieldValue, fieldType, confidence, pageNumber,
+                     isConfirmed, source, machineValue, machineConfidence, deletedByUser,
+                     hasUnreviewedMachineChange, engineVersion, updatedAt)
+                VALUES ('f1', 'doc-2', 'Amount', '64,98 EUR', 'OTHER', 0.9, 1,
+                        1, 'USER', '64,98 EUR', 0.9, 0, 0, 'extraction-v2-1', 5)
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO timeline_events
+                    (id, documentId, eventType, title, description, data, referenceId,
+                     referenceType, createdAt)
+                VALUES ('t1', 'doc-1', 'TEXT_EXTRACTED', 'Text extracted from 3 page(s)',
+                        'Average confidence: 91%', NULL, NULL, NULL, 2)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 14, true, PamMigrations.MIGRATION_13_14,
+        )
+
+        // Extracted values keep everything; the new columns read as "an older extractor wrote it".
+        db.query(
+            "SELECT fieldValue, source, isConfirmed, engineVersion, slotKey, role, origin, " +
+                "aiConfidence, evidence, bbox FROM extracted_data WHERE id = 'f1'",
+        ).use { c ->
+            assertTrue("the field was lost in migration", c.moveToFirst())
+            assertEquals("64,98 EUR", c.getString(0))
+            assertEquals("USER", c.getString(1))
+            assertEquals(1, c.getInt(2))
+            assertEquals("extraction-v2-1", c.getString(3))
+            for (i in 4..9) assertTrue("column $i should be NULL", c.isNull(i))
+        }
+
+        // Documents: everything survives, the flags default to "not a person's title", and the
+        // scanner's default title becomes a code with its page count. A real title is left alone.
+        db.query(
+            "SELECT title, isUserTitle, extractionType, extractionTypeConfidence, extractorVersion, " +
+                "suggestedQuestions, summary, titleCode, titleArgs FROM documents ORDER BY id",
+        ).use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Scanned 3 page(s)", c.getString(0))
+            assertEquals(0, c.getInt(1))
+            for (i in 2..6) assertTrue("column $i should be NULL", c.isNull(i))
+            assertEquals("scanned_pages", c.getString(7))
+            assertEquals("[\"3\"]", c.getString(8))
+            assertTrue(c.moveToNext())
+            assertEquals("Nordlicht Mobilfunk: Zahlungserinnerung", c.getString(0))
+            assertTrue(c.isNull(7))
+            assertTrue(c.isNull(8))
+        }
+
+        // Old events keep their sentences and simply have no code.
+        db.query("SELECT title, description, code, args FROM timeline_events WHERE id = 't1'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Text extracted from 3 page(s)", c.getString(0))
+            assertEquals("Average confidence: 91%", c.getString(1))
+            assertTrue(c.isNull(2))
+            assertTrue(c.isNull(3))
+        }
+
+        // The new columns are writable.
+        db.execSQL("UPDATE extracted_data SET slotKey = 'total', aiConfidence = 0.7 WHERE id = 'f1'")
+        db.query("SELECT slotKey, aiConfidence FROM extracted_data WHERE id = 'f1'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("total", c.getString(0))
+            assertEquals(0.7f, c.getFloat(1), 0.0001f)
+        }
+    }
+
+    /**
+     * v14 rows covering the four review-state backfill cases, the title and summary sources, and every
+     * legacy type id. Needs a device (P4 runs it); `LegacyTypeSqlTest` covers the SQL builder on the JVM.
+     */
+    @Test
+    fun migrate14To15_backfillsReviewStateSourcesAndTheLegacyTypeMapping() {
+        var tablesBefore = emptySet<String>()
+        helper.createDatabase(TEST_DB, 14).apply {
+            val legacy = listOf(
+                "bill", "reminder_dunning", "authority_tax", "health", "insurance_contract",
+                "school", "receipt", "info_no_action", "other",
+            )
+            legacy.forEachIndexed { i, type ->
+                execSQL(
+                    """
+                    INSERT INTO documents
+                        (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus,
+                         extractionType, isUserTitle, titleCode, summary)
+                    VALUES ('legacy-$i', 'Real words $i', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL',
+                            '$type', 0, NULL, ${if (i == 0) "'A summary'" else "NULL"})
+                    """.trimIndent(),
+                )
+            }
+            execSQL(
+                """
+                INSERT INTO documents
+                    (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus,
+                     extractionType, isUserTitle, titleCode)
+                VALUES ('family', 'Scanned 2 page(s)', 'EXTRACTED', 'CAMERA', 2, 0, 1, 1, 'LOCAL',
+                        'receipt', 0, 'scanned_pages'),
+                       ('mine', 'My own title', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL', NULL, 1, NULL),
+                       ('untyped', 'Untyped', 'NEW', 'CAMERA', 1, 0, 1, 1, 'LOCAL', NULL, 0, NULL)
+                """.trimIndent(),
+            )
+            fun field(id: String, confirmed: Int, source: String, deleted: Int, value: String = "v") = execSQL(
+                """
+                INSERT INTO extracted_data
+                    (id, documentId, fieldName, fieldValue, fieldType, confidence, pageNumber,
+                     isConfirmed, source, machineValue, machineConfidence, deletedByUser,
+                     hasUnreviewedMachineChange, updatedAt)
+                VALUES ('$id', 'family', '$id', '$value', 'OTHER', 0.9, 1, $confirmed, '$source', 'v', 0.9, $deleted, 0, 1)
+                """.trimIndent(),
+            )
+            field("untouched", 0, "MACHINE", 0)
+            field("confirmed", 1, "MACHINE", 0)
+            // The old confirm path set source = USER without changing the value: a confirmation, not an edit.
+            field("confirmed-as-user", 1, "USER", 0)
+            field("edited", 1, "USER", 0, value = "changed")
+            field("ignored", 0, "MACHINE", 1)
+            field("ignored-edited", 1, "USER", 1)
+            // A pending "is this you?" proposal and a dismissal: the proposal goes with its table, the dismissal stays.
+            execSQL(
+                """
+                INSERT INTO entity_proposals
+                    (id, documentId, entityName, entityNameKey, kind, entityRole, relation, role, profileType,
+                     organization, existingProfileId, confidence, createdAt)
+                VALUES ('prop-1', 'family', 'Sam', 'sam', 'PERSON', 'RECIPIENT', '', 'RECEIVER', 'USER_SELF',
+                        NULL, NULL, 0.9, 1)
+                """.trimIndent(),
+            )
+            execSQL("INSERT INTO dismissed_entities (documentId, entityName, dismissedAt) VALUES ('family', 'layla', 1)")
+            tablesBefore = query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'room_master_table' AND name != 'android_metadata'")
+                .use { c -> generateSequence { if (c.moveToNext()) c.getString(0) else null }.toSet() }
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 15, true, PamMigrations.MIGRATION_14_15)
+
+        // The proposals table is gone, every other table is still there, and the dismissal and every field survived.
+        val tablesAfter = db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'room_master_table' AND name != 'android_metadata'")
+            .use { c -> generateSequence { if (c.moveToNext()) c.getString(0) else null }.toSet() }
+        assertTrue("entity_proposals was in the v14 schema", "entity_proposals" in tablesBefore)
+        assertEquals("only entity_proposals is dropped", tablesBefore - "entity_proposals", tablesAfter)
+        db.query("SELECT COUNT(*) FROM dismissed_entities WHERE documentId = 'family' AND entityName = 'layla'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("a dismissal survives", 1, c.getInt(0))
+        }
+        db.query("SELECT COUNT(*) FROM extracted_data").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("no field is lost", 6, c.getInt(0))
+        }
+
+        fun reviewState(id: String) =
+            db.query("SELECT reviewState, alternatives FROM extracted_data WHERE id = '$id'").use { c ->
+                assertTrue("the field $id was lost in migration", c.moveToFirst())
+                assertTrue("alternatives start empty", c.isNull(1))
+                c.getString(0)
+            }
+        assertEquals("UNREVIEWED", reviewState("untouched"))
+        assertEquals("CONFIRMED", reviewState("confirmed"))
+        assertEquals("CONFIRMED", reviewState("confirmed-as-user"))
+        assertEquals("EDITED", reviewState("edited"))
+        assertEquals("IGNORED", reviewState("ignored"))
+        assertEquals("a tombstone wins over an edit", "IGNORED", reviewState("ignored-edited"))
+
+        fun document(id: String): List<String?> =
+            db.query(
+                "SELECT extractionType, topics, familySource, titleSource, summarySource FROM documents WHERE id = '$id'",
+            ).use { c ->
+                assertTrue("the document $id was lost in migration", c.moveToFirst())
+                (0..4).map { if (c.isNull(it)) null else c.getString(it) }
+            }
+        val expected = mapOf(
+            "legacy-0" to listOf("invoice_bill", null),
+            "legacy-1" to listOf("invoice_bill", null),
+            "legacy-2" to listOf("official_letter", "[\"government\"]"),
+            "legacy-3" to listOf("medical", "[\"health\"]"),
+            "legacy-4" to listOf("contract_policy", "[\"insurance\"]"),
+            "legacy-5" to listOf("official_letter", "[\"school_education\"]"),
+            "legacy-6" to listOf("receipt", null),
+            "legacy-7" to listOf("official_letter", null),
+            "legacy-8" to listOf("free_form", null),
+        )
+        for ((id, typeAndTopics) in expected) {
+            val row = document(id)
+            assertEquals("family of $id", typeAndTopics[0], row[0])
+            assertEquals("topics of $id", typeAndTopics[1], row[1])
+            assertEquals("MODEL", row[2])
+            assertEquals("real words are the model's title", "MODEL", row[3])
+        }
+        assertEquals("MODEL", document("legacy-0")[4])
+        assertEquals(null, document("legacy-1")[4])
+
+        assertEquals("DEFAULT", document("family")[3])
+        assertEquals("a person's title", "USER", document("mine")[3])
+        assertEquals("a document with no type has no family source", null, document("untyped")[2])
+        assertEquals(null, document("untyped")[0])
+
+        // A migrated document owes no second stage (startup recovery keys on this flag, not on a missing summary).
+        db.query("SELECT COUNT(*) FROM documents WHERE enrichmentPending != 0").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("no migrated document is awaiting enrichment", 0, c.getInt(0))
+        }
+
+        // The new columns are writable.
+        db.execSQL("UPDATE documents SET layoutTemplate = 'din5008_b', summaryCode = 'template', summaryArgs = '[]', enrichmentPending = 1 WHERE id = 'family'")
+        db.query("SELECT enrichmentPending FROM documents WHERE id = 'family'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(1, c.getInt(0))
+        }
+    }
+
+    /**
+     * v15 profiles keep every row and gain the family columns (NULL, NULL, 0); `profile_facts` exists, is unique per
+     * (profile, key) and is deleted with its profile. Needs a device (the final form-assist smoke runs it).
+     */
+    @Test
+    fun migrate15To16_addsFamilyProfileColumnsAndTheFactsTable() {
+        helper.createDatabase(TEST_DB, 15).apply {
+            execSQL(
+                """
+                INSERT INTO profiles (id, type, name, completionScore, createdAt, modifiedAt)
+                VALUES ('p1', 'FAMILY_MEMBER', 'Ahmad', 0.5, 1, 1)
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus,
+                                       isUserTitle, enrichmentAttempts, enrichmentPending)
+                VALUES ('doc-1', 'Anmeldung', 'EXTRACTED', 'CAMERA', 2, 0, 1, 1, 'LOCAL', 0, 0, 0)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 16, true, PamMigrations.MIGRATION_15_16)
+
+        db.query("SELECT name, relationship, birthDate, sensitive FROM profiles WHERE id = 'p1'").use { c ->
+            assertTrue("the profile survived", c.moveToFirst())
+            assertEquals("Ahmad", c.getString(0))
+            assertTrue(c.isNull(1))
+            assertTrue(c.isNull(2))
+            assertEquals(0, c.getInt(3))
+        }
+
+        db.execSQL("UPDATE profiles SET relationship = 'CHILD', birthDate = '2019-03-12', sensitive = 1 WHERE id = 'p1'")
+        db.execSQL(
+            """
+            INSERT INTO profile_facts (id, profileId, `key`, value, source, sourceDocumentId, sensitive, createdAt, updatedAt)
+            VALUES ('f1', 'p1', 'allergies', 'nuts', 'USER', NULL, 1, 1, 1)
+            """.trimIndent(),
+        )
+        val duplicate = runCatching {
+            db.execSQL(
+                """
+                INSERT INTO profile_facts (id, profileId, `key`, value, source, sourceDocumentId, sensitive, createdAt, updatedAt)
+                VALUES ('f2', 'p1', 'allergies', 'other', 'USER', NULL, 1, 1, 1)
+                """.trimIndent(),
+            )
+        }
+        assertTrue("(profileId, key) is unique", duplicate.isFailure)
+
+        db.execSQL("PRAGMA foreign_keys = ON")
+        db.execSQL("DELETE FROM profiles WHERE id = 'p1'")
+        db.query("SELECT COUNT(*) FROM profile_facts").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("facts go with their profile", 0, c.getInt(0))
+        }
+
+        // The form-filling conversation: a fill per document, fields per fill, both gone with their parent.
+        db.execSQL(
+            """
+            INSERT INTO form_fills (id, documentId, status, roleProfiles, confirmedRoles, conversationId, currentFieldId,
+                                    localeTag, awaiting, roundAsked, createdAt, updatedAt)
+            VALUES ('fill-doc-1', 'doc-1', 'ASKING', '{}', '[]', 'conv-doc-1', NULL, 'de', NULL, 0, 1, 1)
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO form_fields (id, formFillId, documentId, page, labelText, labelBox, fillBox, kind, section, options,
+                                     dataKey, role, confidence, value, valueSource, profileId, reviewState, required,
+                                     alreadyFilled, reconfirm, skipped, orderIndex, updatedAt)
+            VALUES ('f1', 'fill-doc-1', 'doc-1', 1, 'Name des Kindes', NULL, NULL, 'TEXT', NULL, NULL,
+                    'full_name', 'SUBJECT', 0.9, NULL, 'NONE', NULL, 'UNREVIEWED', 0, NULL, 0, 0, 0, 1)
+            """.trimIndent(),
+        )
+        db.execSQL("DELETE FROM documents WHERE id = 'doc-1'")
+        db.query("SELECT (SELECT COUNT(*) FROM form_fills), (SELECT COUNT(*) FROM form_fields)").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("a fill goes with its document", 0, c.getInt(0))
+            assertEquals("its fields go with it", 0, c.getInt(1))
+        }
+    }
+
+    /** v16 fills keep every row and gain a NULL reading key (so they read as out of date and are read again). Needs a device. */
+    @Test
+    fun migrate16To17_addsTheReadingKeyToFormFills() {
+        helper.createDatabase(TEST_DB, 16).apply {
+            execSQL(
+                """
+                INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus,
+                                       isUserTitle, enrichmentAttempts, enrichmentPending)
+                VALUES ('doc-1', 'Anmeldung', 'EXTRACTED', 'CAMERA', 2, 0, 1, 1, 'LOCAL', 0, 0, 0)
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO form_fills (id, documentId, status, roleProfiles, confirmedRoles, conversationId, currentFieldId,
+                                        localeTag, awaiting, roundAsked, createdAt, updatedAt)
+                VALUES ('fill-doc-1', 'doc-1', 'ASKING', '{}', '[]', 'conv-doc-1', NULL, 'de', NULL, 0, 1, 1)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 17, true, PamMigrations.MIGRATION_16_17)
+
+        db.query("SELECT status, readingKey FROM form_fills WHERE id = 'fill-doc-1'").use { c ->
+            assertTrue("the fill survived", c.moveToFirst())
+            assertEquals("ASKING", c.getString(0))
+            assertTrue(c.isNull(1))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

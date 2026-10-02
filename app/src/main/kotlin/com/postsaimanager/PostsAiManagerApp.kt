@@ -7,12 +7,15 @@ import android.os.Process
 import android.os.StrictMode
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.postsaimanager.applock.AppLockCoordinator
 import com.postsaimanager.core.ai.local.InferenceCrashObserver
 import com.postsaimanager.core.ai.local.InferenceMemoryPressureObserver
 import com.postsaimanager.core.data.worker.DocumentProcessingRecovery
 import com.postsaimanager.core.domain.document.PurgeExpiredDocumentsUseCase
+import com.postsaimanager.core.domain.document.ReprocessOutdatedDocumentsUseCase
 import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -75,6 +78,15 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
     @Inject
     lateinit var purgeExpiredDocuments: Lazy<PurgeExpiredDocumentsUseCase>
 
+    // Lazy for the same reason: it reaches DocumentProcessor (and so OcrService), and must stay
+    // un-built in :inference. Only the main-process branch of onCreate calls .get().
+    @Inject
+    lateinit var reprocessOutdatedDocuments: Lazy<ReprocessOutdatedDocumentsUseCase>
+
+    // Lazy for the same reason as above: only the main process has a UI to lock.
+    @Inject
+    lateinit var appLockCoordinator: Lazy<AppLockCoordinator>
+
     /** Process-lifetime scope for start-up work that must outlive `onCreate` returning. */
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -87,6 +99,9 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
         super.onCreate()
         enableStrictModeInDebug()
         if (!isMainProcess()) return
+        // First, and on Main: the lock must know about lifecycle events from the very first
+        // ON_START, and starts locked until the stored settings arrive.
+        appLockCoordinator.get().start(applicationScope)
         inferenceMemoryPressureObserver.start()
         inferenceCrashObserver.start()
         // Off Main, and after onCreate returns rather than blocking it: a document stuck at
@@ -98,6 +113,13 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
         // 07-document-pipeline.md, "Deleting documents". Same off-Main, fire-and-forget
         // treatment as recovery above: nothing in this cold start should wait on it.
         applicationScope.launch { purgeExpiredDocuments.get().invoke() }
+        // Letters an older extractor read are quietly re-read when the extractor has improved: at
+        // most a few per start, low priority, only while charging or idle. Never allowed to break
+        // start-up, and it must not block it either.
+        applicationScope.launch {
+            runCatching { reprocessOutdatedDocuments.get().invoke() }
+                .onFailure { if (it is CancellationException) throw it }
+        }
     }
 
     /**

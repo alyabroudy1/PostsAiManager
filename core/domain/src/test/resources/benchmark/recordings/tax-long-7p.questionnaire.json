@@ -1,0 +1,406 @@
+{
+ "key": "tax-long-7p",
+ "interpreter": "questionnaire",
+ "pages": 7,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Finanzamt Beispielstadt",
+   "normalized": "Finanzamt Beispielstadt",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Festsetzung der Einkommensteuer und Nachzahlung",
+   "normalized": "Festsetzung der Einkommensteuer und Nachzahlung",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "24.09.2026",
+   "normalized": "2026-09-24",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "03.11.2026",
+   "normalized": "2026-11-03",
+   "page": 6
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "2.317,00 €",
+   "normalized": "2317.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "9.817,00 €",
+   "normalized": "9817.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "7.500,00 €",
+   "normalized": "7500.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "46.020,00",
+   "normalized": "46020.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A5",
+   "kind": "AMOUNT",
+   "raw": "2.140,00",
+   "normalized": "2140.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A6",
+   "kind": "AMOUNT",
+   "raw": "43.880,00",
+   "normalized": "43880.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A7",
+   "kind": "AMOUNT",
+   "raw": "4.720,00",
+   "normalized": "4720.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A8",
+   "kind": "AMOUNT",
+   "raw": "260,00",
+   "normalized": "260.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A9",
+   "kind": "AMOUNT",
+   "raw": "38.900,00",
+   "normalized": "38900.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A11",
+   "kind": "AMOUNT",
+   "raw": "1.410,00",
+   "normalized": "1410.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A12",
+   "kind": "AMOUNT",
+   "raw": "44.610,00",
+   "normalized": "44610.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A13",
+   "kind": "AMOUNT",
+   "raw": "3.980,00",
+   "normalized": "3980.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A14",
+   "kind": "AMOUNT",
+   "raw": "0,00",
+   "normalized": "0.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A15",
+   "kind": "AMOUNT",
+   "raw": "40.630,00",
+   "normalized": "40630.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A16",
+   "kind": "AMOUNT",
+   "raw": "10.117,00",
+   "normalized": "10117.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A17",
+   "kind": "AMOUNT",
+   "raw": "300,00",
+   "normalized": "300.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A22",
+   "kind": "AMOUNT",
+   "raw": "1.875,00 €",
+   "normalized": "1875.00 EUR",
+   "page": 4
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 6
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "123\/456\/78901",
+   "normalized": "123\/456\/78901",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "EST-2025-0047118",
+   "normalized": "EST-2025-0047118",
+   "page": 1
+  },
+  {
+   "id": "N11",
+   "kind": "REFERENCE",
+   "raw": "1-12345",
+   "normalized": "1-12345",
+   "page": 7
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "00 00 00",
+   "normalized": "00 00 00",
+   "page": 1
+  },
+  {
+   "id": "T7",
+   "kind": "PHONE",
+   "raw": "01234 555000",
+   "normalized": "01234 555000",
+   "page": 7
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 6
+  }
+ ],
+ "call1": "type: insurance_contract de HIGH\nsender: M1 AUTHORITY \"Aktenzeichen: EST-2025-0047118 \/ Finanzamt Beispielstadt\" HIGH\naddressee: M2 PERSON HOUSEHOLD \"Erika Mustermann\" HIGH\nsubject_person: \"NONE\" PERSON \"Erika Mustermann\" HIGH\ncontact: M1 PERSON \"Erika Mustermann\" HIGH\ncare_of: M2 PERSON \"Erika Mustermann\" HIGH\nslot:letter_date: D1 LETTER_DATE HIGH\nslot:total: A1 TOTAL_DUE HIGH\nslot:due_date: D3 DEADLINE HIGH\nslot:iban: I1 HIGH\nslot:reference: N1 HIGH\nslot:customer_no: N1 HIGH\nslot:new_amount: A1 TOTAL_DUE HIGH\nslot:previous_amount: A1 OTHER LOW\nslot:effective_date: D1 EFFECTIVE_FROM HIGH\nslot:contract_end: D1 EFFECTIVE_FROM HIGH\nslot:policy_no: N1 HIGH\nslot:contract_no: N1 HIGH\nextras: A11 \"1.410,00\" pertainly \"Einkünfte aus nichtselbständiger Arbeit\" HIGH",
+ "call1Ms": 78397,
+ "call2Ms": 7758,
+ "layoutTextChars": 9005,
+ "call2": "text:title: \"INSURANCE CONTRACT\"\ntext:subject: \"Bitte den nachfolgenden Erläuterungen.\"\ntext:summary: \"Please write the following sentence in the letter's own language: \"\ntext:questions: \"1. What is the amount of the Nachzahlung mentioned in the letter? \" \"2. When must the reader pay the Nachzahlung? \" \"3. What is the account number for the Nachzahlung?\"",
+ "prefixTokens": 3516,
+ "prefixMs": 46324,
+ "asks": [
+  {
+   "name": "type",
+   "question": "QUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "insurance_contract de HIGH",
+   "ms": 3322,
+   "questionTokens": 213,
+   "answerTokens": 4
+  },
+  {
+   "name": "sender",
+   "question": "QUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "M1 AUTHORITY \"Aktenzeichen: EST-2025-0047118 \/ Finanzamt Beispielstadt\" HIGH",
+   "ms": 2502,
+   "questionTokens": 43,
+   "answerTokens": 30
+  },
+  {
+   "name": "addressee",
+   "question": "QUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE",
+   "answer": "M2 PERSON HOUSEHOLD \"Erika Mustermann\" HIGH",
+   "ms": 2387,
+   "questionTokens": 107,
+   "answerTokens": 13
+  },
+  {
+   "name": "subject_person",
+   "question": "QUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "\"NONE\" PERSON \"Erika Mustermann\" HIGH",
+   "ms": 2212,
+   "questionTokens": 77,
+   "answerTokens": 11
+  },
+  {
+   "name": "contact",
+   "question": "QUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "M1 PERSON \"Erika Mustermann\" HIGH",
+   "ms": 1363,
+   "questionTokens": 51,
+   "answerTokens": 10
+  },
+  {
+   "name": "care_of",
+   "question": "QUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "M2 PERSON \"Erika Mustermann\" HIGH",
+   "ms": 1631,
+   "questionTokens": 68,
+   "answerTokens": 10
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "QUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 LETTER_DATE HIGH",
+   "ms": 1614,
+   "questionTokens": 77,
+   "answerTokens": 5
+  },
+  {
+   "name": "slot:total",
+   "question": "QUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A1 TOTAL_DUE HIGH",
+   "ms": 1601,
+   "questionTokens": 83,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:due_date",
+   "question": "QUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D3 DEADLINE HIGH",
+   "ms": 1605,
+   "questionTokens": 96,
+   "answerTokens": 5
+  },
+  {
+   "name": "slot:iban",
+   "question": "QUESTION: Which IBAN is the account the reader should pay to?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "I1 HIGH",
+   "ms": 751,
+   "questionTokens": 31,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:reference",
+   "question": "QUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 892,
+   "questionTokens": 40,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "QUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 816,
+   "questionTokens": 33,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:new_amount",
+   "question": "QUESTION: Which amount is the new price, premium or instalment that applies from now on?\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A1 TOTAL_DUE HIGH",
+   "ms": 1674,
+   "questionTokens": 70,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:previous_amount",
+   "question": "QUESTION: Which amount is the previous price or premium, the one that applied before the change?\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A1 OTHER LOW",
+   "ms": 1522,
+   "questionTokens": 70,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:effective_date",
+   "question": "QUESTION: From which date does the change or the news in this letter take effect?\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 EFFECTIVE_FROM HIGH",
+   "ms": 1411,
+   "questionTokens": 64,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:contract_end",
+   "question": "QUESTION: On which date does the contract end or can it be terminated?\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 EFFECTIVE_FROM HIGH",
+   "ms": 1331,
+   "questionTokens": 62,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:policy_no",
+   "question": "QUESTION: Which number is the insurance policy number?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 683,
+   "questionTokens": 27,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:contract_no",
+   "question": "QUESTION: Which number is the contract number?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 673,
+   "questionTokens": 26,
+   "answerTokens": 3
+  },
+  {
+   "name": "extras",
+   "question": "QUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "A11 \"1.410,00\" pertainly \"Einkünfte aus nichtselbständiger Arbeit\" HIGH",
+   "ms": 3999,
+   "questionTokens": 122,
+   "answerTokens": 30
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this insurance contract: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"INSURANCE CONTRACT\"",
+   "ms": 1053,
+   "questionTokens": 51,
+   "answerTokens": 6
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Bitte den nachfolgenden Erläuterungen.\"",
+   "ms": 1272,
+   "questionTokens": 31,
+   "answerTokens": 11
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Please write the following sentence in the letter's own language: \"",
+   "ms": 1701,
+   "questionTokens": 51,
+   "answerTokens": 14
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"1. What is the amount of the Nachzahlung mentioned in the letter? \" \"2. When must the reader pay the Nachzahlung? \" \"3. What is the account number for the Nachzahlung?\"",
+   "ms": 3706,
+   "questionTokens": 61,
+   "answerTokens": 43
+  }
+ ],
+ "wallMs": 86970,
+ "model": "text.gguf"
+}

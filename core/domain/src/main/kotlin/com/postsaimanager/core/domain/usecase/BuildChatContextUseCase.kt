@@ -158,7 +158,9 @@ class BuildChatContextUseCase @Inject constructor(
      * [RetrieveChunksUseCase] searches fresh per question.
      */
     private suspend fun standaloneGrounding(): ChatGrounding {
+        // Only what the all-documents chat may see: health letters are not named here.
         val titles = documentRepository.getDocuments().first()
+            .filter(ObserveChatVisibleDocumentsUseCase::isChatVisible)
             .take(MAX_STANDALONE_TITLES)
             .map { it.title }
 

@@ -8,10 +8,11 @@ import com.postsaimanager.core.data.database.dao.ConversationDao
 import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.data.database.dao.DocumentChunkDao
-import com.postsaimanager.core.data.database.dao.EntityProposalDao
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
+import com.postsaimanager.core.data.database.dao.FormFillDao
 import com.postsaimanager.core.data.database.dao.MessageDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
+import com.postsaimanager.core.data.database.dao.ProfileFactDao
 import com.postsaimanager.core.data.database.dao.TimelineDao
 import dagger.Module
 import dagger.Provides
@@ -67,6 +68,8 @@ object DatabaseModule {
         database.dismissedEntityDao()
 
     @Provides
-    fun provideEntityProposalDao(database: PamDatabase): EntityProposalDao =
-        database.entityProposalDao()
+    fun provideProfileFactDao(database: PamDatabase): ProfileFactDao = database.profileFactDao()
+
+    @Provides
+    fun provideFormFillDao(database: PamDatabase): FormFillDao = database.formFillDao()
 }

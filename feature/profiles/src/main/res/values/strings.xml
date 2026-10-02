@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Profile types -->
+    <string name="profile_type_self">Me</string>
+    <string name="profile_type_family">Family member</string>
+    <string name="profile_type_person">Other person</string>
+    <string name="profile_type_organisation">Organisation</string>
+
+    <!-- Relationships (to "Me") -->
+    <string name="relationship_partner">Partner</string>
+    <string name="relationship_child">Child</string>
+    <string name="relationship_parent">Parent</string>
+    <string name="relationship_relative">Relative</string>
+    <string name="relationship_friend">Friend</string>
+    <string name="relationship_other">Other</string>
+
+    <!-- List -->
+    <string name="profiles_add_person">Add person</string>
+
+    <!-- Detail screen -->
+    <string name="profile_detail_title_new">New person</string>
+    <string name="profile_detail_save">Save</string>
+    <string name="profile_detail_not_found">This profile no longer exists.</string>
+    <string name="profile_field_name">Name</string>
+    <string name="profile_field_type">Type</string>
+    <string name="profile_field_relationship">Relationship to me</string>
+    <string name="profile_field_birth_date">Date of birth</string>
+    <string name="profile_field_birth_date_none">Not set</string>
+    <string name="profile_field_birth_date_clear">Clear date of birth</string>
+    <string name="profile_field_street">Street and number</string>
+    <string name="profile_field_postal_code">Postcode</string>
+    <string name="profile_field_city">City</string>
+    <string name="profile_field_phone">Phone</string>
+    <string name="profile_field_email">Email</string>
+    <string name="profile_section_contact">Address and contact</string>
+    <string name="profile_sensitive_title">Sensitive</string>
+    <string name="profile_sensitive_explanation">Documents of a sensitive person stay out of the all-documents chat.</string>
+    <string name="profile_me_taken">Another profile is already Me.</string>
+    <string name="date_picker_ok">OK</string>
+    <string name="date_picker_cancel">Cancel</string>
+
+    <!-- Saved details -->
+    <string name="saved_details_title">Saved details</string>
+    <string name="saved_details_empty">Nothing saved yet. Details you confirm while filling in a form can be remembered here.</string>
+    <string name="saved_details_save_first">Save this person first to add details.</string>
+    <string name="saved_details_add">Add detail</string>
+    <string name="saved_details_hidden">Hidden. Tap to show.</string>
+    <string name="saved_details_edit">Edit detail</string>
+    <string name="saved_details_delete">Delete detail</string>
+    <string name="saved_details_deleted">Detail removed</string>
+    <string name="saved_details_undo">Undo</string>
+    <string name="saved_details_source_user">added by you · %1$s</string>
+    <string name="saved_details_source_form">from a form · %1$s</string>
+    <string name="saved_details_source_document">from a letter · %1$s</string>
+    <string name="saved_details_dialog_add">Add detail</string>
+    <string name="saved_details_dialog_edit">Edit detail</string>
+    <string name="saved_details_dialog_key">What kind of detail?</string>
+    <string name="saved_details_dialog_value">Value</string>
+    <string name="saved_details_dialog_save">Save</string>
+    <string name="saved_details_dialog_cancel">Cancel</string>
+</resources>

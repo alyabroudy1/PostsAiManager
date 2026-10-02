@@ -1,0 +1,371 @@
+package com.postsaimanager.core.domain.applock
+
+import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.testing.FakeMonotonicClock
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+/** The lock's rules, driven by a fake clock — see [AppLockState] for the contract. */
+class AppLockStateTest {
+
+    private val clock = FakeMonotonicClock()
+    private val lock = AppLockState(clock)
+
+    private val locked get() = lock.snapshot.value.locked
+    private val secure get() = lock.snapshot.value.secureWindow
+
+    private fun awayFor(minutes: Long) {
+        lock.onBackgrounded()
+        clock.advanceMinutes(minutes)
+        lock.onForegrounded()
+    }
+
+    @Nested
+    @DisplayName("cold start")
+    inner class ColdStart {
+
+        @Test
+        fun `is locked and secure until the settings are known, so nothing flashes`() {
+            assertThat(locked).isTrue()
+            assertThat(secure).isTrue()
+            assertThat(lock.snapshot.value.settingsKnown).isFalse()
+        }
+
+        @Test
+        fun `stays locked when the lock is enabled`() {
+            lock.applySettings(enabled = true, timeoutMinutes = 1)
+
+            assertThat(locked).isTrue()
+            assertThat(secure).isTrue()
+        }
+
+        @Test
+        fun `opens straight away and drops the secure flag when the lock is disabled`() {
+            lock.applySettings(enabled = false, timeoutMinutes = 1)
+
+            assertThat(locked).isFalse()
+            assertThat(secure).isFalse()
+        }
+
+        @Test
+        fun `an unlock before the settings arrive is ignored rather than lost to a later lock`() {
+            lock.unlock()
+            assertThat(locked).isTrue()
+        }
+    }
+
+    @Nested
+    @DisplayName("returning from the background")
+    inner class Background {
+
+        @Test
+        fun `does not lock when back before the timeout`() {
+            lock.applySettings(true, 5)
+            lock.unlock()
+
+            awayFor(4)
+
+            assertThat(locked).isFalse()
+        }
+
+        @Test
+        fun `locks once the timeout has elapsed`() {
+            lock.applySettings(true, 5)
+            lock.unlock()
+
+            awayFor(5)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `a timeout of zero locks on every return`() {
+            lock.applySettings(true, 0)
+            lock.unlock()
+
+            awayFor(0)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `uses the timeout as configured, including a later change`() {
+            lock.applySettings(true, 1)
+            lock.unlock()
+            lock.applySettings(true, 15)
+
+            awayFor(14)
+            assertThat(locked).isFalse()
+
+            awayFor(15)
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `stays locked once locked, however the app is moved around`() {
+            lock.applySettings(true, 1)
+            awayFor(0)
+            awayFor(30)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `never locks when the lock is disabled`() {
+            lock.applySettings(false, 0)
+
+            awayFor(600)
+
+            assertThat(locked).isFalse()
+        }
+
+        @Test
+        fun `is unlocked again by a successful authentication`() {
+            lock.applySettings(true, 0)
+            awayFor(1)
+            assertThat(locked).isTrue()
+
+            lock.unlock()
+
+            assertThat(locked).isFalse()
+        }
+
+        @Test
+        fun `counts from the first background, so a repeated stop event cannot extend the grace period`() {
+            lock.applySettings(true, 5)
+            lock.unlock()
+
+            lock.onBackgrounded()
+            clock.advanceMinutes(3)
+            lock.onBackgrounded()
+            clock.advanceMinutes(3)
+            lock.onForegrounded()
+
+            assertThat(locked).isTrue()
+        }
+    }
+
+    @Nested
+    @DisplayName("configuration changes are not backgrounding")
+    inner class ConfigurationChange {
+
+        // Rotation recreates the activity but ProcessLifecycleOwner reports no stop, so the
+        // state machine only ever sees a foreground with no preceding background.
+
+        @Test
+        fun `a foreground with no background never locks, however long the app has run`() {
+            lock.applySettings(true, 0)
+            lock.unlock()
+            clock.advanceMinutes(120)
+
+            lock.onForegrounded()
+
+            assertThat(locked).isFalse()
+        }
+
+        @Test
+        fun `a background that is undone at once does not lock a nonzero timeout`() {
+            lock.applySettings(true, 1)
+            lock.unlock()
+
+            lock.onBackgrounded()
+            lock.onForegrounded()
+
+            assertThat(locked).isFalse()
+        }
+
+        @Test
+        fun `a return is judged once, the next one starts a fresh clock`() {
+            lock.applySettings(true, 1)
+            lock.unlock()
+            awayFor(1)
+            lock.unlock()
+
+            lock.onForegrounded()
+
+            assertThat(locked).isFalse()
+        }
+    }
+
+    @Nested
+    @DisplayName("external flows")
+    inner class ExternalFlows {
+
+        private fun unlockedAtTimeoutZero() {
+            lock.applySettings(true, 0)
+            lock.unlock()
+        }
+
+        @Test
+        fun `a token suppresses the lock on return within the grace window, even at timeout zero`() {
+            unlockedAtTimeoutZero()
+
+            lock.expect("scanner")
+            awayFor(AppLockState.EXTERNAL_FLOW_GRACE_MINUTES)
+
+            assertThat(locked).isFalse()
+        }
+
+        @Test
+        fun `past the grace window the lock applies as usual`() {
+            unlockedAtTimeoutZero()
+
+            lock.expect("scanner")
+            awayFor(AppLockState.EXTERNAL_FLOW_GRACE_MINUTES + 1)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `the window counts from expect, not from going to the background`() {
+            unlockedAtTimeoutZero()
+
+            lock.expect("scanner")
+            clock.advanceMinutes(AppLockState.EXTERNAL_FLOW_GRACE_MINUTES - 1)
+            awayFor(2)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `no token means normal behaviour`() {
+            unlockedAtTimeoutZero()
+
+            awayFor(0)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `the return consumes the token so an unrelated background then locks`() {
+            unlockedAtTimeoutZero()
+            lock.expect("scanner")
+            awayFor(1)
+            assertThat(locked).isFalse()
+
+            awayFor(0)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `finishing a flow that never left the app ends its protection`() {
+            unlockedAtTimeoutZero()
+            val token = lock.expect("permission")
+
+            lock.finish(token)
+            awayFor(1)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `finishing twice or with null is harmless`() {
+            unlockedAtTimeoutZero()
+            val token = lock.expect("permission")
+
+            lock.finish(token)
+            lock.finish(token)
+            lock.finish(null)
+            awayFor(1)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `nested flows - finishing the inner one keeps the outer one protecting`() {
+            unlockedAtTimeoutZero()
+            lock.expect("scanner")
+            val inner = lock.expect("permission")
+
+            lock.finish(inner)
+            awayFor(1)
+
+            assertThat(locked).isFalse()
+        }
+
+        @Test
+        fun `nested flows - one return consumes them all`() {
+            unlockedAtTimeoutZero()
+            lock.expect("scanner")
+            lock.expect("permission")
+            awayFor(1)
+            assertThat(locked).isFalse()
+
+            awayFor(0)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `an expired flow does not shelter a later flow's neighbour`() {
+            unlockedAtTimeoutZero()
+            lock.expect("old")
+            clock.advanceMinutes(AppLockState.EXTERNAL_FLOW_GRACE_MINUTES + 5)
+
+            awayFor(1)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `a token does not unlock an already locked app`() {
+            lock.applySettings(true, 0)
+            lock.expect("scanner")
+
+            awayFor(1)
+
+            assertThat(locked).isTrue()
+        }
+    }
+
+    @Nested
+    @DisplayName("toggling in Settings")
+    inner class Toggling {
+
+        @Test
+        fun `enabling while running does not lock the user out of the screen they are on`() {
+            lock.applySettings(false, 1)
+
+            lock.applySettings(true, 1)
+
+            assertThat(locked).isFalse()
+            assertThat(secure).isTrue()
+        }
+
+        @Test
+        fun `enabling then leaving locks after the timeout`() {
+            lock.applySettings(false, 1)
+            lock.applySettings(true, 1)
+
+            awayFor(1)
+
+            assertThat(locked).isTrue()
+        }
+
+        @Test
+        fun `disabling unlocks and drops the secure flag`() {
+            lock.applySettings(true, 1)
+            awayFor(1)
+            assertThat(locked).isTrue()
+
+            lock.applySettings(false, 1)
+
+            assertThat(locked).isFalse()
+            assertThat(secure).isFalse()
+        }
+
+        @Test
+        fun `changing only the timeout does not touch the lock`() {
+            lock.applySettings(true, 1)
+            assertThat(locked).isTrue()
+            lock.applySettings(true, 5)
+            assertThat(locked).isTrue()
+
+            lock.unlock()
+            lock.applySettings(true, 15)
+            assertThat(locked).isFalse()
+        }
+    }
+}

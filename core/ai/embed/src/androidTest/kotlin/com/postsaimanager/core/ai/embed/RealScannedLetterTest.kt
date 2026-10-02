@@ -5,8 +5,11 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
+import com.postsaimanager.core.domain.usecase.ObserveChatVisibleDocumentsUseCase
 import com.postsaimanager.core.domain.usecase.RetrieveChunksUseCase
 import com.postsaimanager.core.testing.FakeDocumentChunkRepository
+import com.postsaimanager.core.testing.FakeDocumentRepository
+import com.postsaimanager.core.testing.testDocument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -77,7 +80,11 @@ class RealScannedLetterTest {
         // Must split, or "the right chunk won" is vacuous.
         assertTrue("letter did not split", summary.chunkCount >= 2)
 
-        val retrieve = RetrieveChunksUseCase(repository, embedder)
+        val retrieve = RetrieveChunksUseCase(
+            repository,
+            embedder,
+            ObserveChatVisibleDocumentsUseCase(FakeDocumentRepository().apply { seed(testDocument(id = "scan-1")) }),
+        )
 
         // Each question is phrased the way someone would actually ask it, deliberately
         // avoiding the letter's own wording. "Frist" and "abgeben" do not occur in the

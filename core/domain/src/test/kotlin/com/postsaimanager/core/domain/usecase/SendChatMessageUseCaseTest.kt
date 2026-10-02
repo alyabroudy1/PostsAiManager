@@ -38,7 +38,7 @@ class SendChatMessageUseCaseTest {
     private val conversations = FakeConversationRepository()
     private val buildChatContext = BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository())
     private val chunkRepository = FakeDocumentChunkRepository()
-    private val retrieveChunks = RetrieveChunksUseCase(chunkRepository, FakeEmbeddingService())
+    private val retrieveChunks = RetrieveChunksUseCase(chunkRepository, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(FakeDocumentRepository()))
     private val sendChatMessage =
         SendChatMessageUseCase(conversations, engine, models, buildChatContext, retrieveChunks)
 
@@ -624,7 +624,7 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "The deadline is 31.01.2026."
@@ -655,7 +655,7 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "answer one"
@@ -687,7 +687,7 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(FakeDocumentChunkRepository(), FakeEmbeddingService()),
+            RetrieveChunksUseCase(FakeDocumentChunkRepository(), FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "hi"
@@ -713,7 +713,7 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "hi"
@@ -734,7 +734,7 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "hi"
@@ -753,7 +753,7 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "answer"

@@ -1,0 +1,162 @@
+{
+ "key": "N2-kfz-verlaengerung-2p",
+ "interpreter": "single",
+ "pages": 2,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Nordstern Direkt Versicherung AG",
+   "normalized": "Nordstern Direkt Versicherung AG",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Herrn und Frau",
+   "normalized": "Herrn und Frau",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Max und Erika Mustermann",
+   "normalized": "Max und Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Beitrag pro Jahr",
+   "normalized": "Beitrag pro Jahr",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "Kfz-Haftpflicht und Teilkasko",
+   "normalized": "Kfz-Haftpflicht und Teilkasko",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "BỊC COBADEFFXXX",
+   "normalized": "BỊC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "bisher",
+   "normalized": "bisher",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "01.01.2027",
+   "normalized": "2027-01-01",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "14.09.2026",
+   "normalized": "2026-09-14",
+   "page": 1
+  },
+  {
+   "id": "D5",
+   "kind": "DATE",
+   "raw": "30.11.2026",
+   "normalized": "2026-11-30",
+   "page": 2
+  },
+  {
+   "id": "D6",
+   "kind": "DATE",
+   "raw": "31.12.2026",
+   "normalized": "2026-12-31",
+   "page": 2
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "579,10 €",
+   "normalized": "579.10 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "612,40 €",
+   "normalized": "612.40 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "KFZ-4471-882-19",
+   "normalized": "KFZ-4471-882-19",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "O00000",
+   "normalized": "O00000",
+   "page": 2
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 555 200",
+   "normalized": "01234 555 200",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "01234 555 210",
+   "normalized": "01234 555 210",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "kfz@nordstern-direkt.example",
+   "normalized": "kfz@nordstern-direkt.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "{\"type\":\"insurance_contract\",\"tc\":\"HIGH\",\"lang\":\"de\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M1\",\"n\":\"Nordstern Direkt Versicherung AG\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M2\",\"n\":\"Herrn und Frau \/ Max und Erika Mustermann\",\"k\":\"PERSON\",\"rel\":\"HOUSEHOLD\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Max und Erika Mustermann\",\"k\":\"PERSON\",\"rel\":\"HOUSEHOLD\",\"c\":\"HIGH\"},{\"r\":\"ROUTING\",\"id\":\"M4\",\"n\":\"Beispielstadt\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"CARE_OF\",\"id\":\"M5\",\"n\":\"Kfz-Haftpflicht und Teilkasko\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M7\",\"n\":\"BỊC COBADEFFXXX\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M8\",\"n\":\"bisher\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D1\",\"n\":\"01.01.2027\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D3\",\"n\":\"14.09.2026\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D5\",\"n\":\"30.11.2026\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D6\",\"n\":\"31.12.2026\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A1\",\"n\":\"579,10 €\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A2\",\"n\":\"612,40 €\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"I1\",\"n\":\"DE89 3704 0044 0532 0130 00\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N1\",\"n\":\"KFZ-4471-882-19\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N4\",\"n\":\"000000\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N6\",\"n\":\"O00000\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"T1\",\"n\":\"0",
+ "call1Ms": 64569,
+ "call2Ms": 17060,
+ "layoutTextChars": 2086,
+ "call2": "{\"other\": \"insurance_contract\", \"title\": \"Letter of Extension\", \"subject\": \"Letter of Extension\", \"summary\": \"The letter extends the Kfz-Versicherung (auto insurance) for 2027 to 2028. The new annual contribution is 612.40 € and will be paid via SEPA-Lastschrift. The contract ends on 31.12.2026.\", \"qs\": [\"Who is the sender?\", \"What is the purpose of the letter?\", \"How can I contact the sender?\"]}",
+ "wallMs": 82326,
+ "model": "text.gguf"
+}

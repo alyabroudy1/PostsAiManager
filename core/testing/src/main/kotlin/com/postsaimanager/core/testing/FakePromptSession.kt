@@ -1,0 +1,141 @@
+package com.postsaimanager.core.testing
+
+import com.postsaimanager.core.common.result.PamError
+import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.ai.PromptSession
+
+/**
+ * A [PromptSession] that answers what a test tells it to, and models the contract the real one keeps:
+ * the prefix is decoded once, every question starts from exactly the prefix, and the state is rolled
+ * back to the prefix after each answer, however the answer went.
+ *
+ * The "state" is the text the model would be holding. [stateAtAsk] records what it held when each question
+ * began, so a test can assert that no question ever saw an earlier question or answer.
+ */
+class FakePromptSession : PromptSession {
+
+    /** One question as [ask] received it. */
+    class Ask(val question: String, val grammar: String, val maxTokens: Int, val answer: String?)
+
+    /** Answers a question; null makes [ask] fail. */
+    var responder: (question: String, grammar: String) -> String? = { _, _ -> "NONE" }
+
+    /** Tokens of [text]; deliberately not chars/2.5, so a test can tell which one a caller used. */
+    var tokenCounter: (String) -> Int = { (it.length + 3) / 4 }
+
+    /** False makes [countTokens] answer null, like an engine that cannot count. */
+    var canCount: Boolean = true
+
+    /** Make [open] fail with this. */
+    var openFailsWith: PamError? = null
+
+    /** Make every [open] after this many have succeeded fail: a session that opens and cannot be opened again (the writing session). */
+    var failOpensAfter: Int? = null
+
+    val opens = mutableListOf<String>()
+    val asks = mutableListOf<Ask>()
+    val stateAtAsk = mutableListOf<String>()
+    val countedTexts = mutableListOf<String>()
+
+    /** How many times the prefix was (re)decoded: once by [open], again after [clobber]. */
+    var prefixDecodes = 0
+        private set
+
+    var closes = 0
+        private set
+
+    val isOpen: Boolean get() = prefix != null
+
+    private var prefix: String? = null
+    private var state: String? = null
+
+    /** What another engine user does to the KV cache (a chat turn, a one-shot generation): the state is gone. */
+    fun clobber() {
+        state = null
+        clobbered = true
+    }
+
+    private var clobbered = false
+
+    override suspend fun open(prefix: String): PamResult<Int> {
+        openFailsWith?.let { return PamResult.Error(it) }
+        failOpensAfter?.let { if (opens.size >= it) return PamResult.Error(PamError.InferenceError("the fake cannot open another session")) }
+        opens += prefix
+        this.prefix = prefix
+        state = prefix
+        prefixDecodes++
+        return PamResult.Success(tokenCounter(prefix))
+    }
+
+    override suspend fun ask(question: String, grammar: String, maxTokens: Int): PamResult<String> {
+        val head = prefix ?: return PamResult.Error(PamError.InferenceError("no prompt session is open"))
+        if (state == null) {
+            // The engine repairs a lost state by reading the prefix again.
+            state = head
+            prefixDecodes++
+        }
+        stateAtAsk += state.orEmpty()
+        clobbered = false
+        val answer = try {
+            responder(question, grammar)
+        } finally {
+            // The rollback: the question and its answer are gone. (A clobber that happened during the
+            // question, from a test's responder, is another engine user acting after the rollback.)
+            state = if (clobbered) null else head
+        }
+        asks += Ask(question, grammar, maxTokens, answer)
+        return if (answer == null) PamResult.Error(PamError.InferenceError("the fake failed this question")) else PamResult.Success(answer)
+    }
+
+    /** Scores a continuation; the default gives every continuation 0.0. */
+    var scorer: (continuation: String) -> Double = { 0.0 }
+
+    /** Every batch of continuations [score] received, in order. */
+    val scored = mutableListOf<List<String>>()
+
+    /** The shared level of every [score] call, in order (empty when the caller gave none). */
+    val sharedLevels = mutableListOf<String>()
+
+    override suspend fun score(continuations: List<String>, yes: String, no: String, shared: String): PamResult<List<Double>> {
+        val head = prefix ?: return PamResult.Error(PamError.InferenceError("no prompt session is open"))
+        if (state == null) {
+            state = head
+            prefixDecodes++
+        }
+        // The scores are those of the text read as one piece, wherever the caller split it.
+        val whole = continuations.map { shared + it }
+        sharedLevels += shared
+        scored += whole
+        // Each continuation starts from the prefix (and the shared level) and is rolled back: the state is the prefix afterwards.
+        stateAtAsk += continuations.map { state.orEmpty() }
+        return PamResult.Success(whole.map(scorer))
+    }
+
+    /** How many grids [scoreGrid] received (each is scored as one batch per ask, so [scored] keeps one batch per question). */
+    var grids = 0
+        private set
+
+    override suspend fun scoreGrid(shared: String, heads: List<String>, asks: List<String>, yes: String, no: String): PamResult<List<List<Double>>> {
+        grids++
+        val columns = ArrayList<List<Double>>()
+        for (ask in asks) {
+            when (val column = score(heads.map { it + ask }, yes, no, shared)) {
+                is PamResult.Error -> return column
+                is PamResult.Success -> columns += column.data
+            }
+        }
+        return PamResult.Success(heads.indices.map { i -> asks.indices.map { j -> columns[j][i] } })
+    }
+
+    override suspend fun close() {
+        closes++
+        prefix = null
+        state = null
+    }
+
+    override suspend fun countTokens(text: String): Int? {
+        if (!canCount) return null
+        countedTexts += text
+        return tokenCounter(text)
+    }
+}

@@ -269,6 +269,55 @@ internal object LlamaNative {
     /** Drops the standing chat session — its KV cache and history — e.g. on conversation switch. */
     external fun resetChatSession(handle: Long)
 
+    /**
+     * Opens a prompt session ("read once, ask many short questions"): clears the KV cache (and any
+     * chat session or one-shot generation standing in it), decodes [prefix] and remembers where it
+     * ends, with a recurrent-state checkpoint for hybrid models. See `llama_jni.cpp`'s `promptOpen`.
+     *
+     * @return the prefix's token count, -1 on failure, -2 when it leaves no room for questions.
+     */
+    external fun promptOpen(handle: Long, prefix: String): Int
+
+    /**
+     * Decodes [question] after the prefix, generates greedily under [grammar] (null or empty:
+     * unconstrained) up to [maxTokens] and rolls the KV cache back to the prefix, so the next question
+     * starts from the same state. Blocking; returns the whole answer.
+     *
+     * @return null when the session was lost (something else used the KV cache since [promptOpen]:
+     *   re-open and ask again), the question did not fit, decoding failed or [promptCancel] was called.
+     */
+    external fun promptAsk(handle: Long, question: String, grammar: String?, maxTokens: Int): String?
+
+    /**
+     * Label-free scoring after the open prompt session's prefix: for each of [continuations] decodes it,
+     * reads the logits at its last position, returns `logit(yes) - logit(no)` (the first token of each of
+     * the two words) and rolls back. One forward pass per continuation, no generation.
+     *
+     * [shared] (empty for none) is text every continuation starts with: decoded once after the prefix and
+     * checkpointed (a prefix tree: prefix, shared, continuation), so the continuations are rolled back to
+     * it and only pay for their own tokens. The prefix is the state again when the call returns.
+     *
+     * @return one log-odds per continuation, or null when the session was lost (re-open and retry), a
+     *   word does not tokenise, a continuation did not fit, decoding failed or [promptCancel] was called.
+     */
+    external fun promptScore(handle: Long, shared: String, continuations: Array<String>, yes: String, no: String): DoubleArray?
+
+    /**
+     * Scores a grid after the open prefix: every one of [heads] followed by every one of [asks] (`shared + head + ask`), as a three-level
+     * prefix tree (the shared text and each head decoded once, each ask rolled back to its head). Head-major result:
+     * `scores[i * asks.size + j]`. See `llama_jni.cpp`'s `promptScoreGrid`; null under the same conditions as [promptScore].
+     */
+    external fun promptScoreGrid(handle: Long, shared: String, heads: Array<String>, asks: Array<String>, yes: String, no: String): DoubleArray?
+
+    /** Stops a running [promptAsk] between tokens. Callable from any thread; not tied to a handle. */
+    external fun promptCancel()
+
+    /** Drops the prompt session. Safe when none is open. */
+    external fun promptClose(handle: Long)
+
+    /** [text] in tokens for the loaded model (llama_tokenize), or -1 when there is no model. */
+    external fun countTokens(handle: Long, text: String): Int
+
     /** Debug only — intentionally segfaults to measure crash blast radius (spike Q3). */
     external fun crashForTesting()
 }

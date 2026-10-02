@@ -1,0 +1,106 @@
+{
+ "key": "N3-schule-familie-2p",
+ "interpreter": "single",
+ "pages": 2,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Grundschule Am Beispielweg",
+   "normalized": "Grundschule Am Beispielweg",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Familie Mustermann",
+   "normalized": "Familie Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Frau S. Sommer",
+   "normalized": "Frau S. Sommer",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "Förderverein Grundschule Am Beispielweg e. V.",
+   "normalized": "Förderverein Grundschule Am Beispielweg e. V.",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Sparkasse Beispielstadt",
+   "normalized": "Sparkasse Beispielstadt",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "24.11.2026",
+   "normalized": "2026-11-24",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "16.10.2026",
+   "normalized": "2026-10-16",
+   "page": 1
+  },
+  {
+   "id": "D4",
+   "kind": "DATE",
+   "raw": "28.09.2026",
+   "normalized": "2026-09-28",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "35,00 €",
+   "normalized": "35.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "30-12",
+   "normalized": "30-12",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 777 10",
+   "normalized": "01234 777 10",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "sekretariat@gs-beispielweg.example",
+   "normalized": "sekretariat@gs-beispielweg.example",
+   "page": 1
+  }
+ ],
+ "call1": "{\"type\":\"outgoing_letter\",\"tc\":\"HIGH\",\"lang\":\"de\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M6\",\"n\":\"Förderverein Grundschule Am Beispielweg e. V.\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M2\",\"n\":\"Familie Mustermann\",\"k\":\"PERSON\",\"rel\":\"HOUSEHOLD\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M4\",\"n\":\"Frau S. Sommer\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ROUTING\",\"id\":\"M5\",\"n\":\"Förderverein Grundschule Am Beispielweg e. V.\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"CARE_OF\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M1\",\"n\":\"Grundschule Am Beispielweg\",\"k\":\"AUTHORITY\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id",
+ "call1Ms": 79069,
+ "call2Ms": 19020,
+ "layoutTextChars": 2481,
+ "call2": "{\"other\": \"outgoing_letter\", \"title\": \"Class Outing Notice\", \"subject\": \"Class Outing Notice\", \"summary\": \"The letter informs parents that the class 3b will attend a nature walk in the museum on November 24, 2026, with a cost of 35.00 € per child. Parents must bring wet-weather clothing and pay the fee.\", \"qs\": [\"Who is the author of this letter?\", \"What is the purpose of this letter?\", \"How much will the parents pay for the class outing?\"]}",
+ "wallMs": 98416,
+ "model": "text.gguf"
+}

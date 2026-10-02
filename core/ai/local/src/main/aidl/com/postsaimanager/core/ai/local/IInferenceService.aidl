@@ -78,6 +78,39 @@ interface IInferenceService {
     /** Drops the standing chat session — see `LlamaNative.resetChatSession`. */
     void resetChatSession();
 
+    /**
+     * Opens a prompt session: decodes [prefix] once — see `LlamaNative.promptOpen`. Returns the
+     * prefix's token count, or a negative number on failure.
+     */
+    int promptOpen(String prefix);
+
+    /**
+     * Answers one question of the open prompt session under [grammar] and rolls back to the prefix —
+     * see `LlamaNative.promptAsk`. Blocking. Null when the session was lost, the question did not
+     * fit, or [cancelGeneration] stopped it.
+     */
+    String promptAsk(String question, String grammar, int maxTokens);
+
+    /**
+     * Scores continuations after the open prompt session's prefix: `logit(yes) - logit(no)` at the last
+     * position of each, rolled back after every one — see `LlamaNative.promptScore`. [shared] (empty for
+     * none) is decoded once after the prefix and is the level the continuations are rolled back to.
+     * Blocking. Null when the session was lost, a continuation did not fit, or [cancelGeneration] stopped it.
+     */
+    double[] promptScore(String shared, in String[] continuations, String yes, String no);
+
+    /**
+     * Scores every head followed by every ask after [shared] (a three-level prefix tree) — see `LlamaNative.promptScoreGrid`.
+     * Head-major result. Blocking; null under the same conditions as [promptScore].
+     */
+    double[] promptScoreGrid(String shared, in String[] heads, in String[] asks, String yes, String no);
+
+    /** Drops the prompt session — see `LlamaNative.promptClose`. */
+    void promptClose();
+
+    /** [text] in tokens for the loaded model, or -1 with no model — see `LlamaNative.countTokens`. */
+    int countTokens(String text);
+
     void unloadModel();
 
     /**

@@ -1,0 +1,1074 @@
+{
+    "key": "N6-nebenkosten-3p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "HB",
+                    "bounds": {
+                        "left": 0.1324063,
+                        "top": 0.067550234,
+                        "right": 0.1680774,
+                        "bottom": 0.081231296
+                    },
+                    "confidence": 0.87890625,
+                    "language": "und"
+                },
+                {
+                    "text": "Hausverwaltung Beispiel GmbH Verwalterstraße 9 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.1522018,
+                        "right": 0.44619104,
+                        "bottom": 0.16075246
+                    },
+                    "confidence": 0.8396484,
+                    "language": "und"
+                },
+                {
+                    "text": "Herrn",
+                    "bounds": {
+                        "left": 0.11608222,
+                        "top": 0.17315091,
+                        "right": 0.15659009,
+                        "bottom": 0.18212911
+                    },
+                    "confidence": 0.85,
+                    "language": "und"
+                },
+                {
+                    "text": "Mohammad Mustermann\nBeispielallee 21",
+                    "bounds": {
+                        "left": 0.11608222,
+                        "top": 0.18811458,
+                        "right": 0.30350664,
+                        "bottom": 0.2167593
+                    },
+                    "confidence": 0.87712675,
+                    "language": "und"
+                },
+                {
+                    "text": "3. OG links",
+                    "bounds": {
+                        "left": 0.11668682,
+                        "top": 0.22146216,
+                        "right": 0.20012093,
+                        "bottom": 0.23086789
+                    },
+                    "confidence": 0.8298611,
+                    "language": "und"
+                },
+                {
+                    "text": "12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.11729141,
+                        "top": 0.23728089,
+                        "right": 0.26602176,
+                        "bottom": 0.24925181
+                    },
+                    "confidence": 0.86675346,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrter Herr Mustermann,",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.3702437,
+                        "right": 0.36275697,
+                        "bottom": 0.38093203
+                    },
+                    "confidence": 0.8738426,
+                    "language": "und"
+                },
+                {
+                    "text": "1. Kostenaufstellung",
+                    "bounds": {
+                        "left": 0.12031439,
+                        "top": 0.47242412,
+                        "right": 0.31197098,
+                        "bottom": 0.48567763
+                    },
+                    "confidence": 0.875,
+                    "language": "und"
+                },
+                {
+                    "text": "Betriebskostenabrechnung 01.01.2025 – 31.12.2025",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.33689612,
+                        "right": 0.5943168,
+                        "bottom": 0.3535699
+                    },
+                    "confidence": 0.9050347,
+                    "language": "und"
+                },
+                {
+                    "text": "Kostenart",
+                    "bounds": {
+                        "left": 0.12756953,
+                        "top": 0.49978623,
+                        "right": 0.20435308,
+                        "bottom": 0.510047
+                    },
+                    "confidence": 0.89539933,
+                    "language": "und"
+                },
+                {
+                    "text": "Grundsteuer",
+                    "bounds": {
+                        "left": 0.12756953,
+                        "top": 0.5275759,
+                        "right": 0.22249094,
+                        "bottom": 0.5365541
+                    },
+                    "confidence": 0.8707386,
+                    "language": "und"
+                },
+                {
+                    "text": "Wasserversorgung",
+                    "bounds": {
+                        "left": 0.12696493,
+                        "top": 0.5532279,
+                        "right": 0.26783556,
+                        "bottom": 0.56434375
+                    },
+                    "confidence": 0.8676758,
+                    "language": "und"
+                },
+                {
+                    "text": "Entwässerung",
+                    "bounds": {
+                        "left": 0.12817413,
+                        "top": 0.5788799,
+                        "right": 0.23458283,
+                        "bottom": 0.58999574
+                    },
+                    "confidence": 0.8811849,
+                    "language": "und"
+                },
+                {
+                    "text": "Heizung und Warmwasser",
+                    "bounds": {
+                        "left": 0.12877871,
+                        "top": 0.60324925,
+                        "right": 0.32648125,
+                        "bottom": 0.6160752
+                    },
+                    "confidence": 0.8847656,
+                    "language": "und"
+                },
+                {
+                    "text": "Müllabfuhr",
+                    "bounds": {
+                        "left": 0.12877871,
+                        "top": 0.6301838,
+                        "right": 0.20616686,
+                        "bottom": 0.64044464
+                    },
+                    "confidence": 0.81875,
+                    "language": "und"
+                },
+                {
+                    "text": "anbei erhalten Sie die Betriebskostenabrechnung für lhre Wohnung Beispielallee 21, 3. OG links (WE\n3.01) für den Abrechnungszeitraum 01.01.2025 bis 31.12.2025. Ihre Wohnfläche beträgt 68,5 m² von\ninsgesamt 548,0 m². Die einzelnen Kostenarten und Ihre Anteile entnehmen Sie der folgenden\nAufstellung. Das Ergebnis der Abrechnung finden Sie auf Seite 3.",
+                    "bounds": {
+                        "left": 0.11789601,
+                        "top": 0.38862762,
+                        "right": 0.88754535,
+                        "bottom": 0.45788798
+                    },
+                    "confidence": 0.84776366,
+                    "language": "und"
+                },
+                {
+                    "text": "Fortsetzung der Kostenaufstellung auf Seite 2.",
+                    "bounds": {
+                        "left": 0.12212817,
+                        "top": 0.65797347,
+                        "right": 0.47097945,
+                        "bottom": 0.67122704
+                    },
+                    "confidence": 0.86766386,
+                    "language": "und"
+                },
+                {
+                    "text": "Hausverwaltung Beispiel GmbH\nGeschäftsführer: Peter Beispiel\nAG Beispielstadt HRB 000000",
+                    "bounds": {
+                        "left": 0.12394196,
+                        "top": 0.90679777,
+                        "right": 0.26602176,
+                        "bottom": 0.9354425
+                    },
+                    "confidence": 0.8599686,
+                    "language": "und"
+                },
+                {
+                    "text": "Hausverwaltung Beispiel GmbH",
+                    "bounds": {
+                        "left": 0.60096735,
+                        "top": 0.047028646,
+                        "right": 0.8935913,
+                        "bottom": 0.060709704
+                    },
+                    "confidence": 0.88221157,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Zeichen:",
+                    "bounds": {
+                        "left": 0.5912938,
+                        "top": 0.16930312,
+                        "right": 0.64873034,
+                        "bottom": 0.17657119
+                    },
+                    "confidence": 0.7691761,
+                    "language": "und"
+                },
+                {
+                    "text": "Unser Zeichen:",
+                    "bounds": {
+                        "left": 0.59189844,
+                        "top": 0.18469432,
+                        "right": 0.67049575,
+                        "bottom": 0.19110732
+                    },
+                    "confidence": 0.86538464,
+                    "language": "und"
+                },
+                {
+                    "text": "BIC COBADEFFXXX",
+                    "bounds": {
+                        "left": 0.38512698,
+                        "top": 0.92731935,
+                        "right": 0.4788392,
+                        "bottom": 0.93330485
+                    },
+                    "confidence": 0.78515625,
+                    "language": "und"
+                },
+                {
+                    "text": "Mieteinheit:\nAnsprechpartner:",
+                    "bounds": {
+                        "left": 0.5912938,
+                        "top": 0.19837537,
+                        "right": 0.6795647,
+                        "bottom": 0.22188969
+                    },
+                    "confidence": 0.8138021,
+                    "language": "und"
+                },
+                {
+                    "text": "Telefon:",
+                    "bounds": {
+                        "left": 0.59189844,
+                        "top": 0.22830269,
+                        "right": 0.63301086,
+                        "bottom": 0.23471569
+                    },
+                    "confidence": 0.8486328,
+                    "language": "und"
+                },
+                {
+                    "text": "Gesamtkosten Haus € Schlüssel",
+                    "bounds": {
+                        "left": 0.39298669,
+                        "top": 0.49722102,
+                        "right": 0.66384524,
+                        "bottom": 0.5083369
+                    },
+                    "confidence": 0.88446516,
+                    "language": "und"
+                },
+                {
+                    "text": "Bankverbindung: Beispielbank",
+                    "bounds": {
+                        "left": 0.38452238,
+                        "top": 0.90679777,
+                        "right": 0.51874244,
+                        "bottom": 0.9136383
+                    },
+                    "confidence": 0.85431135,
+                    "language": "und"
+                },
+                {
+                    "text": "IBAN DE89 3704 0044 0532 0130 00",
+                    "bounds": {
+                        "left": 0.38512698,
+                        "top": 0.91663104,
+                        "right": 0.5489722,
+                        "bottom": 0.923044
+                    },
+                    "confidence": 0.83698916,
+                    "language": "und"
+                },
+                {
+                    "text": "Datum:",
+                    "bounds": {
+                        "left": 0.5973398,
+                        "top": 0.24198376,
+                        "right": 0.6269649,
+                        "bottom": 0.24967936
+                    },
+                    "confidence": 0.8541667,
+                    "language": "und"
+                },
+                {
+                    "text": "2.499,20 Wohnfläche\n3.425,20 Verbrauch",
+                    "bounds": {
+                        "left": 0.50423217,
+                        "top": 0.5224455,
+                        "right": 0.67533255,
+                        "bottom": 0.561351
+                    },
+                    "confidence": 0.8442734,
+                    "language": "und"
+                },
+                {
+                    "text": "2.414,16 Verbrauch",
+                    "bounds": {
+                        "left": 0.50483674,
+                        "top": 0.5754596,
+                        "right": 0.66384524,
+                        "bottom": 0.5878581
+                    },
+                    "confidence": 0.8952206,
+                    "language": "und"
+                },
+                {
+                    "text": "1.497.60 Personen",
+                    "bounds": {
+                        "left": 0.50725514,
+                        "top": 0.62890124,
+                        "right": 0.66021764,
+                        "bottom": 0.6387345
+                    },
+                    "confidence": 0.8444824,
+                    "language": "und"
+                },
+                {
+                    "text": "7.476,80 Verbrauch/Fläche",
+                    "bounds": {
+                        "left": 0.50544137,
+                        "top": 0.60068405,
+                        "right": 0.72007257,
+                        "bottom": 0.6135101
+                    },
+                    "confidence": 0.8645833,
+                    "language": "und"
+                },
+                {
+                    "text": "Verwalterstraße 9\n12345 Beispielstadt\nTel. 01234 300 100\ninfo@hv-beispiel.example",
+                    "bounds": {
+                        "left": 0.761185,
+                        "top": 0.063702434,
+                        "right": 0.8948005,
+                        "bottom": 0.10816588
+                    },
+                    "confidence": 0.8477024,
+                    "language": "und"
+                },
+                {
+                    "text": "BK-2025-0318\nWE 3.01",
+                    "bounds": {
+                        "left": 0.7031439,
+                        "top": 0.18127404,
+                        "right": 0.78597337,
+                        "bottom": 0.20436084
+                    },
+                    "confidence": 0.8984375,
+                    "language": "und"
+                },
+                {
+                    "text": "Frau H. Muster\n01234 300 120\n22.09.2026",
+                    "bounds": {
+                        "left": 0.70374846,
+                        "top": 0.20991877,
+                        "right": 0.7889964,
+                        "bottom": 0.24796923
+                    },
+                    "confidence": 0.8889639,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 300 100\ninfo@hv-beispiel.example",
+                    "bounds": {
+                        "left": 0.6438936,
+                        "top": 0.90337753,
+                        "right": 0.7605804,
+                        "bottom": 0.923044
+                    },
+                    "confidence": 0.81087244,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Anteil €",
+                    "bounds": {
+                        "left": 0.786578,
+                        "top": 0.49636596,
+                        "right": 0.87243044,
+                        "bottom": 0.5066268
+                    },
+                    "confidence": 0.8382813,
+                    "language": "und"
+                },
+                {
+                    "text": "312,40",
+                    "bounds": {
+                        "left": 0.8216445,
+                        "top": 0.52287304,
+                        "right": 0.87243044,
+                        "bottom": 0.5339889
+                    },
+                    "confidence": 0.86328125,
+                    "language": "und"
+                },
+                {
+                    "text": "428,15",
+                    "bounds": {
+                        "left": 0.8210399,
+                        "top": 0.54852504,
+                        "right": 0.8730351,
+                        "bottom": 0.5587858
+                    },
+                    "confidence": 0.92057294,
+                    "language": "und"
+                },
+                {
+                    "text": "301,77",
+                    "bounds": {
+                        "left": 0.8222491,
+                        "top": 0.57503206,
+                        "right": 0.87363964,
+                        "bottom": 0.5857204
+                    },
+                    "confidence": 0.9016927,
+                    "language": "und"
+                },
+                {
+                    "text": "934,60",
+                    "bounds": {
+                        "left": 0.8222491,
+                        "top": 0.60068405,
+                        "right": 0.87363964,
+                        "bottom": 0.6117999
+                    },
+                    "confidence": 0.9082031,
+                    "language": "und"
+                },
+                {
+                    "text": "187.20",
+                    "bounds": {
+                        "left": 0.8240629,
+                        "top": 0.6276186,
+                        "right": 0.8742443,
+                        "bottom": 0.63702434
+                    },
+                    "confidence": 0.85026044,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 3",
+                    "bounds": {
+                        "left": 0.8379686,
+                        "top": 0.95724666,
+                        "right": 0.9032648,
+                        "bottom": 0.9653698
+                    },
+                    "confidence": 0.8417969,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 2,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Hausverwaltung Beispiel GmbH Betriebskostenabrechnung 2025",
+                    "bounds": {
+                        "left": 0.12394196,
+                        "top": 0.050021376,
+                        "right": 0.46916565,
+                        "bottom": 0.060709704
+                    },
+                    "confidence": 0.8631366,
+                    "language": "und"
+                },
+                {
+                    "text": "Kostenart",
+                    "bounds": {
+                        "left": 0.13059251,
+                        "top": 0.10346302,
+                        "right": 0.20858525,
+                        "bottom": 0.11329628
+                    },
+                    "confidence": 0.87803817,
+                    "language": "und"
+                },
+                {
+                    "text": "Hauswart",
+                    "bounds": {
+                        "left": 0.13059251,
+                        "top": 0.129115,
+                        "right": 0.20133011,
+                        "bottom": 0.14023086
+                    },
+                    "confidence": 0.87402344,
+                    "language": "und"
+                },
+                {
+                    "text": "Gebäudeversicherung",
+                    "bounds": {
+                        "left": 0.12998791,
+                        "top": 0.15562207,
+                        "right": 0.2974607,
+                        "bottom": 0.16759299
+                    },
+                    "confidence": 0.86040294,
+                    "language": "und"
+                },
+                {
+                    "text": "Allgemeinstrom",
+                    "bounds": {
+                        "left": 0.12938331,
+                        "top": 0.18255664,
+                        "right": 0.24607013,
+                        "bottom": 0.19367251
+                    },
+                    "confidence": 0.8457031,
+                    "language": "und"
+                },
+                {
+                    "text": "Straßenreinigung",
+                    "bounds": {
+                        "left": 0.12938331,
+                        "top": 0.2064985,
+                        "right": 0.25937122,
+                        "bottom": 0.2206071
+                    },
+                    "confidence": 0.8613281,
+                    "language": "und"
+                },
+                {
+                    "text": "Gartenpflege",
+                    "bounds": {
+                        "left": 0.12938331,
+                        "top": 0.2334331,
+                        "right": 0.22672309,
+                        "bottom": 0.24625908
+                    },
+                    "confidence": 0.79557294,
+                    "language": "und"
+                },
+                {
+                    "text": "Summe Ihrer Betriebskosten",
+                    "bounds": {
+                        "left": 0.12938331,
+                        "top": 0.2607952,
+                        "right": 0.36033857,
+                        "bottom": 0.27062848
+                    },
+                    "confidence": 0.88883466,
+                    "language": "und"
+                },
+                {
+                    "text": "Gesamtkosten Haus € Schlüssel",
+                    "bounds": {
+                        "left": 0.39661428,
+                        "top": 0.10474562,
+                        "right": 0.668682,
+                        "bottom": 0.115433946
+                    },
+                    "confidence": 0.8946815,
+                    "language": "und"
+                },
+                {
+                    "text": "Hausverwaltung Beispiel GmbH\nGeschäftsführer: Peter Beispiel\nAG Beispielstadt HRB 000000",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.90423256,
+                        "right": 0.25755742,
+                        "bottom": 0.93159467
+                    },
+                    "confidence": 0.8407901,
+                    "language": "und"
+                },
+                {
+                    "text": "1.972,00 Wohnfläche",
+                    "bounds": {
+                        "left": 0.5090689,
+                        "top": 0.13210773,
+                        "right": 0.6789601,
+                        "bottom": 0.14279607
+                    },
+                    "confidence": 0.86501735,
+                    "language": "und"
+                },
+                {
+                    "text": "1.587,52 Wohnfläche",
+                    "bounds": {
+                        "left": 0.50846434,
+                        "top": 0.15818726,
+                        "right": 0.6789601,
+                        "bottom": 0.16844806
+                    },
+                    "confidence": 0.8235677,
+                    "language": "und"
+                },
+                {
+                    "text": "709,28 Wohnfläche",
+                    "bounds": {
+                        "left": 0.5217654,
+                        "top": 0.18426678,
+                        "right": 0.6783555,
+                        "bottom": 0.19495511
+                    },
+                    "confidence": 0.8598633,
+                    "language": "und"
+                },
+                {
+                    "text": "340,80 Wohnfläche",
+                    "bounds": {
+                        "left": 0.5217654,
+                        "top": 0.2103463,
+                        "right": 0.6783555,
+                        "bottom": 0.22103463
+                    },
+                    "confidence": 0.8395996,
+                    "language": "und"
+                },
+                {
+                    "text": "688,00 Wohnfläche",
+                    "bounds": {
+                        "left": 0.52116084,
+                        "top": 0.23642582,
+                        "right": 0.6777509,
+                        "bottom": 0.24711415
+                    },
+                    "confidence": 0.8491211,
+                    "language": "und"
+                },
+                {
+                    "text": "Bankverbindung: Beispielbank\nIBAN DE89 3704 0044 0532 0130 00\nBIC COBADEFFXXX",
+                    "bounds": {
+                        "left": 0.37484884,
+                        "top": 0.9046601,
+                        "right": 0.53808945,
+                        "bottom": 0.93244976
+                    },
+                    "confidence": 0.8460945,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 2 von 3",
+                    "bounds": {
+                        "left": 0.8367594,
+                        "top": 0.054724243,
+                        "right": 0.9038694,
+                        "bottom": 0.061137237
+                    },
+                    "confidence": 0.8382813,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 300 100\ninfo@hv-beispiel.example",
+                    "bounds": {
+                        "left": 0.63542926,
+                        "top": 0.9072253,
+                        "right": 0.7515115,
+                        "bottom": 0.92475414
+                    },
+                    "confidence": 0.81097007,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Anteil €",
+                    "bounds": {
+                        "left": 0.79020554,
+                        "top": 0.10731082,
+                        "right": 0.8766626,
+                        "bottom": 0.11671655
+                    },
+                    "confidence": 0.7859375,
+                    "language": "und"
+                },
+                {
+                    "text": "246,50",
+                    "bounds": {
+                        "left": 0.8240629,
+                        "top": 0.13253528,
+                        "right": 0.8742443,
+                        "bottom": 0.14365113
+                    },
+                    "confidence": 0.91471356,
+                    "language": "und"
+                },
+                {
+                    "text": "198,44",
+                    "bounds": {
+                        "left": 0.8252721,
+                        "top": 0.15989739,
+                        "right": 0.87605804,
+                        "bottom": 0.16973065
+                    },
+                    "confidence": 0.88151044,
+                    "language": "und"
+                },
+                {
+                    "text": "88,66",
+                    "bounds": {
+                        "left": 0.8337364,
+                        "top": 0.18597691,
+                        "right": 0.8754535,
+                        "bottom": 0.19666524
+                    },
+                    "confidence": 0.9117187,
+                    "language": "und"
+                },
+                {
+                    "text": "42,60",
+                    "bounds": {
+                        "left": 0.8331318,
+                        "top": 0.21205643,
+                        "right": 0.8754535,
+                        "bottom": 0.22188969
+                    },
+                    "confidence": 0.853125,
+                    "language": "und"
+                },
+                {
+                    "text": "Die Verteilung erfolgt nach den im Mietvertrag vereinbarten Umlageschlüsseln. Die Belege können\nnach Terminvereinbarung in unserem Büro eingesehen werden. Heizkosten wurden gemalß\nHeizkostenverordnung nach Verbrauch und Fläche abgerechnet.",
+                    "bounds": {
+                        "left": 0.12212817,
+                        "top": 0.28986746,
+                        "right": 0.8675937,
+                        "bottom": 0.33646858
+                    },
+                    "confidence": 0.8309389,
+                    "language": "und"
+                },
+                {
+                    "text": "86,00",
+                    "bounds": {
+                        "left": 0.8331318,
+                        "top": 0.23813595,
+                        "right": 0.8754535,
+                        "bottom": 0.24882428
+                    },
+                    "confidence": 0.87421876,
+                    "language": "und"
+                },
+                {
+                    "text": "2.826,32",
+                    "bounds": {
+                        "left": 0.8083434,
+                        "top": 0.2633604,
+                        "right": 0.87363964,
+                        "bottom": 0.27447626
+                    },
+                    "confidence": 0.8823242,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 2 von 3",
+                    "bounds": {
+                        "left": 0.8276904,
+                        "top": 0.9628046,
+                        "right": 0.8948005,
+                        "bottom": 0.9692176
+                    },
+                    "confidence": 0.80507815,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 3,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Hausverwaltung Beispiel GmbH Betriebskostenabrechnung 2025",
+                    "bounds": {
+                        "left": 0.11668682,
+                        "top": 0.05173151,
+                        "right": 0.46130592,
+                        "bottom": 0.061992306
+                    },
+                    "confidence": 0.86067706,
+                    "language": "und"
+                },
+                {
+                    "text": "2. Ergebnis der Abrechnung",
+                    "bounds": {
+                        "left": 0.11668682,
+                        "top": 0.101325355,
+                        "right": 0.3796856,
+                        "bottom": 0.11500641
+                    },
+                    "confidence": 0.907269,
+                    "language": "und"
+                },
+                {
+                    "text": "Position",
+                    "bounds": {
+                        "left": 0.12454655,
+                        "top": 0.1303976,
+                        "right": 0.1898428,
+                        "bottom": 0.1393758
+                    },
+                    "confidence": 0.87841797,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihre Betriebskosten 2025 (Summe)",
+                    "bounds": {
+                        "left": 0.12515114,
+                        "top": 0.15433946,
+                        "right": 0.38573155,
+                        "bottom": 0.16631038
+                    },
+                    "confidence": 0.873653,
+                    "language": "und"
+                },
+                {
+                    "text": "Geleistete Vorauszahlungen (12 x 220,00 €)",
+                    "bounds": {
+                        "left": 0.12515114,
+                        "top": 0.18127404,
+                        "right": 0.46251512,
+                        "bottom": 0.19324498
+                    },
+                    "confidence": 0.8773226,
+                    "language": "und"
+                },
+                {
+                    "text": "Nachzahlung",
+                    "bounds": {
+                        "left": 0.12515114,
+                        "top": 0.20820864,
+                        "right": 0.22914147,
+                        "bottom": 0.2193245
+                    },
+                    "confidence": 0.88139206,
+                    "language": "und"
+                },
+                {
+                    "text": "Kontoinhaber: Hausverwaltung Beispiel GmbH",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.27960667,
+                        "right": 0.49516323,
+                        "bottom": 0.29115006
+                    },
+                    "confidence": 0.8936298,
+                    "language": "und"
+                },
+                {
+                    "text": "IBAN: DE89 3704 0044 0532 0130 00",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.296708,
+                        "right": 0.40931076,
+                        "bottom": 0.30611372
+                    },
+                    "confidence": 0.8683449,
+                    "language": "und"
+                },
+                {
+                    "text": "BIC: COBADEFFXXX",
+                    "bounds": {
+                        "left": 0.1191052,
+                        "top": 0.3138093,
+                        "right": 0.2847642,
+                        "bottom": 0.32278752
+                    },
+                    "confidence": 0.77916664,
+                    "language": "und"
+                },
+                {
+                    "text": "Verwendungszweck: BK 2025 WE 3.01 Mustermann",
+                    "bounds": {
+                        "left": 0.11789601,
+                        "top": 0.33005556,
+                        "right": 0.5338573,
+                        "bottom": 0.341599
+                    },
+                    "confidence": 0.88421476,
+                    "language": "und"
+                },
+                {
+                    "text": "Der Nachzahlungsbetrag von 186,32 € ist fallig bis 31.10.2026. Bitte überweisen Sie ihn auf das\nfolgende Konto:",
+                    "bounds": {
+                        "left": 0.11729141,
+                        "top": 0.23257802,
+                        "right": 0.8470375,
+                        "bottom": 0.26549807
+                    },
+                    "confidence": 0.87183607,
+                    "language": "und"
+                },
+                {
+                    "text": "3. Anpassung der Vorauszahlung",
+                    "bounds": {
+                        "left": 0.1191052,
+                        "top": 0.35314238,
+                        "right": 0.4280532,
+                        "bottom": 0.36981615
+                    },
+                    "confidence": 0.89019096,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.1197098,
+                        "top": 0.42154768,
+                        "right": 0.30108827,
+                        "bottom": 0.43052587
+                    },
+                    "confidence": 0.8738839,
+                    "language": "und"
+                },
+                {
+                    "text": "Hausverwaltung Beispiel GmbH",
+                    "bounds": {
+                        "left": 0.1197098,
+                        "top": 0.4544677,
+                        "right": 0.35912937,
+                        "bottom": 0.4660111
+                    },
+                    "confidence": 0.859375,
+                    "language": "und"
+                },
+                {
+                    "text": "Hausverwaltung Beispiel GmbH\nGeschaftsführer: Peter Beispiel\nAG Beispielstadt HRB 000000",
+                    "bounds": {
+                        "left": 0.12212817,
+                        "top": 0.90765285,
+                        "right": 0.264208,
+                        "bottom": 0.93501496
+                    },
+                    "confidence": 0.83300364,
+                    "language": "und"
+                },
+                {
+                    "text": "Betrag €",
+                    "bounds": {
+                        "left": 0.7430472,
+                        "top": 0.12783241,
+                        "right": 0.8095526,
+                        "bottom": 0.1393758
+                    },
+                    "confidence": 0.891183,
+                    "language": "und"
+                },
+                {
+                    "text": "Bankverbindung: Beispielbank\nIBAN DE89 3704 0044 0532 0130 00",
+                    "bounds": {
+                        "left": 0.38270858,
+                        "top": 0.90679777,
+                        "right": 0.5453446,
+                        "bottom": 0.9226165
+                    },
+                    "confidence": 0.87248486,
+                    "language": "und"
+                },
+                {
+                    "text": "2.826,32",
+                    "bounds": {
+                        "left": 0.7430472,
+                        "top": 0.15391193,
+                        "right": 0.8095526,
+                        "bottom": 0.16417272
+                    },
+                    "confidence": 0.86328125,
+                    "language": "und"
+                },
+                {
+                    "text": "Ab 01.11.2026 beträgt Ihre monatliche Betriebskostenvorauszahlung 245,00 € (bisher 220,00 €). Bitte\npassen Sie einen eventuell eingerichteten Dauerauftrag rechtzeitig an.",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.37622917,
+                        "right": 0.8929867,
+                        "bottom": 0.40658402
+                    },
+                    "confidence": 0.85922635,
+                    "language": "und"
+                },
+                {
+                    "text": "BIC COBADEFFXXX",
+                    "bounds": {
+                        "left": 0.38270858,
+                        "top": 0.92731935,
+                        "right": 0.4764208,
+                        "bottom": 0.9328773
+                    },
+                    "confidence": 0.828683,
+                    "language": "und"
+                },
+                {
+                    "text": "2.640,00",
+                    "bounds": {
+                        "left": 0.74365175,
+                        "top": 0.17999145,
+                        "right": 0.8095526,
+                        "bottom": 0.18982472
+                    },
+                    "confidence": 0.82666016,
+                    "language": "und"
+                },
+                {
+                    "text": "186,32",
+                    "bounds": {
+                        "left": 0.75876665,
+                        "top": 0.20607097,
+                        "right": 0.8101572,
+                        "bottom": 0.2167593
+                    },
+                    "confidence": 0.86588544,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 3 von 3",
+                    "bounds": {
+                        "left": 0.8288996,
+                        "top": 0.051303975,
+                        "right": 0.89540505,
+                        "bottom": 0.057716973
+                    },
+                    "confidence": 0.80078125,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 300 100\ninfo@hv-beispiel.example",
+                    "bounds": {
+                        "left": 0.64207983,
+                        "top": 0.90594274,
+                        "right": 0.75876665,
+                        "bottom": 0.9226165
+                    },
+                    "confidence": 0.82273763,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 3 von 3",
+                    "bounds": {
+                        "left": 0.8355502,
+                        "top": 0.9593844,
+                        "right": 0.9032648,
+                        "bottom": 0.96579736
+                    },
+                    "confidence": 0.853125,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}

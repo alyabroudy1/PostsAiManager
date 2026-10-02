@@ -28,11 +28,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.postsaimanager.feature.chat.ChatScreen
+import com.postsaimanager.feature.chat.ChatViewModel
 import com.postsaimanager.feature.chat.ChatSource
 import com.postsaimanager.feature.documents.DocumentDetailScreen
 import com.postsaimanager.feature.documents.DocumentsScreen
 import com.postsaimanager.feature.documents.TrashScreen
 import com.postsaimanager.feature.home.HomeScreen
+import com.postsaimanager.feature.profiles.ProfileDetailScreen
+import com.postsaimanager.feature.profiles.ProfileDetailViewModel
 import com.postsaimanager.feature.profiles.ProfilesScreen
 import com.postsaimanager.feature.scanner.ScannerScreen
 import com.postsaimanager.feature.models.ModelsScreen
@@ -40,7 +43,7 @@ import com.postsaimanager.feature.settings.SettingsScreen
 import androidx.navigation.NavGraph.Companion.findStartDestination
 
 @Composable
-fun PamApp() {
+fun PamApp(formFillingEnabled: Boolean) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
     // App-level scope and host: the "moved to Recently deleted / Undo" snackbar has to
@@ -105,8 +108,15 @@ fun PamApp() {
             }
             composable(TopLevelDestination.PROFILES.route) {
                 ProfilesScreen(
-                    onProfileClick = { /* TODO: profile detail */ },
+                    onProfileClick = { id -> navController.navigate("profile/$id") },
+                    onAddPerson = { navController.navigate("profile/${ProfileDetailViewModel.NEW}") },
                 )
+            }
+            composable(
+                route = "profile/{${ProfileDetailViewModel.ARG_PROFILE_ID}}",
+                arguments = listOf(navArgument(ProfileDetailViewModel.ARG_PROFILE_ID) { type = NavType.StringType }),
+            ) {
+                ProfileDetailScreen(onNavigateBack = { navController.popBackStack() })
             }
             composable(TopLevelDestination.SETTINGS.route) {
                 SettingsScreen(
@@ -116,7 +126,7 @@ fun PamApp() {
             }
 
             composable("models") {
-                ModelsScreen(onNavigateBack = { navController.popBackStack() })
+                ModelsScreen(onNavigateBack = { navController.popBackStack() }, showFormFillingNote = formFillingEnabled)
             }
 
             composable("trash") {
@@ -145,6 +155,10 @@ fun PamApp() {
                     onChatClick = { docId ->
                         navController.navigate("chat?documentId=$docId")
                     },
+                    // "Help me fill it" / "Fill in this form": the same document chat, with the form fill started.
+                    onFillForm = if (formFillingEnabled) { docId ->
+                        navController.navigate("chat?documentId=$docId&${ChatViewModel.ARG_FILL}=true")
+                    } else null,
                     onDeleted = { docId ->
                         navController.popBackStack()
                         scope.launch {
@@ -173,12 +187,17 @@ fun PamApp() {
             }
 
             composable(
-                route = "chat?documentId={documentId}",
+                route = "chat?documentId={documentId}&${ChatViewModel.ARG_FILL}={${ChatViewModel.ARG_FILL}}",
                 arguments = listOf(
                     navArgument("documentId") {
                         type = NavType.StringType
                         nullable = true
                         defaultValue = null
+                    },
+                    // Set only by "Help me fill it": the chat opens with the form fill started.
+                    navArgument(ChatViewModel.ARG_FILL) {
+                        type = NavType.BoolType
+                        defaultValue = false
                     },
                 ),
             ) {

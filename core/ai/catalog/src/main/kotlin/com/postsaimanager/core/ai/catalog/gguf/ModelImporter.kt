@@ -3,6 +3,7 @@ package com.postsaimanager.core.ai.catalog.gguf
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.postsaimanager.core.ai.catalog.CatalogMatcher
 import com.postsaimanager.core.ai.catalog.InstalledModelStore
 import com.postsaimanager.core.common.dispatcher.Dispatcher
 import com.postsaimanager.core.common.dispatcher.PamDispatcher
@@ -114,7 +115,8 @@ class ModelImporter @Inject constructor(
                 )
             }
 
-            val model = InstalledModel(
+            // A file whose hash and size are a catalog model's IS that model: recognised by what it is, so its config and profile apply.
+            val model = CatalogMatcher.adopt(InstalledModel(
                 id = "imported-${target.nameWithoutExtension}",
                 descriptorId = null,
                 name = target.nameWithoutExtension,
@@ -126,7 +128,7 @@ class ModelImporter @Inject constructor(
                 contextTokens = DEFAULT_CONTEXT_TOKENS,
                 source = ModelSource.IMPORTED,
                 installedAt = System.currentTimeMillis(),
-            )
+            ))
             installedStore.add(model)
             PamResult.Success(model)
         } catch (e: kotlinx.coroutines.CancellationException) {

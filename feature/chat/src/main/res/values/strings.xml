@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The form-filling conversation: lines the assistant says (the questions the model words are not here) -->
+    <string name="form_understanding">Reading the form… (step %1$s of %2$s)</string>
+    <string name="form_understanding_done">Finished reading the form.</string>
+    <string name="form_no_model">No AI model is installed yet. Install one to fill in forms.</string>
+    <string name="form_understanding_failed">I could not read this form. Ask me again to try once more.</string>
+    <string name="form_search_model_missing">Faster form reading needs the search model.</string>
+    <string name="form_beta_notice">Form filling (beta). Please check every value before you use it.</string>
+    <string name="form_agent_paused">Paused. What is done so far is kept. Continue where I stopped?</string>
+    <string name="form_agent_stuck">I could not finish this step on my own. Continue, or tell me what to do.</string>
+    <string name="form_field_left_to_user">I could not fill \"%1$s\". It is left for you to write by hand.</string>
+    <string name="form_agent_failed">Something went wrong while filling in the form. Continue to try again.</string>
+
+    <!-- Chips -->
+    <string name="form_agent_resume_offer">You already started filling in this form. Continue where you stopped, or start over?</string>
+    <string name="form_agent_done_offer">This form is already filled in. Start over?</string>
+    <string name="form_chip_start_over">Start over</string>
+    <string name="form_chip_continue">Continue</string>
+    <string name="form_chip_download">Download</string>
+    <string name="form_chip_description">Answer: %1$s</string>
+    <string name="form_page_chip">%1$s · p.%2$d</string>
+    <string name="form_page_chip_description">Show %1$s on page %2$d</string>
+
+    <!-- The fill card -->
+    <string name="form_card_title">Form fill</string>
+    <string name="form_card_progress">%1$d of %2$d ready</string>
+    <string name="form_card_need_you">%1$d need you</string>
+    <string name="form_card_signature">%1$d signature</string>
+    <string name="form_card_copy_all">Copy all</string>
+    <string name="form_card_copy_field">Copy %1$s</string>
+    <string name="form_card_show_on_page">Show %1$s on page %2$d</string>
+    <string name="form_card_page">p.%1$d</string>
+    <string name="form_card_page_heading">Page %1$d</string>
+    <string name="form_card_reveal">Hidden value. Tap to show.</string>
+    <string name="form_card_hide">Tap to hide.</string>
+    <string name="form_card_needs_input">Needs your input</string>
+    <string name="form_card_sign_here">Sign here</string>
+    <string name="form_card_by_hand">To fill in by hand</string>
+    <string name="form_card_already_filled">Already filled in</string>
+    <string name="form_card_to_confirm">To confirm</string>
+    <string name="form_card_earlier">Earlier fill card. The latest one is below.</string>
+    <string name="form_source_profile">Profile</string>
+    <string name="form_source_fact">Saved detail</string>
+    <string name="form_source_user">You</string>
+    <string name="form_source_today">Today</string>
+    <string name="form_source_option">Form option</string>
+    <string name="form_value_yes">Yes</string>
+    <string name="form_value_no">No</string>
+
+    <!-- The one-time hint above the composer -->
+    <string name="search_model_hint">Answers can show their sources once the search model is installed</string>
+    <string name="search_model_hint_install">Install</string>
+    <string name="search_model_hint_dismiss">Dismiss hint</string>
+</resources>

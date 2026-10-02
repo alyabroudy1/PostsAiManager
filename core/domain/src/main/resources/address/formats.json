@@ -1,0 +1,60 @@
+{
+  "source": "Derived from the Google libaddressinput address metadata (https://github.com/google/libaddressinput, CC-BY-4.0): postcode pattern, field order and required parts. Country names are local and English names used only to verify a country line. A new country is a new entry here; no code changes.",
+  "formats": [
+    {
+      "iso2": "DE",
+      "postcode": "\\d{5}",
+      "postcodeBeforeCity": true,
+      "houseNumberFirst": false,
+      "requires": ["street", "postcode", "city"],
+      "lineOrder": ["name", "organisation", "street", "postcode", "city"],
+      "countryNames": ["Deutschland", "Germany", "Bundesrepublik Deutschland", "Allemagne", "ألمانيا"]
+    },
+    {
+      "iso2": "GB",
+      "postcode": "GIR ?0AA|[A-Z]{1,2}\\d[A-Z\\d]? ?\\d[ABD-HJLN-UW-Z]{2}|BFPO ?\\d{1,4}",
+      "postcodeBeforeCity": false,
+      "postcodeOwnLine": true,
+      "houseNumberFirst": true,
+      "requires": ["street", "postcode", "city"],
+      "lineOrder": ["name", "organisation", "street", "city", "postcode"],
+      "countryNames": ["United Kingdom", "UK", "Great Britain", "England", "Scotland", "Wales", "Northern Ireland", "Vereinigtes Königreich", "Großbritannien", "المملكة المتحدة", "بريطانيا"]
+    },
+    {
+      "iso2": "US",
+      "postcode": "\\d{5}(?:[ -]\\d{4})?",
+      "postcodeBeforeCity": false,
+      "lineShape": "^.+,\\s*[A-Za-z]{2}\\s+\\d{5}(?:[ -]\\d{4})?$",
+      "houseNumberFirst": true,
+      "requires": ["street", "city", "region", "postcode"],
+      "lineOrder": ["name", "organisation", "street", "city", "region", "postcode"],
+      "countryNames": ["United States", "United States of America", "USA", "US", "America", "Vereinigte Staaten", "Vereinigte Staaten von Amerika", "الولايات المتحدة", "الولايات المتحدة الأمريكية"]
+    },
+    {
+      "iso2": "AE",
+      "houseNumberFirst": true,
+      "requires": ["street", "region"],
+      "lineOrder": ["name", "organisation", "street", "region"],
+      "countryNames": ["الإمارات العربية المتحدة", "الامارات العربية المتحدة", "الإمارات", "United Arab Emirates", "UAE", "Vereinigte Arabische Emirate"]
+    },
+    {
+      "iso2": "SA",
+      "postcode": "\\d{5}(?:-\\d{4})?",
+      "postcodeBeforeCity": false,
+      "houseNumberFirst": true,
+      "requires": ["street", "city", "postcode"],
+      "lineOrder": ["name", "organisation", "street", "city", "postcode"],
+      "countryNames": ["المملكة العربية السعودية", "السعودية", "Saudi Arabia", "KSA", "Kingdom of Saudi Arabia", "Saudi-Arabien"]
+    },
+    {
+      "iso2": "EG",
+      "postcode": "\\d{5}",
+      "postcodeBeforeCity": false,
+      "postcodeOwnLine": true,
+      "houseNumberFirst": true,
+      "requires": ["street", "region"],
+      "lineOrder": ["name", "organisation", "street", "city", "region", "postcode"],
+      "countryNames": ["مصر", "جمهورية مصر العربية", "Egypt", "Arab Republic of Egypt", "Ägypten"]
+    }
+  ]
+}

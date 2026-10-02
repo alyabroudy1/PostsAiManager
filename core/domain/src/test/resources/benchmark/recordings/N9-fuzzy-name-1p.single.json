@@ -1,0 +1,148 @@
+{
+ "key": "N9-fuzzy-name-1p",
+ "interpreter": "single",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Mohamad Mustermann",
+   "normalized": "Mohamad Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Leistung",
+   "normalized": "Leistung",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Abschlag Strom",
+   "normalized": "Abschlag Strom",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Energie Beispielstadt GmbH",
+   "normalized": "Energie Beispielstadt GmbH",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "BIC COBADEFFXXX",
+   "normalized": "BIC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Zeitraum",
+   "normalized": "Zeitraum",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "Betrag €",
+   "normalized": "Betrag €",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "12.10.2026",
+   "normalized": "2026-10-12",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "27.09.2026",
+   "normalized": "2026-09-27",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "78,00 €",
+   "normalized": "78.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "O00000",
+   "normalized": "O00000",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "60012987",
+   "normalized": "60012987",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "AB-2026-10-4471",
+   "normalized": "AB-2026-10-4471",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 600 0",
+   "normalized": "01234 600 0",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "01234 600 10",
+   "normalized": "01234 600 10",
+   "page": 1
+  },
+  {
+   "id": "T3",
+   "kind": "PHONE",
+   "raw": "01234 600",
+   "normalized": "01234 600",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "kundenservice@energie-beispiel.example",
+   "normalized": "kundenservice@energie-beispiel.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "{\"type\":\"outgoing_letter\",\"tc\":\"HIGH\",\"lang\":\"de\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M1\",\"n\":\"Energie Beispielstadt GmbH\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M2\",\"n\":\"Mohamad Mustermann\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Abschlag Strom\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ROUTING\",\"id\":\"M4\",\"n\":\"Energie Beispielstadt GmbH\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"CARE_OF\",\"id\":\"M5\",\"n\":\"BIC COBADEFFXXX\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M7\",\"n\":\"Zeitraum\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M8\",\"n\":\"Betrag €\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D1\",\"n\":\"12.10.2026\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D2\",\"n\":\"27.09.2026\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A1\",\"n\":\"78,00 €\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"I1\",\"n\":\"DE89 3704 0044 0532 0130 00\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N1\",\"n\":\"O00000\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N2\",\"n\":\"60012987\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N3\",\"n\":\"AB-2026-10-4471\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"T1\",\"n\":\"01234 600 0\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"T2\",\"n\":\"01234 600 10\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"T3\",\"n\":\"01234 600\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"E1\",\"n\":\"kundenservice@energie-beispiel.example\",\"k\":\"PERSON\",\"rel",
+ "call1Ms": 69235,
+ "call2Ms": 17142,
+ "layoutTextChars": 1279,
+ "call2": "{\"other\": \"letter\", \"title\": \"Outgoing Letter\", \"subject\": \"78,00 \/ Abschlag Strom \/ Oktober 2026\", \"summary\": \"This is an outgoing letter from Energie Beispielstadt GmbH requesting a 78.00 € charge for electricity delivery in October 2026.\", \"qs\": [\"Who is the sender?\", \"What is the purpose of the letter?\", \"How should the recipient pay the charge?\"]}",
+ "wallMs": 86504,
+ "model": "text.gguf"
+}

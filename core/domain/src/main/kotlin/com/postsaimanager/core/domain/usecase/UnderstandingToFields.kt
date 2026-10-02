@@ -1,11 +1,14 @@
 package com.postsaimanager.core.domain.usecase
 
+import com.postsaimanager.core.domain.extraction.address.AddressRows
+import com.postsaimanager.core.model.AddressPart
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EntityKind
 import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.FactKind
+import com.postsaimanager.core.model.FieldProvenance
 import com.postsaimanager.core.model.RecognisedFact
 
 /**
@@ -37,7 +40,16 @@ object UnderstandingToFields {
     ): List<ExtractedData> {
         val fields = mutableListOf<ExtractedData>()
 
-        fun add(name: String, value: String, type: ExtractedFieldType, confidence: Float) {
+        // [slotKey] is the value's stable identity (see ExtractedData.slotKey); the rest of the
+        // provenance is stored as extraction reported it, next to the final confidence.
+        fun add(
+            name: String,
+            value: String,
+            type: ExtractedFieldType,
+            confidence: Float,
+            provenance: FieldProvenance?,
+            slotKey: String? = provenance?.slotKey,
+        ) {
             if (value.isBlank()) return
             fields += ExtractedData(
                 id = newId("$documentId#$name"),
@@ -46,6 +58,14 @@ object UnderstandingToFields {
                 fieldValue = value.trim(),
                 fieldType = type,
                 confidence = confidence.coerceIn(0f, 1f),
+                pageNumber = provenance?.page,
+                slotKey = slotKey,
+                role = provenance?.role,
+                origin = provenance?.origin,
+                aiConfidence = provenance?.aiConfidence,
+                evidence = provenance?.evidence,
+                bbox = provenance?.bbox,
+                alternatives = provenance?.alternatives.orEmpty(),
             )
         }
 
@@ -63,19 +83,23 @@ object UnderstandingToFields {
                         ExtractedFieldType.PERSON_NAME
                     },
                     confidence = sender.confidence,
+                    provenance = sender.provenance,
+                    // One sender slot whether the name or the organisation field carries it, so a
+                    // re-read that changes the kind renames the row instead of orphaning it.
+                    slotKey = SLOT_SENDER,
                 )
             }
 
         understanding.entities
             .firstOrNull { it.role == EntityRole.RECIPIENT }
-            ?.let { add(RECEIVER_NAME, it.name, ExtractedFieldType.PERSON_NAME, it.confidence) }
+            ?.let { add(RECEIVER_NAME, it.name, ExtractedFieldType.PERSON_NAME, it.confidence, it.provenance, SLOT_ADDRESSEE) }
 
         understanding.entities
             .firstOrNull { it.role == EntityRole.SENDER_CONTACT }
-            ?.let { add(CONTACT_PERSON, it.name, ExtractedFieldType.PERSON_NAME, it.confidence) }
+            ?.let { add(CONTACT_PERSON, it.name, ExtractedFieldType.PERSON_NAME, it.confidence, it.provenance, SLOT_CONTACT) }
 
         if (understanding.subject.isNotBlank()) {
-            add(SUBJECT, understanding.subject, ExtractedFieldType.SUBJECT, 0.9f)
+            add(SUBJECT, understanding.subject, ExtractedFieldType.SUBJECT, 0.9f, null, SLOT_SUBJECT)
         }
 
         // Two facts can share a label — a letter quoting several dates, say. The slot is
@@ -85,7 +109,10 @@ object UnderstandingToFields {
             .groupBy { canonicalLabel(it) }
             .forEach { (label, candidates) ->
                 val best = candidates.maxBy { it.confidence }
-                add(label, best.value, typeOf(best.kind), best.confidence)
+                add(
+                    label, best.value, addressTypeOf(best.provenance?.slotKey) ?: typeOf(best.kind), best.confidence, best.provenance,
+                    slotKey = best.provenance?.slotKey ?: label.takeIf { it == SLOT_UNLABELLED },
+                )
             }
 
         return fields
@@ -106,7 +133,20 @@ object UnderstandingToFields {
         FactKind.SUBJECT -> SUBJECT
         // References keep their own label: "Aktenzeichen" and "Ihr Zeichen" are genuinely
         // different references and collapsing them would lose one.
-        FactKind.REFERENCE, FactKind.OTHER -> fact.label.trim().ifBlank { "Reference" }
+        // A fact with no label at all is stored under its slot key, else under the "unlabelled"
+        // key the screen words in the user's language; never an English literal.
+        FactKind.REFERENCE, FactKind.OTHER ->
+            fact.label.trim().ifBlank { fact.provenance?.slotKey?.ifBlank { null } ?: SLOT_UNLABELLED }
+    }
+
+    /**
+     * The field type of a structured-address row (`addressee.street`, `sender.name`...): a person's name, else an address part; null for
+     * any other row. The keys are owned by [AddressRows].
+     */
+    private fun addressTypeOf(slotKey: String?): ExtractedFieldType? = when {
+        !AddressRows.isAddressKey(slotKey) -> null
+        slotKey!!.endsWith(".${AddressPart.RECIPIENT_NAME.key}") -> ExtractedFieldType.PERSON_NAME
+        else -> ExtractedFieldType.ADDRESS
     }
 
     private fun typeOf(kind: FactKind): ExtractedFieldType = when (kind) {
@@ -129,4 +169,20 @@ object UnderstandingToFields {
     const val DOCUMENT_DATE = "Document Date"
     const val AMOUNT = "Amount"
     const val IBAN = "IBAN"
+
+    // Slot keys of the values that are people or the subject rather than schema slots.
+    const val SLOT_SENDER = "sender"
+    const val SLOT_ADDRESSEE = "addressee"
+    const val SLOT_CONTACT = "contact"
+    const val SLOT_SUBJECT = "subject"
+
+    /** Slot key (and stored name) of a value that came with no label at all; rendered from a string resource. */
+    const val SLOT_UNLABELLED = "unlabelled"
+
+    /**
+     * Whether a stored field is written by a reading's second stage (the extras and the subject line) rather than its first (the type,
+     * the parties, the slots). The one owner of that split: the first stage's merge leaves these rows alone, the second stage's merge
+     * touches nothing else.
+     */
+    fun writtenInSecondStage(field: ExtractedData): Boolean = field.isExtra || field.slotKey == SLOT_SUBJECT
 }

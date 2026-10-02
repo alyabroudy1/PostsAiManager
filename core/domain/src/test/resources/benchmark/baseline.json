@@ -1,0 +1,16 @@
+{
+  "metrics": {
+    "recall.all": 0.9681,
+    "recall.DATE": 0.9737,
+    "recall.DATETIME": 1.0000,
+    "recall.AMOUNT": 0.9600,
+    "recall.IBAN": 1.0000,
+    "recall.REFERENCE": 0.9500,
+    "recall.RELATIVE_RULE": 1.0000,
+    "offeredNoise": 4.0000,
+    "shownNoise": 0.0000,
+    "zone.addressee": 1.0000,
+    "zone.sender": 1.0000,
+    "leak.senderInAddress": 0.0000
+  }
+}

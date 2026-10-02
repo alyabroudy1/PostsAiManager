@@ -34,6 +34,26 @@ class PostsAiManagerAppTest {
     }
 
     @Test
+    @DisplayName("the background reprocess is injected lazily: field injection alone must not build it in :inference")
+    fun reprocessIsLazy() {
+        val field = PostsAiManagerApp::class.java.getDeclaredField("reprocessOutdatedDocuments")
+
+        assertThat(field.type).isEqualTo(dagger.Lazy::class.java)
+    }
+
+    @Test
+    @DisplayName("onCreate leaves before any start-up work when this is not the main process")
+    fun onCreateGatesOnMainProcessBeforeReprocess() {
+        // Source order is the wiring: the early `return` on !isMainProcess() comes before the launch.
+        val source = java.io.File("src/main/kotlin/com/postsaimanager/PostsAiManagerApp.kt").readText()
+        val gate = source.indexOf("if (!isMainProcess()) return")
+        val launch = source.indexOf("reprocessOutdatedDocuments.get()")
+
+        assertThat(gate).isGreaterThan(-1)
+        assertThat(launch).isGreaterThan(gate)
+    }
+
+    @Test
     @DisplayName("an unrelated process name is not the main process")
     fun unrelatedProcessName() {
         assertThat(isMainProcess("com.some.other.app", packageName)).isFalse()

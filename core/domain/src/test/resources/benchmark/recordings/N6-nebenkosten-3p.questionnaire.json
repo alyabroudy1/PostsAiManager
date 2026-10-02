@@ -1,0 +1,443 @@
+{
+ "key": "N6-nebenkosten-3p",
+ "interpreter": "questionnaire",
+ "pages": 3,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Mohammad Mustermann",
+   "normalized": "Mohammad Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Kostenart",
+   "normalized": "Kostenart",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Hausverwaltung Beispiel GmbH",
+   "normalized": "Hausverwaltung Beispiel GmbH",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "BIC COBADEFFXXX",
+   "normalized": "BIC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Gesamtkosten Haus € Schlüssel",
+   "normalized": "Gesamtkosten Haus € Schlüssel",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Frau H. Muster",
+   "normalized": "Frau H. Muster",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "Ihr Anteil €",
+   "normalized": "Ihr Anteil €",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "01.01.2025",
+   "normalized": "2025-01-01",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "31.12.2025",
+   "normalized": "2025-12-31",
+   "page": 1
+  },
+  {
+   "id": "D5",
+   "kind": "DATE",
+   "raw": "22.09.2026",
+   "normalized": "2026-09-22",
+   "page": 1
+  },
+  {
+   "id": "D6",
+   "kind": "DATE",
+   "raw": "31.10.2026",
+   "normalized": "2026-10-31",
+   "page": 3
+  },
+  {
+   "id": "D7",
+   "kind": "DATE",
+   "raw": "01.11.2026",
+   "normalized": "2026-11-01",
+   "page": 3
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "2.499,20",
+   "normalized": "2499.20 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "3.425,20",
+   "normalized": "3425.20 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "2.414,16",
+   "normalized": "2414.16 EUR",
+   "page": 1
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "1.497.60",
+   "normalized": "1497.60 EUR",
+   "page": 1
+  },
+  {
+   "id": "A5",
+   "kind": "AMOUNT",
+   "raw": "7.476,80",
+   "normalized": "7476.80 EUR",
+   "page": 1
+  },
+  {
+   "id": "A6",
+   "kind": "AMOUNT",
+   "raw": "312,40",
+   "normalized": "312.40 EUR",
+   "page": 1
+  },
+  {
+   "id": "A7",
+   "kind": "AMOUNT",
+   "raw": "428,15",
+   "normalized": "428.15 EUR",
+   "page": 1
+  },
+  {
+   "id": "A8",
+   "kind": "AMOUNT",
+   "raw": "301,77",
+   "normalized": "301.77 EUR",
+   "page": 1
+  },
+  {
+   "id": "A11",
+   "kind": "AMOUNT",
+   "raw": "1.972,00",
+   "normalized": "1972.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A12",
+   "kind": "AMOUNT",
+   "raw": "1.587,52",
+   "normalized": "1587.52 EUR",
+   "page": 2
+  },
+  {
+   "id": "A13",
+   "kind": "AMOUNT",
+   "raw": "709,28",
+   "normalized": "709.28 EUR",
+   "page": 2
+  },
+  {
+   "id": "A14",
+   "kind": "AMOUNT",
+   "raw": "340,80",
+   "normalized": "340.80 EUR",
+   "page": 2
+  },
+  {
+   "id": "A15",
+   "kind": "AMOUNT",
+   "raw": "688,00",
+   "normalized": "688.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A16",
+   "kind": "AMOUNT",
+   "raw": "246,50",
+   "normalized": "246.50 EUR",
+   "page": 2
+  },
+  {
+   "id": "A17",
+   "kind": "AMOUNT",
+   "raw": "198,44",
+   "normalized": "198.44 EUR",
+   "page": 2
+  },
+  {
+   "id": "A18",
+   "kind": "AMOUNT",
+   "raw": "88,66",
+   "normalized": "88.66 EUR",
+   "page": 2
+  },
+  {
+   "id": "A22",
+   "kind": "AMOUNT",
+   "raw": "220,00 €",
+   "normalized": "220.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A23",
+   "kind": "AMOUNT",
+   "raw": "186,32 €",
+   "normalized": "186.32 EUR",
+   "page": 3
+  },
+  {
+   "id": "A25",
+   "kind": "AMOUNT",
+   "raw": "245,00 €",
+   "normalized": "245.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A27",
+   "kind": "AMOUNT",
+   "raw": "2.640,00",
+   "normalized": "2640.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "Z1",
+   "kind": "NUMBER",
+   "raw": "3.01",
+   "normalized": "3.01",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "BK-2025-0318",
+   "normalized": "BK-2025-0318",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 300 100",
+   "normalized": "01234 300 100",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "01234 300 120",
+   "normalized": "01234 300 120",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "info@hv-beispiel.example",
+   "normalized": "info@hv-beispiel.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "type: bill de HIGH\nsender: M1 AUTHORITY \"Hausverwaltung Beispiel GmbH\" HIGH\naddressee: M2 PERSON HOUSEHOLD \"Mohammad Mustermann\" HIGH\nsubject_person: NONE\ncontact: M1 PERSON \"Hausverwaltung Beispiel GmbH\" HIGH\ncare_of: NONE\nslot:letter_date: D1 LETTER_DATE HIGH\nslot:total: A1 TOTAL_DUE HIGH\nslot:due_date: D1 DEADLINE HIGH\nslot:iban: I1 HIGH\nslot:reference: N1 HIGH\nslot:customer_no: N1 HIGH\nslot:invoice_no: N1 HIGH\nextras: M3 \"Hausverwaltung Beispiel GmbH\" ppage \"\/><p>12345 Beispielstadt \/ Tel. 01234 300 100 \/ info@hv-beispiel.example \/ BIC COBADEFFXXX \/ Seite 1 von 3 \/ 2. Ergebnis der Abrechnung \/ Position \/ Betrag € \/ Ihre Betriebskosten 2025 (Summe) \/ Nachzahlung \/ Kontoinhaber: Hausverwaltung Beispiel GmbH \/ IBAN: DE89 3704 0044 0532 0130 00 \/ BIC: COBADEFFXXX \/ Verwendungszweck: BK 2025 WE 3.01 Mustermann \/ 3. Anpassung der Vorauszahlung \/ Ab 01.11.2026 beträgt Ihre monatliche Betriebskostenvorauszahlung 245,00 € (bisher 220,00 €). Bitte passen Sie einen eventuell eingerichteten Dauerauftrag rechtzeitig an. \/ Mit freundlichen Grüßen \/ Hausverwaltung Beispiel GmbH \/ Geschaftsführer: Peter Beispiel \/ AG Beispielstadt HRB 000000 \/ Bankverbindung: Beispielbank \/ IBAN DE89 3704 0044",
+ "call1Ms": 56162,
+ "call2Ms": 7092,
+ "layoutTextChars": 3127,
+ "call2": "text:title: \"Abrechnung für Wohnung\"\ntext:subject: \"Betriebskostenabrechnung 01.01.2025 – 31.12.2025\"\ntext:summary: \"summary\"\ntext:questions: \"Which specific account number is the bank account to be used for the payment?\" \"Which specific account number is the bank account to be used for the payment?\" \"Which specific account number is the bank account to be used for the payment?\"",
+ "prefixTokens": 2527,
+ "prefixMs": 21805,
+ "asks": [
+  {
+   "name": "type",
+   "question": "QUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "bill de HIGH",
+   "ms": 2260,
+   "questionTokens": 213,
+   "answerTokens": 3
+  },
+  {
+   "name": "sender",
+   "question": "QUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "M1 AUTHORITY \"Hausverwaltung Beispiel GmbH\" HIGH",
+   "ms": 1275,
+   "questionTokens": 43,
+   "answerTokens": 11
+  },
+  {
+   "name": "addressee",
+   "question": "QUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE",
+   "answer": "M2 PERSON HOUSEHOLD \"Mohammad Mustermann\" HIGH",
+   "ms": 2111,
+   "questionTokens": 107,
+   "answerTokens": 13
+  },
+  {
+   "name": "subject_person",
+   "question": "QUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1006,
+   "questionTokens": 77,
+   "answerTokens": 1
+  },
+  {
+   "name": "contact",
+   "question": "QUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "M1 PERSON \"Hausverwaltung Beispiel GmbH\" HIGH",
+   "ms": 1347,
+   "questionTokens": 51,
+   "answerTokens": 10
+  },
+  {
+   "name": "care_of",
+   "question": "QUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 859,
+   "questionTokens": 68,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "QUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 LETTER_DATE HIGH",
+   "ms": 1209,
+   "questionTokens": 77,
+   "answerTokens": 5
+  },
+  {
+   "name": "slot:total",
+   "question": "QUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A1 TOTAL_DUE HIGH",
+   "ms": 1391,
+   "questionTokens": 83,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:due_date",
+   "question": "QUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 DEADLINE HIGH",
+   "ms": 1387,
+   "questionTokens": 96,
+   "answerTokens": 5
+  },
+  {
+   "name": "slot:iban",
+   "question": "QUESTION: Which IBAN is the account the reader should pay to?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "I1 HIGH",
+   "ms": 781,
+   "questionTokens": 31,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:reference",
+   "question": "QUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 713,
+   "questionTokens": 40,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "QUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 601,
+   "questionTokens": 33,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:invoice_no",
+   "question": "QUESTION: Which number is the invoice number (the bill this letter is about)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 672,
+   "questionTokens": 33,
+   "answerTokens": 3
+  },
+  {
+   "name": "extras",
+   "question": "QUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "M3 \"Hausverwaltung Beispiel GmbH\" ppage \"\/><p>12345 Beispielstadt \/ Tel. 01234 300 100 \/ info@hv-beispiel.example \/ BIC COBADEFFXXX \/ Seite 1 von 3 \/ 2. Ergebnis der Abrechnung \/ Position \/ Betrag € \/ Ihre Betriebskosten 2025 (Summe) \/ Nachzahlung \/ Kontoinhaber: Hausverwaltung Beispiel GmbH \/ IBAN: DE89 3704 0044 0532 0130 00 \/ BIC: COBADEFFXXX \/ Verwendungszweck: BK 2025 WE 3.01 Mustermann \/ 3. Anpassung der Vorauszahlung \/ Ab 01.11.2026 beträgt Ihre monatliche Betriebskostenvorauszahlung 245,00 € (bisher 220,00 €). Bitte passen Sie einen eventuell eingerichteten Dauerauftrag rechtzeitig an. \/ Mit freundlichen Grüßen \/ Hausverwaltung Beispiel GmbH \/ Geschaftsführer: Peter Beispiel \/ AG Beispielstadt HRB 000000 \/ Bankverbindung: Beispielbank \/ IBAN DE89 3704 0044",
+   "ms": 18637,
+   "questionTokens": 122,
+   "answerTokens": 279
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this bill: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: \"title\"",
+   "answer": "\"Abrechnung für Wohnung\"",
+   "ms": 868,
+   "questionTokens": 46,
+   "answerTokens": 6
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: \"subject line\"",
+   "answer": "\"Betriebskostenabrechnung 01.01.2025 – 31.12.2025\"",
+   "ms": 2411,
+   "questionTokens": 29,
+   "answerTokens": 31
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: \"summary\"",
+   "answer": "\"summary\"",
+   "ms": 701,
+   "questionTokens": 47,
+   "answerTokens": 3
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about this letter. Write it in the letter's own language.\nANSWER FORMAT: \"question\" \"question\" \"question\"",
+   "answer": "\"Which specific account number is the bank account to be used for the payment?\" \"Which specific account number is the bank account to be used for the payment?\" \"Which specific account number is the bank account to be used for the payment?\"",
+   "ms": 3101,
+   "questionTokens": 42,
+   "answerTokens": 48
+  }
+ ],
+ "wallMs": 63524,
+ "model": "text.gguf"
+}

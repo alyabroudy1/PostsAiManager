@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Formular-Assistent im Chat: Zeilen des Assistenten (die vom Modell formulierten Fragen stehen nicht hier) -->
+    <string name="form_understanding">Ich lese das Formular… (Schritt %1$s von %2$s)</string>
+    <string name="form_understanding_done">Das Formular ist gelesen.</string>
+    <string name="form_no_model">Es ist noch kein KI-Modell installiert. Installiere eines, um Formulare auszufüllen.</string>
+    <string name="form_understanding_failed">Ich konnte dieses Formular nicht lesen. Frag mich noch einmal, um es erneut zu versuchen.</string>
+    <string name="form_search_model_missing">Schnelleres Lesen von Formularen braucht das Suchmodell.</string>
+    <string name="form_beta_notice">Formularhilfe (Beta). Bitte prüfe jeden Wert, bevor du ihn verwendest.</string>
+    <string name="form_agent_paused">Angehalten. Was bisher erledigt ist, bleibt erhalten. Dort weitermachen, wo ich aufgehört habe?</string>
+    <string name="form_agent_stuck">Diesen Schritt konnte ich nicht allein abschließen. Weiter, oder sag mir, was ich tun soll.</string>
+    <string name="form_field_left_to_user">Ich konnte „%1$s“ nicht ausfüllen. Bitte schreibe es selbst hinein.</string>
+    <string name="form_agent_failed">Beim Ausfüllen des Formulars ist etwas schiefgegangen. Mit „Weiter“ versuche ich es erneut.</string>
+
+    <!-- Chips -->
+    <string name="form_agent_resume_offer">Du hast dieses Formular schon angefangen. Dort weitermachen, wo du aufgehört hast, oder neu beginnen?</string>
+    <string name="form_agent_done_offer">Dieses Formular ist schon ausgefüllt. Neu beginnen?</string>
+    <string name="form_chip_start_over">Neu beginnen</string>
+    <string name="form_chip_continue">Weiter</string>
+    <string name="form_chip_download">Herunterladen</string>
+    <string name="form_chip_description">Antwort: %1$s</string>
+    <string name="form_page_chip">%1$s · S.%2$d</string>
+    <string name="form_page_chip_description">%1$s auf Seite %2$d zeigen</string>
+
+    <!-- Ausfüllkarte -->
+    <string name="form_card_title">Formular ausfüllen</string>
+    <string name="form_card_progress">%1$d von %2$d fertig</string>
+    <string name="form_card_need_you">%1$d brauchen dich</string>
+    <string name="form_card_signature">%1$d Unterschrift</string>
+    <string name="form_card_copy_all">Alles kopieren</string>
+    <string name="form_card_copy_field">%1$s kopieren</string>
+    <string name="form_card_show_on_page">%1$s auf Seite %2$d zeigen</string>
+    <string name="form_card_page">S.%1$d</string>
+    <string name="form_card_page_heading">Seite %1$d</string>
+    <string name="form_card_reveal">Verborgener Wert. Tippen zum Anzeigen.</string>
+    <string name="form_card_hide">Tippen zum Verbergen.</string>
+    <string name="form_card_needs_input">Braucht deine Eingabe</string>
+    <string name="form_card_sign_here">Hier unterschreiben</string>
+    <string name="form_card_by_hand">Von Hand auszufüllen</string>
+    <string name="form_card_already_filled">Bereits ausgefüllt</string>
+    <string name="form_card_to_confirm">Zu bestätigen</string>
+    <string name="form_card_earlier">Frühere Ausfüllkarte. Die neueste steht weiter unten.</string>
+    <string name="form_source_profile">Profil</string>
+    <string name="form_source_fact">Gespeicherte Angabe</string>
+    <string name="form_source_user">Du</string>
+    <string name="form_source_today">Heute</string>
+    <string name="form_source_option">Option im Formular</string>
+    <string name="form_value_yes">Ja</string>
+    <string name="form_value_no">Nein</string>
+
+    <!-- Der einmalige Hinweis über der Eingabe -->
+    <string name="search_model_hint">Antworten können ihre Quellen zeigen, sobald das Suchmodell installiert ist</string>
+    <string name="search_model_hint_install">Installieren</string>
+    <string name="search_model_hint_dismiss">Hinweis schließen</string>
+</resources>

@@ -106,6 +106,7 @@ fun ScannerScreen(
     LaunchedEffect(Unit) {
         scanner.getStartScanIntent(context as Activity)
             .addOnSuccessListener { intentSender ->
+                viewModel.onScanLaunching()
                 scannerLauncher.launch(
                     IntentSenderRequest.Builder(intentSender).build()
                 )
@@ -159,6 +160,7 @@ fun ScannerScreen(
             confirmButton = {
                 Button(onClick = {
                     showNotificationRationale = false
+                    viewModel.onNotificationPermissionRequestLaunching()
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }) { Text("Allow") }
             },
@@ -240,6 +242,7 @@ fun ScannerScreen(
                         // Re-launch scanner
                         scanner.getStartScanIntent(context as Activity)
                             .addOnSuccessListener { intentSender ->
+                                viewModel.onScanLaunching()
                                 scannerLauncher.launch(
                                     IntentSenderRequest.Builder(intentSender).build()
                                 )

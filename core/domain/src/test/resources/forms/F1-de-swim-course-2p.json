@@ -1,0 +1,48 @@
+{
+    "key": "F1-de-swim-course-2p",
+    "pages": [
+        {
+            "pageNumber": 1, "width": 1654, "height": 2339, "ocrFailed": false,
+            "blocks": [
+                {"text": "Anmeldung Schwimmkurs Seepferdchen", "bounds": {"left": 0.080, "top": 0.050, "right": 0.620, "bottom": 0.076}, "confidence": 0.96, "language": "de"},
+                {"text": "Kinder 6–10 Jahre · Kursbeginn im Herbst", "bounds": {"left": 0.080, "top": 0.090, "right": 0.500, "bottom": 0.104}, "confidence": 0.95, "language": "de"},
+                {"text": "Bitte vollständig ausfüllen und im Bad abgeben.", "bounds": {"left": 0.080, "top": 0.115, "right": 0.574, "bottom": 0.129}, "confidence": 0.95, "language": "de"},
+                {"text": "Angaben zum Kind", "bounds": {"left": 0.080, "top": 0.160, "right": 0.336, "bottom": 0.182}, "confidence": 0.96, "language": "de"},
+                {"text": "Name des Kindes: ______________________", "bounds": {"left": 0.080, "top": 0.200, "right": 0.490, "bottom": 0.214}, "confidence": 0.93, "language": "de"},
+                {"text": "Geburtsdatum: ____________  Geburtsort: ____________", "bounds": {"left": 0.080, "top": 0.235, "right": 0.6155, "bottom": 0.249}, "confidence": 0.93, "language": "de"},
+                {"text": "Anschrift: ______________________________", "bounds": {"left": 0.080, "top": 0.270, "right": 0.510, "bottom": 0.284}, "confidence": 0.93, "language": "de"},
+                {"text": "Hat Ihr Kind das Seepferdchen bereits?", "bounds": {"left": 0.080, "top": 0.300, "right": 0.479, "bottom": 0.314}, "confidence": 0.95, "language": "de"},
+                {"text": "☐ Ja   ☐ Nein", "bounds": {"left": 0.080, "top": 0.330, "right": 0.2165, "bottom": 0.344}, "confidence": 0.90, "language": "de"},
+                {"text": "Kurstermin", "bounds": {"left": 0.080, "top": 0.370, "right": 0.185, "bottom": 0.384}, "confidence": 0.95, "language": "de"},
+                {"text": "☐ Montag 16:00 Uhr", "bounds": {"left": 0.080, "top": 0.395, "right": 0.269, "bottom": 0.409}, "confidence": 0.91, "language": "de"},
+                {"text": "☐ Mittwoch 15:00 Uhr", "bounds": {"left": 0.080, "top": 0.420, "right": 0.290, "bottom": 0.434}, "confidence": 0.91, "language": "de"},
+                {"text": "☐ Samstag 10:00 Uhr", "bounds": {"left": 0.080, "top": 0.445, "right": 0.2795, "bottom": 0.459}, "confidence": 0.91, "language": "de"},
+                {"text": "Allergien / Hinweise zur Gesundheit:", "bounds": {"left": 0.080, "top": 0.490, "right": 0.458, "bottom": 0.504}, "confidence": 0.95, "language": "de"},
+                {"text": "Erziehungsberechtigte", "bounds": {"left": 0.080, "top": 0.560, "right": 0.416, "bottom": 0.582}, "confidence": 0.96, "language": "de"},
+                {"text": "Name der Erziehungsberechtigten: ______________", "bounds": {"left": 0.080, "top": 0.600, "right": 0.5735, "bottom": 0.614}, "confidence": 0.93, "language": "de"},
+                {"text": "Telefon (Notfall): ______________", "bounds": {"left": 0.080, "top": 0.635, "right": 0.4265, "bottom": 0.649}, "confidence": 0.93, "language": "de"},
+                {"text": "E-Mail: ____________________", "bounds": {"left": 0.080, "top": 0.670, "right": 0.374, "bottom": 0.684}, "confidence": 0.93, "language": "de"},
+                {"text": "Seite 1 von 2", "bounds": {"left": 0.430, "top": 0.950, "right": 0.5665, "bottom": 0.964}, "confidence": 0.95, "language": "de"}
+            ]
+        },
+        {
+            "pageNumber": 2, "width": 1654, "height": 2339, "ocrFailed": false,
+            "blocks": [
+                {"text": "Zahlung per Lastschrift", "bounds": {"left": 0.080, "top": 0.080, "right": 0.448, "bottom": 0.102}, "confidence": 0.96, "language": "de"},
+                {"text": "Kursgebühr 48,00 Euro, einmalig.", "bounds": {"left": 0.080, "top": 0.120, "right": 0.416, "bottom": 0.134}, "confidence": 0.95, "language": "de"},
+                {"text": "Kontoinhaber: _____________________", "bounds": {"left": 0.080, "top": 0.160, "right": 0.4475, "bottom": 0.174}, "confidence": 0.93, "language": "de"},
+                {"text": "IBAN: __________________________", "bounds": {"left": 0.080, "top": 0.200, "right": 0.416, "bottom": 0.214}, "confidence": 0.93, "language": "de"},
+                {"text": "Name der Bank: ______________", "bounds": {"left": 0.080, "top": 0.240, "right": 0.3845, "bottom": 0.254}, "confidence": 0.93, "language": "de"},
+                {"text": "Einverständnis", "bounds": {"left": 0.080, "top": 0.290, "right": 0.304, "bottom": 0.312}, "confidence": 0.96, "language": "de"},
+                {"text": "Ich erkläre mich mit der Teilnahme meines Kindes am Kurs einverstanden.", "bounds": {"left": 0.080, "top": 0.330, "right": 0.8255, "bottom": 0.344}, "confidence": 0.95, "language": "de"},
+                {"text": "Die Haftungsbedingungen des Bades habe ich zur Kenntnis genommen.", "bounds": {"left": 0.080, "top": 0.350, "right": 0.7625, "bottom": 0.364}, "confidence": 0.95, "language": "de"},
+                {"text": "☐ Ich willige in die Veröffentlichung von Fotos ein", "bounds": {"left": 0.080, "top": 0.390, "right": 0.6155, "bottom": 0.404}, "confidence": 0.91, "language": "de"},
+                {"text": "______________________", "bounds": {"left": 0.080, "top": 0.500, "right": 0.311, "bottom": 0.514}, "confidence": 0.80, "language": "und"},
+                {"text": "______________________", "bounds": {"left": 0.550, "top": 0.500, "right": 0.780, "bottom": 0.514}, "confidence": 0.80, "language": "und"},
+                {"text": "Ort, Datum", "bounds": {"left": 0.080, "top": 0.520, "right": 0.185, "bottom": 0.534}, "confidence": 0.95, "language": "de"},
+                {"text": "Unterschrift", "bounds": {"left": 0.550, "top": 0.520, "right": 0.676, "bottom": 0.534}, "confidence": 0.95, "language": "de"},
+                {"text": "Seite 2 von 2", "bounds": {"left": 0.430, "top": 0.950, "right": 0.5665, "bottom": 0.964}, "confidence": 0.95, "language": "de"}
+            ]
+        }
+    ]
+}

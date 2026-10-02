@@ -29,6 +29,33 @@ data class DocumentEntity(
      * "not deleted". See documentation/07-document-pipeline.md, "Deleting documents".
      */
     val deletedAt: Long? = null,
+    /** See [com.postsaimanager.core.model.Document.extractionType]. */
+    val extractionType: String? = null,
+    val extractionTypeConfidence: Float? = null,
+    val extractorVersion: String? = null,
+    val isUserTitle: Boolean = false,
+    /** JSON list of strings; see [com.postsaimanager.core.model.Document.suggestedQuestions]. */
+    val suggestedQuestions: String? = null,
+    val summary: String? = null,
+    /** See [com.postsaimanager.core.model.Document.titleCode]; [titleArgs] is a JSON list of strings. */
+    val titleCode: String? = null,
+    val titleArgs: String? = null,
+    /** JSON list of topic ids; see [com.postsaimanager.core.model.Document.topics]. */
+    val topics: String? = null,
+    /** `MODEL` or `USER`; null reads as `MODEL`. See `FamilySource`. */
+    val familySource: String? = null,
+    /** `DEFAULT`, `COMPOSED`, `MODEL` or `USER`; see `TitleSource`. */
+    val titleSource: String? = null,
+    /** `MODEL`, `TEMPLATE` or `USER`; see `SummarySource`. */
+    val summarySource: String? = null,
+    val summaryCode: String? = null,
+    /** JSON list of strings. */
+    val summaryArgs: String? = null,
+    val layoutTemplate: String? = null,
+    /** See [com.postsaimanager.core.model.Document.enrichmentAttempts]. */
+    val enrichmentAttempts: Int = 0,
+    /** See [com.postsaimanager.core.model.Document.enrichmentPending]. */
+    val enrichmentPending: Boolean = false,
 )
 
 @Entity(
@@ -90,6 +117,106 @@ data class ProfileEntity(
     /** See [com.postsaimanager.core.model.Profile.sourceDocumentId]. */
     val sourceDocumentId: String? = null,
     val sourceEntityName: String? = null,
+    val relationship: String? = null,
+    val birthDate: String? = null,
+    @ColumnInfo(defaultValue = "0") val sensitive: Boolean = false,
+)
+
+/** A remembered detail of a person (see `ProfileFact`); one row per (profile, key). */
+@Entity(
+    tableName = "profile_facts",
+    foreignKeys = [
+        ForeignKey(
+            entity = ProfileEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["profileId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("profileId"), Index(value = ["profileId", "key"], unique = true)],
+)
+data class ProfileFactEntity(
+    @PrimaryKey val id: String,
+    val profileId: String,
+    val key: String,
+    val value: String,
+    val source: String,
+    val sourceDocumentId: String?,
+    val sensitive: Boolean,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
+
+/**
+ * One fill of a document's form (see `FormFill`): the conversation's state. `roleProfiles`, `confirmedRoles` and `awaiting` are
+ * JSON text (lenient on read, see `FormFillMapper`). Gone with its document.
+ */
+@Entity(
+    tableName = "form_fills",
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("documentId")],
+)
+data class FormFillEntity(
+    @PrimaryKey val id: String,
+    val documentId: String,
+    val status: String,
+    val roleProfiles: String,
+    val confirmedRoles: String,
+    val conversationId: String?,
+    val currentFieldId: String?,
+    val localeTag: String?,
+    val awaiting: String?,
+    val roundAsked: Int,
+    val createdAt: Long,
+    val updatedAt: Long,
+    /** The way of reading plus the OCR the fields were built from (see `FormFill.readingKey`). */
+    val readingKey: String? = null,
+)
+
+/** One blank of a form (see `FormField`); `labelBox`, `fillBox` and `options` are JSON text. Gone with its fill. */
+@Entity(
+    tableName = "form_fields",
+    foreignKeys = [
+        ForeignKey(
+            entity = FormFillEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["formFillId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("formFillId"), Index("documentId")],
+)
+data class FormFieldEntity(
+    @PrimaryKey val id: String,
+    val formFillId: String,
+    val documentId: String,
+    val page: Int,
+    val labelText: String,
+    val labelBox: String?,
+    val fillBox: String?,
+    val kind: String,
+    val section: String?,
+    val options: String?,
+    val dataKey: String?,
+    val role: String?,
+    val confidence: Float,
+    val value: String?,
+    val valueSource: String,
+    val profileId: String?,
+    val reviewState: String,
+    val required: Boolean,
+    val alreadyFilled: String?,
+    val reconfirm: Boolean,
+    val skipped: Boolean,
+    val orderIndex: Int,
+    val updatedAt: Long,
 )
 
 /**
@@ -121,51 +248,6 @@ data class DismissedEntityEntity(
     /** Normalised (trimmed, lower-cased) — see `EntityProfileLinker.normalise`. */
     val entityName: String,
     val dismissedAt: Long,
-)
-
-/**
- * A recognised entity [EntityLinkingUseCase] would not act on automatically, persisted so the
- * question survives past the process that discovered it — see `EntityProposalService` and
- * `EntityProposal` in `:core:model`.
- *
- * Keyed by a generated [id] rather than (documentId, entityNameKey) directly, because
- * accepting or dismissing needs to name one row. The uniqueness that stops reprocessing from
- * duplicating a still-pending proposal is enforced instead by the index on
- * (documentId, entityNameKey), combined with `OnConflictStrategy.IGNORE` on insert — the
- * conflicting insert (including its freshly generated id) is dropped, so the original row the
- * UI may already be showing keeps its id.
- */
-@Entity(
-    tableName = "entity_proposals",
-    foreignKeys = [
-        ForeignKey(
-            entity = DocumentEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["documentId"],
-            onDelete = ForeignKey.CASCADE,
-        ),
-    ],
-    indices = [Index(value = ["documentId", "entityNameKey"], unique = true)],
-)
-data class EntityProposalEntity(
-    @PrimaryKey val id: String,
-    val documentId: String,
-    val entityName: String,
-    /** Normalised (trimmed, lower-cased) — see `EntityProfileLinker.normalise`. */
-    val entityNameKey: String,
-    /** `EntityKind` name. */
-    val kind: String,
-    /** `EntityRole` name — what the entity was doing in the document. */
-    val entityRole: String,
-    val relation: String,
-    /** `ProfileRole` name — what this would be linked as if accepted. */
-    val role: String,
-    /** `ProfileType` name. */
-    val profileType: String,
-    val organization: String?,
-    val existingProfileId: String?,
-    val confidence: Float,
-    val createdAt: Long,
 )
 
 @Entity(
@@ -225,8 +307,21 @@ data class ExtractedDataEntity(
     val machineConfidence: Float? = null,
     val deletedByUser: Boolean = false,
     val hasUnreviewedMachineChange: Boolean = false,
+    /** The extractor version of this row (the "extractorVersion" of the v2 design). */
     val engineVersion: String? = null,
     val updatedAt: Long = 0L,
+    /** See [com.postsaimanager.core.model.ExtractedData.slotKey] and the fields after it. */
+    val slotKey: String? = null,
+    val role: String? = null,
+    val origin: String? = null,
+    val aiConfidence: Float? = null,
+    val evidence: String? = null,
+    /** JSON of a `TextBounds`. */
+    val bbox: String? = null,
+    /** `UNREVIEWED`, `CONFIRMED`, `EDITED` or `IGNORED`; see `ReviewState`. Kept in step with [isConfirmed] and [deletedByUser]. */
+    val reviewState: String = "UNREVIEWED",
+    /** JSON list of `FieldAlternative`. */
+    val alternatives: String? = null,
 )
 
 /**
@@ -281,6 +376,9 @@ data class TimelineEventEntity(
     val referenceId: String?,
     val referenceType: String?,
     val createdAt: Long,
+    /** See [com.postsaimanager.core.model.TimelineEvent.code]; [args] is a JSON list of strings. */
+    val code: String? = null,
+    val args: String? = null,
 )
 
 @Entity(tableName = "tags")

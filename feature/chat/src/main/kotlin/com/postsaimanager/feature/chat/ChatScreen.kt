@@ -86,10 +86,13 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.designsystem.component.MarkdownText
+import com.postsaimanager.core.designsystem.component.PagePreviewDialog
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.model.FormMessageKind
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -119,6 +122,13 @@ fun ChatScreen(
     val modelSheetState by viewModel.modelSheetState.collectAsStateWithLifecycle()
     val suggestedQuestions by viewModel.suggestedQuestions.collectAsStateWithLifecycle()
     val preview by viewModel.preview.collectAsStateWithLifecycle()
+    val fillCard by viewModel.fillCard.collectAsStateWithLifecycle()
+    val searchModelHintVisible by viewModel.searchModelHintVisible.collectAsStateWithLifecycle()
+    // Coming back from the models screen: the search model may be installed by now.
+    LifecycleResumeEffect(viewModel) {
+        viewModel.refreshSearchModelHint()
+        onPauseOrDispose {}
+    }
     var inputText by rememberSaveable { mutableStateOf("") }
     var showModelSheet by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -194,12 +204,21 @@ fun ChatScreen(
     // Layered over the chat, not navigated to: the transcript (and `listState`) underneath
     // stays composed, so closing returns to exactly where the user was reading.
     preview?.let { state ->
-        CitationPreviewDialog(
-            state = state,
+        PagePreviewDialog(
+            title = state.source.title,
+            preview = state.preview,
+            loading = state.loading,
+            initialPageIndex = state.initialPageIndex,
             onClose = viewModel::closePreview,
-            onOpenDocument = { source ->
+            onOpenDocument = { pageNumber ->
                 viewModel.closePreview()
-                onSourceClick(source)
+                onSourceClick(
+                    state.source.copy(
+                        documentId = state.preview?.documentId ?: state.source.documentId,
+                        pageNumber = pageNumber,
+                        title = state.preview?.title ?: state.source.title,
+                    ),
+                )
             },
         )
     }
@@ -237,6 +256,16 @@ fun ChatScreen(
             )
         },
         bottomBar = {
+          Column {
+            if (searchModelHintVisible) {
+                SearchModelHintBar(
+                    onInstall = {
+                        viewModel.dismissSearchModelHint()
+                        onManageModelsClick()
+                    },
+                    onDismiss = viewModel::dismissSearchModelHint,
+                )
+            }
             ChatInputBar(
                 value = inputText,
                 onValueChange = { inputText = it },
@@ -251,6 +280,7 @@ fun ChatScreen(
                 isGenerating = uiState.isProcessing,
                 onStop = viewModel::stopGeneration,
             )
+          }
         },
         modifier = modifier.imePadding(),
     ) { innerPadding ->
@@ -286,8 +316,8 @@ fun ChatScreen(
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 5.2: starter questions this app's own data can actually answer — see
-                // ChatViewModel.suggestedQuestions / SuggestedChatQuestions.
+                // 5.2: starter questions the model wrote for the document — see
+                // ChatViewModel.suggestedQuestions / ObserveSuggestedQuestionsUseCase.
                 suggestedQuestions.forEach { suggestion ->
                     Surface(
                         onClick = {
@@ -375,12 +405,32 @@ fun ChatScreen(
                     // 5.1: regenerate is offered only on the LATEST assistant reply — a
                     // finished one, not the live streaming bubble (a separate item above,
                     // never part of `uiState.messages` until it is persisted and reloaded).
-                    val latestAssistantId = uiState.messages.lastOrNull { !it.isUser }?.id
+                    val latestAssistantId = uiState.messages.lastOrNull { !it.isUser && it.form == null }?.id
+                    // The form conversation: only the newest card is shown in full, and only the open question's chips are live.
+                    val latestCardId = uiState.messages.lastOrNull { it.form?.kind == FormMessageKind.CARD }?.id
+                    // The one pending question: the newest of what waits for an answer (a question, a status line with chips) or was an
+                    // answer (the user's message). A question or Continue / Start over that something came after is stale: disabled.
+                    val pendingChipsId = uiState.messages.lastOrNull { isPendingChipsMessage(it) }?.id
 
                     items(
                         uiState.messages.asReversed(),
                         key = { it.id.ifEmpty { it.timestamp.toString() } },
                     ) { message ->
+                        val form = message.form
+                        if (form != null) {
+                            FormMessageItem(
+                                message = message,
+                                form = form,
+                                fillCard = fillCard,
+                                isLatestCard = message.id == latestCardId,
+                                chipsEnabled = message.id == pendingChipsId && !uiState.isProcessing,
+                                onChip = viewModel::onFormChip,
+                                onShowOnPage = viewModel::openFieldPreview,
+                                onCopy = ::copyToClipboard,
+                                onOpenModels = onManageModelsClick,
+                            )
+                            return@items
+                        }
                         ChatBubble(
                             message = message,
                             documentChat = documentId != null,

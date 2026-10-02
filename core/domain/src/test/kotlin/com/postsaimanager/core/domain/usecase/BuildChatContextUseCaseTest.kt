@@ -72,6 +72,30 @@ class BuildChatContextUseCaseTest {
         }
 
         @Test
+        fun `the title list leaves out health letters and trashed documents`() = runTest {
+            documents.seed(
+                testDocument(id = "a", title = "Stromrechnung", extractionType = "bill"),
+                testDocument(id = "b", title = "Befund Hausarzt", extractionType = "health"),
+                testDocument(id = "c", title = "Alte Mahnung", deletedAt = 1L),
+            )
+
+            val prompt = useCase(documentId = null, contextTokens = 4096).text
+
+            assertThat(prompt).contains("Stromrechnung")
+            assertThat(prompt).doesNotContain("Befund Hausarzt")
+            assertThat(prompt).doesNotContain("Alte Mahnung")
+        }
+
+        @Test
+        fun `a health letter is fully grounded in its own document chat`() = runTest {
+            documents.seed(testDocument(id = "b", title = "Befund Hausarzt", extractionType = "health"))
+
+            val prompt = useCase(documentId = "b", contextTokens = 4096).text
+
+            assertThat(prompt).contains("Befund Hausarzt")
+        }
+
+        @Test
         @DisplayName("a missing document does not enter retrieval mode — nothing to retrieve")
         fun `a missing document is not retrieval mode`() = runTest {
             val context = useCase(documentId = "missing", contextTokens = 4096)

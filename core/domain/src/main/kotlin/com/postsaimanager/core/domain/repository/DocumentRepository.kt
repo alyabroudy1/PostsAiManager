@@ -5,6 +5,7 @@ import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.TimelineEvent
 import kotlinx.coroutines.flow.Flow
 
@@ -22,18 +23,47 @@ interface DocumentRepository {
     suspend fun createDocument(document: Document, pages: List<DocumentPage>): PamResult<Document>
     suspend fun updateDocument(document: Document): PamResult<Unit>
     suspend fun toggleFavorite(id: String): PamResult<Unit>
+
+    /**
+     * A person renames [id]: the title becomes [title] (trimmed; a blank one changes nothing) and is
+     * marked as theirs (`isUserTitle`), so extraction never replaces it; a default title's code is
+     * cleared, since the words are now real. One targeted write, so it cannot lose a race with
+     * processing the way a whole-document update could.
+     */
+    suspend fun renameDocument(id: String, title: String): PamResult<Unit>
     suspend fun updateDocumentStatus(id: String, status: DocumentStatus): PamResult<Unit>
     suspend fun confirmExtractedField(fieldId: String): PamResult<Unit>
 
     /**
      * Confirms every field of [documentId] that is not already confirmed and has not been
-     * user-deleted, in one batched write rather than one [confirmExtractedField] call per
+     * user-deleted (with [onlyConfident], only those that do not need review: the "Confirm n
+     * confident" button), in one batched write rather than one [confirmExtractedField] call per
      * field (5.3) — see `DocumentRepositoryImpl` for how that batching is done.
      *
      * @return the confirmed fields exactly as they were *before* confirming — nothing but a
      *   caller passing this list straight back to [restoreExtractedFields] undoes the action.
      */
-    suspend fun confirmAllExtractedFields(documentId: String): PamResult<List<ExtractedData>>
+    suspend fun confirmAllExtractedFields(documentId: String, onlyConfident: Boolean = false): PamResult<List<ExtractedData>>
+
+    /**
+     * Sets a field's review state: [ReviewState.CONFIRMED] adopts the stored value,
+     * [ReviewState.IGNORED] tombstones it (a re-read never brings it back) and
+     * [ReviewState.UNREVIEWED] restores an ignored or confirmed field to "nobody has looked". The
+     * legacy `isConfirmed` and `deletedByUser` columns are written in step. An unknown id is an error.
+     *
+     * [ReviewState.EDITED] is rejected: an edit carries a new value and its revision, so it goes through
+     * [updateExtractedField].
+     */
+    suspend fun setFieldReviewState(fieldId: String, state: ReviewState): PamResult<Unit>
+
+    /**
+     * A person chose the family of [documentId] ("Change type"): it is stored as the document's
+     * extraction type with `familySource = USER`, so a re-read keeps it. Topics are left as they are.
+     */
+    suspend fun setDocumentFamily(documentId: String, familyId: String): PamResult<Unit>
+
+    /** A person wrote the summary of [documentId]: stored with `summarySource = USER`, never replaced by a re-read. */
+    suspend fun updateSummary(documentId: String, text: String): PamResult<Unit>
 
     /**
      * Writes [fields] back verbatim — the undo half of [confirmAllExtractedFields]. Cheap:
@@ -50,6 +80,16 @@ interface DocumentRepository {
     fun observeDocument(id: String): Flow<Document?>
     fun observePages(documentId: String): Flow<List<DocumentPage>>
     fun observeExtractedData(documentId: String): Flow<List<ExtractedData>>
+
+    /**
+     * The fields of every non-trashed document, grouped by document id, in one query: what a list
+     * row needs (who, when, how much, which need review) without one read per row. Only the columns
+     * a row reads are filled (no evidence, no bounds); a document without fields has no entry.
+     */
+    fun observeListFields(): Flow<Map<String, List<ExtractedData>>>
+
+    /** The image path of page 1 of every non-trashed document that has a page, by document id. */
+    fun observeFirstPagePaths(): Flow<Map<String, String>>
 
     // ── Trash — see documentation/07-document-pipeline.md, "Deleting documents" ──
 

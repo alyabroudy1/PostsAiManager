@@ -1,5 +1,10 @@
 package com.postsaimanager.feature.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,12 +35,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.designsystem.component.ConfigSpecItem
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.model.AppLockTimeouts
 import com.postsaimanager.core.model.AppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,6 +58,10 @@ fun SettingsScreen(
     val inferenceSettings by viewModel.inferenceSettings.collectAsStateWithLifecycle()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showLockTimeoutDialog by remember { mutableStateOf(false) }
+    var showOpenSourceDialog by remember { mutableStateOf(false) }
+    val appLockNotice by viewModel.appLockNotice.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = { PamTopAppBar(title = "Settings") },
@@ -129,6 +141,13 @@ fun SettingsScreen(
                 checked = prefs.autoProcessAfterScan,
                 onCheckedChange = viewModel::setAutoProcess,
             )
+            SettingsSwitchItem(
+                icon = PamIcons.AiModel,
+                title = stringResource(R.string.settings_update_older_title),
+                subtitle = stringResource(R.string.settings_update_older_subtitle),
+                checked = prefs.updateOlderLettersAutomatically,
+                onCheckedChange = viewModel::setUpdateOlderLettersAutomatically,
+            )
             SettingsClickItem(
                 icon = PamIcons.Delete,
                 title = "Recently deleted",
@@ -142,11 +161,19 @@ fun SettingsScreen(
             SettingsSectionHeader("Security")
             SettingsSwitchItem(
                 icon = PamIcons.Settings,
-                title = "Biometric lock",
-                subtitle = "Require fingerprint or face to open app",
+                title = stringResource(R.string.settings_app_lock_title),
+                subtitle = stringResource(R.string.settings_app_lock_subtitle),
                 checked = prefs.biometricEnabled,
                 onCheckedChange = viewModel::setBiometricEnabled,
             )
+            if (prefs.biometricEnabled) {
+                SettingsClickItem(
+                    icon = PamIcons.Settings,
+                    title = stringResource(R.string.settings_lock_after_title),
+                    subtitle = lockTimeoutLabel(context, prefs.appLockTimeoutMinutes),
+                    onClick = { showLockTimeoutDialog = true },
+                )
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -167,8 +194,16 @@ fun SettingsScreen(
             SettingsClickItem(
                 icon = PamIcons.Settings,
                 title = "Version",
-                subtitle = "1.0.0 (Phase 1)",
+                subtitle = remember(context) {
+                    runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
+                },
                 onClick = {},
+            )
+            SettingsClickItem(
+                icon = PamIcons.Settings,
+                title = stringResource(R.string.settings_open_source_title),
+                subtitle = stringResource(R.string.settings_open_source_subtitle),
+                onClick = { showOpenSourceDialog = true },
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -191,6 +226,72 @@ fun SettingsScreen(
         )
     }
 
+    if (showOpenSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showOpenSourceDialog = false },
+            title = { Text(stringResource(R.string.settings_open_source_title)) },
+            text = {
+                Text(
+                    stringResource(R.string.settings_address_data_attribution),
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showOpenSourceDialog = false }) { Text(stringResource(R.string.settings_ok)) }
+            },
+        )
+    }
+
+    if (showLockTimeoutDialog) {
+        val options = AppLockTimeouts.OPTIONS_MINUTES
+        ChoiceDialog(
+            title = stringResource(R.string.settings_lock_after_title),
+            options = options.map { lockTimeoutLabel(context, it) },
+            selectedIndex = options.indexOf(prefs.appLockTimeoutMinutes).coerceAtLeast(0),
+            onSelect = { index ->
+                viewModel.setAppLockTimeoutMinutes(options[index])
+                showLockTimeoutDialog = false
+            },
+            onDismiss = { showLockTimeoutDialog = false },
+        )
+    }
+
+    appLockNotice?.let { notice ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissAppLockNotice,
+            title = { Text(stringResource(R.string.settings_app_lock_notice_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        when (notice) {
+                            AppLockNotice.NotEnrolled -> R.string.settings_app_lock_not_enrolled
+                            AppLockNotice.Unavailable -> R.string.settings_app_lock_unavailable
+                            AppLockNotice.AuthenticationFailed -> R.string.settings_app_lock_auth_failed
+                        },
+                    ),
+                )
+            },
+            confirmButton = {
+                if (notice == AppLockNotice.NotEnrolled) {
+                    TextButton(
+                        onClick = {
+                            viewModel.dismissAppLockNotice()
+                            viewModel.onOpeningSecuritySettings()
+                            if (!openSecuritySettings(context)) viewModel.onSecuritySettingsLaunchFailed()
+                        },
+                    ) { Text(stringResource(R.string.settings_open_security_settings)) }
+                } else {
+                    TextButton(onClick = viewModel::dismissAppLockNotice) { Text(stringResource(R.string.settings_ok)) }
+                }
+            },
+            dismissButton = if (notice == AppLockNotice.NotEnrolled) {
+                { TextButton(onClick = viewModel::dismissAppLockNotice) { Text(stringResource(R.string.settings_not_now)) } }
+            } else {
+                null
+            },
+        )
+    }
+
     // Language dialog
     if (showLanguageDialog) {
         val languages = listOf("German" to "de", "Arabic" to "ar", "English" to "en")
@@ -205,6 +306,46 @@ fun SettingsScreen(
             onDismiss = { showLanguageDialog = false },
         )
     }
+}
+
+private const val BIOMETRIC_STRONG_OR_DEVICE_CREDENTIAL = 0x0000000F or 0x00008000
+
+private fun lockTimeoutLabel(context: Context, minutes: Int): String =
+    if (minutes == 0) {
+        context.getString(R.string.settings_lock_immediately)
+    } else {
+        context.resources.getQuantityString(R.plurals.settings_lock_after_minutes, minutes, minutes)
+    }
+
+/**
+ * Sends the user to where a screen lock or biometric can be set up. Android 11+ has a direct
+ * enrolment screen; older versions get the general security page, and a device with neither
+ * (rare OEM builds) falls back to the top-level settings rather than doing nothing.
+ */
+private fun openSecuritySettings(context: Context): Boolean {
+    val intents = buildList {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            add(
+                Intent(Settings.ACTION_BIOMETRIC_ENROLL).putExtra(
+                    Settings.EXTRA_BIOMETRIC_AUTHENTICATORS_ALLOWED,
+                    // BiometricManager.Authenticators.BIOMETRIC_STRONG | DEVICE_CREDENTIAL,
+                    // spelled out so this module needs no androidx.biometric dependency.
+                    BIOMETRIC_STRONG_OR_DEVICE_CREDENTIAL,
+                ),
+            )
+        }
+        add(Intent(Settings.ACTION_SECURITY_SETTINGS))
+        add(Intent(Settings.ACTION_SETTINGS))
+    }
+    for (intent in intents) {
+        try {
+            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return true
+        } catch (_: ActivityNotFoundException) {
+            // Try the next, more general, screen.
+        }
+    }
+    return false
 }
 
 @Composable
