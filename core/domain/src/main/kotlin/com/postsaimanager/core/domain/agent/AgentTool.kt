@@ -30,6 +30,9 @@ interface AgentTool {
     /** True when a successful call hands the conversation back to the user (the reply comes back as the next user message). */
     val endsTurn: Boolean get() = false
 
+    /** The arguments as stored and run: a tool may rewrite what is plainly an internal reference into what the user is shown (default: unchanged). */
+    suspend fun normalize(args: JsonObject): JsonObject = args
+
     suspend fun execute(args: JsonObject, context: AgentContext): ToolResult
 }
 

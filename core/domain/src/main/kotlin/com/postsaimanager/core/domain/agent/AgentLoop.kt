@@ -136,7 +136,7 @@ class AgentLoop(
             val parsed = format.parse(reply, tools)
             if (parsed is ParsedCall.Invalid) {
                 model.discard()
-                trace.step(AgentStepTrace(turn, steps, "-", emptyList(), "unreadable", "unreadable", modelMs, 0, contextTokens, rebuilt))
+                trace.step(AgentStepTrace(turn, steps, "-", emptyList(), "unreadable", "unreadable", modelMs, 0, contextTokens, rebuilt, toolsNow = exposed))
                 if (++unreadable > profile.maxInvalidRetries) return AgentOutcome.Failed("the model's reply was not a tool call: ${parsed.reason}")
                 correction = "That was not a valid tool call (${parsed.reason}). Reply with exactly one tool call."
                 continue
@@ -146,8 +146,8 @@ class AgentLoop(
             correction = null
             unreadable = 0
 
-            val call = AgentEntry.Call(newId(), parsed.name, parsed.args)
             val tool = spec.tools[parsed.name]
+            val call = AgentEntry.Call(newId(), parsed.name, tool?.normalize(parsed.args) ?: parsed.args)
             val invalid = tool?.let { ArgumentValidator.validate(it.parameters, call.args) }
             val toolStart = now()
             var result = if (narrowed && parsed.name !in exposed) {
@@ -169,6 +169,7 @@ class AgentLoop(
                     },
                     outcome = if (ends) "ended_turn" else if (result.ok) "ok" else "error",
                     modelMs = modelMs, toolMs = toolMs, contextTokens = contextTokens, rebuilt = rebuilt, note = spec.traceNote(call),
+                    toolsNow = exposed,
                     reason = if (result.ok) null else result.errorMessage,
                 ),
             )

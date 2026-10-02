@@ -15,6 +15,7 @@ package com.postsaimanager.core.domain.agent
  * @property contextTokens a rough size of the standing session after the step (system prompt and conversation).
  * @property rebuilt whether the session had to be (re)built for this step.
  * @property note an optional feature remark for the log, such as the question of an ask (see [AgentSpec.traceNote]).
+ * @property toolsNow the tools the model could call at this step (the step's exposed subset).
  * @property reason the error result's reason when the step failed (the log keeps its first characters, see [shortReason]).
  */
 data class AgentStepTrace(
@@ -30,10 +31,12 @@ data class AgentStepTrace(
     val rebuilt: Boolean,
     val note: String? = null,
     val reason: String? = null,
+    val toolsNow: List<String>? = null,
 ) {
     fun line(): String = buildString {
         append("turn=$turn step=$step tool=$tool args=${argKeys.joinToString(",").ifEmpty { "-" }} valid=$validation outcome=$outcome")
         append(" model_ms=$modelMs tool_ms=$toolMs ctx_tokens~=$contextTokens rebuilt=${if (rebuilt) "yes" else "no"}")
+        toolsNow?.let { append(" tools_now=[${it.joinToString("|")}]") }
         note?.let { append(" $it") }
         reason?.let { append(" reason=\"${shortReason(it)}\"") }
     }
