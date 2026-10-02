@@ -46,3 +46,22 @@ object WritingScript {
         return counts.maxByOrNull { it.value }?.key
     }
 }
+
+/**
+ * A small data list of English function words, used only as a NEGATIVE signal: a question made mostly of them, with no word the form's
+ * own text has, is plainly English on a form that is not (a model that slipped into English). It never decides what a text means, and a
+ * question with any word of the form is never refused on its account. Words that are also common in German ("an", "in", "was", "will") are left out.
+ */
+object EnglishFunctionWords {
+    /** The language code the list belongs to: a form in it is never refused for English words. */
+    const val LANGUAGE = "en"
+
+    val WORDS: Set<String> = setOf(
+        "the", "is", "are", "were", "who", "what", "which", "when", "where", "why", "how", "for", "of", "to", "this", "that", "these",
+        "those", "and", "or", "please", "tell", "me", "you", "your", "do", "does", "did", "have", "has", "can", "could", "would",
+        "should", "it", "be", "with", "from", "my", "his", "her", "their", "there", "here", "not", "if", "about", "on", "at", "by", "any",
+    )
+
+    /** Whether at least half of [words] are English function words. */
+    fun mostlyEnglish(words: List<String>): Boolean = words.isNotEmpty() && words.count { it in WORDS } * 2 >= words.size
+}

@@ -15,6 +15,12 @@ interface FormWording {
     /** The chip for "somebody who is not stored" in [language]. */
     fun someoneElse(language: Locale): String
 
+    /** The chip for "the user themself" in [language] ("Ich"). */
+    fun me(language: Locale): String = "Me"
+
+    /** A short question asking for a person's name in [language] ("Wie heißt die Person?"): the model's example when it keeps asking the wrong thing. */
+    fun personNameQuestion(language: Locale): String = "What is the person's name?"
+
     /** English words, for tests and as the fallback. */
     object English : FormWording {
         override fun roleName(role: FormRole, language: Locale): String = when (role) {

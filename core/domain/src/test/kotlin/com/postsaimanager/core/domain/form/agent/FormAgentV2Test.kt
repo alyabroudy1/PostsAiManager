@@ -196,8 +196,7 @@ class FormAgentV2Test {
 
         // Turn 5: the next role, the payer, is a stored person: filled from them, then the run goes on with the open fields.
         h.model.reply(h.call("fill_from_profile", "person_id" to "p1", "role" to "payer"))
-        // A German question that uses none of the form's words is refused once by the language check; repeated unchanged, it goes through.
-        h.model.reply(h.ask("Möchten Sie noch etwas ändern?"))
+        // A German question that uses none of the form's words is not English, so the language check lets it through at once.
         h.model.reply(h.ask("Möchten Sie noch etwas ändern?"))
         h.agent.chip("doc", chip("Me"), "Me")
 

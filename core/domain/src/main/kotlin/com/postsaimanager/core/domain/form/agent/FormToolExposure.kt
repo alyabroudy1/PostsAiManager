@@ -24,6 +24,9 @@ enum class FormStage {
     /** A role has open fields and no person: the user has to say who it is (or leave it). */
     ROLE_NEEDS_PERSON,
 
+    /** The user chose "someone else" (or "Me" without a profile of their own) for a role: the next step is to ask for the name. */
+    ROLE_NAME_NEEDED,
+
     /** The user typed who has the role (somebody who is not stored): the typed text goes into its name fields. */
     ROLE_TYPED,
 
@@ -38,7 +41,7 @@ enum class FormStage {
         fun of(situation: RoleSituation, anyOpen: Boolean): FormStage = when (situation) {
             is RoleSituation.Ready -> if (situation.fromAnswer) ROLE_ANSWERED else ROLE_READY
             RoleSituation.SubjectUnknown -> SUBJECT_UNKNOWN
-            is RoleSituation.NeedsPerson -> ROLE_NEEDS_PERSON
+            is RoleSituation.NeedsPerson -> if (situation.someoneElse) ROLE_NAME_NEEDED else ROLE_NEEDS_PERSON
             is RoleSituation.Typed -> ROLE_TYPED
             RoleSituation.None -> if (anyOpen) OPEN_FIELDS else NOTHING_OPEN
         }
@@ -78,6 +81,7 @@ class ToolPolicy(private val table: Map<FormStage, List<String>> = DEFAULT) {
             FormStage.ROLE_READY to listOf(FillFromProfileTool.NAME, AskUserTool.NAME),
             FormStage.ROLE_ANSWERED to listOf(FillFromProfileTool.NAME),
             FormStage.ROLE_NEEDS_PERSON to listOf(AskUserTool.NAME, SkipFieldTool.NAME),
+            FormStage.ROLE_NAME_NEEDED to listOf(AskUserTool.NAME, SkipFieldTool.NAME),
             FormStage.ROLE_TYPED to listOf(FillFieldTool.NAME, SkipFieldTool.NAME, AskUserTool.NAME),
             FormStage.OPEN_FIELDS to listOf(AskUserTool.NAME, FillFieldTool.NAME, SkipFieldTool.NAME, ShowOnPageTool.NAME),
             FormStage.NOTHING_OPEN to listOf(ShowFillCardTool.NAME, ShowOnPageTool.NAME, FinishTool.NAME),

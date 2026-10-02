@@ -8,4 +8,6 @@
     <string name="form_role_emergency_contact">جهة الاتصال في الطوارئ</string>
     <string name="form_role_other">شخص آخر</string>
     <string name="form_someone_else">شخص آخر غير مذكور</string>
+    <string name="form_me">أنا</string>
+    <string name="form_person_name_question">ما اسم الشخص؟</string>
 </resources>

@@ -60,6 +60,18 @@ class FormToolEnv(
     /** The language the form is in: the document's stored language, else [locale]. The agent writes its questions in it. */
     suspend fun formLanguage(): Locale = reader.documentLanguage(documentId) ?: locale()
 
+    private var ocrWordsCache: Set<String>? = null
+
+    /**
+     * The words of the document's stored OCR text (folded, three letters or more), read once per run: the vocabulary of the form's own
+     * language, which a question written in that language shares words with.
+     */
+    suspend fun ocrWords(): Set<String> = ocrWordsCache ?: Regex("[\\p{L}\\p{N}]{3,}")
+        .findAll(FormRefs.fold(reader.ocrText(documentId))).map { it.value }.toSet().also { ocrWordsCache = it }
+
+    /** The managed person who is the user ("Me"), if the profiles have one. */
+    suspend fun selfPerson(): Profile? = managed().firstOrNull { it.isSelf }
+
     /** "Me": whose city answers a "place of signing" field. */
     suspend fun selfId(): String? = profiles.getProfiles().first().firstOrNull { it.isSelf }?.id
 }

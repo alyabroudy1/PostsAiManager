@@ -30,6 +30,10 @@ class AndroidFormWording @Inject constructor(@ApplicationContext private val con
 
     override fun someoneElse(language: Locale): String = text(language).getString(R.string.form_someone_else)
 
+    override fun me(language: Locale): String = text(language).getString(R.string.form_me)
+
+    override fun personNameQuestion(language: Locale): String = text(language).getString(R.string.form_person_name_question)
+
     private fun text(language: Locale): Context =
         context.createConfigurationContext(Configuration(context.resources.configuration).apply { setLocale(language) })
 }

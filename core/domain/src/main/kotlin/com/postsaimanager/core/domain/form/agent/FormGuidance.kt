@@ -89,8 +89,20 @@ class FormGuidance(private val env: FormToolEnv, private val policy: ToolPolicy 
             chip?.let { put("matched_chip", it) }
             person?.let { put("matched_person", FormRefs.personAlias(people, it)) }
             if (candidates.isNotEmpty()) put("candidates", candidates.joinToString(", ") { it.name })
+            nameNeeded(UserReply(text, call))?.let { put("note", it) }
         }
         return ToolResult.ok(data).with("state", state(UserReply(text, call), answerForFields = true))
+    }
+
+    /**
+     * What the model is told, plainly, when [reply] chose "someone else" for a role (the stage ROLE_NAME_NEEDED): the user will give the
+     * name, so the next step is asking for it, not asking who it is again. Null in every other situation.
+     */
+    suspend fun nameNeeded(reply: UserReply): String? {
+        val fields = env.fields()
+        val situation = roleSituation(fields, reply) as? RoleSituation.NeedsPerson ?: return null
+        if (!situation.someoneElse) return null
+        return "The user will give the name of the \"${env.roles.nameIn(fields, situation.role)}\" person. Ask for their name now (no chips)."
     }
 
     /**
@@ -109,7 +121,9 @@ class FormGuidance(private val env: FormToolEnv, private val policy: ToolPolicy 
         // Somebody who is not stored: the "someone else" chip asks for a name; a name typed after the question names them. For the
         // subject this only reads a reply to a question that offered people (the who-question), and not one that names several of them.
         if (reply != null && reply.asked != null && answered == null && ambiguousPeople(reply.text).isEmpty() && (role != FormRole.SUBJECT || offeredPeople(reply.asked, people))) {
-            if (fold(reply.text) == fold(env.roles.someoneElse())) return RoleSituation.NeedsPerson(role, someoneElse = true)
+            // "Me" with no profile of the user is somebody who is not stored too (with a profile it matched a person above).
+            val answer = fold(reply.text)
+            if (answer == fold(env.roles.someoneElse()) || answer == fold(env.roles.me())) return RoleSituation.NeedsPerson(role, someoneElse = true)
             if (!reply.isChipOfQuestion()) {
                 val nameFields = FormRefs.ordered(FormRefs.open(fields).filter { it.role == role && it.dataKey?.let(FormDataKeys::of)?.valueKind == FormValueKind.NAME })
                 return RoleSituation.Typed(role, nameFields.ifEmpty { FormRefs.open(fields).filter { it.role == role } }, reply.text)
@@ -131,6 +145,8 @@ class FormGuidance(private val env: FormToolEnv, private val policy: ToolPolicy 
         if (answer.isEmpty()) return null
         val people = env.managed()
         people.filter { fold(it.name) == answer }.let { exact -> if (exact.isNotEmpty()) return exact.singleOrNull() }
+        // The chip for the user themself ("Ich") names the profile of the user, whatever its name.
+        if (answer == fold(env.roles.me())) env.selfPerson()?.let { return it }
         return wordMatches(answer, people).singleOrNull()
     }
 

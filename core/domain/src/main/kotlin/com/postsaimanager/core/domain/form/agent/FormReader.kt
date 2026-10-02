@@ -163,6 +163,9 @@ class FormReader(
     private suspend fun lastProgress(documentId: String): AiMessage? = log.messages(documentId)
         .lastOrNull { FormMessageCodec.parse(it)?.let { m -> m.kind == FormMessageKind.STATUS && m.text == FormText.UNDERSTANDING } == true }
 
+    /** The stored OCR text of every page of the document, one block per line (what the form's own vocabulary is read from). */
+    suspend fun ocrText(documentId: String): String = pagesOf(documentId).flatten().joinToString("\n") { it.text }
+
     private suspend fun pagesOf(documentId: String): List<List<OcrBlock>> =
         (documents.getDocumentPages(documentId) as? PamResult.Success)?.data?.sortedBy { it.pageNumber }?.map { it.ocrBlocks }.orEmpty()
 

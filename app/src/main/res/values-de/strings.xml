@@ -8,4 +8,6 @@
     <string name="form_role_emergency_contact">Notfallkontakt</string>
     <string name="form_role_other">Weitere Person</string>
     <string name="form_someone_else">Jemand anderes</string>
+    <string name="form_me">Ich</string>
+    <string name="form_person_name_question">Wie heißt die Person?</string>
 </resources>

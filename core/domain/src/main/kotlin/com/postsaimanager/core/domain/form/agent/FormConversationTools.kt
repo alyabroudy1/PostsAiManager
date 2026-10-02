@@ -53,6 +53,7 @@ class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidan
         }
         wrongScript(question, context)?.let { return ToolResult.error(it) }
         wrongLanguage(question, context)?.let { return ToolResult.error(it) }
+        roleNameStep(question, chips, context)?.let { return ToolResult.error(it) }
         guard.check(question, chips)?.let { return ToolResult.error(it) }
         alreadyAnswered(question, chips, context)?.let { answer ->
             val suggestion = guidance.suggestionFor(UserReply.of(context))
@@ -62,21 +63,44 @@ class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidan
     }
 
     /**
-     * An error when a question of three or more words shares no word with the form (its labels, headings and printed options) while being in
-     * the script of the form's language: a model that answers in English on a German form. Cheap and data-free; a question the model repeats
-     * unchanged after this refusal is let through (a legitimate question can simply use none of the form's words).
+     * An error when a question is plainly English on a form that is not: at least half of its words are English function words
+     * ([EnglishFunctionWords], a negative signal only) and none of its words is in the form's vocabulary (its labels, headings, printed
+     * options and the document's stored OCR text). A question that shares even one word with the form, or whose function words also
+     * occur in the OCR text, is in the form's language and passes. A question the model repeats unchanged after this refusal is let
+     * through.
      */
     private suspend fun wrongLanguage(question: String, context: AgentContext): String? {
         val language = env.formLanguage()
+        if (language.language == EnglishFunctionWords.LANGUAGE) return null
         if (WritingScript.dominant(question) != WritingScript.of(language)) return null
-        val words = wordsOf(question).filter { it.length >= MIN_WORD_CHARS }
-        if (words.size < MIN_QUESTION_WORDS) return null
+        val all = wordsOf(question).toList()
+        if (all.size < MIN_QUESTION_WORDS || !EnglishFunctionWords.mostlyEnglish(all)) return null
         val flat = FormRefs.flat(question)
         if (context.turnCalls.any { it.name == NAME && FormRefs.flat(it.args.string("question").orEmpty()) == flat }) return null
-        val vocabulary = env.fields().flatMap { listOfNotNull(it.labelText, it.section) + it.options }.flatMap(::wordsOf).filter { it.length >= MIN_WORD_CHARS }.toSet()
-        if (vocabulary.size < MIN_VOCABULARY || words.any { it in vocabulary }) return null
+        val vocabulary = env.fields().flatMap { listOfNotNull(it.labelText, it.section) + it.options }.flatMap(::wordsOf).filter { it.length >= MIN_WORD_CHARS }.toSet() +
+            env.ocrWords()
+        if (all.any { it in vocabulary }) return null
         val name = language.getDisplayLanguage(java.util.Locale.ENGLISH)
         return "the question is not written in $name: write it in $name"
+    }
+
+    /**
+     * The error for a model that, after the user chose "someone else" for a role, asks the role question again instead of the person's
+     * name: the question (or its chips) repeats the role question. A new question passes. The third time the result also carries the
+     * question to ask, in the form's language (still the model's call: it is only an example).
+     */
+    private suspend fun roleNameStep(question: String, chips: List<String>, context: AgentContext): String? {
+        val reply = UserReply.of(context) ?: return null
+        val asked = reply.asked ?: return null
+        val hint = guidance.nameNeeded(reply) ?: return null
+        val earlierChips = asked.args.strings("chips").orEmpty().map { it.lowercase() }.toSet()
+        val sameChips = chips.isNotEmpty() && (chips.map { it.lowercase() }.toSet() == earlierChips || chips.any { FormRefs.fold(it) == FormRefs.fold(env.roles.someoneElse()) })
+        val similar = jaccard(wordsOf(question), wordsOf(asked.args.string("question").orEmpty())) >= SAME_ROLE_QUESTION
+        if (!sameChips && !similar) return null
+        val repeats = context.turnCalls.count { it.name == NAME }
+        if (repeats < MAX_ROLE_REPEATS) return "already asked who it is: $hint"
+        val example = env.roles.personNameQuestion()
+        return "already asked who it is: $hint tools_now: ask_user. Ask: \"$example\" (in ${env.formLanguage().getDisplayLanguage(java.util.Locale.ENGLISH)}, no chips)"
     }
 
     /**
@@ -97,7 +121,10 @@ class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidan
      * (the answer did not name a person: asking again, with the people as chips, is what is needed).
      */
     private suspend fun alreadyAnswered(question: String, chips: List<String>, context: AgentContext): String? {
-        if (guidance.stage(env.fields(), UserReply.of(context)) == FormStage.SUBJECT_UNKNOWN) return null
+        // Nobody is registered as the subject yet, or the name of a role's person is what is asked now: a question that is not the role
+        // question again is a new one ([roleNameStep] already refused the repeats).
+        val stage = guidance.stage(env.fields(), UserReply.of(context))
+        if (stage == FormStage.SUBJECT_UNKNOWN || stage == FormStage.ROLE_NAME_NEEDED) return null
         return earlierAnswer(question, chips, context)
     }
 
@@ -133,7 +160,12 @@ class AskUserTool(private val env: FormToolEnv, private val guidance: FormGuidan
         private val ID_LIKE = Regex("(?i)[pf]\\d+")
         private const val MIN_WORD_CHARS = 3
         private const val MIN_QUESTION_WORDS = 3
-        private const val MIN_VOCABULARY = 5
+
+        /** How alike a question must be to the role question to count as asking it again. */
+        private const val SAME_ROLE_QUESTION = 0.6
+
+        /** After this many refused role questions in a turn, the result carries the question to ask. */
+        private const val MAX_ROLE_REPEATS = 2
 
         const val NAME = "ask_user"
         const val MAX_CHIPS = 6

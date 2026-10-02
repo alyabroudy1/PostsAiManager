@@ -9,6 +9,8 @@
     <string name="form_role_emergency_contact">Emergency contact</string>
     <string name="form_role_other">Other person</string>
     <string name="form_someone_else">Someone else</string>
+    <string name="form_me">Me</string>
+    <string name="form_person_name_question">What is the person\'s name?</string>
 
     <!-- App lock -->
     <string name="applock_locked_message">Locked</string>

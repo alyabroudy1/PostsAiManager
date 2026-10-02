@@ -22,12 +22,14 @@ class RoleWording(private val env: FormToolEnv) {
         val section = first?.section?.takeIf { it.isNotBlank() }
         val wholeSection = section != null && fields.filter { it.section == section }.all { it.role == role }
         val label = first?.labelText?.trim().orEmpty()
+        // A heading is used only when it is a short noun phrase: at most MAX_HEADING_WORDS words and not starting in lower case. A long one,
+        // or one that starts mid-sentence ("die gezogene Lastschrift einzulösen"), is a sentence fragment, not a person: the role field's
+        // own label ("Kontoinhaber/in") names the role.
+        val headingFits = wholeSection && wordCount(section!!) <= MAX_HEADING_WORDS && !section.trim().first().isLowerCase()
         return when {
-            // A long heading is often a sentence fragment, not a person: the role field's own label ("Kontoinhaber/in") names the role.
-            wholeSection && label.isNotEmpty() && wordCount(section!!) > MAX_HEADING_WORDS -> label
             // The heading says what the part is about, the first label names the person ("Zahlung per Lastschrift (Kontoinhaber)").
-            wholeSection && label.isNotEmpty() && FormRefs.flat(label) != FormRefs.flat(section!!) -> "${section!!.trim()} ($label)"
-            wholeSection -> section!!.trim()
+            headingFits && label.isNotEmpty() && FormRefs.flat(label) != FormRefs.flat(section!!) -> "${section!!.trim()} ($label)"
+            headingFits -> section!!.trim()
             label.isNotEmpty() -> label
             else -> env.wording.roleName(role, env.formLanguage())
         }
@@ -41,6 +43,12 @@ class RoleWording(private val env: FormToolEnv) {
 
     /** The chip for somebody who is not stored, in the form's language. */
     suspend fun someoneElse(): String = env.wording.someoneElse(env.formLanguage())
+
+    /** The chip for the user themself, in the form's language. */
+    suspend fun me(): String = env.wording.me(env.formLanguage())
+
+    /** A short question asking for a person's name, in the form's language (the example for a model that keeps asking about the role). */
+    suspend fun personNameQuestion(): String = env.wording.personNameQuestion(env.formLanguage())
 
     /** Whether [person] is a minor (younger than 18) on the day of the fill; false when the birth date is unknown. */
     fun isMinor(person: Profile): Boolean = FormRefs.ageOf(person, env.today())?.let { it < ADULT_AGE } ?: false
@@ -58,8 +66,8 @@ class RoleWording(private val env: FormToolEnv) {
     private fun wordCount(text: String): Int = text.trim().split(Regex("\\s+")).count { it.isNotEmpty() }
 
     companion object {
-        /** A section heading longer than this many words is not used as the name of a role while the role's field has a label. */
-        const val MAX_HEADING_WORDS = 4
+        /** A section heading longer than this many words is not used as the name of a role (the role field's own label is). */
+        const val MAX_HEADING_WORDS = 3
 
         const val ADULT_AGE = 18
 

@@ -112,6 +112,10 @@ class FormAgentTypedReplyTest {
                 h.exec("fill_from_profile", "person_id" to "p1", "role" to "subject")
                 h to listOf(start)
             }
+            FormStage.ROLE_NAME_NEEDED -> {
+                h.exec("fill_from_profile", "person_id" to "p1", "role" to "subject")
+                h to listOf(start, askCall("Wer ist die erziehungsberechtigte Person?", "Ahmad", "Someone else"), AgentEntry.UserText("Someone else"))
+            }
             FormStage.ROLE_TYPED -> {
                 h.exec("fill_from_profile", "person_id" to "p1", "role" to "subject")
                 h to listOf(start, askCall("Wer ist die erziehungsberechtigte Person?", "Ahmad", "Someone else"), AgentEntry.UserText("Erika Test"))
