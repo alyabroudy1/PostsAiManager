@@ -32,9 +32,10 @@ android {
 
     // Upload key: read from Gradle properties (~/.gradle/gradle.properties) or the environment.
     // Never commit these values. When any is missing, the release build stays unsigned.
+    // Trimmed: a value pasted into gradle.properties often carries trailing spaces, which would break the path.
     fun signingValue(name: String): String? =
-        (project.findProperty(name) as String?)?.takeIf { it.isNotBlank() }
-            ?: System.getenv(name)?.takeIf { it.isNotBlank() }
+        (project.findProperty(name) as String?)?.trim()?.takeIf { it.isNotEmpty() }
+            ?: System.getenv(name)?.trim()?.takeIf { it.isNotEmpty() }
 
     val uploadStoreFile = signingValue("PAM_UPLOAD_STORE_FILE")
     val uploadStorePassword = signingValue("PAM_UPLOAD_STORE_PASSWORD")
