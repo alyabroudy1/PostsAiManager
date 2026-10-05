@@ -11,26 +11,30 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import javax.inject.Inject
 
 /**
- * The downloads behind first-run setup: the recommended chat model and the search model, as one action.
+ * The downloads behind first-run setup: the reader model, the chosen chat model and the search model, as one action.
  *
  * Implemented over the existing download machinery (`ModelDownloadWorker`, `EmbeddingModelManager`, the catalog), so the
  * features never see it.
  */
 interface ModelSetupGateway {
-    /** What would be downloaded, and whether this phone can run it. */
+    /** The chat models on offer with how each suits this phone, and whether anything can be installed at all. */
     suspend fun offer(): SetupOffer
 
-    /** Both downloads' state, live. A chat model that finished downloading is registered as installed on the way. */
-    val progress: Flow<SetupProgress>
+    /**
+     * The downloads' state, live, when [chatModelId] is the chosen chat model. A model that finished downloading is registered as
+     * installed on the way; the chosen chat model also becomes the active chat model.
+     */
+    fun progress(chatModelId: String): Flow<SetupProgress>
 
     /**
-     * Enqueues what is not installed yet. [allowMetered] lets the download use mobile data; otherwise it waits for Wi-Fi.
+     * Enqueues what is not installed yet: the reader (once, also when it is the chosen model), the chosen chat model, the search model.
+     * [allowMetered] lets the download use mobile data; otherwise it waits for Wi-Fi.
      *
-     * @return false when the chat model has no verified download source.
+     * @return false when a model has no verified download source.
      */
-    suspend fun start(allowMetered: Boolean): Boolean
+    suspend fun start(chatModelId: String, allowMetered: Boolean): Boolean
 
-    /** Stops both downloads. The partial files stay, so a retry resumes. */
+    /** Stops all the downloads. The partial files stay, so a retry resumes. */
     fun cancel()
 }
 

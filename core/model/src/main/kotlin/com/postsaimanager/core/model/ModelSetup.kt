@@ -20,24 +20,29 @@ sealed interface SetupPartStatus {
 
 /** What first-run setup would download, for the screen to describe before the user agrees. */
 data class SetupOffer(
-    val chatModelName: String,
-    val chatModelBytes: Long,
-    val searchModelBytes: Long,
-    /** False when this phone cannot run the chat model (too little memory or storage, unsupported processor). */
+    /** The chat models to choose from, with how each suits this phone, and the one to check first. */
+    val recommendation: ChatModelRecommendation,
+    /** False when this phone cannot install even the reader (an unsupported processor, no way to download it). */
     val canInstallChatModel: Boolean,
 )
 
-/** Both downloads together. */
+/**
+ * The downloads together: the reader, the chosen chat model and the search model.
+ *
+ * @param reader the reader model; the same download as [chat] when the chosen chat model is the reader, so it defaults to [chat].
+ */
 data class SetupProgress(
     val chat: SetupPartStatus,
     val search: SetupPartStatus,
+    val reader: SetupPartStatus = chat,
 ) {
-    val isComplete: Boolean get() = chat is SetupPartStatus.Done && search is SetupPartStatus.Done
+    val isComplete: Boolean
+        get() = listOf(reader, chat, search).all { it is SetupPartStatus.Done }
 
-    val anyFailed: Boolean get() = chat is SetupPartStatus.Failed || search is SetupPartStatus.Failed
+    val anyFailed: Boolean get() = listOf(reader, chat, search).any { it is SetupPartStatus.Failed }
 
     val noneStarted: Boolean
-        get() = chat is SetupPartStatus.NotStarted && search is SetupPartStatus.NotStarted
+        get() = listOf(reader, chat, search).all { it is SetupPartStatus.NotStarted }
 
     companion object {
         val NOT_STARTED = SetupProgress(SetupPartStatus.NotStarted, SetupPartStatus.NotStarted)
