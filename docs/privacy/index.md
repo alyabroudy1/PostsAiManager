@@ -1,4 +1,8 @@
-<!-- Items marked PLACEHOLDER (effective date, provider name and address) must be filled in by the publisher before the app is published. -->
+---
+title: Privacy Policy - Posts AI Manager
+---
+
+[Deutsch](de/)
 
 # Privacy Policy - Posts AI Manager
 

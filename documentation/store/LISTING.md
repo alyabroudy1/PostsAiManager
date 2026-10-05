@@ -12,7 +12,7 @@ Recommendation: keep "Posts AI Manager" for 1.0, add the benefit in the short de
 ## Category and tags
 - **Category:** Productivity (alternative: Tools). App, not game.
 - **Tags (pick up to 5 from Play's list):** Document scanner, Productivity, Utilities, Artificial intelligence / AI assistant (if offered), Organizer.
-- **Contact details:** email `<contact email>`, website optional, privacy policy URL `<privacy policy URL>`.
+- **Contact details:** email alyabroudy1@gmail.com, website optional, privacy policy URL https://alyabroudy1.github.io/PostsAiManager/privacy/ (live after you enable GitHub Pages, see README.md).
 
 ## English
 
@@ -50,7 +50,7 @@ HONEST LIMITS
 - Speed depends on your phone; newer devices with more memory are faster.
 - Not a replacement for legal, tax or financial advice.
 
-Questions? <contact email>
+Questions? alyabroudy1@gmail.com
 ```
 
 > Check before publishing: `locales_config.xml` lists de, ar, en for the UI; OCR is the Latin-script ML Kit recognizer, hence no Arabic OCR. If extraction of Arabic letters is working by release, adjust the wording. Also confirm every feature named above (profiles, PDF share, source preview) is in the release build.
@@ -90,7 +90,7 @@ EHRLICHE GRENZEN
 - Geschwindigkeit hängt vom Gerät ab; neuere Geräte mit mehr Arbeitsspeicher sind schneller.
 - Kein Ersatz für Rechts-, Steuer- oder Finanzberatung.
 
-Fragen? <contact email>
+Fragen? alyabroudy1@gmail.com
 ```
 
 ## Release notes 1.0.0 (what's new, 500 chars)

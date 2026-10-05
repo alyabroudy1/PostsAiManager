@@ -1,4 +1,8 @@
-<!-- Mit PLATZHALTER markierte Stellen (Datum, Anbietername und Anschrift) muss der Herausgeber vor der Veröffentlichung der App ausfüllen. In Deutschland ist für Apps meist ein Impressum mit ladungsfähiger Anschrift erforderlich; juristisch prüfen lassen. -->
+---
+title: Datenschutzerklärung - Posts AI Manager
+---
+
+[English](../)
 
 # Datenschutzerklärung - Posts AI Manager
 
