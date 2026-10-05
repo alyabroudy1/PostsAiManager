@@ -47,9 +47,11 @@ fun SetupScreen(
     LaunchedEffect(state.exit) {
         if (state.exit) onDone()
     }
+    // Android 13+: ask to show the progress notification right before the download starts; a denial does not block it.
+    val download = rememberAskNotificationsThen(viewModel::download)
     SetupContent(
         state = state,
-        onDownload = viewModel::download,
+        onDownload = download,
         onUseMobileData = viewModel::useMobileData,
         onWaitForWifi = viewModel::waitForWifi,
         onDismissMobileDataQuestion = viewModel::dismissMobileDataQuestion,
@@ -154,6 +156,14 @@ private fun Intro(offer: SetupOffer, onDownload: () -> Unit, onSkip: () -> Unit)
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(stringResource(R.string.setup_download_button))
+    }
+    if (offer.canInstallChatModel && isNotificationPermissionMissing()) {
+        Text(
+            text = stringResource(R.string.setup_notifications_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
     TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.setup_skip))

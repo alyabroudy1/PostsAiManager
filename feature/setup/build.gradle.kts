@@ -40,6 +40,10 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
+    // The notification permission request right before the download
+    implementation(libs.activity.compose)
+    implementation(libs.core.ktx)
+
     // Lifecycle
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)

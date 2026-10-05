@@ -6,6 +6,7 @@
     <string name="setup_privacy">كل شيء يبقى على هاتفك. لا يتم رفع مستنداتك أبدًا.</string>
     <string name="setup_download_info">تنزيل لمرة واحدة: نموذج الذكاء الاصطناعي %1$s (%2$s) ونموذج البحث (%3$s).</string>
     <string name="setup_download_button">تنزيل نموذج الذكاء الاصطناعي</string>
+    <string name="setup_notifications_note">سيسألك أندرويد عن السماح بالإشعارات، وذلك فقط لعرض تقدّم التنزيل. يعمل التنزيل بدونها.</string>
     <string name="setup_skip">تخطَّ الآن</string>
     <string name="setup_skip_note">يمكنك مواصلة مسح المستندات ضوئيًا. القراءة والدردشة تحتاجان إلى نموذج الذكاء الاصطناعي، ويمكنك تثبيته لاحقًا.</string>
     <string name="setup_unsupported">لا يستطيع هذا الهاتف تشغيل نموذج الذكاء الاصطناعي. ما زال بإمكانك مسح المستندات ضوئيًا.</string>
