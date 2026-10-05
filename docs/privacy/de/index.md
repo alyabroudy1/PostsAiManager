@@ -6,7 +6,7 @@ title: Datenschutzerklärung - Posts AI Manager
 
 # Datenschutzerklärung - Posts AI Manager
 
-**Gültig ab:** **[PLATZHALTER: Datum des Inkrafttretens]**
+**Gültig ab:** 5. Oktober 2026
 **App:** Posts AI Manager (Paket `com.postsaimanager`), Version 1.0.0
 **Kontakt:** alyabroudy1@gmail.com
 **Anbieter (Impressum):** **[PLATZHALTER: Name und Anschrift des Anbieters]**

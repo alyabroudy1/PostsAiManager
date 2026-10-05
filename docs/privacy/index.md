@@ -6,7 +6,7 @@ title: Privacy Policy - Posts AI Manager
 
 # Privacy Policy - Posts AI Manager
 
-**Effective date:** **[PLACEHOLDER: effective date]**
+**Effective date:** 5 October 2026
 **App:** Posts AI Manager (package `com.postsaimanager`), version 1.0.0
 **Contact:** alyabroudy1@gmail.com
 **Provider (imprint):** **[PLACEHOLDER: provider name and postal address]**

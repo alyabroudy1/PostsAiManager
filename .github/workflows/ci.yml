@@ -126,10 +126,11 @@ jobs:
 
       # The versions core/ai/local/build.gradle.kts pins (ndkVersion) and the
       # spike was built with (documentation/06-llama-spike.md). The hosted image
-      # ships an Android SDK with sdkmanager on PATH; installing the exact
-      # versions here keeps CI from drifting when the image's defaults change.
+      # ships an Android SDK, but sdkmanager is NOT on PATH: call it from
+      # $ANDROID_HOME/cmdline-tools/latest/bin. Installing the exact versions here
+      # keeps CI from drifting when the image's defaults change.
       - name: Install NDK 27.0.12077973 and CMake 3.22.1
-        run: yes | sdkmanager --install "ndk;27.0.12077973" "cmake;3.22.1" > /dev/null
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973" "cmake;3.22.1" "platforms;android-36" > /dev/null
 
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug --console=plain
@@ -161,7 +162,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Install NDK 27.0.12077973 and CMake 3.22.1
-        run: yes | sdkmanager --install "ndk;27.0.12077973" "cmake;3.22.1" > /dev/null
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973" "cmake;3.22.1" "platforms;android-36" > /dev/null
 
       # GGML_VULKAN=ON needs two things the NDK sysroot does not ship:
       # SPIRV-Headers' CMake CONFIG package (ggml-vulkan/CMakeLists.txt calls
