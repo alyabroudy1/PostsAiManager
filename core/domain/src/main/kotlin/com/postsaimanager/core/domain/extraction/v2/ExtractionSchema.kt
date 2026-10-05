@@ -110,9 +110,6 @@ object Slots {
         question = "Which number identifies the reader as a customer, member or account holder?",
     )
 
-    /** The slots every [DocFamily] has, in the order they are asked. */
-    val CORE = listOf(LETTER_DATE, TOTAL, DUE_DATE, IBAN, REFERENCE, CUSTOMER_NO)
-
     // ── type-specific ──
     val FEE = SlotKey(
         "fee", SlotKind.AMOUNT, "Fee", expects = setOf("FEE", "OTHER"),
@@ -186,6 +183,14 @@ object Slots {
         "tax_no", SlotKind.REFERENCE, "Tax Number",
         question = "Which number is the tax number or tax identification number of the reader?",
     )
+    /**
+     * The slots every [DocFamily] has, in the order they are asked: the date, the amount, the due date, the account and every kind of
+     * reference number. Family-independent because the classifier can file a bill as a letter (or the reverse) and the numbers on a page
+     * matter whatever it was filed as; which of them matter for a document is decided afterwards, by the family's hint (the key
+     * information). Declared after the reference slots it lists (object initialisation order).
+     */
+    val CORE = listOf(LETTER_DATE, TOTAL, DUE_DATE, IBAN, REFERENCE, CUSTOMER_NO, INVOICE_NO, CONTRACT_NO, POLICY_NO, CASE_NO, TAX_NO)
+
     val RECEIPT_NO = SlotKey(
         "receipt_no", SlotKind.REFERENCE, "Receipt Number",
         question = "Which number is the receipt or transaction number?",

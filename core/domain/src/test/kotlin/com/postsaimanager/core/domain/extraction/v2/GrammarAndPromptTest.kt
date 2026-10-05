@@ -39,11 +39,13 @@ class GrammarAndPromptTest {
             for (s in Slots.CORE) assertThat(core).contains("\\\"${s.json}\\\":")
             val health = r.getValue("t-medical") + r.getValue("core")
             for (s in ExtractionSchema.MEDICAL.slots) assertThat(health).contains("\\\"${s.json}\\\":")
-            assertThat(health).doesNotContain("\\\"invoice_no\\\":")
-            assertThat(health).doesNotContain("\\\"policy_no\\\":")
+            // The reference numbers are core now (every type has them); the family-specific amounts and dates still are not.
+            assertThat(health).contains("\\\"invoice_no\\\":")
+            assertThat(health).doesNotContain("\\\"fee\\\":")
+            assertThat(health).doesNotContain("\\\"new_amount\\\":")
             assertThat(r.getValue("t-medical")).contains(" core ")
             val bill = r.getValue("t-invoice-bill")
-            assertThat(bill).contains("\\\"invoice_no\\\":")
+            assertThat(bill).contains("\\\"fee\\\":")
             assertThat(bill).doesNotContain("\\\"appointment\\\":")
         }
 

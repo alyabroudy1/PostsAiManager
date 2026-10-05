@@ -4,6 +4,7 @@ import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
+import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.extraction.zones.QuestionNames
 import com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions
 import com.postsaimanager.core.domain.extraction.zones.ScoringProfile
@@ -310,10 +311,12 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         }
         val at = find(subset = false) ?: find(subset = true)
         if (at == null) {
+            // The reference slots every family asks since extraction-v2-5 are newer than the recordings: a batch that holds them besides
+            // recorded questions replays the recorded ones and scripts the new ones as "not scored".
+            scriptedAroundNewCore(live)?.let { return it }
             // The family and the topics of a recording made before the families: scripted from its legacy type scores, nothing else is.
             legacy?.let { view -> LegacyFamilyBridge.answer(view, live)?.let { return PamResult.Success(it) } }
-            misses += "score «${live.firstOrNull().orEmpty().take(MISS_CHARS)}» x${live.size}"
-            // A question the old recording never held (a slot the old type did not have, an address line label) is scripted as "not scored":
+            misses += "score «${live.firstOrNull().orEmpty().take(MISS_CHARS)}» x${live.size}"            // A question the old recording never held (a slot the old type did not have, an address line label) is scripted as "not scored":
             // every candidate gets a score no threshold accepts, so it takes nothing, and the question is listed in [misses]. An engine error
             // would instead count as three failures and abort the whole reading, which is not what the recording says.
             if (legacy != null) return PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED })
@@ -323,6 +326,36 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         val answer = recording.asks[at].answer ?: return PamResult.Error(PamError.InferenceError("the recorded batch failed"))
         val scores = answer.split(',').map { it.trim().toDouble() }
         return PamResult.Success(picked.map { scores[it] })
+    }
+
+    /**
+     * [live] is a recorded batch plus questions about the slots that became family-independent in extraction-v2-5 (never recorded for the
+     * families that did not have them): the recorded questions get their recorded scores, the new ones [LegacyFamilyBridge.NOT_RECORDED]
+     * (no threshold accepts that, so they take nothing). A batch of only such questions is scripted whole. Null when [live] holds any other
+     * question the recording lacks: that one is a real miss.
+     */
+    private fun scriptedAroundNewCore(live: List<String>): PamResult<List<Double>>? {
+        val scripted = live.map { q -> NEW_CORE_STATEMENTS.any { q.contains(it) } }
+        for (i in recording.asks.indices) {
+            val a = recording.asks[i]
+            if (i in used || !a.name.startsWith("score:")) continue
+            val recorded = a.question.split(SCORE_SEPARATOR).map { withoutIds(it) }
+            val liveIndexOf = ArrayList<Int>()
+            var from = 0
+            for (q in recorded) {
+                val j = (from until live.size).firstOrNull { live[it].startsWith(q) } ?: break
+                liveIndexOf += j
+                from = j + 1
+            }
+            if (liveIndexOf.size != recorded.size) continue
+            if (live.indices.any { it !in liveIndexOf && !scripted[it] }) continue
+            val answer = a.answer ?: return null
+            val scores = answer.split(',').map { it.trim().toDouble() }
+            used += i
+            val byLive = liveIndexOf.withIndex().associate { (k, j) -> j to scores[k] }
+            return PamResult.Success(live.indices.map { byLive[it] ?: LegacyFamilyBridge.NOT_RECORDED })
+        }
+        return if (scripted.all { it }) PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED }) else null
     }
 
     /** A grid is what several recorded batches hold: one per ask (each question's candidates), read the way the batches were recorded. */
@@ -351,6 +384,10 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         val HINTED: List<Pair<String, String>> = ExtractionSchema.DEFAULT.families.map { it.hint }.filter { it.isNotBlank() }
             .map { "${ScoringDescriptions.EXTRA}. $it" to ScoringDescriptions.EXTRA }
         const val KEY_SLOT_QUESTION = "the reader need «"
+
+        /** The statements of the reference slots that every family asks since extraction-v2-5 (see [scriptedAroundNewCore]). */
+        val NEW_CORE_STATEMENTS: List<String> = listOf(Slots.INVOICE_NO, Slots.CONTRACT_NO, Slots.POLICY_NO, Slots.CASE_NO, Slots.TAX_NO)
+            .map { ScoringDescriptions.ofSlot(it) }
         const val SCORE_SEPARATOR = "\n@@\n"
         const val MISS_CHARS = 70
     }

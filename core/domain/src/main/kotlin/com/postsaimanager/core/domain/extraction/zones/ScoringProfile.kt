@@ -104,6 +104,11 @@ object ScoringDescriptions {
 
     fun ofRole(name: String): String = ROLES[name] ?: "a party of this letter"
 
+    /**
+     * What a slot is asked as. The reference numbers (invoice, contract, policy, case, tax) keep the plain
+     * statement from the slot's label: the device recordings hold their questions word for word, so a new wording would need a new
+     * recording before the replays mean anything.
+     */
     fun ofSlot(slot: SlotKey): String = SLOTS[slot.json] ?: "the ${slot.label.lowercase()}"
 
     /** The kind statements of a party, in [com.postsaimanager.core.domain.extraction.v2.StructuredGrammar.PARTY_KINDS] order (OTHER is never chosen). */

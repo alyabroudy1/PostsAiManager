@@ -314,7 +314,10 @@ class ZoneScoringInterpreterTest {
 
     @Test
     fun `the schema's core slots all have a statement of their own`() {
-        for (slot in Slots.CORE) assertThat(ScoringDescriptions.ofSlot(slot)).doesNotContain("the ${slot.label.lowercase()}")
+        // The five reference numbers keep the plain statement the device recordings hold word for word (see ScoringDescriptions.ofSlot).
+        val recordedPlain = listOf(Slots.INVOICE_NO, Slots.CONTRACT_NO, Slots.POLICY_NO, Slots.CASE_NO, Slots.TAX_NO)
+        for (slot in Slots.CORE - recordedPlain.toSet()) assertThat(ScoringDescriptions.ofSlot(slot)).doesNotContain("the ${slot.label.lowercase()}")
+        for (slot in recordedPlain) assertThat(ScoringDescriptions.ofSlot(slot)).isEqualTo("the ${slot.label.lowercase()}")
         assertThat(ExtractionSchema.DEFAULT.families.all { it.description.isNotBlank() }).isTrue()
     }
 }

@@ -70,7 +70,17 @@ class ZoneScoringFamilyAndAddressTest {
         // free_form is never scored, whatever the model says.
         assertThat(r.session.scored.flatten().none { it.contains(ExtractionSchema.FREE_FORM.description) }).isTrue()
         val asked = r.interpreter.transcript.map { it.name }.filter { it.startsWith("score:slot:") }.map { it.removePrefix("score:slot:") }
-        assertThat(asked).containsNoneOf("invoice_no", "fee", "original_due_date")
+        assertThat(asked).containsNoneOf("fee", "original_due_date")
+    }
+
+    @Test
+    fun `an invoice the classifier filed as an official letter is still asked for its reference numbers`() {
+        val r = run(scorer = answers(family("official_letter")))
+        assertThat(r.result.documentType).isEqualTo(ExtractionSchema.OFFICIAL_LETTER)
+        val asked = r.interpreter.transcript.map { it.name }.filter { it.startsWith("score:slot:") }.map { it.removePrefix("score:slot:") }.toSet()
+        assertThat(asked).containsAtLeast("invoice_no", "customer_no", "total", "due_date", "iban")
+        // The family-specific ones stay with their family.
+        assertThat(asked).containsNoneOf("fee", "original_due_date")
     }
 
     @Test
@@ -79,8 +89,8 @@ class ZoneScoringFamilyAndAddressTest {
         val asked = r.interpreter.transcript.map { it.name }.filter { it.startsWith("score:slot:") }.map { it.removePrefix("score:slot:") }.toSet()
         // The family's own slots, then the slots of tax and government (the two best, in the registry's order for equal scores).
         assertThat(asked).containsAtLeast("objection_deadline", "tax_no", "case_no")
-        // The third topic adds nothing: policy_no belongs to insurance only.
-        assertThat(asked).doesNotContain("policy_no")
+        // The third topic adds nothing: previous_amount belongs to insurance only.
+        assertThat(asked).doesNotContain("previous_amount")
     }
 
     @Test
