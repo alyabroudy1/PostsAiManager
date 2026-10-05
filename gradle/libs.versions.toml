@@ -41,8 +41,6 @@ ktor = "3.0.3"
 # ML Kit
 mlkitDocumentScanner = "16.0.0-beta1"
 mlkitTextRecognition = "16.0.1"
-mlkitLanguageId = "17.0.6"
-mlkitEntityExtraction = "16.0.0-beta5"
 
 # UI
 coil = "3.0.4"
@@ -56,9 +54,6 @@ lottieCompose = "6.6.2"
 credentialManager = "1.5.0-beta01"
 googleDrive = "3.0.0"
 playServicesAuth = "21.3.0"
-
-# Firebase
-firebaseBom = "33.7.0"
 
 # WorkManager
 workManager = "2.10.0"
@@ -138,8 +133,6 @@ ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version
 # ML Kit
 mlkit-document-scanner = { group = "com.google.android.gms", name = "play-services-mlkit-document-scanner", version.ref = "mlkitDocumentScanner" }
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
-mlkit-language-id = { group = "com.google.mlkit", name = "language-id", version.ref = "mlkitLanguageId" }
-mlkit-entity-extraction = { group = "com.google.mlkit", name = "entity-extraction", version.ref = "mlkitEntityExtraction" }
 
 # UI
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
@@ -153,10 +146,6 @@ hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.
 
 # Security
 security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
-
-# Firebase
-firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
-firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 
 # AndroidX
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

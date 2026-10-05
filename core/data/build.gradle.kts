@@ -68,8 +68,6 @@ dependencies {
     // ML Kit
     implementation(libs.mlkit.document.scanner)
     implementation(libs.mlkit.text.recognition)
-    implementation(libs.mlkit.language.id)
-    implementation(libs.mlkit.entity.extraction)
 
     // Coroutines
     implementation(libs.coroutines.core)
