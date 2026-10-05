@@ -1,12 +1,14 @@
 package com.postsaimanager.core.domain.document
 
 import com.postsaimanager.core.domain.extraction.text.SummaryFacts
+import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ReviewState
+import com.postsaimanager.core.model.TicketSlot
 
 /**
  * Builds the ticket of a second stage that lost its own (see [DocumentProcessor.enrichDocument]): everything the ticket carried is
@@ -32,8 +34,22 @@ object EnrichmentTicketRebuilder {
             topics = document.topics,
             facts = factsOf(document, fields).carried(),
             takenValues = taken.filter { it.isNotEmpty() }.distinct(),
+            slots = slotsOf(fields),
         )
     }
+
+    private val schemaSlots = ExtractionSchema.DEFAULT.allSlots.associateBy { it.json }
+
+    /**
+     * The fixed slot values the document holds now (an invoice number, an amount, an IBAN ...), each with the schema's English label: what
+     * the second stage scores for whether the reader needs it. A value a person corrected counts as it is; an ignored or empty one is left
+     * out, as are the parties, the subject, the address rows and the extras (which are scored as candidates).
+     */
+    fun slotsOf(fields: List<ExtractedData>): List<TicketSlot> =
+        liveFields(fields).mapNotNull { f ->
+            val slot = f.slotKey?.let(schemaSlots::get) ?: return@mapNotNull null
+            TicketSlot(slot.json, slot.label, f.fieldValue.trim())
+        }.distinctBy { it.key }
 
     /**
      * The verified facts of [document] as its stored [fields] hold them now, the stored subject line included: what a summary rests on,

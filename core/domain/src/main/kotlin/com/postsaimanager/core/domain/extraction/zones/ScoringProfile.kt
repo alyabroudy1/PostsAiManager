@@ -32,8 +32,22 @@ data class ScoringProfile(
      * model's scores sit within +-1 of zero. Off by default: the reading is then exactly what the recordings hold.
      */
     val prefixTree: Boolean = false,
+    /**
+     * The questions (by name, `slot:contract_no`, ...) whose honest answer is often none: a number the document may simply not have. Unless
+     * the document's family has the slot as its own, the model must lean Yes ([optionalThreshold]) for a value to be taken, so none is a
+     * real answer, such a question is never widened to every candidate of the letter, and the value is shown with the words printed before it.
+     */
+    val optionalUnlessOwn: Set<String> = emptySet(),
+    /** The abstain level of an [optionalUnlessOwn] question the family does not own: 0.0 is the model's own indifference between Yes and No. */
+    val optionalThreshold: Double = 0.0,
 ) {
     fun threshold(ask: String): Double = thresholds[ask] ?: defaultThreshold
+
+    /** Whether [ask] may be answered with none because the document does not have it: optional and not one of the family's own slots. */
+    fun isOptional(ask: String, own: Boolean): Boolean = !own && ask in optionalUnlessOwn
+
+    /** The threshold of a slot question: [optionalThreshold] when it [isOptional], else the question's own ([threshold]). */
+    fun slotThreshold(ask: String, own: Boolean): Double = thresholds[ask] ?: if (isOptional(ask, own)) optionalThreshold else defaultThreshold
 
     /** The type's confidence from its margin. */
     fun confidence(margin: Double): String = when {
@@ -104,6 +118,11 @@ object ScoringDescriptions {
 
     fun ofRole(name: String): String = ROLES[name] ?: "a party of this letter"
 
+    /**
+     * What a slot is asked as. The reference numbers (invoice, contract, policy, case, tax) keep the plain
+     * statement from the slot's label: the device recordings hold their questions word for word, so a new wording would need a new
+     * recording before the replays mean anything.
+     */
     fun ofSlot(slot: SlotKey): String = SLOTS[slot.json] ?: "the ${slot.label.lowercase()}"
 
     /** The kind statements of a party, in [com.postsaimanager.core.domain.extraction.v2.StructuredGrammar.PARTY_KINDS] order (OTHER is never chosen). */
@@ -120,4 +139,19 @@ object ScoringDescriptions {
 
     const val EXTRA = "an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount " +
         "that matters), other than the letter's main amount, due date, IBAN, reference or customer number"
+
+    /**
+     * The statement the extras are scored under for a document whose family has a [hint][com.postsaimanager.core.domain.extraction.v2.DocFamily.hint]:
+     * [EXTRA] followed by the guidance on what matters in this kind of document. What scores above the threshold is the "Key information".
+     */
+    fun extra(hint: String?): String = hint?.trim()?.takeIf { it.isNotEmpty() }?.let { "$EXTRA. $it" } ?: EXTRA
+
+    /**
+     * The scoring name of the stored slot values asked in the same batch as the extras (an invoice number, an amount, an IBAN ...):
+     * its threshold is the profile's (`defaultThreshold` unless the profile sets this name). What scores above it is key information too.
+     */
+    const val KEY_SLOTS_ASK = "keyslots"
+
+    /** At most this many stored slot values are scored for key information in one reading: the batch stays small. */
+    const val MAX_KEY_SLOT_SCORES = 15
 }

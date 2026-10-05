@@ -110,9 +110,6 @@ object Slots {
         question = "Which number identifies the reader as a customer, member or account holder?",
     )
 
-    /** The slots every [DocFamily] has, in the order they are asked. */
-    val CORE = listOf(LETTER_DATE, TOTAL, DUE_DATE, IBAN, REFERENCE, CUSTOMER_NO)
-
     // ── type-specific ──
     val FEE = SlotKey(
         "fee", SlotKind.AMOUNT, "Fee", expects = setOf("FEE", "OTHER"),
@@ -186,6 +183,14 @@ object Slots {
         "tax_no", SlotKind.REFERENCE, "Tax Number",
         question = "Which number is the tax number or tax identification number of the reader?",
     )
+    /**
+     * The slots every [DocFamily] has, in the order they are asked: the date, the amount, the due date, the account and every kind of
+     * reference number. Family-independent because the classifier can file a bill as a letter (or the reverse) and the numbers on a page
+     * matter whatever it was filed as; which of them matter for a document is decided afterwards, by the family's hint (the key
+     * information). Declared after the reference slots it lists (object initialisation order).
+     */
+    val CORE = listOf(LETTER_DATE, TOTAL, DUE_DATE, IBAN, REFERENCE, CUSTOMER_NO, INVOICE_NO, CONTRACT_NO, POLICY_NO, CASE_NO, TAX_NO)
+
     val RECEIPT_NO = SlotKey(
         "receipt_no", SlotKind.REFERENCE, "Receipt Number",
         question = "Which number is the receipt or transaction number?",
@@ -237,6 +242,9 @@ enum class DocDirection { INCOMING, OUTGOING, PROOF }
  * @property sensitive the all-documents chat never shows these documents (health letters); see [ExtractionSchema.isSensitive].
  * @property scored whether the classifier asks about this family. False for the abstain outcome ([ExtractionSchema.FREE_FORM]):
  *   a scored "anything else" gets a middling Yes on every letter and wins, so it is what is chosen when no family scores above the threshold.
+ * @property hint a few English words of guidance for the model on what matters in this kind of document (what the reader needs to know
+ *   and to do). Prompt text, never a rule: it steers which facts the second stage keeps as the key information and what the action lines
+ *   say, and the model still decides for each letter. A new family adds its hint here, as data.
  */
 data class DocFamily(
     val id: String,
@@ -248,8 +256,14 @@ data class DocFamily(
     val hasRecipientBlock: Boolean = false,
     val sensitive: Boolean = false,
     val scored: Boolean = true,
+    val hint: String = "",
+    /** The slots that belong to this family beyond the universal core (a bill's invoice number): a document of the family is expected to have them. */
+    val own: List<SlotKey> = emptyList(),
 ) {
     override fun toString() = id
+
+    /** The same family with the guidance for the model on what matters in it. */
+    fun withHint(text: String): DocFamily = copy(hint = text)
 
     /** The same family, for documents of [directions] instead of incoming ones. */
     fun forDirections(vararg directions: DocDirection): DocFamily = copy(directions = directions.toSet())
@@ -272,7 +286,7 @@ data class DocFamily(
     companion object {
         /** A family with the universal core plus [specific] slots. */
         fun of(id: String, legacy: DocumentType, vararg specific: SlotKey) =
-            DocFamily(id, (Slots.CORE + specific).distinct(), legacy)
+            DocFamily(id, (Slots.CORE + specific).distinct(), legacy, own = specific.toList())
     }
 }
 
@@ -330,6 +344,10 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
         return (family.slots + best.flatMap { it.slots }).distinct()
     }
 
+    /** The slots a document of [family] about [topics] is expected to have beyond the universal core: the family's own and those of the best two topics. */
+    fun ownSlots(family: DocFamily, topics: List<String>): Set<SlotKey> =
+        (family.own + topics.mapNotNull(::topic).distinct().take(MAX_TOPICS_WITH_SLOTS).flatMap { it.slots }).toSet()
+
     /** Whether a document of [familyId] about [topicIds] stays out of the all-documents chat. Unknown ids are not sensitive. */
     fun isSensitive(familyId: String?, topicIds: List<String>): Boolean =
         family(familyId)?.sensitive == true || topicIds.any { topic(it)?.sensitive == true }
@@ -349,51 +367,81 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
             "official_letter", DocumentType.OFFICIAL_LETTER, Slots.APPOINTMENT, Slots.EFFECTIVE_DATE, Slots.OBJECTION_DEADLINE,
         ).asksSomething().withRecipientBlock()
             .described("a letter or decision from an authority, employer, school or other organisation that informs the reader or decides something")
+            .withHint(
+                "In a letter, the sender and the recipient (with their addresses) are important. Also note anything else the reader should " +
+                    "know, and any action the reader must take (pay, reply, object, attend, send documents) with its deadline.",
+            )
 
         /** Absorbs the legacy bill and reminder_dunning: a reminder is a bill with a fee and an original due date. */
         val INVOICE_BILL = DocFamily.of(
             "invoice_bill", DocumentType.INVOICE, Slots.INVOICE_NO, Slots.FEE, Slots.ORIGINAL_DUE_DATE,
         ).asksSomething().withRecipientBlock()
             .described("an invoice, a bill or a payment reminder that asks the reader to pay")
+            .withHint(
+                "In a bill, the sender and the recipient are important, and so are the amount to pay, the due date, the account (IBAN) " +
+                    "to pay to and the invoice, customer and payment reference numbers. The action is to pay by the due date.",
+            )
 
         val RECEIPT = DocFamily.of("receipt", DocumentType.RECEIPT, Slots.RECEIPT_NO)
             .described("a receipt or proof of a purchase")
+            .withHint("In a receipt, the shop, the total paid, the date and the receipt number are important. Usually nothing has to be done.")
 
         val FORM_APPLICATION = DocFamily.of("form_application", DocumentType.FORM)
             .described("a form or an application that is filled in and returned")
+            .withHint(
+                "In a form, who it is from and for, what it is for, the deadline to return it and where to send it are important. " +
+                    "The action is to fill it in and return it.",
+            )
 
         val STATEMENT = DocFamily.of("statement", DocumentType.NOTICE, Slots.PREVIOUS_AMOUNT).withRecipientBlock()
             .described("a statement of account, a bank statement or a summary of transactions or consumption")
+            .withHint(
+                "In a statement, the sender and the recipient, the account or customer number, the period it covers, the balance or " +
+                    "amount due and any date by which something is to be paid or checked are important.",
+            )
 
         val CONTRACT_POLICY = DocFamily.of(
             "contract_policy", DocumentType.CONTRACT, Slots.CONTRACT_NO, Slots.CONTRACT_END, Slots.EFFECTIVE_DATE, Slots.NEW_AMOUNT,
         ).asksSomething().withRecipientBlock()
             .described("a contract, an insurance policy, or a change to its price or terms")
+            .withHint(
+                "In a contract or policy, the sender and the recipient, the contract or policy number, the price, the date it takes effect " +
+                    "or ends, and any right to object or cancel with its deadline are important.",
+            )
 
         val CERTIFICATE_ID = DocFamily.of("certificate_id", DocumentType.CERTIFICATE, Slots.EFFECTIVE_DATE, Slots.CONTRACT_END)
             .described("a certificate, an identity document, a licence or a card")
+            .withHint("In a certificate or an identity document, who it was issued to and by, what it certifies, its number and its validity dates are important.")
 
         val MEDICAL = DocFamily.of("medical", DocumentType.NOTICE, Slots.APPOINTMENT).withRecipientBlock().markedSensitive()
             .described("a letter from a doctor, clinic or hospital, such as an appointment, a referral or a result")
+            .withHint(
+                "In a medical letter, the sender and who it is about, an appointment with its date and place, and anything the reader " +
+                    "must do (attend, prepare, call back, pay) are important.",
+            )
 
         val TICKET_BOOKING = DocFamily.of("ticket_booking", DocumentType.OTHER, Slots.EVENT_DATE)
             .described("a ticket, a booking confirmation or a travel itinerary")
+            .withHint("In a ticket or a booking, the event or trip, the date and time, the place and the booking number are important.")
 
         /** A letter the user sent (P3; the pipeline does not produce it yet). */
         val OUTGOING_LETTER = DocFamily.of(
             "outgoing_letter", DocumentType.OFFICIAL_LETTER,
             Slots.RECIPIENT_ORG, Slots.SENT_DATE, Slots.ACTION_KIND, Slots.CITED_REFERENCES,
         ).described("a letter the reader wrote and sent to someone else").forDirections(DocDirection.OUTGOING)
+            .withHint("In a letter the reader sent, who it went to, what it asked for or said, the date it was sent and any reference it cites are important.")
 
         /** A payment confirmation the user holds (P3; the pipeline does not produce it yet). */
         val PAYMENT_PROOF = DocFamily.of(
             "payment_proof", DocumentType.RECEIPT,
             Slots.PROOF_AMOUNT, Slots.PROOF_DATE, Slots.PROOF_RECIPIENT, Slots.PROOF_REFERENCE,
         ).described("a confirmation that a payment was made").forDirections(DocDirection.PROOF)
+            .withHint("In a payment confirmation, the amount, the date, who was paid and the payment reference are important.")
 
         /** The abstain outcome: what a document is when no family scores above the threshold. Never scored, so it carries only the core. */
         val FREE_FORM = DocFamily.of("free_form", DocumentType.OTHER)
             .described("a document of a kind not listed here").forDirections(*DocDirection.entries.toTypedArray()).unscored()
+            .withHint("In any document, who it is from and for, and what the reader should know or do, are important.")
 
         // ── the topics ──
         val TOPICS: List<Topic> = listOf(

@@ -117,6 +117,8 @@ class ExtractionV2Adapter(
             summarySource = summarySource,
             summaryCode = summary?.code,
             summaryArgs = summary?.args.orEmpty(),
+            actionItems = result.actions,
+            keySlots = result.keySlots,
             suggestedQuestions = result.freeText.suggestedQuestions,
             modelUsed = result.diagnostics.modelUsed,
             readingTrace = result.diagnostics.trace,
@@ -197,7 +199,7 @@ class ExtractionV2Adapter(
             add(it.name, kindOf(it.kind), EntityRole.MENTIONED, "care of (mailbox)", it, null)
         }
         for (s in subjects) {
-            add(s.name, kindOf(s.kind), EntityRole.MENTIONED, "subject of the letter", s, null)
+            add(s.name, kindOf(s.kind), EntityRole.MENTIONED, RELATION_SUBJECT, s, SUBJECT_PERSON_KEY)
         }
         return out
     }
@@ -232,6 +234,12 @@ class ExtractionV2Adapter(
         const val SENDER_KEY = "sender"
         const val ADDRESSEE_KEY = "addressee"
         const val SUBJECT_KEY = "subject"
+
+        /** The slot key of the person the letter is about when that is not the addressee; stored as a field the Extracted tab shows as "About". */
+        const val SUBJECT_PERSON_KEY = "subject_person"
+
+        /** What an entity's `relation` says for the person the letter is about, so the field mapping can find it. */
+        const val RELATION_SUBJECT = "subject of the letter"
 
         /** Slot keys of found values start with this, then the kind and the number: `found:DATE:1`. */
         const val FOUND_KEY_PREFIX = "found:"

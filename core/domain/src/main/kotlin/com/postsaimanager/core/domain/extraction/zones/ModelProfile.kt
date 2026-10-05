@@ -72,6 +72,10 @@ object ModelProfiles {
             thresholds = mapOf(
                 ScoringDescriptions.EXTRAS_ASK to 0.0,
                 QuestionNames.CONTACT to 0.0, QuestionNames.CARE_OF to 0.0, QuestionNames.SUBJECT_PERSON to 0.0,
+                // A fee is taken only when the model leans Yes: always taking the best gave it an item price of a table (a fee of 39,00 on an
+                // invoice), which the total then lacked. (The previous price stays at "take the best": at 0.0 the recorded old premium of the
+                // car insurance letter, a right answer the model scored below 0, was lost.)
+                QuestionNames.slot("fee") to 0.0,
                 // The family: abstain (free_form) when no family's log-odds are above 0.0, the model's own indifference between Yes and No.
                 // On the recorded type scores read through LegacyTypes (FamilyAccuracyTest, 13 letters) every threshold from -0.1 to 0.3
                 // gives 11 right (10 at or below -0.25, 9 from 0.4); 0.0 is taken from the plateau, not tuned to a letter: it turns the
@@ -104,6 +108,11 @@ object ModelProfiles {
             // plain joint assignment has no number to fit; every variant with a tuned weight or a calibration did no better
             // held out (the date-order penalty and the net + VAT = gross bonus tuned to nothing or hurt one letter).
             decoder = DecoderSpec(DecoderKind.JOINT),
+            // The reference numbers every family is asked for but few documents have: a contract number on an invoice is none. The model must
+            // lean Yes (optionalThreshold, 0.0) unless the family has the slot as its own; the value is shown with its printed label, and the
+            // question is never widened to the whole letter.
+            optionalUnlessOwn = setOf("invoice_no", "contract_no", "policy_no", "case_no", "tax_no").map { QuestionNames.slot(it) }.toSet(),
+            optionalThreshold = 0.0,
         ),
     )
 

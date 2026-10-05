@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EntityKind
 import com.postsaimanager.core.model.EntityRole
@@ -56,6 +57,24 @@ class UnderstandingToFieldsTest {
         assertThat(fields).doesNotContainKey(UnderstandingToFields.SENDER_NAME)
         assertThat(fields[UnderstandingToFields.SENDER_ORGANISATION]?.fieldType)
             .isEqualTo(ExtractedFieldType.ORGANIZATION)
+    }
+
+    @Test
+    fun `the person the letter is about becomes the About field, any other mentioned person does not`() {
+        val withSubject = letter.copy(
+            entities = letter.entities + RecognisedEntity(
+                "Mia Mustermann", EntityKind.PERSON, EntityRole.MENTIONED, ExtractionV2Adapter.RELATION_SUBJECT, 0.7f,
+            ),
+        )
+        val fields = map(withSubject).associateBy { it.slotKey }
+
+        assertThat(fields[UnderstandingToFields.SLOT_SUBJECT_PERSON]?.fieldValue).isEqualTo("Mia Mustermann")
+        assertThat(fields[UnderstandingToFields.SLOT_SUBJECT_PERSON]?.fieldType).isEqualTo(ExtractedFieldType.PERSON_NAME)
+        assertThat(fields[UnderstandingToFields.SLOT_SUBJECT_PERSON]?.confidence).isEqualTo(0.7f)
+        // The spouse of the fixture is mentioned, not the subject: no field, as before.
+        assertThat(map(letter).none { it.slotKey == UnderstandingToFields.SLOT_SUBJECT_PERSON }).isTrue()
+        // It is a first-stage row: the second stage's merge never touches it.
+        assertThat(UnderstandingToFields.writtenInSecondStage(fields.getValue(UnderstandingToFields.SLOT_SUBJECT_PERSON))).isFalse()
     }
 
     @Test

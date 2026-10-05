@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
@@ -59,6 +60,7 @@ object PamIcons {
     val Search = Icons.Filled.Search
     val Filter = Icons.Filled.FilterList
     val More = Icons.Filled.MoreVert
+    val Copy = Icons.Filled.ContentCopy
     val Send = Icons.AutoMirrored.Filled.Send
 
     // Features

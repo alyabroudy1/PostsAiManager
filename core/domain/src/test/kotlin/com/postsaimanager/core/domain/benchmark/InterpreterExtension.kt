@@ -4,7 +4,9 @@ import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
+import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.extraction.zones.QuestionNames
+import com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions
 import com.postsaimanager.core.domain.extraction.zones.ScoringProfile
 import com.postsaimanager.core.domain.extraction.zones.ZoneInterpreter
 import com.postsaimanager.core.domain.extraction.zones.ZoneScoringInterpreter
@@ -277,6 +279,16 @@ internal class ReplayPromptSession(private val recording: Recording, private val
 
     /** A recorded scored batch (`score:*`): its questions in order, its answer the comma-separated scores. */
     override suspend fun score(continuations: List<String>, yes: String, no: String, shared: String): PamResult<List<Double>> {
+        // The stored-slot questions (key information) are newer than any recording: they are scripted as "not scored" (no threshold accepts
+        // that), and the rest of the batch is replayed as recorded.
+        val keySlot = continuations.indices.filter { continuations[it].contains(KEY_SLOT_QUESTION) }.toSet()
+        if (keySlot.isNotEmpty()) {
+            val rest = continuations.filterIndexed { i, _ -> i !in keySlot }
+            val replayed = if (rest.isEmpty()) PamResult.Success(emptyList()) else score(rest, yes, no, shared)
+            if (replayed !is PamResult.Success) return replayed
+            val scores = replayed.data.iterator()
+            return PamResult.Success(continuations.indices.map { if (it in keySlot) LegacyFamilyBridge.NOT_RECORDED else scores.next() })
+        }
         // A recording holds each question whole; the live one arrives as the shared level and the rest, read as one text.
         val asked = continuations.map { withoutIds((shared + it).removePrefix("\n\n")) }
         val live = asked
@@ -299,10 +311,12 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         }
         val at = find(subset = false) ?: find(subset = true)
         if (at == null) {
+            // The reference slots every family asks since extraction-v2-5 are newer than the recordings: a batch that holds them besides
+            // recorded questions replays the recorded ones and scripts the new ones as "not scored".
+            scriptedAroundNewCore(live)?.let { return it }
             // The family and the topics of a recording made before the families: scripted from its legacy type scores, nothing else is.
             legacy?.let { view -> LegacyFamilyBridge.answer(view, live)?.let { return PamResult.Success(it) } }
-            misses += "score «${live.firstOrNull().orEmpty().take(MISS_CHARS)}» x${live.size}"
-            // A question the old recording never held (a slot the old type did not have, an address line label) is scripted as "not scored":
+            misses += "score «${live.firstOrNull().orEmpty().take(MISS_CHARS)}» x${live.size}"            // A question the old recording never held (a slot the old type did not have, an address line label) is scripted as "not scored":
             // every candidate gets a score no threshold accepts, so it takes nothing, and the question is listed in [misses]. An engine error
             // would instead count as three failures and abort the whole reading, which is not what the recording says.
             if (legacy != null) return PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED })
@@ -312,6 +326,38 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         val answer = recording.asks[at].answer ?: return PamResult.Error(PamError.InferenceError("the recorded batch failed"))
         val scores = answer.split(',').map { it.trim().toDouble() }
         return PamResult.Success(picked.map { scores[it] })
+    }
+
+    /**
+     * [live] is a recorded batch plus questions about the slots that became family-independent in extraction-v2-5 (never recorded for the
+     * families that did not have them): the recorded questions get their recorded scores, the new ones [LegacyFamilyBridge.NOT_RECORDED]
+     * (no threshold accepts that, so they take nothing). A batch of only such questions is scripted whole. Null when [live] holds any other
+     * question the recording lacks: that one is a real miss.
+     */
+    private fun scriptedAroundNewCore(live: List<String>): PamResult<List<Double>>? {
+        // An extras question about a value that no slot takes any more (a fee that waits for the model to lean Yes frees an amount) is new too.
+        val scripted = live.map { q -> NEW_CORE_STATEMENTS.any { q.contains(it) } || q.contains(ScoringDescriptions.EXTRA) }
+        for (i in recording.asks.indices) {
+            val a = recording.asks[i]
+            if (i in used || !a.name.startsWith("score:")) continue
+            val recorded = a.question.split(SCORE_SEPARATOR).map { withoutIds(it) }
+            val liveIndexOf = ArrayList<Int>()
+            var from = 0
+            for (q in recorded) {
+                val j = (from until live.size).firstOrNull { live[it].startsWith(q) } ?: break
+                liveIndexOf += j
+                from = j + 1
+            }
+            if (liveIndexOf.size != recorded.size) continue
+            // Every recorded question is there, as recorded. A live question the recording lacks is new input (a candidate the reading now
+            // offers: a table row that is no longer a subject, an amount no slot takes any more): scripted as "not scored", never given a score.
+            val answer = a.answer ?: return null
+            val scores = answer.split(',').map { it.trim().toDouble() }
+            used += i
+            val byLive = liveIndexOf.withIndex().associate { (k, j) -> j to scores[k] }
+            return PamResult.Success(live.indices.map { byLive[it] ?: LegacyFamilyBridge.NOT_RECORDED })
+        }
+        return if (scripted.all { it }) PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED }) else null
     }
 
     /** A grid is what several recorded batches hold: one per ask (each question's candidates), read the way the batches were recorded. */
@@ -326,10 +372,52 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         return PamResult.Success(heads.indices.map { i -> asks.indices.map { j -> columns[j][i] } })
     }
 
-    private fun withoutIds(text: String) = ID_TOKEN.replace(text, "#")
+    private fun withoutIds(text: String) = ID_TOKEN.replace(withoutContext(withoutHint(text)), "#")
+
+    /**
+     * A value's question is "Is «value» [printed after «label»] (context: its row and the rows around it) <statement>? Answer:". What stands
+     * between the value and the statement is the input the model is shown with it (the row a value is printed in, the label before a number),
+     * and it changed after the recordings were made (rows instead of lines, the physical order of the page, the printed label). The recorded
+     * score is the model's score of that value under that statement; it is replayed for the same value and statement whatever the context
+     * text was, as the family hint is (what the new context does to the score needs a recording made on the device). A question the
+     * recording does not hold at all (another value, another statement) is still a miss.
+     */
+    private fun withoutContext(text: String): String {
+        // The naming of an extra carries its row the same way: "The value «X» is an important fact of this letter: it is printed on the line «...». What does ..."
+        val fact = text.indexOf(NAMING_FACT)
+        val naming = text.indexOf(NAMING_ASK)
+        if (text.startsWith("QUESTION: The value «") && fact >= 0 && naming > fact) return text.substring(0, fact + NAMING_FACT.length) + text.substring(naming)
+        val head = text.indexOf("Is «").takeIf { it >= 0 } ?: return text
+        val valueEnd = text.indexOf('»', head).takeIf { it >= 0 } ?: return text
+        val statement = STATEMENTS.map { text.indexOf(" $it? Answer:", valueEnd) }.filter { it >= 0 }.minOrNull() ?: return text
+        return text.substring(0, valueEnd + 1) + text.substring(statement)
+    }
+
+    /**
+     * The extras are scored under the family's hint now ([ScoringDescriptions.extra]); a recording made before holds the plain statement.
+     * Compared without the hint, so the recorded scores still stand for every extra (what the hint does to the scores is not in them:
+     * it needs a recording made on the device).
+     */
+    private fun withoutHint(text: String): String = HINTED.fold(text) { t, (hinted, plain) -> t.replace(hinted, plain) }
 
     private companion object {
         val ID_TOKEN = Regex("\\b[A-Z]{1,2}\\d{1,3}\\b")
+        val HINTED: List<Pair<String, String>> = ExtractionSchema.DEFAULT.families.map { it.hint }.filter { it.isNotBlank() }
+            .map { "${ScoringDescriptions.EXTRA}. $it" to ScoringDescriptions.EXTRA }
+        const val KEY_SLOT_QUESTION = "the reader need «"
+        const val NAMING_FACT = " is an important fact of this letter"
+        const val NAMING_ASK = ". What does the letter call this value?"
+
+        /** Every statement a value's scoring question can close with (see [withoutContext]). */
+        val STATEMENTS: List<String> =
+            (ExtractionSchema.DEFAULT.allSlots + Slots.CORE).distinct().map { ScoringDescriptions.ofSlot(it) } +
+                listOf(QuestionNames.SENDER, QuestionNames.ADDRESSEE, QuestionNames.CARE_OF, QuestionNames.CONTACT, QuestionNames.SUBJECT_PERSON)
+                    .map { ScoringDescriptions.ofRole(it) } +
+                ScoringDescriptions.KINDS.map { it.second } + ScoringDescriptions.HOUSEHOLD + ScoringDescriptions.EXTRA
+
+        /** The statements of the reference slots that every family asks since extraction-v2-5 (see [scriptedAroundNewCore]). */
+        val NEW_CORE_STATEMENTS: List<String> = listOf(Slots.INVOICE_NO, Slots.CONTRACT_NO, Slots.POLICY_NO, Slots.CASE_NO, Slots.TAX_NO)
+            .map { ScoringDescriptions.ofSlot(it) }
         const val SCORE_SEPARATOR = "\n@@\n"
         const val MISS_CHARS = 70
     }

@@ -210,15 +210,18 @@ class DocumentDetailViewModel @Inject constructor(
     /**
      * "Confirm n confident": confirms every open field the extraction was sure of and leaves the uncertain ones for the
      * person (a field nobody has looked at is never confirmed on their behalf). Offers the undo.
+     *
+     * @param fieldIds the rows it works on (the Extracted tab passes its essential rows, so "All details" is never confirmed in bulk);
+     *   null: every row of the document
      */
-    fun confirmConfidentFields() = confirmMany(onlyConfident = true)
+    fun confirmConfidentFields(fieldIds: List<String>? = null) = confirmMany(onlyConfident = true, fieldIds)
 
-    /** "Confirm all": once nothing uncertain is left, confirms every open field. Offers the undo. */
-    fun confirmAllFields() = confirmMany(onlyConfident = false)
+    /** "Confirm all": once nothing uncertain is left, confirms every open field of [fieldIds] (null: of the document). Offers the undo. */
+    fun confirmAllFields(fieldIds: List<String>? = null) = confirmMany(onlyConfident = false, fieldIds)
 
-    private fun confirmMany(onlyConfident: Boolean) {
+    private fun confirmMany(onlyConfident: Boolean, fieldIds: List<String>?) {
         viewModelScope.launch {
-            val result = documentRepository.confirmAllExtractedFields(documentId, onlyConfident = onlyConfident)
+            val result = documentRepository.confirmAllExtractedFields(documentId, onlyConfident = onlyConfident, onlyFieldIds = fieldIds?.toSet())
             if (result is PamResult.Success && result.data.isNotEmpty()) {
                 _pendingConfirmAllUndo.value = result.data
             }

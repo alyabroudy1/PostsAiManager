@@ -25,6 +25,7 @@ object SlotLabels {
         UnderstandingToFields.SLOT_ADDRESSEE to R.string.slot_addressee,
         UnderstandingToFields.SLOT_CONTACT to R.string.slot_contact,
         UnderstandingToFields.SLOT_SUBJECT to R.string.slot_subject,
+        UnderstandingToFields.SLOT_SUBJECT_PERSON to R.string.slot_subject_person,
         UnderstandingToFields.SLOT_UNLABELLED to R.string.slot_unlabelled,
         Slots.LETTER_DATE.json to R.string.slot_letter_date,
         Slots.TOTAL.json to R.string.slot_total,
@@ -151,6 +152,20 @@ object SlotLabels {
         name.takeIf { it.startsWith(ExtractedData.EXTRA_KEY_PREFIX) }
             ?.removePrefix(ExtractedData.EXTRA_KEY_PREFIX)?.replace('_', ' ')?.ifBlank { null }
 
+    /**
+     * The localized label of an extra stored under a bare key (`x:amount`) when that key is a slot's id or the slot's stored English
+     * label ("amount" is the total's), so the key reads as the slot does everywhere else; null for any other name.
+     */
+    @StringRes
+    fun extraKeySlot(name: String): Int? {
+        val key = name.takeIf { it.startsWith(ExtractedData.EXTRA_KEY_PREFIX) }
+            ?.removePrefix(ExtractedData.EXTRA_KEY_PREFIX)?.replace(Regex("_\\d+$"), "")?.trim() ?: return null
+        val slot = ExtractionSchema.DEFAULT.allSlots.firstOrNull {
+            it.json.equals(key, ignoreCase = true) || it.label.replace(' ', '_').equals(key, ignoreCase = true)
+        } ?: return null
+        return slots[slot.json]
+    }
+
     @StringRes
     fun type(id: String?): Int? = id?.let { types[it] ?: types[LegacyTypes.of(it)?.family] }
 
@@ -184,6 +199,7 @@ object SlotLabels {
         UnderstandingToFields.SLOT_ADDRESSEE -> setOf(UnderstandingToFields.RECEIVER_NAME)
         UnderstandingToFields.SLOT_CONTACT -> setOf(UnderstandingToFields.CONTACT_PERSON)
         UnderstandingToFields.SLOT_SUBJECT -> setOf(UnderstandingToFields.SUBJECT)
+        UnderstandingToFields.SLOT_SUBJECT_PERSON -> setOf(UnderstandingToFields.SUBJECT_PERSON)
         UnderstandingToFields.SLOT_UNLABELLED -> setOf(UnderstandingToFields.SLOT_UNLABELLED)
         else -> ExtractionSchema.DEFAULT.allSlots.filter { it.json == key }.map { it.label }.toSet()
     }

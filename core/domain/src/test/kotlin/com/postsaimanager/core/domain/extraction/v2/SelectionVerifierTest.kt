@@ -51,9 +51,16 @@ class SelectionVerifierTest {
 
         @Test
         fun `a slot that does not belong to the chosen type is rejected`() {
-            val r = verify(invoice, answer(type = "medical", slots = slot("invoice_no", id(invoice, CandidateKind.REFERENCE, "RE-2026-0815"))))
+            val r = verify(invoice, answer(type = "medical", slots = slot("fee", id(invoice, CandidateKind.AMOUNT, "1284.50 EUR"))))
             assertThat(r.slots).isEmpty()
-            assertThat(r.diagnostics.rejections.single()).contains("invoice_no")
+            assertThat(r.diagnostics.rejections.single()).contains("fee")
+        }
+
+        @Test
+        fun `a reference number is core, so a letter filed as another family still keeps its invoice number`() {
+            val ref = id(invoice, CandidateKind.REFERENCE, "RE-2026-0815")
+            val r = verify(invoice, answer(type = "official_letter", slots = slot("invoice_no", ref)))
+            assertThat(r.slots.getValue(Slots.INVOICE_NO).normalized).isEqualTo("RE-2026-0815")
         }
 
         @Test
@@ -646,22 +653,22 @@ class SelectionVerifierTest {
 
         @Test
         fun `a topic's slot is accepted only when the topic holds, and is rejected without it`() {
-            val caseNo = tax.offered.rows.map { it.candidate }.first { it.kind == CandidateKind.REFERENCE }.id
-            val slots = mapOf("case_no" to RawSlot(id = caseNo, confidence = "HIGH"))
-            val with = verifyWith(tax, rawOf("official_letter", listOf("government"), slots))
-            assertThat(with.slots.keys.map { it.json }).contains("case_no")
-            val without = verifyWith(tax, rawOf("official_letter", emptyList(), slots))
+            val amount = invoice.offered.rows.map { it.candidate }.first { it.kind == CandidateKind.AMOUNT }.id
+            val slots = mapOf("previous_amount" to RawSlot(id = amount, confidence = "HIGH"))
+            val with = verifyWith(invoice, rawOf("official_letter", listOf("insurance"), slots))
+            assertThat(with.slots.keys.map { it.json }).contains("previous_amount")
+            val without = verifyWith(invoice, rawOf("official_letter", emptyList(), slots))
             assertThat(without.slots).isEmpty()
-            assertThat(without.diagnostics.rejections.single()).contains("case_no")
+            assertThat(without.diagnostics.rejections.single()).contains("previous_amount")
         }
 
         @Test
         fun `only the best two topics add their slots, and a topic the schema does not know is dropped`() {
             val r = verifyWith(tax, rawOf("official_letter", listOf("astrology", "tax", "government", "insurance")))
             assertThat(r.topics).containsExactly("tax", "government", "insurance").inOrder()
-            val policy = RawSlot(id = tax.offered.rows.first { it.candidate.kind == CandidateKind.REFERENCE }.candidate.id, confidence = "HIGH")
-            // policy_no belongs to insurance, the third topic: it adds no slot.
-            val third = verifyWith(tax, rawOf("official_letter", listOf("tax", "government", "insurance"), mapOf("policy_no" to policy)))
+            val previous = RawSlot(id = invoice.offered.rows.first { it.candidate.kind == CandidateKind.AMOUNT }.candidate.id, confidence = "HIGH")
+            // previous_amount belongs to insurance, the third topic: it adds no slot.
+            val third = verifyWith(invoice, rawOf("official_letter", listOf("tax", "government", "insurance"), mapOf("previous_amount" to previous)))
             assertThat(third.slots).isEmpty()
         }
 

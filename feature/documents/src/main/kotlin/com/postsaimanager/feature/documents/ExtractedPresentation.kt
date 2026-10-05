@@ -2,10 +2,12 @@ package com.postsaimanager.feature.documents
 
 import com.postsaimanager.core.domain.document.list.PartyFields
 import com.postsaimanager.core.domain.extraction.address.AddressRows
+import com.postsaimanager.core.domain.extraction.text.ActionLinks
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.domain.extraction.v2.FamilyPresentation
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.PresentationSpec
@@ -19,13 +21,11 @@ import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.FamilySource
 import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.SummarySource
-
-/** One line of the summary card: the value, and whether it is worth checking. */
-data class CardLine(val value: String, val worthChecking: Boolean)
+import com.postsaimanager.core.model.ValueSource
 
 /**
- * The card at the top of the Extracted tab: the title the reading composed, who it is from, who it is for, what it is, how
- * much and by when, and the summary with a badge saying where it came from. Each part is absent when nothing was read for it.
+ * The card at the top of the Extracted tab: the title the reading composed and the summary with a badge saying where it came from.
+ * Who it is from and for, and what to do, are the sections below it ([Essentials]). Each part is absent when nothing was read for it.
  *
  * @property titleArgs the positional args of a composed title (`TitleComposer`: family id, sender, subject); null when the
  *   document's title is not a composed one (the top bar shows it)
@@ -36,12 +36,6 @@ data class CardLine(val value: String, val worthChecking: Boolean)
  */
 data class SummaryCard(
     val titleArgs: List<String>? = null,
-    val from: CardLine? = null,
-    val forWhom: CardLine? = null,
-    /** The model's document type id (`bill`, ...); rendered from a string resource. */
-    val typeId: String? = null,
-    val amount: CardLine? = null,
-    val due: CardLine? = null,
     val summaryText: String? = null,
     val templateArgs: List<String>? = null,
     val summarySource: SummarySource? = null,
@@ -49,8 +43,7 @@ data class SummaryCard(
 ) {
     val hasSummary: Boolean get() = summaryText != null || templateArgs != null
 
-    val isEmpty: Boolean
-        get() = titleArgs == null && from == null && forWhom == null && typeId == null && amount == null && due == null && !hasSummary
+    val isEmpty: Boolean get() = titleArgs == null && !hasSummary
 }
 
 /** What the chip row at the top says about the reading: the family, the topics and how sure the classifier was. */
@@ -112,11 +105,16 @@ data class PresentedSection(val kind: SectionKind, val items: List<DetailItem>)
 enum class ConfirmMode { NONE, CONFIDENT, ALL }
 
 /**
- * @property uncertain how many open rows the extraction was unsure of (even those the lists do not show)
- * @property confidentOpen how many open rows are not uncertain: what "Confirm n confident" confirms
- * @property open how many rows nobody has reviewed yet
+ * What the main review button works on: the essential rows only (see [Essentials]); nothing in "All details" is counted.
+ *
+ * @property uncertain how many open essential rows the extraction was unsure of
+ * @property confidentIds the open essential rows that are not uncertain: what "Confirm n confident" confirms
+ * @property openIds the essential rows nobody has reviewed yet: what "Confirm all" confirms
  */
-data class ReviewSummary(val uncertain: Int, val confidentOpen: Int, val open: Int) {
+data class ReviewSummary(val uncertain: Int, val confidentIds: List<String>, val openIds: List<String>) {
+    val confidentOpen: Int get() = confidentIds.size
+    val open: Int get() = openIds.size
+
     /** "Confirm n confident" while uncertain rows remain (it leaves them), "Confirm all" once none do. */
     val mode: ConfirmMode
         get() = when {
@@ -126,13 +124,51 @@ data class ReviewSummary(val uncertain: Int, val confidentOpen: Int, val open: I
         }
 }
 
+/** One action line (what the reader must do) with the live fields it quotes, for their inline Confirm and Edit. */
+data class ActionLine(val text: String, val rows: List<ExtractedData>)
+
+/**
+ * One party of the "From / For / About" block.
+ *
+ * @property row the party's stored row (the name as read)
+ * @property recipient for the addressee: [PagesRecipient.You] on an exact folded match with the Me profile, else the name; null for the others
+ * @property addressLines the party's verified address as printed lines (empty when none was read), shown as one compact expandable line
+ */
+data class PartyEntry(val row: ExtractedData, val recipient: PagesRecipient? = null, val addressLines: List<String> = emptyList())
+
+/** From, For and About; each null when the reading found no such party, [about] also when it is the addressee. */
+data class PartiesView(val from: PartyEntry?, val forWhom: PartyEntry?, val about: PartyEntry?) {
+    val isEmpty: Boolean get() = from == null && forWhom == null && about == null
+}
+
+/**
+ * What the Extracted tab shows first, top to bottom: what to do, who it is from and for, and the key information. Everything the AI
+ * judged essential; the rest is in "All details". A document read before the key information existed has only the parties and the subject.
+ *
+ * @property actions the action lines the second stage wrote, each with the fields it quotes; empty when there are none
+ * @property parties From / For / About
+ * @property subject the subject line, the first of the "Key information"
+ * @property keyInfo the facts the AI picked as important for this kind of document (label and value as printed), best first
+ */
+data class Essentials(
+    val actions: List<ActionLine>,
+    val parties: PartiesView,
+    val subject: ExtractedData?,
+    val keyInfo: List<ExtractedData>,
+) {
+    /** Every row that is essential: what "Check these" and the review button count. */
+    val rows: List<ExtractedData>
+        get() = (actions.flatMap { it.rows } + listOfNotNull(parties.from?.row, parties.forWhom?.row, parties.about?.row, subject) + keyInfo)
+            .distinctBy { it.id }
+}
+
 /**
  * The Extracted tab, ready to draw.
  *
- * @property check the "Check these" group: the items with something the extraction was unsure of, shown expanded and first
- * @property checkCount the number of uncertain rows in [check]
- * @property sections the rest, in the family's layout; empty sections are left out
- * @property extras open metadata the model found ("Other details"), shown collapsed. Extras the model was unsure of
+ * @property essentials the top of the tab (see [Essentials])
+ * @property checkCount the number of uncertain essential rows: the only ones "Check these" counts; an uncertain row of "All details" stays there
+ * @property sections "All details": the fields the family's layout lists, other than the essential ones; empty sections are left out
+ * @property extras the open metadata that is not key information ("Other details"). Extras the model was unsure of
  *   ([ConfidenceCombiner.HIDDEN_BELOW]) are left out until [showAllExtras].
  * @property hiddenExtras how many extras are hidden behind "Show all".
  * @property ignored rows the person ignored, for the collapsed "Ignored (n)" footer where each can be restored
@@ -140,7 +176,7 @@ data class ReviewSummary(val uncertain: Int, val confidentOpen: Int, val open: I
 data class ExtractedPresentation(
     val summary: SummaryCard,
     val header: Header,
-    val check: List<DetailItem>,
+    val essentials: Essentials,
     val checkCount: Int,
     val sections: List<PresentedSection>,
     val extras: List<ExtractedData>,
@@ -150,6 +186,9 @@ data class ExtractedPresentation(
     val review: ReviewSummary,
 ) {
     val extraCount: Int get() = extras.size + hiddenExtras
+
+    /** The size of "All details (n)": every row of the sections and every extra, shown or behind "Show all". */
+    val detailCount: Int get() = sections.sumOf { s -> s.items.sumOf { it.shownRows.size } } + extraCount
 }
 
 /** A row whose extraction was unsure, or that changed under a person's value, and nobody has ignored. */
@@ -182,14 +221,15 @@ object ExtractedPresenter {
         listOf(AddressPart.COUNTRY),
     )
 
-    private val amountKeys = listOf("total", "new_amount", "proof_amount")
-    private val dueKeys = listOf("due_date", "objection_deadline")
-
+    /**
+     * @param selfName the name on the "Me" profile: an addressee whose folded name equals it reads "You" ([PartyRecipients])
+     */
     fun present(
         document: Document,
         fields: List<ExtractedData>,
         showAllExtras: Boolean = false,
         summaryComing: Boolean = false,
+        selfName: String? = null,
     ): ExtractedPresentation {
         val spec = FamilyPresentation.of(document.extractionType)
         val family = FamilyPresentation.familyId(document.extractionType)?.let { schema.family(it) }
@@ -197,47 +237,85 @@ object ExtractedPresenter {
 
         // An address row stored before verification was recorded may belong to an address that failed its checks (it mixes lines of the
         // letter): it is not shown. The party name rows are unaffected.
-        val shownFields = fields.filter { !AddressRows.isAddressKey(it.slotKey) || AddressRows.isShown(it.origin) }
+        // A row with no value is not a card (an empty "Sender" is nothing to read or check); only one a person added themselves stays,
+        // so they can fill it in.
+        val shownFields = fields.filter { (!AddressRows.isAddressKey(it.slotKey) || AddressRows.isShown(it.origin)) && hasValueToShow(it) }
         val (ignored, live) = shownFields.partition { it.isIgnored }
         val (extraRows, fixedRows) = live.partition { it.isExtra }
 
-        // The address blocks first: they claim the name row and the structured rows of their party.
-        val blocks = buildMap<SectionKind, AddressBlock> {
+        // The address blocks: each is built with its party's name row (so a repeated name is not drawn twice) and gives the party's
+        // compact address line; what stays in "All details" is the block without the name row, which the parties block shows.
+        val fullBlocks = buildMap<SectionKind, AddressBlock> {
             if (spec.has(SectionKind.RECIPIENT_BLOCK)) block(PartyRole.ADDRESSEE, fixedRows)?.let { put(SectionKind.RECIPIENT_BLOCK, it) }
             if (spec.has(SectionKind.SENDER_BLOCK)) block(PartyRole.SENDER, fixedRows)?.let { put(SectionKind.SENDER_BLOCK, it) }
         }
+
+        // What is essential: the parties, the subject, the key information the AI picked (the extras, for a document read by a version
+        // that picks them by the family's hint) and the fields behind the action lines. A document read earlier has only the parties
+        // and the subject: its extras were not picked for what the reader needs.
+        val (visibleExtras, hiddenExtras) = extraRows.partition { showAllExtras || !isHidden(it) }
+        val actions = ActionLinks.link(document.actionItems, live).map { ActionLine(it.text, it.rows) }
+        val actionRowIds = actions.flatMap { a -> a.rows.map { it.id } }.toSet()
+        // The slot rows the AI picked as key information (an invoice number, an IBAN ...) come first, best score first, then the extras. A
+        // value an action line already states stays in that line's sub-lines and is not drawn twice.
+        val readsKeyInfo = ExtractorVersion.readsKeyInfo(document.extractorVersion)
+        val keySlotRows = if (readsKeyInfo) fixedRows.filter { it.isKeySlot }.sortedByDescending { it.importance } else emptyList()
+        val keyInfo = if (readsKeyInfo) (keySlotRows + visibleExtras).filter { it.id !in actionRowIds } else emptyList()
+        val essentials = Essentials(
+            actions = actions,
+            parties = parties(fixedRows, fullBlocks, selfName),
+            subject = fixedRows.firstOrNull { it.slotKey == UnderstandingToFields.SLOT_SUBJECT },
+            keyInfo = keyInfo,
+        )
+        val essentialIds = essentials.rows.map { it.id }.toSet()
+
+        val blocks = fullBlocks.mapValues { (_, b) ->
+            b.copy(nameRow = null, rows = b.rows.filter { it.id != b.nameRow?.id })
+        }.filterValues { it.shownRows.isNotEmpty() }
         val claimed = blocks.values.flatMap { b -> b.rows.map { it.id } }.toSet()
 
         // Every other fixed row goes into the section the spec names it in, else the one its kind belongs to.
-        val bySection = fixedRows.filter { it.id !in claimed }
+        val bySection = fixedRows.filter { it.id !in claimed && it.id !in essentialIds }
             .groupBy { sectionFor(spec, it) }
             .mapValues { (_, rows) -> rows.sortedBy { rank(spec, it, familyOrder) }.map(::FieldItem) }
 
         val listed = spec.sections.map { it.kind }.filter { it != SectionKind.EXTRAS }
         val kinds = listed + (bySection.keys + blocks.keys).filter { it !in listed }.sortedBy { it.ordinal }
-        val all = kinds.mapNotNull { kind ->
+        val sections = kinds.mapNotNull { kind ->
             val items: List<DetailItem> = listOfNotNull(blocks[kind]) + bySection[kind].orEmpty()
             items.takeIf { it.isNotEmpty() }?.let { PresentedSection(kind, it) }
         }
 
-        // Extras the extraction is unsure of are listed under "Check these" too; the very unsure ones stay behind "Show all".
-        val (visibleExtras, hiddenExtras) = extraRows.partition { showAllExtras || !isHidden(it) }
-
-        val check = all.flatMap { s -> s.items.filter { it.uncertainRows.isNotEmpty() } } +
-            visibleExtras.filter { it.isUncertain }.map(::FieldItem)
-        val sections = all.map { s -> s.copy(items = s.items.filter { it.uncertainRows.isEmpty() }) }.filter { it.items.isNotEmpty() }
-
         return ExtractedPresentation(
-            summary = card(document, live).let { if (summaryComing && !it.hasSummary) it.copy(summaryComing = true) else it },
+            summary = card(document).let { if (summaryComing && !it.hasSummary) it.copy(summaryComing = true) else it },
             header = header(document),
-            check = check,
-            checkCount = check.sumOf { it.uncertainRows.size },
+            essentials = essentials,
+            checkCount = essentials.rows.count { it.isUncertain },
             sections = sections,
-            extras = visibleExtras.filter { !it.isUncertain },
+            extras = visibleExtras.filter { it.id !in essentialIds },
             hiddenExtras = hiddenExtras.size,
             showAllExtras = showAllExtras,
             ignored = ignored,
-            review = reviewOf(live, blocks.values, notShown = hiddenExtras.map { it.id }.toSet()),
+            review = reviewOf(essentials.rows),
+        )
+    }
+
+    private fun hasValueToShow(row: ExtractedData): Boolean = row.fieldValue.isNotBlank() || row.source == ValueSource.USER
+
+    /** From (the sender), For (the addressee, "You" for the Me profile) and About (the subject person, only when it is someone else). */
+    private fun parties(rows: List<ExtractedData>, blocks: Map<SectionKind, AddressBlock>, selfName: String?): PartiesView {
+        fun addressOf(kind: SectionKind) = blocks[kind]?.lines?.map { line -> line.parts.joinToString(" ") { it.fieldValue.lines().joinToString(" ") } }.orEmpty()
+        val sender = PartyFields.sender(rows)
+        val addressee = PartyFields.addressee(rows)
+        val about = rows.firstOrNull { it.slotKey == UnderstandingToFields.SLOT_SUBJECT_PERSON }
+            ?.takeIf { addressee == null || !PartyRecipients.sameName(it.fieldValue, addressee.fieldValue) }
+        return PartiesView(
+            from = sender?.let { PartyEntry(it, addressLines = addressOf(SectionKind.SENDER_BLOCK)) },
+            forWhom = addressee?.let {
+                val recipient = PartyRecipients.of(it.fieldValue, selfName)
+                PartyEntry(it, recipient, addressLines = if (recipient is PagesRecipient.You) emptyList() else addressOf(SectionKind.RECIPIENT_BLOCK))
+            },
+            about = about?.let { PartyEntry(it) },
         )
     }
 
@@ -254,13 +332,14 @@ object ExtractedPresenter {
         return Header(document.extractionType, document.topics, confidence)
     }
 
-    /** Counts what the main button works on. A block's raw row is not drawn but is confirmed with the block, so it is open but never uncertain. */
-    private fun reviewOf(live: List<ExtractedData>, blocks: Collection<AddressBlock>, notShown: Set<String>): ReviewSummary {
-        val hiddenRaw = blocks.filter { it.lines.isNotEmpty() }.mapNotNull { it.rawRow?.id }.toSet()
-        val open = live.filter { it.reviewState == ReviewState.UNREVIEWED }
-        // Only rows a person can see: the very unsure extras behind "Show all" are not drawn, so they are not counted as uncertain.
-        val uncertain = live.count { it.isUncertain && it.id !in hiddenRaw && it.id !in notShown }
-        return ReviewSummary(uncertain = uncertain, confidentOpen = open.count { !it.needsReview || it.id in hiddenRaw }, open = open.size)
+    /** Counts what the main button works on: the essential rows only. An uncertain row of "All details" is never counted, and never confirmed here. */
+    private fun reviewOf(essential: List<ExtractedData>): ReviewSummary {
+        val open = essential.filter { it.reviewState == ReviewState.UNREVIEWED }
+        return ReviewSummary(
+            uncertain = essential.count { it.isUncertain },
+            confidentIds = open.filter { !it.needsReview }.map { it.id },
+            openIds = open.map { it.id },
+        )
     }
 
     private fun isHidden(extra: ExtractedData): Boolean =
@@ -299,8 +378,9 @@ object ExtractedPresenter {
         field.slotKey?.let { key -> spec.sectionOf(key)?.let { return it } }
         val money = listOf(SectionKind.ACTION, SectionKind.PAYMENT).firstOrNull { spec.has(it) } ?: SectionKind.ACTION
         when (field.slotKey) {
-            UnderstandingToFields.SLOT_SENDER, UnderstandingToFields.SLOT_ADDRESSEE, UnderstandingToFields.SLOT_CONTACT ->
-                return SectionKind.PARTIES
+            UnderstandingToFields.SLOT_SENDER, UnderstandingToFields.SLOT_ADDRESSEE, UnderstandingToFields.SLOT_CONTACT,
+            UnderstandingToFields.SLOT_SUBJECT_PERSON,
+            -> return SectionKind.PARTIES
             UnderstandingToFields.SLOT_SUBJECT -> return SectionKind.TEXT
         }
         allSlots.firstOrNull { it.json == field.slotKey }?.let { slot ->
@@ -340,21 +420,11 @@ object ExtractedPresenter {
     /** Slots a spec does not name come after the ones it does, in the family's own order. */
     private const val LISTED_AFTER = 1_000
 
-    private fun card(document: Document, live: List<ExtractedData>): SummaryCard {
-        fun line(row: ExtractedData?) = row?.let { CardLine(it.fieldValue, it.needsReview) }
-        fun bySlot(keys: List<String>, legacyName: String): ExtractedData? =
-            keys.firstNotNullOfOrNull { key -> live.firstOrNull { it.slotKey == key } }
-                ?: live.firstOrNull { it.slotKey == null && it.fieldName == legacyName }
-
+    private fun card(document: Document): SummaryCard {
         val text = document.summary?.takeIf { it.isNotBlank() }
         val template = text == null && document.summaryCode == SummaryWriter.TEMPLATE_CODE && document.summaryArgs.isNotEmpty()
         return SummaryCard(
             titleArgs = document.titleArgs.takeIf { TitleComposer.isComposed(document.titleCode) && it.isNotEmpty() },
-            from = line(PartyFields.sender(live)),
-            forWhom = line(PartyFields.addressee(live)),
-            typeId = document.extractionType,
-            amount = line(bySlot(amountKeys, UnderstandingToFields.AMOUNT)),
-            due = line(bySlot(dueKeys, UnderstandingToFields.DEADLINE)),
             summaryText = text,
             templateArgs = document.summaryArgs.takeIf { template },
             summarySource = when {

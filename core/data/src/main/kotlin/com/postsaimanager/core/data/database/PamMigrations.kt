@@ -486,6 +486,31 @@ object PamMigrations {
         }
     }
 
+    /**
+     * v17 to v18: a document keeps the action lines its second stage wrote (`actionItems`, a JSON list of strings; NULL reads as none).
+     * Additive: nothing is rewritten. Never change this migration: a build with v18 was installed (v18 means only `actionItems`).
+     */
+    val MIGRATION_17_18 = object : Migration(17, 18) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `actionItems` TEXT")
+        }
+    }
+
+    /**
+     * v18 to v19: a stored field the key information it was picked as (`importance` on `extracted_data`, the score; NULL is not key
+     * information). Idempotent: some v18 databases already have the column (an earlier build put it into the 17 to 18 step), so it is
+     * added only when missing.
+     */
+    val MIGRATION_18_19 = object : Migration(18, 19) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            val hasImportance = db.query("PRAGMA table_info(`extracted_data`)").use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                generateSequence { if (cursor.moveToNext()) cursor.getString(nameIndex) else null }.any { it == "importance" }
+            }
+            if (!hasImportance) db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `importance` REAL")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -503,5 +528,7 @@ object PamMigrations {
         MIGRATION_14_15,
         MIGRATION_15_16,
         MIGRATION_16_17,
+        MIGRATION_17_18,
+        MIGRATION_18_19,
     )
 }

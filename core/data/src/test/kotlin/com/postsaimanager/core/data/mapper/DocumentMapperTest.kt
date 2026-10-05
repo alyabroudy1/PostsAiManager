@@ -34,6 +34,16 @@ class DocumentMapperTest {
     }
 
     @Test
+    fun `a slot row keeps the importance it was picked with through storage, and a row stored before v18 has none`() {
+        val picked = ExtractedData("f1", "d1", "Invoice Number", "R-1", ExtractedFieldType.REFERENCE_NUMBER, 0.9f, slotKey = "invoice_no", importance = 2.5f)
+
+        val entity = mapper.extractedDataToEntity(picked)
+        assertThat(entity.importance).isEqualTo(2.5f)
+        assertThat(mapper.extractedDataToDomain(entity)).isEqualTo(picked)
+        assertThat(mapper.extractedDataToDomain(entity.copy(importance = null)).isKeySlot).isFalse()
+    }
+
+    @Test
     fun `a stored box that cannot be read is absent, not a failure`() {
         val entity = mapper.extractedDataToEntity(
             ExtractedData("f", "d", "n", "v", ExtractedFieldType.TEXT, 0.9f),
@@ -86,6 +96,24 @@ class DocumentMapperTest {
         )
 
         assertThat(mapper.toDomain(mapper.toEntity(document))).isEqualTo(document)
+    }
+
+    @Test
+    fun `a document keeps its action lines through storage, and one stored before v18 has none`() {
+        val document = Document(
+            id = "d1", title = "T", sourceType = SourceType.CAMERA, createdAt = 1, modifiedAt = 2, titleSource = TitleSource.MODEL,
+            actionItems = listOf("Zahle 64,98 € bis zum 15.10.2026.", "Einspruch bis zum 02.09.2026 möglich."),
+        )
+        assertThat(mapper.toDomain(mapper.toEntity(document))).isEqualTo(document)
+        assertThat(mapper.toEntity(document.copy(actionItems = emptyList())).actionItems).isNull()
+        assertThat(
+            mapper.toDomain(
+                DocumentEntity(
+                    id = "d", title = "T", status = "EXTRACTED", documentType = null, language = null, sourceType = "CAMERA",
+                    thumbnailPath = null, pageCount = 1, createdAt = 1, modifiedAt = 1, actionItems = null,
+                ),
+            ).actionItems,
+        ).isEmpty()
     }
 
     @Test

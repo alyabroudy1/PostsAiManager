@@ -10,6 +10,7 @@ import com.postsaimanager.core.domain.extraction.address.StructuredAddressReader
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
+import com.postsaimanager.core.domain.extraction.text.ActionWriter
 import com.postsaimanager.core.domain.extraction.text.SummaryFacts
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.domain.extraction.v2.AnswerReader
@@ -47,6 +48,8 @@ import com.postsaimanager.core.domain.extraction.v2.StructuredGrammar
 import com.postsaimanager.core.domain.extraction.v2.TextOutcome
 import com.postsaimanager.core.domain.extraction.v2.TextRequest
 import com.postsaimanager.core.domain.extraction.v2.UnreadText
+import com.postsaimanager.core.model.KeySlot
+import com.postsaimanager.core.model.TicketSlot
 import java.util.Locale
 
 /**
@@ -166,6 +169,7 @@ class ZoneScoringInterpreter(
         unread = null
         failures = 0
         letter = null
+        ownSlots = emptySet()
         prescored.clear()
         prefixTokens = 0
         prefixMs = 0
@@ -228,6 +232,7 @@ class ZoneScoringInterpreter(
         val classification = classify(direction, forcedFamily)
         val family = classification.family
         val topics = if (topicsInFirstStage) classification.topics else emptyList()
+        ownSlots = schema.ownSlots(family, topics)
         val bodyParties = partyNames.filter { !isHeader(it.first) } + deferredParties
         val bodySlots = (Slots.CORE + schema.slotsFor(family, topics)).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) } + deferred
         prescored.clear()
@@ -313,14 +318,21 @@ class ZoneScoringInterpreter(
                 val budget = openBody(setup, zones, request.established) ?: return EnrichmentOutcome.Failed("the model could not read the letter")
                 LetterSession(setup, zones, budget).also { letter = it }
             }
-            val picked = pickExtras(open.setup, request.takenIds)
+            // The family's hint says what matters in this kind of document: it steers which facts are kept as the key information
+            // (the extras) and what the action lines say; the model still decides, code only verifies.
+            val hint = (request.documentTypeId?.let { schema.family(it) } ?: schema.abstain)?.hint
+            val picks = pickExtras(open.setup, request.takenIds, hint, request.slots)
+            val picked = picks.extras
             // A profile that keeps the topics out of the first stage scores them here, still in the body session.
             val lateTopics = if (topicsInFirstStage || request.topics.isNotEmpty()) null else classifier().topics(tail)
             // The letter as plain text: no zone hints and no summary of the header, which a small model copies instead of the letter.
             val writing = switchToWriting(open.setup, ZonePrompt.bodyUser("", open.setup.zoned.render(open.zonesInPrefix, open.budget)))
             if (!writing) {
                 return EnrichmentOutcome.Done(
-                    Enrichment(language = null, extras = emptyList(), text = null, textError = "the model could not read the letter again", topics = lateTopics),
+                    Enrichment(
+                        language = null, extras = emptyList(), text = null, textError = "the model could not read the letter again", topics = lateTopics,
+                        keySlots = picks.keySlots,
+                    ),
                 )
             }
             val language = ask(QuestionnairePrompt.language())?.let { AnswerReader.language(it) }
@@ -331,10 +343,14 @@ class ZoneScoringInterpreter(
             val subject = written?.subject?.takeIf { QuoteVerifier.verify(it, request.ocrText) != null }
             val facts = SummaryFacts.of(request.documentTypeId ?: schema.abstain?.id.orEmpty(), request.facts, subject)
             val summary = SummaryWriter(FramedSession()).write(facts, request.ocrText, language)
+            // What the reader must do: written from the same verified facts plus the key information picked, checked line by line.
+            val keyInfo = extras.mapNotNull { x -> picked.firstOrNull { it.candidate.id == x.id }?.let { x.label to it.candidate.raw.replace('\n', ' ') } }
+            val actions = ActionWriter(FramedSession("text:actions")).write(facts.entries() + keyInfo, hint, request.ocrText, language)
             return EnrichmentOutcome.Done(
                 Enrichment(
                     language = language, extras = extras, text = written,
-                    textError = (text as? TextOutcome.Failed)?.reason, summary = summary, topics = lateTopics,
+                    textError = (text as? TextOutcome.Failed)?.reason, summary = summary, topics = lateTopics, actions = actions,
+                    keySlots = picks.keySlots,
                 ),
             )
         } catch (e: Abort) {
@@ -386,21 +402,30 @@ class ZoneScoringInterpreter(
      * for every other value. Names are never offered: the parties were scored already, and the names the extractor finds that are
      * not a party are mostly labels and fragments of lines ("Fällig am", "Betrag €"). A failed scoring leaves no extras.
      */
-    private suspend fun pickExtras(setup: ZoneSetup, taken: Set<String>): List<Picked> {
+    private suspend fun pickExtras(setup: ZoneSetup, taken: Set<String>, hint: String?, slots: List<TicketSlot>): Picks {
         val zoned = setup.zoned
         val zones = setup.plan.zones(QuestionNames.EXTRAS_SCORED).filter { zoned.hasText(it) }
-        if (zones.isEmpty()) return emptyList()
-        val cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.id !in taken && it.kind != CandidateKind.NAME }
-        if (cands.isEmpty()) return emptyList()
-        val block = block(setup, zones)
+        val cands = if (zones.isEmpty()) emptyList() else zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.id !in taken && it.kind != CandidateKind.NAME }
+        // The stored slot values ride in the same batch (one decode of the shared block): does the reader need this one, given the hint.
+        val asked = slots.take(ScoringDescriptions.MAX_KEY_SLOT_SCORES)
+        if (cands.isEmpty() && asked.isEmpty()) return Picks(emptyList(), null)
+        val block = if (cands.isEmpty()) "" else block(setup, zones)
         val scores = scoreBatch(
             ScoringDescriptions.EXTRAS_ASK, block,
-            cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), ScoringDescriptions.EXTRA) },
-        ) ?: return emptyList()
+            cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), ScoringDescriptions.extra(hint)) } +
+                asked.map { ZonePrompt.keySlotQuestion(it.label, it.value, hint) },
+        ) ?: return Picks(emptyList(), null)
         val threshold = profile.threshold(ScoringDescriptions.EXTRAS_ASK)
-        return scores.indices.filter { scores[it] > threshold }.sortedByDescending { scores[it] }
+        val extras = cands.indices.filter { scores[it] > threshold }.sortedByDescending { scores[it] }
             .take(StructuredGrammar.MAX_EXTRAS).map { Picked(cands[it], scores[it]) }
+        val slotThreshold = profile.threshold(ScoringDescriptions.KEY_SLOTS_ASK)
+        val keySlots = asked.indices.filter { scores[cands.size + it] > slotThreshold }.sortedByDescending { scores[cands.size + it] }
+            .map { KeySlot(asked[it].key, scores[cands.size + it].toFloat()) }
+        return Picks(extras, if (asked.isEmpty()) null else keySlots)
     }
+
+    /** What the extras batch decided: the extras picked, and the stored slots picked as key information (null when none were scored). */
+    private class Picks(val extras: List<Picked>, val keySlots: List<KeySlot>?)
 
     /**
      * Names each picked extra with one short constrained ask: the words the letter prints next to it. The value is the candidate
@@ -510,15 +535,18 @@ class ZoneScoringInterpreter(
         }
     }
 
-    /** The letter's session as the summary writer sees it: its questions are framed like every other ask (the turn's opening and closing) and recorded. */
-    private inner class FramedSession : PromptSession by session {
+    /**
+     * The letter's session as a writer (the summary's, the action lines') sees it: its questions are framed like every other ask (the
+     * turn's opening and closing) and recorded under [name].
+     */
+    private inner class FramedSession(private val name: String = "text:summary") : PromptSession by session {
         override suspend fun ask(question: String, grammar: String, maxTokens: Int): PamResult<String> {
             val started = System.nanoTime()
             val result = session.ask("\n\n" + question + tail, grammar, maxTokens)
             val ms = (System.nanoTime() - started) / NANOS_PER_MS
             val answer = (result as? PamResult.Success)?.data?.trim()
-            records += AskRecord("text:summary", question, answer, ms)
-            timing("ask text:summary ms=$ms answerChars=${answer?.length ?: 0}${if (answer == null) " FAILED" else ""}")
+            records += AskRecord(name, question, answer, ms)
+            timing("ask $name ms=$ms answerChars=${answer?.length ?: 0}${if (answer == null) " FAILED" else ""}")
             return result
         }
     }
@@ -526,7 +554,27 @@ class ZoneScoringInterpreter(
     // ── planned questions, scored as a grid where they share ──
 
     /** One question of the reading, planned before it is asked: the zones it is about, the candidates it scores and what it asks of each. */
-    private class Ask(val name: String, val zones: List<LetterZone>, val cands: List<Candidate>, val what: String)
+    private class Ask(val name: String, val zones: List<LetterZone>, val cands: List<Candidate>, val what: String, val labelled: Boolean = false)
+
+    /** The slots this document is expected to have beyond the core (its family's own and its topics'): the ones that are not [ScoringProfile.optionalUnlessOwn]-optional for it. Set once the family is known. */
+    private var ownSlots: Set<SlotKey> = emptySet()
+
+    /** Whether [slot] may be none for this document (see [ScoringProfile.isOptional]). */
+    private fun optional(slot: SlotKey): Boolean = profile.isOptional(QuestionNames.slot(slot.json), slot in ownSlots)
+
+    /** The threshold a slot question abstains under: its own, or the optional level for a number this document may not have. */
+    private fun slotThreshold(name: String, slot: SlotKey?): Double =
+        if (slot == null) profile.threshold(name) else profile.slotThreshold(name, slot in ownSlots)
+
+    /**
+     * A reference found by shape alone in the small print at the foot of a page (a register or tax digit run): input for the extras, never offered
+     * to a slot. Decided by where it sits and how it was found, not by any word.
+     */
+    private fun isFooterShape(zoned: ZonedLetter, c: Candidate): Boolean {
+        if (c.attrs["shape"] == null) return false
+        val zones = zoned.zonesOfCandidate(c.id)
+        return zones.isNotEmpty() && zones.all { it == zoned.mapped(LetterZone.FOOTER) }
+    }
 
     /** Scores computed ahead by [prescore], by question name; a question takes its scores from here (once) before it would score on its own. */
     private val prescored = HashMap<String, List<Double>>()
@@ -553,20 +601,24 @@ class ZoneScoringInterpreter(
         val zoned = setup.zoned
         val name = QuestionNames.slot(slot.json)
         val zones = setup.plan.zones(name, slot).filter { zoned.hasText(it) }
-        var cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.kind in slot.kind.candidates }
+        val isReference = slot.kind == SlotKind.REFERENCE || slot.kind == SlotKind.REFERENCE_LIST
+        fun offered(rows: List<Candidate>) = rows.filter { it.kind in slot.kind.candidates && !(isReference && isFooterShape(zoned, it)) }
+        var cands = offered(zoned.candidatesIn(zones).rows.map { it.candidate })
         var asked = zones
-        if (cands.isEmpty() && widen) {
-            cands = zoned.offered.rows.map { it.candidate }.filter { it.kind in slot.kind.candidates }
+        // A number the document may not have is never widened to the whole letter: that its zones hold none is an answer.
+        if (cands.isEmpty() && widen && !optional(slot)) {
+            cands = offered(zoned.offered.rows.map { it.candidate })
             asked = cands.flatMap { zoned.zonesOfCandidate(it.id) }.distinct().filter { zoned.hasText(it) }
         }
         if (cands.isEmpty()) return null
-        return Ask(name, asked, cands, ScoringDescriptions.ofSlot(slot))
+        return Ask(name, asked, cands, ScoringDescriptions.ofSlot(slot), labelled = isReference && optional(slot))
     }
 
     /** The scores of [ask]'s candidates: the ones [prescore] computed, else scored now as a batch under [block]. */
     private suspend fun scored(setup: ZoneSetup, ask: Ask, block: String): List<Double>? =
         prescored.remove(ask.name) ?: scoreBatch(
-            ask.name, block, ask.cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), setup.zoned.context(it), ask.what) },
+            ask.name, block,
+            ask.cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), setup.zoned.context(it), ask.what, if (ask.labelled) setup.zoned.printedLabel(it) else null) },
         )
 
     /**
@@ -578,11 +630,12 @@ class ZoneScoringInterpreter(
     private suspend fun prescore(setup: ZoneSetup, asks: List<Ask>) {
         if (!profile.prefixTree) return
         val zoned = setup.zoned
-        for ((key, group) in asks.groupBy { block(setup, it.zones) to it.cands.map { c -> c.id } }) {
+        // The questions that show the printed label do not share their head with those that do not.
+        for ((key, group) in asks.groupBy { Triple(block(setup, it.zones), it.cands.map { c -> c.id }, it.labelled) }) {
             if (group.size < 2) continue
             val block = key.first
             val cands = group.first().cands
-            val heads = cands.map { ZonePrompt.scoringHead(it.raw.replace('\n', ' '), zoned.context(it)) }
+            val heads = cands.map { ZonePrompt.scoringHead(it.raw.replace('\n', ' '), zoned.context(it), if (key.third) zoned.printedLabel(it) else null) }
             val statements = group.map { ZonePrompt.scoringAsk(it.what) }
             val started = System.nanoTime()
             val result = session.scoreGrid("\n\n" + block, heads, statements.map { it + tail }, YES, NO)
@@ -695,7 +748,7 @@ class ZoneScoringInterpreter(
         val block = block(setup, asked)
         val scores = scored(setup, ask, block) ?: return true
         if (slot.kind != SlotKind.REFERENCE_LIST) collect(name, cands, scores, role = null, slot = slot, block = block)
-        val threshold = profile.threshold(name)
+        val threshold = slotThreshold(name, slot)
         val order = scores.indices.sortedByDescending { scores[it] }
         val best = order.first()
         traceAsk(setup, name, asked, cands, scores, best)
@@ -739,7 +792,7 @@ class ZoneScoringInterpreter(
 
     private fun collect(name: String, cands: List<Candidate>, scores: List<Double>, role: PartyRole?, slot: SlotKey?, block: String) {
         val question = ScoredQuestion(
-            name, cands.mapIndexed { i, c -> ScoredCandidate(facts(c), scores[i]) }, profile.threshold(name),
+            name, cands.mapIndexed { i, c -> ScoredCandidate(facts(c), scores[i]) }, slotThreshold(name, slot),
             excludesWinnerOf = if (role != null && role != PartyRole.SENDER) QuestionNames.SENDER else null,
         )
         scored += Scored(question, slot, role, block, cands)

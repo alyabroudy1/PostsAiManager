@@ -379,10 +379,13 @@ object LetterLayoutAnalyzer {
      * The subject is the first short line, or two to three tightly spaced short lines, below the
      * address and info blocks that stands apart from what follows (a clear gap after it) and is
      * not shaped like a sentence (no closing full stop, `!`, `?`) or a greeting (no closing comma,
-     * colon or semicolon). Pure geometry and shape: a "Betreff" word, a salutation or any other
+     * colon or semicolon), and is not a cell of a table (a row of a table of positions is not a subject, [RowBands]).
+     * Pure geometry and shape: a "Betreff" word, a salutation or any other
      * word plays no part, so a letter in any language or script gets the same subject.
      */
     private fun classifySubject(cands: List<Work>) {
+        // A cell of a table (a row of a table of positions) is never a subject, however isolated the row stands.
+        val cells = RowBands.tableCells(cands) { it.bounds }
         for (i in cands.indices) {
             if (cands[i].cy >= SUBJECT_MAX_Y) return
             val chain = mutableListOf(cands[i])
@@ -394,7 +397,7 @@ object LetterLayoutAnalyzer {
             val after = cands.getOrNull(i + chain.size) ?: return
             val gap = after.cy - chain.last().cy
             if (gap < ISOLATED_GAP || gap <= pitchLimit(chain.last(), after)) continue
-            if (chain.any { it.text.length > 120 } || chain.last().text.trim().last() in NOT_A_SUBJECT_END) continue
+            if (chain.any { it.text.length > 120 || it in cells } || chain.last().text.trim().last() in NOT_A_SUBJECT_END) continue
             chain.forEach { set(it, LetterZone.SUBJECT) }
             return
         }

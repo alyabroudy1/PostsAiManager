@@ -102,4 +102,14 @@ class SlotLabelsTest {
         assertThat(SlotLabels.extraKeyName("x:geleistete_vorauszahlungen")).isEqualTo("geleistete vorauszahlungen")
         assertThat(SlotLabels.extraKeyName("Zaehlernummer")).isNull()
     }
+
+    @Test
+    fun `an extra whose bare key is a slot id or a slot's stored label is worded as the slot`() {
+        assertThat(SlotLabels.extraKeySlot("x:amount")).isEqualTo(R.string.slot_total)
+        assertThat(SlotLabels.extraKeySlot("x:amount_2")).isEqualTo(R.string.slot_total)
+        assertThat(SlotLabels.extraKeySlot("x:invoice_no")).isEqualTo(R.string.slot_invoice_no)
+        assertThat(SlotLabels.extraKeySlot("x:customer_number")).isEqualTo(R.string.slot_customer_no)
+        assertThat(SlotLabels.extraKeySlot("x:geleistete_vorauszahlungen")).isNull()
+        assertThat(SlotLabels.extraKeySlot("Amount")).isNull()
+    }
 }

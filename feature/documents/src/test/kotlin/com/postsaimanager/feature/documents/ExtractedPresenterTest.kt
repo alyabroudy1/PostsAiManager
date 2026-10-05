@@ -2,6 +2,8 @@ package com.postsaimanager.feature.documents
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.address.AddressRows
+import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.SectionKind
 import com.postsaimanager.core.model.Document
@@ -33,8 +35,8 @@ class ExtractedPresenterTest {
         confidence = confidence, slotKey = slotKey, source = source, isConfirmed = confirmed, deletedByUser = deleted,
     )
 
-    private fun extra(label: String, confidence: Float = 0.9f, source: ValueSource = ValueSource.MACHINE, confirmed: Boolean = false) =
-        field(label, "x", slotKey = "x:" + label.lowercase().replace(' ', '_'), confidence = confidence, source = source, confirmed = confirmed)
+    private fun extra(label: String, confidence: Float = 0.9f, source: ValueSource = ValueSource.MACHINE, confirmed: Boolean = false, value: String = "x") =
+        field(label, value, slotKey = "x:" + label.lowercase().replace(' ', '_'), confidence = confidence, source = source, confirmed = confirmed)
 
     /** A stored address part: `addressee.street`, `sender.city`, ... */
     private fun part(prefix: String, key: String, value: String, confidence: Float = 0.9f, confirmed: Boolean = false, deleted: Boolean = false) =
@@ -51,20 +53,31 @@ class ExtractedPresenterTest {
         topics: List<String> = emptyList(),
         typeConfidence: Float? = null,
         familySource: FamilySource = FamilySource.MODEL,
+        actionItems: List<String> = emptyList(),
+        extractorVersion: String? = ExtractorVersion.CURRENT,
     ) = Document(
         id = "d", title = "T", sourceType = SourceType.CAMERA, createdAt = 0, modifiedAt = 0,
         extractionType = type, summary = summary, titleCode = titleCode, titleArgs = titleArgs, summarySource = summarySource,
         summaryCode = summaryCode, summaryArgs = summaryArgs, topics = topics, extractionTypeConfidence = typeConfidence,
-        familySource = familySource,
+        familySource = familySource, actionItems = actionItems, extractorVersion = extractorVersion,
     )
 
-    private fun present(fields: List<ExtractedData>, type: String? = "bill", summary: String? = null, showAll: Boolean = false) =
-        ExtractedPresenter.present(doc(type, summary), fields, showAll)
+    private fun present(
+        fields: List<ExtractedData>,
+        type: String? = "bill",
+        summary: String? = null,
+        showAll: Boolean = false,
+        selfName: String? = null,
+        actions: List<String> = emptyList(),
+        version: String? = ExtractorVersion.CURRENT,
+    ) = ExtractedPresenter.present(doc(type, summary, actionItems = actions, extractorVersion = version), fields, showAll, selfName = selfName)
 
     private fun ExtractedPresentation.kinds() = sections.map { it.kind }
 
     private fun ExtractedPresentation.slotsIn(kind: SectionKind): List<String?> =
         sections.single { it.kind == kind }.items.flatMap { it.rows }.map { it.slotKey }
+
+    private fun ExtractedPresentation.detailSlots(): List<String?> = sections.flatMap { it.items }.flatMap { it.rows }.map { it.slotKey }
 
     @Nested
     @DisplayName("Summary coming")
@@ -102,83 +115,18 @@ class ExtractedPresenterTest {
     inner class Card {
 
         @Test
-        fun `from, for, type, amount, due and the summary are read from the slots`() {
+        fun `the card holds the title and the summary only, the rest is in the essentials`() {
             val p = present(
                 listOf(
                     field("Sender Organization", "Nordlicht Mobilfunk GmbH", "sender"),
-                    field("Receiver Name", "Erika Mustermann", "addressee"),
                     field("Amount", "64,98 €", "total"),
-                    field("Deadline", "15.10.2026", "due_date"),
                 ),
                 type = "reminder_dunning",
                 summary = "Pay 64,98 € within 14 days.",
             )
 
-            assertThat(p.summary.from!!.value).isEqualTo("Nordlicht Mobilfunk GmbH")
-            assertThat(p.summary.forWhom!!.value).isEqualTo("Erika Mustermann")
-            assertThat(p.summary.typeId).isEqualTo("reminder_dunning")
-            assertThat(p.summary.amount!!.value).isEqualTo("64,98 €")
-            assertThat(p.summary.due!!.value).isEqualTo("15.10.2026")
             assertThat(p.summary.summaryText).isEqualTo("Pay 64,98 € within 14 days.")
-        }
-
-        @Test
-        fun `a line the checks flagged is marked worth checking, a confident one is not`() {
-            val p = present(
-                listOf(
-                    field("Amount", "64,98 €", "total", confidence = 0.4f),
-                    field("Deadline", "15.10.2026", "due_date", confidence = 0.9f),
-                ),
-            )
-
-            assertThat(p.summary.amount!!.worthChecking).isTrue()
-            assertThat(p.summary.due!!.worthChecking).isFalse()
-        }
-
-        @Test
-        fun `the main amount is the first present of the type's amount slots, the objection deadline stands in for a due date`() {
-            val p = present(
-                listOf(
-                    field("New Amount", "612,40 €", "new_amount"),
-                    field("Amount Paid", "1,00 €", "proof_amount"),
-                    field("Objection Deadline", "01.11.2026", "objection_deadline"),
-                ),
-                type = "contract_policy",
-            )
-
-            assertThat(p.summary.amount!!.value).isEqualTo("612,40 €")
-            assertThat(p.summary.due!!.value).isEqualTo("01.11.2026")
-        }
-
-        @Test
-        fun `rows stored before slot keys still fill the card by their old names`() {
-            val p = present(
-                listOf(
-                    field("Sender Name", "Jobcenter"),
-                    field("Receiver Name", "Erika"),
-                    field("Amount", "10 €"),
-                    field("Deadline", "01.01.2027"),
-                ),
-                type = null,
-            )
-
-            assertThat(p.summary.from!!.value).isEqualTo("Jobcenter")
-            assertThat(p.summary.forWhom!!.value).isEqualTo("Erika")
-            assertThat(p.summary.amount!!.value).isEqualTo("10 €")
-            assertThat(p.summary.due!!.value).isEqualTo("01.01.2027")
-        }
-
-        @Test
-        fun `a user's edit is what the card shows, and an ignored field is not shown`() {
-            val p = present(
-                listOf(
-                    field("Amount", "70,00 €", "total", source = ValueSource.USER, confirmed = true),
-                    field("Deadline", "15.10.2026", "due_date", deleted = true),
-                ),
-            )
-
-            assertThat(p.summary.amount!!.value).isEqualTo("70,00 €")
-            assertThat(p.summary.due).isNull()
+            assertThat(p.essentials.parties.from!!.row.fieldValue).isEqualTo("Nordlicht Mobilfunk GmbH")
         }
 
         @Test
@@ -244,14 +192,259 @@ class ExtractedPresenterTest {
     }
 
     @Nested
+    @DisplayName("Essentials")
+    inner class EssentialsTests {
+
+        private val sender = { field("Sender Organization", "Nordlicht Mobilfunk GmbH", "sender") }
+        private val addressee = { field("Receiver Name", "Erika Mustermann", "addressee") }
+
+        private val invoiceFields = {
+            listOf(
+                sender(), addressee(),
+                field("Subject", "Zahlungserinnerung", "subject"),
+                field("Amount", "64,98 €", "total"),
+                field("Deadline", "15.10.2026", "due_date"),
+                field("IBAN", "DE89 3704 0044 0532 0130 00", "iban"),
+                field("Invoice Number", "R-1", "invoice_no"),
+                extra("Mandatsreferenz", value = "M-2026-77"),
+                extra("Tarif", value = "Komfort"),
+            )
+        }
+
+        @Test
+        fun `From is the sender, For the addressee and the subject opens the key information`() {
+            val e = present(invoiceFields(), type = "invoice_bill").essentials
+
+            assertThat(e.parties.from!!.row.fieldValue).isEqualTo("Nordlicht Mobilfunk GmbH")
+            assertThat(e.parties.forWhom!!.row.fieldValue).isEqualTo("Erika Mustermann")
+            assertThat(e.parties.forWhom!!.recipient).isEqualTo(PagesRecipient.Named("Erika Mustermann"))
+            assertThat(e.subject!!.fieldValue).isEqualTo("Zahlungserinnerung")
+        }
+
+        @Test
+        fun `For reads You on an exact folded match with the Me profile, and the name otherwise`() {
+            assertThat(present(invoiceFields(), selfName = "erika  MUSTERMANN").essentials.parties.forWhom!!.recipient).isEqualTo(PagesRecipient.You)
+            assertThat(present(invoiceFields(), selfName = "Erika Mustermann-Berger").essentials.parties.forWhom!!.recipient)
+                .isEqualTo(PagesRecipient.Named("Erika Mustermann"))
+            assertThat(present(invoiceFields(), selfName = null).essentials.parties.forWhom!!.recipient).isEqualTo(PagesRecipient.Named("Erika Mustermann"))
+        }
+
+        @Test
+        fun `About is shown only for another person than the addressee`() {
+            val child = field("About Person", "Mia Mustermann", "subject_person")
+            val same = field("About Person", "ERIKA MUSTERMANN", "subject_person")
+
+            assertThat(present(invoiceFields() + child).essentials.parties.about!!.row.fieldValue).isEqualTo("Mia Mustermann")
+            assertThat(present(invoiceFields() + same).essentials.parties.about).isNull()
+            assertThat(present(invoiceFields()).essentials.parties.about).isNull()
+            // The subject person equal to the addressee is not lost: it stays in "All details".
+            assertThat(present(invoiceFields() + same).detailSlots()).contains("subject_person")
+            assertThat(present(invoiceFields() + child).detailSlots()).doesNotContain("subject_person")
+        }
+
+        @Test
+        fun `a party's verified address is one compact line, none for You or without an address`() {
+            val rows = listOf(
+                sender(), addressee(),
+                part("sender", "street", "Hauptstraße").copy(origin = AddressRows.ORIGIN_VERIFIED),
+                part("sender", "house_number", "5").copy(origin = AddressRows.ORIGIN_VERIFIED),
+                part("sender", "postcode", "10115").copy(origin = AddressRows.ORIGIN_VERIFIED),
+                part("sender", "city", "Berlin").copy(origin = AddressRows.ORIGIN_VERIFIED),
+                part("addressee", "street", "Gartenweg 2").copy(origin = AddressRows.ORIGIN_VERIFIED),
+            )
+
+            val named = present(rows, type = "invoice_bill").essentials.parties
+            assertThat(named.from!!.addressLines).containsExactly("Hauptstraße 5", "10115 Berlin").inOrder()
+            assertThat(named.forWhom!!.addressLines).containsExactly("Gartenweg 2")
+
+            val you = present(rows, type = "invoice_bill", selfName = "Erika Mustermann").essentials.parties
+            assertThat(you.forWhom!!.addressLines).isEmpty()
+            assertThat(present(listOf(sender(), addressee()), type = "invoice_bill").essentials.parties.from!!.addressLines).isEmpty()
+        }
+
+        @Test
+        fun `an address that did not pass its checks is never shown as a line`() {
+            val rows = listOf(sender(), part("sender", "city", "Berlin").copy(origin = AddressRows.ORIGIN))
+            assertThat(present(rows, type = "invoice_bill").essentials.parties.from!!.addressLines).isEmpty()
+        }
+
+        @Test
+        fun `the key information is the extras the AI picked, the rest of the fields are in All details`() {
+            val p = present(invoiceFields(), type = "invoice_bill")
+
+            assertThat(p.essentials.keyInfo.map { it.fieldName }).containsExactly("Mandatsreferenz", "Tarif").inOrder()
+            assertThat(p.extras).isEmpty()
+            assertThat(p.detailSlots()).containsExactly("due_date", "total", "iban", "invoice_no")
+            assertThat(p.detailCount).isEqualTo(4)
+        }
+
+        @Test
+        fun `a row with no value is no card anywhere, not in All details, the count or Check these`() {
+            val rows = invoiceFields() + field("Sender", "", "sender", confidence = 0.2f) + extra("Blank", value = "  ")
+            val p = present(rows, type = "official_letter")
+
+            assertThat(p.detailSlots()).doesNotContain("sender")
+            assertThat(p.detailSlots()).doesNotContain("x:blank")
+            assertThat(p.extras.map { it.fieldName }).doesNotContain("Blank")
+            assertThat(p.essentials.rows.map { it.fieldName }).doesNotContain("Sender")
+            assertThat(p.detailCount).isEqualTo(present(invoiceFields(), type = "official_letter").detailCount)
+            assertThat(p.checkCount).isEqualTo(present(invoiceFields(), type = "official_letter").checkCount)
+        }
+
+        @Test
+        fun `an empty field a person added themselves stays, so they can fill it in`() {
+            val own = field("Note", "", "x:note", source = ValueSource.USER)
+            val p = present(invoiceFields() + own, type = "invoice_bill")
+            assertThat((p.extras + p.essentials.keyInfo).map { it.fieldName }).contains("Note")
+        }
+
+        @Test
+        fun `a very unsure extra is not key information, it waits behind Show all in the details`() {
+            val rows = invoiceFields() + extra("Faint", confidence = 0.3f)
+
+            val collapsed = present(rows, type = "invoice_bill")
+            assertThat(collapsed.essentials.keyInfo.map { it.fieldName }).doesNotContain("Faint")
+            assertThat(collapsed.hiddenExtras).isEqualTo(1)
+            assertThat(collapsed.detailCount).isEqualTo(5)
+            assertThat(present(rows, type = "invoice_bill", showAll = true).essentials.keyInfo.map { it.fieldName }).contains("Faint")
+        }
+
+        @Test
+        fun `a document read before the key information existed has only the parties and the subject on top`() {
+            for (version in listOf("extraction-v2-2", "extraction-v2-1", null)) {
+                val p = present(invoiceFields(), type = "invoice_bill", version = version)
+
+                assertThat(p.essentials.keyInfo).isEmpty()
+                assertThat(p.essentials.actions).isEmpty()
+                assertThat(p.essentials.parties.from).isNotNull()
+                assertThat(p.essentials.subject).isNotNull()
+                assertThat(p.extras.map { it.fieldName }).containsExactly("Mandatsreferenz", "Tarif").inOrder()
+                assertThat(p.detailSlots()).containsExactly("due_date", "total", "iban", "invoice_no")
+            }
+        }
+
+        @Test
+        fun `the action lines are the AI's text, each with the fields it states, and nothing is composed from fields`() {
+            val lines = listOf("Zahle 64,98 € bis zum 15.10.2026.", "Überweise auf DE89 3704 0044 0532 0130 00.")
+            val p = present(invoiceFields(), type = "invoice_bill", actions = lines)
+
+            assertThat(p.essentials.actions.map { it.text }).containsExactlyElementsIn(lines).inOrder()
+            assertThat(p.essentials.actions[0].rows.map { it.slotKey }).containsExactly("total", "due_date")
+            assertThat(p.essentials.actions[1].rows.map { it.slotKey }).containsExactly("iban")
+            // The fields behind an action are not listed again below it.
+            assertThat(p.detailSlots()).containsExactly("invoice_no")
+        }
+
+        /** The invoice fields with the invoice number and the IBAN picked as key information (the IBAN the better). */
+        private fun pickedFields() = invoiceFields().map {
+            when (it.slotKey) {
+                "invoice_no" -> it.copy(importance = 1.5f)
+                "iban" -> it.copy(importance = 3f)
+                else -> it
+            }
+        }
+
+        @Test
+        fun `the slot rows the AI picked are key information after the subject, best score first, then the extras`() {
+            val p = present(pickedFields(), type = "invoice_bill")
+
+            assertThat(p.essentials.subject!!.fieldValue).isEqualTo("Zahlungserinnerung")
+            assertThat(p.essentials.keyInfo.map { it.fieldName }).containsExactly("IBAN", "Invoice Number", "Mandatsreferenz", "Tarif").inOrder()
+            // They are not in "All details" as well.
+            assertThat(p.detailSlots()).containsExactly("due_date", "total")
+        }
+
+        @Test
+        fun `a picked slot row an action line already states stays in that line, not drawn twice`() {
+            val p = present(pickedFields(), type = "invoice_bill", actions = listOf("Überweise auf DE89 3704 0044 0532 0130 00."))
+
+            assertThat(p.essentials.actions.single().rows.map { it.slotKey }).containsExactly("iban")
+            assertThat(p.essentials.keyInfo.map { it.fieldName }).containsExactly("Invoice Number", "Mandatsreferenz", "Tarif").inOrder()
+            assertThat(p.essentials.rows.map { it.id }).containsNoDuplicates()
+        }
+
+        @Test
+        fun `Check these counts an unsure picked slot row, and one nobody picked stays in All details`() {
+            val rows = pickedFields().map { if (it.slotKey == "invoice_no") it.copy(confidence = 0.4f) else if (it.slotKey == "total") it.copy(confidence = 0.4f) else it }
+            val p = present(rows, type = "invoice_bill")
+
+            assertThat(p.checkCount).isEqualTo(1)
+            assertThat(p.review.uncertain).isEqualTo(1)
+            assertThat(p.detailSlots()).contains("total")
+        }
+
+        @Test
+        fun `a picked slot row is key information only for a document read by a version that picks them`() {
+            val p = present(pickedFields(), type = "invoice_bill", version = "extraction-v2-2")
+
+            assertThat(p.essentials.keyInfo).isEmpty()
+            assertThat(p.detailSlots()).containsAtLeast("iban", "invoice_no")
+        }
+
+        @Test
+        fun `a document with no action lines has no actions, whatever fields it holds`() {
+            val p = present(invoiceFields(), type = "invoice_bill", actions = emptyList())
+            assertThat(p.essentials.actions).isEmpty()
+        }
+
+        @Test
+        fun `an action line a person's edit made stale is not shown, its field returns to the details`() {
+            val edited = field("Amount", "70,00 €", "total", source = ValueSource.USER, confirmed = true).copy(machineValue = "64,98 €")
+            val rows = invoiceFields().filter { it.slotKey != "total" } + edited
+            val p = present(rows, type = "invoice_bill", actions = listOf("Zahle 64,98 € bis zum 15.10.2026.", "Antworte dem Absender."))
+
+            assertThat(p.essentials.actions.map { it.text }).containsExactly("Antworte dem Absender.")
+            assertThat(p.detailSlots()).contains("total")
+        }
+
+        @Test
+        fun `an ignored field is not behind a line`() {
+            val rows = invoiceFields().map { if (it.slotKey == "iban") it.copy(deletedByUser = true) else it }
+            val p = present(rows, type = "invoice_bill", actions = listOf("Überweise auf DE89 3704 0044 0532 0130 00."))
+            assertThat(p.essentials.actions.single().rows).isEmpty()
+            assertThat(p.ignored.map { it.slotKey }).containsExactly("iban")
+        }
+
+        @Test
+        fun `every family presents the same essentials, they are the AI's data and not a list per family`() {
+            val lines = listOf("Zahle 64,98 € bis zum 15.10.2026.")
+            val reference = present(invoiceFields(), type = "invoice_bill", actions = lines).essentials
+            for (family in ExtractionSchema.DEFAULT.families.map { it.id } + listOf("reminder_dunning", "mystery", null)) {
+                val e = present(invoiceFields(), type = family, actions = lines).essentials
+                assertThat(e.parties.from!!.row.fieldValue).isEqualTo(reference.parties.from!!.row.fieldValue)
+                assertThat(e.actions.map { it.text }).isEqualTo(reference.actions.map { it.text })
+                assertThat(e.keyInfo.map { it.fieldName }).isEqualTo(reference.keyInfo.map { it.fieldName })
+                assertThat(e.subject!!.fieldValue).isEqualTo("Zahlungserinnerung")
+            }
+        }
+
+        @Test
+        fun `rows stored before slot keys still give the sender and the addressee`() {
+            val p = present(listOf(field("Sender Name", "Jobcenter"), field("Receiver Name", "Erika"), field("Amount", "10 €")), type = null)
+            assertThat(p.essentials.parties.from!!.row.fieldValue).isEqualTo("Jobcenter")
+            assertThat(p.essentials.parties.forWhom!!.row.fieldValue).isEqualTo("Erika")
+            assertThat(p.detailCount).isEqualTo(1)
+        }
+
+        @Test
+        fun `a document with no party and no subject has no parties block`() {
+            val p = present(listOf(field("Amount", "10 €", "total")))
+            assertThat(p.essentials.parties.isEmpty).isTrue()
+            assertThat(p.essentials.subject).isNull()
+        }
+    }
+
+    @Nested
     @DisplayName("Sections per family")
     inner class Families {
 
         private val letterFields = {
             listOf(
                 field("Receiver Name", "Erika Mustermann", "addressee"),
+                part("addressee", "city", "Berlin"),
                 field("Sender Name", "Nordlicht", "sender"),
-                field("Subject", "Zahlungserinnerung", "subject"),
+                part("sender", "city", "Hamburg"),
+                field("Contact Person", "Frau Müller", "contact"),
                 field("Deadline", "15.10.2026", "due_date"),
                 field("Amount", "64,98 €", "total"),
                 field("IBAN", "DE89", "iban"),
@@ -263,7 +456,7 @@ class ExtractedPresenterTest {
         }
 
         @Test
-        fun `a letter-like family reads recipient, sender, subject, action, references, dates`() {
+        fun `a letter-like family keeps the address blocks, the text, the action, references and dates in All details`() {
             for (family in listOf("official_letter", "invoice_bill", "statement", "contract_policy", "medical")) {
                 val p = present(letterFields(), type = family)
                 assertThat(p.kinds()).containsExactly(
@@ -300,7 +493,7 @@ class ExtractedPresenterTest {
         }
 
         @Test
-        fun `a receipt reads merchant, total and payment, dates, references`() {
+        fun `a receipt keeps its payment, dates and references in All details`() {
             val p = present(
                 listOf(
                     field("Receipt Number", "B-77", "receipt_no"),
@@ -312,12 +505,13 @@ class ExtractedPresenterTest {
                 type = "receipt",
             )
 
-            assertThat(p.kinds()).containsExactly(SectionKind.MERCHANT, SectionKind.PAYMENT, SectionKind.DATES, SectionKind.REFERENCES).inOrder()
+            assertThat(p.essentials.parties.from!!.row.fieldValue).isEqualTo("Bäckerei Korn")
+            assertThat(p.kinds()).containsExactly(SectionKind.PAYMENT, SectionKind.DATES, SectionKind.REFERENCES).inOrder()
             assertThat(p.slotsIn(SectionKind.PAYMENT)).containsExactly("total", "iban").inOrder()
         }
 
         @Test
-        fun `free form keeps people, text and the grouping of before`() {
+        fun `free form keeps the people, text and the grouping of before`() {
             val p = present(
                 listOf(
                     field("Phone", "0123", type = ExtractedFieldType.PHONE),
@@ -351,9 +545,10 @@ class ExtractedPresenterTest {
 
         @Test
         fun `changing the family re-presents the same rows under the new layout`() {
-            val rows = listOf(field("Sender Name", "Korn", "sender"), field("Amount", "1 €", "total"))
+            val rows = listOf(field("Sender Name", "Korn", "sender"), part("sender", "city", "Berlin"), field("Amount", "1 €", "total"))
             assertThat(present(rows, type = "invoice_bill").kinds()).containsExactly(SectionKind.SENDER_BLOCK, SectionKind.ACTION).inOrder()
-            assertThat(present(rows, type = "receipt").kinds()).containsExactly(SectionKind.MERCHANT, SectionKind.PAYMENT).inOrder()
+            // A receipt has no address block: the sender's address parts are plain rows under the people.
+            assertThat(present(rows, type = "receipt").kinds()).containsExactly(SectionKind.PAYMENT, SectionKind.PARTIES).inOrder()
         }
     }
 
@@ -362,12 +557,12 @@ class ExtractedPresenterTest {
     inner class Blocks {
 
         private fun block(p: ExtractedPresentation, role: PartyRole): AddressBlock =
-            (p.check + p.sections.flatMap { it.items }).filterIsInstance<AddressBlock>().single { it.role == role }
+            p.sections.flatMap { it.items }.filterIsInstance<AddressBlock>().single { it.role == role }
 
         private fun AddressBlock.lineValues() = lines.map { l -> l.parts.map { it.fieldValue } }
 
         @Test
-        fun `the block is the name row then the parts in print order, street with number and postcode with city on one line`() {
+        fun `the block is the parts in print order, street with number and postcode with city on one line, the name is the From or For line`() {
             val p = present(
                 listOf(
                     field("Receiver Name", "Erika Mustermann", "addressee"),
@@ -383,13 +578,16 @@ class ExtractedPresenterTest {
             )
 
             val b = block(p, PartyRole.ADDRESSEE)
-            assertThat(b.nameRow!!.fieldValue).isEqualTo("Erika Mustermann")
+            assertThat(b.nameRow).isNull()
             assertThat(b.lineValues()).containsExactly(
                 listOf("Mustermann GmbH"), listOf("Hauptstraße", "12"), listOf("10115", "Berlin"), listOf("DE"),
             ).inOrder()
             // The raw lines are kept for the actions but not drawn while parts exist.
             assertThat(b.shownRows.map { it.slotKey }).doesNotContain("addressee.raw")
             assertThat(b.rows.map { it.slotKey }).contains("addressee.raw")
+            assertThat(b.rows.map { it.slotKey }).doesNotContain("addressee")
+            assertThat(p.essentials.parties.forWhom!!.addressLines)
+                .containsExactly("Mustermann GmbH", "Hauptstraße 12", "10115 Berlin", "DE").inOrder()
         }
 
         @Test
@@ -401,10 +599,8 @@ class ExtractedPresenterTest {
             )
 
             val hidden = present(rows(AddressRows.ORIGIN), type = "invoice_bill")
-            val b = block(hidden, PartyRole.ADDRESSEE)
-            assertThat(b.nameRow!!.fieldValue).isEqualTo("Erika Mustermann")
-            assertThat(b.lines).isEmpty()
-            assertThat(b.rows.map { it.slotKey }).containsExactly("addressee")
+            assertThat(hidden.essentials.parties.forWhom!!.row.fieldValue).isEqualTo("Erika Mustermann")
+            assertThat(hidden.sections.flatMap { it.items }.filterIsInstance<AddressBlock>()).isEmpty()
 
             val verified = block(present(rows(AddressRows.ORIGIN_VERIFIED), type = "invoice_bill"), PartyRole.ADDRESSEE)
             assertThat(verified.lineValues()).containsExactly(listOf("Berlin"))
@@ -449,6 +645,7 @@ class ExtractedPresenterTest {
                 type = "invoice_bill",
             )
             assertThat(block(p, PartyRole.ADDRESSEE).lineValues()).containsExactly(listOf("Berlin"))
+            assertThat(p.essentials.parties.forWhom!!.addressLines).containsExactly("Berlin")
         }
 
         @Test
@@ -459,11 +656,11 @@ class ExtractedPresenterTest {
             )
             val b = block(p, PartyRole.SENDER)
             assertThat(b.lines).isEmpty()
-            assertThat(b.shownRows.map { it.slotKey }).containsExactly("sender", "sender.raw").inOrder()
+            assertThat(b.shownRows.map { it.slotKey }).containsExactly("sender.raw")
         }
 
         @Test
-        fun `an uncertain part moves the whole block under Check these and is counted per part`() {
+        fun `an uncertain part stays in the block of All details and is not counted among the essentials`() {
             val p = present(
                 listOf(
                     field("Receiver Name", "Erika", "addressee"),
@@ -474,9 +671,9 @@ class ExtractedPresenterTest {
                 type = "invoice_bill",
             )
 
-            assertThat(p.check.single()).isInstanceOf(AddressBlock::class.java)
-            assertThat(p.checkCount).isEqualTo(2)
-            assertThat(p.sections).isEmpty()
+            assertThat(block(p, PartyRole.ADDRESSEE).uncertainRows).hasSize(2)
+            assertThat(p.checkCount).isEqualTo(0)
+            assertThat(p.review.uncertain).isEqualTo(0)
         }
 
         @Test
@@ -503,46 +700,62 @@ class ExtractedPresenterTest {
     }
 
     @Nested
-    @DisplayName("Check first")
-    inner class CheckFirst {
+    @DisplayName("Check these")
+    inner class CheckThese {
 
         @Test
-        fun `uncertain fields are listed first, out of their sections, and counted`() {
+        fun `only uncertain essential lines are counted, the parties, the subject, the key information and the fields behind an action`() {
             val p = present(
                 listOf(
-                    field("Amount", "64,98 €", "total", confidence = 0.4f),
+                    field("Sender Organization", "N", "sender", confidence = 0.4f),
+                    field("Receiver Name", "E", "addressee", confidence = 0.9f),
+                    field("Subject", "S", "subject", confidence = 0.5f),
+                    field("Amount", "64,98 €", "total", confidence = 0.3f),
                     field("Deadline", "15.10.2026", "due_date", confidence = 0.9f),
                     field("Invoice Number", "R-1", "invoice_no", confidence = 0.6f),
-                    field("IBAN", "DE89", "iban"),
+                    extra("Tarif", 0.6f),
+                    extra("Zaehler", 0.9f),
                 ),
                 type = "invoice_bill",
+                actions = listOf("Zahle 64,98 € bis zum 15.10.2026."),
             )
 
-            assertThat(p.check.flatMap { it.rows }.map { it.slotKey }).containsExactly("total", "invoice_no").inOrder()
-            assertThat(p.checkCount).isEqualTo(2)
-            assertThat(p.slotsIn(SectionKind.ACTION)).containsExactly("due_date", "iban").inOrder()
-            assertThat(p.kinds()).doesNotContain(SectionKind.REFERENCES)
+            // sender, subject, the amount behind the action, the uncertain extra. The invoice number is not essential: it stays in
+            // All details with its badge and is not counted.
+            assertThat(p.checkCount).isEqualTo(4)
+            assertThat(p.essentials.rows.count { it.isUncertain }).isEqualTo(4)
+            assertThat(p.detailSlots()).containsExactly("invoice_no")
+            assertThat(p.sections.single { it.kind == SectionKind.REFERENCES }.items.single().uncertainRows).hasSize(1)
+        }
+
+        @Test
+        fun `an uncertain field of All details is quietly left there, with no check group`() {
+            val p = present(
+                listOf(field("Invoice Number", "R-1", "invoice_no", confidence = 0.4f), field("IBAN", "DE89", "iban", confidence = 0.5f)),
+                type = "invoice_bill",
+            )
+            assertThat(p.checkCount).isEqualTo(0)
+            assertThat(p.detailSlots()).containsExactly("iban", "invoice_no")
         }
 
         @Test
         fun `a value that changed under a person's confirmation is checked even though it is theirs`() {
-            val changed = field("Amount", "70 €", "total", source = ValueSource.USER, confirmed = true)
-                .copy(hasUnreviewedMachineChange = true, machineValue = "75 €")
+            val changed = field("Subject", "Neu", "subject", source = ValueSource.USER, confirmed = true)
+                .copy(hasUnreviewedMachineChange = true, machineValue = "Alt")
             val p = present(listOf(changed), type = "invoice_bill")
-            assertThat(p.check.single().rows.single().slotKey).isEqualTo("total")
+            assertThat(p.checkCount).isEqualTo(1)
         }
 
         @Test
-        fun `a visible uncertain extra is checked too, a very unsure one stays behind Show all`() {
-            val p = present(listOf(extra("Tarif", 0.6f), extra("Zaehler", 0.4f), extra("Sicher", 0.9f)), type = "invoice_bill")
-            assertThat(p.check.flatMap { it.rows }.map { it.fieldName }).containsExactly("Tarif")
-            assertThat(p.extras.map { it.fieldName }).containsExactly("Sicher")
-            assertThat(p.hiddenExtras).isEqualTo(1)
+        fun `a very unsure extra behind Show all is not counted until it is shown`() {
+            val rows = listOf(field("Subject", "S", "subject", confidence = 0.4f), extra("Faint", confidence = 0.2f))
+            assertThat(present(rows).checkCount).isEqualTo(1)
+            assertThat(present(rows, showAll = true).checkCount).isEqualTo(2)
         }
 
         @Test
-        fun `nothing uncertain means no check group`() {
-            assertThat(present(listOf(field("Amount", "1 €", "total"))).check).isEmpty()
+        fun `nothing uncertain means no check count`() {
+            assertThat(present(listOf(field("Amount", "1 €", "total"))).checkCount).isEqualTo(0)
         }
     }
 
@@ -551,51 +764,55 @@ class ExtractedPresenterTest {
     inner class ReviewButton {
 
         @Test
-        fun `while uncertain fields remain it confirms the confident ones, with their count`() {
-            val p = present(
-                listOf(
-                    field("Amount", "1 €", "total", confidence = 0.4f),
-                    field("IBAN", "DE89", "iban"),
-                    field("Reference", "R", "reference"),
-                    field("Deadline", "1.1.2027", "due_date", confirmed = true),
-                ),
+        fun `while uncertain essential lines remain it confirms the confident ones, by id, with their count`() {
+            val rows = listOf(
+                field("Sender Organization", "N", "sender", confidence = 0.4f),
+                field("Receiver Name", "E", "addressee"),
+                field("Subject", "S", "subject"),
+                field("Deadline", "1.1.2027", "due_date", confirmed = true),
+                field("IBAN", "DE89", "iban"),
             )
+            val p = present(rows)
+
             assertThat(p.review.mode).isEqualTo(ConfirmMode.CONFIDENT)
             assertThat(p.review.confidentOpen).isEqualTo(2)
+            assertThat(p.review.confidentIds).containsExactly(rows[1].id, rows[2].id)
             assertThat(p.review.uncertain).isEqualTo(1)
         }
 
         @Test
-        fun `a very unsure extra behind Show all is not counted as uncertain until it is shown`() {
-            val fields = listOf(field("Amount", "1 €", "total", confidence = 0.4f), extra("Faint", confidence = 0.2f))
-            assertThat(present(fields).review.uncertain).isEqualTo(1)
-            assertThat(present(fields, showAll = true).review.uncertain).isEqualTo(2)
+        fun `the fields of All details are never in the review button's ids`() {
+            val rows = listOf(field("Receiver Name", "E", "addressee"), field("IBAN", "DE89", "iban"), field("Reference", "R", "reference"))
+            val p = present(rows)
+            assertThat(p.review.open).isEqualTo(1)
+            assertThat(p.review.openIds).containsExactly(rows[0].id)
         }
 
         @Test
-        fun `once nothing is uncertain it confirms all`() {
-            val p = present(listOf(field("Amount", "1 €", "total"), field("IBAN", "DE89", "iban")))
+        fun `once nothing essential is uncertain it confirms all of the essential lines`() {
+            val rows = listOf(field("Sender Organization", "N", "sender"), field("Subject", "S", "subject"))
+            val p = present(rows)
             assertThat(p.review.mode).isEqualTo(ConfirmMode.ALL)
             assertThat(p.review.open).isEqualTo(2)
+            assertThat(p.review.openIds).containsExactlyElementsIn(rows.map { it.id })
         }
 
         @Test
         fun `with nothing open there is no button, and ignored rows are not open`() {
-            val p = present(listOf(field("Amount", "1 €", "total", confirmed = true), field("IBAN", "x", "iban", deleted = true)))
+            val p = present(listOf(field("Subject", "S", "subject", confirmed = true), field("Sender Organization", "x", "sender", deleted = true)))
             assertThat(p.review.mode).isEqualTo(ConfirmMode.NONE)
         }
 
         @Test
-        fun `only uncertain fields open means no confident ones to confirm`() {
-            val p = present(listOf(field("Amount", "1 €", "total", confidence = 0.4f)))
+        fun `only uncertain essential lines open means no confident ones to confirm`() {
+            val p = present(listOf(field("Subject", "S", "subject", confidence = 0.4f)))
             assertThat(p.review.mode).isEqualTo(ConfirmMode.NONE)
         }
 
         @Test
-        fun `an address block's unseen raw row is confirmed with the block and counts as confident`() {
-            val p = present(listOf(field("Sender Name", "N", "sender"), part("sender", "city", "Berlin"), part("sender", "raw", "N\nBerlin")), type = "invoice_bill")
-            assertThat(p.review.mode).isEqualTo(ConfirmMode.ALL)
-            assertThat(p.review.open).isEqualTo(3)
+        fun `a document with only details has no review button`() {
+            val p = present(listOf(field("Amount", "1 €", "total"), field("IBAN", "DE89", "iban")))
+            assertThat(p.review.mode).isEqualTo(ConfirmMode.NONE)
         }
     }
 
@@ -613,51 +830,66 @@ class ExtractedPresenterTest {
             assertThat(p.ignored.map { it.fieldName }).containsExactly("IBAN", "Gone")
             assertThat(p.slotsIn(SectionKind.ACTION)).containsExactly("total")
             assertThat(p.extraCount).isEqualTo(0)
+            assertThat(p.essentials.keyInfo).isEmpty()
         }
 
         @Test
         fun `an ignored row is not uncertain and not counted as open`() {
-            val p = present(listOf(field("Amount", "1 €", "total", confidence = 0.2f, deleted = true)))
-            assertThat(p.check).isEmpty()
+            val p = present(listOf(field("Subject", "S", "subject", confidence = 0.2f, deleted = true)))
+            assertThat(p.checkCount).isEqualTo(0)
             assertThat(p.review.uncertain).isEqualTo(0)
             assertThat(p.ignored).hasSize(1)
+            assertThat(p.essentials.subject).isNull()
         }
     }
 
     @Nested
-    @DisplayName("Other details")
-    inner class Extras {
+    @DisplayName("All details")
+    inner class Details {
 
         @Test
-        fun `extras are kept out of the sections and keep the AI's label`() {
-            val p = present(listOf(field("Amount", "1 €", "total"), extra("Zaehlernummer"), extra("Tarif")))
+        fun `for a document read before the key information the extras are details and keep the AI's label`() {
+            val p = present(listOf(field("Amount", "1 €", "total"), extra("Zaehlernummer"), extra("Tarif")), version = "extraction-v2-2")
 
             assertThat(p.sections.flatMap { it.items }.flatMap { it.rows }.map { it.fieldName }).containsExactly("Amount")
             assertThat(p.extras.map { it.fieldName }).containsExactly("Zaehlernummer", "Tarif").inOrder()
             assertThat(p.hiddenExtras).isEqualTo(0)
             assertThat(p.extraCount).isEqualTo(2)
+            assertThat(p.detailCount).isEqualTo(3)
         }
 
         @Test
         fun `very unsure extras are hidden behind Show all and counted`() {
             val fields = listOf(extra("Sure", 0.9f), extra("Unsure", 0.4f), extra("Fuzzy quote", 0.45f))
 
-            val collapsed = present(fields)
+            val collapsed = present(fields, version = "extraction-v2-2")
             assertThat(collapsed.extras.map { it.fieldName }).containsExactly("Sure")
             assertThat(collapsed.hiddenExtras).isEqualTo(2)
             assertThat(collapsed.extraCount).isEqualTo(3)
+            assertThat(collapsed.detailCount).isEqualTo(3)
 
-            val all = present(fields, showAll = true)
+            val all = present(fields, showAll = true, version = "extraction-v2-2")
             assertThat(all.hiddenExtras).isEqualTo(0)
-            assertThat(all.extras.map { it.fieldName } + all.check.flatMap { it.rows }.map { it.fieldName })
-                .containsExactly("Sure", "Unsure", "Fuzzy quote")
+            assertThat(all.extras.map { it.fieldName }).containsExactly("Sure", "Unsure", "Fuzzy quote")
         }
 
         @Test
         fun `an extra the user owns or confirmed is never hidden`() {
-            val p = present(listOf(extra("Mine", 0.2f, source = ValueSource.USER), extra("Confirmed", 0.2f, confirmed = true)))
+            val p = present(listOf(extra("Mine", 0.2f, source = ValueSource.USER), extra("Confirmed", 0.2f, confirmed = true)), version = "extraction-v2-2")
             assertThat(p.extras.map { it.fieldName }).containsExactly("Mine", "Confirmed")
             assertThat(p.hiddenExtras).isEqualTo(0)
+        }
+
+        @Test
+        fun `the count of All details is every row it holds, an address block counting its parts`() {
+            val p = present(
+                listOf(
+                    field("Receiver Name", "E", "addressee"), part("addressee", "street", "Weg 1"), part("addressee", "city", "Berlin"),
+                    field("Amount", "1 €", "total"),
+                ),
+                type = "invoice_bill",
+            )
+            assertThat(p.detailCount).isEqualTo(3)
         }
     }
 }

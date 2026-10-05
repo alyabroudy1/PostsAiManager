@@ -126,6 +126,8 @@ data class RecognisedFact(
  *   `due_date`, `date`, `reference`), so the second stage does not need the first stage's result in memory.
  * @property takenValues the values the first stage's fields hold, as stored. Only a ticket rebuilt from the stored document has them (it
  *   cannot know the candidate ids): a candidate that reads as one of these is never offered as an extra, as one in [takenIds] is not.
+ * @property slots the fixed slot values the first stage stored (key, English label, value), which the second stage scores for whether
+ *   the reader needs them (the key information). Filled from the stored fields when the second stage runs.
  */
 @Serializable
 data class EnrichmentTicket(
@@ -135,7 +137,16 @@ data class EnrichmentTicket(
     val topics: List<String> = emptyList(),
     val facts: Map<String, String> = emptyMap(),
     val takenValues: List<String> = emptyList(),
+    val slots: List<TicketSlot> = emptyList(),
 )
+
+/** One stored slot value as the second stage sees it: the slot's key, its English label (data of the schema) and the value as stored. */
+@Serializable
+data class TicketSlot(val key: String, val label: String, val value: String)
+
+/** A slot the second stage picked as key information: its key and the score that picked it (higher is more important). */
+@Serializable
+data class KeySlot(val key: String, val score: Float)
 
 /**
  * One model's reading of one document.
@@ -227,6 +238,17 @@ data class DocumentUnderstanding(
     val summarySource: SummarySource? = null,
     val summaryCode: String? = null,
     val summaryArgs: List<String> = emptyList(),
+
+    /**
+     * The action lines a second stage wrote (what the reader must do, by when), already checked; empty when it found none. Null when
+     * no stage wrote them (a first stage, a failed ask), so a stored list is kept.
+     */
+    val actionItems: List<String>? = null,
+    /**
+     * The stored slots a second stage picked as key information, best first; empty when it picked none, null when it did not score
+     * them (a first stage, a failed scoring), so the picks already stored are kept.
+     */
+    val keySlots: List<KeySlot>? = null,
 ) {
     val sender: RecognisedEntity? get() = entities.firstOrNull { it.role == EntityRole.SENDER }
 

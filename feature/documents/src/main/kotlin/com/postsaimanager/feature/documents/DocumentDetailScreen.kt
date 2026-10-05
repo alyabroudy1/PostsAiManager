@@ -338,8 +338,8 @@ private fun DocumentDetailContent(
      * open, which this Composable never triggers directly. */
     onProcess: (force: Boolean) -> Unit,
     fieldActions: FieldActions,
-    onConfirmConfident: () -> Unit,
-    onConfirmAll: () -> Unit,
+    onConfirmConfident: (List<String>) -> Unit,
+    onConfirmAll: (List<String>) -> Unit,
     onAddClick: () -> Unit,
     onUpdateField: (String, String, String) -> Unit,
     onUpdateSummary: (String) -> Unit,
@@ -452,6 +452,7 @@ private fun DocumentDetailContent(
                 onUpdateSummary = onUpdateSummary,
                 onShowOnPage = onShowOnPage,
                 onFillForm = onFillForm,
+                selfName = pagesContext.selfName,
             )
             DetailTab.TIMELINE -> TimelineTab(state.timeline)
         }

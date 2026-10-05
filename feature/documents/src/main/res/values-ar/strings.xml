@@ -18,4 +18,23 @@
     <string name="card_ai_summary">ملخص الذكاء الاصطناعي</string>
     <string name="card_summary_from_fields">ملخص من الحقول</string>
     <string name="card_summary_yours">ملخصك</string>
+    <!-- The essentials at the top of the Extracted tab -->
+    <string name="essentials_actions_title">ما عليك فعله</string>
+    <string name="essentials_parties_title">من المرسل ولمن</string>
+    <string name="essentials_key_title">معلومات أساسية</string>
+    <string name="essentials_from">من</string>
+    <string name="essentials_for">إلى</string>
+    <string name="essentials_about">بخصوص</string>
+    <string name="essentials_address">العنوان</string>
+    <string name="essentials_address_line">العنوان: %1$s</string>
+    <string name="essentials_check_hint">يُفضَّل مراجعة الأسطر المعلَّمة أدناه.</string>
+    <string name="state_expanded">موسَّع</string>
+    <string name="state_collapsed">مطوي</string>
+    <string name="action_more_field">المزيد من الإجراءات لـ %1$s</string>
+    <string name="action_copy_field">نسخ %1$s</string>
+    <string name="action_menu_confirm">تأكيد</string>
+    <string name="action_menu_edit">تعديل</string>
+    <string name="action_menu_ignore">تجاهل</string>
+    <string name="copied_to_clipboard">تم النسخ</string>
+    <string name="section_all_details">كل التفاصيل (%1$d)</string>
 </resources>

@@ -110,4 +110,13 @@ object ReprocessOverwritePolicy {
             summary = read.summary.ifBlank { null }, summarySource = source, summaryCode = read.summaryCode, summaryArgs = read.summaryArgs,
         )
     }
+
+    /**
+     * The action lines a second stage wrote, replacing the stored ones (nobody edits them: a person's own say is their confirmed or edited
+     * fields, which the lines are linked to when they are shown). A reading that asked none (a first stage, a failed ask) leaves them.
+     */
+    fun applyActions(document: Document, read: DocumentUnderstanding): Document {
+        val items = read.actionItems ?: return document
+        return document.copy(actionItems = items)
+    }
 }

@@ -2,7 +2,6 @@ package com.postsaimanager.feature.documents
 
 import com.postsaimanager.core.domain.document.list.PartyFields
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
-import com.postsaimanager.core.domain.form.agent.FormRefs
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
@@ -82,7 +81,7 @@ object PagesSummaryPresenter {
                 else -> null
             },
             from = PartyFields.sender(live)?.fieldValue?.trim()?.takeIf { it.isNotEmpty() },
-            to = PartyFields.addressee(live)?.fieldValue?.trim()?.takeIf { it.isNotEmpty() }?.let { recipient(it, context.selfName) },
+            to = PartyFields.addressee(live)?.fieldValue?.trim()?.takeIf { it.isNotEmpty() }?.let { PartyRecipients.of(it, context.selfName) },
         )
         return when {
             document.status == DocumentStatus.FAILED -> summary.copy(state = PagesSummaryState.FAILED)
@@ -91,12 +90,6 @@ object PagesSummaryPresenter {
             summaryComing || document.status in WAITING -> summary.copy(state = PagesSummaryState.READING)
             else -> summary
         }
-    }
-
-    /** "You" only when the folded names are equal: case, accents and spacing ignored, nothing fuzzier. */
-    private fun recipient(name: String, selfName: String?): PagesRecipient {
-        val me = selfName?.let(FormRefs::fold)?.takeIf { it.isNotEmpty() }
-        return if (me != null && FormRefs.fold(name) == me) PagesRecipient.You else PagesRecipient.Named(name)
     }
 
     private val WAITING = setOf(DocumentStatus.NEW, DocumentStatus.QUEUED, DocumentStatus.PROCESSING)

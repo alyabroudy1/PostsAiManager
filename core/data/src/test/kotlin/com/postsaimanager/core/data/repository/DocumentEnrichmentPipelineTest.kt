@@ -143,7 +143,11 @@ class DocumentEnrichmentPipelineTest {
         answer(understanding())
         pipeline.enrichDocument("doc-1", ticket)
         coVerify {
-            aiExtraction(listOf(block), any(), listOf(1), any(), any(), ExtractionV2Pipeline.Stages.SECOND, ticket)
+            // The ticket also carries the slot values the first stage stored (here the amount), which the stage scores for key information.
+            aiExtraction(
+                listOf(block), any(), listOf(1), any(), any(), ExtractionV2Pipeline.Stages.SECOND,
+                ticket.copy(slots = listOf(com.postsaimanager.core.model.TicketSlot("total", "Amount", "64,98 EUR"))),
+            )
         }
     }
 

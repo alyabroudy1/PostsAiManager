@@ -56,8 +56,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,6 +76,7 @@ import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.FieldAlternative
 import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.model.TextBounds
+import com.postsaimanager.core.model.ValueSource
 
 /**
  * What a person can do to a row, from its ✓ ✎ ✕ buttons and the Ignored footer. Block-level actions pass every row of the
@@ -120,8 +123,11 @@ private enum class PickerMode { CHANGE_TYPE, READ_AGAIN }
 // ═══════════════════════════════════════════════════════════
 
 /**
- * The Extracted tab: the header (family chip, topics, confidence), the summary card, "Check these", the family's sections,
- * "Other details" and the "Ignored" footer. Every row has ✓ ✎ ✕ inline; nothing is behind a menu.
+ * The Extracted tab, the essentials first: the header (family chip, topics, confidence), the summary card, what the reader has to
+ * do, who it is from and for, the key information, then "All details" (collapsed) with every other field and the "Ignored" footer.
+ * "Check these" and the review button count the essential lines only.
+ *
+ * @param selfName the name on the "Me" profile: an addressee with that name reads "You"
  */
 @Composable
 internal fun ExtractedTab(
@@ -133,13 +139,15 @@ internal fun ExtractedTab(
     onReprocess: () -> Unit,
     onChangeFamily: (String) -> Unit,
     onReadAgainAs: (String) -> Unit,
-    onConfirmConfident: () -> Unit,
-    onConfirmAll: () -> Unit,
+    /** "Confirm n confident" / "Confirm all": given the ids of the essential rows they work on, so "All details" is never confirmed in bulk. */
+    onConfirmConfident: (List<String>) -> Unit,
+    onConfirmAll: (List<String>) -> Unit,
     onUpdateField: (fieldId: String, name: String, value: String) -> Unit,
     onUpdateSummary: (String) -> Unit,
     onShowOnPage: (page: Int?, bbox: TextBounds?) -> Unit,
     /** "Help me fill it": opens the document chat with the form fill started. Offered as a card on a form only; null hides it. */
     onFillForm: (() -> Unit)? = null,
+    selfName: String? = null,
 ) {
     // Kept across a rotation: the row being edited is stored as its id and resolved from the data, so the sheet shows the latest row.
     var editingFieldId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -147,11 +155,11 @@ internal fun ExtractedTab(
     var editingSummary by rememberSaveable { mutableStateOf(false) }
     var picker by rememberSaveable { mutableStateOf<PickerMode?>(null) }
     var showAllExtras by remember { mutableStateOf(false) }
-    var extrasExpanded by remember { mutableStateOf(false) }
+    var detailsExpanded by rememberSaveable { mutableStateOf(false) }
     var ignoredExpanded by remember { mutableStateOf(false) }
 
-    val presentation = remember(document, data, showAllExtras, summaryComing) {
-        ExtractedPresenter.present(document, data, showAllExtras, summaryComing)
+    val presentation = remember(document, data, showAllExtras, summaryComing, selfName) {
+        ExtractedPresenter.present(document, data, showAllExtras, summaryComing, selfName)
     }
     // The ✎ of any row opens the same sheet.
     val rowActions = remember(actions) {
@@ -218,35 +226,52 @@ internal fun ExtractedTab(
                     ReviewButton(presentation.review, onConfirmConfident, onConfirmAll)
                 }
 
-                if (presentation.check.isNotEmpty()) {
-                    item(key = "check-header") { SectionHeader(stringResource(R.string.section_check, presentation.checkCount)) }
-                    items(presentation.check, key = { "check-" + it.rows.first().id }) { ItemView(it, rowActions) }
+                // Only what the AI judged essential is counted here; an uncertain line is marked where it stands, so nothing is listed twice.
+                val essentials = presentation.essentials
+                if (presentation.checkCount > 0) {
+                    item(key = "check-header") {
+                        Column {
+                            SectionHeader(stringResource(R.string.section_check, presentation.checkCount))
+                            Text(
+                                stringResource(R.string.essentials_check_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                if (essentials.actions.isNotEmpty()) item(key = "essentials-actions") { ActionsCard(essentials.actions, rowActions) }
+                if (!essentials.parties.isEmpty) item(key = "essentials-parties") { PartiesCard(essentials.parties, rowActions) }
+                if (essentials.subject != null || essentials.keyInfo.isNotEmpty()) {
+                    item(key = "essentials-key") { KeyInfoCard(essentials.subject, essentials.keyInfo, rowActions) }
                 }
 
-                presentation.sections.forEach { section ->
-                    item(key = "section-${section.kind}") { SectionTitle(stringResource(sectionTitle(section.kind))) }
-                    items(section.items, key = { "${section.kind}-" + it.rows.first().id }) { ItemView(it, rowActions) }
-                }
-
-                if (presentation.extraCount > 0) {
-                    item(key = "other-details") {
-                        OtherDetailsHeader(
-                            count = presentation.extraCount,
-                            expanded = extrasExpanded,
-                            onToggle = { extrasExpanded = !extrasExpanded },
+                if (presentation.detailCount > 0) {
+                    item(key = "all-details") {
+                        CollapsibleHeader(
+                            title = stringResource(R.string.section_all_details, presentation.detailCount),
+                            expanded = detailsExpanded,
+                            onToggle = { detailsExpanded = !detailsExpanded },
                         )
                     }
-                    if (extrasExpanded) {
-                        items(presentation.extras, key = { "extra-" + it.id }) { FieldRow(it, rowActions) }
-                        if (presentation.hiddenExtras > 0) {
-                            item(key = "extras-show-all") {
-                                TextButton(onClick = { showAllExtras = true }) {
-                                    Text(stringResource(R.string.other_details_show_all, presentation.hiddenExtras))
+                    if (detailsExpanded) {
+                        presentation.sections.forEach { section ->
+                            item(key = "section-${section.kind}") { SectionTitle(stringResource(sectionTitle(section.kind))) }
+                            items(section.items, key = { "${section.kind}-" + it.rows.first().id }) { ItemView(it, rowActions) }
+                        }
+                        if (presentation.extraCount > 0) {
+                            item(key = "section-extras") { SectionTitle(stringResource(R.string.section_other_details)) }
+                            items(presentation.extras, key = { "extra-" + it.id }) { FieldRow(it, rowActions) }
+                            if (presentation.hiddenExtras > 0) {
+                                item(key = "extras-show-all") {
+                                    TextButton(onClick = { showAllExtras = true }) {
+                                        Text(stringResource(R.string.other_details_show_all, presentation.hiddenExtras))
+                                    }
                                 }
-                            }
-                        } else if (showAllExtras) {
-                            item(key = "extras-show-fewer") {
-                                TextButton(onClick = { showAllExtras = false }) { Text(stringResource(R.string.other_details_show_fewer)) }
+                            } else if (showAllExtras) {
+                                item(key = "extras-show-fewer") {
+                                    TextButton(onClick = { showAllExtras = false }) { Text(stringResource(R.string.other_details_show_fewer)) }
+                                }
                             }
                         }
                     }
@@ -431,8 +456,8 @@ private fun FamilyPickerDialog(mode: PickerMode, current: String?, onDismiss: ()
 // ═══════════════════════════════════════════════════════════
 
 /**
- * The document at a glance: the composed title, from, for, type, amount, due and the summary with a badge for where it
- * came from. A line the checks flagged carries the "Worth checking" marker; the pencil edits the summary.
+ * The document at a glance: the composed title and the summary with a badge for where it came from; the pencil edits the summary.
+ * Who it is from and for, what to do and the key facts are the cards below it.
  */
 @Composable
 internal fun SummaryCardView(card: SummaryCard, onEditSummary: () -> Unit) {
@@ -447,20 +472,8 @@ internal fun SummaryCardView(card: SummaryCard, onEditSummary: () -> Unit) {
             card.titleArgs?.let { args -> composedTitleText(context, args) }?.let { title ->
                 Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
-            card.from?.let { SummaryRow(stringResource(R.string.card_from), it) }
-            card.forWhom?.let { SummaryRow(stringResource(R.string.card_for), it) }
-            card.typeId?.let { id ->
-                val typeName = SlotLabels.type(id)?.let { stringResource(it) } ?: id
-                SummaryRow(stringResource(R.string.card_type), CardLine(typeName, worthChecking = false))
-            }
-            card.amount?.let { SummaryRow(stringResource(R.string.card_amount), it) }
-            card.due?.let { SummaryRow(stringResource(R.string.card_due), it) }
-
             val summary = card.summaryText ?: card.templateArgs?.let { templateSummaryText(context, it) }
             if (summary != null) {
-                if (card.from != null || card.forWhom != null || card.typeId != null || card.amount != null || card.due != null) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         stringResource(summaryBadge(card.summarySource)),
@@ -497,28 +510,6 @@ internal fun summaryBadge(source: SummarySource?): Int = when (source) {
     SummarySource.TEMPLATE -> R.string.card_summary_from_fields
     SummarySource.USER -> R.string.card_summary_yours
     SummarySource.MODEL, null -> R.string.card_ai_summary
-}
-
-@Composable
-private fun SummaryRow(label: String, line: CardLine) {
-    Row(verticalAlignment = Alignment.Top) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(64.dp),
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(line.value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            if (line.worthChecking) {
-                Text(
-                    stringResource(R.string.card_worth_checking),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-    }
 }
 
 @Composable
@@ -572,18 +563,18 @@ private fun summaryPieceRes(piece: SummaryPiece): Int = when (piece) {
 // ═══════════════════════════════════════════════════════════
 
 /**
- * "Confirm n confident" while uncertain fields remain (they stay for the person to check), "Confirm all" once none do.
- * Hidden when nothing is open.
+ * "Confirm n confident" while uncertain essential lines remain (they stay for the person to check), "Confirm all" once none do.
+ * It acts on the essential lines only, by their ids; the rows of "All details" are never confirmed in bulk. Hidden when nothing is open.
  */
 @Composable
-private fun ReviewButton(review: ReviewSummary, onConfirmConfident: () -> Unit, onConfirmAll: () -> Unit) {
+private fun ReviewButton(review: ReviewSummary, onConfirmConfident: (List<String>) -> Unit, onConfirmAll: (List<String>) -> Unit) {
     when (review.mode) {
         ConfirmMode.NONE -> Unit
         ConfirmMode.CONFIDENT -> Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Button(onClick = onConfirmConfident) { Text(stringResource(R.string.review_confirm_confident, review.confidentOpen)) }
+            Button(onClick = { onConfirmConfident(review.confidentIds) }) { Text(stringResource(R.string.review_confirm_confident, review.confidentOpen)) }
         }
         ConfirmMode.ALL -> Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Button(onClick = onConfirmAll) { Text(stringResource(R.string.review_confirm_all)) }
+            Button(onClick = { onConfirmAll(review.openIds) }) { Text(stringResource(R.string.review_confirm_all)) }
         }
     }
 }
@@ -608,7 +599,7 @@ private fun ItemView(item: DetailItem, actions: FieldActions) {
  *  - **Confirmed or edited** — the person accepted or wrote it: collapsed to one line, and a re-read leaves it.
  *  - **Machine, confident** — plain.
  *
- * Every row ends in ✓ Confirm, ✎ Edit and ✕ Ignore; a confirmed row shows the ✓ as a mark instead of a button.
+ * Every row ends in one overflow menu with Confirm, Edit and Ignore; a confirmed row shows the ✓ as a mark instead of a Confirm entry.
  */
 @Composable
 internal fun FieldRow(field: ExtractedData, actions: FieldActions) {
@@ -651,7 +642,7 @@ internal fun FieldRow(field: ExtractedData, actions: FieldActions) {
                         )
                     }
                 }
-                RowButtons(
+                RowMenu(
                     label = label,
                     confirmed = settled,
                     onConfirm = { actions.confirm(listOf(field.id)) },
@@ -662,16 +653,7 @@ internal fun FieldRow(field: ExtractedData, actions: FieldActions) {
 
             // The disagreement, spelled out: the previous reading is what makes it actionable.
             if (field.hasUnreviewedMachineChange && field.machineValue != null) {
-                Text(
-                    stringResource(R.string.field_machine_changed, field.machineValue.orEmpty()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.padding(end = 8.dp),
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { actions.confirm(listOf(field.id)) }) { Text(stringResource(R.string.field_keep_mine)) }
-                    TextButton(onClick = { actions.edit(field) }) { Text(stringResource(R.string.field_review)) }
-                }
+                MachineChangeNotice(field, actions)
             } else if (uncertain) {
                 Text(
                     stringResource(R.string.field_worth_checking),
@@ -684,12 +666,14 @@ internal fun FieldRow(field: ExtractedData, actions: FieldActions) {
     }
 }
 
-/** ✓ ✎ ✕ with a description each that names the row, and the platform's minimum touch size. */
+/**
+ * The row's actions in one overflow menu (Confirm, Edit, Ignore), each named after the row for screen readers; a confirmed row shows
+ * the ✓ as a mark and has no Confirm entry.
+ */
 @Composable
-private fun RowButtons(label: String, confirmed: Boolean, onConfirm: () -> Unit, onEdit: () -> Unit, onIgnore: () -> Unit) {
+private fun RowMenu(label: String, confirmed: Boolean, onConfirm: () -> Unit, onEdit: () -> Unit, onIgnore: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (confirmed) {
-            // Already confirmed: a mark, not a button, but it keeps the row's three slots aligned.
             Box(modifier = Modifier.minimumInteractiveComponentSize(), contentAlignment = Alignment.Center) {
                 Icon(
                     PamIcons.Done,
@@ -698,16 +682,11 @@ private fun RowButtons(label: String, confirmed: Boolean, onConfirm: () -> Unit,
                     modifier = Modifier.size(20.dp),
                 )
             }
-        } else {
-            IconButton(onClick = onConfirm) {
-                Icon(PamIcons.Done, contentDescription = stringResource(R.string.action_confirm_field, label), modifier = Modifier.size(22.dp))
-            }
         }
-        IconButton(onClick = onEdit) {
-            Icon(PamIcons.Edit, contentDescription = stringResource(R.string.action_edit_field, label), modifier = Modifier.size(20.dp))
-        }
-        IconButton(onClick = onIgnore) {
-            Icon(PamIcons.Close, contentDescription = stringResource(R.string.action_ignore_field, label), modifier = Modifier.size(20.dp))
+        OverflowMenu(label) { close ->
+            if (!confirmed) MenuItem(R.string.action_menu_confirm, R.string.action_confirm_field, label) { close(); onConfirm() }
+            MenuItem(R.string.action_menu_edit, R.string.action_edit_field, label) { close(); onEdit() }
+            MenuItem(R.string.action_menu_ignore, R.string.action_ignore_field, label) { close(); onIgnore() }
         }
     }
 }
@@ -934,13 +913,14 @@ private fun SectionTitle(title: String) {
     Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
 }
 
-@Composable
-private fun OtherDetailsHeader(count: Int, expanded: Boolean, onToggle: () -> Unit) =
-    CollapsibleHeader(stringResource(R.string.section_other_details_count, count), expanded, onToggle)
-
+/** A section heading that opens and closes its content; reads as a heading with its state ("Collapsed") for screen readers. */
 @Composable
 private fun CollapsibleHeader(title: String, expanded: Boolean, onToggle: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(top = 12.dp)) {
+    val state = stringResource(if (expanded) R.string.state_expanded else R.string.state_collapsed)
+    Column(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(top = 12.dp)
+            .semantics(mergeDescendants = true) { heading(); stateDescription = state },
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 title,
@@ -949,7 +929,7 @@ private fun CollapsibleHeader(title: String, expanded: Boolean, onToggle: () -> 
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f),
             )
-            Text(if (expanded) "−" else "+", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(if (expanded) "▴" else "▾", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(top = 4.dp))
     }
@@ -961,6 +941,7 @@ internal fun labelText(key: String): String {
     val res = SlotLabels.slot(key)
     if (res != null) return stringResource(res)
     SlotLabels.found(key)?.let { return stringResource(it.res, it.number) }
+    SlotLabels.extraKeySlot(key)?.let { return stringResource(it) }
     return SlotLabels.extraKeyName(key) ?: key
 }
 
@@ -969,5 +950,6 @@ internal fun labelText(key: String): String {
 internal fun fieldLabelText(field: ExtractedData): String {
     SlotLabels.labelFor(field)?.let { return stringResource(it) }
     SlotLabels.found(field.slotKey)?.let { return stringResource(it.res, it.number) }
+    if (field.source == ValueSource.MACHINE) SlotLabels.extraKeySlot(field.fieldName)?.let { return stringResource(it) }
     return SlotLabels.extraKeyName(field.fieldName) ?: field.fieldName
 }

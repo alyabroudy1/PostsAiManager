@@ -19,7 +19,17 @@ package com.postsaimanager.core.domain.extraction.v2
  */
 object ExtractorVersion {
     /** What a model-read document is stamped with today. */
-    const val CURRENT = "extraction-v2-2"
+    const val CURRENT = "extraction-v2-6"
+
+    /**
+     * The first version whose second stage picks the extras by what the family's hint says the reader needs (the "Key information") and
+     * writes the action lines. A document stamped with an earlier one has extras picked without that guidance and no action lines, so the
+     * Extracted tab keeps them under "All details" until the background re-read.
+     */
+    private const val KEY_INFO_FROM = 3
+
+    /** Whether the extras of a document stamped [stored] are the hint-guided key information. */
+    fun readsKeyInfo(stored: String?): Boolean = stored != null && (number(stored) ?: 0) >= KEY_INFO_FROM
 
     /** No model read the document: only values found by code. */
     const val FOUND_VALUES = "found-values-1"

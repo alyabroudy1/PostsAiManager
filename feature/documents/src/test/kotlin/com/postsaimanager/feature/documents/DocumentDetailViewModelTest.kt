@@ -310,6 +310,27 @@ class DocumentDetailViewModelTest {
         }
 
         @Test
+        @DisplayName("given the ids of the essential rows, only those are confirmed and the rest of the document is left alone")
+        fun `confirms only the given fields`() = runTest {
+            val vm = open(field("e1"), field("e2", confidence = 0.4f), field("detail1"), field("detail2"))
+
+            vm.confirmConfidentFields(listOf("e1", "e2"))
+
+            assertThat(stored("e1").reviewState).isEqualTo(ReviewState.CONFIRMED)
+            assertThat(stored("e2").reviewState).isEqualTo(ReviewState.UNREVIEWED)
+            assertThat(stored("detail1").reviewState).isEqualTo(ReviewState.UNREVIEWED)
+            assertThat(stored("detail2").reviewState).isEqualTo(ReviewState.UNREVIEWED)
+            assertThat(vm.pendingConfirmAllUndo.value!!.map { it.id }).containsExactly("e1")
+
+            vm.undoConfirmAll()
+            vm.confirmAllFields(listOf("e1", "e2"))
+
+            assertThat(stored("e1").reviewState).isEqualTo(ReviewState.CONFIRMED)
+            assertThat(stored("e2").reviewState).isEqualTo(ReviewState.CONFIRMED)
+            assertThat(stored("detail1").reviewState).isEqualTo(ReviewState.UNREVIEWED)
+        }
+
+        @Test
         @DisplayName("confirms every unconfirmed field in one repository call, not one per field")
         fun `confirms all unconfirmed fields at once`() = runTest {
             val vm = open(field("f1"), field("f2"), field("f3", confirmed = true))

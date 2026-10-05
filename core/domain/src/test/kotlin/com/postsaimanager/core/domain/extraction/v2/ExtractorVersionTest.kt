@@ -19,10 +19,25 @@ class ExtractorVersionTest {
     }
 
     @Test
-    @DisplayName("the families extractor is extraction-v2-2, and a document the previous one read is outdated")
-    fun familiesVersion() {
-        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-2")
+    @DisplayName("the clean-rows and optional-numbers extractor is extraction-v2-6, and a document the previous one read is outdated")
+    fun keyInfoVersion() {
+        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-6")
+        assertThat(ExtractorVersion.isOutdated("extraction-v2-5")).isTrue()
+        assertThat(ExtractorVersion.isOutdated("extraction-v2-4")).isTrue()
+        assertThat(ExtractorVersion.isOutdated("extraction-v2-3")).isTrue()
+        assertThat(ExtractorVersion.isOutdated("extraction-v2-2")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-1")).isTrue()
+    }
+
+    @Test
+    @DisplayName("only a document read by the key-information version or later has hint-guided extras")
+    fun readsKeyInfo() {
+        assertThat(ExtractorVersion.readsKeyInfo("extraction-v2-3")).isTrue()
+        assertThat(ExtractorVersion.readsKeyInfo("extraction-v2-4")).isTrue()
+        assertThat(ExtractorVersion.readsKeyInfo("extraction-v2-2")).isFalse()
+        assertThat(ExtractorVersion.readsKeyInfo(ExtractorVersion.FOUND_VALUES)).isFalse()
+        assertThat(ExtractorVersion.readsKeyInfo("entity-extractor-1")).isFalse()
+        assertThat(ExtractorVersion.readsKeyInfo(null)).isFalse()
     }
 
     @Test

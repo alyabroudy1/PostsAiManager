@@ -18,4 +18,23 @@
     <string name="card_ai_summary">KI-Zusammenfassung</string>
     <string name="card_summary_from_fields">Zusammenfassung aus den Feldern</string>
     <string name="card_summary_yours">Ihre Zusammenfassung</string>
+    <!-- The essentials at the top of the Extracted tab -->
+    <string name="essentials_actions_title">Was Sie tun müssen</string>
+    <string name="essentials_parties_title">Von wem und für wen</string>
+    <string name="essentials_key_title">Wichtige Angaben</string>
+    <string name="essentials_from">Von</string>
+    <string name="essentials_for">An</string>
+    <string name="essentials_about">Betrifft</string>
+    <string name="essentials_address">Adresse</string>
+    <string name="essentials_address_line">Adresse: %1$s</string>
+    <string name="essentials_check_hint">Die markierten Zeilen unten sollten Sie prüfen.</string>
+    <string name="state_expanded">Aufgeklappt</string>
+    <string name="state_collapsed">Zugeklappt</string>
+    <string name="action_more_field">Weitere Aktionen für %1$s</string>
+    <string name="action_copy_field">%1$s kopieren</string>
+    <string name="action_menu_confirm">Bestätigen</string>
+    <string name="action_menu_edit">Bearbeiten</string>
+    <string name="action_menu_ignore">Ignorieren</string>
+    <string name="copied_to_clipboard">Kopiert</string>
+    <string name="section_all_details">Alle Details (%1$d)</string>
 </resources>

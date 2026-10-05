@@ -29,6 +29,26 @@ class FamilyRegistryTest {
     }
 
     @Test
+    fun `every family, the abstain one included, carries a hint for the model on what matters in it`() {
+        for (f in schema.families) assertThat(f.hint).isNotEmpty()
+        // A hint is guidance, in English prose for the prompt; it names what matters and never reads like a field list or a rule.
+        assertThat(ExtractionSchema.OFFICIAL_LETTER.hint).contains("sender and the recipient")
+        assertThat(ExtractionSchema.INVOICE_BILL.hint).contains("amount to pay")
+        assertThat(ExtractionSchema.RECEIPT.hint).contains("total")
+        assertThat(ExtractionSchema.FREE_FORM.hint).contains("who it is from and for")
+    }
+
+    @Test
+    fun `a new family without a hint is allowed, and its extras are scored under the plain statement`() {
+        val bare = DocFamily.of("bare", com.postsaimanager.core.model.DocumentType.OTHER)
+        assertThat(bare.hint).isEmpty()
+        assertThat(com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions.extra(bare.hint))
+            .isEqualTo(com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions.EXTRA)
+        assertThat(com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions.extra(ExtractionSchema.RECEIPT.hint))
+            .endsWith(ExtractionSchema.RECEIPT.hint)
+    }
+
+    @Test
     fun `free_form is never scored, for any direction`() {
         for (direction in DocDirection.entries) assertThat(schema.familiesFor(direction).map { it.id }).doesNotContain("free_form")
         assertThat(ExtractionSchema.FREE_FORM.slots).isEqualTo(Slots.CORE)

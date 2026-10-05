@@ -40,10 +40,16 @@ interface DocumentRepository {
      * confident" button), in one batched write rather than one [confirmExtractedField] call per
      * field (5.3) — see `DocumentRepositoryImpl` for how that batching is done.
      *
+     * @param onlyFieldIds when not null, only fields with these ids are considered (the Extracted tab confirms its essential rows and
+     *   leaves "All details" alone)
      * @return the confirmed fields exactly as they were *before* confirming — nothing but a
      *   caller passing this list straight back to [restoreExtractedFields] undoes the action.
      */
-    suspend fun confirmAllExtractedFields(documentId: String, onlyConfident: Boolean = false): PamResult<List<ExtractedData>>
+    suspend fun confirmAllExtractedFields(
+        documentId: String,
+        onlyConfident: Boolean = false,
+        onlyFieldIds: Set<String>? = null,
+    ): PamResult<List<ExtractedData>>
 
     /**
      * Sets a field's review state: [ReviewState.CONFIRMED] adopts the stored value,

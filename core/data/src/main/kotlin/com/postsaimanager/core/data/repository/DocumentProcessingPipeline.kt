@@ -24,6 +24,7 @@ import com.postsaimanager.core.data.worker.ReprocessDocumentWorker
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.EnrichmentRetryPolicy
 import com.postsaimanager.core.domain.document.EnrichmentTicketRebuilder
+import com.postsaimanager.core.domain.document.KeySlotMarker
 import com.postsaimanager.core.domain.document.ReprocessOverwritePolicy
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
@@ -700,7 +701,8 @@ class DocumentProcessingPipeline @Inject constructor(
                         pageAspect = pages.minByOrNull { it.pageNumber }
                             ?.takeIf { it.width > 0 && it.height > 0 }?.let { it.width.toFloat() / it.height },
                         stages = ExtractionV2Pipeline.Stages.SECOND,
-                        ticket = usedTicket,
+                        // The slot values as stored now (a person's correction included) are what the stage scores for key information.
+                        ticket = usedTicket.copy(slots = EnrichmentTicketRebuilder.slotsOf(storedFields)),
                     )
                     val read = (understanding as? PamResult.Success)?.data
                     read?.let { logReadingTrace(documentId, it.readingTrace) }
@@ -726,6 +728,10 @@ class DocumentProcessingPipeline @Inject constructor(
                     merged.idsToDelete.forEach { documentDao.deleteExtractedField(it) }
                     documentDao.insertExtractedData(merged.toPersist.map(documentMapper::extractedDataToEntity))
                     fieldRevisionDao.insertAll(merged.revisions.map(documentMapper::revisionToEntity))
+                    // The stored slot rows the stage picked as key information carry the score (the flag lives on the row, so it survives storage).
+                    val mergedIds = merged.toPersist.map { it.id }.toSet() + merged.idsToDelete
+                    KeySlotMarker.mark(storedFields.filter { it.id !in mergedIds }, read.keySlots).takeIf { it.isNotEmpty() }
+                        ?.let { documentDao.insertExtractedData(it.map(documentMapper::extractedDataToEntity)) }
 
                     // Re-read right before the write: the document may have been trashed or edited while the model was writing.
                     val latest = documentDao.getById(documentId)
@@ -738,6 +744,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     var updated = documentMapper.toDomain(latest)
                     updated = ReprocessOverwritePolicy.applyTitle(updated, read)
                     updated = ReprocessOverwritePolicy.applySummary(updated, read)
+                    updated = ReprocessOverwritePolicy.applyActions(updated, read)
                     updated = ReprocessOverwritePolicy.applyLateTopics(updated, read)
                     documentDao.update(
                         documentMapper.toEntity(

@@ -65,6 +65,12 @@ data class Document(
     /** When the summary is a template, its code; [summaryArgs] are the values it is rendered from. */
     val summaryCode: String? = null,
     val summaryArgs: List<String> = emptyList(),
+    /**
+     * What the reader has to do, as short lines the model wrote in the letter's language in the second stage (at most three), each
+     * checked against the letter's text and the verified fields before it was kept. Empty when the letter asks nothing or nothing
+     * was written (no model, a failed stage); the Extracted tab then has no "What you need to do" section.
+     */
+    val actionItems: List<String> = emptyList(),
     /** The id of the layout template the letter matched, for display and debugging; null when none. */
     val layoutTemplate: String? = null,
     /** How many times the reading's second stage ran without settling a summary; at the limit the template summary is stored. */

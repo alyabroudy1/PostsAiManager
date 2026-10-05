@@ -91,7 +91,17 @@ data class ExtractedData(
 
     /** The runner-up readings for this slot (the Edit sheet's chips), best first; empty when there were none. */
     val alternatives: List<FieldAlternative> = emptyList(),
+
+    /**
+     * Set on a fixed slot row (an invoice number, an amount, an IBAN ...) that the second stage judged the reader needs, given what
+     * matters in this kind of document: the score that picked it, higher is more important. Null on every other row (an extra is key
+     * information by being shown, not by this).
+     */
+    val importance: Float? = null,
 ) {
+    /** A fixed slot row the reading picked as key information (see [importance]). */
+    val isKeySlot: Boolean get() = importance != null && !isExtra
+
     /**
      * Whether the legacy flags agree with [reviewState] (the owner): [deletedByUser] is exactly "ignored"; a confirmed or edited
      * row is [isConfirmed]; an unreviewed row is not. An ignored row may keep whatever [isConfirmed] it had.
