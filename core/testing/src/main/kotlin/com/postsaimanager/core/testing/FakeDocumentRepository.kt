@@ -156,10 +156,12 @@ class FakeDocumentRepository : DocumentRepository {
     override suspend fun confirmAllExtractedFields(
         documentId: String,
         onlyConfident: Boolean,
+        onlyFieldIds: Set<String>?,
     ): PamResult<List<ExtractedData>> = guard {
         val current = extracted.value[documentId].orEmpty()
         val toConfirm = current.filter {
-            it.reviewState == ReviewState.UNREVIEWED && (!onlyConfident || !it.needsReview)
+            (onlyFieldIds == null || it.id in onlyFieldIds) &&
+                it.reviewState == ReviewState.UNREVIEWED && (!onlyConfident || !it.needsReview)
         }
         if (toConfirm.isNotEmpty()) {
             val confirmIds = toConfirm.map { it.id }.toSet()

@@ -317,12 +317,14 @@ class DocumentRepositoryImpl @Inject constructor(
     override suspend fun confirmAllExtractedFields(
         documentId: String,
         onlyConfident: Boolean,
+        onlyFieldIds: Set<String>?,
     ): PamResult<List<ExtractedData>> =
         withContext(ioDispatcher) {
             try {
                 val now = System.currentTimeMillis()
                 val toConfirm = documentDao.getExtractedData(documentId)
                     .map(mapper::extractedDataToDomain)
+                    .filter { onlyFieldIds == null || it.id in onlyFieldIds }
                     .filter { it.reviewState == ReviewState.UNREVIEWED && (!onlyConfident || !it.needsReview) }
                 if (toConfirm.isEmpty()) return@withContext PamResult.Success(emptyList())
 
