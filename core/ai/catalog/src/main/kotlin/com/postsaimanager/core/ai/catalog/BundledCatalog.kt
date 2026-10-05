@@ -3,6 +3,7 @@ package com.postsaimanager.core.ai.catalog
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.AiModelDescriptor
 import com.postsaimanager.core.model.BackendSpec
+import com.postsaimanager.core.model.ModelRole
 
 /**
  * The models that ship knowable, compiled into the APK.
@@ -70,6 +71,12 @@ object BundledCatalog {
             description = "Recommended default. Small and fast, fits any supported phone and " +
                 "reads letters well for its size; a larger model catches more details.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            // Reads every letter (the tuned profile is measured on it), so it is always installed.
+            role = ModelRole.READER_AND_CHAT,
+            // Total memory as Android reports it (decimal GB): a "4 GB" phone reads about 3.7.
+            minRamGb = 2.5,
+            recommendedRamGb = 3.0,
+            approxRamUseGb = 0.6,
         ),
         AiModelDescriptor(
             id = "qwen3.5-2b-q4_k_m",
@@ -89,6 +96,9 @@ object BundledCatalog {
             description = "Better answers than the recommended 0.8B, but slower and needs more " +
                 "memory.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            minRamGb = 4.5,
+            recommendedRamGb = 5.0,
+            approxRamUseGb = 1.6,
         ),
         AiModelDescriptor(
             id = "qwen3.5-4b-q4_k_m",
@@ -107,6 +117,10 @@ object BundledCatalog {
             description = "Noticeably better at multi-step reasoning and at picking the " +
                 "right entity out of a crowded page.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            // A flagship with 11.3 GB total had 2.5 GB free in practice: a 4B model is that phone's limit.
+            minRamGb = 8.0,
+            recommendedRamGb = 10.0,
+            approxRamUseGb = 3.3,
         ),
         AiModelDescriptor(
             id = "gemma-4-e2b-it-qat-q4_0",
@@ -131,6 +145,9 @@ object BundledCatalog {
                 "trained, not rounded afterwards. Strong multilingual reading, including " +
                 "German.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            minRamGb = 8.0,
+            recommendedRamGb = 12.0,
+            approxRamUseGb = 4.2,
         ),
         AiModelDescriptor(
             id = "gemma-4-e4b-it-qat-q4_0",
@@ -151,12 +168,18 @@ object BundledCatalog {
                 "most reliable at identifying people and organisations. Needs a high-end " +
                 "phone with memory to spare.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            minRamGb = 12.0,
+            recommendedRamGb = 16.0,
+            approxRamUseGb = 6.0,
         ),
     )
 
-    /** The model first-run setup downloads: the smallest one, which reads documents best for its size and fits any phone we support. */
-    const val FIRST_RUN_MODEL_ID = "qwen3.5-0.8b-q4_k_m"
+    /**
+     * The reader model (flagged [ModelRole.READER_AND_CHAT] above, which a test pins): setup always installs it, and extraction runs
+     * on it whenever it is installed. The id is only for code that has no descriptor list at hand.
+     */
+    const val READER_MODEL_ID = "qwen3.5-0.8b-q4_k_m"
 
-    val firstRunModel: AiModelDescriptor
-        get() = models.first { it.id == FIRST_RUN_MODEL_ID }
+    val readerModel: AiModelDescriptor
+        get() = models.first { it.role == ModelRole.READER_AND_CHAT }
 }
