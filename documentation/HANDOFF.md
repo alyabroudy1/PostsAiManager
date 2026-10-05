@@ -136,14 +136,24 @@ R8 on. Open items:
   and `ObserveSetupNeedUseCase` in `core:domain`, the gateway adapter `CatalogModelSetupGateway` in `app` over the existing
   download machinery, `StartupViewModel` picks the start route once per launch. Device pass still to do: fresh install,
   Wi-Fi download, mobile-data question, cancel and retry, skip and banner, RTL (ar).
-- The upload signing key: create or copy it (section b6), then enrol in Play App Signing.
+- Last code round before 1.0.0 (2026-10-05, JVM-tested, NOT device-verified): unused `firebase-crashlytics`, ML Kit
+  `language-id`/`entity-extraction` and the empty `:core:ai:online` module (and its Konsist test) removed;
+  "Report this answer" flag on every chat answer and on the AI summary card (`ReportAnswer.kt` in `:core:designsystem`: an
+  `ACTION_SENDTO` mailto draft to alyabroudy1@gmail.com, answer text only if the user ticks it, never sent automatically;
+  en/de/ar); POST_NOTIFICATIONS requested on the setup screen right before the download (`NotificationPermission.kt`,
+  a denial does not block it); the 0.8B is described as the recommended default and the 2B as "better answers, slower"
+  (not "used for form filling", the feature is hidden in release); GitHub Pages sources in `docs/` (see
+  `store/README.md`). `HuggingFaceCatalogSource` stays but is unreachable. Gate: 2034 JVM tests, 0 failures, 1 skipped;
+  `:app:bundleRelease` signed (`jarsigner -verify`: verified), 29.4 MB.
+- The upload signing key exists in the user's `~/.gradle/gradle.properties`; enrol in Play App Signing in the Console.
 - A release-like smoke was done on the device with a debug-signed build of the release variant (no crash found). It
-  must be repeated with the final signed AAB before upload.
+  must be repeated with the final signed AAB before upload, including: the notification permission prompt on setup,
+  the Report answer dialog and e-mail draft (chat and summary card), the Models screen wording.
 - `allowBackup` and the locale list stay as the user decided (see the checklist's blockers 3 and "i"); do not change them
   without asking.
-- The privacy policy text and Play listing/data-safety answers are not written. Facts for them are in the checklist,
-  section e (all data stays on device; the only network use is model downloads from Hugging Face; no analytics). A hosted
-  policy URL is mandatory.
+- The privacy policy (EN, DE) is written, contact e-mail filled in; it is in `documentation/store/` and copied to `docs/privacy/`
+  for GitHub Pages. Still to do by the user: fill the imprint/effective-date PLACEHOLDERs, enable Pages (Settings > Pages >
+  main, /docs, after merging; URL `https://alyabroudy1.github.io/PostsAiManager/privacy/`), then the Play Console forms.
 - Re-check the five Hugging Face model URLs and hashes right before release.
 
 **Form filling** (design: `planning/FORM-ASSIST.md`, code and tools: `10-on-device-agent.md`):

@@ -14,6 +14,21 @@ Written 2026-10-02 from the code and config on branch feat/form-assist (read-onl
 - **First-run model setup: done (blocker "no model on a fresh install" in section a).** New `feature:setup` screen, skip banner on
   Home, start-route logic. Strings in en/de/ar. Not device-verified.
 
+## Update 2026-10-05, last code round (JVM-tested, not device-verified)
+
+- **Done:** unused dependencies removed (crashlytics, ML Kit language-id and entity-extraction, `:core:ai:online`); "Report this
+  answer" (chat answers and AI summary card; mailto draft, answer text opt-in, off by default); notification permission asked on
+  the setup screen right before the download (denial does not block); catalog wording (0.8B recommended default, 2B "better
+  answers, slower"); privacy policy EN/DE with the contact e-mail, GitHub Pages sources in `docs/`; store docs updated.
+- **Gate:** `testDebugUnitTest :architecture-test:test :app:assembleDebug :app:bundleRelease`: BUILD SUCCESSFUL, 2034 tests, 0 failures,
+  1 skipped. `app/build/outputs/bundle/release/app-release.aab` is signed with the upload key (`jarsigner -verify`: verified), 29.4 MB.
+- **Blockers 1 (signing) and 4 (policy written) below are resolved in code; blocker 3 (backup) is decided: stays as is.**
+- **Remaining user steps:** (1) fill the imprint and effective-date PLACEHOLDERs in `documentation/store/PRIVACY_POLICY*.md` and
+  `docs/privacy/**`; (2) merge, push, enable GitHub Pages (Settings > Pages > main, /docs) and open
+  `https://alyabroudy1.github.io/PostsAiManager/privacy/`; (3) device smoke of the signed AAB (setup + notification prompt, Report
+  dialog and mail draft, release-like run on Android 16); (4) Play Console: Play App Signing, privacy URL, Data safety
+  (`store/DATA_SAFETY.md`), foreground-service video, generative-AI declaration, listing; (5) re-check the Hugging Face URLs.
+
 ## BLOCKERS (fix before a Play upload)
 
 1. **No release signing config.** `app/build.gradle.kts` has no `signingConfigs`; `assembleRelease` produces `app-release-unsigned.apk` only. Missing: an upload keystore (not created, never commit it), a `signingConfigs.release` reading path/passwords from `local.properties` or env, and Play App Signing enrolment. For an AAB use `:app:bundleRelease` (not run).
