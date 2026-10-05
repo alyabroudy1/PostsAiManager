@@ -279,6 +279,26 @@ class ExtractedPresenterTest {
         }
 
         @Test
+        fun `a row with no value is no card anywhere, not in All details, the count or Check these`() {
+            val rows = invoiceFields() + field("Sender", "", "sender", confidence = 0.2f) + extra("Blank", value = "  ")
+            val p = present(rows, type = "official_letter")
+
+            assertThat(p.detailSlots()).doesNotContain("sender")
+            assertThat(p.detailSlots()).doesNotContain("x:blank")
+            assertThat(p.extras.map { it.fieldName }).doesNotContain("Blank")
+            assertThat(p.essentials.rows.map { it.fieldName }).doesNotContain("Sender")
+            assertThat(p.detailCount).isEqualTo(present(invoiceFields(), type = "official_letter").detailCount)
+            assertThat(p.checkCount).isEqualTo(present(invoiceFields(), type = "official_letter").checkCount)
+        }
+
+        @Test
+        fun `an empty field a person added themselves stays, so they can fill it in`() {
+            val own = field("Note", "", "x:note", source = ValueSource.USER)
+            val p = present(invoiceFields() + own, type = "invoice_bill")
+            assertThat((p.extras + p.essentials.keyInfo).map { it.fieldName }).contains("Note")
+        }
+
+        @Test
         fun `a very unsure extra is not key information, it waits behind Show all in the details`() {
             val rows = invoiceFields() + extra("Faint", confidence = 0.3f)
 

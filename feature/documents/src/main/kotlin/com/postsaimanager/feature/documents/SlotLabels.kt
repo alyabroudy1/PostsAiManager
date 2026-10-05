@@ -152,6 +152,20 @@ object SlotLabels {
         name.takeIf { it.startsWith(ExtractedData.EXTRA_KEY_PREFIX) }
             ?.removePrefix(ExtractedData.EXTRA_KEY_PREFIX)?.replace('_', ' ')?.ifBlank { null }
 
+    /**
+     * The localized label of an extra stored under a bare key (`x:amount`) when that key is a slot's id or the slot's stored English
+     * label ("amount" is the total's), so the key reads as the slot does everywhere else; null for any other name.
+     */
+    @StringRes
+    fun extraKeySlot(name: String): Int? {
+        val key = name.takeIf { it.startsWith(ExtractedData.EXTRA_KEY_PREFIX) }
+            ?.removePrefix(ExtractedData.EXTRA_KEY_PREFIX)?.replace(Regex("_\\d+$"), "")?.trim() ?: return null
+        val slot = ExtractionSchema.DEFAULT.allSlots.firstOrNull {
+            it.json.equals(key, ignoreCase = true) || it.label.replace(' ', '_').equals(key, ignoreCase = true)
+        } ?: return null
+        return slots[slot.json]
+    }
+
     @StringRes
     fun type(id: String?): Int? = id?.let { types[it] ?: types[LegacyTypes.of(it)?.family] }
 

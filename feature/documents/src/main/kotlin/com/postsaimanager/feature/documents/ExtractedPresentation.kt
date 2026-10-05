@@ -21,6 +21,7 @@ import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.FamilySource
 import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.SummarySource
+import com.postsaimanager.core.model.ValueSource
 
 /**
  * The card at the top of the Extracted tab: the title the reading composed and the summary with a badge saying where it came from.
@@ -236,7 +237,9 @@ object ExtractedPresenter {
 
         // An address row stored before verification was recorded may belong to an address that failed its checks (it mixes lines of the
         // letter): it is not shown. The party name rows are unaffected.
-        val shownFields = fields.filter { !AddressRows.isAddressKey(it.slotKey) || AddressRows.isShown(it.origin) }
+        // A row with no value is not a card (an empty "Sender" is nothing to read or check); only one a person added themselves stays,
+        // so they can fill it in.
+        val shownFields = fields.filter { (!AddressRows.isAddressKey(it.slotKey) || AddressRows.isShown(it.origin)) && hasValueToShow(it) }
         val (ignored, live) = shownFields.partition { it.isIgnored }
         val (extraRows, fixedRows) = live.partition { it.isExtra }
 
@@ -296,6 +299,8 @@ object ExtractedPresenter {
             review = reviewOf(essentials.rows),
         )
     }
+
+    private fun hasValueToShow(row: ExtractedData): Boolean = row.fieldValue.isNotBlank() || row.source == ValueSource.USER
 
     /** From (the sender), For (the addressee, "You" for the Me profile) and About (the subject person, only when it is someone else). */
     private fun parties(rows: List<ExtractedData>, blocks: Map<SectionKind, AddressBlock>, selfName: String?): PartiesView {

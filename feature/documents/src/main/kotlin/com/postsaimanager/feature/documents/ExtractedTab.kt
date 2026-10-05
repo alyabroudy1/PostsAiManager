@@ -76,6 +76,7 @@ import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.FieldAlternative
 import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.model.TextBounds
+import com.postsaimanager.core.model.ValueSource
 
 /**
  * What a person can do to a row, from its ✓ ✎ ✕ buttons and the Ignored footer. Block-level actions pass every row of the
@@ -940,6 +941,7 @@ internal fun labelText(key: String): String {
     val res = SlotLabels.slot(key)
     if (res != null) return stringResource(res)
     SlotLabels.found(key)?.let { return stringResource(it.res, it.number) }
+    SlotLabels.extraKeySlot(key)?.let { return stringResource(it) }
     return SlotLabels.extraKeyName(key) ?: key
 }
 
@@ -948,5 +950,6 @@ internal fun labelText(key: String): String {
 internal fun fieldLabelText(field: ExtractedData): String {
     SlotLabels.labelFor(field)?.let { return stringResource(it) }
     SlotLabels.found(field.slotKey)?.let { return stringResource(it.res, it.number) }
+    if (field.source == ValueSource.MACHINE) SlotLabels.extraKeySlot(field.fieldName)?.let { return stringResource(it) }
     return SlotLabels.extraKeyName(field.fieldName) ?: field.fieldName
 }
