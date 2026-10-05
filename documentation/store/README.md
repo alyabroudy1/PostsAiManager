@@ -30,9 +30,9 @@ After this branch is merged into `main` and pushed:
 
 ## Your TODO
 
-1. **Fill in the placeholders** in both policy files and both `docs/privacy` copies: the effective date and the provider name and
-   postal address (a German Impressum is usually required for a public app; have it checked). Search for `PLACEHOLDER` and
-   `PLATZHALTER`. Do not publish with them.
+1. ~~Fill in the placeholders.~~ Done on 2026-10-05: the effective date is 5 October 2026; the provider is "Alyabroudy" + e-mail,
+   with no postal address (user decision). Before any commercial use, have it checked whether a German Impressum with an
+   address is required (a c/o address service is an option).
 2. **Enable GitHub Pages** (above) and test the URLs.
 3. **Backup:** unchanged (`allowBackup=true`, documented). If you ever change it, update policy section 6 in both languages and in `docs/privacy`.
 4. **Play Console:** App content: Privacy policy, Ads (No), App access (no login), Content rating (LISTING.md), Target audience (not for children), Data safety (DATA_SAFETY.md), Foreground service declaration for `dataSync` (needs a short video), Generative AI / AI-generated content (the in-app "Report this answer" button is the reporting mechanism), News/Government/Financial declarations (answer No / not a financial services app).

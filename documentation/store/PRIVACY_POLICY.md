@@ -1,11 +1,11 @@
-<!-- Items marked PLACEHOLDER (effective date, provider name and address) must be filled in by the publisher before the app is published. -->
+<!-- Published copy: docs/privacy/index.md (GitHub Pages). Keep both in sync. Provider: name + e-mail only (user decision 2026-10-05; a postal address/Impressum is to be checked legally before any commercial use). -->
 
 # Privacy Policy - Posts AI Manager
 
 **Effective date:** 5 October 2026
 **App:** Posts AI Manager (package `com.postsaimanager`), version 1.0.0
 **Contact:** alyabroudy1@gmail.com
-**Provider (imprint):** **[PLACEHOLDER: provider name and postal address]**
+**Provider (imprint):** Alyabroudy, alyabroudy1@gmail.com
 
 Posts AI Manager helps you scan and understand your paper mail on your own phone. It is built to work offline. This policy explains in plain language what the app does with your information.
 
@@ -112,4 +112,4 @@ If this policy changes, the new version will be published at https://alyabroudy1
 ## 13. Contact
 
 alyabroudy1@gmail.com  
-**[PLACEHOLDER: provider name and postal address]**
+Alyabroudy, alyabroudy1@gmail.com

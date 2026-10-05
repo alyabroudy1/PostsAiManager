@@ -9,7 +9,7 @@ title: Datenschutzerklärung - Posts AI Manager
 **Gültig ab:** 5. Oktober 2026
 **App:** Posts AI Manager (Paket `com.postsaimanager`), Version 1.0.0
 **Kontakt:** alyabroudy1@gmail.com
-**Anbieter (Impressum):** **[PLATZHALTER: Name und Anschrift des Anbieters]**
+**Anbieter (Impressum):** Alyabroudy, alyabroudy1@gmail.com
 
 Posts AI Manager hilft Ihnen, Ihre Briefpost auf Ihrem eigenen Smartphone zu scannen und zu verstehen. Die App ist darauf ausgelegt, offline zu funktionieren. Diese Erklärung beschreibt verständlich, was die App mit Ihren Informationen macht.
 
@@ -116,4 +116,4 @@ Da wir Ihre personenbezogenen Daten weder erheben noch speichern, gibt es in der
 ## 13. Kontakt
 
 alyabroudy1@gmail.com  
-**[PLATZHALTER: Name und Anschrift des Anbieters]**
+Alyabroudy, alyabroudy1@gmail.com
