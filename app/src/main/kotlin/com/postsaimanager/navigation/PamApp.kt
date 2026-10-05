@@ -125,6 +125,9 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
                     onInstallModelClick = {
                         navController.navigate(StartRoutes.SETUP)
                     },
+                    onDownloadsClick = {
+                        navController.navigate("models")
+                    },
                 )
             }
             composable(TopLevelDestination.DOCUMENTS.route) {

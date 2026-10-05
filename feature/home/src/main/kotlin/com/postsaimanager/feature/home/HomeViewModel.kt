@@ -4,10 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
-import com.postsaimanager.core.domain.setup.ObserveSetupNeedUseCase
+import com.postsaimanager.core.domain.setup.ObserveModelBannerUseCase
 import com.postsaimanager.core.model.DocumentListItem
+import com.postsaimanager.core.model.ModelBannerState
 import com.postsaimanager.core.model.ProcessingState
-import com.postsaimanager.core.model.SetupNeed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,17 +21,17 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     observeDocumentListItems: ObserveDocumentListItemsUseCase,
     documentProcessor: DocumentProcessor,
-    observeSetupNeed: ObserveSetupNeedUseCase,
+    observeModelBanner: ObserveModelBannerUseCase,
 ) : ViewModel() {
 
     /**
-     * The "AI model not installed · Install" banner: the user skipped the first-run setup and no chat model exists yet.
-     * It goes away as soon as a model is installed, from the setup or the Models screen.
+     * The model banner: "AI model not installed · Install" after the user skipped the first-run setup, the download progress
+     * ("Setting up AI · 1 of 3 · 45%") while the models download in the background, or the failure with a way back to the models.
+     * It goes away once everything is installed.
      */
-    val showModelBanner: StateFlow<Boolean> = observeSetupNeed()
-        .map { it == SetupNeed.SKIPPED }
-        .catch { emit(false) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val modelBanner: StateFlow<ModelBannerState> = observeModelBanner()
+        .catch { emit(ModelBannerState.Hidden) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ModelBannerState.Hidden)
 
     /** See `DocumentsViewModel.processingState` — same idea, for the recent-documents list. */
     val processingState: StateFlow<ProcessingState> = documentProcessor.processingState

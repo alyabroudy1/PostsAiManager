@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -37,6 +39,8 @@ import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.DocumentListItem
+import com.postsaimanager.core.model.DownloadSummary
+import com.postsaimanager.core.model.ModelBannerState
 import com.postsaimanager.core.model.ProcessingState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,11 +50,12 @@ fun HomeScreen(
     onScanClick: () -> Unit,
     onAskAcrossDocumentsClick: () -> Unit,
     onInstallModelClick: () -> Unit,
+    onDownloadsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val showModelBanner by viewModel.showModelBanner.collectAsStateWithLifecycle()
+    val modelBanner by viewModel.modelBanner.collectAsStateWithLifecycle()
     val processingState by viewModel.processingState.collectAsStateWithLifecycle()
 
     Scaffold(
@@ -82,7 +87,12 @@ fun HomeScreen(
         modifier = modifier,
     ) { innerPadding ->
         Column(Modifier.padding(innerPadding)) {
-            if (showModelBanner) ModelBanner(onInstallModelClick)
+            when (val banner = modelBanner) {
+                ModelBannerState.Hidden -> Unit
+                ModelBannerState.Install -> ModelBanner(onInstallModelClick)
+                is ModelBannerState.Downloading -> DownloadBanner(banner.summary, failed = false, onClick = onDownloadsClick)
+                is ModelBannerState.Failed -> DownloadBanner(banner.summary, failed = true, onClick = onDownloadsClick)
+            }
             HomeContent(uiState, processingState, onDocumentClick, onScanClick, Modifier.weight(1f))
         }
     }
@@ -104,6 +114,39 @@ private fun ModelBanner(onInstallClick: () -> Unit, modifier: Modifier = Modifie
             )
             TextButton(onClick = onInstallClick) {
                 Text(stringResource(R.string.home_model_banner_action))
+            }
+        }
+    }
+}
+
+/**
+ * "Setting up AI · 1 of 3 · 45%" with a bar while the models download in the background, or the failure; a tap opens the models
+ * screen, which lists each download with its own progress and a Retry.
+ */
+@Composable
+private fun DownloadBanner(summary: DownloadSummary, failed: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val text = when {
+        failed -> stringResource(R.string.home_download_banner_failed)
+        summary.percent != null -> stringResource(R.string.home_download_banner_progress, summary.position, summary.count, summary.percent!!)
+        else -> stringResource(R.string.home_download_banner_progress_unknown, summary.position, summary.count)
+    }
+    Surface(
+        color = if (failed) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (failed) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            if (!failed) {
+                val percent = summary.percent
+                if (percent != null) {
+                    LinearProgressIndicator(progress = { percent / 100f }, modifier = Modifier.fillMaxWidth())
+                } else {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
             }
         }
     }

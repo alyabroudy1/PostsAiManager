@@ -1,6 +1,8 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.setup.DownloadActivity
+import com.postsaimanager.core.domain.setup.NoDownloadActivity
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.AiEngine
@@ -89,6 +91,9 @@ enum class ChatErrorAction {
 
     /** Transient; offer retry. */
     RETRY,
+
+    /** The model is on its way (downloading in the background): nothing to fix, just wait. */
+    MODEL_DOWNLOADING,
 }
 
 /**
@@ -169,6 +174,8 @@ class SendChatMessageUseCase @Inject constructor(
     private val activeModelProvider: ActiveModelProvider,
     private val buildChatContext: BuildChatContextUseCase,
     private val retrieveChunks: RetrieveChunksUseCase,
+    /** Tells "no model yet" from "no model yet, but it is downloading". */
+    private val downloads: DownloadActivity = NoDownloadActivity,
 ) {
 
     operator fun invoke(
@@ -238,11 +245,19 @@ class SendChatMessageUseCase @Inject constructor(
         // stale one — see the coordinator's docs on `lastRequested`.
         val activeModelPath = activeModelProvider.activeModelPath()
         if (activeModelPath == null) {
+            val downloading = downloads.summary.first()?.takeUnless { it.failed } != null
             emit(
-                ChatTurn.Failed(
-                    "No AI model is installed yet. Install one to chat about your documents.",
-                    ChatErrorAction.INSTALL_MODEL,
-                ),
+                if (downloading) {
+                    ChatTurn.Failed(
+                        "The AI model is still downloading. Chat will work as soon as it is ready.",
+                        ChatErrorAction.MODEL_DOWNLOADING,
+                    )
+                } else {
+                    ChatTurn.Failed(
+                        "No AI model is installed yet. Install one to chat about your documents.",
+                        ChatErrorAction.INSTALL_MODEL,
+                    )
+                },
             )
             return@flow
         }

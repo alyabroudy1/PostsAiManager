@@ -6,8 +6,12 @@ import com.postsaimanager.core.domain.document.list.DueFieldsActionHint
 import com.postsaimanager.core.domain.document.list.IdentityPartyNameResolver
 import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
 import com.postsaimanager.core.domain.repository.InstalledModelsRepository
+import com.postsaimanager.core.domain.setup.DownloadActivity
+import com.postsaimanager.core.domain.setup.ObserveModelBannerUseCase
 import com.postsaimanager.core.domain.setup.ObserveSetupNeedUseCase
 import com.postsaimanager.core.model.DocumentListStatus
+import com.postsaimanager.core.model.DownloadSummary
+import com.postsaimanager.core.model.ModelBannerState
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.InstalledModelSummary
 import com.postsaimanager.core.testing.FakeDocumentProcessor
@@ -44,8 +48,13 @@ class HomeViewModelTest {
             repository, IdentityPartyNameResolver(), DueFieldsActionHint(), clock,
         ),
         documentProcessor = FakeDocumentProcessor(),
-        observeSetupNeed = ObserveSetupNeedUseCase(installedRepository, preferences),
+        observeModelBanner = ObserveModelBannerUseCase(ObserveSetupNeedUseCase(installedRepository, preferences), downloads),
     )
+
+    private val downloadSummary = MutableStateFlow<DownloadSummary?>(null)
+    private val downloads = object : DownloadActivity {
+        override val summary: Flow<DownloadSummary?> = downloadSummary
+    }
 
     @Test
     fun `no documents is Empty`() = runTest {
@@ -76,22 +85,42 @@ class HomeViewModelTest {
 
     @Test
     fun `no banner on a fresh install, where the setup screen shows instead`() = runTest {
-        viewModel().showModelBanner.test { assertThat(expectMostRecentItem()).isFalse() }
+        viewModel().modelBanner.test { assertThat(expectMostRecentItem()).isEqualTo(ModelBannerState.Hidden) }
     }
 
     @Test
     fun `the banner shows after skipping the setup while no model exists`() = runTest {
         preferences.setModelSetupSkipped(true)
-        viewModel().showModelBanner.test { assertThat(expectMostRecentItem()).isTrue() }
+        viewModel().modelBanner.test { assertThat(expectMostRecentItem()).isEqualTo(ModelBannerState.Install) }
     }
 
     @Test
     fun `the banner goes away once a model is installed`() = runTest {
         preferences.setModelSetupSkipped(true)
-        viewModel().showModelBanner.test {
-            assertThat(expectMostRecentItem()).isTrue()
+        viewModel().modelBanner.test {
+            assertThat(expectMostRecentItem()).isEqualTo(ModelBannerState.Install)
             installedModels.value = listOf(InstalledModelSummary("m", "Model", "/m.gguf", 1L, "Q4_K_M", 4096))
-            assertThat(awaitItem()).isFalse()
+            assertThat(awaitItem()).isEqualTo(ModelBannerState.Hidden)
+        }
+    }
+
+    @Test
+    fun `the banner follows the download progress, then the failure, then goes away`() = runTest {
+        preferences.setModelSetupSkipped(true)
+        viewModel().modelBanner.test {
+            assertThat(expectMostRecentItem()).isEqualTo(ModelBannerState.Install)
+
+            downloadSummary.value = DownloadSummary(1, 3, 10)
+            assertThat(awaitItem()).isEqualTo(ModelBannerState.Downloading(DownloadSummary(1, 3, 10)))
+            downloadSummary.value = DownloadSummary(1, 3, 45)
+            assertThat(awaitItem()).isEqualTo(ModelBannerState.Downloading(DownloadSummary(1, 3, 45)))
+            downloadSummary.value = DownloadSummary(2, 3, 50, failed = true)
+            assertThat(awaitItem()).isEqualTo(ModelBannerState.Failed(DownloadSummary(2, 3, 50, failed = true)))
+
+            downloadSummary.value = null
+            assertThat(awaitItem()).isEqualTo(ModelBannerState.Install)
+            installedModels.value = listOf(InstalledModelSummary("m", "Model", "/m.gguf", 1L, "Q4_K_M", 4096))
+            assertThat(awaitItem()).isEqualTo(ModelBannerState.Hidden)
         }
     }
 

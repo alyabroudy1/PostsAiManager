@@ -3,4 +3,8 @@
     <!-- Hinweis nach „Vorerst überspringen“ in der Ersteinrichtung, bis ein KI-Modell installiert ist -->
     <string name="home_model_banner_text">KI-Modell nicht installiert</string>
     <string name="home_model_banner_action">Installieren</string>
+    <!-- Hinweis, solange die KI-Modelle im Hintergrund geladen werden; Antippen öffnet die Modellübersicht -->
+    <string name="home_download_banner_progress">KI wird eingerichtet · %1$d von %2$d · %3$d %%</string>
+    <string name="home_download_banner_progress_unknown">KI wird eingerichtet · %1$d von %2$d</string>
+    <string name="home_download_banner_failed">Ein KI-Download ist fehlgeschlagen. Zum Wiederholen antippen.</string>
 </resources>

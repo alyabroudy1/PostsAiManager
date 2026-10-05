@@ -12,6 +12,9 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.work.ForegroundInfo
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,7 +30,14 @@ import javax.inject.Singleton
 class DownloadNotificationCenter @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    private var board = DownloadBoard()
+    private val _board = MutableStateFlow(DownloadBoard())
+
+    /**
+     * The same state the notification shows, for Home's banner. A board with only finished items is forgotten; one holding a failed
+     * item is kept so the banner can say so, until the download is queued again or cancelled.
+     */
+    val board: StateFlow<DownloadBoard> = _board.asStateFlow()
+
     private val throttle = ProgressThrottle(UPDATE_INTERVAL_MS)
 
     fun queued(id: String, name: String, totalBytes: Long) = change(force = true) { it.queued(id, name, totalBytes) }
@@ -49,7 +59,7 @@ class DownloadNotificationCenter @Inject constructor(
     @Synchronized
     fun foregroundInfo(): ForegroundInfo {
         DownloadNotifications.ensureChannel(context)
-        val notification = build(board)
+        val notification = build(_board.value)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // Required from API 29 and enforced from 34; must match the manifest's service type.
             ForegroundInfo(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
@@ -60,13 +70,14 @@ class DownloadNotificationCenter @Inject constructor(
 
     @Synchronized
     private fun change(force: Boolean, transform: (DownloadBoard) -> DownloadBoard) {
-        board = transform(board)
-        if (!board.isActive) {
-            board = DownloadBoard()
+        val next = transform(_board.value)
+        if (!next.isActive) {
+            _board.value = if (next.hasFailed) next else DownloadBoard()
             NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
             return
         }
-        if (force || throttle.allow(SystemClock.elapsedRealtime())) post(board)
+        _board.value = next
+        if (force || throttle.allow(SystemClock.elapsedRealtime())) post(next)
     }
 
     private fun post(board: DownloadBoard) {

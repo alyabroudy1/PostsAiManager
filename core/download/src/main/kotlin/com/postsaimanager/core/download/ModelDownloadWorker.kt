@@ -86,7 +86,11 @@ class ModelDownloadWorker @AssistedInject constructor(
             }
             // Retryable: the partial file is preserved, so a retry resumes rather than
             // restarting. WorkManager applies its own backoff.
-            is PamResult.Error -> {
+            is PamResult.Error -> if (runAttemptCount + 1 >= MAX_ATTEMPTS) {
+                // Not forever: the user sees "failed" with a way to retry, instead of a download that never ends.
+                center.failed(itemId)
+                Result.failure(errorData(result.error.userMessage))
+            } else {
                 center.waiting(itemId)
                 Result.retry()
             }
@@ -102,6 +106,7 @@ class ModelDownloadWorker @AssistedInject constructor(
         const val CHANNEL_ID = DownloadNotifications.CHANNEL_ID
         const val NOTIFICATION_ID = DownloadNotificationCenter.NOTIFICATION_ID
         private const val PROGRESS_INTERVAL_MS = 250L
+        private const val MAX_ATTEMPTS = 5
 
         const val KEY_MODEL_ID = "modelId"
         const val KEY_URL = "url"

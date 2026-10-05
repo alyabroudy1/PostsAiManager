@@ -25,7 +25,8 @@
     <string name="setup_wait_wifi">انتظار Wi-Fi</string>
     <string name="setup_back">رجوع</string>
     <string name="setup_downloading_title">جارٍ التنزيل</string>
-    <string name="setup_downloading_hint">يمكنك مغادرة التطبيق؛ يستمر التنزيل في الخلفية.</string>
+    <string name="setup_downloading_hint">يستمر التنزيل في الخلفية. تابعه من الصفحة الرئيسية ومن الإشعار، وابدأ المسح فورًا.</string>
+    <string name="setup_continue">متابعة</string>
     <string name="setup_cancel">إلغاء</string>
     <string name="setup_part_chat">نموذج الذكاء الاصطناعي (%1$s)</string>
     <string name="setup_part_search">نموذج البحث</string>

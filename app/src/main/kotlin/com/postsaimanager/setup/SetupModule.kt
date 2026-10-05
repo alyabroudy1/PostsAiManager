@@ -3,6 +3,7 @@ package com.postsaimanager.setup
 import android.content.Context
 import android.net.ConnectivityManager
 import com.postsaimanager.core.domain.setup.ConnectionMeter
+import com.postsaimanager.core.domain.setup.DownloadActivity
 import com.postsaimanager.core.domain.setup.ModelSetupGateway
 import dagger.Binds
 import dagger.Module
@@ -17,6 +18,9 @@ abstract class SetupBindings {
 
     @Binds
     abstract fun bindModelSetupGateway(impl: CatalogModelSetupGateway): ModelSetupGateway
+
+    @Binds
+    abstract fun bindDownloadActivity(impl: CenterDownloadActivity): DownloadActivity
 
     companion object {
         /** Mobile data and metered Wi-Fi both count: the question is "might this cost the user money?". */

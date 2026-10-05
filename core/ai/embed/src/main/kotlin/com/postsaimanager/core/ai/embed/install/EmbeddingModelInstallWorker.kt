@@ -75,7 +75,10 @@ class EmbeddingModelInstallWorker @AssistedInject constructor(
             }
             // Retryable: verified files stay put and the partial one resumes, so a retry
             // costs only the bytes that had not arrived.
-            is PamResult.Error -> {
+            is PamResult.Error -> if (runAttemptCount + 1 >= MAX_ATTEMPTS) {
+                center.failed(WORK_NAME)
+                Result.failure()
+            } else {
                 center.waiting(WORK_NAME)
                 Result.retry()
             }
@@ -88,6 +91,7 @@ class EmbeddingModelInstallWorker @AssistedInject constructor(
         /** The same id as [ModelDownloadWorker]'s: one notification for all downloads, rendered by [DownloadNotificationCenter]. */
         const val NOTIFICATION_ID = DownloadNotificationCenter.NOTIFICATION_ID
         private const val PROGRESS_INTERVAL_MS = 250L
+        private const val MAX_ATTEMPTS = 5
 
         const val WORK_NAME = "embedding-model-install"
         const val KEY_PROGRESS_BYTES = "progressBytes"

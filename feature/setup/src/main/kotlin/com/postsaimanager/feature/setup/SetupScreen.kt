@@ -66,6 +66,7 @@ fun SetupScreen(
         onCancel = viewModel::cancel,
         onSkip = viewModel::skip,
         onContinueWithoutSearch = viewModel::continueWithoutSearch,
+        onContinueInBackground = viewModel::continueInBackground,
         onSelectModel = viewModel::select,
         onConfirmModel = viewModel::confirmSelection,
         onDismissConfirmation = viewModel::dismissConfirmation,
@@ -83,6 +84,7 @@ internal fun SetupContent(
     onCancel: () -> Unit,
     onSkip: () -> Unit,
     onContinueWithoutSearch: () -> Unit,
+    onContinueInBackground: () -> Unit,
     onSelectModel: (String) -> Unit,
     onConfirmModel: () -> Unit,
     onDismissConfirmation: () -> Unit,
@@ -130,7 +132,7 @@ internal fun SetupContent(
                 MobileDataQuestion(state.totalDownloadBytes, onUseMobileData, onWaitForWifi, onDismissMobileDataQuestion)
             }
             SetupStage.DOWNLOADING -> if (offer != null) {
-                Downloading(offer, state, onCancel)
+                Downloading(offer, state, onCancel, onContinueInBackground)
             }
             SetupStage.FAILED -> if (offer != null) {
                 Failed(offer, state, onDownload, onContinueWithoutSearch, onSkip)
@@ -285,19 +287,23 @@ private fun MobileDataQuestion(
 }
 
 @Composable
-private fun Downloading(offer: SetupOffer, state: SetupUiState, onCancel: () -> Unit) {
+private fun Downloading(offer: SetupOffer, state: SetupUiState, onCancel: () -> Unit, onContinue: () -> Unit) {
     Text(
         text = stringResource(R.string.setup_downloading_title),
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.semantics { heading() },
     )
-    PartRows(offer, state)
+    // No waiting here: the downloads go on in the background, so the way on is offered from the first moment.
+    Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.setup_continue))
+    }
     Text(
         text = stringResource(R.string.setup_downloading_hint),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
     )
+    PartRows(offer, state)
     OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.setup_cancel))
     }

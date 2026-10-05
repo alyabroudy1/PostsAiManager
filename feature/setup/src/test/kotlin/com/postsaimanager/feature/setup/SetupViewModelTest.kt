@@ -222,6 +222,52 @@ class SetupViewModelTest {
     }
 
     @Test
+    fun `continue leaves for Home at once while the downloads go on`() = runTest {
+        val vm = viewModel()
+        vm.uiState.test {
+            expectMostRecentItem()
+            vm.download()
+            gateway.state.value = SetupProgress(downloading(), SetupPartStatus.Waiting)
+            assertThat(expectMostRecentItem().stage).isEqualTo(SetupStage.DOWNLOADING)
+
+            vm.continueInBackground()
+            assertThat(expectMostRecentItem().exit).isTrue()
+            // The downloads are not cancelled, and the setup is postponed so a restart lands on Home.
+            assertThat(gateway.cancels).isEqualTo(0)
+            assertThat(prefs.current.modelSetupSkipped).isTrue()
+        }
+    }
+
+    @Test
+    fun `the setup never closes by itself while a download is still running`() = runTest {
+        val vm = viewModel()
+        vm.uiState.test {
+            expectMostRecentItem()
+            vm.download()
+            // The reader and the search model are done, the chosen chat model is still downloading.
+            gateway.state.value = SetupProgress(chat = downloading(60L), search = SetupPartStatus.Done, reader = SetupPartStatus.Done)
+            val state = expectMostRecentItem()
+            assertThat(state.stage).isEqualTo(SetupStage.DOWNLOADING)
+            assertThat(state.exit).isFalse()
+        }
+    }
+
+    @Test
+    fun `successive progress reports each reach the screen state`() = runTest {
+        val vm = viewModel()
+        vm.uiState.test {
+            expectMostRecentItem()
+            vm.download()
+            val seen = mutableListOf<Long>()
+            for (done in listOf(10L, 40L, 70L)) {
+                gateway.state.value = SetupProgress(downloading(done), SetupPartStatus.Waiting)
+                seen += ((expectMostRecentItem().progress.chat) as SetupPartStatus.Downloading).bytesDone
+            }
+            assertThat(seen).containsExactly(10L, 40L, 70L).inOrder()
+        }
+    }
+
+    @Test
     fun `skip is remembered and exits`() = runTest {
         val vm = viewModel()
         vm.uiState.test {

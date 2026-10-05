@@ -69,6 +69,8 @@ data class DownloadBoard(val items: List<DownloadItem> = emptyList()) {
     /** True while anything is waiting or running: the notification is shown. */
     val isActive: Boolean get() = items.any { it.state.isActive }
 
+    val hasFailed: Boolean get() = items.any { it.state == DownloadItemState.FAILED }
+
     val itemCount: Int get() = items.size
 
     val doneCount: Int get() = items.count { it.state == DownloadItemState.DONE }

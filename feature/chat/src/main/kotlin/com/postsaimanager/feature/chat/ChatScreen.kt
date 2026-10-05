@@ -942,7 +942,7 @@ private fun ChatErrorCard(
             Row {
                 // Whatever was already produced stays in the transcript as its own
                 // message — this only re-sends the user's text, exactly what failed.
-                if (error.action == ChatErrorAction.RETRY) {
+                if (error.action == ChatErrorAction.RETRY || error.action == ChatErrorAction.MODEL_DOWNLOADING) {
                     TextButton(onClick = onRetry) { Text("Retry") }
                 }
                 TextButton(onClick = onDismiss) { Text("Dismiss") }

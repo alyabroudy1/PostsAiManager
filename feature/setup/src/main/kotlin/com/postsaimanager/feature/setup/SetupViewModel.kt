@@ -181,6 +181,18 @@ class SetupViewModel @Inject constructor(
         }
     }
 
+    /**
+     * "Continue": leave for Home right away while every download goes on in the background (WorkManager outlives the screen). The setup
+     * is marked postponed so a restart before any model is installed lands on Home, not here; Home shows the progress, and the
+     * setup closes by itself only when all downloads are done or the user continues, never in between.
+     */
+    fun continueInBackground() {
+        viewModelScope.launch {
+            setSkipped(true)
+            choices.update { it.copy(exit = true) }
+        }
+    }
+
     /** The chat model is installed; leave without the search model. */
     fun continueWithoutSearch() {
         if (progress.value.chat is SetupPartStatus.Done && progress.value.reader is SetupPartStatus.Done) finish()
