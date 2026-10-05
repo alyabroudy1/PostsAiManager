@@ -11,6 +11,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.work.ForegroundInfo
+import com.postsaimanager.core.common.notification.NotificationIntents
+import com.postsaimanager.core.common.notification.NotificationRoute
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -120,10 +122,8 @@ class DownloadNotificationCenter @Inject constructor(
         DownloadItemState.FAILED -> context.getString(R.string.download_state_failed)
     }
 
-    private fun launchIntent(): PendingIntent? {
-        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
-        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-    }
+    /** The app decides at tap time between the setup (still in progress) and the Models screen. */
+    private fun launchIntent(): PendingIntent? = NotificationIntents.contentIntent(context, NotificationRoute.Downloads)
 
     companion object {
         /** The one id every download worker uses for `setForeground`. */

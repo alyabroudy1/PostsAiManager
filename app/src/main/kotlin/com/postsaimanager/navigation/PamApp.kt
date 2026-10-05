@@ -14,6 +14,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -66,6 +67,19 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
     val undoViewModel: DocumentUndoViewModel = hiltViewModel()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    // A tapped notification: applied once, here, which only composes after the app lock is open.
+    val notificationRoutes: NotificationRouteViewModel = hiltViewModel()
+    val pendingNotification by notificationRoutes.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingNotification) {
+        val pending = pendingNotification ?: return@LaunchedEffect
+        val target = notificationRoutes.resolve(pending)
+        notificationRoutes.consume(pending)
+        navController.navigate(target) {
+            launchSingleTop = true
+            if (target == StartRoutes.HOME) popUpTo(navController.graph.findStartDestination().id)
+        }
+    }
 
     val topLevelRoutes = TopLevelDestination.entries.map { it.route }
     val shouldShowBottomBar = currentRoute in topLevelRoutes

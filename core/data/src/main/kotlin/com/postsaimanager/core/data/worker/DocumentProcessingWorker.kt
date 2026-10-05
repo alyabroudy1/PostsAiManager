@@ -9,6 +9,8 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
+import com.postsaimanager.core.common.notification.NotificationIntents
+import com.postsaimanager.core.common.notification.NotificationRoute
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.repository.UserPreferencesRepository
@@ -95,10 +97,16 @@ class DocumentProcessingWorker @AssistedInject constructor(
             userPreferencesRepository.getUserPreferences().first().biometricEnabled
         }.getOrDefault(false)
 
+        // A tap opens this document (through the app lock); the ongoing notification is not auto-cancelled.
+        val tapIntent = inputData.getString(KEY_DOCUMENT_ID)?.let {
+            NotificationIntents.contentIntent(applicationContext, NotificationRoute.Document(it))
+        }
+
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setContentTitle(applicationContext.getString(DocumentProcessingNotifications.TITLE))
             .setContentText(DocumentProcessingNotifications.progressText(state, discreet).resolve(applicationContext))
             .setSmallIcon(android.R.drawable.ic_menu_edit)
+            .setContentIntent(tapIntent)
             // Progress is not shown on a locked screen; the same generic line is.
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPublicVersion(
@@ -106,6 +114,7 @@ class DocumentProcessingWorker @AssistedInject constructor(
                     .setContentTitle(applicationContext.getString(DocumentProcessingNotifications.TITLE))
                     .setContentText(DocumentProcessingNotifications.DISCREET_TEXT.resolve(applicationContext))
                     .setSmallIcon(android.R.drawable.ic_menu_edit)
+                    .setContentIntent(tapIntent)
                     .build(),
             )
             .setOngoing(true)
