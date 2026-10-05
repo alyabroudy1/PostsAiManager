@@ -5,6 +5,7 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.domain.extraction.zones.QuestionNames
+import com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions
 import com.postsaimanager.core.domain.extraction.zones.ScoringProfile
 import com.postsaimanager.core.domain.extraction.zones.ZoneInterpreter
 import com.postsaimanager.core.domain.extraction.zones.ZoneScoringInterpreter
@@ -326,10 +327,19 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         return PamResult.Success(heads.indices.map { i -> asks.indices.map { j -> columns[j][i] } })
     }
 
-    private fun withoutIds(text: String) = ID_TOKEN.replace(text, "#")
+    private fun withoutIds(text: String) = ID_TOKEN.replace(withoutHint(text), "#")
+
+    /**
+     * The extras are scored under the family's hint now ([ScoringDescriptions.extra]); a recording made before holds the plain statement.
+     * Compared without the hint, so the recorded scores still stand for every extra (what the hint does to the scores is not in them:
+     * it needs a recording made on the device).
+     */
+    private fun withoutHint(text: String): String = HINTED.fold(text) { t, (hinted, plain) -> t.replace(hinted, plain) }
 
     private companion object {
         val ID_TOKEN = Regex("\\b[A-Z]{1,2}\\d{1,3}\\b")
+        val HINTED: List<Pair<String, String>> = ExtractionSchema.DEFAULT.families.map { it.hint }.filter { it.isNotBlank() }
+            .map { "${ScoringDescriptions.EXTRA}. $it" to ScoringDescriptions.EXTRA }
         const val SCORE_SEPARATOR = "\n@@\n"
         const val MISS_CHARS = 70
     }

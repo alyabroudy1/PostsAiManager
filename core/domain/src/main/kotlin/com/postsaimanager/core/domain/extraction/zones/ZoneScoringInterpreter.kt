@@ -337,7 +337,7 @@ class ZoneScoringInterpreter(
             val summary = SummaryWriter(FramedSession()).write(facts, request.ocrText, language)
             // What the reader must do: written from the same verified facts plus the key information picked, checked line by line.
             val keyInfo = extras.mapNotNull { x -> picked.firstOrNull { it.candidate.id == x.id }?.let { x.label to it.candidate.raw.replace('\n', ' ') } }
-            val actions = ActionWriter(FramedSession()).write(facts.entries() + keyInfo, hint, request.ocrText, language)
+            val actions = ActionWriter(FramedSession("text:actions")).write(facts.entries() + keyInfo, hint, request.ocrText, language)
             return EnrichmentOutcome.Done(
                 Enrichment(
                     language = language, extras = extras, text = written,
@@ -517,15 +517,18 @@ class ZoneScoringInterpreter(
         }
     }
 
-    /** The letter's session as the summary writer sees it: its questions are framed like every other ask (the turn's opening and closing) and recorded. */
-    private inner class FramedSession : PromptSession by session {
+    /**
+     * The letter's session as a writer (the summary's, the action lines') sees it: its questions are framed like every other ask (the
+     * turn's opening and closing) and recorded under [name].
+     */
+    private inner class FramedSession(private val name: String = "text:summary") : PromptSession by session {
         override suspend fun ask(question: String, grammar: String, maxTokens: Int): PamResult<String> {
             val started = System.nanoTime()
             val result = session.ask("\n\n" + question + tail, grammar, maxTokens)
             val ms = (System.nanoTime() - started) / NANOS_PER_MS
             val answer = (result as? PamResult.Success)?.data?.trim()
-            records += AskRecord("text:summary", question, answer, ms)
-            timing("ask text:summary ms=$ms answerChars=${answer?.length ?: 0}${if (answer == null) " FAILED" else ""}")
+            records += AskRecord(name, question, answer, ms)
+            timing("ask $name ms=$ms answerChars=${answer?.length ?: 0}${if (answer == null) " FAILED" else ""}")
             return result
         }
     }
