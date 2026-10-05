@@ -991,33 +991,76 @@ class MigrationTest {
         }
     }
 
-    /** v17 fields keep every row and gain a NULL `importance` (not key information until the background re-read picks it). Needs a device. */
+    private fun seedDocumentAndField(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus,
+                                   isUserTitle, enrichmentAttempts, enrichmentPending)
+            VALUES ('doc-1', 'Rechnung', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL', 0, 0, 0)
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO extracted_data (id, documentId, fieldName, fieldValue, fieldType, confidence, isConfirmed, source,
+                                        deletedByUser, hasUnreviewedMachineChange, updatedAt, reviewState)
+            VALUES ('f-1', 'doc-1', 'Reference', 'RE-2026-1', 'REFERENCE_NUMBER', 0.9, 0, 'MACHINE', 0, 0, 1, 'UNREVIEWED')
+            """.trimIndent(),
+        )
+    }
+
+    /** v18 (actionItems only, the installed shape) fields keep every row and gain a NULL `importance`. Needs a device. */
     @Test
-    fun migrate17To18_addsTheImportanceColumnToExtractedData() {
-        helper.createDatabase(TEST_DB, 17).apply {
-            execSQL(
-                """
-                INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus,
-                                       isUserTitle, enrichmentAttempts, enrichmentPending)
-                VALUES ('doc-1', 'Rechnung', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL', 0, 0, 0)
-                """.trimIndent(),
-            )
-            execSQL(
-                """
-                INSERT INTO extracted_data (id, documentId, fieldName, fieldValue, fieldType, confidence, isConfirmed, source,
-                                            deletedByUser, hasUnreviewedMachineChange, updatedAt, reviewState)
-                VALUES ('f-1', 'doc-1', 'Reference', 'RE-2026-1', 'REFERENCE_NUMBER', 0.9, 0, 'MACHINE', 0, 0, 1, 'UNREVIEWED')
-                """.trimIndent(),
-            )
+    fun migrate18To19_addsTheImportanceColumnToExtractedData() {
+        helper.createDatabase(TEST_DB, 18).apply {
+            seedDocumentAndField(this)
             close()
         }
 
-        val db = helper.runMigrationsAndValidate(TEST_DB, 18, true, PamMigrations.MIGRATION_17_18)
+        val db = helper.runMigrationsAndValidate(TEST_DB, 19, true, PamMigrations.MIGRATION_18_19)
 
         db.query("SELECT fieldValue, importance FROM extracted_data WHERE id = 'f-1'").use { c ->
             assertTrue("the field survived", c.moveToFirst())
             assertEquals("RE-2026-1", c.getString(0))
             assertTrue(c.isNull(1))
+        }
+    }
+
+    /** A v18 database that already has `importance` (an earlier build) migrates without a duplicate-column failure and keeps its data. */
+    @Test
+    fun migrate18To19_isIdempotentWhenImportanceAlreadyExists() {
+        helper.createDatabase(TEST_DB, 18).apply {
+            seedDocumentAndField(this)
+            execSQL("ALTER TABLE `extracted_data` ADD COLUMN `importance` REAL")
+            execSQL("UPDATE extracted_data SET importance = 0.75 WHERE id = 'f-1'")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 19, true, PamMigrations.MIGRATION_18_19)
+
+        db.query("SELECT fieldValue, importance FROM extracted_data WHERE id = 'f-1'").use { c ->
+            assertTrue("the field survived", c.moveToFirst())
+            assertEquals("RE-2026-1", c.getString(0))
+            assertEquals(0.75, c.getDouble(1), 0.0001)
+        }
+    }
+
+    /** The whole chain from v17 to v19 keeps the document and the field. */
+    @Test
+    fun migrate17To19_fullChainKeepsData() {
+        helper.createDatabase(TEST_DB, 17).apply {
+            seedDocumentAndField(this)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 19, true, PamMigrations.MIGRATION_17_18, PamMigrations.MIGRATION_18_19,
+        )
+
+        db.query("SELECT d.title, d.actionItems, e.importance FROM documents d JOIN extracted_data e ON e.documentId = d.id").use { c ->
+            assertTrue("the rows survived", c.moveToFirst())
+            assertEquals("Rechnung", c.getString(0))
+            assertTrue(c.isNull(1))
+            assertTrue(c.isNull(2))
         }
     }
 
