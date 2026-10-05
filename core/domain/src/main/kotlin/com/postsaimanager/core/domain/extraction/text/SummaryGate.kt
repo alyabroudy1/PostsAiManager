@@ -95,10 +95,17 @@ class SummaryGate {
     private fun copiesOneLine(answer: String, ocrText: String): Boolean {
         val words = tokens(answer)
         if (words.isEmpty()) return false
-        return ocrText.lineSequence().any { line ->
-            val lineWords = tokens(line).toSet()
-            lineWords.isNotEmpty() && words.count { it in lineWords }.toDouble() / words.size >= COPY_SHARE
+        // A printed sentence is often wrapped over several lines by the scan, so a run of up to MAX_WRAPPED_LINES consecutive lines
+        // counts as one "line" (a copied sentence is a copy whichever way the page broke it).
+        val lines = ocrText.lines().map { tokens(it) }
+        for (start in lines.indices) {
+            val window = HashSet<String>()
+            for (end in start until minOf(lines.size, start + MAX_WRAPPED_LINES)) {
+                window += lines[end]
+                if (window.isNotEmpty() && words.count { it in window }.toDouble() / words.size >= COPY_SHARE) return true
+            }
         }
+        return false
     }
 
     private fun tokens(s: String): List<String> = TOKEN.findAll(QuoteVerifier.fold(s)).map { it.value }.toList()
@@ -106,6 +113,9 @@ class SummaryGate {
     companion object {
         /** Reject when one line of the letter holds this share of the answer's words. */
         const val COPY_SHARE = 0.7
+
+        /** How many consecutive lines of the letter count as one sentence the scan wrapped. */
+        const val MAX_WRAPPED_LINES = 3
 
         /** The ask says at most 30 words; the gate only refuses a runaway. */
         const val MAX_WORDS = 45

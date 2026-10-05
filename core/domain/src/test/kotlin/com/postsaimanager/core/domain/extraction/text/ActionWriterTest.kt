@@ -82,6 +82,21 @@ class ActionWriterTest {
     }
 
     @Test
+    fun `NONE written as a quoted line, in any case or with punctuation, is no action and is never stored`() {
+        for (answer in listOf("\"NONE\"", "\"none\"", "\"None.\"", "NONE.", "none")) {
+            val (lines, s) = write(answer)
+            assertThat(lines).isEmpty()
+            assertThat(s.asks).hasSize(1)
+        }
+    }
+
+    @Test
+    fun `a quoted NONE next to a real line is dropped and the real line stays`() {
+        val (lines, _) = write("\"NONE\" $pay")
+        assertThat(lines).containsExactly(payText)
+    }
+
+    @Test
     fun `when every line is rejected it asks once more not to copy, then settles on none`() {
         val (lines, s) = write(wrongAmount, wrongDate)
         assertThat(lines).isEmpty()

@@ -85,6 +85,15 @@ class SummaryGateTest {
     }
 
     @Test
+    fun `a sentence copied from the letter is rejected whether or not the scan wrapped it over several lines`() {
+        val sentence = "Wir können Ihnen die Positionen in Rechnung stellen, die in der nachstehenden Tabelle enthalten sind."
+        val whole = "Musterfirma GmbH\n$sentence\nRechnung RE-2026-0815"
+        val wrapped = "Musterfirma GmbH\nWir können Ihnen die Positionen in Rechnung\nstellen, die in der nachstehenden Tabelle\nenthalten sind.\nRechnung RE-2026-0815"
+        assertThat(reason(sentence, whole, emptyList())).isEqualTo(SummaryGate.Reason.COPIED)
+        assertThat(reason(sentence, wrapped, emptyList())).isEqualTo(SummaryGate.Reason.COPIED)
+    }
+
+    @Test
     fun `an empty or runaway answer is rejected`() {
         assertThat(reason("  ")).isEqualTo(SummaryGate.Reason.EMPTY)
         assertThat(reason("wort ".repeat(60))).isEqualTo(SummaryGate.Reason.TOO_LONG)

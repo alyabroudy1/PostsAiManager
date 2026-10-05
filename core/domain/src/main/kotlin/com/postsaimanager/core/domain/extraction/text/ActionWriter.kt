@@ -36,12 +36,18 @@ class ActionWriter(
             val r = session.ask(prompt(facts, hint, languageCode, antiCopy = attempt > 0), QuestionGrammars.actionLines(), ACTION_TOKENS)
             val answer = (r as? PamResult.Success)?.data ?: continue
             answered = true
-            if (answer.trim() == NONE_ANSWER) return emptyList()
-            val kept = accepted(AnswerReader.lines(answer), ocrText, values)
+            if (isNone(answer.trim())) return emptyList()
+            val quoted = AnswerReader.lines(answer)
+            // The grammar lets the sentinel be written as a quoted line ("NONE"): that is still "nothing to do", never an action.
+            if (quoted.isNotEmpty() && quoted.all(::isNone)) return emptyList()
+            val kept = accepted(quoted.filterNot(::isNone), ocrText, values)
             if (kept.isNotEmpty()) return kept
         }
         return if (answered) emptyList() else null
     }
+
+    /** The no-action sentinel in any case, with or without quotes or punctuation around it. */
+    private fun isNone(text: String): Boolean = text.trim { !it.isLetterOrDigit() }.equals(NONE_ANSWER, ignoreCase = true)
 
     private fun accepted(lines: List<String>, ocrText: String, values: List<String>): List<String> {
         val kept = ArrayList<String>()
