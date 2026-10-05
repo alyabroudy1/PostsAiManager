@@ -1,5 +1,6 @@
 package com.postsaimanager
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
@@ -16,6 +17,7 @@ import com.postsaimanager.applock.AppLockGate
 import com.postsaimanager.applock.BiometricDeviceAuthenticator
 import com.postsaimanager.core.designsystem.theme.PamTheme
 import com.postsaimanager.core.domain.applock.AppLockState
+import com.postsaimanager.navigation.NotificationRouteInbox
 import com.postsaimanager.navigation.PamApp
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -39,9 +41,15 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var formFillingFlag: com.postsaimanager.core.model.FormFillingFlag
 
+    @Inject
+    lateinit var notificationRoutes: NotificationRouteInbox
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        // Only a fresh launch: a recreated activity (rotation) must not replay the tap.
+        if (savedInstanceState == null) notificationRoutes.offer(intent?.dataString)
 
         authenticator.attach(this)
         // Before the first frame: the window is secure until the settings say the lock is off.
@@ -65,6 +73,13 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    /** A notification tapped while the app runs. Kept in the inbox until the app lock is open and the navigation applies it. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        notificationRoutes.offer(intent.dataString)
     }
 
     override fun onDestroy() {
