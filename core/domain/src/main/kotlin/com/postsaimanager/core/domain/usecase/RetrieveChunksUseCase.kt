@@ -61,6 +61,8 @@ class RetrieveChunksUseCase @Inject constructor(
         query: String,
         limit: Int = DEFAULT_LIMIT,
         documentId: String? = null,
+        /** Within one document: when nothing ranks, return its passages in reading order instead of none (for attribution only). */
+        readingOrderIfNoMatch: Boolean = false,
     ): Result {
         if (query.isBlank()) return Result(emptyList(), false)
 
@@ -119,6 +121,15 @@ class RetrieveChunksUseCase @Inject constructor(
 
         val semanticIds = semanticRanked.map { it.first.id }.toSet()
         val keywordIds = keywordRanked.map { it.id }.toSet()
+
+        if (fused.isEmpty() && readingOrderIfNoMatch && documentId != null) {
+            return Result(
+                chunks = corpus.sortedBy { it.ordinal }.take(limit).map {
+                    RetrievedChunk(it, 0f, matchedSemantically = false, matchedByKeyword = false)
+                },
+                semanticSearchUsed = true,
+            )
+        }
 
         return Result(
             chunks = fused.take(limit).map { (chunk, score) ->
