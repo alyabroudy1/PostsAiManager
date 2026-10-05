@@ -66,10 +66,11 @@ class RecommendChatModelUseCaseTest {
     }
 
     @Test
-    fun `a 12 GB phone preselects the 2B, the 4B is recommended but too slow to be the default`() {
+    fun `a 12 GB phone preselects the recommended 2B, the 4B is only suitable because it is too slow to be the default`() {
         val result = recommend(phone(11.3))
         assertThat(result.preselectedId).isEqualTo("two")
-        assertThat(result.option("four")!!.fit).isEqualTo(ChatModelFit.Recommended)
+        assertThat(result.option("two")!!.fit).isEqualTo(ChatModelFit.Recommended)
+        assertThat(result.option("four")!!.fit).isEqualTo(ChatModelFit.Suitable)
     }
 
     @Test

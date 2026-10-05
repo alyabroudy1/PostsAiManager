@@ -6,5 +6,9 @@
     <string name="model_fit_recommended">Für dieses Handy empfohlen</string>
     <string name="model_fit_not_memory">Nicht empfohlen: benötigt ≥ %1$s GB Arbeitsspeicher</string>
     <string name="model_fit_not_storage">Nicht empfohlen: benötigt %1$s freien Speicherplatz</string>
+    <string name="device_class_0">Gerätekategorie: Basis</string>
+    <string name="device_class_1">Gerätekategorie: Einsteiger</string>
+    <string name="device_class_2">Gerätekategorie: Mittelklasse</string>
+    <string name="device_class_3">Gerätekategorie: Oberklasse</string>
     <string name="model_fit_not_32bit">Nicht empfohlen: der Prozessor dieses Handys wird nicht unterstützt</string>
 </resources>

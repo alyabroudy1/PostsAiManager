@@ -6,5 +6,9 @@
     <string name="model_fit_recommended">Recommended for this phone</string>
     <string name="model_fit_not_memory">Not recommended: needs ≥ %1$s GB memory</string>
     <string name="model_fit_not_storage">Not recommended: needs %1$s of free storage</string>
+    <string name="device_class_0">Device class: basic</string>
+    <string name="device_class_1">Device class: entry-level</string>
+    <string name="device_class_2">Device class: mid-range</string>
+    <string name="device_class_3">Device class: high-end</string>
     <string name="model_fit_not_32bit">Not recommended: this phone\'s processor is not supported</string>
 </resources>

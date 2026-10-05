@@ -6,5 +6,9 @@
     <string name="model_fit_recommended">موصى به لهذا الهاتف</string>
     <string name="model_fit_not_memory">غير موصى به: يحتاج إلى ذاكرة لا تقل عن %1$s غيغابايت</string>
     <string name="model_fit_not_storage">غير موصى به: يحتاج إلى %1$s من المساحة الفارغة</string>
+    <string name="device_class_0">فئة الجهاز: أساسية</string>
+    <string name="device_class_1">فئة الجهاز: مبتدئة</string>
+    <string name="device_class_2">فئة الجهاز: متوسطة</string>
+    <string name="device_class_3">فئة الجهاز: عالية</string>
     <string name="model_fit_not_32bit">غير موصى به: معالج هذا الهاتف غير مدعوم</string>
 </resources>

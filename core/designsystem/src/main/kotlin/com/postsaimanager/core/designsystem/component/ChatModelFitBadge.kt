@@ -10,6 +10,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.postsaimanager.core.designsystem.R
 import com.postsaimanager.core.model.ChatModelFit
+import com.postsaimanager.core.model.DeviceTier
 import com.postsaimanager.core.model.NotRecommendedReason
 import com.postsaimanager.core.model.SpeedHint
 import java.util.Locale
@@ -48,6 +49,17 @@ fun ModelSpeedHint(hint: SpeedHint, modifier: Modifier = Modifier) {
     }
     Text(text = text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = modifier)
 }
+
+/** The device class as a user-facing phrase ("Device class: high-end"), never the enum name. */
+@Composable
+fun deviceTierLabel(tier: DeviceTier): String = stringResource(
+    when (tier) {
+        DeviceTier.TIER_0 -> R.string.device_class_0
+        DeviceTier.TIER_1 -> R.string.device_class_1
+        DeviceTier.TIER_2 -> R.string.device_class_2
+        DeviceTier.TIER_3 -> R.string.device_class_3
+    },
+)
 
 @Composable
 private fun notRecommendedText(fit: ChatModelFit.NotRecommended): String = when (fit.reason) {

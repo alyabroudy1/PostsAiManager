@@ -40,6 +40,7 @@ import com.postsaimanager.core.ai.catalog.CatalogEntry
 import com.postsaimanager.core.ai.catalog.download.ModelDownloadStatus
 import com.postsaimanager.core.ai.embed.install.InstallStatus
 import com.postsaimanager.core.designsystem.component.ChatModelFitBadge
+import com.postsaimanager.core.designsystem.component.deviceTierLabel
 import com.postsaimanager.core.designsystem.component.ModelSpeedHint
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.model.ChatModelFit
@@ -168,7 +169,7 @@ private fun DeviceCard(capability: DeviceCapability) {
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                "${capability.freeStorageBytes.gb()} storage free · ${capability.tier.name}",
+                "${capability.freeStorageBytes.gb()} storage free · ${deviceTierLabel(capability.tier)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

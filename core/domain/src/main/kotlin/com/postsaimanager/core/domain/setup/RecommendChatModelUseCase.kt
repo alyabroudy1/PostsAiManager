@@ -59,7 +59,8 @@ class RecommendChatModelUseCase @Inject constructor() {
             ChatModelFit.NotRecommended(NotRecommendedReason.MEMORY, requiredRamGb = model.minRamGb)
         device.availableStorageBytes < downloadBytes + headroomBytes ->
             ChatModelFit.NotRecommended(NotRecommendedReason.STORAGE, requiredStorageBytes = downloadBytes + headroomBytes)
-        device.totalRamGb >= model.recommendedRamGb -> ChatModelFit.Recommended
+        // "Recommended for this phone" is only said of models that may be the default; a slow one that fits is merely suitable.
+        device.totalRamGb >= model.recommendedRamGb && model.preselectable -> ChatModelFit.Recommended
         else -> ChatModelFit.Suitable
     }
 
