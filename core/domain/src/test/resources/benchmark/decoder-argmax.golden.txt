@@ -3,7 +3,6 @@ type bill language de
 slot customer_no N2 KD-40417 null 0.9 0.9 [score margin +0.64 (winner -0.63 of 2)]
 slot due_date D3 2026-10-15 DUE_DATE 0.9 0.9 [score margin +0.81 (winner +0.47 of 2)]
 slot iban I1 DE89370400440532013000 null 0.4 0.4 [score margin -0.30 (winner -0.30 of 1)]
-slot invoice_no N1 RE-2026-0815 null 0.9 0.9 [score margin +0.78 (winner +0.28 of 2)]
 slot letter_date D1 2026-09-28 LETTER_DATE 0.4 0.4 [score margin -0.27 (winner -0.27 of 1)]
 slot reference N2 KD-40417 null 0.9 0.9 [score margin +0.25 (winner +0.15 of 2)]
 slot total A11 39.00 EUR TOTAL_DUE 0.7 0.6 [no currency next to the amount, score margin +0.04 (winner +0.41 of 13)]
@@ -64,11 +63,11 @@ extra cec255404e4
 extra 19.15 EUR
 == degraded-3p
 type other language de
-slot customer_no N2 1EMH0000123456 null 0.9 0.6 [read with an OCR character repair (1EMHO000123456 -> 1EMH0000123456), score margin +0.28 (winner +0.15 of 3)]
+slot customer_no N2 1EMH0000123456 null 0.9 0.6 [read with an OCR character repair (1EMHO000123456 -> 1EMH0000123456), score margin +0.28 (winner +0.15 of 2)]
 slot due_date D5 2026-09-30 DUE_DATE 0.7 0.7 [score margin +0.10 (winner -0.07 of 3)]
 slot iban I1 DE89370400440532013000 null 0.9 0.9 [score margin +0.28 (winner +0.28 of 1)]
 slot letter_date D3 2026-09-25 LETTER_DATE 0.7 0.7 [score margin +0.19 (winner +0.19 of 1)]
-slot reference N2 1EMH0000123456 null 0.9 0.6 [read with an OCR character repair (1EMHO000123456 -> 1EMH0000123456), score margin +0.35 (winner +0.50 of 3)]
+slot reference N2 1EMH0000123456 null 0.9 0.6 [read with an OCR character repair (1EMHO000123456 -> 1EMH0000123456), score margin +0.35 (winner +0.50 of 2)]
 slot total A2 74.00 EUR TOTAL_DUE 0.9 0.9 [score margin +0.33 (winner -0.02 of 4)]
 party SENDER M1 Stadtwerke Beispielstadt COMPANY NONE 0.9 [score margin +0.35 (winner +0.34 of 2)]
 party ADDRESSEE M2 Erika Mustermann PERSON NONE 0.9 [ADDRESSEE was taken from the return address, which contradicts the layout, score margin +0.52 (winner +0.52 of 1)]
@@ -112,12 +111,10 @@ extra 579.10 EUR
 extra 01234 555 210
 == N3-schule-familie-2p
 type school language de
-slot customer_no N1 30-12 null 0.4 0.4 [score margin -0.73 (winner -0.73 of 1)]
 slot due_date D3 2026-10-16 DUE_DATE 0.9 0.9 [score margin +0.22 (winner +0.08 of 2)]
 slot event_date D1 2026-11-24 APPOINTMENT 0.9 0.9 [score margin +0.77 (winner +0.70 of 2)]
 slot iban I1 DE89370400440532013000 null 0.9 0.9 [score margin +0.32 (winner +0.32 of 1)]
 slot letter_date D4 2026-09-28 LETTER_DATE 0.9 0.9 [score margin +0.22 (winner +0.22 of 1)]
-slot reference N1 30-12 null 0.4 0.4 [score margin -0.41 (winner -0.41 of 1)]
 slot total A1 35.00 EUR TOTAL_DUE 0.9 0.9 [score margin +0.26 (winner +0.26 of 1)]
 party SENDER M1 Grundschule Am Beispielweg PERSON NONE 0.9 [score margin +1.24 (winner +1.24 of 1)]
 party ADDRESSEE M2 Familie Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.51 (winner +0.51 of 1)]
@@ -203,7 +200,6 @@ type bill language de
 slot customer_no N3 AB-2026-10-4471 null 0.9 0.9 [score margin +0.47 (winner +0.23 of 2)]
 slot due_date D1 2026-10-12 DUE_DATE 0.9 0.9 [score margin +1.37 (winner +1.37 of 1)]
 slot iban I1 DE89370400440532013000 null 0.9 0.9 [score margin +1.07 (winner +1.07 of 1)]
-slot invoice_no N3 AB-2026-10-4471 null 0.9 0.9 [score margin +1.20 (winner +0.37 of 2)]
 slot letter_date D2 2026-09-27 LETTER_DATE 0.7 0.7 [score margin -0.13 (winner -0.13 of 1)]
 slot reference N3 AB-2026-10-4471 null 0.9 0.9 [score margin +0.86 (winner +0.95 of 2)]
 slot total A1 78.00 EUR TOTAL_DUE 0.9 0.9 [score margin +0.83 (winner +0.83 of 1)]

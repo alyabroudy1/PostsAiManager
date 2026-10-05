@@ -335,7 +335,8 @@ internal class ReplayPromptSession(private val recording: Recording, private val
      * question the recording lacks: that one is a real miss.
      */
     private fun scriptedAroundNewCore(live: List<String>): PamResult<List<Double>>? {
-        val scripted = live.map { q -> NEW_CORE_STATEMENTS.any { q.contains(it) } }
+        // An extras question about a value that no slot takes any more (a fee that waits for the model to lean Yes frees an amount) is new too.
+        val scripted = live.map { q -> NEW_CORE_STATEMENTS.any { q.contains(it) } || q.contains(ScoringDescriptions.EXTRA) }
         for (i in recording.asks.indices) {
             val a = recording.asks[i]
             if (i in used || !a.name.startsWith("score:")) continue
@@ -348,7 +349,8 @@ internal class ReplayPromptSession(private val recording: Recording, private val
                 from = j + 1
             }
             if (liveIndexOf.size != recorded.size) continue
-            if (live.indices.any { it !in liveIndexOf && !scripted[it] }) continue
+            // Every recorded question is there, as recorded. A live question the recording lacks is new input (a candidate the reading now
+            // offers: a table row that is no longer a subject, an amount no slot takes any more): scripted as "not scored", never given a score.
             val answer = a.answer ?: return null
             val scores = answer.split(',').map { it.trim().toDouble() }
             used += i
@@ -370,7 +372,26 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         return PamResult.Success(heads.indices.map { i -> asks.indices.map { j -> columns[j][i] } })
     }
 
-    private fun withoutIds(text: String) = ID_TOKEN.replace(withoutHint(text), "#")
+    private fun withoutIds(text: String) = ID_TOKEN.replace(withoutContext(withoutHint(text)), "#")
+
+    /**
+     * A value's question is "Is «value» [printed after «label»] (context: its row and the rows around it) <statement>? Answer:". What stands
+     * between the value and the statement is the input the model is shown with it (the row a value is printed in, the label before a number),
+     * and it changed after the recordings were made (rows instead of lines, the physical order of the page, the printed label). The recorded
+     * score is the model's score of that value under that statement; it is replayed for the same value and statement whatever the context
+     * text was, as the family hint is (what the new context does to the score needs a recording made on the device). A question the
+     * recording does not hold at all (another value, another statement) is still a miss.
+     */
+    private fun withoutContext(text: String): String {
+        // The naming of an extra carries its row the same way: "The value «X» is an important fact of this letter: it is printed on the line «...». What does ..."
+        val fact = text.indexOf(NAMING_FACT)
+        val naming = text.indexOf(NAMING_ASK)
+        if (text.startsWith("QUESTION: The value «") && fact >= 0 && naming > fact) return text.substring(0, fact + NAMING_FACT.length) + text.substring(naming)
+        val head = text.indexOf("Is «").takeIf { it >= 0 } ?: return text
+        val valueEnd = text.indexOf('»', head).takeIf { it >= 0 } ?: return text
+        val statement = STATEMENTS.map { text.indexOf(" $it? Answer:", valueEnd) }.filter { it >= 0 }.minOrNull() ?: return text
+        return text.substring(0, valueEnd + 1) + text.substring(statement)
+    }
 
     /**
      * The extras are scored under the family's hint now ([ScoringDescriptions.extra]); a recording made before holds the plain statement.
@@ -384,6 +405,15 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         val HINTED: List<Pair<String, String>> = ExtractionSchema.DEFAULT.families.map { it.hint }.filter { it.isNotBlank() }
             .map { "${ScoringDescriptions.EXTRA}. $it" to ScoringDescriptions.EXTRA }
         const val KEY_SLOT_QUESTION = "the reader need «"
+        const val NAMING_FACT = " is an important fact of this letter"
+        const val NAMING_ASK = ". What does the letter call this value?"
+
+        /** Every statement a value's scoring question can close with (see [withoutContext]). */
+        val STATEMENTS: List<String> =
+            (ExtractionSchema.DEFAULT.allSlots + Slots.CORE).distinct().map { ScoringDescriptions.ofSlot(it) } +
+                listOf(QuestionNames.SENDER, QuestionNames.ADDRESSEE, QuestionNames.CARE_OF, QuestionNames.CONTACT, QuestionNames.SUBJECT_PERSON)
+                    .map { ScoringDescriptions.ofRole(it) } +
+                ScoringDescriptions.KINDS.map { it.second } + ScoringDescriptions.HOUSEHOLD + ScoringDescriptions.EXTRA
 
         /** The statements of the reference slots that every family asks since extraction-v2-5 (see [scriptedAroundNewCore]). */
         val NEW_CORE_STATEMENTS: List<String> = listOf(Slots.INVOICE_NO, Slots.CONTRACT_NO, Slots.POLICY_NO, Slots.CASE_NO, Slots.TAX_NO)

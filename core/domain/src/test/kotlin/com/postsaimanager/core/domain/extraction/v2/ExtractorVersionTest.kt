@@ -19,9 +19,10 @@ class ExtractorVersionTest {
     }
 
     @Test
-    @DisplayName("the family-independent reference slots extractor is extraction-v2-5, and a document the previous one read is outdated")
+    @DisplayName("the clean-rows and optional-numbers extractor is extraction-v2-6, and a document the previous one read is outdated")
     fun keyInfoVersion() {
-        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-5")
+        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-6")
+        assertThat(ExtractorVersion.isOutdated("extraction-v2-5")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-4")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-3")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-2")).isTrue()
