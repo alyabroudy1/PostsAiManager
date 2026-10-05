@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import com.postsaimanager.core.designsystem.R
 import com.postsaimanager.core.model.ChatModelFit
 import com.postsaimanager.core.model.NotRecommendedReason
+import com.postsaimanager.core.model.SpeedHint
 import java.util.Locale
 
 /**
@@ -35,6 +36,17 @@ fun ChatModelFitBadge(fit: ChatModelFit, modifier: Modifier = Modifier) {
             modifier = modifier,
         )
     }
+}
+
+/** The speed note of a model that answers slower than the reader (nothing for a normal-speed one). From the catalog's data. */
+@Composable
+fun ModelSpeedHint(hint: SpeedHint, modifier: Modifier = Modifier) {
+    val text = when (hint) {
+        SpeedHint.NORMAL -> return
+        SpeedHint.SLOWER -> stringResource(R.string.model_speed_slower)
+        SpeedHint.MUCH_SLOWER -> stringResource(R.string.model_speed_much_slower)
+    }
+    Text(text = text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = modifier)
 }
 
 @Composable

@@ -144,7 +144,8 @@ R8 on. Open items:
   `ModelRole.READER_AND_CHAT`: it is always installed and `InstalledIndex.readerModel()` reads letters with it whenever installed
   (an explicit "Use for reading" choice still wins); the choice only sets the active chat model. Device port `DeviceCapabilities`
   (`AndroidDeviceCapabilities`: totalMem, StatFs, cpufreq clusters, 64-bit ABIs). A not-recommended pick asks for a confirm.
-  `BundledCatalog.firstRunModel` is now `readerModel`.
+  `BundledCatalog.firstRunModel` is now `readerModel`. Speed: only models flagged `preselectable` (0.8B, 2B) can be the default
+  (the 4B and Gemma are several times slower on the CPU engine); the others stay selectable with a `speedHint` note.
 - Last code round before 1.0.0 (2026-10-05, JVM-tested, NOT device-verified): unused `firebase-crashlytics`, ML Kit
   `language-id`/`entity-extraction` and the empty `:core:ai:online` module (and its Konsist test) removed;
   "Report this answer" flag on every chat answer and on the AI summary card (`ReportAnswer.kt` in `:core:designsystem`: an

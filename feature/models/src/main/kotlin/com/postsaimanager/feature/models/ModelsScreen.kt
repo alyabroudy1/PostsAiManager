@@ -40,6 +40,7 @@ import com.postsaimanager.core.ai.catalog.CatalogEntry
 import com.postsaimanager.core.ai.catalog.download.ModelDownloadStatus
 import com.postsaimanager.core.ai.embed.install.InstallStatus
 import com.postsaimanager.core.designsystem.component.ChatModelFitBadge
+import com.postsaimanager.core.designsystem.component.ModelSpeedHint
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.model.ChatModelFit
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
@@ -235,6 +236,7 @@ private fun InstalledCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            ModelSpeedHint(entry.descriptor.speedHint)
             chatFit?.let { ChatModelFitBadge(it) }
             if (entry.isFormModel && showFormFillingNote) {
                 // The form agent prefers this model over the chat model while it is installed (ModelProfiles.FORM_AGENT_MODELS).
@@ -298,6 +300,7 @@ private fun AvailableCard(entry: CatalogEntry, chatFit: ChatModelFit?, viewModel
             entry.descriptor.description?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium)
             }
+            ModelSpeedHint(entry.descriptor.speedHint)
             chatFit?.let { ChatModelFitBadge(it) }
 
             fitMessage?.let {

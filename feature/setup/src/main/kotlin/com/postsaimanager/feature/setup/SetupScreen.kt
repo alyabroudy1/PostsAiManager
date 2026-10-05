@@ -11,6 +11,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.RadioButton
 import androidx.compose.ui.semantics.Role
 import com.postsaimanager.core.designsystem.component.ChatModelFitBadge
+import com.postsaimanager.core.designsystem.component.ModelSpeedHint
 import com.postsaimanager.core.model.ChatModelOption
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -217,6 +218,7 @@ private fun ModelChoice(offer: SetupOffer, state: SetupUiState, onSelect: (Strin
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    ModelSpeedHint(option.descriptor.speedHint)
                     ChatModelFitBadge(option.fit)
                 }
             }

@@ -55,6 +55,13 @@ data class AiModelDescriptor(
     val recommendedRamGb: Double = 0.0,
     /** Memory the model uses once loaded (weights plus a working context), for the user to weigh. Information only. */
     val approxRamUseGb: Double = 0.0,
+    /**
+     * May be checked first in setup. On the CPU-only engine the bigger models answer several times slower, so memory alone must not
+     * make them the default; they stay selectable.
+     */
+    val preselectable: Boolean = false,
+    /** How much slower this model answers than the reader, shown beside it. */
+    val speedHint: SpeedHint = SpeedHint.NORMAL,
 ) {
     /**
      * A model may only be downloaded when both a URL **and** an integrity hash are known.

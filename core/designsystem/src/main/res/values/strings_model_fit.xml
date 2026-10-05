@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- How an AI chat model suits this phone (first-run setup and the Models screen). -->
+    <string name="model_speed_slower">Slower answers</string>
+    <string name="model_speed_much_slower">Much slower answers</string>
     <string name="model_fit_recommended">Recommended for this phone</string>
     <string name="model_fit_not_memory">Not recommended: needs ≥ %1$s GB memory</string>
     <string name="model_fit_not_storage">Not recommended: needs %1$s of free storage</string>

@@ -4,6 +4,7 @@ import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.AiModelDescriptor
 import com.postsaimanager.core.model.BackendSpec
 import com.postsaimanager.core.model.ModelRole
+import com.postsaimanager.core.model.SpeedHint
 
 /**
  * The models that ship knowable, compiled into the APK.
@@ -77,6 +78,7 @@ object BundledCatalog {
             minRamGb = 2.5,
             recommendedRamGb = 3.0,
             approxRamUseGb = 0.6,
+            preselectable = true,
         ),
         AiModelDescriptor(
             id = "qwen3.5-2b-q4_k_m",
@@ -99,6 +101,9 @@ object BundledCatalog {
             minRamGb = 4.5,
             recommendedRamGb = 5.0,
             approxRamUseGb = 1.6,
+            // Measured 2-3x slower than the 0.8B on the CPU engine.
+            preselectable = true,
+            speedHint = SpeedHint.SLOWER,
         ),
         AiModelDescriptor(
             id = "qwen3.5-4b-q4_k_m",
@@ -121,6 +126,7 @@ object BundledCatalog {
             minRamGb = 8.0,
             recommendedRamGb = 10.0,
             approxRamUseGb = 3.3,
+            speedHint = SpeedHint.MUCH_SLOWER,
         ),
         AiModelDescriptor(
             id = "gemma-4-e2b-it-qat-q4_0",
@@ -148,6 +154,7 @@ object BundledCatalog {
             minRamGb = 8.0,
             recommendedRamGb = 12.0,
             approxRamUseGb = 4.2,
+            speedHint = SpeedHint.MUCH_SLOWER,
         ),
         AiModelDescriptor(
             id = "gemma-4-e4b-it-qat-q4_0",
@@ -171,6 +178,7 @@ object BundledCatalog {
             minRamGb = 12.0,
             recommendedRamGb = 16.0,
             approxRamUseGb = 6.0,
+            speedHint = SpeedHint.MUCH_SLOWER,
         ),
     )
 

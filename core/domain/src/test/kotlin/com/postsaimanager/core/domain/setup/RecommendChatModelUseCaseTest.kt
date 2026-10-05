@@ -13,15 +13,17 @@ class RecommendChatModelUseCaseTest {
 
     private val gb = 1_000_000_000L
 
-    private fun model(id: String, sizeGb: Double, min: Double, recommended: Double, role: ModelRole = ModelRole.CHAT) = AiModelDescriptor(
+    private fun model(id: String, sizeGb: Double, min: Double, recommended: Double, role: ModelRole = ModelRole.CHAT, preselectable: Boolean = true) = AiModelDescriptor(
         id = id, name = id, family = "f", parameterCount = "p", quantization = "q", sizeBytes = (sizeGb * gb).toLong(),
         minAvailableRamBytes = 0, contextTokens = 4096, license = "l", role = role,
         minRamGb = min, recommendedRamGb = recommended, approxRamUseGb = sizeGb,
+        preselectable = preselectable,
     )
 
     private val reader = model("reader", 0.5, 2.5, 3.0, ModelRole.READER_AND_CHAT)
     private val two = model("two", 1.3, 4.5, 5.0)
-    private val four = model("four", 2.7, 8.0, 10.0)
+    // Slow on the CPU engine: selectable, never the default.
+    private val four = model("four", 2.7, 8.0, 10.0, preselectable = false)
     private val catalog = listOf(reader, two, four)
     private val search = 0.27 * gb
 
@@ -64,10 +66,16 @@ class RecommendChatModelUseCaseTest {
     }
 
     @Test
-    fun `a 12 GB phone preselects the largest recommended model`() {
+    fun `a 12 GB phone preselects the 2B, the 4B is recommended but too slow to be the default`() {
         val result = recommend(phone(11.3))
-        assertThat(result.preselectedId).isEqualTo("four")
+        assertThat(result.preselectedId).isEqualTo("two")
         assertThat(result.option("four")!!.fit).isEqualTo(ChatModelFit.Recommended)
+    }
+
+    @Test
+    fun `without a preselectable recommended model the reader is the default`() {
+        val onlyBig = RecommendChatModelUseCase()(phone(11.3), listOf(reader.copy(preselectable = false), four), emptySet(), 0L)
+        assertThat(onlyBig.preselectedId).isEqualTo("reader")
     }
 
     @Test

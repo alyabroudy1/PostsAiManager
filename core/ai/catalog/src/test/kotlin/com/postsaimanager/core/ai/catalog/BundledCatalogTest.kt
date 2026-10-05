@@ -58,6 +58,16 @@ class BundledCatalogTest {
     }
 
     @Test
+    @DisplayName("only the 0.8B and 2B may be the default, and the slower models say so")
+    fun `preselectable models and speed hints`() {
+        val preselectable = BundledCatalog.models.filter { it.preselectable }.map { it.id }
+        assertThat(preselectable).containsExactly("qwen3.5-0.8b-q4_k_m", "qwen3.5-2b-q4_k_m")
+        BundledCatalog.models.filterNot { it.preselectable }.forEach {
+            assertThat(it.speedHint).isEqualTo(com.postsaimanager.core.model.SpeedHint.MUCH_SLOWER)
+        }
+    }
+
+    @Test
     @DisplayName("URLs name an immutable revision, never a branch")
     fun `urls are pinned`() {
         BundledCatalog.models.forEach { model ->

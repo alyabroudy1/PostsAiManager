@@ -15,8 +15,9 @@ import javax.inject.Inject
  * Letters are always read by the reader model ([ModelRole.READER_AND_CHAT]), so it is part of every download; the choice is the chat
  * model. All thresholds are on the descriptors ([AiModelDescriptor.minRamGb], [AiModelDescriptor.recommendedRamGb]), none here.
  *
- * The preselected model is the largest one whose recommended memory the phone has and whose whole download fits in the free space;
- * the reader when none does.
+ * The preselected model is the largest [AiModelDescriptor.preselectable] one whose recommended memory the phone has and whose whole
+ * download fits in the free space; the reader when none does. Bigger models are slow on this engine, so memory alone never makes
+ * them the default.
  */
 class RecommendChatModelUseCase @Inject constructor() {
 
@@ -39,7 +40,7 @@ class RecommendChatModelUseCase @Inject constructor() {
             ChatModelOption(model, fitOf(model, device, download, storageHeadroomBytes), download)
         }
         val preselected = options
-            .filter { it.fit == ChatModelFit.Recommended }
+            .filter { it.fit == ChatModelFit.Recommended && it.descriptor.preselectable }
             .maxByOrNull { it.descriptor.sizeBytes }
             ?.id
             ?: reader.id

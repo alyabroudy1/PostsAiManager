@@ -25,6 +25,14 @@ data class DeviceProfile(
     val is64Bit: Boolean,
 )
 
+/** How a model's answer speed compares with the reader's, as catalog data (shown as a localized note). */
+@Serializable
+enum class SpeedHint {
+    NORMAL,
+    SLOWER,
+    MUCH_SLOWER,
+}
+
 /** Why a model is not recommended on this phone. */
 enum class NotRecommendedReason {
     MEMORY,
