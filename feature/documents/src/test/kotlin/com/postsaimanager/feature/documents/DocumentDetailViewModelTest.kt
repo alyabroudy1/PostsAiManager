@@ -8,7 +8,14 @@ import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
 import com.postsaimanager.core.domain.document.ReadAgainAsFamilyUseCase
+import com.postsaimanager.core.domain.repository.InstalledModelsRepository
 import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
+import com.postsaimanager.core.model.InstalledModelSummary
+import com.postsaimanager.core.model.Profile
+import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.testing.FakeProfileRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
@@ -69,7 +76,26 @@ class DocumentDetailViewModelTest {
         getDocumentPreview = GetDocumentPreviewUseCase(documentRepository, FakeDocumentChunkRepository()),
         documentExporter = documentExporter,
         externalFlowGuard = externalFlowGuard,
+        installedModels = installedModels,
+        profileRepository = profileRepository,
     )
+
+    private val installedModels = object : InstalledModelsRepository {
+        val models = MutableStateFlow<List<InstalledModelSummary>>(emptyList())
+        override val installed: Flow<List<InstalledModelSummary>> = models
+        override val activeModelId: Flow<String?> = MutableStateFlow(null)
+        override suspend fun setActive(modelId: String) = Unit
+    }
+    private val profileRepository = FakeProfileRepository()
+
+    @Test
+    fun `the pages context follows the installed models and the Me profile`() = runTest {
+        profileRepository.seed(Profile(id = "me", type = ProfileType.USER_SELF, name = "Mo Ali", createdAt = 0, modifiedAt = 0))
+        val context = viewModel().pagesContext
+        assertThat(context.first { !it.aiInstalled && it.selfName != null }).isEqualTo(PagesContext(aiInstalled = false, selfName = "Mo Ali"))
+        installedModels.models.value = listOf(InstalledModelSummary("m", "Model", "/m.gguf", 1L, "Q4_K_M", 4096))
+        assertThat(context.first { it.aiInstalled }.selfName).isEqualTo("Mo Ali")
+    }
 
     private fun field(
         id: String,

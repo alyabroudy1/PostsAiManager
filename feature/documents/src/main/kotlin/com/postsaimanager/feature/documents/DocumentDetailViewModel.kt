@@ -13,6 +13,10 @@ import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
 import com.postsaimanager.core.domain.document.ReadAgainAsFamilyUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.domain.repository.InstalledModelsRepository
+import com.postsaimanager.core.domain.repository.ProfileRepository
+import com.postsaimanager.core.model.ProfileType
+import kotlinx.coroutines.flow.combine
 import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
 import com.postsaimanager.core.model.DocumentPreview
 import com.postsaimanager.core.model.DocumentStatus
@@ -53,6 +57,8 @@ class DocumentDetailViewModel @Inject constructor(
     private val getDocumentPreview: GetDocumentPreviewUseCase,
     private val documentExporter: DocumentExporter,
     private val externalFlowGuard: ExternalFlowGuard,
+    installedModels: InstalledModelsRepository,
+    profileRepository: ProfileRepository,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
@@ -100,6 +106,13 @@ class DocumentDetailViewModel @Inject constructor(
     val summaryComing: StateFlow<Boolean> = documentProcessor.enrichingDocuments
         .map { documentId in it }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** What the Pages card needs beyond the document: whether an AI model is installed, and the "Me" profile's name. */
+    val pagesContext: StateFlow<PagesContext> = combine(
+        installedModels.installed.map { it.isNotEmpty() }.catch { emit(true) },
+        profileRepository.getProfilesByType(ProfileType.USER_SELF).map { it.firstOrNull()?.name }.catch { emit(null) },
+    ) { aiInstalled, selfName -> PagesContext(aiInstalled, selfName) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PagesContext())
 
     /** Guards the auto-enqueue below so opening a `NEW` document does not re-enqueue on
      * every recomposition — `enqueue` is idempotent via `ExistingWorkPolicy.KEEP` anyway,
