@@ -5,9 +5,9 @@ agp = "8.7.3"
 kotlin = "2.1.0"
 ksp = "2.1.0-1.0.29"
 jvmTarget = "17"
-compileSdk = "35"
+compileSdk = "36"
 minSdk = "26"
-targetSdk = "35"
+targetSdk = "36"
 
 # Compose
 composeBom = "2024.12.01"
