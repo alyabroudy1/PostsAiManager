@@ -145,7 +145,9 @@ jobs:
 
   native-build-vulkan:
     name: Native build, Vulkan backend (:app:assembleDebug -Ppam.gpuBackend=vulkan)
-    runs-on: ubuntu-latest
+    # Pinned: the LunarG apt list below is the jammy (22.04) one; on ubuntu-latest (24.04) its packages have
+    # unmet dependencies (libyaml-cpp0.7).
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout (with llama.cpp submodule)
         uses: actions/checkout@v4
