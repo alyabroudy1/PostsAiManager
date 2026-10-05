@@ -4,7 +4,16 @@
     <string name="setup_title">إعداد مساعد الذكاء الاصطناعي</string>
     <string name="setup_summary">يقوم Posts AI Manager بمسح رسائلك ونماذجك ضوئيًا وقراءتها نيابةً عنك والإجابة عن أسئلتك حولها.</string>
     <string name="setup_privacy">كل شيء يبقى على هاتفك. لا يتم رفع مستنداتك أبدًا.</string>
-    <string name="setup_download_info">تنزيل لمرة واحدة: نموذج الذكاء الاصطناعي %1$s (%2$s) ونموذج البحث (%3$s).</string>
+    <string name="setup_choose_model_title">اختر نموذج المحادثة</string>
+    <string name="setup_model_size">حجم التنزيل %1$s</string>
+    <string name="setup_reader_note">تتم قراءة الرسائل باستخدام %1$s (مضمَّن دائمًا)</string>
+    <string name="setup_download_total_three">التنزيل ≈ %1$s: نموذج القراءة + نموذج المحادثة + نموذج البحث</string>
+    <string name="setup_download_total_two">التنزيل ≈ %1$s: %2$s + نموذج البحث</string>
+    <string name="setup_confirm_title">استخدام هذا النموذج على أي حال؟</string>
+    <string name="setup_confirm_body">قد يكون %1$s بطيئًا أو يتعطل على هذا الهاتف.</string>
+    <string name="setup_confirm_use">استخدمه على أي حال</string>
+    <string name="setup_part_reader">نموذج القراءة (%1$s)</string>
+    <string name="setup_part_chat_only">نموذج المحادثة (%1$s)</string>
     <string name="setup_download_button">تنزيل نموذج الذكاء الاصطناعي</string>
     <string name="setup_notifications_note">سيسألك أندرويد عن السماح بالإشعارات، وذلك فقط لعرض تقدّم التنزيل. يعمل التنزيل بدونها.</string>
     <string name="setup_skip">تخطَّ الآن</string>

@@ -4,7 +4,16 @@
     <string name="setup_title">Set up your AI assistant</string>
     <string name="setup_summary">Posts AI Manager scans your letters and forms, reads them for you, and answers your questions about them.</string>
     <string name="setup_privacy">Everything stays on your phone. Your documents are never uploaded.</string>
-    <string name="setup_download_info">One-time download: the AI model %1$s (%2$s) and the search model (%3$s).</string>
+    <string name="setup_choose_model_title">Choose the chat model</string>
+    <string name="setup_model_size">%1$s download</string>
+    <string name="setup_reader_note">Letters are read with %1$s (always included)</string>
+    <string name="setup_download_total_three">Download ≈ %1$s: reader + chat model + search model</string>
+    <string name="setup_download_total_two">Download ≈ %1$s: %2$s + search model</string>
+    <string name="setup_confirm_title">Use this model anyway?</string>
+    <string name="setup_confirm_body">%1$s may be slow or crash on this phone.</string>
+    <string name="setup_confirm_use">Use it anyway</string>
+    <string name="setup_part_reader">Reader model (%1$s)</string>
+    <string name="setup_part_chat_only">Chat model (%1$s)</string>
     <string name="setup_download_button">Download the AI model</string>
     <string name="setup_notifications_note">Android will ask to allow notifications, only to show the download progress. The download works without it.</string>
     <string name="setup_skip">Skip for now</string>

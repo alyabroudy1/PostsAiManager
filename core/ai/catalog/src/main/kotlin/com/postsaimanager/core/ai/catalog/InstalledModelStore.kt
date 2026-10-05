@@ -38,14 +38,14 @@ data class InstalledIndex(
     fun chatModel(): InstalledModel? = models.firstOrNull { it.id == activeModelId }
 
     /**
-     * The model that reads documents.
-     *
-     * Falls back to the chat model when none is chosen, and again when the chosen one has
-     * been uninstalled. Reading a document with a different model than the user picked is a
-     * far better outcome than not reading it at all.
+     * The model that reads documents: one the user chose explicitly for reading, else the catalog's reader model
+     * ([readerDescriptorId], the one the extraction profile is tuned on) whenever it is installed, whatever the chat model is, else
+     * the chat model. Reading with another model than the preferred one is a far better outcome than not reading at all.
      */
-    fun readerModel(): InstalledModel? =
-        models.firstOrNull { it.id == extractionModelId } ?: chatModel()
+    fun readerModel(readerDescriptorId: String = BundledCatalog.READER_MODEL_ID): InstalledModel? =
+        models.firstOrNull { it.id == extractionModelId }
+            ?: models.firstOrNull { it.descriptorId == readerDescriptorId }
+            ?: chatModel()
 
     /**
      * This index with every side-loaded model that is really a catalog model (same hash and size) tied to its descriptor: the migration
@@ -56,7 +56,7 @@ data class InstalledIndex(
 
     /** True when one model does both jobs — the default, and one load instead of two. */
     val sharesOneModel: Boolean
-        get() = extractionModelId == null || extractionModelId == activeModelId
+        get() = readerModel()?.id == activeModelId
 }
 
 /**

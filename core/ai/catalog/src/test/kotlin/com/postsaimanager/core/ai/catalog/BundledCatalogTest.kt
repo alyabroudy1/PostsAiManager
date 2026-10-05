@@ -37,12 +37,34 @@ class BundledCatalogTest {
     }
 
     @Test
-    @DisplayName("the first-run model is the installable Qwen3.5 0.8B")
-    fun `first run model is the small default`() {
-        val model = BundledCatalog.firstRunModel
+    @DisplayName("the reader is the installable Qwen3.5 0.8B, and the only one")
+    fun `reader model is the small default`() {
+        val model = BundledCatalog.readerModel
         assertThat(model.name).isEqualTo("Qwen3.5 0.8B")
+        assertThat(model.id).isEqualTo(BundledCatalog.READER_MODEL_ID)
         assertThat(model.quantization).isEqualTo("Q4_K_M")
         assertThat(model.isInstallable).isTrue()
+        assertThat(BundledCatalog.models.count { it.role == com.postsaimanager.core.model.ModelRole.READER_AND_CHAT }).isEqualTo(1)
+    }
+
+    @Test
+    @DisplayName("every model carries memory thresholds that order sensibly")
+    fun `memory thresholds are data and consistent`() {
+        BundledCatalog.models.forEach { model ->
+            assertThat(model.minRamGb).isGreaterThan(0.0)
+            assertThat(model.recommendedRamGb).isAtLeast(model.minRamGb)
+            assertThat(model.approxRamUseGb).isGreaterThan(0.0)
+        }
+    }
+
+    @Test
+    @DisplayName("only the 0.8B and 2B may be the default, and the slower models say so")
+    fun `preselectable models and speed hints`() {
+        val preselectable = BundledCatalog.models.filter { it.preselectable }.map { it.id }
+        assertThat(preselectable).containsExactly("qwen3.5-0.8b-q4_k_m", "qwen3.5-2b-q4_k_m")
+        BundledCatalog.models.filterNot { it.preselectable }.forEach {
+            assertThat(it.speedHint).isEqualTo(com.postsaimanager.core.model.SpeedHint.MUCH_SLOWER)
+        }
     }
 
     @Test

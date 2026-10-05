@@ -5,6 +5,12 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.setup.ConnectionMeter
 import com.postsaimanager.core.domain.setup.ModelSetupGateway
 import com.postsaimanager.core.domain.setup.SetModelSetupSkippedUseCase
+import com.postsaimanager.core.model.AiModelDescriptor
+import com.postsaimanager.core.model.ChatModelFit
+import com.postsaimanager.core.model.ChatModelOption
+import com.postsaimanager.core.model.ChatModelRecommendation
+import com.postsaimanager.core.model.ModelRole
+import com.postsaimanager.core.model.NotRecommendedReason
 import com.postsaimanager.core.model.SetupOffer
 import com.postsaimanager.core.model.SetupPartStatus
 import com.postsaimanager.core.model.SetupProgress
@@ -24,12 +30,14 @@ class SetupViewModelTest {
     private class FakeGateway(var offer: SetupOffer) : ModelSetupGateway {
         val state = MutableStateFlow(SetupProgress.NOT_STARTED)
         val starts = mutableListOf<Boolean>()
+        val startedModels = mutableListOf<String>()
         var cancels = 0
         var hasSource = true
 
         override suspend fun offer() = offer
-        override val progress: Flow<SetupProgress> = state
-        override suspend fun start(allowMetered: Boolean): Boolean {
+        override fun progress(chatModelId: String): Flow<SetupProgress> = state
+        override suspend fun start(chatModelId: String, allowMetered: Boolean): Boolean {
+            startedModels += chatModelId
             starts += allowMetered
             return hasSource
         }
@@ -38,7 +46,27 @@ class SetupViewModelTest {
         }
     }
 
-    private val offer = SetupOffer("Qwen3.5 0.8B", 532_517_120L, 270_000_000L, canInstallChatModel = true)
+    private fun descriptor(id: String, sizeBytes: Long, role: ModelRole = ModelRole.CHAT) = AiModelDescriptor(
+        id = id, name = id, family = "f", parameterCount = "p", quantization = "q", sizeBytes = sizeBytes,
+        minAvailableRamBytes = 0, contextTokens = 4096, license = "l", role = role, description = "good for $id",
+    )
+
+    private val reader = descriptor("reader", 500L, ModelRole.READER_AND_CHAT)
+    private val two = descriptor("two", 1_300L)
+    private val four = descriptor("four", 2_700L)
+    private val search = 270L
+
+    /** The phone suits the reader and the 2B (the 2B is the preselected one); the 4B is not recommended. */
+    private val recommendation = ChatModelRecommendation(
+        options = listOf(
+            ChatModelOption(reader, ChatModelFit.Recommended, reader.sizeBytes + search),
+            ChatModelOption(two, ChatModelFit.Recommended, reader.sizeBytes + two.sizeBytes + search),
+            ChatModelOption(four, ChatModelFit.NotRecommended(NotRecommendedReason.MEMORY, requiredRamGb = 8.0), reader.sizeBytes + four.sizeBytes + search),
+        ),
+        preselectedId = "two",
+        reader = reader,
+    )
+    private val offer = SetupOffer(recommendation, canInstallChatModel = true)
     private val gateway = FakeGateway(offer)
     private val prefs = FakeUserPreferencesRepository()
     private var metered = false
@@ -227,6 +255,109 @@ class SetupViewModelTest {
             gateway.state.value = SetupProgress(SetupPartStatus.Failed, SetupPartStatus.Done)
             vm.continueWithoutSearch()
             assertThat(expectMostRecentItem().exit).isFalse()
+        }
+    }
+
+    @Test
+    fun `the recommended model is preselected`() = runTest {
+        viewModel().uiState.test {
+            val state = expectMostRecentItem()
+            assertThat(state.selectedId).isEqualTo("two")
+            assertThat(state.selectedOption!!.id).isEqualTo("two")
+            assertThat(state.chatIsReader).isFalse()
+        }
+    }
+
+    @Test
+    fun `choosing another recommended model changes the selection and the total download`() = runTest {
+        val vm = viewModel()
+        vm.uiState.test {
+            assertThat(expectMostRecentItem().totalDownloadBytes).isEqualTo(500L + 1_300L + search)
+            vm.select("reader")
+            val state = expectMostRecentItem()
+            assertThat(state.selectedId).isEqualTo("reader")
+            assertThat(state.chatIsReader).isTrue()
+            assertThat(state.pendingConfirmId).isNull()
+            // The reader chosen as chat model: just the reader and the search model.
+            assertThat(state.totalDownloadBytes).isEqualTo(500L + search)
+        }
+    }
+
+    @Test
+    fun `a not recommended model waits for a confirmation and is not selected yet`() = runTest {
+        val vm = viewModel()
+        vm.uiState.test {
+            expectMostRecentItem()
+            vm.select("four")
+            val state = expectMostRecentItem()
+            assertThat(state.selectedId).isEqualTo("two")
+            assertThat(state.pendingConfirmId).isEqualTo("four")
+            assertThat(state.pendingConfirmOption!!.descriptor.name).isEqualTo("four")
+        }
+    }
+
+    @Test
+    fun `confirming a not recommended model selects it`() = runTest {
+        val vm = viewModel()
+        vm.uiState.test {
+            expectMostRecentItem()
+            vm.select("four")
+            vm.confirmSelection()
+            val state = expectMostRecentItem()
+            assertThat(state.selectedId).isEqualTo("four")
+            assertThat(state.pendingConfirmId).isNull()
+        }
+    }
+
+    @Test
+    fun `declining the confirmation keeps the previous choice`() = runTest {
+        val vm = viewModel()
+        vm.uiState.test {
+            expectMostRecentItem()
+            vm.select("four")
+            vm.dismissConfirmation()
+            val state = expectMostRecentItem()
+            assertThat(state.selectedId).isEqualTo("two")
+            assertThat(state.pendingConfirmId).isNull()
+        }
+    }
+
+    @Test
+    fun `the download starts the chosen chat model`() = runTest {
+        val vm = viewModel()
+        vm.uiState.test {
+            expectMostRecentItem()
+            vm.select("reader")
+            vm.download()
+            assertThat(gateway.startedModels).containsExactly("reader")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `the download starts the preselected model when the user changed nothing`() = runTest {
+        val vm = viewModel()
+        vm.uiState.test {
+            expectMostRecentItem()
+            vm.download()
+            assertThat(gateway.startedModels).containsExactly("two")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setup is not finished until the reader, the chat model and the search model are all ready`() = runTest {
+        val vm = viewModel()
+        vm.uiState.test {
+            expectMostRecentItem()
+            gateway.state.value = SetupProgress(
+                chat = SetupPartStatus.Done, search = SetupPartStatus.Done, reader = downloading(),
+            )
+            assertThat(expectMostRecentItem().exit).isFalse()
+            gateway.state.value = SetupProgress(
+                chat = SetupPartStatus.Done, search = SetupPartStatus.Done, reader = SetupPartStatus.Done,
+            )
+            assertThat(expectMostRecentItem().exit).isTrue()
         }
     }
 

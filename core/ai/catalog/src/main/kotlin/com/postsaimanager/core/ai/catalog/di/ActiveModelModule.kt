@@ -1,6 +1,8 @@
 package com.postsaimanager.core.ai.catalog.di
 
+import com.postsaimanager.core.ai.catalog.AndroidDeviceCapabilities
 import com.postsaimanager.core.ai.catalog.CatalogActiveModelProvider
+import com.postsaimanager.core.domain.setup.DeviceCapabilities
 import com.postsaimanager.core.ai.catalog.CatalogInstalledModelsRepository
 import com.postsaimanager.core.ai.catalog.DataStoreInferenceSettingsRepository
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
@@ -25,6 +27,9 @@ abstract class ActiveModelModule {
     abstract fun bindInferenceSettingsRepository(
         impl: DataStoreInferenceSettingsRepository,
     ): InferenceSettingsRepository
+
+    @Binds
+    abstract fun bindDeviceCapabilities(impl: AndroidDeviceCapabilities): DeviceCapabilities
 
     @Binds
     @Singleton

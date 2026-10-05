@@ -81,6 +81,38 @@ class InstalledIndexTest {
     }
 
     @Test
+    @DisplayName("the catalog reader reads letters whatever the user chats with")
+    fun `the reader model is used for reading when the chat model is another one`() {
+        val catalogReader = model(BundledCatalog.READER_MODEL_ID)
+        val index = InstalledIndex(
+            models = listOf(model("qwen3.5-2b-q4_k_m"), catalogReader),
+            activeModelId = "qwen3.5-2b-q4_k_m",
+        )
+
+        assertThat(index.chatModel()?.id).isEqualTo("qwen3.5-2b-q4_k_m")
+        assertThat(index.readerModel()?.id).isEqualTo(BundledCatalog.READER_MODEL_ID)
+        assertThat(index.sharesOneModel).isFalse()
+    }
+
+    @Test
+    fun `an explicit reading choice still beats the catalog reader`() {
+        val index = InstalledIndex(
+            models = listOf(model(BundledCatalog.READER_MODEL_ID), reader),
+            activeModelId = BundledCatalog.READER_MODEL_ID,
+            extractionModelId = "gemma",
+        )
+
+        assertThat(index.readerModel()?.id).isEqualTo("gemma")
+    }
+
+    @Test
+    fun `without the catalog reader installed reading follows the chat model`() {
+        val index = InstalledIndex(models = listOf(model("qwen3.5-2b-q4_k_m")), activeModelId = "qwen3.5-2b-q4_k_m")
+
+        assertThat(index.readerModel()?.id).isEqualTo("qwen3.5-2b-q4_k_m")
+    }
+
+    @Test
     fun `an empty index resolves to nothing rather than throwing`() {
         val index = InstalledIndex()
 
