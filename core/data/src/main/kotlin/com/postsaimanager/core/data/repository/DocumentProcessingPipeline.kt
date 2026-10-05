@@ -738,6 +738,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     var updated = documentMapper.toDomain(latest)
                     updated = ReprocessOverwritePolicy.applyTitle(updated, read)
                     updated = ReprocessOverwritePolicy.applySummary(updated, read)
+                    updated = ReprocessOverwritePolicy.applyActions(updated, read)
                     updated = ReprocessOverwritePolicy.applyLateTopics(updated, read)
                     documentDao.update(
                         documentMapper.toEntity(

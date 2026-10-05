@@ -10,6 +10,7 @@ import com.postsaimanager.core.domain.extraction.address.StructuredAddressReader
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
+import com.postsaimanager.core.domain.extraction.text.ActionWriter
 import com.postsaimanager.core.domain.extraction.text.SummaryFacts
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.domain.extraction.v2.AnswerReader
@@ -313,7 +314,10 @@ class ZoneScoringInterpreter(
                 val budget = openBody(setup, zones, request.established) ?: return EnrichmentOutcome.Failed("the model could not read the letter")
                 LetterSession(setup, zones, budget).also { letter = it }
             }
-            val picked = pickExtras(open.setup, request.takenIds)
+            // The family's hint says what matters in this kind of document: it steers which facts are kept as the key information
+            // (the extras) and what the action lines say; the model still decides, code only verifies.
+            val hint = (request.documentTypeId?.let { schema.family(it) } ?: schema.abstain)?.hint
+            val picked = pickExtras(open.setup, request.takenIds, hint)
             // A profile that keeps the topics out of the first stage scores them here, still in the body session.
             val lateTopics = if (topicsInFirstStage || request.topics.isNotEmpty()) null else classifier().topics(tail)
             // The letter as plain text: no zone hints and no summary of the header, which a small model copies instead of the letter.
@@ -331,10 +335,13 @@ class ZoneScoringInterpreter(
             val subject = written?.subject?.takeIf { QuoteVerifier.verify(it, request.ocrText) != null }
             val facts = SummaryFacts.of(request.documentTypeId ?: schema.abstain?.id.orEmpty(), request.facts, subject)
             val summary = SummaryWriter(FramedSession()).write(facts, request.ocrText, language)
+            // What the reader must do: written from the same verified facts plus the key information picked, checked line by line.
+            val keyInfo = extras.mapNotNull { x -> picked.firstOrNull { it.candidate.id == x.id }?.let { x.label to it.candidate.raw.replace('\n', ' ') } }
+            val actions = ActionWriter(FramedSession()).write(facts.entries() + keyInfo, hint, request.ocrText, language)
             return EnrichmentOutcome.Done(
                 Enrichment(
                     language = language, extras = extras, text = written,
-                    textError = (text as? TextOutcome.Failed)?.reason, summary = summary, topics = lateTopics,
+                    textError = (text as? TextOutcome.Failed)?.reason, summary = summary, topics = lateTopics, actions = actions,
                 ),
             )
         } catch (e: Abort) {
@@ -386,7 +393,7 @@ class ZoneScoringInterpreter(
      * for every other value. Names are never offered: the parties were scored already, and the names the extractor finds that are
      * not a party are mostly labels and fragments of lines ("Fällig am", "Betrag €"). A failed scoring leaves no extras.
      */
-    private suspend fun pickExtras(setup: ZoneSetup, taken: Set<String>): List<Picked> {
+    private suspend fun pickExtras(setup: ZoneSetup, taken: Set<String>, hint: String?): List<Picked> {
         val zoned = setup.zoned
         val zones = setup.plan.zones(QuestionNames.EXTRAS_SCORED).filter { zoned.hasText(it) }
         if (zones.isEmpty()) return emptyList()
@@ -395,7 +402,7 @@ class ZoneScoringInterpreter(
         val block = block(setup, zones)
         val scores = scoreBatch(
             ScoringDescriptions.EXTRAS_ASK, block,
-            cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), ScoringDescriptions.EXTRA) },
+            cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), ScoringDescriptions.extra(hint)) },
         ) ?: return emptyList()
         val threshold = profile.threshold(ScoringDescriptions.EXTRAS_ASK)
         return scores.indices.filter { scores[it] > threshold }.sortedByDescending { scores[it] }

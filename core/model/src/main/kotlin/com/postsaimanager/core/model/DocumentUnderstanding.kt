@@ -227,6 +227,12 @@ data class DocumentUnderstanding(
     val summarySource: SummarySource? = null,
     val summaryCode: String? = null,
     val summaryArgs: List<String> = emptyList(),
+
+    /**
+     * The action lines a second stage wrote (what the reader must do, by when), already checked; empty when it found none. Null when
+     * no stage wrote them (a first stage, a failed ask), so a stored list is kept.
+     */
+    val actionItems: List<String>? = null,
 ) {
     val sender: RecognisedEntity? get() = entities.firstOrNull { it.role == EntityRole.SENDER }
 

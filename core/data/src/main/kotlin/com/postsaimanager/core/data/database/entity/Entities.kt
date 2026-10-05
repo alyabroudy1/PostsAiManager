@@ -56,6 +56,8 @@ data class DocumentEntity(
     val enrichmentAttempts: Int = 0,
     /** See [com.postsaimanager.core.model.Document.enrichmentPending]. */
     val enrichmentPending: Boolean = false,
+    /** JSON list of strings; see [com.postsaimanager.core.model.Document.actionItems]. */
+    val actionItems: String? = null,
 )
 
 @Entity(

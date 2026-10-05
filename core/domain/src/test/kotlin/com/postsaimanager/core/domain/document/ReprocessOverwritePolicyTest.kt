@@ -187,4 +187,18 @@ class ReprocessOverwritePolicyTest {
         val kept = doc(summary = SummarySource.MODEL).copy(summary = "Alt")
         assertThat(ReprocessOverwritePolicy.applySummary(kept, DocumentUnderstanding())).isEqualTo(kept)
     }
+
+    @Test
+    fun `the action lines a second stage wrote replace the stored ones, an empty list clears them`() {
+        val before = doc().copy(actionItems = listOf("Alt"))
+        assertThat(ReprocessOverwritePolicy.applyActions(before, DocumentUnderstanding(actionItems = listOf("Zahle bis Freitag."))).actionItems)
+            .containsExactly("Zahle bis Freitag.")
+        assertThat(ReprocessOverwritePolicy.applyActions(before, DocumentUnderstanding(actionItems = emptyList())).actionItems).isEmpty()
+    }
+
+    @Test
+    fun `a reading that asked no action lines leaves the stored ones`() {
+        val before = doc().copy(actionItems = listOf("Alt"))
+        assertThat(ReprocessOverwritePolicy.applyActions(before, DocumentUnderstanding())).isEqualTo(before)
+    }
 }

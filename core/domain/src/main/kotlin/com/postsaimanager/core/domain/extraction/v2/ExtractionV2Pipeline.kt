@@ -89,6 +89,7 @@ class ExtractionV2Pipeline(
         var textError: String? = null
         var ticket: EnrichmentTicket? = null
         var summary: SummaryResult? = null
+        var actions: List<String>? = null
         val pageTexts = pages.map { blocks -> blocks.joinToString("\n") { OcrText.normalizeChars(it.text) } }
         fun context(rawText: String?, textError: String?) = VerificationContext(
             candidates = candidates,
@@ -126,6 +127,7 @@ class ExtractionV2Pipeline(
                         rawText = enriched.enrichment.rawText
                         textError = enriched.enrichment.textError
                         summary = enriched.enrichment.summary
+                        actions = enriched.enrichment.actions
                     }
                     is EnrichmentOutcome.Failed -> textError = enriched.reason
                 }
@@ -142,7 +144,7 @@ class ExtractionV2Pipeline(
         val verified = verifier.verify(raw, text, context(rawText, textError))
         lap("verify")
         return verified.copy(
-            enrichment = ticket, summary = summary,
+            enrichment = ticket, summary = summary, actions = actions,
             composedTitle = composeTitle(verified, verified.parties.sender?.name),
         ).withReading(
             layoutTrace(pages, layout, candidates, offered, description, traceContent) + timings + interpreter.trace,
@@ -189,7 +191,7 @@ class ExtractionV2Pipeline(
             ),
         )
         return verified.copy(
-            summary = done?.summary,
+            summary = done?.summary, actions = done?.actions,
             composedTitle = composeTitle(verified, ticket.facts[SummaryFacts.SENDER]),
             diagnostics = verified.diagnostics.copy(modelCalled = true, modelUsed = done != null, trace = timings + interpreter.trace),
         )

@@ -149,6 +149,9 @@ object QuestionGrammars {
     /** Three quoted lines separated by spaces. */
     fun threeLines(): String = render("root" to "qstr \" \" qstr \" \" qstr")
 
+    /** The action lines: `NONE` (the reader has nothing to do), or one to three quoted lines separated by spaces. */
+    fun actionLines(): String = render("root" to "${word(NONE)} | qstr (\" \" qstr (\" \" qstr)?)?")
+
     /** The ids the extras question may offer: every candidate kind, minus [taken]. */
     fun remainingIds(offered: OfferedCandidates, taken: Set<String>): List<String> =
         offered.idsOf(*CandidateKind.entries.toTypedArray()).filter { it !in taken }

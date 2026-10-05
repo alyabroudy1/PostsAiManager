@@ -36,6 +36,8 @@ class TwoStageReadingTest {
             when {
                 q.contains("BCP-47") -> "de"
                 q.contains("What does the letter call this value?") -> "\"Gegenstand\""
+                // The action writer: one line the gate accepts (every number, date and name is in the letter).
+                q.contains("What must the reader do") -> "\"Bitte überweise 1.284,50 € bis zum 15.10.2026 an die Musterfirma GmbH.\""
                 // The summary writer is given the verified facts; a model that keeps to them writes a sentence the gate accepts.
                 q.contains("FACTS (verified") -> "\"Musterfirma GmbH verlangt 1.284,50 € von Erika Mustermann.\""
                 else -> "\"text\""
@@ -111,6 +113,43 @@ class TwoStageReadingTest {
     }
 
     @Test
+    fun `the second stage scores the extras under the family's hint and writes the action lines in the writing session`() {
+        val first = run(ExtractionV2Pipeline.Stages.FIRST, session())
+        val later = session()
+        val second = run(ExtractionV2Pipeline.Stages.SECOND, later, first.enrichment)
+        // The hint of the invoice family is part of the statement every extra is scored under: the key information is what it says matters.
+        val hint = com.postsaimanager.core.domain.extraction.v2.ExtractionSchema.INVOICE_BILL.hint
+        assertThat(hint).isNotEmpty()
+        assertThat(later.scored.flatten()).isNotEmpty()
+        assertThat(later.scored.flatten().all { it.contains(hint) }).isTrue()
+        // The actions: one ask with its own grammar, the hint in its prompt, and the line the gate accepted is the result.
+        val ask = later.asks.single { it.question.contains("What must the reader do") }
+        assertThat(ask.question).contains(hint)
+        assertThat(ask.question).contains("- amount: 1.284,50 €")
+        assertThat(ask.question).contains("\"de\"")
+        assertThat(second.actions).containsExactly("Bitte überweise 1.284,50 € bis zum 15.10.2026 an die Musterfirma GmbH.")
+        // The adapter hands them to what the data layer stores.
+        assertThat(ExtractionV2Adapter().adapt(second).actionItems).isEqualTo(second.actions)
+    }
+
+    @Test
+    fun `a model that finds nothing to do leaves an empty list, a failed ask leaves none so the stored lines stay`() {
+        val first = run(ExtractionV2Pipeline.Stages.FIRST, session())
+        val nothing = session().apply {
+            val base = responder
+            responder = { q, g -> if (q.contains("What must the reader do")) "NONE" else base(q, g) }
+        }
+        assertThat(run(ExtractionV2Pipeline.Stages.SECOND, nothing, first.enrichment).actions).isEmpty()
+        val failing = session().apply {
+            val base = responder
+            responder = { q, g -> if (q.contains("What must the reader do")) null else base(q, g) }
+        }
+        val failed = run(ExtractionV2Pipeline.Stages.SECOND, failing, first.enrichment)
+        assertThat(failed.actions).isNull()
+        assertThat(ExtractionV2Adapter().adapt(failed).actionItems).isNull()
+    }
+
+    @Test
     fun `the two stages together read what one go reads`() {
         val all = run(ExtractionV2Pipeline.Stages.ALL, session())
         val first = run(ExtractionV2Pipeline.Stages.FIRST, session())
@@ -121,6 +160,7 @@ class TwoStageReadingTest {
         assertThat(second.extras.map { it.label to it.value.candidateId }).isEqualTo(all.extras.map { it.label to it.value.candidateId })
         assertThat(second.composedTitle).isEqualTo(all.composedTitle)
         assertThat(second.summary).isEqualTo(all.summary)
+        assertThat(second.actions).isEqualTo(all.actions)
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.postsaimanager.core.domain.extraction.address.AddressRows
+import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.model.AddressPart
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EntityKind
@@ -98,6 +99,12 @@ object UnderstandingToFields {
             .firstOrNull { it.role == EntityRole.SENDER_CONTACT }
             ?.let { add(CONTACT_PERSON, it.name, ExtractedFieldType.PERSON_NAME, it.confidence, it.provenance, SLOT_CONTACT) }
 
+        // The one person the letter is about (a child when the parents are addressed): a single slot, so it is a field; any other
+        // mentioned person stays a profile link only (see above).
+        understanding.entities
+            .firstOrNull { it.role == EntityRole.MENTIONED && it.relation == ExtractionV2Adapter.RELATION_SUBJECT }
+            ?.let { add(SUBJECT_PERSON, it.name, ExtractedFieldType.PERSON_NAME, it.confidence, it.provenance, SLOT_SUBJECT_PERSON) }
+
         if (understanding.subject.isNotBlank()) {
             add(SUBJECT, understanding.subject, ExtractedFieldType.SUBJECT, 0.9f, null, SLOT_SUBJECT)
         }
@@ -165,6 +172,7 @@ object UnderstandingToFields {
     const val RECEIVER_NAME = "Receiver Name"
     const val CONTACT_PERSON = "Contact Person"
     const val SUBJECT = "Subject"
+    const val SUBJECT_PERSON = "About Person"
     const val DEADLINE = "Deadline"
     const val DOCUMENT_DATE = "Document Date"
     const val AMOUNT = "Amount"
@@ -175,6 +183,7 @@ object UnderstandingToFields {
     const val SLOT_ADDRESSEE = "addressee"
     const val SLOT_CONTACT = "contact"
     const val SLOT_SUBJECT = "subject"
+    const val SLOT_SUBJECT_PERSON = "subject_person"
 
     /** Slot key (and stored name) of a value that came with no label at all; rendered from a string resource. */
     const val SLOT_UNLABELLED = "unlabelled"

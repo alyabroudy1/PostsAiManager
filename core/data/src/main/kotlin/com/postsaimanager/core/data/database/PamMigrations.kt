@@ -486,6 +486,16 @@ object PamMigrations {
         }
     }
 
+    /**
+     * v17 to v18: a document keeps the action lines its second stage wrote (`actionItems`, a JSON list of strings; NULL reads as none).
+     * Additive: nothing is rewritten, and a document read before this version shows no actions until the background re-read writes them.
+     */
+    val MIGRATION_17_18 = object : Migration(17, 18) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `actionItems` TEXT")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -503,5 +513,6 @@ object PamMigrations {
         MIGRATION_14_15,
         MIGRATION_15_16,
         MIGRATION_16_17,
+        MIGRATION_17_18,
     )
 }

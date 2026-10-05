@@ -120,4 +120,10 @@ object ScoringDescriptions {
 
     const val EXTRA = "an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount " +
         "that matters), other than the letter's main amount, due date, IBAN, reference or customer number"
+
+    /**
+     * The statement the extras are scored under for a document whose family has a [hint][com.postsaimanager.core.domain.extraction.v2.DocFamily.hint]:
+     * [EXTRA] followed by the guidance on what matters in this kind of document. What scores above the threshold is the "Key information".
+     */
+    fun extra(hint: String?): String = hint?.trim()?.takeIf { it.isNotEmpty() }?.let { "$EXTRA. $it" } ?: EXTRA
 }

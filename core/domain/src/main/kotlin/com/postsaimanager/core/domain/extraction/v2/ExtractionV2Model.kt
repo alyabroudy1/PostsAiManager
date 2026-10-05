@@ -211,6 +211,8 @@ data class ExtractionV2Result(
     val layoutTemplate: String? = null,
     /** The summary as the writer settled on it (the model's sentences or the template); null when none was written (a first stage, or a failed second one). */
     val summary: SummaryResult? = null,
+    /** The action lines the second stage kept (what the reader must do); empty when it found none; null when none was asked. */
+    val actions: List<String>? = null,
     /** The title composed from the family, the sender and the verified subject; null when nothing could be composed (no model read the letter). */
     val composedTitle: TitleComposer.Composed? = null,
     val freeText: FreeText = FreeText(),

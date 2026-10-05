@@ -968,6 +968,29 @@ class MigrationTest {
         }
     }
 
+    /** v17 documents keep every row and gain a NULL `actionItems` (no actions until the background re-read writes them). Needs a device. */
+    @Test
+    fun migrate17To18_addsTheActionItemsColumnToDocuments() {
+        helper.createDatabase(TEST_DB, 17).apply {
+            execSQL(
+                """
+                INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus,
+                                       isUserTitle, enrichmentAttempts, enrichmentPending)
+                VALUES ('doc-1', 'Rechnung', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL', 0, 0, 0)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 18, true, PamMigrations.MIGRATION_17_18)
+
+        db.query("SELECT title, actionItems FROM documents WHERE id = 'doc-1'").use { c ->
+            assertTrue("the document survived", c.moveToFirst())
+            assertEquals("Rechnung", c.getString(0))
+            assertTrue(c.isNull(1))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }
