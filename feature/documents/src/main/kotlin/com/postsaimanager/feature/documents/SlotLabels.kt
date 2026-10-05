@@ -25,6 +25,7 @@ object SlotLabels {
         UnderstandingToFields.SLOT_ADDRESSEE to R.string.slot_addressee,
         UnderstandingToFields.SLOT_CONTACT to R.string.slot_contact,
         UnderstandingToFields.SLOT_SUBJECT to R.string.slot_subject,
+        UnderstandingToFields.SLOT_SUBJECT_PERSON to R.string.slot_subject_person,
         UnderstandingToFields.SLOT_UNLABELLED to R.string.slot_unlabelled,
         Slots.LETTER_DATE.json to R.string.slot_letter_date,
         Slots.TOTAL.json to R.string.slot_total,
@@ -184,6 +185,7 @@ object SlotLabels {
         UnderstandingToFields.SLOT_ADDRESSEE -> setOf(UnderstandingToFields.RECEIVER_NAME)
         UnderstandingToFields.SLOT_CONTACT -> setOf(UnderstandingToFields.CONTACT_PERSON)
         UnderstandingToFields.SLOT_SUBJECT -> setOf(UnderstandingToFields.SUBJECT)
+        UnderstandingToFields.SLOT_SUBJECT_PERSON -> setOf(UnderstandingToFields.SUBJECT_PERSON)
         UnderstandingToFields.SLOT_UNLABELLED -> setOf(UnderstandingToFields.SLOT_UNLABELLED)
         else -> ExtractionSchema.DEFAULT.allSlots.filter { it.json == key }.map { it.label }.toSet()
     }

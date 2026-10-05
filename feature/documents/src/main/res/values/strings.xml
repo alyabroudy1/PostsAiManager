@@ -18,13 +18,24 @@
     <string name="action_cancel">Cancel</string>
     <string name="share_sheet_unavailable">Unable to open the share sheet</string>
 
-    <!-- Summary card -->
-    <string name="card_from">From</string>
-    <string name="card_for">For</string>
-    <string name="card_type">Type</string>
-    <string name="card_amount">Amount</string>
-    <string name="card_due">Due</string>
-    <string name="card_worth_checking">Worth checking</string>
+    <!-- The essentials at the top of the Extracted tab -->
+    <string name="essentials_actions_title">What you need to do</string>
+    <string name="essentials_parties_title">Who it is from and for</string>
+    <string name="essentials_key_title">Key information</string>
+    <string name="essentials_from">From</string>
+    <string name="essentials_for">For</string>
+    <string name="essentials_about">About</string>
+    <string name="essentials_address">Address</string>
+    <string name="essentials_address_line">Address: %1$s</string>
+    <string name="essentials_check_hint">The marked lines below are worth a look.</string>
+    <string name="state_expanded">Expanded</string>
+    <string name="state_collapsed">Collapsed</string>
+    <string name="action_more_field">More actions for %1$s</string>
+    <string name="action_copy_field">Copy %1$s</string>
+    <string name="action_menu_confirm">Confirm</string>
+    <string name="action_menu_edit">Edit</string>
+    <string name="action_menu_ignore">Ignore</string>
+    <string name="copied_to_clipboard">Copied</string>
     <!-- The badge says where the summary came from -->
     <string name="card_ai_summary">AI summary</string>
     <string name="card_summary_from_fields">Summary from the fields</string>
@@ -92,7 +103,7 @@
     <string name="section_action">Action</string>
     <string name="section_payment">Total and payment</string>
     <string name="section_other_details">Other details</string>
-    <string name="section_other_details_count">Other details (%1$d)</string>
+    <string name="section_all_details">All details (%1$d)</string>
     <string name="other_details_show_all">Show all (%1$d more)</string>
     <string name="other_details_show_fewer">Show fewer</string>
     <string name="group_parties">People and organisations</string>
@@ -128,6 +139,7 @@
     <string name="slot_addressee">Receiver</string>
     <string name="slot_contact">Contact person</string>
     <string name="slot_subject">Subject</string>
+    <string name="slot_subject_person">Person concerned</string>
     <string name="slot_unlabelled">Detail</string>
     <!-- The parts of a structured address, per role (see SlotLabels.addressParts) -->
     <string name="addr_addressee_name">Receiver name</string>
