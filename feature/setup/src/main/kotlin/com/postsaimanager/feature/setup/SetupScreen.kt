@@ -3,7 +3,15 @@ package com.postsaimanager.feature.setup
 import android.text.format.Formatter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.semantics.Role
+import com.postsaimanager.core.designsystem.component.ChatModelFitBadge
+import com.postsaimanager.core.model.ChatModelOption
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,7 +42,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.SetupOffer
 import com.postsaimanager.core.model.SetupPartStatus
-import com.postsaimanager.core.model.SetupProgress
 
 /** First-run AI model setup. [onDone] runs once the user is finished (models installed) or chose "Skip for now". */
 @Composable
@@ -58,6 +65,9 @@ fun SetupScreen(
         onCancel = viewModel::cancel,
         onSkip = viewModel::skip,
         onContinueWithoutSearch = viewModel::continueWithoutSearch,
+        onSelectModel = viewModel::select,
+        onConfirmModel = viewModel::confirmSelection,
+        onDismissConfirmation = viewModel::dismissConfirmation,
         modifier = modifier,
     )
 }
@@ -72,8 +82,12 @@ internal fun SetupContent(
     onCancel: () -> Unit,
     onSkip: () -> Unit,
     onContinueWithoutSearch: () -> Unit,
+    onSelectModel: (String) -> Unit,
+    onConfirmModel: () -> Unit,
+    onDismissConfirmation: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    state.pendingConfirmOption?.let { ConfirmNotRecommended(it, onConfirmModel, onDismissConfirmation) }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -110,12 +124,12 @@ internal fun SetupContent(
         val offer = state.offer
         when (state.stage) {
             SetupStage.LOADING -> Unit
-            SetupStage.INTRO -> if (offer != null) Intro(offer, onDownload, onSkip)
+            SetupStage.INTRO -> if (offer != null) Intro(offer, state, onSelectModel, onDownload, onSkip)
             SetupStage.ASK_MOBILE_DATA -> if (offer != null) {
-                MobileDataQuestion(offer, onUseMobileData, onWaitForWifi, onDismissMobileDataQuestion)
+                MobileDataQuestion(state.totalDownloadBytes, onUseMobileData, onWaitForWifi, onDismissMobileDataQuestion)
             }
             SetupStage.DOWNLOADING -> if (offer != null) {
-                Downloading(offer, state.progress, onCancel)
+                Downloading(offer, state, onCancel)
             }
             SetupStage.FAILED -> if (offer != null) {
                 Failed(offer, state, onDownload, onContinueWithoutSearch, onSkip)
@@ -129,19 +143,16 @@ internal fun SetupContent(
 }
 
 @Composable
-private fun Intro(offer: SetupOffer, onDownload: () -> Unit, onSkip: () -> Unit) {
+private fun Intro(
+    offer: SetupOffer,
+    state: SetupUiState,
+    onSelectModel: (String) -> Unit,
+    onDownload: () -> Unit,
+    onSkip: () -> Unit,
+) {
     val context = LocalContext.current
     if (offer.canInstallChatModel) {
-        Text(
-            text = stringResource(
-                R.string.setup_download_info,
-                offer.chatModelName,
-                Formatter.formatShortFileSize(context, offer.chatModelBytes),
-                Formatter.formatShortFileSize(context, offer.searchModelBytes),
-            ),
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-        )
+        ModelChoice(offer, state, onSelectModel)
     } else {
         Text(
             text = stringResource(R.string.setup_unsupported),
@@ -176,9 +187,72 @@ private fun Intro(offer: SetupOffer, onDownload: () -> Unit, onSkip: () -> Unit)
     )
 }
 
+/** The chat models as a radio list: name, what it is good for, size and how it suits this phone; then the reader note and the total. */
+@Composable
+private fun ModelChoice(offer: SetupOffer, state: SetupUiState, onSelect: (String) -> Unit) {
+    val context = LocalContext.current
+    val recommendation = offer.recommendation
+    Text(
+        text = stringResource(R.string.setup_choose_model_title),
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.semantics { heading() },
+    )
+    Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        recommendation.options.forEach { option ->
+            val selected = option.id == state.selectedId
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(selected = selected, role = Role.RadioButton, onClick = { onSelect(option.id) })
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                RadioButton(selected = selected, onClick = null)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(option.descriptor.name, style = MaterialTheme.typography.titleSmall)
+                    option.descriptor.description?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    Text(
+                        stringResource(R.string.setup_model_size, Formatter.formatShortFileSize(context, option.descriptor.sizeBytes)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    ChatModelFitBadge(option.fit)
+                }
+            }
+        }
+    }
+    Text(
+        text = stringResource(R.string.setup_reader_note, recommendation.reader.name),
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
+    )
+    val total = Formatter.formatShortFileSize(context, state.totalDownloadBytes)
+    Text(
+        text = if (state.chatIsReader) {
+            stringResource(R.string.setup_download_total_two, total, recommendation.reader.name)
+        } else {
+            stringResource(R.string.setup_download_total_three, total)
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
+    )
+}
+
+@Composable
+private fun ConfirmNotRecommended(option: ChatModelOption, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.setup_confirm_title)) },
+        text = { Text(stringResource(R.string.setup_confirm_body, option.descriptor.name)) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.setup_confirm_use)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.setup_cancel)) } },
+    )
+}
+
 @Composable
 private fun MobileDataQuestion(
-    offer: SetupOffer,
+    totalBytes: Long,
     onUseMobileData: () -> Unit,
     onWaitForWifi: () -> Unit,
     onBack: () -> Unit,
@@ -192,7 +266,7 @@ private fun MobileDataQuestion(
     Text(
         text = stringResource(
             R.string.setup_mobile_data_body,
-            Formatter.formatShortFileSize(context, offer.chatModelBytes + offer.searchModelBytes),
+            Formatter.formatShortFileSize(context, totalBytes),
         ),
         style = MaterialTheme.typography.bodyMedium,
         textAlign = TextAlign.Center,
@@ -209,13 +283,13 @@ private fun MobileDataQuestion(
 }
 
 @Composable
-private fun Downloading(offer: SetupOffer, progress: SetupProgress, onCancel: () -> Unit) {
+private fun Downloading(offer: SetupOffer, state: SetupUiState, onCancel: () -> Unit) {
     Text(
         text = stringResource(R.string.setup_downloading_title),
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.semantics { heading() },
     )
-    PartRows(offer, progress)
+    PartRows(offer, state)
     Text(
         text = stringResource(R.string.setup_downloading_hint),
         style = MaterialTheme.typography.bodySmall,
@@ -246,7 +320,7 @@ private fun Failed(
         style = MaterialTheme.typography.bodyMedium,
         textAlign = TextAlign.Center,
     )
-    PartRows(offer, state.progress)
+    PartRows(offer, state)
     Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.setup_retry))
     }
@@ -268,12 +342,19 @@ private fun Failed(
 }
 
 @Composable
-private fun PartRows(offer: SetupOffer, progress: SetupProgress) {
+private fun PartRows(offer: SetupOffer, state: SetupUiState) {
+    val progress = state.progress
+    val reader = offer.recommendation.reader
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        PartRow(
-            label = stringResource(R.string.setup_part_chat, offer.chatModelName),
-            status = progress.chat,
-        )
+        if (state.chatIsReader) {
+            PartRow(label = stringResource(R.string.setup_part_chat, reader.name), status = progress.reader)
+        } else {
+            PartRow(label = stringResource(R.string.setup_part_reader, reader.name), status = progress.reader)
+            PartRow(
+                label = stringResource(R.string.setup_part_chat_only, state.selectedOption?.descriptor?.name.orEmpty()),
+                status = progress.chat,
+            )
+        }
         PartRow(
             label = stringResource(R.string.setup_part_search),
             status = progress.search,

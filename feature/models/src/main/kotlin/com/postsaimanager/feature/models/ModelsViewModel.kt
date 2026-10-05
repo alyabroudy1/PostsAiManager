@@ -10,7 +10,10 @@ import com.postsaimanager.core.ai.catalog.ModelCatalogState
 import com.postsaimanager.core.ai.catalog.download.ModelDownloadStatus
 import com.postsaimanager.core.ai.embed.install.EmbeddingModelManager
 import com.postsaimanager.core.ai.embed.install.InstallStatus
+import com.postsaimanager.core.domain.setup.DeviceCapabilities
+import com.postsaimanager.core.domain.setup.RecommendChatModelUseCase
 import com.postsaimanager.core.model.AiModelDescriptor
+import com.postsaimanager.core.model.ChatModelFit
 import com.postsaimanager.core.model.DeviceCapability
 import com.postsaimanager.core.model.ModelFit
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,6 +35,8 @@ sealed interface ModelsUiState {
         val installed: List<CatalogEntry>,
         val available: List<CatalogEntry>,
         val usingBundledCatalog: Boolean,
+        /** How each model suits this phone, by descriptor id; empty when it could not be worked out. */
+        val fits: Map<String, ChatModelFit> = emptyMap(),
     ) : ModelsUiState
 
     data class Error(val message: String) : ModelsUiState
@@ -48,6 +53,8 @@ class ModelsViewModel @Inject constructor(
     private val repository: ModelCatalogRepository,
     private val importer: ModelImporter,
     private val embeddingModel: EmbeddingModelManager,
+    private val deviceCapabilities: DeviceCapabilities,
+    private val recommendChatModel: RecommendChatModelUseCase,
 ) : ViewModel() {
 
     private val _message = MutableStateFlow<String?>(null)
@@ -61,6 +68,7 @@ class ModelsViewModel @Inject constructor(
                     installed = state.entries.filter { it.isInstalled },
                     available = state.entries.filterNot { it.isInstalled },
                     usingBundledCatalog = state.usingBundledCatalog,
+                    fits = chatFits(state),
                 )
             }
             .catch { emit(ModelsUiState.Error(it.message ?: "Could not load the model catalog")) }
@@ -69,6 +77,20 @@ class ModelsViewModel @Inject constructor(
                 started = SharingStarted.WhileSubscribed(5_000),
                 initialValue = ModelsUiState.Loading,
             )
+
+    /**
+     * How each catalog model suits this phone, from the same use case as first-run setup. The search model is not part of a model's
+     * download here (it is installed on its own card), so its bytes count as 0.
+     */
+    private suspend fun chatFits(state: ModelCatalogState): Map<String, ChatModelFit> =
+        runCatching {
+            recommendChatModel(
+                device = deviceCapabilities.current(),
+                catalog = state.entries.map { it.descriptor },
+                installedIds = state.entries.filter { it.isInstalled }.map { it.descriptor.id }.toSet(),
+                searchModelBytes = 0L,
+            ).options.associate { it.id to it.fit }
+        }.getOrDefault(emptyMap())
 
     /**
      * The embedding model, which is not part of the chat catalog.

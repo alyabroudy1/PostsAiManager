@@ -4,7 +4,16 @@
     <string name="setup_title">KI-Assistenten einrichten</string>
     <string name="setup_summary">Posts AI Manager scannt Ihre Briefe und Formulare, liest sie für Sie und beantwortet Ihre Fragen dazu.</string>
     <string name="setup_privacy">Alles bleibt auf Ihrem Handy. Ihre Dokumente werden nie hochgeladen.</string>
-    <string name="setup_download_info">Einmaliger Download: das KI-Modell %1$s (%2$s) und das Suchmodell (%3$s).</string>
+    <string name="setup_choose_model_title">Chat-Modell wählen</string>
+    <string name="setup_model_size">%1$s Download</string>
+    <string name="setup_reader_note">Briefe werden mit %1$s gelesen (immer enthalten)</string>
+    <string name="setup_download_total_three">Download ≈ %1$s: Lesemodell + Chat-Modell + Suchmodell</string>
+    <string name="setup_download_total_two">Download ≈ %1$s: %2$s + Suchmodell</string>
+    <string name="setup_confirm_title">Dieses Modell trotzdem verwenden?</string>
+    <string name="setup_confirm_body">%1$s kann auf diesem Handy langsam sein oder abstürzen.</string>
+    <string name="setup_confirm_use">Trotzdem verwenden</string>
+    <string name="setup_part_reader">Lesemodell (%1$s)</string>
+    <string name="setup_part_chat_only">Chat-Modell (%1$s)</string>
     <string name="setup_download_button">KI-Modell herunterladen</string>
     <string name="setup_notifications_note">Android fragt, ob Benachrichtigungen erlaubt sind, nur um den Download-Fortschritt anzuzeigen. Der Download funktioniert auch ohne.</string>
     <string name="setup_skip">Vorerst überspringen</string>

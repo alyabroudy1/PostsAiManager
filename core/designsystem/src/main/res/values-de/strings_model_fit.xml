@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Wie gut ein KI-Chatmodell zu diesem Handy passt (Ersteinrichtung und Modellübersicht). -->
+    <string name="model_fit_recommended">Für dieses Handy empfohlen</string>
+    <string name="model_fit_not_memory">Nicht empfohlen: benötigt ≥ %1$s GB Arbeitsspeicher</string>
+    <string name="model_fit_not_storage">Nicht empfohlen: benötigt %1$s freien Speicherplatz</string>
+    <string name="model_fit_not_32bit">Nicht empfohlen: der Prozessor dieses Handys wird nicht unterstützt</string>
+</resources>

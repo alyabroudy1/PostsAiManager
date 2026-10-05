@@ -32,6 +32,7 @@ android {
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:model"))
+    implementation(project(":core:domain"))
     implementation(project(":core:designsystem"))
 
     // Exception to the "features depend on :core:domain only" rule: model management IS

@@ -39,7 +39,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.ai.catalog.CatalogEntry
 import com.postsaimanager.core.ai.catalog.download.ModelDownloadStatus
 import com.postsaimanager.core.ai.embed.install.InstallStatus
+import com.postsaimanager.core.designsystem.component.ChatModelFitBadge
 import com.postsaimanager.core.designsystem.component.PamLoadingState
+import com.postsaimanager.core.model.ChatModelFit
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.model.DeviceCapability
 import com.postsaimanager.core.model.ModelFit
@@ -120,6 +122,7 @@ fun ModelsScreen(
                     items(state.installed, key = { it.descriptor.id }) { entry ->
                         InstalledCard(
                             entry = entry,
+                            chatFit = state.fits[entry.descriptor.id],
                             onSetActive = { viewModel.setActive(it) },
                             onSetExtraction = { viewModel.setExtractionModel(it) },
                             onUninstall = { viewModel.uninstall(it) },
@@ -130,7 +133,7 @@ fun ModelsScreen(
 
                 item { SectionHeader("Available") }
                 items(state.available, key = { it.descriptor.id }) { entry ->
-                    AvailableCard(entry = entry, viewModel = viewModel)
+                    AvailableCard(entry = entry, chatFit = state.fits[entry.descriptor.id], viewModel = viewModel)
                 }
             }
         }
@@ -201,6 +204,7 @@ private fun OfflineCatalogNotice() {
 @Composable
 private fun InstalledCard(
     entry: CatalogEntry,
+    chatFit: ChatModelFit?,
     onSetActive: (String) -> Unit,
     onSetExtraction: (String) -> Unit,
     onUninstall: (String) -> Unit,
@@ -231,6 +235,7 @@ private fun InstalledCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            chatFit?.let { ChatModelFitBadge(it) }
             if (entry.isFormModel && showFormFillingNote) {
                 // The form agent prefers this model over the chat model while it is installed (ModelProfiles.FORM_AGENT_MODELS).
                 Text(
@@ -271,7 +276,7 @@ private fun InstalledCard(
 }
 
 @Composable
-private fun AvailableCard(entry: CatalogEntry, viewModel: ModelsViewModel) {
+private fun AvailableCard(entry: CatalogEntry, chatFit: ChatModelFit?, viewModel: ModelsViewModel) {
     val status by viewModel.downloadStatus(entry.descriptor.id)
         .collectAsStateWithLifecycle(initialValue = ModelDownloadStatus.NotStarted)
 
@@ -293,6 +298,7 @@ private fun AvailableCard(entry: CatalogEntry, viewModel: ModelsViewModel) {
             entry.descriptor.description?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium)
             }
+            chatFit?.let { ChatModelFitBadge(it) }
 
             fitMessage?.let {
                 Text(
