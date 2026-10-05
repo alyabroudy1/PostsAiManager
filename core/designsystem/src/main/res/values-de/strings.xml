@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- „Antwort melden“ bei einer KI-Antwort: öffnet einen E-Mail-Entwurf, den die Nutzerin oder der Nutzer selbst sendet. -->
+    <string name="report_answer_action">Diese Antwort melden</string>
+    <string name="report_answer_title">Diese Antwort melden</string>
+    <string name="report_answer_message">Das öffnet einen Entwurf in Ihrer E-Mail-App. Es wird nichts gesendet, bevor Sie es selbst senden.</string>
+    <string name="report_answer_include">Antworttext beifügen (kann persönliche Daten enthalten)</string>
+    <string name="report_answer_write_email">E-Mail schreiben</string>
+    <string name="report_answer_cancel">Abbrechen</string>
+    <string name="report_answer_no_mail_app">Keine E-Mail-App gefunden.</string>
+    <string name="report_answer_mail_intro">Was war an dieser Antwort falsch? Bitte beschreiben Sie es hier:\n\n</string>
+    <string name="report_answer_mail_answer_heading">Die gemeldete Antwort:</string>
+</resources>

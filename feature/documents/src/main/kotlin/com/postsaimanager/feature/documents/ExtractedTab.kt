@@ -62,6 +62,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.postsaimanager.core.designsystem.component.ReportAnswerButton
+import com.postsaimanager.core.designsystem.component.ReportAnswerDialog
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.FamilyPresentation
@@ -435,6 +437,7 @@ private fun FamilyPickerDialog(mode: PickerMode, current: String?, onDismiss: ()
 @Composable
 internal fun SummaryCardView(card: SummaryCard, onEditSummary: () -> Unit) {
     val context = LocalContext.current
+    var reporting by rememberSaveable { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -465,9 +468,16 @@ internal fun SummaryCardView(card: SummaryCard, onEditSummary: () -> Unit) {
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f),
                     )
+                    // Only a model-written summary is an AI answer; a template or the user's own text is not.
+                    if (card.summarySource == SummarySource.MODEL || card.summarySource == null) {
+                        ReportAnswerButton(onClick = { reporting = true }, iconSize = 18)
+                    }
                     IconButton(onClick = onEditSummary) {
                         Icon(PamIcons.Edit, contentDescription = stringResource(R.string.summary_edit), modifier = Modifier.size(18.dp))
                     }
+                }
+                if (reporting) {
+                    ReportAnswerDialog(answerText = summary, onDismiss = { reporting = false })
                 }
                 Text(summary, style = MaterialTheme.typography.bodyMedium)
             }

@@ -91,6 +91,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.designsystem.component.MarkdownText
 import com.postsaimanager.core.designsystem.component.PagePreviewDialog
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
+import com.postsaimanager.core.designsystem.component.ReportAnswerButton
+import com.postsaimanager.core.designsystem.component.ReportAnswerDialog
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.FormMessageKind
 import kotlinx.coroutines.flow.collectLatest
@@ -548,6 +550,7 @@ private fun ChatBubble(
     isLatestAssistantReply: Boolean = false,
 ) {
     val isUser = message.isUser
+    var reporting by rememberSaveable { mutableStateOf(false) }
     Column(horizontalAlignment = if (isUser) Alignment.End else Alignment.Start) {
         // A persisted reply that thought before answering shows its trace collapsed to a
         // "Thought for N s" header, right above the bubble — expandable, never streaming.
@@ -696,6 +699,14 @@ private fun ChatBubble(
                         )
                     }
                 }
+                // Google Play's generative-AI policy: every AI answer can be reported (an e-mail draft the user sends).
+                ReportAnswerButton(onClick = { reporting = true }, modifier = Modifier.size(32.dp))
+            }
+            if (reporting) {
+                ReportAnswerDialog(
+                    answerText = CitationParser.stripMarkers(message.text),
+                    onDismiss = { reporting = false },
+                )
             }
         }
     }

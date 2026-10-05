@@ -30,4 +30,15 @@
     <string name="page_preview_open_document">Open document</string>
     <string name="page_preview_close">Close preview</string>
     <string name="page_preview_page_description">Page %1$d of %2$d of %3$s</string>
+
+    <!-- "Report this answer" on an AI answer: opens an e-mail draft the user sends themselves. -->
+    <string name="report_answer_action">Report this answer</string>
+    <string name="report_answer_title">Report this answer</string>
+    <string name="report_answer_message">This opens a draft in your e-mail app. Nothing is sent until you send it yourself.</string>
+    <string name="report_answer_include">Include the answer text (may contain personal data)</string>
+    <string name="report_answer_write_email">Write e-mail</string>
+    <string name="report_answer_cancel">Cancel</string>
+    <string name="report_answer_no_mail_app">No e-mail app found.</string>
+    <string name="report_answer_mail_intro">What was wrong with this answer? Please describe it here:\n\n</string>
+    <string name="report_answer_mail_answer_heading">The answer I am reporting:</string>
 </resources>

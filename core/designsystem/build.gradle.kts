@@ -53,6 +53,10 @@ dependencies {
     // Markdown rendering for assistant chat replies (bold, lists, headings, code fences).
     api(libs.compose.markdown)
 
+    // Robolectric hosts the Intent test (JUnit 4 runner on the JUnit 5 platform via the Vintage engine).
+    testImplementation(libs.robolectric)
+    testRuntimeOnly(libs.junit.vintage.engine)
+
     // Debug
     debugApi(libs.compose.ui.tooling)
 }
