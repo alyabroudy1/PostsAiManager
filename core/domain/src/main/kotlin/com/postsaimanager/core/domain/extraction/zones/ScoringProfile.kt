@@ -32,8 +32,22 @@ data class ScoringProfile(
      * model's scores sit within +-1 of zero. Off by default: the reading is then exactly what the recordings hold.
      */
     val prefixTree: Boolean = false,
+    /**
+     * The questions (by name, `slot:contract_no`, ...) whose honest answer is often none: a number the document may simply not have. Unless
+     * the document's family has the slot as its own, the model must lean Yes ([optionalThreshold]) for a value to be taken, so none is a
+     * real answer, such a question is never widened to every candidate of the letter, and the value is shown with the words printed before it.
+     */
+    val optionalUnlessOwn: Set<String> = emptySet(),
+    /** The abstain level of an [optionalUnlessOwn] question the family does not own: 0.0 is the model's own indifference between Yes and No. */
+    val optionalThreshold: Double = 0.0,
 ) {
     fun threshold(ask: String): Double = thresholds[ask] ?: defaultThreshold
+
+    /** Whether [ask] may be answered with none because the document does not have it: optional and not one of the family's own slots. */
+    fun isOptional(ask: String, own: Boolean): Boolean = !own && ask in optionalUnlessOwn
+
+    /** The threshold of a slot question: [optionalThreshold] when it [isOptional], else the question's own ([threshold]). */
+    fun slotThreshold(ask: String, own: Boolean): Double = thresholds[ask] ?: if (isOptional(ask, own)) optionalThreshold else defaultThreshold
 
     /** The type's confidence from its margin. */
     fun confidence(margin: Double): String = when {

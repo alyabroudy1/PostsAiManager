@@ -257,6 +257,8 @@ data class DocFamily(
     val sensitive: Boolean = false,
     val scored: Boolean = true,
     val hint: String = "",
+    /** The slots that belong to this family beyond the universal core (a bill's invoice number): a document of the family is expected to have them. */
+    val own: List<SlotKey> = emptyList(),
 ) {
     override fun toString() = id
 
@@ -284,7 +286,7 @@ data class DocFamily(
     companion object {
         /** A family with the universal core plus [specific] slots. */
         fun of(id: String, legacy: DocumentType, vararg specific: SlotKey) =
-            DocFamily(id, (Slots.CORE + specific).distinct(), legacy)
+            DocFamily(id, (Slots.CORE + specific).distinct(), legacy, own = specific.toList())
     }
 }
 
@@ -341,6 +343,10 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
         val best = topics.mapNotNull(::topic).distinct().take(MAX_TOPICS_WITH_SLOTS)
         return (family.slots + best.flatMap { it.slots }).distinct()
     }
+
+    /** The slots a document of [family] about [topics] is expected to have beyond the universal core: the family's own and those of the best two topics. */
+    fun ownSlots(family: DocFamily, topics: List<String>): Set<SlotKey> =
+        (family.own + topics.mapNotNull(::topic).distinct().take(MAX_TOPICS_WITH_SLOTS).flatMap { it.slots }).toSet()
 
     /** Whether a document of [familyId] about [topicIds] stays out of the all-documents chat. Unknown ids are not sensitive. */
     fun isSensitive(familyId: String?, topicIds: List<String>): Boolean =

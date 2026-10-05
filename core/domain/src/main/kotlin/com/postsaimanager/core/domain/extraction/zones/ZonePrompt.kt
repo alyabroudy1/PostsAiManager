@@ -116,12 +116,17 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
     private const val NAME_TOKENS = 40
 
     /** A statement of what a slot or a role is, for the scoring interpreter's question. */
-    fun scoringQuestion(candidate: String, context: ZonedLetter.Context?, what: String): String =
-        scoringHead(candidate, context) + scoringAsk(what)
+    fun scoringQuestion(candidate: String, context: ZonedLetter.Context?, what: String, label: String? = null): String =
+        scoringHead(candidate, context, label) + scoringAsk(what)
 
-    /** The value and its context: the part of a scoring question that every question about the same value shares. */
-    fun scoringHead(candidate: String, context: ZonedLetter.Context?): String = buildString {
+    /**
+     * The value and its context: the part of a scoring question that every question about the same value shares. A value asked as a
+     * number that may well be none (a contract number on an invoice) comes with the words printed just before it ([label], from the
+     * page's own text), so the reader sees what the letter itself calls it: `Is «RE-2026-0815», printed after «Rechnung Nr.» (...)`.
+     */
+    fun scoringHead(candidate: String, context: ZonedLetter.Context?, label: String? = null): String = buildString {
         append("Is «").append(candidate).append("»")
+        label?.takeIf { it.isNotBlank() }?.let { append(", printed after «").append(it).append("»") }
         val ctx = listOfNotNull(
             context?.line?.takeIf { it.isNotBlank() && ZonedLetter.squash(it) != ZonedLetter.squash(candidate) }?.let { "printed on the line: $it" },
             context?.above?.takeIf { it.isNotBlank() }?.let { "line above: $it" },
