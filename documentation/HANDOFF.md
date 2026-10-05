@@ -51,7 +51,8 @@ mode `160000`. (A symlink once replaced the submodule in a commit; it was repair
 3. Toolchain (from the Gradle files):
    - JDK 17 (all modules use `JavaVersion.VERSION_17`; CI uses JDK 17).
    - Gradle 8.9 (wrapper, downloads itself), AGP 8.7.3, Kotlin 2.1.0.
-   - Android SDK platform 35 (`compileSdk = 35`, `targetSdk = 35`, `minSdk = 26`).
+   - Android SDK platform 36 (`compileSdk = 36`, `targetSdk = 36`, `minSdk = 26`). AGP 8.7.3 officially supports up to 35;
+     `android.suppressUnsupportedCompileSdk=36` in `gradle.properties` silences its warning.
    - NDK `27.0.12077973` (`core/ai/local/build.gradle.kts`) and CMake `3.22.1`; install both in the SDK Manager.
    - Release ABI is arm64-v8a only; debug also builds x86_64.
 4. `local.properties` in `<repo>` (git-ignored): `sdk.dir=<path to your Android SDK>`. Android Studio writes it.
@@ -119,6 +120,22 @@ Data in the work folder:
 
 **Release v1.0.0** (details: `planning/RELEASE-CHECKLIST.md`). Version is 1.0.0 (versionCode 1), release is arm64-only,
 R8 on. Open items:
+- App bundle: DONE. `./gradlew :app:bundleRelease` builds `app/build/outputs/bundle/release/app-release.aab` (33.1 MB,
+  unsigned until the upload key exists). arm64-v8a only, native libs stored uncompressed (`useLegacyPackaging = false`),
+  every `.so` in it has 16 KB segment alignment (checked with `llvm-readelf`; `core/ai/local` now passes
+  `-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON` because NDK 27 does not by default), and language splits are off
+  (`bundle { language { enableSplit = false } }`) so the in-app locales keep working.
+- Target SDK: DONE, raised 35 -> 36. Google Play requires API 36 for new apps and updates from 2026-08-31
+  (https://support.google.com/googleplay/android-developer/answer/11926878). No manifest changes were needed (no locked
+  orientation, edge-to-edge already on, the foreground service type is declared, no `onBackPressed`). Not device-verified on Android 16.
+- First-run model setup: DONE in code, NOT device-verified. A fresh install (no chat model, setup not skipped) opens
+  `feature:setup`: what the app does, the privacy line, one "Download the AI model" action for Qwen3.5-0.8B Q4_K_M
+  (`BundledCatalog.firstRunModel`) plus the search model, a progress bar each, an ask before mobile data, cancel, retry
+  and an error state. "Skip for now" is stored (`UserPreferences.modelSetupSkipped`) and Home then shows an
+  "AI model not installed · Install" banner until a model exists. Wiring: ports `ModelSetupGateway` and `ConnectionMeter`
+  and `ObserveSetupNeedUseCase` in `core:domain`, the gateway adapter `CatalogModelSetupGateway` in `app` over the existing
+  download machinery, `StartupViewModel` picks the start route once per launch. Device pass still to do: fresh install,
+  Wi-Fi download, mobile-data question, cancel and retry, skip and banner, RTL (ar).
 - The upload signing key: create or copy it (section b6), then enrol in Play App Signing.
 - A release-like smoke was done on the device with a debug-signed build of the release variant (no crash found). It
   must be repeated with the final signed AAB before upload.

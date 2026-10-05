@@ -2,6 +2,18 @@
 
 Written 2026-10-02 from the code and config on branch feat/form-assist (read-only checks plus one `assembleRelease` run). Nothing here was verified on a device.
 
+## Update 2026-10-05 (code only, not device-verified)
+
+- **AAB: done.** `./gradlew :app:bundleRelease` builds `app/build/outputs/bundle/release/app-release.aab` (33.1 MB, unsigned
+  until the upload key is set). arm64-v8a only; native libs uncompressed (`useLegacyPackaging = false`); all 13 `.so` files in
+  the bundle are 16 KB aligned (`core/ai/local` passes `-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON`, NDK 27 needs it);
+  language splits off so the in-app en/de/ar locales work.
+- **Target SDK: raised 35 -> 36** (compileSdk too). Play requires API 36 for new apps and updates from 2026-08-31:
+  https://support.google.com/googleplay/android-developer/answer/11926878. No manifest change was needed. AGP 8.7.3 compiles
+  against 36 with `android.suppressUnsupportedCompileSdk=36`; plan an AGP upgrade later. Smoke the release build on an Android 16 device.
+- **First-run model setup: done (blocker "no model on a fresh install" in section a).** New `feature:setup` screen, skip banner on
+  Home, start-route logic. Strings in en/de/ar. Not device-verified.
+
 ## BLOCKERS (fix before a Play upload)
 
 1. **No release signing config.** `app/build.gradle.kts` has no `signingConfigs`; `assembleRelease` produces `app-release-unsigned.apk` only. Missing: an upload keystore (not created, never commit it), a `signingConfigs.release` reading path/passwords from `local.properties` or env, and Play App Signing enrolment. For an AAB use `:app:bundleRelease` (not run).
