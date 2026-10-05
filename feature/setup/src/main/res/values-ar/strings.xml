@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- إعداد نموذج الذكاء الاصطناعي عند أول تشغيل -->
+    <string name="setup_title">إعداد مساعد الذكاء الاصطناعي</string>
+    <string name="setup_summary">يقوم Posts AI Manager بمسح رسائلك ونماذجك ضوئيًا وقراءتها نيابةً عنك والإجابة عن أسئلتك حولها.</string>
+    <string name="setup_privacy">كل شيء يبقى على هاتفك. لا يتم رفع مستنداتك أبدًا.</string>
+    <string name="setup_download_info">تنزيل لمرة واحدة: نموذج الذكاء الاصطناعي %1$s (%2$s) ونموذج البحث (%3$s).</string>
+    <string name="setup_download_button">تنزيل نموذج الذكاء الاصطناعي</string>
+    <string name="setup_skip">تخطَّ الآن</string>
+    <string name="setup_skip_note">يمكنك مواصلة مسح المستندات ضوئيًا. القراءة والدردشة تحتاجان إلى نموذج الذكاء الاصطناعي، ويمكنك تثبيته لاحقًا.</string>
+    <string name="setup_unsupported">لا يستطيع هذا الهاتف تشغيل نموذج الذكاء الاصطناعي. ما زال بإمكانك مسح المستندات ضوئيًا.</string>
+    <string name="setup_mobile_data_title">استخدام بيانات الجوال؟</string>
+    <string name="setup_mobile_data_body">أنت لست متصلًا بشبكة Wi-Fi غير محدودة. حجم التنزيل نحو %1$s وقد يستهلك باقة بياناتك.</string>
+    <string name="setup_use_mobile_data">استخدام بيانات الجوال</string>
+    <string name="setup_wait_wifi">انتظار Wi-Fi</string>
+    <string name="setup_back">رجوع</string>
+    <string name="setup_downloading_title">جارٍ التنزيل</string>
+    <string name="setup_downloading_hint">يمكنك مغادرة التطبيق؛ يستمر التنزيل في الخلفية.</string>
+    <string name="setup_cancel">إلغاء</string>
+    <string name="setup_part_chat">نموذج الذكاء الاصطناعي (%1$s)</string>
+    <string name="setup_part_search">نموذج البحث</string>
+    <string name="setup_status_not_started">لم يبدأ</string>
+    <string name="setup_status_waiting">في انتظار اتصال…</string>
+    <string name="setup_status_progress">%1$s من %2$s</string>
+    <string name="setup_status_done">جاهز</string>
+    <string name="setup_status_failed">فشل</string>
+    <string name="setup_failed_title">لم يكتمل التنزيل</string>
+    <string name="setup_failed_body">تحقّق من اتصالك وحاول مرة أخرى. يتم الاحتفاظ بما تم تنزيله.</string>
+    <string name="setup_retry">حاول مرة أخرى</string>
+    <string name="setup_continue_without_search">المتابعة بدون البحث بالمعنى</string>
+    <string name="setup_search_failed_note">نموذج الذكاء الاصطناعي جاهز. لم يتم تنزيل البحث بالمعنى؛ البحث بالكلمات ما زال يعمل ويمكنك تثبيته لاحقًا من شاشة النماذج.</string>
+    <string name="setup_finished">كل شيء جاهز</string>
+</resources>

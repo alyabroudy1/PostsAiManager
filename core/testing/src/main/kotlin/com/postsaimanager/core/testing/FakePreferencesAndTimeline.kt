@@ -62,6 +62,9 @@ class FakeUserPreferencesRepository(
 
     override suspend fun setSearchModelHintDismissed(dismissed: Boolean) =
         update { it.copy(searchModelHintDismissed = dismissed) }
+
+    override suspend fun setModelSetupSkipped(skipped: Boolean) =
+        update { it.copy(modelSetupSkipped = skipped) }
 }
 
 /** In-memory [InferenceSettingsRepository], the same shape as the DataStore-backed one. */

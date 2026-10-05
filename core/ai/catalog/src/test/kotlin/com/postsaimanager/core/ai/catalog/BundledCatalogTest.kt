@@ -37,6 +37,15 @@ class BundledCatalogTest {
     }
 
     @Test
+    @DisplayName("the first-run model is the installable Qwen3.5 0.8B")
+    fun `first run model is the small default`() {
+        val model = BundledCatalog.firstRunModel
+        assertThat(model.name).isEqualTo("Qwen3.5 0.8B")
+        assertThat(model.quantization).isEqualTo("Q4_K_M")
+        assertThat(model.isInstallable).isTrue()
+    }
+
+    @Test
     @DisplayName("URLs name an immutable revision, never a branch")
     fun `urls are pinned`() {
         BundledCatalog.models.forEach { model ->

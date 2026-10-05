@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Hinweis nach „Vorerst überspringen“ in der Ersteinrichtung, bis ein KI-Modell installiert ist -->
+    <string name="home_model_banner_text">KI-Modell nicht installiert</string>
+    <string name="home_model_banner_action">Installieren</string>
+</resources>

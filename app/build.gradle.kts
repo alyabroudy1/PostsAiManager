@@ -86,6 +86,22 @@ android {
         compose = true
         buildConfig = true
     }
+
+    packaging {
+        jniLibs {
+            // Native libs (llama JNI, ONNX Runtime) stay uncompressed and page-aligned inside the
+            // bundle and are mapped straight from the APK: smaller installs, and the 16 KB page
+            // support Play requires. System.loadLibrary works with this (minSdk 26).
+            useLegacyPackaging = false
+        }
+    }
+
+    bundle {
+        // The app offers its own in-app locales (en, de, ar) and reads string resources at runtime
+        // for the chosen one; a language split would strip the non-device languages from the
+        // install, so the in-app picker would find nothing.
+        language { enableSplit = false }
+    }
 }
 
 dependencies {
@@ -110,6 +126,7 @@ dependencies {
     implementation(project(":feature:profiles"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:models"))
+    implementation(project(":feature:setup"))
 
     // Compose
     implementation(platform(libs.compose.bom))

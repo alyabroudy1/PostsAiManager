@@ -152,4 +152,10 @@ object BundledCatalog {
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
         ),
     )
+
+    /** The model first-run setup downloads: the smallest one, which reads documents best for its size and fits any phone we support. */
+    const val FIRST_RUN_MODEL_ID = "qwen3.5-0.8b-q4_k_m"
+
+    val firstRunModel: AiModelDescriptor
+        get() = models.first { it.id == FIRST_RUN_MODEL_ID }
 }

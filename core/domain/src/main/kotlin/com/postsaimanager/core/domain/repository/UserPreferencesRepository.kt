@@ -27,4 +27,7 @@ interface UserPreferencesRepository {
 
     /** See [UserPreferences.searchModelHintDismissed]. */
     suspend fun setSearchModelHintDismissed(dismissed: Boolean): PamResult<Unit>
+
+    /** See [UserPreferences.modelSetupSkipped]. */
+    suspend fun setModelSetupSkipped(skipped: Boolean): PamResult<Unit>
 }

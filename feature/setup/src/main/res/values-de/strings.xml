@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ersteinrichtung des KI-Modells -->
+    <string name="setup_title">KI-Assistenten einrichten</string>
+    <string name="setup_summary">Posts AI Manager scannt Ihre Briefe und Formulare, liest sie für Sie und beantwortet Ihre Fragen dazu.</string>
+    <string name="setup_privacy">Alles bleibt auf Ihrem Handy. Ihre Dokumente werden nie hochgeladen.</string>
+    <string name="setup_download_info">Einmaliger Download: das KI-Modell %1$s (%2$s) und das Suchmodell (%3$s).</string>
+    <string name="setup_download_button">KI-Modell herunterladen</string>
+    <string name="setup_skip">Vorerst überspringen</string>
+    <string name="setup_skip_note">Sie können weiterhin Dokumente scannen. Lesen und Chat brauchen das KI-Modell; Sie können es später installieren.</string>
+    <string name="setup_unsupported">Dieses Handy kann das KI-Modell nicht ausführen. Dokumente scannen können Sie trotzdem.</string>
+    <string name="setup_mobile_data_title">Mobile Daten verwenden?</string>
+    <string name="setup_mobile_data_body">Sie sind nicht mit einem WLAN ohne Datenlimit verbunden. Der Download ist etwa %1$s groß und kann Ihr Datenvolumen verbrauchen.</string>
+    <string name="setup_use_mobile_data">Mobile Daten verwenden</string>
+    <string name="setup_wait_wifi">Auf WLAN warten</string>
+    <string name="setup_back">Zurück</string>
+    <string name="setup_downloading_title">Wird heruntergeladen</string>
+    <string name="setup_downloading_hint">Sie können die App verlassen; der Download läuft im Hintergrund weiter.</string>
+    <string name="setup_cancel">Abbrechen</string>
+    <string name="setup_part_chat">KI-Modell (%1$s)</string>
+    <string name="setup_part_search">Suchmodell</string>
+    <string name="setup_status_not_started">Nicht gestartet</string>
+    <string name="setup_status_waiting">Wartet auf eine Verbindung…</string>
+    <string name="setup_status_progress">%1$s von %2$s</string>
+    <string name="setup_status_done">Bereit</string>
+    <string name="setup_status_failed">Fehlgeschlagen</string>
+    <string name="setup_failed_title">Der Download wurde nicht beendet</string>
+    <string name="setup_failed_body">Prüfen Sie Ihre Verbindung und versuchen Sie es erneut. Bereits Heruntergeladenes bleibt erhalten.</string>
+    <string name="setup_retry">Erneut versuchen</string>
+    <string name="setup_continue_without_search">Ohne Suche nach Bedeutung fortfahren</string>
+    <string name="setup_search_failed_note">Das KI-Modell ist bereit. Die Suche nach Bedeutung wurde nicht geladen; die Suche nach Wörtern funktioniert weiter, und Sie können das Modell später auf dem Modelle-Bildschirm installieren.</string>
+    <string name="setup_finished">Alles bereit</string>
+</resources>

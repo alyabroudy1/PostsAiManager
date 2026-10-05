@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- شريط يظهر بعد «تخطَّ الآن» في الإعداد الأول، إلى أن يتم تثبيت نموذج ذكاء اصطناعي -->
+    <string name="home_model_banner_text">نموذج الذكاء الاصطناعي غير مثبّت</string>
+    <string name="home_model_banner_action">تثبيت</string>
+</resources>

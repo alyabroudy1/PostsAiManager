@@ -39,6 +39,7 @@ private object PrefsKeys {
     val NOTIFICATION_PERMISSION_REQUESTED =booleanPreferencesKey("notification_permission_requested")
     val UPDATE_OLDER_LETTERS = booleanPreferencesKey("update_older_letters_automatically")
     val SEARCH_MODEL_HINT_DISMISSED = booleanPreferencesKey("search_model_hint_dismissed")
+    val MODEL_SETUP_SKIPPED = booleanPreferencesKey("model_setup_skipped")
 }
 
 @Singleton
@@ -66,6 +67,7 @@ class UserPreferencesRepositoryImpl @Inject constructor(
                         prefs[PrefsKeys.NOTIFICATION_PERMISSION_REQUESTED] ?: false,
                     updateOlderLettersAutomatically = prefs[PrefsKeys.UPDATE_OLDER_LETTERS] ?: true,
                     searchModelHintDismissed = prefs[PrefsKeys.SEARCH_MODEL_HINT_DISMISSED] ?: false,
+                    modelSetupSkipped = prefs[PrefsKeys.MODEL_SETUP_SKIPPED] ?: false,
                 )
             }
             .catch { emit(UserPreferences()) }
@@ -103,6 +105,9 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 
     override suspend fun setSearchModelHintDismissed(dismissed: Boolean): PamResult<Unit> =
         editPrefs { it[PrefsKeys.SEARCH_MODEL_HINT_DISMISSED] = dismissed }
+
+    override suspend fun setModelSetupSkipped(skipped: Boolean): PamResult<Unit> =
+        editPrefs { it[PrefsKeys.MODEL_SETUP_SKIPPED] = skipped }
 
     private suspend fun editPrefs(
         block: (MutablePreferences) -> Unit,

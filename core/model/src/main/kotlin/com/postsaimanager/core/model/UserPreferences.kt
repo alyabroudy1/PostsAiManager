@@ -40,6 +40,11 @@ data class UserPreferences(
      * installed. Never shown again after that, whether or not the model is installed later.
      */
     val searchModelHintDismissed: Boolean = false,
+    /**
+     * Whether the user chose "Skip for now" on the first-run AI model setup. While no chat model is installed the app then opens
+     * Home with an "AI model not installed" banner instead of the setup screen; it is cleared when setup finishes.
+     */
+    val modelSetupSkipped: Boolean = false,
 )
 
 /** The grace periods the app lock offers. 0 means "lock every time the app leaves the screen". */

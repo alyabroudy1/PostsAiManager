@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Banner shown after "Skip for now" in the first-run setup, until an AI model is installed -->
+    <string name="home_model_banner_text">AI model not installed</string>
+    <string name="home_model_banner_action">Install</string>
+</resources>

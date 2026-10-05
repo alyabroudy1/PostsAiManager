@@ -18,6 +18,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.postsaimanager.feature.setup.SetupScreen
 import kotlinx.coroutines.launch
 import com.postsaimanager.feature.documents.DocumentUndoViewModel
 import androidx.compose.ui.Modifier
@@ -42,8 +44,19 @@ import com.postsaimanager.feature.models.ModelsScreen
 import com.postsaimanager.feature.settings.SettingsScreen
 import androidx.navigation.NavGraph.Companion.findStartDestination
 
+/**
+ * The app's navigation. Opens on the first-run setup when no chat model is installed yet (and the user has not postponed it),
+ * otherwise on Home; nothing is drawn until that is known.
+ */
 @Composable
 fun PamApp(formFillingEnabled: Boolean) {
+    val startup: StartupViewModel = hiltViewModel()
+    val startRoute by startup.startRoute.collectAsStateWithLifecycle()
+    startRoute?.let { PamNavigation(startRoute = it, formFillingEnabled = formFillingEnabled) }
+}
+
+@Composable
+private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
     // App-level scope and host: the "moved to Recently deleted / Undo" snackbar has to
@@ -82,9 +95,21 @@ fun PamApp(formFillingEnabled: Boolean) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = TopLevelDestination.HOME.route,
+            startDestination = startRoute,
             modifier = Modifier.padding(innerPadding),
         ) {
+            // ── First-run AI model setup (no bottom bar: not a top-level destination) ──
+            composable(StartRoutes.SETUP) {
+                SetupScreen(
+                    onDone = {
+                        navController.navigate(TopLevelDestination.HOME.route) {
+                            popUpTo(StartRoutes.SETUP) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
             // ── Top-level destinations ──
             composable(TopLevelDestination.HOME.route) {
                 HomeScreen(
@@ -96,6 +121,9 @@ fun PamApp(formFillingEnabled: Boolean) {
                     },
                     onAskAcrossDocumentsClick = {
                         navController.navigate("chat")
+                    },
+                    onInstallModelClick = {
+                        navController.navigate(StartRoutes.SETUP)
                     },
                 )
             }
