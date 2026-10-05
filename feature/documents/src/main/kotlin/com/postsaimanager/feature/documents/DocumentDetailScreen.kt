@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -111,10 +114,13 @@ fun DocumentDetailScreen(
      * on whatever [viewModel] would show anyway (the Pages tab by default).
      */
     initialPage: Int? = null,
+    /** "AI not installed · Install" on the Pages card: opens the model setup. */
+    onInstallModel: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: DocumentDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val pagesContext by viewModel.pagesContext.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val processingState by viewModel.processingProgress.collectAsStateWithLifecycle()
     val summaryComing by viewModel.summaryComing.collectAsStateWithLifecycle()
@@ -249,6 +255,8 @@ fun DocumentDetailScreen(
                     state = state,
                     selectedTab = selectedTab,
                     initialPage = initialPage,
+                    pagesContext = pagesContext,
+                    onInstallModel = onInstallModel,
                     processingState = processingState,
                     summaryComing = summaryComing,
                     onTabSelected = viewModel::selectTab,
@@ -319,6 +327,8 @@ private fun DocumentDetailContent(
     state: DocumentDetailUiState.Success,
     selectedTab: DetailTab,
     initialPage: Int?,
+    pagesContext: PagesContext,
+    onInstallModel: () -> Unit,
     processingState: ProcessingState,
     /** The reading's second stage (summary, extras) is still being written: the summary card says so. */
     summaryComing: Boolean,
@@ -416,7 +426,17 @@ private fun DocumentDetailContent(
         }
 
         when (selectedTab) {
-            DetailTab.PAGES -> PagesTab(state.pages, onSharePdf, externalLaunch, initialPage)
+            DetailTab.PAGES -> PagesTab(
+                pages = state.pages,
+                title = screenTitle(state.document),
+                summary = remember(state.document, state.extractedData, pagesContext, summaryComing) {
+                    PagesSummaryPresenter.present(state.document, state.extractedData, pagesContext, summaryComing)
+                },
+                onInstallModel = onInstallModel,
+                onSharePdf = onSharePdf,
+                externalLaunch = externalLaunch,
+                initialPage = initialPage,
+            )
             DetailTab.EXTRACTED -> ExtractedTab(
                 document = state.document,
                 data = state.extractedData,
@@ -582,6 +602,9 @@ private fun ProcessingState.Running.toDisplayMessage(): String = when (stage) {
 @Composable
 private fun PagesTab(
     pages: List<DocumentPage>,
+    title: String,
+    summary: PagesSummary,
+    onInstallModel: () -> Unit,
     onSharePdf: () -> File?,
     externalLaunch: ExternalLaunch,
     initialPage: Int? = null,
@@ -599,8 +622,10 @@ private fun PagesTab(
     val pagerState = rememberPagerState(initialPage = startPage, pageCount = { pages.size })
     val context = LocalContext.current
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth().weight(1f)) { pageIndex ->
+    // The pages keep a fixed share of the screen; the card and the recognized text scroll below them.
+    val pagerHeight = (LocalConfiguration.current.screenHeightDp * 0.55f).dp.coerceAtLeast(360.dp)
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth().height(pagerHeight)) { pageIndex ->
             val page = pages[pageIndex]
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                 AsyncImage(
@@ -609,15 +634,6 @@ private fun PagesTab(
                     modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Fit,
                 )
-                if (!page.ocrText.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                    ) {
-                        Text(page.ocrText!!, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(12.dp), maxLines = 4, overflow = TextOverflow.Ellipsis)
-                    }
-                }
                 Spacer(modifier = Modifier.height(12.dp))
                 // Action buttons
                 Row(
@@ -666,6 +682,15 @@ private fun PagesTab(
                 Box(modifier = Modifier.padding(2.dp).size(if (selected) 10.dp else 6.dp).clip(CircleShape)
                     .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant))
             }
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            PagesSummaryCard(title = title, summary = summary, onInstall = onInstallModel)
+            RecognizedTextSection(
+                pages = pages.filter { !it.ocrText.isNullOrBlank() }.map { PageText(it.pageNumber, it.ocrText!!) },
+            )
         }
     }
 }

@@ -3,4 +3,19 @@
     <string name="fill_form_card_title">Dies ist ein Formular zum Ausfüllen.</string>
     <string name="fill_form_card_action">Formularhilfe (Beta)</string>
     <string name="action_fill_form">Formularhilfe (Beta)</string>
+    <!-- The Pages tab -->
+    <string name="pages_about_heading">Über dieses Dokument</string>
+    <string name="pages_from">Von: %1$s</string>
+    <string name="pages_to">An: %1$s</string>
+    <string name="pages_to_you">Sie</string>
+    <string name="pages_reading">Der Brief wird gelesen …</string>
+    <string name="pages_ai_missing">KI nicht installiert</string>
+    <string name="pages_ai_install">Installieren</string>
+    <string name="pages_failed">Dieser Brief konnte nicht gelesen werden. Der erkannte Text steht unten.</string>
+    <string name="pages_show_text">Erkannten Text anzeigen</string>
+    <string name="pages_hide_text">Erkannten Text ausblenden</string>
+    <string name="pages_text_page">Seite %1$d</string>
+    <string name="card_ai_summary">KI-Zusammenfassung</string>
+    <string name="card_summary_from_fields">Zusammenfassung aus den Feldern</string>
+    <string name="card_summary_yours">Ihre Zusammenfassung</string>
 </resources>

@@ -30,6 +30,18 @@
     <string name="card_summary_from_fields">Summary from the fields</string>
     <string name="card_summary_yours">Your summary</string>
     <string name="card_summary_coming">Summary coming…</string>
+    <!-- The Pages tab: the card under the page images, and the collapsed recognized text -->
+    <string name="pages_about_heading">About this document</string>
+    <string name="pages_from">From: %1$s</string>
+    <string name="pages_to">To: %1$s</string>
+    <string name="pages_to_you">You</string>
+    <string name="pages_reading">Reading the letter…</string>
+    <string name="pages_ai_missing">AI not installed</string>
+    <string name="pages_ai_install">Install</string>
+    <string name="pages_failed">This letter could not be read. The recognized text is below.</string>
+    <string name="pages_show_text">Show recognized text</string>
+    <string name="pages_hide_text">Hide recognized text</string>
+    <string name="pages_text_page">Page %1$d</string>
     <string name="summary_edit">Edit summary</string>
     <string name="summary_edit_title">Edit summary</string>
     <string name="summary_edit_label">Summary</string>

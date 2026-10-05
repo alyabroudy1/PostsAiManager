@@ -3,4 +3,19 @@
     <string name="fill_form_card_title">هذا نموذج يمكن تعبئته.</string>
     <string name="fill_form_card_action">تعبئة النماذج (تجريبي)</string>
     <string name="action_fill_form">تعبئة النماذج (تجريبي)</string>
+    <!-- The Pages tab -->
+    <string name="pages_about_heading">حول هذا المستند</string>
+    <string name="pages_from">من: %1$s</string>
+    <string name="pages_to">إلى: %1$s</string>
+    <string name="pages_to_you">أنت</string>
+    <string name="pages_reading">جارٍ قراءة الرسالة…</string>
+    <string name="pages_ai_missing">الذكاء الاصطناعي غير مثبت</string>
+    <string name="pages_ai_install">تثبيت</string>
+    <string name="pages_failed">تعذّرت قراءة هذه الرسالة. النص المُتعرَّف عليه أدناه.</string>
+    <string name="pages_show_text">إظهار النص المُتعرَّف عليه</string>
+    <string name="pages_hide_text">إخفاء النص المُتعرَّف عليه</string>
+    <string name="pages_text_page">الصفحة %1$d</string>
+    <string name="card_ai_summary">ملخص الذكاء الاصطناعي</string>
+    <string name="card_summary_from_fields">ملخص من الحقول</string>
+    <string name="card_summary_yours">ملخصك</string>
 </resources>

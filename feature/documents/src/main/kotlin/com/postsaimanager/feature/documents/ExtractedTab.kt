@@ -493,7 +493,7 @@ internal fun SummaryCardView(card: SummaryCard, onEditSummary: () -> Unit) {
     }
 }
 
-private fun summaryBadge(source: SummarySource?): Int = when (source) {
+internal fun summaryBadge(source: SummarySource?): Int = when (source) {
     SummarySource.TEMPLATE -> R.string.card_summary_from_fields
     SummarySource.USER -> R.string.card_summary_yours
     SummarySource.MODEL, null -> R.string.card_ai_summary
