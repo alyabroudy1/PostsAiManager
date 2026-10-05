@@ -1,0 +1,197 @@
+{
+ "key": "N4-zhd-firma-1p",
+ "interpreter": "single",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Mustermann Consulting GmbH",
+   "normalized": "Mustermann Consulting GmbH",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Frau Erika Mustermann",
+   "normalized": "Frau Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Leistung",
+   "normalized": "Leistung",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Büro-Partner Beispiel KG",
+   "normalized": "Büro-Partner Beispiel KG",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "BPB Verwaltungs GmbH",
+   "normalized": "BPB Verwaltungs GmbH",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "BIC COBADEFFXXX",
+   "normalized": "BIC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "Zeitraum",
+   "normalized": "Zeitraum",
+   "page": 1
+  },
+  {
+   "id": "M9",
+   "kind": "NAME",
+   "raw": "Herr T. Muster",
+   "normalized": "Herr T. Muster",
+   "page": 1
+  },
+  {
+   "id": "M10",
+   "kind": "NAME",
+   "raw": "Netto p. a.",
+   "normalized": "Netto p. a.",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "01.01.2027",
+   "normalized": "2027-01-01",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "31.12.2026",
+   "normalized": "2026-12-31",
+   "page": 1
+  },
+  {
+   "id": "D4",
+   "kind": "DATE",
+   "raw": "15.10.2026",
+   "normalized": "2026-10-15",
+   "page": 1
+  },
+  {
+   "id": "D5",
+   "kind": "DATE",
+   "raw": "31.12.2027",
+   "normalized": "2027-12-31",
+   "page": 1
+  },
+  {
+   "id": "D6",
+   "kind": "DATE",
+   "raw": "23.09.2026",
+   "normalized": "2026-09-23",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "01.01",
+   "normalized": "1.01 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "1.428,00 €",
+   "normalized": "1428.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "WN-2291",
+   "normalized": "WN-2291",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "EM\/2026 wV-2291",
+   "normalized": "EM\/2026 wV-2291",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "EM\/2026",
+   "normalized": "EM\/2026",
+   "page": 1
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "wV-2291",
+   "normalized": "wV-2291",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 888 0",
+   "normalized": "01234 888 0",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "01234 888 44",
+   "normalized": "01234 888 44",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "vertrieb@buero-partner.example",
+   "normalized": "vertrieb@buero-partner.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "{\"type\":\"outgoing_letter\",\"tc\":\"HIGH\",\"lang\":\"de\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M1\",\"n\":\"Büro-Partner Beispiel KG\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M2\",\"n\":\"Mustermann Consulting GmbH\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M3\",\"n\":\"Leistung\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ROUTING\",\"id\":\"M4\",\"n\":\"Büro-Partner Beispiel KG\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"CARE_OF\",\"id\":\"M5\",\"n\":\"BPB Verwaltungs GmbH\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M6\",\"n\":\"BIC COBADEFFXXX\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M8\",\"n\":\"Zeitraum\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M9\",\"n\":\"Herr T. Muster\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M10\",\"n\":\"Netto p. a.\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D1\",\"n\":\"01.01.2027\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D2\",\"n\":\"31.12.2026\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D4\",\"n\":\"15.10.2026\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D5\",\"n\":\"31.12.2027\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D6\",\"n\":\"23.09.2026\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A1\",\"n\":\"01.01\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A2\",\"n\":\"1.428,00 €\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"I1\",\"n\":\"DE89 3704 0044 0532 0130 00\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N1\",\"n\":\"WN-2291\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"",
+ "call1Ms": 58828,
+ "call2Ms": 14656,
+ "layoutTextChars": 1509,
+ "call2": "{\"other\": \"outgoing_letter\", \"title\": \"Letter of Extension\", \"subject\": \"Mit freundlichen Grüßen\", \"summary\": \"The letter extends the Wartungsvertrag WN-2291 for Multifunktionsgeräte until 31.12.2026. The recipient must confirm the extension by 15.10.2026.\", \"qs\": [\"Who is the sender?\", \"What is the purpose of the letter?\", \"How long is the extension?\"]}",
+ "wallMs": 73648,
+ "model": "text.gguf"
+}

@@ -1,0 +1,22 @@
+{
+    "key": "S2-us-block-letter-1p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1275,
+            "height": 1650,
+            "ocrFailed": false,
+            "blocks": [
+                {"text": "Lakeview Dental Group\n482 Maple Avenue\nSpringfield, IL 62704", "bounds": {"left": 0.100, "top": 0.050, "right": 0.309, "bottom": 0.107}, "confidence": 0.91, "language": "und"},
+                {"text": "September 14, 2026", "bounds": {"left": 0.100, "top": 0.150, "right": 0.271, "bottom": 0.169}, "confidence": 0.93, "language": "und"},
+                {"text": "Ms. Karen Whitfield\n1180 Oak Hollow Drive\nChampaign, IL 61820", "bounds": {"left": 0.100, "top": 0.220, "right": 0.290, "bottom": 0.277}, "confidence": 0.90, "language": "und"},
+                {"text": "Re: Your appointment on October 6, 2026", "bounds": {"left": 0.100, "top": 0.320, "right": 0.4705, "bottom": 0.339}, "confidence": 0.92, "language": "und"},
+                {"text": "Dear Ms. Whitfield:", "bounds": {"left": 0.100, "top": 0.375, "right": 0.2805, "bottom": 0.394}, "confidence": 0.94, "language": "und"},
+                {"text": "This is a reminder of your dental cleaning appointment on\nOctober 6, 2026 at 9:30 AM. Please arrive ten minutes early.\nIf you cannot keep the appointment, call us at (217) 555-0142\nat least 24 hours ahead. A cancellation fee of $45.00 may apply.", "bounds": {"left": 0.100, "top": 0.415, "right": 0.689, "bottom": 0.491}, "confidence": 0.88, "language": "und"},
+                {"text": "Sincerely,", "bounds": {"left": 0.100, "top": 0.520, "right": 0.195, "bottom": 0.539}, "confidence": 0.94, "language": "und"},
+                {"text": "Dr. Paul Jensen\nLakeview Dental Group", "bounds": {"left": 0.100, "top": 0.580, "right": 0.309, "bottom": 0.618}, "confidence": 0.90, "language": "und"},
+                {"text": "Lakeview Dental Group | 482 Maple Avenue, Springfield, IL 62704 | (217) 555-0142", "bounds": {"left": 0.100, "top": 0.930, "right": 0.669, "bottom": 0.941}, "confidence": 0.85, "language": "und"}
+            ]
+        }
+    ]
+}

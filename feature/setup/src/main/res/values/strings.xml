@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- First-run AI model setup -->
+    <string name="setup_title">Set up your AI assistant</string>
+    <string name="setup_summary">Posts AI Manager scans your letters and forms, reads them for you, and answers your questions about them.</string>
+    <string name="setup_privacy">Everything stays on your phone. Your documents are never uploaded.</string>
+    <string name="setup_choose_model_title">Choose the chat model</string>
+    <string name="setup_model_size">%1$s download</string>
+    <string name="setup_reader_note">Letters are read with %1$s (always included)</string>
+    <string name="setup_download_total_three">Download ≈ %1$s: reader + chat model + search model</string>
+    <string name="setup_download_total_two">Download ≈ %1$s: %2$s + search model</string>
+    <string name="setup_confirm_title">Use this model anyway?</string>
+    <string name="setup_confirm_body">%1$s may be slow or crash on this phone.</string>
+    <string name="setup_confirm_use">Use it anyway</string>
+    <string name="setup_part_reader">Reader model (%1$s)</string>
+    <string name="setup_part_chat_only">Chat model (%1$s)</string>
+    <string name="setup_download_button">Download the AI model</string>
+    <string name="setup_notifications_note">Android will ask to allow notifications, only to show the download progress. The download works without it.</string>
+    <string name="setup_skip">Skip for now</string>
+    <string name="setup_skip_note">You can still scan documents. Reading and chat need the AI model; you can install it later.</string>
+    <string name="setup_unsupported">This phone cannot run the AI model. You can still scan documents.</string>
+    <string name="setup_mobile_data_title">Use mobile data?</string>
+    <string name="setup_mobile_data_body">You are not on an unmetered Wi-Fi network. The download is about %1$s and may use your data plan.</string>
+    <string name="setup_use_mobile_data">Use mobile data</string>
+    <string name="setup_wait_wifi">Wait for Wi-Fi</string>
+    <string name="setup_back">Back</string>
+    <string name="setup_downloading_title">Downloading</string>
+    <string name="setup_downloading_hint">The download continues in the background. Follow it on Home and in the notification, and scan right away.</string>
+    <string name="setup_continue">Continue</string>
+    <string name="setup_cancel">Cancel</string>
+    <string name="setup_part_chat">AI model (%1$s)</string>
+    <string name="setup_part_search">Search model</string>
+    <string name="setup_status_not_started">Not started</string>
+    <string name="setup_status_waiting">Waiting for a connection…</string>
+    <string name="setup_status_progress">%1$s of %2$s</string>
+    <string name="setup_status_done">Ready</string>
+    <string name="setup_status_failed">Failed</string>
+    <string name="setup_failed_title">The download did not finish</string>
+    <string name="setup_failed_body">Check your connection and try again. What was already downloaded is kept.</string>
+    <string name="setup_retry">Try again</string>
+    <string name="setup_continue_without_search">Continue without search by meaning</string>
+    <string name="setup_search_failed_note">The AI model is ready. Search by meaning did not download; search by word still works, and you can install it later on the models screen.</string>
+    <string name="setup_finished">All set</string>
+</resources>

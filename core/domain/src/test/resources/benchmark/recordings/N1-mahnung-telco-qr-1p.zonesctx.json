@@ -1,0 +1,331 @@
+{
+ "key": "N1-mahnung-telco-qr-1p",
+ "interpreter": "zonesctx",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Position",
+   "normalized": "Position",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Nordlicht Mobilfunk GmbH",
+   "normalized": "Nordlicht Mobilfunk GmbH",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "BIC COBADEFFXXX",
+   "normalized": "BIC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Rechnung vom",
+   "normalized": "Rechnung vom",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Team Forderungen",
+   "normalized": "Team Forderungen",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "Fällig am",
+   "normalized": "Fällig am",
+   "page": 1
+  },
+  {
+   "id": "M9",
+   "kind": "NAME",
+   "raw": "Betrag €",
+   "normalized": "Betrag €",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "05.08.2026",
+   "normalized": "2026-08-05",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "19.08.2026",
+   "normalized": "2026-08-19",
+   "page": 1
+  },
+  {
+   "id": "D4",
+   "kind": "DATE",
+   "raw": "25.09.2026",
+   "normalized": "2026-09-25",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "64,98€",
+   "normalized": "64.98 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "59,98",
+   "normalized": "59.98 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "5,00",
+   "normalized": "5.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE02 1203 0000 0000 2020 51",
+   "normalized": "DE02120300000000202051",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "2026-08-771204",
+   "normalized": "2026-08-771204",
+   "page": 1
+  },
+  {
+   "id": "N5",
+   "kind": "REFERENCE",
+   "raw": "4402917",
+   "normalized": "4402917",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "FIB-Mahn 4402917 4402917",
+   "normalized": "FIB-Mahn 4402917 4402917",
+   "page": 1
+  },
+  {
+   "id": "N8",
+   "kind": "REFERENCE",
+   "raw": "DEO00000000",
+   "normalized": "DE000000000",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "0800 555 0100",
+   "normalized": "0800 555 0100",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "0800 555 0199",
+   "normalized": "0800 555 0199",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "service@nordlicht-mobil.example",
+   "normalized": "service@nordlicht-mobil.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "sender: NONE\naddressee: NONE\ncare_of: NONE\ncontact: NONE\nslot:letter_date: D4 LETTER_DATE HIGH\ntype: bill de HIGH\nsubject_person: NONE\nslot:total: A1 TOTAL_DUE HIGH\nslot:due_date: D1 OTHER LOW\nslot:iban: NONE\nslot:reference: NONE\nslot:customer_no: N5 HIGH\nslot:invoice_no: N1 HIGH\nextras: M2 \"Position p.1\" english_key \"position\" LOW",
+ "call1Ms": 44581,
+ "call2Ms": 12873,
+ "prefixTokens": 1110,
+ "prefixMs": 8051,
+ "template": "DIN5008_B",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nNordlicht Mobilfunk GmbH \/ NM Beispielweg 7 \/ 12345 Beispielstadt \/ Tel. 0800 555 0100 \/ service@nordlicht-mobil.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nNordlicht Mobilfunk GmbH Beispielweg 7 : 12345 Beispielstadt\nCONTEXT ONLY, the zone just below (address-field, not part of this question): Frau \/ Erika Mustermann\nCANDIDATES IN THESE ZONES\nM3: Nordlicht Mobilfunk GmbH [footer] p.1\nQUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1552,
+   "questionTokens": 209,
+   "answerTokens": 1
+  },
+  {
+   "name": "addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFrau \/ Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just above (return-address-line, not part of this question): Nordlicht Mobilfunk GmbH Beispielweg 7 : 12345 Beispielstadt\nCONTEXT ONLY, the zone just below (info-block, not part of this question): Ihr Zeichen: \/ Unser Zeichen:\nCANDIDATES IN THESE ZONES\nM1: Erika Mustermann [address-field] p.1\nQUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1942,
+   "questionTokens": 248,
+   "answerTokens": 1
+  },
+  {
+   "name": "care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFrau \/ Erika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just above (return-address-line, not part of this question): Nordlicht Mobilfunk GmbH Beispielweg 7 : 12345 Beispielstadt\nCONTEXT ONLY, the zone just below (info-block, not part of this question): Ihr Zeichen: \/ Unser Zeichen:\nCANDIDATES IN THESE ZONES\nM1: Erika Mustermann [address-field] p.1\nQUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1526,
+   "questionTokens": 209,
+   "answerTokens": 1
+  },
+  {
+   "name": "contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nCONTEXT ONLY, the zone just above (address-field, not part of this question): Musterstraße 12 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just below (body, not part of this question): Zahlungserinnerung \/1. Mahnung- Rechnung 2026-08-771204 \/ Sehr geehrte Frau Mustermann,\nCANDIDATES IN THESE ZONES\nM7: Team Forderungen p.1\nQUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1983,
+   "questionTokens": 261,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nCONTEXT ONLY, the zone just above (address-field, not part of this question): Musterstraße 12 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just below (body, not part of this question): Zahlungserinnerung \/1. Mahnung- Rechnung 2026-08-771204 \/ Sehr geehrte Frau Mustermann,\nCANDIDATES IN THESE ZONES\nD4: 25.09.2026 (near: \"Datum\") p.1\nQUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D4 LETTER_DATE HIGH",
+   "ms": 2899,
+   "questionTokens": 301,
+   "answerTokens": 5
+  },
+  {
+   "name": "type",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nQUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "bill de HIGH",
+   "ms": 2173,
+   "questionTokens": 240,
+   "answerTokens": 3
+  },
+  {
+   "name": "subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM2: Position p.1\nM3: Nordlicht Mobilfunk GmbH [footer] p.1\nM6: Rechnung vom p.1\nM8: Fällig am p.1\nM9: Betrag € p.1\nQUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1329,
+   "questionTokens": 164,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nA1: 64,98€ (near: \"offenen Betrag\" | \"Offener Gesamtbetrag\") p.1\nA2: 59,98 p.1\nA3: 5,00 p.1\nQUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A1 TOTAL_DUE HIGH",
+   "ms": 2199,
+   "questionTokens": 206,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nD1: 05.08.2026 (near: \"vom\") p.1\nD2: 19.08.2026 (near: \"fällig\" | \"vom\") p.1\nQUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 OTHER LOW",
+   "ms": 2113,
+   "questionTokens": 215,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:iban",
+   "question": "ZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\nNordlicht Mobilfunk GmbH \/ Beispielweg 7, 12345 Beispielstadt \/ Geschaftsführer: Nora Beispiel, Tim Muster \/ AG Beispielstadt HRB 000000 \/ Bankverbindung: Beispielbank \/ IBAN DE02 1203 0000 0000 2020 51 \/ BIC COBADEFFXXX \/ USt-IdNr. DEO00000000 \/ Tel. 0800 555 0100 \/ service@nordlicht-mobil.example \/ www.nordlicht-mobil. example \/ Seite 1 von 1\nCONTEXT ONLY, the zone just above (body, not part of this question): Nordlicht Mobilfunk GmbH \/ Forderungsmanagement\nCANDIDATES IN THESE ZONES\nI1: DE02 1203 0000 0000 2020 51 (near: \"IBAN\") p.1\nQUESTION: Which IBAN is the account the reader should pay to?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 2930,
+   "questionTokens": 319,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCONTEXT ONLY, the zone just above (address-field, not part of this question): Musterstraße 12 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just below (body, not part of this question): Zahlungserinnerung \/1. Mahnung- Rechnung 2026-08-771204 \/ Sehr geehrte Frau Mustermann,\nCANDIDATES IN THESE ZONES\nN1: 2026-08-771204 (near: \"Rechnung\" | \"RE\") p.1\nN5: 4402917 (near: \"Kd\" | \"FIB-Mahn\" | \"Zeichen: Kundennummer. Ansprechpartner\") p.1\nN7: FIB-Mahn 4402917 4402917 (near: \"Unser Zeichen\") p.1\nQUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 4334,
+   "questionTokens": 376,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCONTEXT ONLY, the zone just above (address-field, not part of this question): Musterstraße 12 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just below (body, not part of this question): Zahlungserinnerung \/1. Mahnung- Rechnung 2026-08-771204 \/ Sehr geehrte Frau Mustermann,\nCANDIDATES IN THESE ZONES\nN1: 2026-08-771204 (near: \"Rechnung\" | \"RE\") p.1\nN5: 4402917 (near: \"Kd\" | \"FIB-Mahn\" | \"Zeichen: Kundennummer. Ansprechpartner\") p.1\nN7: FIB-Mahn 4402917 4402917 (near: \"Unser Zeichen\") p.1\nQUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N5 HIGH",
+   "ms": 3928,
+   "questionTokens": 369,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:invoice_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Kundennummer. \/ Ansprechpartner:. \/ FIB-Mahn 4402917 \/ 4402917 \/ Telefon: \/ Team Forderungen \/ 0800 555 0199 \/ Datum: 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nCONTEXT ONLY, the zone just above (address-field, not part of this question): Musterstraße 12 \/ 54321 Beispieldorf\nCONTEXT ONLY, the zone just below (body, not part of this question): Zahlungserinnerung \/1. Mahnung- Rechnung 2026-08-771204 \/ Sehr geehrte Frau Mustermann,\nCANDIDATES IN THESE ZONES\nN1: 2026-08-771204 (near: \"Rechnung\" | \"RE\") p.1\nN5: 4402917 (near: \"Kd\" | \"FIB-Mahn\" | \"Zeichen: Kundennummer. Ansprechpartner\") p.1\nN6: 000000 (near: \"AG Beispielstadt HRB\") p.1\nN7: FIB-Mahn 4402917 4402917 (near: \"Unser Zeichen\") p.1\nQUESTION: Which number is the invoice number (the bill this letter is about)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 4007,
+   "questionTokens": 424,
+   "answerTokens": 3
+  },
+  {
+   "name": "extras",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM2: Position p.1\nM3: Nordlicht Mobilfunk GmbH [footer] p.1\nM6: Rechnung vom p.1\nM8: Fällig am p.1\nM9: Betrag € p.1\nN1: 2026-08-771204 (near: \"Rechnung\" | \"RE\") p.1\nN5: 4402917 (near: \"Kd\" | \"FIB-Mahn\" | \"Zeichen: Kundennummer. Ansprechpartner\") p.1\nQUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "M2 \"Position p.1\" english_key \"position\" LOW",
+   "ms": 3471,
+   "questionTokens": 283,
+   "answerTokens": 14
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this bill: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Zahlungserinnerung \/1. Mahnung- Rechnung 2026-08-771204 \/ Sehr geehrte Frau Mustermann\"",
+   "ms": 1793,
+   "questionTokens": 50,
+   "answerTokens": 37
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Zahlungserinnerung \/1. Mahnung- Rechnung 2026-08-771204 \/ Sehr geehrte Frau Mustermann,\"",
+   "ms": 1581,
+   "questionTokens": 31,
+   "answerTokens": 37
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Zahlungserinnerung \/1. Mahnung- Rechnung 2026-08-771204 \/ Sehr geehrte Frau Mustermann, [payment] zu unserer Rechnung 2026-08-771204 vom 05.08.2026 konnten wir bis heute keinen \/ Zahlungseingang feststellen. Die Rechnung war am 19.08.2026 fällig. Falls sich Ihre Zahlung mit [body] diesem Schreiben überschnitten hat, betrachten Sie es",
+   "ms": 5019,
+   "questionTokens": 51,
+   "answerTokens": 119
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Zahlungserinnerung \/1. Mahnung- Rechnung 2026-08-771204 \/ Sehr geehrte Frau Mustermann, [payment] zu unserer Rechnung 2026-08-771204 vom 05.08.2026 konnten wir bis heute keinen \/ Zahlungseingang feststellen. Die Rechnung war am 19.08.2026 fällig. Falls sich Ihre Zahlung mit [body] diesem Schreiben",
+   "ms": 4465,
+   "questionTokens": 61,
+   "answerTokens": 110
+  }
+ ],
+ "wallMs": 57802,
+ "model": "text.gguf"
+}

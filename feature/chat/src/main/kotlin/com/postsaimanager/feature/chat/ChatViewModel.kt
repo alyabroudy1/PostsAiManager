@@ -3,11 +3,55 @@ package com.postsaimanager.feature.chat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.ai.AiEngine
+import com.postsaimanager.core.domain.form.agent.FormChatLog
+import com.postsaimanager.core.domain.form.agent.FormFillAgent
+import com.postsaimanager.core.domain.form.agent.FormRoute
+import com.postsaimanager.core.domain.form.fill.FillProgress
+import com.postsaimanager.core.domain.form.fill.FormMessageCodec
+import com.postsaimanager.core.domain.repository.ConversationRepository
+import com.postsaimanager.core.domain.repository.FormFillRepository
+import com.postsaimanager.core.domain.usecase.ChatErrorAction
+import com.postsaimanager.core.domain.usecase.ChatTurn
+import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
+import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
+import com.postsaimanager.core.domain.usecase.ObserveInstalledModelsUseCase
+import com.postsaimanager.core.domain.usecase.ObserveSuggestedQuestionsUseCase
+import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
+import com.postsaimanager.core.domain.usecase.SelectActiveModelUseCase
+import com.postsaimanager.core.domain.usecase.SearchModelHint
+import com.postsaimanager.core.domain.usecase.SendChatMessageUseCase
+import com.postsaimanager.core.domain.usecase.UnblockGpuUseCase
+import com.postsaimanager.core.domain.usecase.UpdateInferenceSettingUseCase
+import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.model.ConfigSpec
+import com.postsaimanager.core.model.DocumentPreview
+import com.postsaimanager.core.model.FormChip
+import com.postsaimanager.core.model.FormFillingFlag
+import com.postsaimanager.core.model.FormField
+import com.postsaimanager.core.model.FormFill
+import com.postsaimanager.core.model.FormMessage
+import com.postsaimanager.core.model.TextBounds
+import com.postsaimanager.core.model.InferenceOverrides
+import com.postsaimanager.core.model.InstalledModelSummary
+import com.postsaimanager.core.model.MessageRole
+import com.postsaimanager.core.model.MessageSource
+import com.postsaimanager.core.model.ModelLoadState
+import com.postsaimanager.core.model.ThinkingEffort
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -15,70 +59,702 @@ import javax.inject.Inject
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    private val sendChatMessage: SendChatMessageUseCase,
+    private val conversationRepository: ConversationRepository,
+    private val documentRepository: DocumentRepository,
+    private val engine: AiEngine,
+    private val observeInstalledModels: ObserveInstalledModelsUseCase,
+    private val selectActiveModel: SelectActiveModelUseCase,
+    private val observeInferenceSettings: ObserveInferenceSettingsUseCase,
+    private val updateInferenceSetting: UpdateInferenceSettingUseCase,
+    private val resetInferenceSettings: ResetInferenceSettingsUseCase,
+    private val unblockGpu: UnblockGpuUseCase,
+    private val getDocumentPreview: GetDocumentPreviewUseCase,
+    private val observeSuggestedQuestions: ObserveSuggestedQuestionsUseCase,
+    private val formFill: FormFillAgent,
+    private val formFills: FormFillRepository,
+    private val searchModelHint: SearchModelHint,
+    private val formFillingFlag: FormFillingFlag = FormFillingFlag.ON,
 ) : ViewModel() {
 
-    private val documentId: String? = savedStateHandle["documentId"]
+    private val _preview = MutableStateFlow<CitationPreviewState?>(null)
 
-    private val _uiState = MutableStateFlow(ChatUiState())
-    val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+    /** The in-chat page preview opened from a citation chip, or null while it is closed. */
+    val preview: StateFlow<CitationPreviewState?> = _preview.asStateFlow()
 
-    fun sendMessage(text: String) {
-        _uiState.update { state ->
-            state.copy(
-                messages = state.messages + ChatMessage(text = text, isUser = true),
-                isProcessing = true,
-            )
-        }
+    private var previewJob: Job? = null
 
-        viewModelScope.launch {
-            // TODO: Replace with actual AI engine call
-            // For now, provide intelligent placeholder responses
-            delay(1500) // Simulate processing
+    /** A citation chip was tapped: load that document's pages and show them at the cited one. */
+    fun openPreview(source: ChatSource) {
+        if (source.documentDeleted) return
+        showPreview(source) { getDocumentPreview(source.documentId, source.chunkId) }
+    }
 
-            val response = generatePlaceholderResponse(text)
+    /** A fill card row's page chip: the page of [field] with the box where its value goes marked. */
+    fun openFieldPreview(field: FormField) {
+        val document = documentId ?: return
+        val source = ChatSource(documentId = document, pageNumber = field.page, title = null)
+        val box = (field.fillBox ?: field.labelBox)?.let { TextBounds(it.left, it.top, it.right, it.bottom) }
+        showPreview(source) { getDocumentPreview.forField(document, field.page, box) }
+    }
 
-            _uiState.update { state ->
-                state.copy(
-                    messages = state.messages + ChatMessage(text = response, isUser = false),
-                    isProcessing = false,
+    private fun showPreview(source: ChatSource, load: suspend () -> DocumentPreview?) {
+        previewJob?.cancel()
+        _preview.value = CitationPreviewState(source = source, loading = true)
+        previewJob = viewModelScope.launch {
+            val loaded = load()
+            // Closed (or replaced) while loading: do not resurrect it.
+            if (_preview.value?.source != source) return@launch
+            _preview.value = if (loaded == null) {
+                CitationPreviewState(source = source, loading = false, unavailable = true)
+            } else {
+                CitationPreviewState(
+                    source = source,
+                    loading = false,
+                    preview = loaded,
+                    initialPageIndex = loaded.pages
+                        .indexOfFirst { it.pageNumber == source.pageNumber }
+                        .coerceAtLeast(0),
                 )
             }
         }
     }
 
-    private fun generatePlaceholderResponse(userMessage: String): String {
-        val lower = userMessage.lowercase()
-        return when {
-            "summarize" in lower || "zusammenfass" in lower ->
-                "I'll summarize this document once the AI model is configured. Go to Settings → AI Models to download a local model or configure a remote API."
+    fun closePreview() {
+        previewJob?.cancel()
+        _preview.value = null
+    }
 
-            "deadline" in lower || "frist" in lower ->
-                "To find deadlines, I need to analyze the document's extracted data. Make sure the document has been processed (OCR + extraction) first."
+    private val documentId: String? = savedStateHandle["documentId"]
 
-            "draft" in lower || "antwort" in lower || "response" in lower ->
-                "I can help draft a response once the AI engine is connected. The draft will consider the document's context, sender, and subject."
+    /**
+     * One conversation per document, so reopening a document resumes its history rather
+     * than starting over.
+     *
+     * A document-less chat (4.2, "Ask about your documents") gets exactly one standing
+     * conversation across the whole app, for the same reason: [ConversationRepository] has
+     * no concept of "which standalone session" beyond the id it is given, so a fresh random
+     * id every time this screen opened would silently orphan the previous conversation's
+     * history instead of resuming it. If per-session standalone conversations (a history
+     * list to pick from, say) are ever wanted, that needs an actual UI to choose one and is
+     * out of scope here.
+     */
+    private val conversationId: String = documentId?.let { "conv-$it" } ?: STANDALONE_CONVERSATION_ID
 
-            "sender" in lower || "absender" in lower || "who" in lower ->
-                "Sender information is extracted during document processing. Check the 'Extracted' tab on the document detail screen."
+    private val _uiState = MutableStateFlow(ChatUiState())
+    val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
-            else ->
-                "I'm Posts AI Manager's assistant. I can help you:\n\n" +
-                    "• Summarize documents\n" +
-                    "• Find deadlines and dates\n" +
-                    "• Draft response letters\n" +
-                    "• Identify senders and references\n\n" +
-                    "Connect an AI model in Settings to unlock full capabilities."
+    /**
+     * Everything the chat header chip and its model sheet render — which model is loaded,
+     * which are installed, and the schema-driven inference settings for the active one.
+     * Kept separate from [uiState] rather than folded in: it changes on a completely
+     * different rhythm (engine load transitions, not tokens streaming in) and the sheet is
+     * dismissed most of the time, so most collectors never touch it.
+     */
+    val modelSheetState: StateFlow<ModelSheetUiState> =
+        combine(
+            engine.state,
+            observeInstalledModels(),
+            observeInferenceSettings(),
+        ) { loadState, installed, inference ->
+            ModelSheetUiState(
+                loadState = loadState,
+                installedModels = installed.models,
+                activeModelId = installed.activeModelId,
+                schema = inference.schema,
+                overrides = inference.overrides,
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ModelSheetUiState(),
+        )
+
+    private var generationJob: Job? = null
+
+    /**
+     * Starter questions for the empty-conversation state (5.2) — the three the model wrote for the
+     * document while it read it, see [ObserveSuggestedQuestionsUseCase]. A document chat picks them
+     * up the moment extraction stores them; the all-documents chat shows those of the most recent
+     * actionable document, or nothing (there is no static fallback list).
+     */
+    val suggestedQuestions: StateFlow<List<String>> =
+        (if (documentId != null) observeSuggestedQuestions.forDocument(documentId) else observeSuggestedQuestions.forAllDocuments())
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList(),
+            )
+
+    private val searchModelHintRefresh = MutableStateFlow(0)
+
+    /**
+     * Whether the one-time "answers can show their sources once the search model is installed" hint is shown: the search model is not
+     * installed and the user has not dismissed it. Read again by [refreshSearchModelHint] (the screen returns from the models screen).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val searchModelHintVisible: StateFlow<Boolean> = searchModelHintRefresh
+        .flatMapLatest { searchModelHint.observe() }
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = false)
+
+    /** Looks again at whether the search model is installed, e.g. when the screen is resumed. */
+    fun refreshSearchModelHint() {
+        searchModelHintRefresh.update { it + 1 }
+    }
+
+    /** The hint was dismissed, or followed to the models screen: not shown again. */
+    fun dismissSearchModelHint() {
+        viewModelScope.launch { searchModelHint.dismiss() }
+    }
+
+    /**
+     * The fill card's data: the document's fill and its fields, live, so the card re-renders on every answer. Null until a
+     * fill was started (and always for the all-documents chat).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val fillCard: StateFlow<FillCardState?> = (
+        documentId?.let { id ->
+            formFills.observeFill(FormChatLog.fillId(id)).flatMapLatest { fill ->
+                if (fill == null) flowOf(null) else formFills.observeFields(fill.id).map { FillCardState(fill, it) }
+            }
+        } ?: flowOf(null)
+        ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    init {
+        restoreHistory()
+        observeEngine()
+        preWarmModel()
+        openFormFill(startRequested = savedStateHandle.get<Boolean>(ARG_FILL) == true && savedStateHandle.get<Boolean>(STATE_FILL_STARTED) != true)
+        if (documentId != null) savedStateHandle[STATE_FILL_STARTED] = true
+    }
+
+    /**
+     * The form-fill side of opening a document chat: "Help me fill it" (the [ARG_FILL] argument) starts the fill; otherwise an
+     * understanding that was interrupted (the user left, the process died) is picked up again. Both run in the background with a
+     * progress line in the chat; leaving the chat cancels them.
+     */
+    private fun openFormFill(startRequested: Boolean) {
+        if (!formFillingFlag.enabled) return
+        val document = documentId ?: return
+        runFormWork(announce = startRequested) { if (startRequested) formFill.start(document) else formFill.resume(document) }
+    }
+
+    /**
+     * Runs conversation work in the background, showing the typing state (and the Stop button, which cancels it). Cancelled with
+     * the screen; a failure is shown as the chat's own error card, never swallowed.
+     */
+    private fun runFormWork(announce: Boolean = true, block: suspend () -> Unit) {
+        if (_uiState.value.isProcessing) return
+        _uiState.update {
+            it.copy(isProcessing = true, error = null, lastSentAt = if (announce) System.currentTimeMillis() else it.lastSentAt)
+        }
+        generationJob = viewModelScope.launch {
+            try {
+                block()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = ChatError(e.message ?: "Something went wrong.", ChatErrorAction.RETRY)) }
+            } finally {
+                _uiState.update { it.copy(isProcessing = false, statusText = null) }
+            }
         }
     }
+
+    /** A chip of the form conversation was tapped; [shownText] is its label as the user saw it. */
+    fun onFormChip(chip: FormChip, shownText: String) {
+        if (!formFillingFlag.enabled) return
+        val document = documentId ?: return
+        runFormWork { formFill.chip(document, chip, shownText) }
+    }
+
+    /**
+     * Requests the active model load *and* primes this conversation's session as soon as the
+     * chat screen opens, rather than waiting for the first message.
+     *
+     * [SendChatMessageUseCase.primeConversation] calls `engine.load` — the same path
+     * [sendMessage] uses — so a send that races this simply joins the same in-flight load
+     * ([ModelLoadCoordinator][com.postsaimanager.core.ai.local.ModelLoadCoordinator] is
+     * single-flight), then `engine.ensureChatSession`, guarded by the engine's own session
+     * lock: a send that starts while this is still priming blocks on that lock and then finds
+     * the session already primed (a no-op), rather than re-doing the work or racing it. See
+     * [SendChatMessageUseCase.primeConversation]'s doc for why this is safe to call
+     * concurrently with a real send.
+     *
+     * [isPrimingConversation] only covers the priming half — [modelSheetState] already
+     * observes [engine]'s [ModelLoadState][com.postsaimanager.core.model.ModelLoadState]
+     * independently for the model-load half, so the header chip moves through Loading -> Ready
+     * on its own. A no-op, not a crash or a log warning, when nothing is installed — see
+     * [com.postsaimanager.core.domain.usecase.PreloadActiveModelUseCase]'s early return,
+     * which `primeConversation` shares.
+     */
+    private fun preWarmModel() {
+        viewModelScope.launch { primeConversation() }
+    }
+
+    /** Shared by [preWarmModel] and [selectModel] — see their docs. */
+    private suspend fun primeConversation() {
+        // Sampled before our own load/prime starts, so a busy engine here can only be someone
+        // else's work (a document being read) — the header then explains the wait.
+        val busyWithOtherWork = engine.isBusy
+        _uiState.update {
+            it.copy(isPrimingConversation = true, primeWaitingForDocument = busyWithOtherWork)
+        }
+        try {
+            sendChatMessage.primeConversation(conversationId, documentId) {
+                _uiState.update { it.copy(primeWaitingForDocument = false) }
+            }
+        } finally {
+            _uiState.update { it.copy(isPrimingConversation = false, primeWaitingForDocument = false) }
+        }
+    }
+
+    /** Chat survives process death — messages are persisted, not held in the ViewModel. */
+    private fun restoreHistory() {
+        viewModelScope.launch {
+            conversationRepository.getMessages(conversationId).collect { messages ->
+                // The agent's own protocol (its stored tool calls and results) is not a message: only the calls that show
+                // something (a question, the card, a page chip, the closing message) are, and the user never sees raw tool JSON.
+                val chatMessages = FormMessageCodec.rendered(messages).map { message ->
+                    val sources = message.sources.map { toChatSource(it) }
+                    ChatMessage(
+                        id = message.id,
+                        text = message.content,
+                        form = FormMessageCodec.parse(message),
+                        isUser = message.role == MessageRole.USER,
+                        timestamp = message.createdAt,
+                        thinking = message.thinking,
+                        thinkingDurationMs = message.thinkingDurationMs,
+                        incomplete = message.incomplete,
+                        cutOff = message.cutOff,
+                        // 4.3: every source SendChatMessageUseCase persisted was *shown* to
+                        // the model — narrow that down to what the answer actually cites, or
+                        // keep them all when it cited none (see pickVisibleSources).
+                        sources = pickVisibleSources(message.content, sources),
+                    )
+                }
+                _uiState.update { it.copy(messages = chatMessages) }
+            }
+        }
+    }
+
+    /**
+     * Cache of document id -> (title, deleted), for [toChatSource]. Never invalidated for a
+     * *title*: a document's title barely ever changes after it is scanned, and a stale title
+     * on a citation chip is a cosmetic, not a correctness, problem — not worth a Flow
+     * subscription per source. A trashed/deleted verdict is re-checked every time instead
+     * (see [toChatSource]) since that one does matter — a chip must not keep looking live
+     * after the user deletes the document mid-conversation.
+     */
+    private val documentTitleCache = mutableMapOf<String, String?>()
+
+    /**
+     * [ChatSource.title] is only resolved for a document-less conversation ([documentId] is
+     * null here) — a document-scoped chat already has exactly one document in view, so
+     * `ChatScreen` never needs the title to render "Page N" (see [ChatSource]'s doc comment).
+     * [ChatSource.documentDeleted] is checked regardless of chat type: a document-scoped chat
+     * whose document was trashed since the message was sent still needs its own chips to stop
+     * being tappable.
+     */
+    private suspend fun toChatSource(source: MessageSource): ChatSource {
+        val document = (documentRepository.getDocumentById(source.documentId) as? PamResult.Success)?.data
+        val title = if (documentId == null) {
+            documentTitleCache.getOrPut(source.documentId) { document?.title }
+        } else {
+            null
+        }
+        return ChatSource(
+            documentId = source.documentId,
+            pageNumber = source.pageNumber,
+            title = title,
+            chunkId = source.chunkId,
+            documentDeleted = document == null || document.isTrashed,
+        )
+    }
+
+    private fun observeEngine() {
+        viewModelScope.launch {
+            engine.state.collect { engineState ->
+                _uiState.update { it.copy(engineReady = engineState is ModelLoadState.Ready) }
+            }
+        }
+    }
+
+    /** The text of the last message sent — what [retry] resends after a failure. */
+    private var lastSentText: String? = null
+
+    fun sendMessage(text: String) {
+        if (text.isBlank() || _uiState.value.isProcessing) return
+        lastSentText = text
+        val document = documentId
+        // Form filling switched off: the message is never read for a fill request (no detector, no model call).
+        if (document == null || !formFillingFlag.enabled) {
+            startChatTurn(text)
+            return
+        }
+        // In a document chat the form agent reads the message first: while it runs, every message is the user's next message to it
+        // (it decides what the message means); a request to fill the form starts it; anything else is the normal grounded chat.
+        runFormWork {
+            when (formFill.route(document, text)) {
+                FormRoute.HANDLED -> Unit
+                FormRoute.NOT_FOR_FORM -> chatTurn(text)
+            }
+        }
+    }
+
+    /** The normal chat turn, in the background of the view model (the all-documents chat). */
+    private fun startChatTurn(text: String) {
+        beginChatTurn()
+        generationJob = viewModelScope.launch { chatTurn(text) }
+    }
+
+    /** Streams the grounded reply to [text] until it completes, fails or is stopped. */
+    private suspend fun chatTurn(text: String) {
+        beginChatTurn()
+        sendChatMessage(
+            conversationId = conversationId,
+            documentId = documentId,
+            text = text,
+            // Default OFF — see InferenceOverrides.thinkingEffort's KDoc.
+            thinkingEffort = modelSheetState.value.overrides.thinkingEffort ?: ThinkingEffort.OFF,
+        ).collect(::applyTurn)
+    }
+
+    private fun beginChatTurn() {
+        // The streamed reply is held separately from persisted history: it is not yet a
+        // stored message, and merging the two would make history flicker as tokens arrive.
+        //
+        // `lastSentAt` is what makes the transcript ALWAYS jump to the bottom on send
+        // (defect 2), regardless of `followBottom` — see ChatScreen's `LaunchedEffect` keyed
+        // on it. Keyed on this send event rather than on `messages.size` so a message
+        // arriving from elsewhere (history restore, a retry) never fights the user's own
+        // scroll the way `followBottom`-gated auto-scroll otherwise correctly does.
+        _uiState.update {
+            it.copy(
+                isProcessing = true,
+                streamingText = "",
+                thinkingText = "",
+                thinkingDurationMs = null,
+                isThinkingActive = false,
+                error = null,
+                lastSentAt = System.currentTimeMillis(),
+            )
+        }
+    }
+
+    /**
+     * Regenerates the LATEST assistant reply (5.1) — offered by `ChatScreen` only on that
+     * one message, so this never has to figure out which reply is meant. Streams and
+     * persists a fresh answer to the same question exactly like [sendMessage]; see
+     * [SendChatMessageUseCase.regenerateLastReply] for how the standing session is kept in
+     * sync with the deleted reply.
+     */
+    fun regenerate() {
+        if (_uiState.value.isProcessing) return
+
+        _uiState.update {
+            it.copy(
+                isProcessing = true,
+                streamingText = "",
+                thinkingText = "",
+                thinkingDurationMs = null,
+                isThinkingActive = false,
+                error = null,
+                lastSentAt = System.currentTimeMillis(),
+            )
+        }
+
+        generationJob = viewModelScope.launch {
+            sendChatMessage.regenerateLastReply(
+                conversationId = conversationId,
+                documentId = documentId,
+                // Default OFF — see InferenceOverrides.thinkingEffort's KDoc.
+                thinkingEffort = modelSheetState.value.overrides.thinkingEffort ?: ThinkingEffort.OFF,
+            ).collect(::applyTurn)
+        }
+    }
+
+    /** Shared by [sendMessage] and [regenerate] — both stream the identical [ChatTurn] shape. */
+    private fun applyTurn(turn: ChatTurn) {
+        when (turn) {
+            is ChatTurn.PreparingModel ->
+                _uiState.update { it.copy(statusText = turn.reason ?: "Loading model…") }
+
+            is ChatTurn.PreparingConversation ->
+                _uiState.update { it.copy(statusText = "Preparing conversation…") }
+
+            is ChatTurn.ThinkingToken ->
+                _uiState.update {
+                    it.copy(
+                        statusText = null,
+                        isThinkingActive = true,
+                        thinkingText = it.thinkingText + turn.text,
+                    )
+                }
+
+            is ChatTurn.ThinkingComplete ->
+                // The answer is about to start — collapse the thinking card to its
+                // header, exactly as a finished, persisted message will render.
+                _uiState.update {
+                    it.copy(
+                        isThinkingActive = false,
+                        thinkingDurationMs = turn.durationMs,
+                    )
+                }
+
+            is ChatTurn.Token ->
+                _uiState.update {
+                    it.copy(
+                        statusText = null,
+                        streamingText = it.streamingText + turn.text,
+                    )
+                }
+
+            is ChatTurn.Complete ->
+                // History reloads from the repository, so clear the streaming
+                // buffer to avoid showing the reply twice.
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        streamingText = "",
+                        thinkingText = "",
+                        isThinkingActive = false,
+                        statusText = null,
+                    )
+                }
+
+            is ChatTurn.Failed ->
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        streamingText = "",
+                        isThinkingActive = false,
+                        statusText = null,
+                        error = ChatError(turn.message, turn.action),
+                    )
+                }
+        }
+    }
+
+    /** Stops generation. Whatever was produced is still persisted by the use case. */
+    fun stopGeneration() {
+        generationJob?.cancel()
+        generationJob = null
+        _uiState.update {
+            it.copy(
+                isProcessing = false,
+                streamingText = "",
+                thinkingText = "",
+                isThinkingActive = false,
+                statusText = null,
+            )
+        }
+    }
+
+    fun dismissError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
+    /** Re-sends the message that failed — the whole point of [ChatErrorAction.RETRY]. */
+    fun retry() {
+        lastSentText?.let { sendMessage(it) }
+    }
+
+    /**
+     * Retries a stopped/incomplete assistant reply (defect 3's "Retry" affordance) — finds
+     * the user turn that preceded [message] and re-sends exactly that text.
+     *
+     * Deliberately the simplest consistent behaviour: the incomplete message is **kept**,
+     * not deleted — a fresh assistant reply is appended below it, exactly like any other
+     * retry in this screen (see [retry]). Nothing here needs to reach into persistence to
+     * delete a message, and the stopped reply stays visible as a record of what happened,
+     * consistent with defect 3's "keep the partial answer visible" requirement.
+     */
+    fun retryMessage(message: ChatMessage) {
+        val messages = _uiState.value.messages
+        val index = messages.indexOfFirst { it.id == message.id }
+        if (index < 0) return
+        val precedingUserText = messages.subList(0, index)
+            .lastOrNull { it.isUser }
+            ?.text
+            ?: return
+        sendMessage(precedingUserText)
+    }
+
+    /**
+     * Switches the active chat model and loads + primes it immediately, so the header chip
+     * visibly moves Loading → Ready (and then shows "Preparing conversation…" briefly) on the
+     * new model rather than sitting still until the next message — same path as
+     * [preWarmModel], since a model switch invalidates whatever session the previous model had
+     * primed just as much as opening the screen fresh does.
+     */
+    fun selectModel(modelId: String) {
+        viewModelScope.launch {
+            selectActiveModel(modelId)
+            primeConversation()
+        }
+    }
+
+    /** [value] is whatever the [ConfigSpec]'s own control produced — see the use case doc. */
+    fun setInferenceSetting(key: String, value: Any) {
+        viewModelScope.launch { updateInferenceSetting(key, value) }
+    }
+
+    fun resetInference() {
+        viewModelScope.launch { resetInferenceSettings() }
+    }
+
+    /**
+     * "Try GPU again" — clears the persisted GPU crash block for the active model so the
+     * accelerator choice offers GPU again, without wiping any other app data. Re-selecting
+     * GPU afterwards is still a separate, explicit [setInferenceSetting] call; this only
+     * unblocks the option.
+     *
+     * Looks the active model's file path up from [modelSheetState] rather than taking a
+     * parameter — [InferenceSettingsRepository.gpuBlockedModels][
+     * com.postsaimanager.core.domain.repository.InferenceSettingsRepository.gpuBlockedModels]
+     * is keyed by `InstalledModelSummary.filePath`, not `.id`, and the sheet only has the
+     * latter to hand.
+     */
+    fun tryGpuAgain() {
+        val state = modelSheetState.value
+        val filePath = state.installedModels
+            .firstOrNull { it.id == state.activeModelId }
+            ?.filePath
+            ?: return
+        viewModelScope.launch { unblockGpu(filePath) }
+    }
+
+    override fun onCleared() {
+        generationJob?.cancel()
+        super.onCleared()
+    }
+
+    companion object {
+        /** The one standing conversation for a document-less chat — see [conversationId]. */
+        private const val STANDALONE_CONVERSATION_ID = "conv-standalone"
+
+        /** The navigation argument of "Help me fill it": open the document chat with the form fill started. */
+        const val ARG_FILL = "fill"
+
+        /** Set once the chat was opened, so a recreated view model does not start the fill again. */
+        private const val STATE_FILL_STARTED = "fillStarted"
+    }
 }
+
+/**
+ * The fill card's data: the fill and its fields as stored now.
+ * [openFieldId] is the field the conversation is asking about, if any.
+ */
+data class FillCardState(val fill: FormFill, val fields: List<FormField>) {
+    val progress: FillProgress get() = FillProgress.of(fields)
+    val openFieldId: String? get() = fill.awaiting?.fieldId
+}
+
+/** See [ChatViewModel.modelSheetState]. */
+data class ModelSheetUiState(
+    val loadState: ModelLoadState = ModelLoadState.Idle,
+    val installedModels: List<InstalledModelSummary> = emptyList(),
+    val activeModelId: String? = null,
+    val schema: List<ConfigSpec> = emptyList(),
+    val overrides: InferenceOverrides = InferenceOverrides.NONE,
+)
 
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
     val isProcessing: Boolean = false,
+    /** Partial reply while tokens stream in; empty when idle. */
+    val streamingText: String = "",
+    /** Partial reasoning trace while it streams; empty once the answer starts or is idle. */
+    val thinkingText: String = "",
+    /** True only while the thinking phase is actively streaming — drives auto-expand. */
+    val isThinkingActive: Boolean = false,
+    /** Set once the thinking phase ends, for the live "Thought for N s" header. */
+    val thinkingDurationMs: Long? = null,
+    /** Transient status such as "Loading model…". */
+    val statusText: String? = null,
+    val engineReady: Boolean = false,
+    /**
+     * True while [ChatViewModel.preWarmModel] is priming this conversation's session (model
+     * load + grounding/history prefill) in the background, before any message has been sent.
+     * Drives the "Preparing conversation…" header subtitle — see [ModelHeaderChip].
+     */
+    val isPrimingConversation: Boolean = false,
+    /** The pre-warm started while the engine was busy reading a document, and is still waiting. */
+    val primeWaitingForDocument: Boolean = false,
+    val error: ChatError? = null,
+    /**
+     * Set to `System.currentTimeMillis()` every time [ChatViewModel.sendMessage] runs —
+     * never derived from [messages] itself. See [ChatViewModel.sendMessage]'s doc: this is
+     * what makes the transcript always jump to the bottom on send (defect 2), independent
+     * of `followBottom`.
+     */
+    val lastSentAt: Long = 0L,
+) {
+    /**
+     * True while the chat is stuck behind a document being read: either the pre-warm found
+     * the engine busy, or a send is waiting with the use case's busy reason. Drives the
+     * header's "Waiting for a document to finish reading…".
+     */
+    val isWaitingForDocument: Boolean
+        get() = primeWaitingForDocument ||
+            (isProcessing && statusText == ChatTurn.PreparingModel.WAITING_FOR_DOCUMENT)
+}
+
+/** A failure the user can act on, rather than a swallowed exception (see defect 6.7.12). */
+data class ChatError(
+    val message: String,
+    val action: ChatErrorAction?,
 )
 
 data class ChatMessage(
+    val id: String = "",
     val text: String,
     val isUser: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
+    /** The model's reasoning trace for this reply, if any — display-only, see [com.postsaimanager.core.model.AiMessage]. */
+    val thinking: String? = null,
+    val thinkingDurationMs: Long? = null,
+    /** True for a reply the user stopped, or one that failed mid-stream. See [com.postsaimanager.core.model.AiMessage.incomplete]. */
+    val incomplete: Boolean = false,
+    /** With [incomplete]: the reply hit its token cap ("Answer was cut off") rather than being stopped. */
+    val cutOff: Boolean = false,
+    /** The passages this reply cites/was grounded on, for [ChatScreen]'s citation chips (4.3). */
+    val sources: List<ChatSource> = emptyList(),
+    /** The payload of a form-conversation message (a status line, a question with chips, the fill card); null for a chat message. */
+    val form: FormMessage? = null,
+)
+
+/**
+ * A citation chip's worth of a [com.postsaimanager.core.model.MessageSource] — resolved with
+ * whatever a UI needs and nothing it would have to look up itself.
+ *
+ * @param title the source document's title, resolved by [ChatViewModel.toChatSource] — only
+ *   for a document-less (standalone) conversation, where several documents can appear in one
+ *   answer and a chip needs to say which. Null in a document-scoped chat, where `ChatScreen`
+ *   renders "Page N" without it — see that screen's `SourceChip`.
+ */
+data class ChatSource(
+    val documentId: String,
+    val pageNumber: Int?,
+    val title: String?,
+    /**
+     * True when [documentId] no longer resolves to a live document — trashed or
+     * permanently deleted. `ChatScreen`'s chip renders disabled and un-tappable for one of
+     * these: there is nowhere left to navigate a tap to.
+     */
+    val documentDeleted: Boolean = false,
+    /** The retrieved passage behind this chip, so the preview can highlight it on its page. */
+    val chunkId: String? = null,
+)
+
+/** The page preview opened from a citation chip. */
+data class CitationPreviewState(
+    val source: ChatSource,
+    val loading: Boolean = false,
+    /** The document is gone (or has no pages) — nothing to preview. */
+    val unavailable: Boolean = false,
+    val preview: DocumentPreview? = null,
+    /** Index into [DocumentPreview.pages] of the cited page. */
+    val initialPageIndex: Int = 0,
 )

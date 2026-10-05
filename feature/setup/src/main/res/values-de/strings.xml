@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ersteinrichtung des KI-Modells -->
+    <string name="setup_title">KI-Assistenten einrichten</string>
+    <string name="setup_summary">Posts AI Manager scannt Ihre Briefe und Formulare, liest sie für Sie und beantwortet Ihre Fragen dazu.</string>
+    <string name="setup_privacy">Alles bleibt auf Ihrem Handy. Ihre Dokumente werden nie hochgeladen.</string>
+    <string name="setup_choose_model_title">Chat-Modell wählen</string>
+    <string name="setup_model_size">%1$s Download</string>
+    <string name="setup_reader_note">Briefe werden mit %1$s gelesen (immer enthalten)</string>
+    <string name="setup_download_total_three">Download ≈ %1$s: Lesemodell + Chat-Modell + Suchmodell</string>
+    <string name="setup_download_total_two">Download ≈ %1$s: %2$s + Suchmodell</string>
+    <string name="setup_confirm_title">Dieses Modell trotzdem verwenden?</string>
+    <string name="setup_confirm_body">%1$s kann auf diesem Handy langsam sein oder abstürzen.</string>
+    <string name="setup_confirm_use">Trotzdem verwenden</string>
+    <string name="setup_part_reader">Lesemodell (%1$s)</string>
+    <string name="setup_part_chat_only">Chat-Modell (%1$s)</string>
+    <string name="setup_download_button">KI-Modell herunterladen</string>
+    <string name="setup_notifications_note">Android fragt, ob Benachrichtigungen erlaubt sind, nur um den Download-Fortschritt anzuzeigen. Der Download funktioniert auch ohne.</string>
+    <string name="setup_skip">Vorerst überspringen</string>
+    <string name="setup_skip_note">Sie können weiterhin Dokumente scannen. Lesen und Chat brauchen das KI-Modell; Sie können es später installieren.</string>
+    <string name="setup_unsupported">Dieses Handy kann das KI-Modell nicht ausführen. Dokumente scannen können Sie trotzdem.</string>
+    <string name="setup_mobile_data_title">Mobile Daten verwenden?</string>
+    <string name="setup_mobile_data_body">Sie sind nicht mit einem WLAN ohne Datenlimit verbunden. Der Download ist etwa %1$s groß und kann Ihr Datenvolumen verbrauchen.</string>
+    <string name="setup_use_mobile_data">Mobile Daten verwenden</string>
+    <string name="setup_wait_wifi">Auf WLAN warten</string>
+    <string name="setup_back">Zurück</string>
+    <string name="setup_downloading_title">Wird heruntergeladen</string>
+    <string name="setup_downloading_hint">Der Download läuft im Hintergrund weiter. Verfolgen Sie ihn auf der Startseite und in der Benachrichtigung und scannen Sie gleich los.</string>
+    <string name="setup_continue">Weiter</string>
+    <string name="setup_cancel">Abbrechen</string>
+    <string name="setup_part_chat">KI-Modell (%1$s)</string>
+    <string name="setup_part_search">Suchmodell</string>
+    <string name="setup_status_not_started">Nicht gestartet</string>
+    <string name="setup_status_waiting">Wartet auf eine Verbindung…</string>
+    <string name="setup_status_progress">%1$s von %2$s</string>
+    <string name="setup_status_done">Bereit</string>
+    <string name="setup_status_failed">Fehlgeschlagen</string>
+    <string name="setup_failed_title">Der Download wurde nicht beendet</string>
+    <string name="setup_failed_body">Prüfen Sie Ihre Verbindung und versuchen Sie es erneut. Bereits Heruntergeladenes bleibt erhalten.</string>
+    <string name="setup_retry">Erneut versuchen</string>
+    <string name="setup_continue_without_search">Ohne Suche nach Bedeutung fortfahren</string>
+    <string name="setup_search_failed_note">Das KI-Modell ist bereit. Die Suche nach Bedeutung wurde nicht geladen; die Suche nach Wörtern funktioniert weiter, und Sie können das Modell später auf dem Modelle-Bildschirm installieren.</string>
+    <string name="setup_finished">Alles bereit</string>
+</resources>

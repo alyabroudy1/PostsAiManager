@@ -1,8 +1,10 @@
 plugins {
+    id("pam.test-conventions")
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -24,6 +26,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.kotlinx.serialization.json)
     api(project(":core:common"))
     api(project(":core:model"))
 
@@ -34,11 +37,4 @@ dependencies {
     // Coroutines
     implementation(libs.coroutines.core)
 
-    // Testing
-    testImplementation(libs.junit5.api)
-    testRuntimeOnly(libs.junit5.engine)
-    testImplementation(libs.truth)
-    testImplementation(libs.mockk)
-    testImplementation(libs.coroutines.test)
-    testImplementation(libs.turbine)
 }

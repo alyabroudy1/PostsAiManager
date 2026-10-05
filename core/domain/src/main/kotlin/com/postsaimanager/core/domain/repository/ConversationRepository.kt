@@ -15,5 +15,12 @@ interface ConversationRepository {
     suspend fun createConversation(conversation: AiConversation): PamResult<AiConversation>
     suspend fun addMessage(message: AiMessage): PamResult<AiMessage>
     suspend fun updateMessage(message: AiMessage): PamResult<Unit>
+
+    /**
+     * Deletes one message (and its sources, `ON DELETE CASCADE`) without touching the rest
+     * of the conversation — see [com.postsaimanager.core.domain.usecase
+     * .SendChatMessageUseCase.regenerateLastReply] (5.1), the one caller.
+     */
+    suspend fun deleteMessage(id: String): PamResult<Unit>
     suspend fun deleteConversation(id: String): PamResult<Unit>
 }

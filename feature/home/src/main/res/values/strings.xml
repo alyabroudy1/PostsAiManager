@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Banner shown after "Skip for now" in the first-run setup, until an AI model is installed -->
+    <string name="home_model_banner_text">AI model not installed</string>
+    <string name="home_model_banner_action">Install</string>
+    <!-- Banner while the AI models download in the background; tap opens the models screen -->
+    <string name="home_download_banner_progress">Setting up AI · %1$d of %2$d · %3$d%%</string>
+    <string name="home_download_banner_progress_unknown">Setting up AI · %1$d of %2$d</string>
+    <string name="home_download_banner_failed">An AI download failed. Tap to try again.</string>
+</resources>

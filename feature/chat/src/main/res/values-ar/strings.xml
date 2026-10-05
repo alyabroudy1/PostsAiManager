@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- مساعد تعبئة النماذج في المحادثة: أسطر المساعد (الأسئلة التي يصوغها النموذج ليست هنا) -->
+    <string name="form_understanding">أقرأ النموذج… (الخطوة %1$s من %2$s)</string>
+    <string name="form_understanding_done">انتهت قراءة النموذج.</string>
+    <string name="form_no_model">لم يتم تثبيت نموذج ذكاء اصطناعي بعد. ثبّت واحدًا لتعبئة النماذج.</string>
+    <string name="form_understanding_failed">لم أتمكن من قراءة هذا النموذج. اطلب مني مرة أخرى للمحاولة من جديد.</string>
+    <string name="form_search_model_missing">قراءة النماذج بشكل أسرع تحتاج إلى نموذج البحث.</string>
+    <string name="form_beta_notice">تعبئة النماذج (تجريبي). يرجى التحقق من كل قيمة قبل استخدامها.</string>
+    <string name="form_agent_paused">تم الإيقاف مؤقتًا. ما أُنجز حتى الآن محفوظ. هل أتابع من حيث توقفت؟</string>
+    <string name="form_agent_stuck">لم أتمكن من إنهاء هذه الخطوة بنفسي. تابع، أو أخبرني بما أفعله.</string>
+    <string name="form_field_left_to_user">تعذّر عليّ تعبئة «%1$s». تركته لك لتكتبه بنفسك.</string>
+    <string name="form_agent_failed">حدث خطأ أثناء تعبئة النموذج. اختر «متابعة» لأحاول مرة أخرى.</string>
+
+    <!-- الأزرار -->
+    <string name="form_agent_resume_offer">بدأت تعبئة هذا النموذج من قبل. هل تتابع من حيث توقفت أم تبدأ من جديد؟</string>
+    <string name="form_agent_done_offer">هذا النموذج معبأ بالفعل. هل تبدأ من جديد؟</string>
+    <string name="form_chip_start_over">البدء من جديد</string>
+    <string name="form_chip_continue">متابعة</string>
+    <string name="form_chip_download">تنزيل</string>
+    <string name="form_chip_description">الإجابة: %1$s</string>
+    <string name="form_page_chip">%1$s · ص.%2$d</string>
+    <string name="form_page_chip_description">عرض %1$s في الصفحة %2$d</string>
+
+    <!-- بطاقة التعبئة -->
+    <string name="form_card_title">تعبئة النموذج</string>
+    <string name="form_card_progress">%1$d من %2$d جاهزة</string>
+    <string name="form_card_need_you">%1$d تحتاج إليك</string>
+    <string name="form_card_signature">%1$d توقيع</string>
+    <string name="form_card_copy_all">نسخ الكل</string>
+    <string name="form_card_copy_field">نسخ %1$s</string>
+    <string name="form_card_show_on_page">إظهار %1$s في الصفحة %2$d</string>
+    <string name="form_card_page">ص.%1$d</string>
+    <string name="form_card_page_heading">الصفحة %1$d</string>
+    <string name="form_card_reveal">قيمة مخفية. اضغط للإظهار.</string>
+    <string name="form_card_hide">اضغط للإخفاء.</string>
+    <string name="form_card_needs_input">تحتاج إلى إدخالك</string>
+    <string name="form_card_sign_here">وقّع هنا</string>
+    <string name="form_card_by_hand">للتعبئة بخط اليد</string>
+    <string name="form_card_already_filled">معبأة مسبقًا</string>
+    <string name="form_card_to_confirm">للتأكيد</string>
+    <string name="form_card_earlier">بطاقة تعبئة سابقة. الأحدث أدناه.</string>
+    <string name="form_source_profile">الملف الشخصي</string>
+    <string name="form_source_fact">بيان محفوظ</string>
+    <string name="form_source_user">أنت</string>
+    <string name="form_source_today">اليوم</string>
+    <string name="form_source_option">خيار في النموذج</string>
+    <string name="form_value_yes">نعم</string>
+    <string name="form_value_no">لا</string>
+
+    <!-- التلميح لمرة واحدة فوق حقل الكتابة -->
+    <string name="search_model_hint">يمكن للإجابات أن تعرض مصادرها بعد تثبيت نموذج البحث</string>
+    <string name="search_model_hint_install">تثبيت</string>
+    <string name="search_model_hint_dismiss">إغلاق التلميح</string>
+</resources>

@@ -1,0 +1,209 @@
+# CI — task 7.15.3 (documentation/04-task-list.md).
+#
+# Runs the Konsist architecture guards (:architecture-test) and the JVM unit test
+# suite (670 tests as of 2026-09-18) on every push and every pull request, so the
+# guards enforce themselves instead of relying on someone remembering to run them.
+#
+# ---------------------------------------------------------------------------
+# Two jobs, on purpose
+# ---------------------------------------------------------------------------
+# guards-and-tests: JVM only. `./gradlew test` never schedules a
+# configureCMake*/buildCMake* task (unit tests don't package native libs), so
+# it needs neither the NDK nor the llama.cpp source and finishes in minutes.
+#
+# native-build: `./gradlew :app:assembleDebug`, which DOES schedule
+# `:core:ai:local:configureCMakeRelease[arm64-v8a]` / `buildCMakeRelease[...]`
+# and compiles llama.cpp from source. llama.cpp is a git submodule at
+# core/ai/local/src/main/cpp/llama.cpp (task 7.2.10), pinned to tag b10299, so
+# the checkout step must pull submodules or CMakeLists.txt fails fast with
+# "llama.cpp submodule is missing". It is a separate job so the slow native
+# compile never delays the guard/unit-test feedback.
+#
+# native-build-vulkan: the same native build, with `-Ppam.gpuBackend=vulkan`
+# (documentation/02-architecture.md §5.3). Also a separate job — it needs the
+# LunarG Vulkan SDK on top of everything native-build needs (for
+# SPIRV-Headers' CMake package and the Vulkan-Hpp C++ headers the NDK sysroot
+# does not ship), and its shader compile step adds a couple of minutes.
+# ---------------------------------------------------------------------------
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write
+
+# Cancel a stale run on the same ref when new commits land, so pushes don't queue.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guards-and-tests:
+    name: Architecture guards + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The project targets Java 17 (compileOptions/jvmTarget in
+      # build-logic/convention/build.gradle.kts and app/build.gradle.kts).
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Caches Gradle dependencies, wrapper distribution and build outputs keyed
+      # on the wrapper + lock files, so the job isn't dominated by downloads.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Konsist guards: feature -> domain only, the two online-provider isolation
+      # rules, and domain purity (no android.* in :core:domain). Plain JVM/JUnit5
+      # module, no Android SDK or native dependency — runs in seconds and gates
+      # everything else.
+      - name: Architecture guards (Konsist)
+        run: ./gradlew :architecture-test:test --console=plain
+
+      # Full JVM unit test suite across every module. Does not require a
+      # connected device or emulator, and does not touch externalNativeBuild
+      # (see the note at the top of this file).
+      # Debug variant only (same as the local gate): the Robolectric Compose tests need
+      # androidx.compose.ui:ui-test-manifest, which is a debugImplementation dependency,
+      # so the release unit-test variant cannot launch their ComponentActivity.
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --console=plain
+
+      # Turns a red build into readable annotations instead of a wall of log
+      # output. Uses the default GITHUB_TOKEN, no secret required. On PRs from
+      # forks the token is read-only and this step cannot create a check run —
+      # continue-on-error keeps that a soft failure, never masking the real
+      # test outcome from the steps above.
+      - name: Publish test results
+        if: always()
+        continue-on-error: true
+        uses: dorny/test-reporter@v1
+        with:
+          name: Unit test results
+          path: "**/build/test-results/**/*.xml"
+          reporter: java-junit
+          fail-on-error: false
+
+      # Fallback that works regardless of token permissions or fork origin: the
+      # raw XML/HTML reports are always downloadable from the run summary.
+      - name: Upload test result artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            **/build/test-results/**/*.xml
+            **/build/reports/tests/**
+          retention-days: 14
+          if-no-files-found: warn
+
+  native-build:
+    name: Native build (:app:assembleDebug)
+    runs-on: ubuntu-latest
+    steps:
+      # `submodules: true` pulls core/ai/local/src/main/cpp/llama.cpp at the
+      # gitlink commit. .gitmodules sets `shallow = true`, so this fetches only
+      # that commit rather than llama.cpp's full history.
+      - name: Checkout (with llama.cpp submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # The versions core/ai/local/build.gradle.kts pins (ndkVersion) and the
+      # spike was built with (documentation/06-llama-spike.md). The hosted image
+      # ships an Android SDK, but sdkmanager is NOT on PATH: call it from
+      # $ANDROID_HOME/cmdline-tools/latest/bin. Installing the exact versions here
+      # keeps CI from drifting when the image's defaults change.
+      - name: Install NDK 27.0.12077973 and CMake 3.22.1
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973" "cmake;3.22.1" "platforms;android-36" > /dev/null
+
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug --console=plain
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
+
+  native-build-vulkan:
+    name: Native build, Vulkan backend (:app:assembleDebug -Ppam.gpuBackend=vulkan)
+    # Pinned: the LunarG apt list below is the jammy (22.04) one; on ubuntu-latest (24.04) its packages have
+    # unmet dependencies (libyaml-cpp0.7).
+    runs-on: ubuntu-22.04
+    # The Vulkan backend is an experiment and is not shipped (CPU is the release backend). Its native build
+    # currently fails in buildCMakeRelease; it stays informational until it is fixed (see documentation/HANDOFF.md).
+    continue-on-error: true
+    steps:
+      - name: Checkout (with llama.cpp submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install NDK 27.0.12077973 and CMake 3.22.1
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973" "cmake;3.22.1" "platforms;android-36" > /dev/null
+
+      # GGML_VULKAN=ON needs two things the NDK sysroot does not ship:
+      # SPIRV-Headers' CMake CONFIG package (ggml-vulkan/CMakeLists.txt calls
+      # find_package(SPIRV-Headers CONFIG REQUIRED) directly, even for this
+      # Android-target configure — see the comment in
+      # core/ai/local/src/main/cpp/CMakeLists.txt) and the Vulkan-Hpp C++
+      # bindings (vulkan/vulkan.hpp; the sysroot only has the plain C header).
+      # The LunarG apt repo's `vulkan-sdk` meta-package installs both, plus a
+      # host glslc, under /usr — the NDK's own shader-tools glslc is used for
+      # the actual shader compile (see build.gradle.kts' findHostGlslc()), so
+      # this one only needs to be findable, not necessarily used.
+      - name: Install the Vulkan SDK (SPIRV-Headers, Vulkan-Hpp)
+        run: |
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list \
+            https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt-get update
+          sudo apt-get install -y vulkan-sdk
+
+      # -Ppam.hostPrefixPath=/usr: on this runner there is no Homebrew for
+      # CMakeLists.txt's default `brew --prefix` detection to find, so point
+      # it at the Vulkan SDK's actual install prefix directly.
+      - name: Assemble debug APK (Vulkan backend)
+        run: |
+          ./gradlew :app:assembleDebug \
+            -Ppam.gpuBackend=vulkan \
+            -Ppam.hostPrefixPath=/usr \
+            --console=plain
+
+      - name: Upload debug APK (Vulkan backend)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-vulkan.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error

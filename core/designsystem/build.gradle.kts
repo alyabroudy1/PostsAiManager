@@ -1,4 +1,5 @@
 plugins {
+    id("pam.test-conventions")
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -27,6 +28,11 @@ android {
 }
 
 dependencies {
+    // The generic ConfigSpec-driven controls (Settings' "On-device AI" section, the chat
+    // header's model sheet) render `com.postsaimanager.core.model.ConfigSpec` and friends
+    // directly, so every consumer of this module gets them for free.
+    api(project(":core:model"))
+
     // Compose
     api(platform(libs.compose.bom))
     api(libs.compose.ui)
@@ -43,6 +49,13 @@ dependencies {
 
     // Lottie
     api(libs.lottie.compose)
+
+    // Markdown rendering for assistant chat replies (bold, lists, headings, code fences).
+    api(libs.compose.markdown)
+
+    // Robolectric hosts the Intent test (JUnit 4 runner on the JUnit 5 platform via the Vintage engine).
+    testImplementation(libs.robolectric)
+    testRuntimeOnly(libs.junit.vintage.engine)
 
     // Debug
     debugApi(libs.compose.ui.tooling)

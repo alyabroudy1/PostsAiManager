@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- «الإبلاغ عن الإجابة» في إجابة الذكاء الاصطناعي: يفتح مسودة بريد إلكتروني يرسلها المستخدم بنفسه. -->
+    <string name="report_answer_action">الإبلاغ عن هذه الإجابة</string>
+    <string name="report_answer_title">الإبلاغ عن هذه الإجابة</string>
+    <string name="report_answer_message">يفتح هذا مسودة في تطبيق البريد الإلكتروني لديك. لا يُرسَل شيء قبل أن ترسله بنفسك.</string>
+    <string name="report_answer_include">تضمين نص الإجابة (قد يحتوي على بيانات شخصية)</string>
+    <string name="report_answer_write_email">كتابة رسالة بريد</string>
+    <string name="report_answer_cancel">إلغاء</string>
+    <string name="report_answer_no_mail_app">لم يتم العثور على تطبيق بريد إلكتروني.</string>
+    <string name="report_answer_mail_intro">ما الخطأ في هذه الإجابة؟ يرجى وصفه هنا:\n\n</string>
+    <string name="report_answer_mail_answer_heading">الإجابة المُبلَّغ عنها:</string>
+</resources>

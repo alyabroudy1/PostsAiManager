@@ -5,56 +5,84 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.util.UuidGenerator
-import com.postsaimanager.core.data.repository.DocumentProcessingPipeline
-import com.postsaimanager.core.data.repository.MatchType
-import com.postsaimanager.core.data.repository.ProcessingState
-import com.postsaimanager.core.data.repository.ProfileMatcher
-import com.postsaimanager.core.data.repository.ProfileSuggestion
-import com.postsaimanager.core.data.util.PdfGenerator
+import com.postsaimanager.core.domain.applock.ExternalFlowGuard
+import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
+import com.postsaimanager.core.domain.document.DocumentExporter
+import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
+import com.postsaimanager.core.domain.document.ReadAgainAsFamilyUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
-import com.postsaimanager.core.domain.repository.ProfileRepository
+import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
+import com.postsaimanager.core.model.DocumentPreview
+import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
-import com.postsaimanager.core.model.Profile
-import com.postsaimanager.core.model.ProfileRole
+import com.postsaimanager.core.model.ProcessingState
+import com.postsaimanager.core.model.ReviewState
+import com.postsaimanager.core.model.TextBounds
+import com.postsaimanager.core.model.ValueSource
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
+
+/** The page preview opened by "Show on page": loading, then the pages with the field's box marked. */
+data class FieldPreviewState(
+    val loading: Boolean = true,
+    val preview: DocumentPreview? = null,
+    /** Index into [DocumentPreview.pages] of the field's page. */
+    val initialPageIndex: Int = 0,
+)
 
 @HiltViewModel
 class DocumentDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     getDocumentDetailUseCase: GetDocumentDetailUseCase,
     private val documentRepository: DocumentRepository,
-    private val profileRepository: ProfileRepository,
-    private val processingPipeline: DocumentProcessingPipeline,
-    private val profileMatcher: ProfileMatcher,
-    private val pdfGenerator: PdfGenerator,
+    private val documentProcessor: DocumentProcessor,
+    private val readAgainAsFamily: ReadAgainAsFamilyUseCase,
+    private val getDocumentPreview: GetDocumentPreviewUseCase,
+    private val documentExporter: DocumentExporter,
+    private val externalFlowGuard: ExternalFlowGuard,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
+
+    private var externalFlow: ExternalFlowToken? = null
+
+    /**
+     * Called just before the share sheet or another app is launched from this screen, so coming back
+     * does not trigger the app lock. Pair with [onExternalLaunchFinished] when the launch fails.
+     */
+    fun onExternalLaunching(reason: String) {
+        externalFlowGuard.finish(externalFlow)
+        externalFlow = externalFlowGuard.expect(reason)
+    }
+
+    /** The launch failed or its result came back: the protection is no longer needed. */
+    fun onExternalLaunchFinished() {
+        externalFlowGuard.finish(externalFlow)
+        externalFlow = null
+    }
+
+    override fun onCleared() {
+        externalFlowGuard.finish(externalFlow)
+    }
 
     private val _selectedTab = MutableStateFlow(DetailTab.PAGES)
     val selectedTab: StateFlow<DetailTab> = _selectedTab.asStateFlow()
 
     private val _processingProgress = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     val processingProgress: StateFlow<ProcessingState> = _processingProgress.asStateFlow()
-
-    private val _profileSuggestions = MutableStateFlow<List<ProfileSuggestion>>(emptyList())
-    val profileSuggestions: StateFlow<List<ProfileSuggestion>> = _profileSuggestions.asStateFlow()
-
-    /** Holds the suggestion that triggered profile creation — shown in ProfileEditSheet */
-    private val _editingProfileSuggestion = MutableStateFlow<ProfileSuggestion?>(null)
-    val editingProfileSuggestion: StateFlow<ProfileSuggestion?> = _editingProfileSuggestion.asStateFlow()
 
     val uiState: StateFlow<DocumentDetailUiState> =
         getDocumentDetailUseCase(documentId)
@@ -65,32 +93,46 @@ class DocumentDetailViewModel @Inject constructor(
                 initialValue = DocumentDetailUiState.Loading,
             )
 
+    /**
+     * The reading's second stage (summary, extras, title) of this document is queued or running, so the summary card says
+     * "Summary coming…" instead of staying silent.
+     */
+    val summaryComing: StateFlow<Boolean> = documentProcessor.enrichingDocuments
+        .map { documentId in it }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Guards the auto-enqueue below so opening a `NEW` document does not re-enqueue on
+     * every recomposition — `enqueue` is idempotent via `ExistingWorkPolicy.KEEP` anyway,
+     * but there is no reason to keep hitting Room and WorkManager on every emission. */
+    private var autoEnqueued = false
+
     init {
         viewModelScope.launch {
-            processingPipeline.processingState.collect { state ->
-                _processingProgress.value = state
-                if (state is ProcessingState.Completed) runProfileMatching()
+            documentProcessor.processingState.collect { state ->
+                // The pipeline's processingState is one flow for "whichever document last
+                // started" (see DocumentProcessor's doc comment) — without this filter, a
+                // second document processing in the background would flash its progress on
+                // this screen too.
+                val documentIdOfState = when (state) {
+                    is ProcessingState.Running -> state.documentId
+                    is ProcessingState.Completed -> state.documentId
+                    is ProcessingState.Failed -> state.documentId
+                    ProcessingState.Idle -> null
+                }
+                if (documentIdOfState == documentId) _processingProgress.value = state
             }
         }
         viewModelScope.launch {
             uiState.collect { state ->
-                if (state is DocumentDetailUiState.Success && state.extractedData.isNotEmpty() && _profileSuggestions.value.isEmpty()) {
-                    runProfileMatching()
-                }
-            }
-        }
-    }
+                if (state !is DocumentDetailUiState.Success) return@collect
 
-    private suspend fun runProfileMatching() {
-        val state = uiState.value
-        if (state is DocumentDetailUiState.Success) {
-            val suggestions = profileMatcher.matchProfiles(documentId, state.extractedData)
-            _profileSuggestions.value = suggestions
-            // Auto-link exact matches
-            suggestions.filter { it.matchType == MatchType.EXACT_MATCH && !it.isAutoLinked }.forEach { suggestion ->
-                profileMatcher.linkExistingProfile(suggestion)
-                _profileSuggestions.value = _profileSuggestions.value.map {
-                    if (it === suggestion) it.copy(isAutoLinked = true) else it
+                // A document becomes searchable because it was captured, not because
+                // someone opened it (documentation/07-document-pipeline.md §7) — but a
+                // legacy or otherwise-untouched NEW document still needs a first push, and
+                // opening its detail screen is that push.
+                if (state.document.status == DocumentStatus.NEW && !autoEnqueued) {
+                    autoEnqueued = true
+                    documentProcessor.enqueue(documentId)
                 }
             }
         }
@@ -100,93 +142,134 @@ class DocumentDetailViewModel @Inject constructor(
     fun selectTab(tab: DetailTab) { _selectedTab.value = tab }
 
     // ── Processing ──
-    fun startProcessing() {
+    /**
+     * Enqueues background processing for this document. [force] restarts a document that is
+     * already `EXTRACTED`/`REVIEWED` (the detail screen's "Reprocess") or retries one that
+     * `FAILED`; without it, a document already queued or running just keeps going.
+     *
+     * Never runs the pipeline itself — `DocumentProcessor.processDocument` is called only
+     * by `DocumentProcessingWorker`, so processing survives this screen closing.
+     */
+    fun startProcessing(force: Boolean = false) {
+        viewModelScope.launch { documentProcessor.enqueue(documentId, force = force) }
+    }
+
+    // ── The family chip ──
+    /** "Change type": the person says what the document is. The sections re-present at once; nothing is re-read. */
+    fun changeFamily(familyId: String) {
+        viewModelScope.launch { documentRepository.setDocumentFamily(documentId, familyId) }
+    }
+
+    /** "Read again as …": a fresh read with the family forced; rows a person already reviewed are kept. */
+    fun readAgainAs(familyId: String) {
+        viewModelScope.launch { readAgainAsFamily(documentId, familyId) }
+    }
+
+    // ── Review ──
+    /**
+     * The fields a confirm-many just confirmed, exactly as they were before — non-null only while an undo is still
+     * offered. `DocumentDetailScreen` shows the Snackbar for this and clears it via [undoConfirmAll]/[dismissConfirmAllUndo]
+     * once the Snackbar resolves.
+     */
+    private val _pendingConfirmAllUndo = MutableStateFlow<List<ExtractedData>?>(null)
+    val pendingConfirmAllUndo: StateFlow<List<ExtractedData>?> = _pendingConfirmAllUndo.asStateFlow()
+
+    /** ✓ on a row: the person accepts the value as it is. */
+    fun confirmField(fieldId: String) = setReviewState(listOf(fieldId), ReviewState.CONFIRMED)
+
+    /** ✕ on a row: the person does not want this value. It moves to "Ignored" and a re-read never brings it back. */
+    fun ignoreField(fieldId: String) = setReviewState(listOf(fieldId), ReviewState.IGNORED)
+
+    /** "Restore" in the Ignored footer: back to unreviewed. */
+    fun restoreField(fieldId: String) = setReviewState(listOf(fieldId), ReviewState.UNREVIEWED)
+
+    /** Block-level Confirm (an address block): every row of the block. */
+    fun confirmFields(fieldIds: List<String>) = setReviewState(fieldIds, ReviewState.CONFIRMED)
+
+    /** Block-level Ignore (an address block): every row of the block. */
+    fun ignoreFields(fieldIds: List<String>) = setReviewState(fieldIds, ReviewState.IGNORED)
+
+    // EDITED is never set here: an edit carries a value and goes through updateField.
+    private fun setReviewState(fieldIds: List<String>, state: ReviewState) {
+        viewModelScope.launch { fieldIds.forEach { documentRepository.setFieldReviewState(it, state) } }
+    }
+
+    /**
+     * "Confirm n confident": confirms every open field the extraction was sure of and leaves the uncertain ones for the
+     * person (a field nobody has looked at is never confirmed on their behalf). Offers the undo.
+     */
+    fun confirmConfidentFields() = confirmMany(onlyConfident = true)
+
+    /** "Confirm all": once nothing uncertain is left, confirms every open field. Offers the undo. */
+    fun confirmAllFields() = confirmMany(onlyConfident = false)
+
+    private fun confirmMany(onlyConfident: Boolean) {
         viewModelScope.launch {
-            _profileSuggestions.value = emptyList()
-            processingPipeline.processDocument(documentId)
+            val result = documentRepository.confirmAllExtractedFields(documentId, onlyConfident = onlyConfident)
+            if (result is PamResult.Success && result.data.isNotEmpty()) {
+                _pendingConfirmAllUndo.value = result.data
+            }
         }
     }
 
-    // ── Field CRUD ──
-    fun confirmField(fieldId: String) { viewModelScope.launch { documentRepository.confirmExtractedField(fieldId) } }
+    /** Reverts the last confirm-many to exactly what it was before — the Snackbar's Undo. */
+    fun undoConfirmAll() {
+        val fields = _pendingConfirmAllUndo.value ?: return
+        _pendingConfirmAllUndo.value = null
+        viewModelScope.launch { documentRepository.restoreExtractedFields(fields) }
+    }
 
+    /** The Snackbar timed out or was dismissed without Undo — nothing left to revert. */
+    fun dismissConfirmAllUndo() { _pendingConfirmAllUndo.value = null }
+
+    // ── Field CRUD ──
+    /** A field the person adds by hand: their own value, so it is theirs from the start. */
     fun addField(name: String, value: String, type: ExtractedFieldType) {
         viewModelScope.launch {
             documentRepository.addExtractedField(ExtractedData(
                 id = UuidGenerator.generate(), documentId = documentId,
                 fieldName = name, fieldValue = value, fieldType = type,
-                confidence = 1.0f, isConfirmed = true,
+                confidence = 1.0f, isConfirmed = true, source = ValueSource.USER,
             ))
         }
     }
 
+    /** ✎ Edit: the person's value (and name, for a row they named themselves). The repository marks the row edited. */
     fun updateField(fieldId: String, name: String, value: String) {
         viewModelScope.launch { documentRepository.updateExtractedField(fieldId, name, value) }
     }
 
-    fun deleteField(fieldId: String) {
-        viewModelScope.launch { documentRepository.deleteExtractedField(fieldId) }
+    // ── Summary ──
+    /** The person's own summary: kept from now on, never replaced by a later reading. */
+    fun updateSummary(text: String) {
+        viewModelScope.launch { documentRepository.updateSummary(documentId, text) }
     }
 
-    // ── Profile linking ──
-    fun linkSuggestionToProfile(suggestion: ProfileSuggestion) {
-        viewModelScope.launch {
-            profileMatcher.linkExistingProfile(suggestion)
-            _profileSuggestions.value = _profileSuggestions.value.map {
-                if (it.role == suggestion.role && it.existingProfile?.id == suggestion.existingProfile?.id) {
-                    it.copy(isAutoLinked = true)
-                } else it
-            }
-        }
-    }
+    // ── "Show on page" ──
+    private val _fieldPreview = MutableStateFlow<FieldPreviewState?>(null)
 
-    /** Opens the ProfileEditSheet pre-filled with extracted data */
-    fun openProfileCreation(suggestion: ProfileSuggestion) {
-        _editingProfileSuggestion.value = suggestion
-    }
+    /** The page preview opened by "Show on page", or null while it is closed. */
+    val fieldPreview: StateFlow<FieldPreviewState?> = _fieldPreview.asStateFlow()
 
-    fun dismissProfileCreation() {
-        _editingProfileSuggestion.value = null
-    }
+    private var previewJob: Job? = null
 
-    /** Called when user confirms profile creation from the edit sheet */
-    fun saveProfileFromForm(formData: ProfileFormData, suggestion: ProfileSuggestion) {
-        viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            val profile = Profile(
-                id = UuidGenerator.generate(),
-                type = formData.type,
-                name = formData.name.ifBlank { formData.organization },
-                organization = formData.organization.ifBlank { null },
-                department = formData.department.ifBlank { null },
-                street = formData.street.ifBlank { null },
-                city = formData.city.ifBlank { null },
-                postalCode = formData.postalCode.ifBlank { null },
-                country = formData.country.ifBlank { null },
-                phone = formData.phone.ifBlank { null },
-                email = formData.email.ifBlank { null },
-                website = formData.website.ifBlank { null },
-                reference = formData.reference.ifBlank { null },
-                notes = formData.notes.ifBlank { null },
-                createdAt = now,
-                modifiedAt = now,
+    /** Opens the pages on [page] with [bbox] marked. */
+    fun showOnPage(page: Int?, bbox: TextBounds?) {
+        previewJob?.cancel()
+        _fieldPreview.value = FieldPreviewState(loading = true)
+        previewJob = viewModelScope.launch {
+            val loaded = getDocumentPreview.forField(documentId, page, bbox)
+            _fieldPreview.value = FieldPreviewState(
+                loading = false,
+                preview = loaded,
+                initialPageIndex = loaded?.pages?.indexOfFirst { it.pageNumber == page }?.coerceAtLeast(0) ?: 0,
             )
-
-            val result = profileRepository.createProfile(profile)
-            if (result is PamResult.Success) {
-                profileRepository.linkProfileToDocument(profile.id, documentId, suggestion.role)
-                _profileSuggestions.value = _profileSuggestions.value.map {
-                    if (it.role == suggestion.role && it.matchType == MatchType.NEW_PROFILE) {
-                        it.copy(isAutoLinked = true, existingProfile = profile)
-                    } else it
-                }
-            }
-            _editingProfileSuggestion.value = null
         }
     }
 
-    fun dismissSuggestion(suggestion: ProfileSuggestion) {
-        _profileSuggestions.value = _profileSuggestions.value.filter { it !== suggestion }
+    fun closeFieldPreview() {
+        previewJob?.cancel()
+        _fieldPreview.value = null
     }
 
     // ── PDF generation ──
@@ -195,14 +278,34 @@ class DocumentDetailViewModel @Inject constructor(
         if (state !is DocumentDetailUiState.Success) return null
         val paths = state.pages.map { it.imagePath }
         val title = state.document.title.replace(Regex("[^a-zA-Z0-9_-]"), "_").take(50)
-        return pdfGenerator.generatePdf(paths, "PAM_$title")
+        // The port speaks paths, not File — see DocumentExporter's doc comment. The
+        // Composable still wants a File for FileProvider, so the feature re-wraps it here.
+        return documentExporter.exportPdf(paths, "PAM_$title")?.let(::File)
     }
+
+    // ── Title ──
+    /** The person's own title: kept from now on, never replaced by a later reading. */
+    fun renameDocument(title: String) { viewModelScope.launch { documentRepository.renameDocument(documentId, title) } }
 
     // ── Favorites ──
     fun toggleFavorite() { viewModelScope.launch { documentRepository.toggleFavorite(documentId) } }
 
-    fun deleteDocument(onDeleted: () -> Unit) {
-        viewModelScope.launch { documentRepository.deleteDocument(documentId); onDeleted() }
+    /**
+     * Moves this document to the trash (overflow menu "Delete", and the FAILED banner's
+     * delete), then calls [onDone] with its id. The caller navigates back and shows the
+     * "moved to Recently deleted / Undo" snackbar — waiting for the write first, since
+     * leaving the screen clears this ViewModel's scope.
+     */
+    fun moveToTrash(onDone: (String) -> Unit) {
+        viewModelScope.launch {
+            documentRepository.moveToTrash(documentId)
+            onDone(documentId)
+        }
+    }
+
+    /** Restores this document — used from the "This document was deleted" state. */
+    fun restoreDocument() {
+        viewModelScope.launch { documentRepository.restore(documentId) }
     }
 }
 

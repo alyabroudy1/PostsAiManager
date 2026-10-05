@@ -1,4 +1,5 @@
 plugins {
+    id("pam.test-conventions")
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
@@ -13,6 +14,18 @@ android {
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    sourceSets {
+        // MigrationTestHelper reads the exported schemas from assets.
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+
+    packaging {
+        resources {
+            excludes += setOf("META-INF/LICENSE.md", "META-INF/LICENSE-notice.md")
+        }
     }
 
     compileOptions {
@@ -55,8 +68,6 @@ dependencies {
     // ML Kit
     implementation(libs.mlkit.document.scanner)
     implementation(libs.mlkit.text.recognition)
-    implementation(libs.mlkit.language.id)
-    implementation(libs.mlkit.entity.extraction)
 
     // Coroutines
     implementation(libs.coroutines.core)
@@ -70,13 +81,20 @@ dependencies {
 
     // WorkManager
     implementation(libs.work.runtime.ktx)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
 
     // Testing
-    testImplementation(libs.junit5.api)
-    testRuntimeOnly(libs.junit5.engine)
-    testImplementation(libs.truth)
-    testImplementation(libs.mockk)
-    testImplementation(libs.coroutines.test)
-    testImplementation(libs.turbine)
     testImplementation(libs.room.testing)
+
+    // Real Room on the JVM: Robolectric hosts the in-memory database, the Vintage engine runs its JUnit 4 runner on the JUnit 5 platform.
+    testImplementation(libs.robolectric)
+    testRuntimeOnly(libs.junit.vintage.engine)
+
+    // Instrumented migration tests (JUnit4 — the instrumentation runner is JUnit4-based,
+    // independent of the JUnit 5 platform the convention plugin sets up for unit tests).
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }

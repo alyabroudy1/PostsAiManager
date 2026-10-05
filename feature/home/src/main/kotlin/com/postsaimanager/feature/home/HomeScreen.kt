@@ -9,55 +9,68 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.postsaimanager.core.common.extensions.toRelativeTime
+import com.postsaimanager.core.designsystem.component.DocumentListRow
 import com.postsaimanager.core.designsystem.component.PamEmptyState
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
-import com.postsaimanager.core.model.Document
-import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.DocumentListItem
+import com.postsaimanager.core.model.DownloadSummary
+import com.postsaimanager.core.model.ModelBannerState
+import com.postsaimanager.core.model.ProcessingState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onDocumentClick: (String) -> Unit,
     onScanClick: () -> Unit,
+    onAskAcrossDocumentsClick: () -> Unit,
+    onInstallModelClick: () -> Unit,
+    onDownloadsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val modelBanner by viewModel.modelBanner.collectAsStateWithLifecycle()
+    val processingState by viewModel.processingState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
-            PamTopAppBar(title = "Posts AI Manager")
+            PamTopAppBar(
+                title = "Posts AI Manager",
+                actions = {
+                    IconButton(onClick = onAskAcrossDocumentsClick) {
+                        Icon(
+                            imageVector = PamIcons.AiChat,
+                            contentDescription = "Ask about your documents",
+                        )
+                    }
+                },
+            )
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -73,11 +86,85 @@ fun HomeScreen(
         },
         modifier = modifier,
     ) { innerPadding ->
+        Column(Modifier.padding(innerPadding)) {
+            when (val banner = modelBanner) {
+                ModelBannerState.Hidden -> Unit
+                ModelBannerState.Install -> ModelBanner(onInstallModelClick)
+                is ModelBannerState.Downloading -> DownloadBanner(banner.summary, failed = false, onClick = onDownloadsClick)
+                is ModelBannerState.Failed -> DownloadBanner(banner.summary, failed = true, onClick = onDownloadsClick)
+            }
+            HomeContent(uiState, processingState, onDocumentClick, onScanClick, Modifier.weight(1f))
+        }
+    }
+}
+
+/** Shown after "Skip for now" on the first-run setup, until a chat model is installed. */
+@Composable
+private fun ModelBanner(onInstallClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(color = MaterialTheme.colorScheme.secondaryContainer, modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.home_model_banner_text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onInstallClick) {
+                Text(stringResource(R.string.home_model_banner_action))
+            }
+        }
+    }
+}
+
+/**
+ * "Setting up AI · 1 of 3 · 45%" with a bar while the models download in the background, or the failure; a tap opens the models
+ * screen, which lists each download with its own progress and a Retry.
+ */
+@Composable
+private fun DownloadBanner(summary: DownloadSummary, failed: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val text = when {
+        failed -> stringResource(R.string.home_download_banner_failed)
+        summary.percent != null -> stringResource(R.string.home_download_banner_progress, summary.position, summary.count, summary.percent!!)
+        else -> stringResource(R.string.home_download_banner_progress_unknown, summary.position, summary.count)
+    }
+    Surface(
+        color = if (failed) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (failed) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            if (!failed) {
+                val percent = summary.percent
+                if (percent != null) {
+                    LinearProgressIndicator(progress = { percent / 100f }, modifier = Modifier.fillMaxWidth())
+                } else {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeContent(
+    uiState: HomeUiState,
+    processingState: ProcessingState,
+    onDocumentClick: (String) -> Unit,
+    onScanClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier) {
         AnimatedContent(
             targetState = uiState,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
             label = "home_content",
-            modifier = Modifier.padding(innerPadding),
         ) { state ->
             when (state) {
                 is HomeUiState.Loading -> PamLoadingState()
@@ -94,6 +181,7 @@ fun HomeScreen(
                 )
                 is HomeUiState.Success -> DocumentList(
                     documents = state.recentDocuments,
+                    processingState = processingState,
                     onDocumentClick = onDocumentClick,
                 )
             }
@@ -103,13 +191,15 @@ fun HomeScreen(
 
 @Composable
 private fun DocumentList(
-    documents: List<Document>,
+    documents: List<DocumentListItem>,
+    processingState: ProcessingState,
     onDocumentClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        // The bottom clears the scan button (56dp high, 16dp margin) the screen floats over the list.
+        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + 88.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
@@ -120,91 +210,13 @@ private fun DocumentList(
                 modifier = Modifier.padding(bottom = 4.dp),
             )
         }
-        items(documents, key = { it.id }) { document ->
-            DocumentCard(
-                document = document,
-                onClick = { onDocumentClick(document.id) },
+        items(documents, key = { it.id }) { item ->
+            DocumentListRow(
+                item = item,
+                runningState = (processingState as? ProcessingState.Running)
+                    ?.takeIf { it.documentId == item.id },
+                onClick = { onDocumentClick(item.id) },
             )
         }
     }
-}
-
-@Composable
-private fun DocumentCard(
-    document: Document,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Document type icon
-            Icon(
-                imageVector = PamIcons.Documents,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Content
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = document.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    StatusChip(status = document.status)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = document.createdAt.toRelativeTime(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            // Favorite
-            if (document.isFavorite) {
-                Icon(
-                    imageVector = PamIcons.Favorite,
-                    contentDescription = "Favorited",
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatusChip(status: DocumentStatus) {
-    val (label, color) = when (status) {
-        DocumentStatus.NEW -> "New" to MaterialTheme.colorScheme.primary
-        DocumentStatus.PROCESSING -> "Processing" to MaterialTheme.colorScheme.tertiary
-        DocumentStatus.EXTRACTED -> "Extracted" to MaterialTheme.colorScheme.secondary
-        DocumentStatus.REVIEWED -> "Reviewed" to MaterialTheme.colorScheme.primary
-        DocumentStatus.ARCHIVED -> "Archived" to MaterialTheme.colorScheme.outline
-    }
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelSmall,
-        color = color,
-    )
 }

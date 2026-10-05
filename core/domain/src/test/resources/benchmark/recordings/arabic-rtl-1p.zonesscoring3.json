@@ -1,0 +1,142 @@
+{
+ "key": "arabic-rtl-1p",
+ "interpreter": "zonesscoring",
+ "pages": 1,
+ "trace": [
+  "t layout ms=1",
+  "t candidates ms=6",
+  "t fitLayout ms=0",
+  "t interpret (everything the model decides: sessions, scoring, decoding) ms=15553",
+  "t enrich (language, extras, summary, free text) ms=13349",
+  "t verify ms=3",
+  "t open body#1 prefixTokens=199 ms=1842",
+  "t score family n=24 ms=6930 msPerScore=289",
+  "t score slot:letter_date n=1 ms=1473 msPerScore=1473",
+  "t score slot:total n=1 ms=1499 msPerScore=1499",
+  "t score slot:due_date n=1 ms=1509 msPerScore=1509",
+  "t score slot:reference n=1 ms=1084 msPerScore=1084",
+  "t score slot:customer_no n=1 ms=1193 msPerScore=1193",
+  "t decode ms=4 (includes the kind and household scoring of a changed answer)",
+  "t scoring total batches=6 scores=29 ms=13688 msPerScore=472",
+  "t open writing prefixTokens=154 ms=1522",
+  "t ask lang ms=595 answerChars=2",
+  "t ask text:subject ms=3704 answerChars=123",
+  "t ask text:questions ms=2339 answerChars=94",
+  "t ask text:summary ms=5139 answerChars=148"
+ ],
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "20.10.2026",
+   "normalized": "2026-10-20",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "450,00 €",
+   "normalized": "450.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "2026-041",
+   "normalized": "2026-041",
+   "page": 1
+  }
+ ],
+ "call1": "score:family: -0.30541419982910156,-0.030656814575195312,-0.07800674438476562,-0.6686725616455078,-0.5930385589599609,-1.0499954223632812,-0.8273525238037109,-1.0667781829833984,-0.7551288604736328,0.13541030883789062,-1.173543930053711,-0.7640056610107422,-1.6129989624023438,-1.1763553619384766,-0.2085723876953125,-0.9118862152099609,-0.08627700805664062,-0.8607425689697266,-0.9824733734130859,-1.2379722595214844,-0.5628547668457031,-1.3528385162353516,-0.3710041046142578,-0.5687484741210938\nscore:slot:letter_date: 0.09050941467285156\nscore:slot:total: 0.09243583679199219\nscore:slot:due_date: 0.3805561065673828\nscore:slot:reference: 0.3479423522949219\nscore:slot:customer_no: -0.5460548400878906",
+ "call1Ms": 15553,
+ "call2Ms": 0,
+ "prefixTokens": 353,
+ "prefixMs": 3364,
+ "template": "GENERIC",
+ "templateScore": 0.4736842215061188,
+ "asks": [
+  {
+   "name": "score:family",
+   "question": "Is this document a letter or decision from an authority, employer, school or other organisation that informs the reader or decides something? Answer:\n@@\nIs this document an invoice, a bill or a payment reminder that asks the reader to pay? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document a form or an application that is filled in and returned? Answer:\n@@\nIs this document a statement of account, a bank statement or a summary of transactions or consumption? Answer:\n@@\nIs this document a contract, an insurance policy, or a change to its price or terms? Answer:\n@@\nIs this document a certificate, an identity document, a licence or a card? Answer:\n@@\nIs this document a letter from a doctor, clinic or hospital, such as an appointment, a referral or a result? Answer:\n@@\nIs this document a ticket, a booking confirmation or a travel itinerary? Answer:\n@@\nIs this document a printout of an email message or of a web page? Answer:\n@@\nDoes this document concern a government agency, a public authority or a public service? Answer:\n@@\nDoes this document concern taxes, a tax office or a tax return? Answer:\n@@\nDoes this document concern health, medical care, a doctor or a health insurer? Answer:\n@@\nDoes this document concern an insurance policy or an insurance company? Answer:\n@@\nDoes this document concern a bank, a loan, an account, savings or other personal finance? Answer:\n@@\nDoes this document concern housing, rent, a property or a household utility such as energy, water or heating? Answer:\n@@\nDoes this document concern a job, an employer, employment or a salary? Answer:\n@@\nDoes this document concern a school, a kindergarten, a university or education? Answer:\n@@\nDoes this document concern a car, another vehicle, a driving licence or road traffic? Answer:\n@@\nDoes this document concern a phone, mobile, internet or television service? Answer:\n@@\nDoes this document concern a purchase from a shop or an online order? Answer:\n@@\nDoes this document concern a trip, a flight, a hotel or a holiday? Answer:\n@@\nDoes this document concern a court, a lawyer or a legal dispute? Answer:\n@@\nDoes this document concern a private matter, family or personal correspondence? Answer:",
+   "answer": "-0.30541419982910156,-0.030656814575195312,-0.07800674438476562,-0.6686725616455078,-0.5930385589599609,-1.0499954223632812,-0.8273525238037109,-1.0667781829833984,-0.7551288604736328,0.13541030883789062,-1.173543930053711,-0.7640056610107422,-1.6129989624023438,-1.1763553619384766,-0.2085723876953125,-0.9118862152099609,-0.08627700805664062,-0.8607425689697266,-0.9824733734130859,-1.2379722595214844,-0.5628547668457031,-1.3528385162353516,-0.3710041046142578,-0.5687484741210938",
+   "ms": 6930,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:letter_date",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «20.10.2026» (context: printed on the line: Betrag: 450,00 €, zahlbar bis 20.10.2026.; line above: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Absender: Al-Mithal Services GmbH (fiktiv), Beispielstadt.) the date of the letter itself (when it was written or issued)? Answer:",
+   "answer": "0.09050941467285156",
+   "ms": 1473,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:total",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «450,00 €» (context: printed on the line: Betrag: 450,00 €, zahlbar bis 20.10.2026.; line above: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Absender: Al-Mithal Services GmbH (fiktiv), Beispielstadt.) the main amount of this document: what the reader has to pay, or the total? Answer:",
+   "answer": "0.09243583679199219",
+   "ms": 1499,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:due_date",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «20.10.2026» (context: printed on the line: Betrag: 450,00 €, zahlbar bis 20.10.2026.; line above: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Absender: Al-Mithal Services GmbH (fiktiv), Beispielstadt.) the date by which the reader must pay or act? Answer:",
+   "answer": "0.3805561065673828",
+   "ms": 1509,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:reference",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «2026-041» (context: printed on the line: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Betrag: 450,00 €, zahlbar bis 20.10.2026.) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
+   "answer": "0.3479423522949219",
+   "ms": 1084,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:customer_no",
+   "question": "ZONE body. HINT: No layout was recognised: this is the text of the document in reading order.\n(the text of this zone is in the letter above)\nIs «2026-041» (context: printed on the line: Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.; line below: Betrag: 450,00 €, zahlbar bis 20.10.2026.) the number that identifies the reader as a customer, member or account holder? Answer:",
+   "answer": "-0.5460548400878906",
+   "ms": 1193,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "lang",
+   "question": "QUESTION: In which language is this letter written? Answer with its BCP-47 language code (for example de, en, ar).\nANSWER FORMAT: the code only",
+   "answer": "de",
+   "ms": 595,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Zahlungserinnerung zu Rechnung 2026-041 7. \/ Betrag: 450,00 €, zahlbar bis 20.10.2026. \/ Absender: Al-Mithal Services GmbH",
+   "ms": 3704,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Was ist der Betrag der Rechnung?\" \"Wie lange ist die Zahlungsbilanz?\" \"Was ist der Absender?\"",
+   "ms": 2339,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:summary",
+   "question": "FACTS (verified; use only these):\n- amount: 450,00 €\n- due_date: 20.10.2026\n- reference: 2026-041\n\nQUESTION: Write one or two sentences, at most 30 words, saying what the reader must know or do. Use only the facts above. Write in the language with the code \"de\".\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Zahlungserinnerung zu Rechnung 2026-041 7. \/ Betrag: 450,00 € zahlbar bis 20.10.2026. \/ Absender: Al-Mithal Services GmbH (fiktiv), Beispielstadt.\"",
+   "ms": 5139,
+   "questionTokens": -1,
+   "answerTokens": -1
+  }
+ ],
+ "wallMs": 28916,
+ "model": "text.gguf"
+}

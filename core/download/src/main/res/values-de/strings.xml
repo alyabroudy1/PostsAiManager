@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_channel_name">Modell-Downloads</string>
+    <string name="download_channel_description">Fortschritt der KI-Modelle, die im Hintergrund geladen werden.</string>
+    <string name="download_title_one">%1$s wird geladen</string>
+    <string name="download_title_many">KI wird eingerichtet · %1$d von %2$d</string>
+    <string name="download_line">%1$s: %2$s</string>
+    <string name="download_state_waiting">wartet</string>
+    <string name="download_state_preparing">wird vorbereitet</string>
+    <string name="download_state_downloading">wird geladen, %1$d %%</string>
+    <string name="download_state_downloading_unknown">wird geladen</string>
+    <string name="download_state_done">bereit</string>
+    <string name="download_state_failed">fehlgeschlagen</string>
+    <string name="download_search_model">Suchmodell</string>
+    <string name="download_fallback_model">KI-Modell</string>
+</resources>

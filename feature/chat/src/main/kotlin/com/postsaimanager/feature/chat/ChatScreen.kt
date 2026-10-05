@@ -1,18 +1,31 @@
 package com.postsaimanager.feature.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import com.postsaimanager.core.domain.usecase.CitationParser
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,12 +34,32 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TextButton
+import com.postsaimanager.core.domain.usecase.ChatErrorAction
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -35,47 +68,206 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.postsaimanager.core.designsystem.component.MarkdownText
+import com.postsaimanager.core.designsystem.component.PagePreviewDialog
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
+import com.postsaimanager.core.designsystem.component.ReportAnswerButton
+import com.postsaimanager.core.designsystem.component.ReportAnswerDialog
 import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.model.FormMessageKind
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+/** Slack (px) for "is the last item basically fully visible" — avoids flicker at the edge. */
+private const val BOTTOM_SLACK_PX = 24
+
+/** Coalesces a burst of token updates into one scroll instead of one per token. */
+private const val SCROLL_THROTTLE_MS = 80L
+
+/** Bounded height for the thinking card's own inner scroll region. */
+private const val THINKING_CARD_MAX_HEIGHT_DP = 160
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     documentId: String?,
     onNavigateBack: () -> Unit,
+    onManageModelsClick: () -> Unit = {},
+    /** "Open document" in the citation preview — navigate to that source's full document
+     * detail, at the page being previewed. Tapping a chip itself only opens the preview. */
+    onSourceClick: (ChatSource) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val modelSheetState by viewModel.modelSheetState.collectAsStateWithLifecycle()
+    val suggestedQuestions by viewModel.suggestedQuestions.collectAsStateWithLifecycle()
+    val preview by viewModel.preview.collectAsStateWithLifecycle()
+    val fillCard by viewModel.fillCard.collectAsStateWithLifecycle()
+    val searchModelHintVisible by viewModel.searchModelHintVisible.collectAsStateWithLifecycle()
+    // Coming back from the models screen: the search model may be installed by now.
+    LifecycleResumeEffect(viewModel) {
+        viewModel.refreshSearchModelHint()
+        onPauseOrDispose {}
+    }
     var inputText by rememberSaveable { mutableStateOf("") }
+    var showModelSheet by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    // Auto-scroll to bottom on new messages
-    LaunchedEffect(uiState.messages.size) {
-        if (uiState.messages.isNotEmpty()) {
-            listState.animateScrollToItem(uiState.messages.size - 1)
+    // 5.1: "Copy" needs only a brief, non-blocking confirmation — a Snackbar rather than a
+    // dialog, and one already dismissing itself is replaced rather than queued behind.
+    fun copyToClipboard(text: String) {
+        clipboardManager.setText(AnnotatedString(text))
+        coroutineScope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar("Copied to clipboard")
         }
     }
 
+    // "Follow" mirrors what every streaming chat UI does: stick to the bottom while new
+    // content arrives, but the instant the user scrolls up, stop — nothing is more hostile
+    // than fighting a person's own scroll gesture mid-read.
+    var followBottom by remember { mutableStateOf(true) }
+
+    // The list is `reverseLayout = true` with newest content at index 0, so "at bottom"
+    // is simply "resting at the start of the list" — no item-height math, and no
+    // mid-bubble false negatives while the last message is still growing.
+    val isAtBottom by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex == 0 &&
+                listState.firstVisibleItemScrollOffset <= BOTTOM_SLACK_PX
+        }
+    }
+
+    // Any user-initiated drag disables follow immediately, whether or not it ends up
+    // actually leaving the bottom — a person is reading, not asking to be interrupted.
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) followBottom = false
+        }
+    }
+
+    // Reaching the bottom again — by hand or via the jump button — resumes following.
+    LaunchedEffect(isAtBottom) {
+        if (isAtBottom) followBottom = true
+    }
+
+    // Debounced, not per-token: a burst of tokens collapses into one scroll via
+    // `collectLatest`, so this never fires more than once every [SCROLL_THROTTLE_MS].
+    // The jump is an instant `scrollToItem(0)`, not animated — with `reverseLayout`,
+    // index 0 IS the bottom, so this never fights a mid-stream layout the way animating
+    // to the last item's *top* used to.
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            Triple(uiState.messages.size, uiState.streamingText.length, uiState.thinkingText.length)
+        }.collectLatest {
+            if (!followBottom) return@collectLatest
+            delay(SCROLL_THROTTLE_MS)
+            listState.scrollToItem(0)
+        }
+    }
+
+    // Defect 2: sending a message must ALWAYS snap the transcript to the bottom, even if the
+    // user had scrolled away to read older messages — a person who just tapped Send wants to
+    // see what they sent, full stop. Keyed on `uiState.lastSentAt` (a ViewModel-owned send
+    // event), not on `uiState.messages.size` — a message arriving for any other reason (e.g.
+    // history restore) must not force-scroll and fight a person who is deliberately reading
+    // up in the transcript.
+    LaunchedEffect(uiState.lastSentAt) {
+        if (uiState.lastSentAt == 0L) return@LaunchedEffect
+        followBottom = true
+        listState.scrollToItem(0)
+    }
+
+    // Layered over the chat, not navigated to: the transcript (and `listState`) underneath
+    // stays composed, so closing returns to exactly where the user was reading.
+    preview?.let { state ->
+        PagePreviewDialog(
+            title = state.source.title,
+            preview = state.preview,
+            loading = state.loading,
+            initialPageIndex = state.initialPageIndex,
+            onClose = viewModel::closePreview,
+            onOpenDocument = { pageNumber ->
+                viewModel.closePreview()
+                onSourceClick(
+                    state.source.copy(
+                        documentId = state.preview?.documentId ?: state.source.documentId,
+                        pageNumber = pageNumber,
+                        title = state.preview?.title ?: state.source.title,
+                    ),
+                )
+            },
+        )
+    }
+
+    if (showModelSheet) {
+        ModelConfigBottomSheet(
+            state = modelSheetState,
+            onSelectModel = viewModel::selectModel,
+            onManageModelsClick = {
+                showModelSheet = false
+                onManageModelsClick()
+            },
+            onSetInferenceSetting = viewModel::setInferenceSetting,
+            onResetInference = viewModel::resetInference,
+            onTryGpuAgain = viewModel::tryGpuAgain,
+            onDismiss = { showModelSheet = false },
+        )
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             PamTopAppBar(
                 title = if (documentId != null) "Document Chat" else "AI Assistant",
                 onNavigateBack = onNavigateBack,
+                actions = {
+                    ModelHeaderChip(
+                        state = modelSheetState,
+                        onClick = { showModelSheet = true },
+                        modifier = Modifier.padding(end = 8.dp),
+                        isPrimingConversation = uiState.isPrimingConversation,
+                        isWaitingForDocument = uiState.isWaitingForDocument,
+                    )
+                },
             )
         },
         bottomBar = {
+          Column {
+            if (searchModelHintVisible) {
+                SearchModelHintBar(
+                    onInstall = {
+                        viewModel.dismissSearchModelHint()
+                        onManageModelsClick()
+                    },
+                    onDismiss = viewModel::dismissSearchModelHint,
+                )
+            }
             ChatInputBar(
                 value = inputText,
                 onValueChange = { inputText = it },
@@ -85,8 +277,12 @@ fun ChatScreen(
                         inputText = ""
                     }
                 },
-                isLoading = uiState.isProcessing,
+                // The composer never locks: while generating, Send becomes Stop instead of
+                // disabling input — the user can always cancel and type something else.
+                isGenerating = uiState.isProcessing,
+                onStop = viewModel::stopGeneration,
             )
+          }
         },
         modifier = modifier.imePadding(),
     ) { innerPadding ->
@@ -115,25 +311,16 @@ fun ChatScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = if (documentId != null) "I can help you understand this document, find key information, and draft responses."
-                    else "Select a document or ask me a general question about your mail management.",
+                    else "I can search across all your documents to help answer your question.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Quick action chips
-                val suggestions = if (documentId != null) listOf(
-                    "Summarize this document",
-                    "What are the deadlines?",
-                    "Draft a response",
-                    "Who is the sender?",
-                ) else listOf(
-                    "Show recent deadlines",
-                    "Summarize my unread mail",
-                    "Help me organize my documents",
-                )
-                suggestions.forEach { suggestion ->
+                // 5.2: starter questions the model wrote for the document — see
+                // ChatViewModel.suggestedQuestions / ObserveSuggestedQuestionsUseCase.
+                suggestedQuestions.forEach { suggestion ->
                     Surface(
                         onClick = {
                             viewModel.sendMessage(suggestion)
@@ -154,21 +341,134 @@ fun ChatScreen(
                 }
             }
         } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(uiState.messages) { message ->
-                    ChatBubble(message = message)
+            Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                LazyColumn(
+                    state = listState,
+                    reverseLayout = true,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    // With `reverseLayout = true`, index 0 renders at the BOTTOM and
+                    // increasing indices move upward — so the most recent content
+                    // (error, then the live streaming bubble/status, then the thinking
+                    // trace) is declared first, and persisted messages follow newest-first.
+                    // This is what makes `scrollToItem(0)` land exactly at the true bottom
+                    // regardless of how tall the last bubble is.
+                    uiState.error?.let { error ->
+                        item {
+                            ChatErrorCard(
+                                error = error,
+                                onDismiss = viewModel::dismissError,
+                                onRetry = viewModel::retry,
+                                onManageModelsClick = onManageModelsClick,
+                            )
+                        }
+                    }
+
+                    // Stream the reply into a live bubble. Only fall back to the typing
+                    // indicator before the first token arrives — once text is flowing, a
+                    // spinner alongside it just reads as "still stuck".
+                    if (uiState.streamingText.isNotEmpty()) {
+                        item {
+                            ChatBubble(
+                                message = ChatMessage(
+                                    text = uiState.streamingText,
+                                    isUser = false,
+                                ),
+                            )
+                        }
+                    } else if (uiState.isProcessing && !uiState.isThinkingActive) {
+                        item {
+                            uiState.statusText?.let { status ->
+                                Text(
+                                    text = status,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                )
+                            } ?: TypingIndicator()
+                        }
+                    }
+
+                    // The live reasoning trace gets its own bounded, auto-following card —
+                    // shown the moment thinking starts, and kept around (collapsed) once the
+                    // answer starts streaming, so it never just vanishes mid-turn.
+                    if (uiState.thinkingText.isNotEmpty() || uiState.isThinkingActive) {
+                        item {
+                            ThinkingCard(
+                                thinkingText = uiState.thinkingText,
+                                isActive = uiState.isThinkingActive,
+                                durationMs = uiState.thinkingDurationMs,
+                            )
+                        }
+                    }
+
+                    // 5.1: regenerate is offered only on the LATEST assistant reply — a
+                    // finished one, not the live streaming bubble (a separate item above,
+                    // never part of `uiState.messages` until it is persisted and reloaded).
+                    val latestAssistantId = uiState.messages.lastOrNull { !it.isUser && it.form == null }?.id
+                    // The form conversation: only the newest card is shown in full, and only the open question's chips are live.
+                    val latestCardId = uiState.messages.lastOrNull { it.form?.kind == FormMessageKind.CARD }?.id
+                    // The one pending question: the newest of what waits for an answer (a question, a status line with chips) or was an
+                    // answer (the user's message). A question or Continue / Start over that something came after is stale: disabled.
+                    val pendingChipsId = uiState.messages.lastOrNull { isPendingChipsMessage(it) }?.id
+
+                    items(
+                        uiState.messages.asReversed(),
+                        key = { it.id.ifEmpty { it.timestamp.toString() } },
+                    ) { message ->
+                        val form = message.form
+                        if (form != null) {
+                            FormMessageItem(
+                                message = message,
+                                form = form,
+                                fillCard = fillCard,
+                                isLatestCard = message.id == latestCardId,
+                                chipsEnabled = message.id == pendingChipsId && !uiState.isProcessing,
+                                onChip = viewModel::onFormChip,
+                                onShowOnPage = viewModel::openFieldPreview,
+                                onCopy = ::copyToClipboard,
+                                onOpenModels = onManageModelsClick,
+                            )
+                            return@items
+                        }
+                        ChatBubble(
+                            message = message,
+                            documentChat = documentId != null,
+                            onRetry = { viewModel.retryMessage(message) },
+                            onSourceClick = viewModel::openPreview,
+                            onCopy = { copyToClipboard(message.text) },
+                            onRegenerate = { viewModel.regenerate() },
+                            isLatestAssistantReply = !message.isUser &&
+                                message.id.isNotEmpty() &&
+                                message.id == latestAssistantId &&
+                                !uiState.isProcessing,
+                        )
+                    }
                 }
 
-                if (uiState.isProcessing) {
-                    item {
-                        TypingIndicator()
+                // Never fights the user's own scroll — only appears once they've scrolled
+                // away from live content, and both tapping it and scrolling back down
+                // resume following (see `followBottom` above).
+                AnimatedVisibility(
+                    visible = !followBottom,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 12.dp),
+                ) {
+                    FloatingActionButton(
+                        onClick = {
+                            // Flip the flag first so the FAB fades out immediately, rather
+                            // than lingering for the duration of the scroll animation.
+                            followBottom = true
+                            coroutineScope.launch { listState.animateScrollToItem(0) }
+                        },
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Jump to latest")
                     }
                 }
             }
@@ -181,7 +481,8 @@ private fun ChatInputBar(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
-    isLoading: Boolean,
+    isGenerating: Boolean,
+    onStop: () -> Unit,
 ) {
     Surface(
         tonalElevation = 3.dp,
@@ -192,6 +493,8 @@ private fun ChatInputBar(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Stays enabled and editable even while generating — the user can queue up
+            // their next thought, or just cancel via the button on the right.
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -205,13 +508,21 @@ private fun ChatInputBar(
                 maxLines = 4,
             )
             Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = onSend,
-                enabled = value.isNotBlank() && !isLoading,
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                } else {
+            if (isGenerating) {
+                // Send → Stop while a reply streams, rather than disabling the button —
+                // cancelling is always one tap away, never a dead end.
+                IconButton(onClick = onStop) {
+                    Icon(
+                        imageVector = Icons.Filled.Stop,
+                        contentDescription = "Stop generating",
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                }
+            } else {
+                IconButton(
+                    onClick = onSend,
+                    enabled = value.isNotBlank(),
+                ) {
                     Icon(
                         imageVector = PamIcons.Send,
                         contentDescription = "Send",
@@ -224,51 +535,335 @@ private fun ChatInputBar(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ChatBubble(message: ChatMessage) {
+private fun ChatBubble(
+    message: ChatMessage,
+    documentChat: Boolean = false,
+    onRetry: () -> Unit = {},
+    onSourceClick: (ChatSource) -> Unit = {},
+    /** 5.1: copies [ChatMessage.text] — the answer only, never [ChatMessage.thinking]. */
+    onCopy: () -> Unit = {},
+    /** 5.1: re-runs this reply — only ever wired when [isLatestAssistantReply] is true. */
+    onRegenerate: () -> Unit = {},
+    /** True only for the newest, finished assistant reply — see `ChatScreen`'s call site. */
+    isLatestAssistantReply: Boolean = false,
+) {
     val isUser = message.isUser
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-    ) {
-        if (!isUser) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    PamIcons.AiChat,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-
-        Surface(
-            modifier = Modifier.widthIn(max = 280.dp),
-            shape = RoundedCornerShape(
-                topStart = 16.dp,
-                topEnd = 16.dp,
-                bottomStart = if (isUser) 16.dp else 4.dp,
-                bottomEnd = if (isUser) 4.dp else 16.dp,
-            ),
-            color = if (isUser) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.surfaceContainerHigh,
-        ) {
-            Text(
-                text = message.text,
-                modifier = Modifier.padding(12.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isUser) MaterialTheme.colorScheme.onPrimary
-                else MaterialTheme.colorScheme.onSurface,
+    var reporting by rememberSaveable { mutableStateOf(false) }
+    Column(horizontalAlignment = if (isUser) Alignment.End else Alignment.Start) {
+        // A persisted reply that thought before answering shows its trace collapsed to a
+        // "Thought for N s" header, right above the bubble — expandable, never streaming.
+        if (!isUser && message.thinking != null) {
+            ThinkingCard(
+                thinkingText = message.thinking,
+                isActive = false,
+                durationMs = message.thinkingDurationMs,
+                modifier = Modifier.padding(bottom = 4.dp).widthIn(max = 280.dp),
             )
         }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+        ) {
+            if (!isUser) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        PamIcons.AiChat,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            Surface(
+                modifier = Modifier.widthIn(max = 280.dp),
+                shape = RoundedCornerShape(
+                    topStart = 16.dp,
+                    topEnd = 16.dp,
+                    bottomStart = if (isUser) 16.dp else 4.dp,
+                    bottomEnd = if (isUser) 4.dp else 16.dp,
+                ),
+                color = if (isUser) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                if (isUser) {
+                    // User input is never markdown — show it verbatim.
+                    Text(
+                        text = message.text,
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                } else {
+                    // Renders live for the streaming bubble too — the parser recovers from
+                    // an unbalanced `**`/code fence mid-stream rather than throwing.
+                    MarkdownText(
+                        // Raw "[p.6]" markers are noise once the chips carry the same
+                        // information; the live bubble (no id yet) is stripped too, so text
+                        // does not reflow when the chips appear.
+                        text = if (message.sources.isNotEmpty() || message.id.isEmpty()) {
+                            CitationParser.stripMarkers(message.text)
+                        } else {
+                            message.text
+                        },
+                        modifier = Modifier.padding(12.dp),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
+
+        // 4.3: what grounded this answer, as tappable chips — only for a finished assistant
+        // reply with something to show (a streaming bubble, built from `ChatMessage(text=…)`
+        // with no `id`, never has sources yet; see the streaming-bubble call site above).
+        if (!isUser && message.sources.isNotEmpty()) {
+            // A wrapping FlowRow, never a clipped horizontal scroller, and above the
+            // copy/regenerate row below.
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 40.dp, top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                message.sources.forEach { source ->
+                    SourceChip(source = source, documentChat = documentChat, onClick = { onSourceClick(source) })
+                }
+            }
+        }
+
+        // Defect 3: a stopped/crashed reply keeps its partial text (see `ChatBubble` above,
+        // unchanged) rather than being deleted, marked with a small "Stopped" caption rather
+        // than looking like a normal finished reply — and offers Retry rather than a dead
+        // end. Never shown for a user bubble; `AiMessage.incomplete` is assistant-only by
+        // construction (`SendChatMessageUseCase` never sets it on a user message).
+        if (!isUser && message.incomplete) {
+            Row(
+                modifier = Modifier.padding(start = 40.dp, top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Stop,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (message.cutOff) "Answer was cut off" else "Stopped",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                TextButton(onClick = onRetry, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+                    Text("Retry", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+
+        // 5.1: Copy/Regenerate on a finished reply only — a stopped/crashed one already
+        // shows its own Stopped/Retry row above, and copying or regenerating half an answer
+        // is not a real action. Regenerate is further limited to the LATEST assistant reply
+        // ([isLatestAssistantReply], decided by `ChatScreen`) — anything older would delete a
+        // reply with turns still after it in the transcript.
+        if (!isUser && !message.incomplete && message.text.isNotBlank()) {
+            Row(
+                modifier = Modifier.padding(start = 32.dp, top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onCopy, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.ContentCopy,
+                        contentDescription = "Copy answer",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (isLatestAssistantReply) {
+                    IconButton(onClick = onRegenerate, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = "Regenerate answer",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                // Google Play's generative-AI policy: every AI answer can be reported (an e-mail draft the user sends).
+                ReportAnswerButton(onClick = { reporting = true }, modifier = Modifier.size(32.dp))
+            }
+            if (reporting) {
+                ReportAnswerDialog(
+                    answerText = CitationParser.stripMarkers(message.text),
+                    onDismiss = { reporting = false },
+                )
+            }
+        }
     }
+}
+
+/**
+ * One citation chip under an assistant reply (4.3) — "Page 2" (or "Excerpt 3" when the
+ * source predates page-aware chunking, see [MessageSource.pageNumber][
+ * com.postsaimanager.core.model.MessageSource.pageNumber]) in a document chat, where the
+ * document is already the one thing being discussed; "<title> · p.2" in a standalone chat,
+ * which can cite several documents in one answer and so needs to say which.
+ */
+@Composable
+private fun SourceChip(source: ChatSource, documentChat: Boolean, onClick: () -> Unit) {
+    val where = source.pageNumber?.let { "Page $it" } ?: "Excerpt"
+    val label = when {
+        // A trashed/permanently-deleted source: nothing left to navigate a tap to, in
+        // either chat type — see ChatSource.documentDeleted's KDoc.
+        source.documentDeleted -> "Deleted document"
+        documentChat -> where
+        else -> "${source.title ?: "Untitled document"} · ${where.replaceFirstChar { it.lowercase() }}"
+    }
+    AssistChip(
+        onClick = onClick,
+        enabled = !source.documentDeleted,
+        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+        leadingIcon = {
+            Icon(PamIcons.Documents, contentDescription = null, modifier = Modifier.size(14.dp))
+        },
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        modifier = Modifier
+            .heightIn(min = 28.dp)
+            .semantics {
+                contentDescription = if (source.pageNumber != null) {
+                    "Source: page ${source.pageNumber} of ${source.title ?: "this document"}"
+                } else {
+                    "Source: an excerpt of ${source.title ?: "this document"}"
+                }
+            },
+    )
+}
+
+/**
+ * A collapsible card for a model's reasoning trace — bounded height with its own inner
+ * scroll while [isActive], a chevron to maximize/minimize any time, and a header that
+ * reads "Thinking…" while live and "Thought for N s" once [durationMs] is known.
+ *
+ * Expansion state resets whenever [isActive] flips: starts expanded the moment thinking
+ * begins (so the user sees it happening, not a flat header), and collapses the instant the
+ * answer starts streaming or a persisted message is shown — matching the spec's "auto-
+ * collapse to header-only when the answer starts streaming" and "persisted messages show
+ * the collapsed header, expandable". A manual tap on the chevron always overrides this
+ * within one streaming session.
+ */
+@Composable
+private fun ThinkingCard(
+    thinkingText: String,
+    isActive: Boolean,
+    durationMs: Long?,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember(isActive) { mutableStateOf(isActive) }
+    val scrollState = rememberScrollState()
+
+    // Follows the newest thinking text while live — the same "stick to the bottom of what's
+    // streaming" idea as the main transcript, scoped to this card's own inner scroll.
+    LaunchedEffect(thinkingText, isActive, expanded) {
+        if (isActive && expanded) scrollState.animateScrollTo(scrollState.maxValue)
+    }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp,
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (isActive) {
+                    PulsingDot(modifier = Modifier.padding(end = 8.dp))
+                } else {
+                    Icon(
+                        imageVector = PamIcons.AiChat,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp).padding(end = 8.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = when {
+                        isActive -> "Thinking…"
+                        durationMs != null -> "Thought for ${formatThinkingDuration(durationMs)}"
+                        else -> "Thoughts"
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = if (expanded) "Collapse thinking" else "Expand thinking",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            AnimatedVisibility(visible = expanded) {
+                // B2: the answer bubble already renders through MarkdownText (see ChatBubble
+                // above) and streams live the same way this does — a reasoning trace is no
+                // less likely to contain a list or a code fence, so it gets the same
+                // treatment rather than showing raw `**`/`` ` `` characters. Muted style/size
+                // and the bounded inner scroll are unchanged from the plain-Text version.
+                MarkdownText(
+                    text = thinkingText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = THINKING_CARD_MAX_HEIGHT_DP.dp)
+                        .verticalScroll(scrollState)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+/** A small breathing dot next to "Thinking…" — enough motion to read as live, no more. */
+@Composable
+private fun PulsingDot(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "thinking-pulse")
+    val alpha by transition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(700, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "thinking-pulse-alpha",
+    )
+    Box(
+        modifier = modifier
+            .size(8.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = alpha)),
+    )
+}
+
+private fun formatThinkingDuration(durationMs: Long): String {
+    val seconds = durationMs / 1000.0
+    return if (seconds < 10) "%.1fs".format(seconds) else "${seconds.toInt()}s"
 }
 
 @Composable
@@ -297,10 +892,60 @@ private fun TypingIndicator() {
         ) {
             Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Text(
-                    text = "Thinking...",
+                    // Generic "generation is starting" indicator — distinct from the
+                    // reasoning-trace ThinkingCard, which has its own "Thinking…" header.
+                    text = "Working…",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+    }
+}
+
+
+/**
+ * A failure the user can act on.
+ *
+ * Chat's most common error by far is "no model installed", which is entirely fixable — so
+ * it offers the fix rather than merely reporting the problem.
+ */
+@Composable
+private fun ChatErrorCard(
+    error: ChatError,
+    onDismiss: () -> Unit,
+    onRetry: () -> Unit,
+    onManageModelsClick: () -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = error.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            if (error.action == ChatErrorAction.INSTALL_MODEL) {
+                // A dead-end plain-text hint used to sit here. This is the actual fix,
+                // one tap away — the model picker already lives behind this callback.
+                FilledTonalButton(onClick = onManageModelsClick) {
+                    Text("Get an AI model")
+                }
+            }
+            Row {
+                // Whatever was already produced stays in the transcript as its own
+                // message — this only re-sends the user's text, exactly what failed.
+                if (error.action == ChatErrorAction.RETRY || error.action == ChatErrorAction.MODEL_DOWNLOADING) {
+                    TextButton(onClick = onRetry) { Text("Retry") }
+                }
+                TextButton(onClick = onDismiss) { Text("Dismiss") }
             }
         }
     }

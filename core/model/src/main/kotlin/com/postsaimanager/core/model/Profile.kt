@@ -25,9 +25,31 @@ data class Profile(
     val completionScore: Float = 0f,
     val missingFields: List<String> = emptyList(),
     val avatarPath: String? = null,
+    /**
+     * The document and entity name that machine-created this profile, or null for one a
+     * person created directly.
+     *
+     * Recorded so a deletion can be turned into a tombstone (see `EntityLinkingUseCase`):
+     * without it, reprocessing the same document would have no way to know the user already
+     * rejected this profile, and would silently recreate it.
+     */
+    val sourceDocumentId: String? = null,
+    val sourceEntityName: String? = null,
+    /** How this person relates to the user ("Me", [ProfileType.USER_SELF]); null for "Me" and for non-family profiles. */
+    val relationship: Relationship? = null,
+    /** ISO yyyy-MM-dd; the one owner of the birth date (the `birth_date` form key reads it). */
+    val birthDate: String? = null,
+    /** A sensitive person: their documents follow the sensitive-document chat rules. */
+    val sensitive: Boolean = false,
     val createdAt: Long,
     val modifiedAt: Long,
-)
+) {
+    /** "Me": at most one profile has it (the repository enforces that). */
+    val isSelf: Boolean get() = type == ProfileType.USER_SELF
+
+    /** A person the user fills forms for: "Me" or a family member. Derived from [type], never stored. */
+    val isManaged: Boolean get() = type == ProfileType.USER_SELF || type == ProfileType.FAMILY_MEMBER
+}
 
 @Serializable
 enum class ProfileType {

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_channel_name">تنزيلات النماذج</string>
+    <string name="download_channel_description">تقدّم نماذج الذكاء الاصطناعي التي تُنزَّل في الخلفية.</string>
+    <string name="download_title_one">جارٍ تنزيل %1$s</string>
+    <string name="download_title_many">إعداد الذكاء الاصطناعي · %1$d من %2$d</string>
+    <string name="download_line">%1$s: %2$s</string>
+    <string name="download_state_waiting">في الانتظار</string>
+    <string name="download_state_preparing">قيد التحضير</string>
+    <string name="download_state_downloading">جارٍ التنزيل %1$d%%</string>
+    <string name="download_state_downloading_unknown">جارٍ التنزيل</string>
+    <string name="download_state_done">جاهز</string>
+    <string name="download_state_failed">فشل</string>
+    <string name="download_search_model">نموذج البحث</string>
+    <string name="download_fallback_model">نموذج ذكاء اصطناعي</string>
+</resources>

@@ -14,13 +14,33 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface DocumentDao {
 
-    @Query("SELECT * FROM documents ORDER BY createdAt DESC")
+    // Every read below that feeds a list, count or search excludes trashed documents
+    // (`deletedAt IS NULL`) — a trashed document must not resurface anywhere except the
+    // trash itself until it's restored. `getById`/`observeById` stay unfiltered: the detail
+    // screen and restore flow need to find a trashed (or just-deleted) document by id.
+
+    @Query("SELECT * FROM documents WHERE deletedAt IS NULL ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<DocumentEntity>>
 
-    @Query("SELECT * FROM documents WHERE status = :status ORDER BY createdAt DESC")
+    @Query("SELECT * FROM documents WHERE status = :status AND deletedAt IS NULL ORDER BY createdAt DESC")
     fun observeByStatus(status: String): Flow<List<DocumentEntity>>
 
-    @Query("SELECT * FROM documents WHERE isFavorite = 1 ORDER BY createdAt DESC")
+    /** One-shot read, for startup recovery — see `DocumentProcessingRecovery`. */
+    @Query("SELECT * FROM documents WHERE status = :status AND deletedAt IS NULL ORDER BY createdAt DESC")
+    suspend fun getByStatus(status: String): List<DocumentEntity>
+
+    /**
+     * The documents a model of [version] read whose second stage never completed: EXTRACTED, with a family and `enrichmentPending`
+     * (set when the first stage is stored, cleared when the second settles). Keyed on the flag, not on a missing summary: a re-read
+     * keeps its earlier summary. For startup recovery of a lost ticket.
+     */
+    @Query(
+        "SELECT * FROM documents WHERE status = 'EXTRACTED' AND deletedAt IS NULL AND extractionType IS NOT NULL " +
+            "AND enrichmentPending = 1 AND extractorVersion = :version ORDER BY createdAt DESC",
+    )
+    suspend fun getAwaitingEnrichment(version: String): List<DocumentEntity>
+
+    @Query("SELECT * FROM documents WHERE isFavorite = 1 AND deletedAt IS NULL ORDER BY createdAt DESC")
     fun observeFavorites(): Flow<List<DocumentEntity>>
 
     @Query("SELECT * FROM documents WHERE id = :id")
@@ -29,11 +49,25 @@ interface DocumentDao {
     @Query("""
         SELECT d.* FROM documents d
         INNER JOIN document_pages dp ON d.id = dp.documentId
-        WHERE dp.ocrText LIKE '%' || :query || '%'
+        WHERE dp.ocrText LIKE '%' || :query || '%' AND d.deletedAt IS NULL
         GROUP BY d.id
         ORDER BY d.createdAt DESC
     """)
     fun search(query: String): Flow<List<DocumentEntity>>
+
+    // ── Trash ──
+
+    @Query("UPDATE documents SET deletedAt = :deletedAt WHERE id = :id")
+    suspend fun setDeletedAt(id: String, deletedAt: Long)
+
+    @Query("UPDATE documents SET deletedAt = NULL WHERE id = :id")
+    suspend fun clearDeletedAt(id: String)
+
+    @Query("SELECT * FROM documents WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC")
+    fun observeTrashed(): Flow<List<DocumentEntity>>
+
+    @Query("SELECT * FROM documents WHERE deletedAt IS NOT NULL AND deletedAt < :cutoff")
+    suspend fun getTrashedOlderThan(cutoff: Long): List<DocumentEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(document: DocumentEntity)
@@ -52,6 +86,26 @@ interface DocumentDao {
 
     @Query("UPDATE documents SET isFavorite = NOT isFavorite WHERE id = :id")
     suspend fun toggleFavorite(id: String)
+
+    /** A person's title: kept by extraction from now on, and no longer a default with a code. */
+    @Query(
+        "UPDATE documents SET title = :title, isUserTitle = 1, titleSource = 'USER', titleCode = NULL, " +
+            "titleArgs = NULL, modifiedAt = :modifiedAt WHERE id = :id",
+    )
+    suspend fun renameByUser(id: String, title: String, modifiedAt: Long = System.currentTimeMillis())
+
+    /** A person's choice of family: kept by every re-read from now on. Topics stay as they are. */
+    @Query(
+        "UPDATE documents SET extractionType = :familyId, familySource = 'USER', modifiedAt = :modifiedAt WHERE id = :id",
+    )
+    suspend fun setFamilyByUser(id: String, familyId: String, modifiedAt: Long = System.currentTimeMillis())
+
+    /** A person's summary: a template code and its arguments no longer describe it, and a re-read keeps it. */
+    @Query(
+        "UPDATE documents SET summary = :text, summarySource = 'USER', summaryCode = NULL, summaryArgs = NULL, " +
+            "modifiedAt = :modifiedAt WHERE id = :id",
+    )
+    suspend fun setSummaryByUser(id: String, text: String, modifiedAt: Long = System.currentTimeMillis())
 
     @Query("UPDATE documents SET status = :status, modifiedAt = :modifiedAt WHERE id = :id")
     suspend fun updateStatus(id: String, status: String, modifiedAt: Long = System.currentTimeMillis())
@@ -79,11 +133,17 @@ interface DocumentDao {
     @Query("SELECT * FROM extracted_data WHERE documentId = :docId")
     fun observeExtractedData(docId: String): Flow<List<ExtractedDataEntity>>
 
-    @Query("UPDATE extracted_data SET isConfirmed = 1 WHERE id = :id")
+    @Query("UPDATE extracted_data SET isConfirmed = 1, reviewState = 'CONFIRMED' WHERE id = :id")
     suspend fun confirmExtraction(id: String)
+
+    @Query("SELECT * FROM extracted_data WHERE id = :id")
+    suspend fun getExtractedField(id: String): ExtractedDataEntity?
 
     @Query("DELETE FROM extracted_data WHERE documentId = :docId")
     suspend fun deleteExtractedData(docId: String)
+
+    @Query("UPDATE extracted_data SET fieldName = :name WHERE id = :id")
+    suspend fun renameExtractedField(id: String, name: String)
 
     @Query("UPDATE extracted_data SET fieldValue = :value, fieldName = :name WHERE id = :id")
     suspend fun updateExtractedField(id: String, name: String, value: String)
@@ -93,4 +153,45 @@ interface DocumentDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSingleExtractedData(data: ExtractedDataEntity)
+
+    // ── List rows: one query each for the whole list, never one per document ──
+
+    /** The columns a list row reads from every field of every live document (no evidence, no bounds). */
+    @Query(
+        "SELECT id, documentId, fieldName, fieldValue, fieldType, confidence, isConfirmed, source, " +
+            "deletedByUser, hasUnreviewedMachineChange, slotKey, role, reviewState FROM extracted_data " +
+            "WHERE documentId IN (SELECT id FROM documents WHERE deletedAt IS NULL)",
+    )
+    fun observeListFields(): Flow<List<ListFieldRow>>
+
+    /** Page 1 of every live document: the lowest page number it has. */
+    @Query(
+        "SELECT p.documentId AS documentId, p.imagePath AS imagePath FROM document_pages p " +
+            "WHERE p.documentId IN (SELECT id FROM documents WHERE deletedAt IS NULL) " +
+            "AND p.pageNumber = (SELECT MIN(q.pageNumber) FROM document_pages q WHERE q.documentId = p.documentId)",
+    )
+    fun observeFirstPages(): Flow<List<FirstPageRow>>
 }
+
+/** A field as a list row reads it; see [DocumentDao.observeListFields]. */
+data class ListFieldRow(
+    val id: String,
+    val documentId: String,
+    val fieldName: String,
+    val fieldValue: String,
+    val fieldType: String,
+    val confidence: Float,
+    val isConfirmed: Boolean,
+    val source: String,
+    val deletedByUser: Boolean,
+    val hasUnreviewedMachineChange: Boolean,
+    val slotKey: String?,
+    val role: String?,
+    val reviewState: String,
+)
+
+/** Page 1's image of a document; see [DocumentDao.observeFirstPages]. */
+data class FirstPageRow(
+    val documentId: String,
+    val imagePath: String,
+)

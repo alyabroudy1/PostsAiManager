@@ -1,122 +1,51 @@
 package com.postsaimanager.core.data.repository
 
-import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.result.getOrNull
-import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.repository.ProfileRepository
-import com.postsaimanager.core.model.ExtractedData
-import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.Profile
-import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.model.ProfileType
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Matches extracted sender/receiver data against existing profiles.
- * Returns suggestions with confidence scores for linking or creating new profiles.
+ * Scores the existing profiles against a name and organisation: the one similarity rule the entity linker
+ * ([EntityProfileLinker]) uses to decide whether a recognised organisation or person is already on file.
  */
 @Singleton
 class ProfileMatcher @Inject constructor(
     private val profileRepository: ProfileRepository,
 ) {
+
     /**
-     * Analyze extracted data and produce profile suggestions for sender and receiver.
+     * The best-scoring existing profile for a name/organization pair, or null with 0f when
+     * nothing in the database resembles it at all.
      */
-    suspend fun matchProfiles(
-        documentId: String,
-        extractedData: List<ExtractedData>,
-    ): List<ProfileSuggestion> {
-        val suggestions = mutableListOf<ProfileSuggestion>()
-
-        // Build sender info from extracted fields
-        val senderName = extractedData.firstOrNull { it.fieldName == "Sender Name" }?.fieldValue
-        val senderOrg = extractedData.firstOrNull { it.fieldName == "Sender Organization" }?.fieldValue
-        val senderEmail = extractedData.firstOrNull { it.fieldName == "Sender Email" }?.fieldValue
-        val senderPhone = extractedData.firstOrNull { it.fieldName == "Sender Phone" }?.fieldValue
-        val senderAddress = extractedData.firstOrNull { it.fieldName == "Sender Address" }?.fieldValue
-
-        if (senderName != null || senderOrg != null) {
-            val suggestion = findOrSuggestProfile(
-                role = ProfileRole.SENDER,
-                name = senderName,
-                organization = senderOrg,
-                email = senderEmail,
-                phone = senderPhone,
-                address = senderAddress,
-                documentId = documentId,
-            )
-            if (suggestion != null) suggestions.add(suggestion)
-        }
-
-        // Build receiver info
-        val receiverName = extractedData.firstOrNull { it.fieldName == "Receiver Name" }?.fieldValue
-        val receiverOrg = extractedData.firstOrNull { it.fieldName == "Receiver Organization" }?.fieldValue
-        val receiverAddress = extractedData.firstOrNull { it.fieldName == "Receiver Address" }?.fieldValue
-
-        if (receiverName != null || receiverOrg != null) {
-            val suggestion = findOrSuggestProfile(
-                role = ProfileRole.RECEIVER,
-                name = receiverName,
-                organization = receiverOrg,
-                email = null,
-                phone = null,
-                address = receiverAddress,
-                documentId = documentId,
-            )
-            if (suggestion != null) suggestions.add(suggestion)
-        }
-
-        return suggestions
-    }
-
-    private suspend fun findOrSuggestProfile(
-        role: ProfileRole,
+    suspend fun findBestMatch(
         name: String?,
         organization: String?,
-        email: String?,
-        phone: String?,
-        address: String?,
-        documentId: String,
-    ): ProfileSuggestion? {
-        val searchName = organization ?: name ?: return null
-
-        // Search existing profiles
+        email: String? = null,
+        /**
+         * Restricts which [ProfileType]s are eligible, applied *before* scoring rather than
+         * to the winner after. `findSimilarProfiles` matches on the `organization` column
+         * alone with no notion of type, so an organisation's own profile and a caseworker's
+         * profile at that organisation can tie on an organisation-only search — filtering
+         * only the winner would risk keeping the wrong one of the two on that tie; filtering
+         * the pool first means the runner-up is still found instead of nothing at all.
+         */
+        profileType: ((ProfileType) -> Boolean)? = null,
+    ): Pair<Profile?, Float> {
+        val searchName = organization ?: name ?: return null to 0f
         val similar = profileRepository.findSimilarProfiles(searchName, organization).getOrNull() ?: emptyList()
+        val candidates = if (profileType != null) similar.filter { profileType(it.type) } else similar
 
-        if (similar.isNotEmpty()) {
-            val bestMatch = similar.first()
-            val confidence = calculateMatchConfidence(bestMatch, name, organization, email)
+        // Score EVERY candidate and take the highest. Taking `similar.first()` before any
+        // scoring meant the "best match" was whatever order Room happened to return — a
+        // perfect match further down the list was silently ignored.
+        val best = candidates
+            .map { it to calculateMatchConfidence(it, name, organization, email) }
+            .maxByOrNull { it.second }
 
-            return ProfileSuggestion(
-                role = role,
-                matchType = if (confidence >= 0.95f) MatchType.EXACT_MATCH else MatchType.POSSIBLE_MATCH,
-                existingProfile = bestMatch,
-                confidence = confidence,
-                extractedName = name,
-                extractedOrganization = organization,
-                extractedEmail = email,
-                extractedPhone = phone,
-                extractedAddress = address,
-                documentId = documentId,
-                isAutoLinked = false,
-            )
-        }
-
-        // No match found — suggest creating new
-        return ProfileSuggestion(
-            role = role,
-            matchType = MatchType.NEW_PROFILE,
-            existingProfile = null,
-            confidence = 0f,
-            extractedName = name,
-            extractedOrganization = organization,
-            extractedEmail = email,
-            extractedPhone = phone,
-            extractedAddress = address,
-            documentId = documentId,
-            isAutoLinked = false,
-        )
+        return best?.first to (best?.second ?: 0f)
     }
 
     private fun calculateMatchConfidence(
@@ -131,12 +60,11 @@ class ProfileMatcher @Inject constructor(
         // Organization exact match is strongest signal
         if (organization != null && profile.organization != null) {
             checks++
-            val orgMatch = organization.lowercase().trim() == profile.organization!!.lowercase().trim()
-            val orgContains = profile.organization!!.lowercase().contains(organization.lowercase()) ||
-                organization.lowercase().contains(profile.organization!!.lowercase())
+            val a = organization.lowercase().trim()
+            val b = profile.organization!!.lowercase().trim()
             score += when {
-                orgMatch -> 1.0f
-                orgContains -> 0.8f
+                a == b -> 1.0f
+                substringOverlap(a, b) -> 0.8f
                 else -> 0f
             }
         }
@@ -144,12 +72,11 @@ class ProfileMatcher @Inject constructor(
         // Name match
         if (name != null) {
             checks++
-            val nameMatch = name.lowercase().trim() == profile.name.lowercase().trim()
-            val nameContains = profile.name.lowercase().contains(name.lowercase()) ||
-                name.lowercase().contains(profile.name.lowercase())
+            val a = name.lowercase().trim()
+            val b = profile.name.lowercase().trim()
             score += when {
-                nameMatch -> 1.0f
-                nameContains -> 0.7f
+                a == b -> 1.0f
+                substringOverlap(a, b) -> 0.7f
                 else -> 0f
             }
         }
@@ -164,69 +91,34 @@ class ProfileMatcher @Inject constructor(
     }
 
     /**
-     * Create a new profile from extracted data and link to document.
+     * Substring containment, guarded against matches that carry no identifying signal.
+     *
+     * A bare legal form — "AG", "GmbH", "e.V." — appears in a large share of German
+     * organisation names, so matching on it alone scored 0.8 against most of the
+     * database. A plain length floor was the first attempt and was too blunt: it also
+     * rejected legitimately short personal names such as "Max". Excluding the legal
+     * forms explicitly is the targeted fix; the length floor stays only as a backstop
+     * against one- and two-character fragments.
      */
-    suspend fun createAndLinkProfile(suggestion: ProfileSuggestion): PamResult<Profile> {
-        val now = System.currentTimeMillis()
-        val profile = Profile(
-            id = UuidGenerator.generate(),
-            type = if (suggestion.extractedOrganization != null) ProfileType.AUTHORITY else ProfileType.PERSON,
-            name = suggestion.extractedOrganization ?: suggestion.extractedName ?: "Unknown",
-            organization = suggestion.extractedOrganization,
-            phone = suggestion.extractedPhone,
-            email = suggestion.extractedEmail,
-            street = suggestion.extractedAddress,
-            createdAt = now,
-            modifiedAt = now,
-        )
-
-        val result = profileRepository.createProfile(profile)
-        if (result is PamResult.Success) {
-            profileRepository.linkProfileToDocument(profile.id, suggestion.documentId, suggestion.role)
-        }
-        return result
+    private fun substringOverlap(a: String, b: String): Boolean {
+        val shorter = if (a.length <= b.length) a else b
+        if (shorter.length < MIN_SUBSTRING_MATCH_LENGTH) return false
+        if (shorter.trim().trimEnd('.') in NON_IDENTIFYING_TOKENS) return false
+        return a.contains(b) || b.contains(a)
     }
 
-    /**
-     * Link an existing profile to a document.
-     * Also update profile with any new contact info from extraction.
-     */
-    suspend fun linkExistingProfile(suggestion: ProfileSuggestion): PamResult<Unit> {
-        val profile = suggestion.existingProfile ?: return PamResult.Error(
-            com.postsaimanager.core.common.result.PamError.FileNotFound("No profile to link")
-        )
+    companion object {
+        /** At or above this, the match is strong enough to link automatically. */
+        const val EXACT_MATCH_CONFIDENCE = 0.95f
 
-        // Update profile with new contact info if missing
-        val updated = profile.copy(
-            phone = profile.phone ?: suggestion.extractedPhone,
-            email = profile.email ?: suggestion.extractedEmail,
-            street = profile.street ?: suggestion.extractedAddress,
-            modifiedAt = System.currentTimeMillis(),
-        )
-        if (updated != profile) {
-            profileRepository.updateProfile(updated)
-        }
+        /** Shortest string that may participate in substring matching. */
+        const val MIN_SUBSTRING_MATCH_LENGTH = 3
 
-        return profileRepository.linkProfileToDocument(profile.id, suggestion.documentId, suggestion.role)
+        /** Legal forms and generic words that identify nobody on their own. */
+        val NON_IDENTIFYING_TOKENS = setOf(
+            "ag", "gmbh", "mbh", "kg", "ohg", "gbr", "ug", "se", "e.v", "ev",
+            "ltd", "inc", "llc", "plc", "co", "corp", "sa", "nv", "bv",
+            "gmbh & co", "und", "and", "der", "die", "das", "the",
+        )
     }
-}
-
-data class ProfileSuggestion(
-    val role: ProfileRole,
-    val matchType: MatchType,
-    val existingProfile: Profile?,
-    val confidence: Float,
-    val extractedName: String?,
-    val extractedOrganization: String?,
-    val extractedEmail: String?,
-    val extractedPhone: String?,
-    val extractedAddress: String?,
-    val documentId: String,
-    val isAutoLinked: Boolean,
-)
-
-enum class MatchType {
-    EXACT_MATCH,      // >= 95% confidence → auto-link suggested
-    POSSIBLE_MATCH,   // < 95% → user confirms
-    NEW_PROFILE,      // No match → offer to create
 }

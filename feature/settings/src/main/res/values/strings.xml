@@ -1,0 +1,28 @@
+<resources>
+    <!-- Settings added in Phase 1 (background updates, App lock). English only for now; the same
+         names in values-de and values-ar localise them. -->
+    <string name="settings_update_older_title">Update older letters automatically</string>
+    <string name="settings_update_older_subtitle">Re-read finished letters in the background, while charging or idle, when reading improves. Your edits are never changed</string>
+
+    <string name="settings_app_lock_title">App lock</string>
+    <string name="settings_app_lock_subtitle">Ask for your fingerprint, face, PIN or pattern to open the app</string>
+    <string name="settings_lock_after_title">Lock after</string>
+    <string name="settings_lock_immediately">Immediately</string>
+    <plurals name="settings_lock_after_minutes">
+        <item quantity="one">After %1$d minute</item>
+        <item quantity="other">After %1$d minutes</item>
+    </plurals>
+
+    <string name="settings_app_lock_notice_title">App lock is not available yet</string>
+    <string name="settings_app_lock_not_enrolled">This phone has no screen lock or fingerprint/face set up, so there is nothing to unlock the app with. Set one up in the system security settings, then come back and turn App lock on.</string>
+    <string name="settings_app_lock_unavailable">This device cannot check your fingerprint, face or screen lock right now, so App lock cannot be turned on.</string>
+    <string name="settings_app_lock_auth_failed">Your identity could not be confirmed, so App lock stays off. Try again.</string>
+    <string name="settings_open_security_settings">Open security settings</string>
+    <string name="settings_ok">OK</string>
+    <string name="settings_not_now">Not now</string>
+
+    <!-- The attribution CC-BY-4.0 asks for; the same text as AddressFormats.ATTRIBUTION in :core:domain. For Settings > About. -->
+    <string name="settings_open_source_title">Open-source data</string>
+    <string name="settings_open_source_subtitle">Address data licensed under CC BY 4.0</string>
+    <string name="settings_address_data_attribution">Address formats are derived from the Google libaddressinput address data (https://github.com/google/libaddressinput), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Only the postcode patterns, the order of the parts, the required parts and country names of a few countries are kept, adapted.</string>
+</resources>

@@ -1,0 +1,27 @@
+{
+  "note": "Synthetic layout fixtures for the template matcher (UK letter, US block letter). All names, addresses and numbers are invented. Not part of the benchmark gate (manifest-set1/2): loaded by BenchmarkFixtures.loadSynthetic().",
+  "documents": [
+    {
+      "id": "S1-uk-letter-1p",
+      "topics": [],
+      "language": "en",
+      "pages": 1,
+      "roles": {
+        "sender": "Brightwater Energy Ltd",
+        "addressees": ["David Okafor"]
+      },
+      "expected": []
+    },
+    {
+      "id": "S2-us-block-letter-1p",
+      "topics": [],
+      "language": "en",
+      "pages": 1,
+      "roles": {
+        "sender": "Lakeview Dental Group",
+        "addressees": ["Karen Whitfield"]
+      },
+      "expected": []
+    }
+  ]
+}

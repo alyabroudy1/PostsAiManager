@@ -1,0 +1,431 @@
+{
+  "note": "All content is synthetic/fictional. IBAN DE89 3704 0044 0532 0130 00 is the standard documentation example.",
+  "documents": [
+    {
+      "id": "invoice-2p",
+      "topics": [],
+      "folder": "invoice-2p",
+      "subject": "Rechnung RE-2026-0815",
+      "language": "de",
+      "pages": 2,
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Musterfirma GmbH",
+          "page": 1
+        },
+        {
+          "field": "subject",
+          "value": "Rechnung Nr. RE-2026-0815",
+          "page": 1
+        },
+        {
+          "field": "reference_number (Rechnungsnummer)",
+          "value": "RE-2026-0815",
+          "page": 1
+        },
+        {
+          "field": "customer_number",
+          "value": "KD-40417",
+          "page": 1
+        },
+        {
+          "field": "invoice_date",
+          "value": "28.09.2026",
+          "page": 1
+        },
+        {
+          "field": "net_amount",
+          "value": "1.079,41 €",
+          "page": 2
+        },
+        {
+          "field": "vat",
+          "value": "205,09 € (19 %)",
+          "page": 2
+        },
+        {
+          "field": "amount (Gesamtbetrag)",
+          "value": "1.284,50 €",
+          "page": 2
+        },
+        {
+          "field": "deadline",
+          "value": "15.10.2026",
+          "page": 2
+        },
+        {
+          "field": "iban",
+          "value": "DE89 3704 0044 0532 0130 00",
+          "page": 2
+        }
+      ],
+      "questions": [
+        {
+          "question": "Bis wann muss ich zahlen und wie viel?",
+          "expected_answer_gist": "1.284,50 € bis 15.10.2026",
+          "citation_page": 2
+        },
+        {
+          "question": "Wie lautet die IBAN für die Überweisung?",
+          "expected_answer_gist": "DE89 3704 0044 0532 0130 00",
+          "citation_page": 2
+        },
+        {
+          "question": "Was ist die Rechnungsnummer und Kundennummer?",
+          "expected_answer_gist": "RE-2026-0815 / KD-40417",
+          "citation_page": 1
+        },
+        {
+          "question": "Wie viel MwSt ist in der Rechnung enthalten?",
+          "expected_answer_gist": "205,09 € (19 % auf 1.079,41 € netto)",
+          "citation_page": 2
+        }
+      ]
+    },
+    {
+      "id": "tax-long-7p",
+      "topics": ["tax", "government"],
+      "folder": "tax-long-7p",
+      "subject": "Einkommensteuerbescheid 2025 – Festsetzung und Nachzahlung",
+      "language": "de",
+      "pages": 7,
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Finanzamt Beispielstadt",
+          "page": 1
+        },
+        {
+          "field": "reference_number (Aktenzeichen)",
+          "value": "EST-2025-0047118",
+          "page": 1
+        },
+        {
+          "field": "tax_number",
+          "value": "123/456/78901",
+          "page": 1
+        },
+        {
+          "field": "amount (Nachzahlung)",
+          "value": "2.317,00 €",
+          "page": 1
+        },
+        {
+          "field": "letter_date",
+          "value": "24.09.2026",
+          "page": 1
+        },
+        {
+          "field": "deadline (Einspruch)",
+          "value": "innerhalb eines Monats nach Bekanntgabe",
+          "page": 6
+        },
+        {
+          "field": "due_date (Zahlung)",
+          "value": "03.11.2026",
+          "page": 6
+        },
+        {
+          "field": "iban",
+          "value": "DE89 3704 0044 0532 0130 00",
+          "page": 6
+        },
+        {
+          "field": "festgesetzte Einkommensteuer",
+          "value": "9.817,00 €",
+          "page": 3
+        },
+        {
+          "field": "Vorauszahlungen",
+          "value": "7.500,00 €",
+          "page": 3
+        }
+      ],
+      "questions": [
+        {
+          "question": "Wie hoch ist die Nachzahlung?",
+          "expected_answer_gist": "2.317,00 €",
+          "citation_page": 1
+        },
+        {
+          "question": "Bis wann kann ich Einspruch einlegen?",
+          "expected_answer_gist": "Innerhalb eines Monats nach Bekanntgabe des Bescheids",
+          "citation_page": 6
+        },
+        {
+          "question": "Wann ist die Nachzahlung fällig?",
+          "expected_answer_gist": "03.11.2026",
+          "citation_page": 6
+        },
+        {
+          "question": "Wie setzt sich die Nachzahlung zusammen?",
+          "expected_answer_gist": "Steuer 9.817,00 € minus Vorauszahlungen 7.500,00 € = 2.317,00 €",
+          "citation_page": 3
+        }
+      ],
+      "retrieval_expectations": "Well over ~3,000 tokens total; app should switch to retrieval mode / show 'only first N pages read' notice. Page-6 facts test retrieval beyond the grounded prefix."
+    },
+    {
+      "id": "english-ambiguous-3p",
+      "topics": ["housing_utilities"],
+      "folder": "english-ambiguous-3p",
+      "subject": "Your account NU-77120934 – overdue balance and payment plan",
+      "language": "en",
+      "pages": 3,
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Northwind Utilities Ltd.",
+          "page": 1
+        },
+        {
+          "field": "reference_number",
+          "value": "NU/REM/2026/03318",
+          "page": 1
+        },
+        {
+          "field": "account_number",
+          "value": "NU-77120934",
+          "page": 1
+        },
+        {
+          "field": "amount (overdue balance)",
+          "value": "£142.80",
+          "page": 1
+        },
+        {
+          "field": "deadline (reply by)",
+          "value": "10 October 2026",
+          "page": 1
+        },
+        {
+          "field": "amount (new monthly instalment)",
+          "value": "£57.00",
+          "page": 3
+        },
+        {
+          "field": "date (direct debit starts)",
+          "value": "1 November 2026",
+          "page": 3
+        },
+        {
+          "field": "letter_date",
+          "value": "26 September 2026",
+          "page": 1
+        }
+      ],
+      "questions": [
+        {
+          "question": "How much do I owe right now?",
+          "expected_answer_gist": "Overdue balance £142.80 (the £57.00 is the proposed monthly instalment, not the debt)",
+          "citation_page": 1
+        },
+        {
+          "question": "By when do I need to reply?",
+          "expected_answer_gist": "10 October 2026",
+          "citation_page": 1
+        },
+        {
+          "question": "When does the direct debit start and how much will it be?",
+          "expected_answer_gist": "1 November 2026, £57.00 per month",
+          "citation_page": 3
+        },
+        {
+          "question": "What are the terms if I miss a payment?",
+          "expected_answer_gist": "Supplier contacts customer to agree new date; repeated misses may cancel arrangement and make full balance due (clause 5)",
+          "citation_page": 2
+        }
+      ],
+      "ambiguity": "Two amounts and two dates; the extractor's single amount/deadline field should be flagged 'worth checking'."
+    },
+    {
+      "id": "receipt-noise-1p",
+      "topics": ["shopping"],
+      "folder": "receipt-noise-1p",
+      "subject": "Kassenbon Beispielmarkt",
+      "language": "de",
+      "pages": 1,
+      "image_note": "narrow ~740x2204 px",
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Beispielmarkt",
+          "page": 1
+        },
+        {
+          "field": "amount (Summe)",
+          "value": "23,47 €",
+          "page": 1
+        },
+        {
+          "field": "date",
+          "value": "27.09.2026",
+          "page": 1
+        },
+        {
+          "field": "payment_method",
+          "value": "girocard / Kartenzahlung",
+          "page": 1
+        },
+        {
+          "field": "receipt_number (Bon-Nr.)",
+          "value": "4711",
+          "page": 1
+        }
+      ],
+      "not_facts": "TSE-Signatur, Seriennummer, Transaktionsnummer 1049233, Terminal-ID 52847196, Trace-Nr 004217, Genehmigungs-Nr 918274, QR code and barcode digits are noise: none should be reported as reference number/IBAN.",
+      "questions": [
+        {
+          "question": "Wie viel habe ich bezahlt?",
+          "expected_answer_gist": "23,47 € per Kartenzahlung",
+          "citation_page": 1
+        },
+        {
+          "question": "Wann war der Einkauf?",
+          "expected_answer_gist": "27.09.2026 um 18:42",
+          "citation_page": 1
+        },
+        {
+          "question": "Wie lautet die IBAN auf dem Bon?",
+          "expected_answer_gist": "There is no IBAN on the receipt",
+          "citation_page": 1
+        },
+        {
+          "question": "Was ist die Transaktionsnummer / Rechnungsnummer?",
+          "expected_answer_gist": "Bon-Nr. 4711; TSE-Transaktionsnummer 1049233; must not invent codes from the signature string",
+          "citation_page": 1
+        }
+      ]
+    },
+    {
+      "id": "degraded-3p",
+      "topics": ["housing_utilities"],
+      "folder": "degraded-3p",
+      "subject": "Änderung Ihres Abschlags ab 01.12.2026",
+      "language": "de",
+      "pages": 3,
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Stadtwerke Beispielstadt",
+          "page": 1
+        },
+        {
+          "field": "amount (neuer Abschlag)",
+          "value": "89,00 € monatlich",
+          "page": 1
+        },
+        {
+          "field": "date (gültig ab)",
+          "value": "01.12.2026",
+          "page": 1
+        },
+        {
+          "field": "previous_amount",
+          "value": "74,00 €",
+          "page": 1
+        },
+        {
+          "field": "contract_account",
+          "value": "3300 5521 08",
+          "page": 1
+        },
+        {
+          "field": "meter_number",
+          "value": "1EMH0000123456",
+          "page": 1
+        },
+        {
+          "field": "letter_date",
+          "value": "25.09.2026",
+          "page": 1
+        },
+        {
+          "field": "iban (Einzug, page 2 rotated/low contrast; may be missed)",
+          "value": "DE89 3704 0044 0532 0130 00",
+          "page": 2
+        },
+        {
+          "field": "annual_consumption",
+          "value": "2.940 kWh (2.940 kWh, page 2)",
+          "page": 2
+        }
+      ],
+      "questions": [
+        {
+          "question": "Wie hoch ist mein neuer Abschlag und ab wann?",
+          "expected_answer_gist": "89,00 € monatlich ab 01.12.2026",
+          "citation_page": 1
+        },
+        {
+          "question": "Wie hoch war der bisherige Abschlag?",
+          "expected_answer_gist": "74,00 €",
+          "citation_page": 1
+        },
+        {
+          "question": "Wie hoch war mein Verbrauch im letzten Zeitraum?",
+          "expected_answer_gist": "2.940 kWh (page 2; may be unreadable, app should say so instead of guessing)",
+          "citation_page": 2
+        },
+        {
+          "question": "Was steht auf Seite 3?",
+          "expected_answer_gist": "Nothing / page is blank",
+          "citation_page": 3
+        }
+      ]
+    },
+    {
+      "id": "arabic-rtl-1p",
+      "topics": [],
+      "folder": "arabic-rtl-1p",
+      "subject": "تذكير بسداد الفاتورة رقم ٠٤١٧ لسنة ٢٠٢٦ (Zahlungserinnerung Rechnung 2026-0417)",
+      "language": "ar (+ de summary line)",
+      "pages": 1,
+      "expected": [
+        {
+          "field": "sender (German line only for Latin OCR)",
+          "value": "Al-Mithal Services GmbH (fiktiv)",
+          "page": 1
+        },
+        {
+          "field": "amount",
+          "value": "450,00 € (Arabic-Indic digits in Arabic text)",
+          "page": 1
+        },
+        {
+          "field": "deadline",
+          "value": "20.10.2026",
+          "page": 1
+        },
+        {
+          "field": "reference_number",
+          "value": "2026-0417",
+          "page": 1
+        },
+        {
+          "field": "letter_date",
+          "value": "28.09.2026 (Arabic text only, Arabic-Indic digits)",
+          "page": 1
+        }
+      ],
+      "questions": [
+        {
+          "question": "Wie viel soll ich zahlen und bis wann?",
+          "expected_answer_gist": "450,00 € bis 20.10.2026 (from German summary line)",
+          "citation_page": 1
+        },
+        {
+          "question": "Von wem ist der Brief?",
+          "expected_answer_gist": "Al-Mithal Services GmbH (German line); Arabic header unreadable to Latin OCR",
+          "citation_page": 1
+        },
+        {
+          "question": "Worum geht es in dem Brief?",
+          "expected_answer_gist": "Zahlungserinnerung zu Rechnung 2026-0417",
+          "citation_page": 1
+        }
+      ]
+    }
+  ]
+}

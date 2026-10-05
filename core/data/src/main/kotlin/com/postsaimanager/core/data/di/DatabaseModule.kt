@@ -3,8 +3,16 @@ package com.postsaimanager.core.data.di
 import android.content.Context
 import androidx.room.Room
 import com.postsaimanager.core.data.database.PamDatabase
+import com.postsaimanager.core.data.database.PamMigrations
+import com.postsaimanager.core.data.database.dao.ConversationDao
+import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
+import com.postsaimanager.core.data.database.dao.DocumentChunkDao
+import com.postsaimanager.core.data.database.dao.FieldRevisionDao
+import com.postsaimanager.core.data.database.dao.FormFillDao
+import com.postsaimanager.core.data.database.dao.MessageDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
+import com.postsaimanager.core.data.database.dao.ProfileFactDao
 import com.postsaimanager.core.data.database.dao.TimelineDao
 import dagger.Module
 import dagger.Provides
@@ -25,7 +33,10 @@ object DatabaseModule {
             PamDatabase::class.java,
             PamDatabase.DATABASE_NAME,
         )
-            .fallbackToDestructiveMigration()
+            // fallbackToDestructiveMigration() removed: it wiped every user document on
+            // any schema change. Migrations are explicit now, and a missing one fails
+            // loudly at open time rather than deleting data.
+            .addMigrations(*PamMigrations.ALL)
             .build()
     }
 
@@ -37,4 +48,28 @@ object DatabaseModule {
 
     @Provides
     fun provideTimelineDao(database: PamDatabase): TimelineDao = database.timelineDao()
+
+    @Provides
+    fun provideConversationDao(database: PamDatabase): ConversationDao = database.conversationDao()
+
+    @Provides
+    fun provideMessageDao(database: PamDatabase): MessageDao = database.messageDao()
+
+    @Provides
+    fun provideDocumentChunkDao(database: PamDatabase): DocumentChunkDao =
+        database.documentChunkDao()
+
+    @Provides
+    fun provideFieldRevisionDao(database: PamDatabase): FieldRevisionDao =
+        database.fieldRevisionDao()
+
+    @Provides
+    fun provideDismissedEntityDao(database: PamDatabase): DismissedEntityDao =
+        database.dismissedEntityDao()
+
+    @Provides
+    fun provideProfileFactDao(database: PamDatabase): ProfileFactDao = database.profileFactDao()
+
+    @Provides
+    fun provideFormFillDao(database: PamDatabase): FormFillDao = database.formFillDao()
 }

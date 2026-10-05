@@ -8,6 +8,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -77,13 +78,20 @@ fun PamEmptyState(
 
 /**
  * Standard error state with retry button.
+ *
+ * [secondaryLabel]/[onSecondary] add a second, lower-emphasis action next to Retry — e.g. a
+ * way out ("Back") for an error a retry might not fix. Both null keeps the original
+ * single-button layout.
  */
 @Composable
 fun PamErrorState(
     message: String,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
+    retryLabel: String = "Retry",
     onRetry: (() -> Unit)? = null,
+    secondaryLabel: String? = null,
+    onSecondary: (() -> Unit)? = null,
 ) {
     Box(
         modifier = modifier.fillMaxSize().padding(32.dp),
@@ -108,10 +116,19 @@ fun PamErrorState(
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            if (onRetry != null) {
+            if (onRetry != null || (secondaryLabel != null && onSecondary != null)) {
                 Spacer(modifier = Modifier.height(16.dp))
-                TextButton(onClick = onRetry) {
-                    Text("Retry")
+                Row {
+                    if (secondaryLabel != null && onSecondary != null) {
+                        TextButton(onClick = onSecondary) {
+                            Text(secondaryLabel)
+                        }
+                    }
+                    if (onRetry != null) {
+                        TextButton(onClick = onRetry) {
+                            Text(retryLabel)
+                        }
+                    }
                 }
             }
         }

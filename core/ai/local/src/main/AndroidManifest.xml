@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!--
+            Inference runs in its own process.
+
+            Spike Q3 measured a C++ abort inside llama.cpp producing SIGABRT and
+            "Zygote: Process exited due to signal 6" — the whole app died. No Kotlin
+            try/catch can intercept that. Isolated here, a malformed GGUF, an unparseable
+            grammar or an OOM inside a kernel costs the current answer and nothing else.
+
+            Not exported: only this app may bind.
+        -->
+        <service
+            android:name="com.postsaimanager.core.ai.local.InferenceService"
+            android:process=":inference"
+            android:exported="false" />
+    </application>
+</manifest>

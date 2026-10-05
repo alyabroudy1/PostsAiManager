@@ -1,0 +1,424 @@
+{
+ "key": "receipt-noise-1p",
+ "interpreter": "zones",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Spülmittel Spülmittel",
+   "normalized": "Spülmittel Spülmittel",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "BEISPIELMARKT",
+   "normalized": "BEISPIELMARKT",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "SUMME EUR",
+   "normalized": "SUMME EUR",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Kartenzahlung girocard",
+   "normalized": "Kartenzahlung girocard",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "Netto MwSt Brutto",
+   "normalized": "Netto MwSt Brutto",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Kartenzahlung",
+   "normalized": "Kartenzahlung",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Umtausch nur mit Kassenbon",
+   "normalized": "Umtausch nur mit Kassenbon",
+   "page": 1
+  },
+  {
+   "id": "DT1",
+   "kind": "DATETIME",
+   "raw": "27.09.2026 18:42",
+   "normalized": "2026-09-27T18:42",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "27.09.2026",
+   "normalized": "2026-09-27",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "19,15",
+   "normalized": "19.15 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "1,34",
+   "normalized": "1.34 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "2,50",
+   "normalized": "2.50 EUR",
+   "page": 1
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "0,48",
+   "normalized": "0.48 EUR",
+   "page": 1
+  },
+  {
+   "id": "A5",
+   "kind": "AMOUNT",
+   "raw": "7£",
+   "normalized": "7.00 GBP",
+   "page": 1
+  },
+  {
+   "id": "A6",
+   "kind": "AMOUNT",
+   "raw": "1,19",
+   "normalized": "1.19 EUR",
+   "page": 1
+  },
+  {
+   "id": "A7",
+   "kind": "AMOUNT",
+   "raw": "3,29",
+   "normalized": "3.29 EUR",
+   "page": 1
+  },
+  {
+   "id": "A8",
+   "kind": "AMOUNT",
+   "raw": "1,51",
+   "normalized": "1.51 EUR",
+   "page": 1
+  },
+  {
+   "id": "A9",
+   "kind": "AMOUNT",
+   "raw": "2,49",
+   "normalized": "2.49 EUR",
+   "page": 1
+  },
+  {
+   "id": "A10",
+   "kind": "AMOUNT",
+   "raw": "2,19",
+   "normalized": "2.19 EUR",
+   "page": 1
+  },
+  {
+   "id": "A11",
+   "kind": "AMOUNT",
+   "raw": "2,04",
+   "normalized": "2.04 EUR",
+   "page": 1
+  },
+  {
+   "id": "A12",
+   "kind": "AMOUNT",
+   "raw": "0,79",
+   "normalized": "0.79 EUR",
+   "page": 1
+  },
+  {
+   "id": "A13",
+   "kind": "AMOUNT",
+   "raw": "6,99",
+   "normalized": "6.99 EUR",
+   "page": 1
+  },
+  {
+   "id": "A14",
+   "kind": "AMOUNT",
+   "raw": "1,49",
+   "normalized": "1.49 EUR",
+   "page": 1
+  },
+  {
+   "id": "A16",
+   "kind": "AMOUNT",
+   "raw": "23,47",
+   "normalized": "23.47 EUR",
+   "page": 1
+  },
+  {
+   "id": "A17",
+   "kind": "AMOUNT",
+   "raw": "20,49",
+   "normalized": "20.49 EUR",
+   "page": 1
+  },
+  {
+   "id": "A18",
+   "kind": "AMOUNT",
+   "raw": "2,98",
+   "normalized": "2.98 EUR",
+   "page": 1
+  },
+  {
+   "id": "Z1",
+   "kind": "NUMBER",
+   "raw": "1,79 EUR",
+   "normalized": "1.79",
+   "page": 1
+  },
+  {
+   "id": "Z2",
+   "kind": "NUMBER",
+   "raw": "3,99 EUR",
+   "normalized": "3.99",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "750g",
+   "normalized": "750g",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "250g",
+   "normalized": "250g",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "DE000000000",
+   "normalized": "DE000000000",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "500g",
+   "normalized": "500g",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "52847196",
+   "normalized": "52847196",
+   "page": 1
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "004217",
+   "normalized": "004217",
+   "page": 1
+  },
+  {
+   "id": "N8",
+   "kind": "REFERENCE",
+   "raw": "918274",
+   "normalized": "918274",
+   "page": 1
+  },
+  {
+   "id": "N9",
+   "kind": "REFERENCE",
+   "raw": "b40928b5b7a",
+   "normalized": "b40928b5b7a",
+   "page": 1
+  },
+  {
+   "id": "N10",
+   "kind": "REFERENCE",
+   "raw": "767c76fb008f86bebb2",
+   "normalized": "767c76fb008f86bebb2",
+   "page": 1
+  },
+  {
+   "id": "N11",
+   "kind": "REFERENCE",
+   "raw": "3c6f5da2",
+   "normalized": "3c6f5da2",
+   "page": 1
+  },
+  {
+   "id": "N12",
+   "kind": "REFERENCE",
+   "raw": "cec255404e4",
+   "normalized": "cec255404e4",
+   "page": 1
+  },
+  {
+   "id": "N13",
+   "kind": "REFERENCE",
+   "raw": "1049233",
+   "normalized": "1049233",
+   "page": 1
+  },
+  {
+   "id": "N14",
+   "kind": "REFERENCE",
+   "raw": "ecdsa-plain-SHA256",
+   "normalized": "ecdsa-plain-SHA256",
+   "page": 1
+  },
+  {
+   "id": "N15",
+   "kind": "REFERENCE",
+   "raw": "234567",
+   "normalized": "234567",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 998877",
+   "normalized": "01234 998877",
+   "page": 1
+  }
+ ],
+ "call1": "sender: NONE\ntype: bill de HIGH\nslot:letter_date: NONE\nslot:total: A17 TOTAL_DUE MEDIUM\nslot:due_date: RULE \"14 days\" OTHER LOW\nslot:reference: N13 HIGH\nslot:customer_no: N13 HIGH\nslot:invoice_no: N13 HIGH\nextras: M1 \"Spülmittel\" ionic \"p.1\" MEDIUM",
+ "call1Ms": 43160,
+ "call2Ms": 5906,
+ "prefixTokens": 1204,
+ "prefixMs": 9535,
+ "template": "RECEIPT_NARROW",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "sender",
+   "question": "ZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nCANDIDATES IN THESE ZONES\nM2: BEISPIELMARKT [letterhead] p.1\nQUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1412,
+   "questionTokens": 158,
+   "answerTokens": 1
+  },
+  {
+   "name": "type",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nQUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "bill de HIGH",
+   "ms": 2153,
+   "questionTokens": 257,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE footer. HINT: This is the end of the receipt: often a date, a transaction number and thanks.\nVielen Dank für Ihren Einkauf! \/ Umtausch nur mit Kassenbon\nCANDIDATES IN THESE ZONES\nDT1: 27.09.2026 18:42 (near: \"Datum\") p.1\nD1: 27.09.2026 (near: \"Datum\" | \"Start\") p.1\nQUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "NONE",
+   "ms": 2020,
+   "questionTokens": 231,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:total",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nA1: 19,15 p.1\nA2: 1,34 p.1\nA3: 2,50 p.1\nA4: 0,48 p.1\nA5: 7£ p.1\nA6: 1,19 p.1\nA7: 3,29 p.1\nA8: 1,51 p.1\nA9: 2,49 p.1\nA10: 2,19 p.1\nA11: 2,04 p.1\nA12: 0,79 p.1\nA13: 6,99 p.1\nA14: 1,49 p.1\nA16: 23,47 (near: \"SUMME\") p.1\nA17: 20,49 (near: \"Brutto\") p.1\nA18: 2,98 (near: \"Brutto\") p.1\nQUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A17 TOTAL_DUE MEDIUM",
+   "ms": 5296,
+   "questionTokens": 370,
+   "answerTokens": 8
+  },
+  {
+   "name": "slot:due_date",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nDT1: 27.09.2026 18:42 (near: \"Datum\") p.1\nD1: 27.09.2026 (near: \"Datum\" | \"Start\") p.1\nQUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "RULE \"14 days\" OTHER LOW",
+   "ms": 2484,
+   "questionTokens": 207,
+   "answerTokens": 8
+  },
+  {
+   "name": "slot:reference",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: 750g (near: \"Landbrot\") p.1\nN2: 250g (near: \"Butter\") p.1\nN4: 500g (near: \"Joghurt Natur\" | \"Kaffee gemahlen\") p.1\nN6: 52847196 (near: \"Terminal-ID\") p.1\nN7: 004217 (near: \"Trace-Nr\") p.1\nN8: 918274 (near: \"Genehmigungs-Nr\") p.1\nN9: b40928b5b7a p.1\nN10: 767c76fb008f86bebb2 (near: \"b40928b5b7a\") p.1\nN11: 3c6f5da2 (near: \"7£6a6fO fb2\") p.1\nN12: cec255404e4 (near: \"7£6a6fO fb2 3c6f5da2\") p.1\nN13: 1049233 (near: \"Transaktionsnummer\") p.1\nN14: ecdsa-plain-SHA256 (near: \"Sig.-Alg\") p.1\nQUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N13 HIGH",
+   "ms": 3751,
+   "questionTokens": 409,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nZONE letterhead. HINT: This block is usually the shop: its name, address and tax number.\nBEISPIELMARKT \/ Musterstraße 12 \/ 12345 Beispielstadt \/ Tel. 01234 998877 \/ USt-IdNr. DE000000000 \/ Vollmilch l,5% 1L\nCANDIDATES IN THESE ZONES\nN1: 750g (near: \"Landbrot\") p.1\nN2: 250g (near: \"Butter\") p.1\nN3: DE000000000 (near: \"USt-IdNr\") p.1\nN4: 500g (near: \"Joghurt Natur\" | \"Kaffee gemahlen\") p.1\nN6: 52847196 (near: \"Terminal-ID\") p.1\nN7: 004217 (near: \"Trace-Nr\") p.1\nN8: 918274 (near: \"Genehmigungs-Nr\") p.1\nN9: b40928b5b7a p.1\nN10: 767c76fb008f86bebb2 (near: \"b40928b5b7a\") p.1\nN11: 3c6f5da2 (near: \"7£6a6fO fb2\") p.1\nN12: cec255404e4 (near: \"7£6a6fO fb2 3c6f5da2\") p.1\nN13: 1049233 (near: \"Transaktionsnummer\") p.1\nN14: ecdsa-plain-SHA256 (near: \"Sig.-Alg\") p.1\nQUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N13 HIGH",
+   "ms": 4770,
+   "questionTokens": 518,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:invoice_no",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: 750g (near: \"Landbrot\") p.1\nN2: 250g (near: \"Butter\") p.1\nN4: 500g (near: \"Joghurt Natur\" | \"Kaffee gemahlen\") p.1\nN6: 52847196 (near: \"Terminal-ID\") p.1\nN7: 004217 (near: \"Trace-Nr\") p.1\nN8: 918274 (near: \"Genehmigungs-Nr\") p.1\nN9: b40928b5b7a p.1\nN10: 767c76fb008f86bebb2 (near: \"b40928b5b7a\") p.1\nN11: 3c6f5da2 (near: \"7£6a6fO fb2\") p.1\nN12: cec255404e4 (near: \"7£6a6fO fb2 3c6f5da2\") p.1\nN13: 1049233 (near: \"Transaktionsnummer\") p.1\nN14: ecdsa-plain-SHA256 (near: \"Sig.-Alg\") p.1\nQUESTION: Which number is the invoice number (the bill this letter is about)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N13 HIGH",
+   "ms": 3658,
+   "questionTokens": 402,
+   "answerTokens": 4
+  },
+  {
+   "name": "extras",
+   "question": "ZONE body. HINT: These are the item lines, then the total and how it was paid. Each price stands on the row of its item.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM1: Spülmittel Spülmittel [address-field] p.1\nM3: SUMME EUR [address-field] p.1\nM4: Kartenzahlung girocard [address-field] p.1\nM5: Netto MwSt Brutto p.1\nM6: Kartenzahlung p.1\nDT1: 27.09.2026 18:42 (near: \"Datum\") p.1\nD1: 27.09.2026 (near: \"Datum\" | \"Start\") p.1\nA1: 19,15 p.1\nA2: 1,34 p.1\nA3: 2,50 p.1\nA4: 0,48 p.1\nA5: 7£ p.1\nA6: 1,19 p.1\nA7: 3,29 p.1\nA8: 1,51 p.1\nA9: 2,49 p.1\nA10: 2,19 p.1\nA11: 2,04 p.1\nA12: 0,79 p.1\nA13: 6,99 p.1\nA14: 1,49 p.1\nA16: 23,47 (near: \"SUMME\") p.1\nA17: 20,49 (near: \"Brutto\") p.1\nA18: 2,98 (near: \"Brutto\") p.1\nZ1: 1,79 EUR p.1\nZ2: 3,99 EUR p.1\nN1: 750g (near: \"Landbrot\") p.1\nN2: 250g (near: \"Butter\") p.1\nN4: 500g (near: \"Joghurt Natur\" | \"Kaffee gemahlen\") p.1\nN6: 52847196 (near: \"Terminal-ID\") p.1\nN7: 004217 (near: \"Trace-Nr\") p.1\nN8: 918274 (near: \"Genehmigungs-Nr\") p.1\nN9: b40928b5b7a p.1\nN10: 767c76fb008f86bebb2 (near: \"b40928b5b7a\") p.1\nN11: 3c6f5da2 (near: \"7£6a6fO fb2\") p.1\nN12: cec255404e4 (near: \"7£6a6fO fb2 3c6f5da2\") p.1\nN13: 1049233 (near: \"Transaktionsnummer\") p.1\nN14: ecdsa-plain-SHA256 (near: \"Sig.-Alg\") p.1\nQUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "M1 \"Spülmittel\" ionic \"p.1\" MEDIUM",
+   "ms": 8020,
+   "questionTokens": 879,
+   "answerTokens": 17
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this bill: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Bio Eier 10er \/ Bananen \/ 0,842 kg x 1,79 EUR\/kg \/ Landbrot 750g \/ Butter 25",
+   "ms": 1722,
+   "questionTokens": 50,
+   "answerTokens": 40
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"LETTER\"",
+   "ms": 425,
+   "questionTokens": 31,
+   "answerTokens": 4
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"1,19 A \/ 3,29 A \/ 1,51 A\"",
+   "ms": 1210,
+   "questionTokens": 51,
+   "answerTokens": 21
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"1. What is the total amount of money mentioned in the letter? 2. What is the date of the transaction? 3. What is the payment method used?\" \"Do you need more information?\" \"Do you want to see the receipt?\"",
+   "ms": 2541,
+   "questionTokens": 61,
+   "answerTokens": 52
+  }
+ ],
+ "wallMs": 49195,
+ "model": "text.gguf"
+}

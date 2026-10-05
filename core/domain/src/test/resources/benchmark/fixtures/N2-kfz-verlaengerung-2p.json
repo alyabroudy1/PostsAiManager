@@ -1,0 +1,439 @@
+{
+    "key": "N2-kfz-verlaengerung-2p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Nordstern Direkt Versicherung AG",
+                    "bounds": {
+                        "left": 0.12998791,
+                        "top": 0.044890977,
+                        "right": 0.63542926,
+                        "bottom": 0.06797777
+                    },
+                    "confidence": 0.9042295,
+                    "language": "und"
+                },
+                {
+                    "text": "Versicherungsallee 15 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.12696493,
+                        "top": 0.07054297,
+                        "right": 0.3778718,
+                        "bottom": 0.081231296
+                    },
+                    "confidence": 0.8776727,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel, 01234 555 200",
+                    "bounds": {
+                        "left": 0.12636034,
+                        "top": 0.08208636,
+                        "right": 0.2382104,
+                        "bottom": 0.09020949
+                    },
+                    "confidence": 0.8611979,
+                    "language": "und"
+                },
+                {
+                    "text": "kfz@nordstern-direkt.example",
+                    "bounds": {
+                        "left": 0.12756953,
+                        "top": 0.093202226,
+                        "right": 0.30048367,
+                        "bottom": 0.10346302
+                    },
+                    "confidence": 0.85574776,
+                    "language": "und"
+                },
+                {
+                    "text": "Nordstern Direkt Versicherung AG. Versicherungsallee 15 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.12636034,
+                        "top": 0.148354,
+                        "right": 0.5423216,
+                        "bottom": 0.16032493
+                    },
+                    "confidence": 0.89068246,
+                    "language": "und"
+                },
+                {
+                    "text": "Herrn und Frau",
+                    "bounds": {
+                        "left": 0.12696493,
+                        "top": 0.16802052,
+                        "right": 0.25453445,
+                        "bottom": 0.17870885
+                    },
+                    "confidence": 0.8577474,
+                    "language": "und"
+                },
+                {
+                    "text": "Max und Erika Mustermann",
+                    "bounds": {
+                        "left": 0.12636034,
+                        "top": 0.18298419,
+                        "right": 0.3579202,
+                        "bottom": 0.19581017
+                    },
+                    "confidence": 0.8781622,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterstraße 12",
+                    "bounds": {
+                        "left": 0.12636034,
+                        "top": 0.20051304,
+                        "right": 0.264208,
+                        "bottom": 0.21120137
+                    },
+                    "confidence": 0.8822545,
+                    "language": "und"
+                },
+                {
+                    "text": "54321 Beispieldorf",
+                    "bounds": {
+                        "left": 0.12515114,
+                        "top": 0.21504916,
+                        "right": 0.2841596,
+                        "bottom": 0.23044036
+                    },
+                    "confidence": 0.90923715,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihre Kfz-Versicherung - Beitrag ab 01.01.2027",
+                    "bounds": {
+                        "left": 0.122732766,
+                        "top": 0.33518597,
+                        "right": 0.6438936,
+                        "bottom": 0.3548525
+                    },
+                    "confidence": 0.88378906,
+                    "language": "und"
+                },
+                {
+                    "text": "Beitrag pro Jahr",
+                    "bounds": {
+                        "left": 0.12817413,
+                        "top": 0.47327918,
+                        "right": 0.28174123,
+                        "bottom": 0.48567763
+                    },
+                    "confidence": 0.8875558,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrte Frau Mustermann, sehr geehrter Herr Mustermann,",
+                    "bounds": {
+                        "left": 0.12212817,
+                        "top": 0.3651133,
+                        "right": 0.6801693,
+                        "bottom": 0.38264215
+                    },
+                    "confidence": 0.89290977,
+                    "language": "und"
+                },
+                {
+                    "text": "Kfz-Haftpflicht und Teilkasko",
+                    "bounds": {
+                        "left": 0.12696493,
+                        "top": 0.49850363,
+                        "right": 0.37182587,
+                        "bottom": 0.5121847
+                    },
+                    "confidence": 0.875,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Zeichen:",
+                    "bounds": {
+                        "left": 0.60096735,
+                        "top": 0.17186832,
+                        "right": 0.66928655,
+                        "bottom": 0.17956391
+                    },
+                    "confidence": 0.8675426,
+                    "language": "und"
+                },
+                {
+                    "text": "vielen Dank für Ihr Vertrauen. Ihre Kfz-Versicherung mit der Versicherungsnummer\nKFZ-4471-882-19 verlängert sich zum 01.01.2027 um ein weiteres Jahr. Aufgrund der\naktuellen Schadenentwicklung und der Regionalklasse müssen wir Ihren Beitrag\nanpassen.",
+                    "bounds": {
+                        "left": 0.12031439,
+                        "top": 0.38991022,
+                        "right": 0.8651753,
+                        "bottom": 0.45959812
+                    },
+                    "confidence": 0.87171173,
+                    "language": "und"
+                },
+                {
+                    "text": "Versicherungsnr.: KFZ-4471-882-19\nKennzeichen: XX-AB 1234\nAnsprechpartner: Herr K. Beispiel\nTelefon:\n01234 555 210\n14.09.2026",
+                    "bounds": {
+                        "left": 0.5991536,
+                        "top": 0.18597691,
+                        "right": 0.83071345,
+                        "bottom": 0.25309962
+                    },
+                    "confidence": 0.8685028,
+                    "language": "und"
+                },
+                {
+                    "text": "Nordstern Direkt Versicherung AG\nVorstand: Dr. Uta Muster, Jan Beispiel\nVors. des Aufsichtsrats: P. Test\nSitz Beispielstadt, HRB 000000",
+                    "bounds": {
+                        "left": 0.11003628,
+                        "top": 0.9020949,
+                        "right": 0.3083434,
+                        "bottom": 0.94228303
+                    },
+                    "confidence": 0.872468,
+                    "language": "und"
+                },
+                {
+                    "text": "Datum:",
+                    "bounds": {
+                        "left": 0.60096735,
+                        "top": 0.24540402,
+                        "right": 0.6426844,
+                        "bottom": 0.25224456
+                    },
+                    "confidence": 0.87630206,
+                    "language": "und"
+                },
+                {
+                    "text": "Bankverbindung: Beispielbank",
+                    "bounds": {
+                        "left": 0.37122127,
+                        "top": 0.9055152,
+                        "right": 0.52781135,
+                        "bottom": 0.91406584
+                    },
+                    "confidence": 0.8877315,
+                    "language": "und"
+                },
+                {
+                    "text": "JBAN DE89 3704 0044 0532 0130 00\nBỊC COBADEFFXXX",
+                    "bounds": {
+                        "left": 0.37122127,
+                        "top": 0.9153484,
+                        "right": 0.56469166,
+                        "bottom": 0.9341599
+                    },
+                    "confidence": 0.821332,
+                    "language": "und"
+                },
+                {
+                    "text": "bisher\n579,10 €",
+                    "bounds": {
+                        "left": 0.5912938,
+                        "top": 0.477127,
+                        "right": 0.6674728,
+                        "bottom": 0.515605
+                    },
+                    "confidence": 0.87569755,
+                    "language": "und"
+                },
+                {
+                    "text": "Der neue Jahresbeitrag beträgt 612,40 € (bisher 579,10 €). Der Beitrag wird wie gewohnt\nper SEPA-Lastschrift von dem bei uns hinterlegten Konto eingezogen.",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.5275759,
+                        "right": 0.8929867,
+                        "bottom": 0.5639162
+                    },
+                    "confidence": 0.88198894,
+                    "language": "und"
+                },
+                {
+                    "text": "ab 01.01.2027",
+                    "bounds": {
+                        "left": 0.71160823,
+                        "top": 0.4788371,
+                        "right": 0.84885126,
+                        "bottom": 0.48952544
+                    },
+                    "confidence": 0.890625,
+                    "language": "und"
+                },
+                {
+                    "text": "612,40 €",
+                    "bounds": {
+                        "left": 0.7726723,
+                        "top": 0.5057717,
+                        "right": 0.84885126,
+                        "bottom": 0.5173151
+                    },
+                    "confidence": 0.813058,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 555 200\nkfz@nordstern-direkt.example",
+                    "bounds": {
+                        "left": 0.6299879,
+                        "top": 0.90765285,
+                        "right": 0.78718257,
+                        "bottom": 0.92731935
+                    },
+                    "confidence": 0.88816965,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 2",
+                    "bounds": {
+                        "left": 0.81438935,
+                        "top": 0.9640872,
+                        "right": 0.8893591,
+                        "bottom": 0.9717828
+                    },
+                    "confidence": 0.7992188,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 2,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Nordstern Direkt Versicherung AG - Kfz-Versicherung KFZ-4471-882-19",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.05344164,
+                        "right": 0.528416,
+                        "bottom": 0.06284737
+                    },
+                    "confidence": 0.8329918,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Sonderkündigungsrecht",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.10260795,
+                        "right": 0.42442563,
+                        "bottom": 0.11714408
+                    },
+                    "confidence": 0.9067383,
+                    "language": "und"
+                },
+                {
+                    "text": "Wegen der Beitragserhöhung können Sie Ihren Vertrag außerordentlich kündigen. Ihre\nKündigung muss uns bis 30.11.2026 in Textform (Brief, E-Mail) zugehen; der Vertrag",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.119709276,
+                        "right": 0.85912937,
+                        "bottom": 0.1573322
+                    },
+                    "confidence": 0.86743283,
+                    "language": "und"
+                },
+                {
+                    "text": "endet dann zum 31.12.2026.",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.15904233,
+                        "right": 0.36336154,
+                        "bottom": 0.16973065
+                    },
+                    "confidence": 0.87109375,
+                    "language": "und"
+                },
+                {
+                    "text": "Möchten Sie Ihre Versicherung bei uns fortführen, müssen Sie nichts weiter tun. Bei\nFragen berät Sie Herr Beispiel gern unter 01234 555 210.",
+                    "bounds": {
+                        "left": 0.11668682,
+                        "top": 0.17870885,
+                        "right": 0.8403869,
+                        "bottom": 0.21462163
+                    },
+                    "confidence": 0.8692255,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.11729141,
+                        "top": 0.22659256,
+                        "right": 0.32043532,
+                        "bottom": 0.23813595
+                    },
+                    "confidence": 0.8484003,
+                    "language": "und"
+                },
+                {
+                    "text": "Nordstern Direkt Versicherung AG\nKundenservice Kfz",
+                    "bounds": {
+                        "left": 0.11789601,
+                        "top": 0.2607952,
+                        "right": 0.407497,
+                        "bottom": 0.28858486
+                    },
+                    "confidence": 0.87610704,
+                    "language": "und"
+                },
+                {
+                    "text": "Nordstern Direkt Versicherung AG\nVorstand: Dr. Uta Muster, Jan Beispiel\nVors. des Aufsichtsrats: P. Test\nSitz Beispielstadt, HRB O00000",
+                    "bounds": {
+                        "left": 0.12454655,
+                        "top": 0.90765285,
+                        "right": 0.32224908,
+                        "bottom": 0.94741344
+                    },
+                    "confidence": 0.87331736,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 2 von 2",
+                    "bounds": {
+                        "left": 0.8186215,
+                        "top": 0.051303975,
+                        "right": 0.8941959,
+                        "bottom": 0.058144506
+                    },
+                    "confidence": 0.8480469,
+                    "language": "und"
+                },
+                {
+                    "text": "Bankverbindung: Beispielbank\nJBAN DE89 3704 0044 0532 0130 00\nBỊC COBADEFFXXX",
+                    "bounds": {
+                        "left": 0.38452238,
+                        "top": 0.90679777,
+                        "right": 0.5798065,
+                        "bottom": 0.9341599
+                    },
+                    "confidence": 0.8369911,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 555 200\nkfz@nordstern-direkt.example",
+                    "bounds": {
+                        "left": 0.6438936,
+                        "top": 0.9046601,
+                        "right": 0.80169284,
+                        "bottom": 0.923044
+                    },
+                    "confidence": 0.88340306,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 2 von 2",
+                    "bounds": {
+                        "left": 0.8301088,
+                        "top": 0.9593844,
+                        "right": 0.9056832,
+                        "bottom": 0.96579736
+                    },
+                    "confidence": 0.8382813,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}

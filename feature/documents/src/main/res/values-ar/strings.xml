@@ -1,0 +1,6 @@
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- Filling in a form with the AI chat (the rest of this screen is English only for now) -->
+    <string name="fill_form_card_title">هذا نموذج يمكن تعبئته.</string>
+    <string name="fill_form_card_action">تعبئة النماذج (تجريبي)</string>
+    <string name="action_fill_form">تعبئة النماذج (تجريبي)</string>
+</resources>

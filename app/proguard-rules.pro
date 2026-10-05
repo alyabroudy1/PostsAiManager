@@ -31,3 +31,21 @@
 
 # Hilt
 -dontwarn dagger.hilt.**
+
+# ONNX Runtime (search model): its native code looks up Java classes, fields and methods by name
+# (OrtSession.run → convertOrtValueToONNXValue → GetMethodID), so R8 must not rename or strip any of them.
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
+
+# JNI: keep every native method and its declaring class; keep the llama.cpp bridge whole, since its
+# native side may call back into Java (cancel/progress hooks) by name.
+-keepclasseswithmembernames,includedescriptorclasses class * { native <methods>; }
+-keep class com.postsaimanager.core.ai.local.** { *; }
+
+# Release logging: strip verbose/debug/info logs (they carry document ids and timings).
+# Warnings and errors stay.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}

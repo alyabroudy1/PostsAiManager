@@ -6,6 +6,7 @@ import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.data.database.dao.TimelineDao
 import com.postsaimanager.core.data.database.entity.TimelineEventEntity
+import com.postsaimanager.core.data.mapper.JsonColumns
 import com.postsaimanager.core.domain.repository.TimelineRepository
 import com.postsaimanager.core.model.TimelineEvent
 import com.postsaimanager.core.model.TimelineEventType
@@ -34,6 +35,8 @@ class TimelineRepositoryImpl @Inject constructor(
                     referenceId = entity.referenceId,
                     referenceType = entity.referenceType,
                     createdAt = entity.createdAt,
+                    code = entity.code,
+                    args = JsonColumns.decodeStrings(entity.args),
                 )
             }
         }.flowOn(ioDispatcher)
@@ -52,6 +55,8 @@ class TimelineRepositoryImpl @Inject constructor(
                         referenceId = event.referenceId,
                         referenceType = event.referenceType,
                         createdAt = event.createdAt,
+                        code = event.code,
+                        args = JsonColumns.encodeStrings(event.args),
                     )
                 )
                 PamResult.Success(Unit)

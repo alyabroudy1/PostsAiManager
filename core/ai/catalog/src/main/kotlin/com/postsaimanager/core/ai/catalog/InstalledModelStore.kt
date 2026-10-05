@@ -1,0 +1,203 @@
+package com.postsaimanager.core.ai.catalog
+
+import android.content.Context
+import com.postsaimanager.core.common.dispatcher.Dispatcher
+import com.postsaimanager.core.common.dispatcher.PamDispatcher
+import com.postsaimanager.core.model.InstalledModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/** Persisted shape of the installed-model index. */
+@Serializable
+data class InstalledIndex(
+    val models: List<InstalledModel> = emptyList(),
+    val activeModelId: String? = null,
+    /**
+     * Model used to read documents, when it differs from the chat model.
+     *
+     * Null means "the same one" — the common case, and the reason this is nullable rather
+     * than defaulted to a copy of [activeModelId]. Storing a copy would silently freeze the
+     * extraction choice the first time a user changed their chat model.
+     */
+    val extractionModelId: String? = null,
+) {
+    /**
+     * Resolution rules, kept here rather than in the store so they can be tested without an
+     * Android `Context`. They are decisions about data, and every one of them is a fallback
+     * that decides whether a document gets read at all.
+     */
+    fun chatModel(): InstalledModel? = models.firstOrNull { it.id == activeModelId }
+
+    /**
+     * The model that reads documents: one the user chose explicitly for reading, else the catalog's reader model
+     * ([readerDescriptorId], the one the extraction profile is tuned on) whenever it is installed, whatever the chat model is, else
+     * the chat model. Reading with another model than the preferred one is a far better outcome than not reading at all.
+     */
+    fun readerModel(readerDescriptorId: String = BundledCatalog.READER_MODEL_ID): InstalledModel? =
+        models.firstOrNull { it.id == extractionModelId }
+            ?: models.firstOrNull { it.descriptorId == readerDescriptorId }
+            ?: chatModel()
+
+    /**
+     * This index with every side-loaded model that is really a catalog model (same hash and size) tied to its descriptor: the migration
+     * of imports made before [CatalogMatcher] existed. It only reads the stored hash, so it costs no disk access.
+     */
+    fun withCatalogMatches(catalog: List<com.postsaimanager.core.model.AiModelDescriptor> = BundledCatalog.models): InstalledIndex =
+        copy(models = models.map { CatalogMatcher.adopt(it, catalog) })
+
+    /** True when one model does both jobs — the default, and one load instead of two. */
+    val sharesOneModel: Boolean
+        get() = readerModel()?.id == activeModelId
+}
+
+/**
+ * Tracks which models are installed, which one chats, and which one reads documents.
+ *
+ * ### Why a JSON file rather than a Room table
+ *
+ * The source of truth here is the set of `.gguf` files on disk, not a row. Room would add
+ * a schema version to maintain for data that is really a cache of the filesystem, and a
+ * migration to write every time this index gains a field — [extractionModelId] would have
+ * been one.
+ *
+ * It is also the more honest model: the source of truth is the set of `.gguf` files that
+ * actually exist. [reconcile] drops index entries whose file has vanished — after a
+ * "clear storage", a manual delete, or an interrupted install — so the store cannot claim a
+ * model the engine would then fail to load.
+ */
+@Singleton
+class InstalledModelStore @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val json: Json,
+    @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
+) {
+
+    private val indexFile: File
+        get() = File(modelsDir, INDEX_FILE_NAME)
+
+    private val modelsDir: File
+        get() = File(context.filesDir, MODELS_DIR).apply { mkdirs() }
+
+    private val _state = MutableStateFlow(InstalledIndex())
+
+    val installed: StateFlow<InstalledIndex>
+        get() = _state.asStateFlow()
+
+    init {
+        load()
+    }
+
+    fun models(): List<InstalledModel> = _state.value.models
+
+    fun activeModel(): InstalledModel? = _state.value.chatModel()
+
+    /** See [InstalledIndex.readerModel]. */
+    fun extractionModel(): InstalledModel? = _state.value.readerModel()
+
+    fun isInstalled(descriptorId: String): Boolean =
+        _state.value.models.any { it.descriptorId == descriptorId }
+
+    fun add(model: InstalledModel) {
+        update { index ->
+            index.copy(
+                models = index.models.filterNot { it.id == model.id } + model,
+                // First install becomes active automatically — otherwise the user installs
+                // a model and the assistant still reports that none is available.
+                activeModelId = index.activeModelId ?: model.id,
+            )
+        }
+    }
+
+    fun remove(modelId: String) {
+        update { index ->
+            val remaining = index.models.filterNot { it.id == modelId }
+            index.models.firstOrNull { it.id == modelId }?.let { File(it.filePath).delete() }
+            index.copy(
+                models = remaining,
+                extractionModelId = index.extractionModelId?.takeIf { it != modelId },
+                activeModelId = if (index.activeModelId == modelId) {
+                    remaining.firstOrNull()?.id
+                } else {
+                    index.activeModelId
+                },
+            )
+        }
+    }
+
+    fun setActive(modelId: String) {
+        if (_state.value.models.none { it.id == modelId }) return
+        update { it.copy(activeModelId = modelId) }
+    }
+
+    /** @param modelId null returns reading to whichever model chats. */
+    fun setExtractionModel(modelId: String?) {
+        if (modelId != null && _state.value.models.none { it.id == modelId }) return
+        update { it.copy(extractionModelId = modelId) }
+    }
+
+    /**
+     * Drops entries whose backing file no longer exists.
+     *
+     * Touches disk (`File.exists()` per installed model, plus [modelsDir]'s `mkdirs()` via
+     * [indexFile]) — dispatched onto [ioDispatcher] here, once, rather than trusting every
+     * caller to remember to. [CatalogActiveModelProvider.activeModelPath] calling this on
+     * every chat pre-warm (`ChatViewModel.preWarmModel` -> `PreloadActiveModelUseCase`) used
+     * to do exactly that IO on whatever dispatcher the caller happened to be on — `Main`, for
+     * a `viewModelScope.launch` — and trip StrictMode's disk-read detector.
+     */
+    suspend fun reconcile() = withContext(ioDispatcher) { reconcileBlocking() }
+
+    private fun reconcileBlocking() {
+        update { index ->
+            val present = index.models.filter { File(it.filePath).exists() }
+            index.copy(
+                models = present,
+                activeModelId = index.activeModelId?.takeIf { id -> present.any { it.id == id } }
+                    ?: present.firstOrNull()?.id,
+                // Cleared rather than repointed: null already means "use the chat model",
+                // which is the right answer when the chosen reader has gone.
+                extractionModelId = index.extractionModelId
+                    ?.takeIf { id -> present.any { it.id == id } },
+            )
+        }
+    }
+
+    // Runs during Hilt's field/constructor injection (init {}), which is not a coroutine —
+    // there is no dispatcher to hop to here, so this one call remains synchronous on
+    // whatever thread first resolves this singleton. Every *other* path that touches disk
+    // goes through suspend fun reconcile() above instead.
+    private fun load() {
+        val loaded = runCatching {
+            if (indexFile.exists()) json.decodeFromString<InstalledIndex>(indexFile.readText())
+            else InstalledIndex()
+        }.getOrElse {
+            // A corrupt index must not brick model management. The files on disk are the
+            // real state; an empty index simply loses the "which is active" preference.
+            InstalledIndex()
+        }
+        _state.value = loaded
+        reconcileBlocking()
+        // An earlier import of a catalog file (the 2B side-loaded) has no descriptor yet: tie it to its catalog entry by hash.
+        update { it.withCatalogMatches() }
+    }
+
+    private fun update(block: (InstalledIndex) -> InstalledIndex) {
+        val next = block(_state.value)
+        _state.value = next
+        runCatching { indexFile.writeText(json.encodeToString(InstalledIndex.serializer(), next)) }
+    }
+
+    private companion object {
+        const val MODELS_DIR = "models"
+        const val INDEX_FILE_NAME = "installed.json"
+    }
+}

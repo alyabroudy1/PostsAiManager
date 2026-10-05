@@ -1,0 +1,890 @@
+{
+    "key": "invoice-2p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Musterfirma GmbH",
+                    "bounds": {
+                        "left": 0.09189843,
+                        "top": 0.0684053,
+                        "right": 0.32587665,
+                        "bottom": 0.085506625
+                    },
+                    "confidence": 0.8463542,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterfirma GmbH Beispielweg 7 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.091293834,
+                        "top": 0.089354426,
+                        "right": 0.41958886,
+                        "bottom": 0.10431808
+                    },
+                    "confidence": 0.8703993,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterfirma GmbH Beispielweg 7- 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.092503026,
+                        "top": 0.148354,
+                        "right": 0.3470375,
+                        "bottom": 0.15818726
+                    },
+                    "confidence": 0.84816575,
+                    "language": "und"
+                },
+                {
+                    "text": "Erika Mustermann",
+                    "bounds": {
+                        "left": 0.09371221,
+                        "top": 0.16545533,
+                        "right": 0.2394196,
+                        "bottom": 0.17571612
+                    },
+                    "confidence": 0.8877604,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterstraße 12",
+                    "bounds": {
+                        "left": 0.09371221,
+                        "top": 0.18170159,
+                        "right": 0.22309552,
+                        "bottom": 0.19452758
+                    },
+                    "confidence": 0.906808,
+                    "language": "und"
+                },
+                {
+                    "text": "54321 Beispieldorf",
+                    "bounds": {
+                        "left": 0.09371221,
+                        "top": 0.20179564,
+                        "right": 0.24607013,
+                        "bottom": 0.2141941
+                    },
+                    "confidence": 0.8959099,
+                    "language": "und"
+                },
+                {
+                    "text": "Rechnung Nr. RE-2026-0815",
+                    "bounds": {
+                        "left": 0.096130595,
+                        "top": 0.2731937,
+                        "right": 0.3681983,
+                        "bottom": 0.290295
+                    },
+                    "confidence": 0.8782269,
+                    "language": "und"
+                },
+                {
+                    "text": "Kundennummer: KD-40417 Rechnungsdatum: 28.09.2026\nLeistungszeitraum: September 2026",
+                    "bounds": {
+                        "left": 0.096130595,
+                        "top": 0.2954254,
+                        "right": 0.56590086,
+                        "bottom": 0.3330483
+                    },
+                    "confidence": 0.87833375,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrte Frau Mustermann,",
+                    "bounds": {
+                        "left": 0.09733978,
+                        "top": 0.34544677,
+                        "right": 0.35247883,
+                        "bottom": 0.35912782
+                    },
+                    "confidence": 0.88025844,
+                    "language": "und"
+                },
+                {
+                    "text": "Pos. Beschreibung",
+                    "bounds": {
+                        "left": 0.1070133,
+                        "top": 0.45874307,
+                        "right": 0.2732769,
+                        "bottom": 0.47199658
+                    },
+                    "confidence": 0.90356445,
+                    "language": "und"
+                },
+                {
+                    "text": "vielen Dank für lhren Auftrag und das entgegengebrachte Vertrauen. Für die im September 2026\nerbrachten Leistungen im Rahmen des Projekts „Kundenportal\" erlauben wir uns, Ihnen die\nfolgenden Positionen in Rechnung zu stellen. Die Aufstellung der einzelnen Leistungen finden Sie\nin der nachstehenden Tabelle.",
+                    "bounds": {
+                        "left": 0.09733978,
+                        "top": 0.36169302,
+                        "right": 0.8881499,
+                        "bottom": 0.43779394
+                    },
+                    "confidence": 0.87310255,
+                    "language": "und"
+                },
+                {
+                    "text": "1",
+                    "bounds": {
+                        "left": 0.11064087,
+                        "top": 0.48867038,
+                        "right": 0.113663845,
+                        "bottom": 0.49764857
+                    },
+                    "confidence": 0.703125,
+                    "language": "und"
+                },
+                {
+                    "text": "2",
+                    "bounds": {
+                        "left": 0.10822249,
+                        "top": 0.5160325,
+                        "right": 0.11668682,
+                        "bottom": 0.52543825
+                    },
+                    "confidence": 0.76171875,
+                    "language": "und"
+                },
+                {
+                    "text": "3",
+                    "bounds": {
+                        "left": 0.108827084,
+                        "top": 0.5433946,
+                        "right": 0.11668682,
+                        "bottom": 0.55280036
+                    },
+                    "confidence": 0.8828125,
+                    "language": "und"
+                },
+                {
+                    "text": "4",
+                    "bounds": {
+                        "left": 0.108827084,
+                        "top": 0.57075673,
+                        "right": 0.11729141,
+                        "bottom": 0.5797349
+                    },
+                    "confidence": 0.78125,
+                    "language": "und"
+                },
+                {
+                    "text": "Konzeption Webportal",
+                    "bounds": {
+                        "left": 0.15598549,
+                        "top": 0.48610517,
+                        "right": 0.334341,
+                        "bottom": 0.49978623
+                    },
+                    "confidence": 0.8723273,
+                    "language": "und"
+                },
+                {
+                    "text": "Layout-Entwurf",
+                    "bounds": {
+                        "left": 0.15659009,
+                        "top": 0.5121847,
+                        "right": 0.27811366,
+                        "bottom": 0.5275759
+                    },
+                    "confidence": 0.8457031,
+                    "language": "und"
+                },
+                {
+                    "text": "Softwarelizenz Modul B",
+                    "bounds": {
+                        "left": 0.15719467,
+                        "top": 0.53997433,
+                        "right": 0.3440145,
+                        "bottom": 0.55194527
+                    },
+                    "confidence": 0.8677734,
+                    "language": "und"
+                },
+                {
+                    "text": "Hosting September 2026",
+                    "bounds": {
+                        "left": 0.15779927,
+                        "top": 0.5664814,
+                        "right": 0.3573156,
+                        "bottom": 0.5823001
+                    },
+                    "confidence": 0.90117186,
+                    "language": "und"
+                },
+                {
+                    "text": "Fortsetzung der Positionen auf der folgenden Seite.",
+                    "bounds": {
+                        "left": 0.10278114,
+                        "top": 0.5964087,
+                        "right": 0.39661428,
+                        "bottom": 0.60837966
+                    },
+                    "confidence": 0.88758683,
+                    "language": "und"
+                },
+                {
+                    "text": "Menge\n4h",
+                    "bounds": {
+                        "left": 0.54171705,
+                        "top": 0.4553228,
+                        "right": 0.59854895,
+                        "bottom": 0.49251816
+                    },
+                    "confidence": 0.8830078,
+                    "language": "und"
+                },
+                {
+                    "text": "3 h",
+                    "bounds": {
+                        "left": 0.57617897,
+                        "top": 0.51047456,
+                        "right": 0.5991536,
+                        "bottom": 0.52030784
+                    },
+                    "confidence": 0.8125,
+                    "language": "und"
+                },
+                {
+                    "text": "1",
+                    "bounds": {
+                        "left": 0.59310764,
+                        "top": 0.5378367,
+                        "right": 0.5979444,
+                        "bottom": 0.54766995
+                    },
+                    "confidence": 0.78125,
+                    "language": "und"
+                },
+                {
+                    "text": "1",
+                    "bounds": {
+                        "left": 0.59310764,
+                        "top": 0.5651988,
+                        "right": 0.59854895,
+                        "bottom": 0.5746045
+                    },
+                    "confidence": 0.80859375,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielweg 7\n12345 Beispielstadt\nTel. 01234 567890\ninfo@musterfirma.example",
+                    "bounds": {
+                        "left": 0.73458284,
+                        "top": 0.060709704,
+                        "right": 0.8911729,
+                        "bottom": 0.10645575
+                    },
+                    "confidence": 0.8688612,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielstadt, 28.09.2026",
+                    "bounds": {
+                        "left": 0.6898428,
+                        "top": 0.23728089,
+                        "right": 0.8917775,
+                        "bottom": 0.25267208
+                    },
+                    "confidence": 0.88216144,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterfirma GmbH Beispielweg 7- 12345 Beispielstadt Geschäftsführer: Max Beispiel\nAmtsgericht Beispielstadt HRB 000000 USt-IdNr. DE000000000 Musterbank Beispielstadt",
+                    "bounds": {
+                        "left": 0.11245465,
+                        "top": 0.9144934,
+                        "right": 0.64752114,
+                        "bottom": 0.9431381
+                    },
+                    "confidence": 0.8384218,
+                    "language": "und"
+                },
+                {
+                    "text": "Einzelpreis € Gesamt €",
+                    "bounds": {
+                        "left": 0.6348247,
+                        "top": 0.4519025,
+                        "right": 0.8415961,
+                        "bottom": 0.4660111
+                    },
+                    "confidence": 0.8511513,
+                    "language": "und"
+                },
+                {
+                    "text": "95,00",
+                    "bounds": {
+                        "left": 0.6995163,
+                        "top": 0.4814023,
+                        "right": 0.7442564,
+                        "bottom": 0.4929457
+                    },
+                    "confidence": 0.89453125,
+                    "language": "und"
+                },
+                {
+                    "text": "95,00",
+                    "bounds": {
+                        "left": 0.7007255,
+                        "top": 0.509192,
+                        "right": 0.74365175,
+                        "bottom": 0.52030784
+                    },
+                    "confidence": 0.890625,
+                    "language": "und"
+                },
+                {
+                    "text": "149,90",
+                    "bounds": {
+                        "left": 0.69226116,
+                        "top": 0.5365541,
+                        "right": 0.7454655,
+                        "bottom": 0.54766995
+                    },
+                    "confidence": 0.89778644,
+                    "language": "und"
+                },
+                {
+                    "text": "29,00",
+                    "bounds": {
+                        "left": 0.7013301,
+                        "top": 0.56263363,
+                        "right": 0.74486095,
+                        "bottom": 0.57503206
+                    },
+                    "confidence": 0.8984375,
+                    "language": "und"
+                },
+                {
+                    "text": "380,00",
+                    "bounds": {
+                        "left": 0.78839177,
+                        "top": 0.4796922,
+                        "right": 0.8415961,
+                        "bottom": 0.4916631
+                    },
+                    "confidence": 0.8561198,
+                    "language": "und"
+                },
+                {
+                    "text": "285,00",
+                    "bounds": {
+                        "left": 0.7889964,
+                        "top": 0.50705427,
+                        "right": 0.84099156,
+                        "bottom": 0.5190252
+                    },
+                    "confidence": 0.8958333,
+                    "language": "und"
+                },
+                {
+                    "text": "149,90",
+                    "bounds": {
+                        "left": 0.79081017,
+                        "top": 0.5339889,
+                        "right": 0.8434099,
+                        "bottom": 0.5463874
+                    },
+                    "confidence": 0.88411456,
+                    "language": "und"
+                },
+                {
+                    "text": "29,00",
+                    "bounds": {
+                        "left": 0.8004837,
+                        "top": 0.56177855,
+                        "right": 0.8440145,
+                        "bottom": 0.5737495
+                    },
+                    "confidence": 0.8890625,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 2",
+                    "bounds": {
+                        "left": 0.8337364,
+                        "top": 0.94142795,
+                        "right": 0.9099153,
+                        "bottom": 0.94912356
+                    },
+                    "confidence": 0.8191406,
+                    "language": "und"
+                }
+            ]
+        },
+        {
+            "pageNumber": 2,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Musterfirma GmbH- Rechnung RE-2026-0815",
+                    "bounds": {
+                        "left": 0.10761789,
+                        "top": 0.06156477,
+                        "right": 0.3802902,
+                        "bottom": 0.0722531
+                    },
+                    "confidence": 0.8638238,
+                    "language": "und"
+                },
+                {
+                    "text": "Pos. Beschreibung",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.101325355,
+                        "right": 0.28174123,
+                        "bottom": 0.115433946
+                    },
+                    "confidence": 0.8972168,
+                    "language": "und"
+                },
+                {
+                    "text": "5",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.12997007,
+                        "right": 0.122732766,
+                        "bottom": 0.1393758
+                    },
+                    "confidence": 0.9140625,
+                    "language": "und"
+                },
+                {
+                    "text": "6",
+                    "bounds": {
+                        "left": 0.11305925,
+                        "top": 0.1573322,
+                        "right": 0.12212817,
+                        "bottom": 0.16673793
+                    },
+                    "confidence": 0.64453125,
+                    "language": "und"
+                },
+                {
+                    "text": "7",
+                    "bounds": {
+                        "left": 0.11305925,
+                        "top": 0.18469432,
+                        "right": 0.12152358,
+                        "bottom": 0.19367251
+                    },
+                    "confidence": 0.80078125,
+                    "language": "und"
+                },
+                {
+                    "text": "8",
+                    "bounds": {
+                        "left": 0.11064087,
+                        "top": 0.21205643,
+                        "right": 0.12031439,
+                        "bottom": 0.22146216
+                    },
+                    "confidence": 0.609375,
+                    "language": "und"
+                },
+                {
+                    "text": "Support-Pauschale",
+                    "bounds": {
+                        "left": 0.16263603,
+                        "top": 0.1303976,
+                        "right": 0.31680775,
+                        "bottom": 0.14279607
+                    },
+                    "confidence": 0.86879593,
+                    "language": "und"
+                },
+                {
+                    "text": "Anfahrt (2 x 18,50 €)",
+                    "bounds": {
+                        "left": 0.16082224,
+                        "top": 0.1573322,
+                        "right": 0.32587665,
+                        "bottom": 0.17058572
+                    },
+                    "confidence": 0.8386949,
+                    "language": "und"
+                },
+                {
+                    "text": "Datenmigration",
+                    "bounds": {
+                        "left": 0.16203144,
+                        "top": 0.18512185,
+                        "right": 0.2841596,
+                        "bottom": 0.19794784
+                    },
+                    "confidence": 0.891462,
+                    "language": "und"
+                },
+                {
+                    "text": "Zusatzschulung Team",
+                    "bounds": {
+                        "left": 0.16021766,
+                        "top": 0.2116289,
+                        "right": 0.33796856,
+                        "bottom": 0.2257375
+                    },
+                    "confidence": 0.89800346,
+                    "language": "und"
+                },
+                {
+                    "text": "Zusammenfassung",
+                    "bounds": {
+                        "left": 0.25937122,
+                        "top": 0.24796923,
+                        "right": 0.42140266,
+                        "bottom": 0.26250535
+                    },
+                    "confidence": 0.8953125,
+                    "language": "und"
+                },
+                {
+                    "text": "Nettobetrag",
+                    "bounds": {
+                        "left": 0.25997582,
+                        "top": 0.27533135,
+                        "right": 0.35187423,
+                        "bottom": 0.28943995
+                    },
+                    "confidence": 0.88565344,
+                    "language": "und"
+                },
+                {
+                    "text": "zzgl. 19 % MwSt. auf 1.079,41 €",
+                    "bounds": {
+                        "left": 0.25876662,
+                        "top": 0.30397606,
+                        "right": 0.51874244,
+                        "bottom": 0.31680205
+                    },
+                    "confidence": 0.8034375,
+                    "language": "und"
+                },
+                {
+                    "text": "Gesamtbetrag",
+                    "bounds": {
+                        "left": 0.25816202,
+                        "top": 0.3304831,
+                        "right": 0.3796856,
+                        "bottom": 0.34373665
+                    },
+                    "confidence": 0.8955078,
+                    "language": "und"
+                },
+                {
+                    "text": "Zahlungsbedingungen",
+                    "bounds": {
+                        "left": 0.10157195,
+                        "top": 0.36041042,
+                        "right": 0.29262394,
+                        "bottom": 0.37366396
+                    },
+                    "confidence": 0.90234375,
+                    "language": "und"
+                },
+                {
+                    "text": "Kontoinhaber: Musterfirma GmbH",
+                    "bounds": {
+                        "left": 0.10217654,
+                        "top": 0.40401882,
+                        "right": 0.39056832,
+                        "bottom": 0.41598973
+                    },
+                    "confidence": 0.8973214,
+                    "language": "und"
+                },
+                {
+                    "text": "IBAN: DE89 3704 0044 0532 0130 00",
+                    "bounds": {
+                        "left": 0.10157195,
+                        "top": 0.42154768,
+                        "right": 0.41051996,
+                        "bottom": 0.43437368
+                    },
+                    "confidence": 0.8819444,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterfirma GmbH\nBuchhaltung",
+                    "bounds": {
+                        "left": 0.09794438,
+                        "top": 0.5959812,
+                        "right": 0.2496977,
+                        "bottom": 0.62804615
+                    },
+                    "confidence": 0.88609135,
+                    "language": "und"
+                },
+                {
+                    "text": "BIC: COBADEFFXXX\nVerwendungszweck: RE-2026-0815",
+                    "bounds": {
+                        "left": 0.100967355,
+                        "top": 0.438649,
+                        "right": 0.40145102,
+                        "bottom": 0.47114152
+                    },
+                    "confidence": 0.8400099,
+                    "language": "und"
+                },
+                {
+                    "text": "Menge",
+                    "bounds": {
+                        "left": 0.54957676,
+                        "top": 0.105600685,
+                        "right": 0.60459495,
+                        "bottom": 0.11842668
+                    },
+                    "confidence": 0.9007813,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.09915357,
+                        "top": 0.5506627,
+                        "right": 0.29322854,
+                        "bottom": 0.56263363
+                    },
+                    "confidence": 0.86160713,
+                    "language": "und"
+                },
+                {
+                    "text": "1",
+                    "bounds": {
+                        "left": 0.59854895,
+                        "top": 0.13424541,
+                        "right": 0.60338575,
+                        "bottom": 0.1432236
+                    },
+                    "confidence": 0.7109375,
+                    "language": "und"
+                },
+                {
+                    "text": "2",
+                    "bounds": {
+                        "left": 0.5961306,
+                        "top": 0.16160752,
+                        "right": 0.6051995,
+                        "bottom": 0.17101325
+                    },
+                    "confidence": 0.73046875,
+                    "language": "und"
+                },
+                {
+                    "text": "1",
+                    "bounds": {
+                        "left": 0.59854895,
+                        "top": 0.18896964,
+                        "right": 0.60217655,
+                        "bottom": 0.1975203
+                    },
+                    "confidence": 0.6953125,
+                    "language": "und"
+                },
+                {
+                    "text": "1",
+                    "bounds": {
+                        "left": 0.5967352,
+                        "top": 0.21633177,
+                        "right": 0.60217655,
+                        "bottom": 0.22530997
+                    },
+                    "confidence": 0.5546875,
+                    "language": "und"
+                },
+                {
+                    "text": "Einzelpreis € Gesamt €",
+                    "bounds": {
+                        "left": 0.6426844,
+                        "top": 0.10731082,
+                        "right": 0.85006046,
+                        "bottom": 0.119709276
+                    },
+                    "confidence": 0.83984375,
+                    "language": "und"
+                },
+                {
+                    "text": "39,00",
+                    "bounds": {
+                        "left": 0.70616686,
+                        "top": 0.13510047,
+                        "right": 0.7509069,
+                        "bottom": 0.14621633
+                    },
+                    "confidence": 0.88671875,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterfirma GmbH Beispielweg 7 12345 Beispielstadt Geschäftsführer: Max Beispiel\nAmtsgericht Beispielstadt HRB 000000 USt-IdNr. DE000000000 Musterbank Beispielstadt",
+                    "bounds": {
+                        "left": 0.092503026,
+                        "top": 0.9123557,
+                        "right": 0.6305925,
+                        "bottom": 0.9401454
+                    },
+                    "confidence": 0.8478619,
+                    "language": "und"
+                },
+                {
+                    "text": "18,50",
+                    "bounds": {
+                        "left": 0.70737606,
+                        "top": 0.16246259,
+                        "right": 0.7496977,
+                        "bottom": 0.17357846
+                    },
+                    "confidence": 0.88359374,
+                    "language": "und"
+                },
+                {
+                    "text": "93,51",
+                    "bounds": {
+                        "left": 0.7055623,
+                        "top": 0.18982472,
+                        "right": 0.74727935,
+                        "bottom": 0.20094058
+                    },
+                    "confidence": 0.87890625,
+                    "language": "und"
+                },
+                {
+                    "text": "Der Gesamtbetrag von 1.284,50 € ist zahlbar bis 15.10.2026 ohne Abzug auf das folgende Konto:",
+                    "bounds": {
+                        "left": 0.10217654,
+                        "top": 0.38007694,
+                        "right": 0.8893591,
+                        "bottom": 0.400171
+                    },
+                    "confidence": 0.88948774,
+                    "language": "und"
+                },
+                {
+                    "text": "66,00",
+                    "bounds": {
+                        "left": 0.70495766,
+                        "top": 0.21718684,
+                        "right": 0.7490931,
+                        "bottom": 0.22787516
+                    },
+                    "confidence": 0.82421875,
+                    "language": "und"
+                },
+                {
+                    "text": "39,00",
+                    "bounds": {
+                        "left": 0.805925,
+                        "top": 0.13595554,
+                        "right": 0.8494559,
+                        "bottom": 0.14707139
+                    },
+                    "confidence": 0.8804687,
+                    "language": "und"
+                },
+                {
+                    "text": "37,00",
+                    "bounds": {
+                        "left": 0.80532044,
+                        "top": 0.16331765,
+                        "right": 0.8494559,
+                        "bottom": 0.17443351
+                    },
+                    "confidence": 0.9046875,
+                    "language": "und"
+                },
+                {
+                    "text": "93,51",
+                    "bounds": {
+                        "left": 0.8047158,
+                        "top": 0.19067977,
+                        "right": 0.84643286,
+                        "bottom": 0.20179564
+                    },
+                    "confidence": 0.8484375,
+                    "language": "und"
+                },
+                {
+                    "text": "Bei Zahlungsverzug behalten wir uns vor, Verzugszinsen in gesetzlicher Höhe zu berechnen. Bitte\ngeben Sie bei der Überweisung unbedingt die Rechnungsnummer an, damit wir Ihre Zahlung\neindeutig zuordnen können.",
+                    "bounds": {
+                        "left": 0.09975816,
+                        "top": 0.48525012,
+                        "right": 0.8923821,
+                        "bottom": 0.5395468
+                    },
+                    "confidence": 0.87567127,
+                    "language": "und"
+                },
+                {
+                    "text": "66,00",
+                    "bounds": {
+                        "left": 0.80411124,
+                        "top": 0.2180419,
+                        "right": 0.84764206,
+                        "bottom": 0.22873023
+                    },
+                    "confidence": 0.81171876,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 2 von 2",
+                    "bounds": {
+                        "left": 0.81559855,
+                        "top": 0.94741344,
+                        "right": 0.8911729,
+                        "bottom": 0.9568192
+                    },
+                    "confidence": 0.83125,
+                    "language": "und"
+                },
+                {
+                    "text": "Betrag €",
+                    "bounds": {
+                        "left": 0.92503023,
+                        "top": 0.25480974,
+                        "right": 0.99516326,
+                        "bottom": 0.26763573
+                    },
+                    "confidence": 0.8922991,
+                    "language": "und"
+                },
+                {
+                    "text": "1.079,41",
+                    "bounds": {
+                        "left": 0.93107617,
+                        "top": 0.28088927,
+                        "right": 1.0,
+                        "bottom": 0.29414278
+                    },
+                    "confidence": 0.87060547,
+                    "language": "und"
+                },
+                {
+                    "text": "205,09",
+                    "bounds": {
+                        "left": 0.9395405,
+                        "top": 0.30910647,
+                        "right": 0.99395406,
+                        "bottom": 0.32064986
+                    },
+                    "confidence": 0.88216144,
+                    "language": "und"
+                },
+                {
+                    "text": "1.284,50€",
+                    "bounds": {
+                        "left": 0.91051996,
+                        "top": 0.33689612,
+                        "right": 0.99395406,
+                        "bottom": 0.3484395
+                    },
+                    "confidence": 0.84678817,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}

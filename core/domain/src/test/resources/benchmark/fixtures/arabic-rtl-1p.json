@@ -1,0 +1,57 @@
+{
+    "key": "arabic-rtl-1p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Zusammenfassung (Deutsch): Zahlungserinnerung zu Rechnung 2026-041 7.",
+                    "bounds": {
+                        "left": 0.10580411,
+                        "top": 0.7896537,
+                        "right": 0.6886336,
+                        "bottom": 0.80803764
+                    },
+                    "confidence": 0.89905757,
+                    "language": "und"
+                },
+                {
+                    "text": "Betrag: 450,00 €, zahlbar bis 20.10.2026.",
+                    "bounds": {
+                        "left": 0.1070133,
+                        "top": 0.80974776,
+                        "right": 0.42140266,
+                        "bottom": 0.82642156
+                    },
+                    "confidence": 0.87076825,
+                    "language": "und"
+                },
+                {
+                    "text": "Absender: Al-Mithal Services GmbH (fiktiv), Beispielstadt.",
+                    "bounds": {
+                        "left": 0.10640871,
+                        "top": 0.8298418,
+                        "right": 0.5368803,
+                        "bottom": 0.84437793
+                    },
+                    "confidence": 0.85443693,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 1",
+                    "bounds": {
+                        "left": 0.8325272,
+                        "top": 0.9328773,
+                        "right": 0.9038694,
+                        "bottom": 0.9410004
+                    },
+                    "confidence": 0.83984375,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}
