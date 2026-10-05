@@ -253,7 +253,11 @@ object ExtractedPresenter {
         val (visibleExtras, hiddenExtras) = extraRows.partition { showAllExtras || !isHidden(it) }
         val actions = ActionLinks.link(document.actionItems, live).map { ActionLine(it.text, it.rows) }
         val actionRowIds = actions.flatMap { a -> a.rows.map { it.id } }.toSet()
-        val keyInfo = if (ExtractorVersion.readsKeyInfo(document.extractorVersion)) visibleExtras.filter { it.id !in actionRowIds } else emptyList()
+        // The slot rows the AI picked as key information (an invoice number, an IBAN ...) come first, best score first, then the extras. A
+        // value an action line already states stays in that line's sub-lines and is not drawn twice.
+        val readsKeyInfo = ExtractorVersion.readsKeyInfo(document.extractorVersion)
+        val keySlotRows = if (readsKeyInfo) fixedRows.filter { it.isKeySlot }.sortedByDescending { it.importance } else emptyList()
+        val keyInfo = if (readsKeyInfo) (keySlotRows + visibleExtras).filter { it.id !in actionRowIds } else emptyList()
         val essentials = Essentials(
             actions = actions,
             parties = parties(fixedRows, fullBlocks, selfName),

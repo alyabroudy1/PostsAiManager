@@ -1,12 +1,14 @@
 package com.postsaimanager.core.domain.extraction.zones
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Result
 import com.postsaimanager.core.domain.extraction.v2.Letters
 import com.postsaimanager.core.domain.extraction.v2.ModelDocumentInterpreter
 import com.postsaimanager.core.model.EnrichmentTicket
+import com.postsaimanager.core.model.TicketSlot
 import com.postsaimanager.core.testing.FakeAiEngine
 import com.postsaimanager.core.testing.FakePromptSession
 import kotlinx.coroutines.runBlocking
@@ -20,6 +22,9 @@ class TwoStageReadingTest {
 
     private val letter = Letters.invoice
 
+    /** The words every stored-slot question carries (see [ZonePrompt.keySlotQuestion]). */
+    private val KEY_SLOT_ASK = "does the reader need"
+
     private fun session() = FakePromptSession().apply {
         scorer = { c ->
             when {
@@ -29,6 +34,9 @@ class TwoStageReadingTest {
                 c.contains("«Musterfirma GmbH»") && c.contains("the sender") -> 5.0
                 c.contains("«Erika Mustermann»") && c.contains("the addressee") -> 5.0
                 c.contains(ScoringDescriptions.EXTRA) -> 2.0
+                // The stored slot values: the amount matters most to this reader, the date of the letter a little, the rest nothing.
+                c.contains(KEY_SLOT_ASK) && c.contains("«Amount: 1.284,50 €»") -> 4.0
+                c.contains(KEY_SLOT_ASK) && c.contains("«Document Date:") -> 1.0
                 else -> -5.0
             }
         }
@@ -99,7 +107,8 @@ class TwoStageReadingTest {
         assertThat(second.parties.all).isEmpty()
         // Only the extras were scored (no type, no party, no slot), in the body session the first stage left (what it established is in
         // its prefix), and the text was written in the writing session that follows.
-        assertThat(later.scored.flatten().all { it.contains(ScoringDescriptions.EXTRA) }).isTrue()
+        // (and the stored slot values, in the same batch: see the key-slot tests).
+        assertThat(later.scored.flatten().all { it.contains(ScoringDescriptions.EXTRA) || it.contains(KEY_SLOT_ASK) }).isTrue()
         assertThat(later.opens).hasSize(2)
         assertThat(later.opens.first()).contains("ESTABLISHED FROM THE HEADER OF THE LETTER")
         assertThat(later.opens.first()).contains(ticket.established)
@@ -108,7 +117,7 @@ class TwoStageReadingTest {
         val offered = com.postsaimanager.core.domain.extraction.v2.Prepared(letter.pages).offered
         val takenRaw = ticket.takenIds.mapNotNull { offered.get(it)?.raw?.replace('\n', ' ') }
         assertThat(takenRaw).isNotEmpty()
-        val scoredRaw = later.scored.flatten().map { it.substringAfter("Is «").substringBefore("»") }
+        val scoredRaw = later.scored.flatten().filter { it.contains("Is «") }.map { it.substringAfter("Is «").substringBefore("»") }
         assertThat(scoredRaw.intersect(takenRaw.toSet())).isEmpty()
     }
 
@@ -130,6 +139,69 @@ class TwoStageReadingTest {
         assertThat(second.actions).containsExactly("Bitte überweise 1.284,50 € bis zum 15.10.2026 an die Musterfirma GmbH.")
         // The adapter hands them to what the data layer stores.
         assertThat(ExtractionV2Adapter().adapt(second).actionItems).isEqualTo(second.actions)
+    }
+
+    @Test
+    fun `the first stage's ticket carries the stored slot values with their labels`() {
+        val ticket = run(ExtractionV2Pipeline.Stages.FIRST, session()).enrichment!!
+        assertThat(ticket.slots).contains(TicketSlot("total", "Amount", "1.284,50 €"))
+        assertThat(ticket.slots.map { it.key }).containsNoDuplicates()
+    }
+
+    @Test
+    fun `the stored slot values are scored in the same batch as the extras, under the hint, and the ones above the threshold are the key slots`() {
+        val ticket = run(ExtractionV2Pipeline.Stages.FIRST, session()).enrichment!!
+        val later = session()
+        val second = run(ExtractionV2Pipeline.Stages.SECOND, later, ticket)
+
+        val hint = ExtractionSchema.INVOICE_BILL.hint
+        val batch = later.scored.single { qs -> qs.any { it.contains(KEY_SLOT_ASK) } }
+        val slotQuestions = batch.filter { it.contains(KEY_SLOT_ASK) }
+        assertThat(slotQuestions).hasSize(ticket.slots.size)
+        assertThat(slotQuestions.all { it.contains(hint) }).isTrue()
+        assertThat(slotQuestions.any { it.endsWith(ZonePrompt.keySlotQuestion("Amount", "1.284,50 €", hint)) }).isTrue()
+        // The extras ride in that same batch (one scored call), and the slot questions come after them.
+        assertThat(batch.any { it.contains(ScoringDescriptions.EXTRA) }).isTrue()
+        assertThat(batch.indexOfFirst { it.contains(KEY_SLOT_ASK) }).isGreaterThan(batch.indexOfLast { it.contains(ScoringDescriptions.EXTRA) })
+        // Only what the model scored above the threshold (0.0 by default) is picked, best first.
+        assertThat(second.keySlots!!.map { it.key }).containsExactly("total", "letter_date").inOrder()
+        assertThat(second.keySlots!!.map { it.score }).isInOrder(Comparator.reverseOrder<Float>())
+        // The adapter hands them to what the data layer stores.
+        assertThat(ExtractionV2Adapter().adapt(second).keySlots).isEqualTo(second.keySlots)
+    }
+
+    @Test
+    fun `the threshold of the key slots is the profile's, and a scoring above none picks none rather than leaving the stored picks`() {
+        val ticket = run(ExtractionV2Pipeline.Stages.FIRST, session()).enrichment!!
+        val strict = ScoringProfile(thresholds = mapOf(ScoringDescriptions.KEY_SLOTS_ASK to 3.5))
+        val result = runBlocking {
+            ExtractionV2Pipeline().run(
+                letter.pages, ZoneScoringInterpreter(FakeAiEngine(), session(), contextTokens = 4096, profile = strict), 4096,
+                stages = ExtractionV2Pipeline.Stages.SECOND, ticket = ticket,
+            )
+        }
+        assertThat(result.keySlots!!.map { it.key }).containsExactly("total")
+        val none = runBlocking {
+            ExtractionV2Pipeline().run(
+                letter.pages,
+                ZoneScoringInterpreter(FakeAiEngine(), session(), contextTokens = 4096, profile = ScoringProfile(thresholds = mapOf(ScoringDescriptions.KEY_SLOTS_ASK to 99.0))),
+                4096, stages = ExtractionV2Pipeline.Stages.SECOND, ticket = ticket,
+            )
+        }
+        assertThat(none.keySlots).isEmpty()
+    }
+
+    @Test
+    fun `at most 15 stored slot values are scored, and a ticket with none scores none and leaves the stored picks`() {
+        val ticket = run(ExtractionV2Pipeline.Stages.FIRST, session()).enrichment!!
+        val many = ticket.copy(slots = (1..20).map { TicketSlot("slot_$it", "Label $it", "value $it") })
+        val later = session()
+        run(ExtractionV2Pipeline.Stages.SECOND, later, many)
+        assertThat(later.scored.flatten().count { it.contains(KEY_SLOT_ASK) }).isEqualTo(ScoringDescriptions.MAX_KEY_SLOT_SCORES)
+        assertThat(later.scored.flatten().filter { it.contains(KEY_SLOT_ASK) }.last()).contains("value 15")
+
+        val none = run(ExtractionV2Pipeline.Stages.SECOND, session(), ticket.copy(slots = emptyList()))
+        assertThat(none.keySlots).isNull()
     }
 
     @Test

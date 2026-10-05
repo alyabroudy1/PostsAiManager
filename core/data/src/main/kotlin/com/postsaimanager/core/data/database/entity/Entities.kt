@@ -324,6 +324,8 @@ data class ExtractedDataEntity(
     val reviewState: String = "UNREVIEWED",
     /** JSON list of `FieldAlternative`. */
     val alternatives: String? = null,
+    /** See [com.postsaimanager.core.model.ExtractedData.importance]; NULL on a row that is not key information. */
+    val importance: Float? = null,
 )
 
 /**

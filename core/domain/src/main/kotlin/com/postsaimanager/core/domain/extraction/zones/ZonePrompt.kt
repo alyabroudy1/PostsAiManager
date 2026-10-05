@@ -130,6 +130,15 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
         if (ctx.isNotEmpty()) append(" (context: ").append(ctx.joinToString("; ")).append(')')
     }
 
+    /**
+     * Whether the reader needs a stored slot value ([label]: [value]) to understand the document or to act on it, given the family's
+     * [hint] (what matters in this kind of document; left out when there is none). A yes/no question, so it is scored like the others.
+     */
+    fun keySlotQuestion(label: String, value: String, hint: String?): String {
+        val given = hint?.trim()?.takeIf { it.isNotEmpty() }?.let { "Given this guidance ($it), does" } ?: "Does"
+        return "$given the reader need «$label: ${value.replace('\n', ' ')}» to understand this document or to act on it? Answer:"
+    }
+
     /** What is asked of the value, closing the question; [scoringHead] + this is the whole question. */
     fun scoringAsk(what: String): String = " $what? Answer:"
 }

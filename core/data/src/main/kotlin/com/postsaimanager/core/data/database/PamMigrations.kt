@@ -487,12 +487,15 @@ object PamMigrations {
     }
 
     /**
-     * v17 to v18: a document keeps the action lines its second stage wrote (`actionItems`, a JSON list of strings; NULL reads as none).
-     * Additive: nothing is rewritten, and a document read before this version shows no actions until the background re-read writes them.
+     * v17 to v18: a document keeps the action lines its second stage wrote (`actionItems`, a JSON list of strings; NULL reads as none),
+     * and a stored field the key information it was picked as (`importance` on `extracted_data`, the score; NULL is not key information).
+     * Additive: nothing is rewritten, and a document read before this version shows no actions or key slots until the background re-read
+     * writes them.
      */
     val MIGRATION_17_18 = object : Migration(17, 18) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE `documents` ADD COLUMN `actionItems` TEXT")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `importance` REAL")
         }
     }
 

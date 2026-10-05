@@ -126,4 +126,13 @@ object ScoringDescriptions {
      * [EXTRA] followed by the guidance on what matters in this kind of document. What scores above the threshold is the "Key information".
      */
     fun extra(hint: String?): String = hint?.trim()?.takeIf { it.isNotEmpty() }?.let { "$EXTRA. $it" } ?: EXTRA
+
+    /**
+     * The scoring name of the stored slot values asked in the same batch as the extras (an invoice number, an amount, an IBAN ...):
+     * its threshold is the profile's (`defaultThreshold` unless the profile sets this name). What scores above it is key information too.
+     */
+    const val KEY_SLOTS_ASK = "keyslots"
+
+    /** At most this many stored slot values are scored for key information in one reading: the batch stays small. */
+    const val MAX_KEY_SLOT_SCORES = 15
 }

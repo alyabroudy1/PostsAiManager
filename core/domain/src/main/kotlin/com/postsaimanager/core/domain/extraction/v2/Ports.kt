@@ -4,6 +4,8 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.text.SummaryResult
 import com.postsaimanager.core.model.DocumentUnderstanding
+import com.postsaimanager.core.model.KeySlot
+import com.postsaimanager.core.model.TicketSlot
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.PostalAddress
 
@@ -143,6 +145,8 @@ class EnrichmentRequest(
     val facts: Map<String, String> = emptyMap(),
     /** The letter's text as the verifier reads it, the reference the summary's numbers and names are checked against. */
     val ocrText: String = "",
+    /** The fixed slot values the first stage stored, scored for whether the reader needs them (see [Enrichment.keySlots]). */
+    val slots: List<TicketSlot> = emptyList(),
 )
 
 /**
@@ -163,6 +167,7 @@ class Enrichment(
     val summary: SummaryResult? = null,
     val topics: List<String>? = null,
     val actions: List<String>? = null,
+    val keySlots: List<KeySlot>? = null,
 )
 
 sealed interface EnrichmentOutcome {

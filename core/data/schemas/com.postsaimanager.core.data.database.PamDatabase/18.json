@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 18,
-    "identityHash": "74fab16eddcebe8d1ba70931de1ac345",
+    "identityHash": "52f52b6a69c89112603aa6e12034e28b",
     "entities": [
       {
         "tableName": "documents",
@@ -601,7 +601,7 @@
       },
       {
         "tableName": "extracted_data",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `documentId` TEXT NOT NULL, `fieldName` TEXT NOT NULL, `fieldValue` TEXT NOT NULL, `fieldType` TEXT NOT NULL, `confidence` REAL NOT NULL, `pageNumber` INTEGER, `isConfirmed` INTEGER NOT NULL, `source` TEXT NOT NULL, `machineValue` TEXT, `machineConfidence` REAL, `deletedByUser` INTEGER NOT NULL, `hasUnreviewedMachineChange` INTEGER NOT NULL, `engineVersion` TEXT, `updatedAt` INTEGER NOT NULL, `slotKey` TEXT, `role` TEXT, `origin` TEXT, `aiConfidence` REAL, `evidence` TEXT, `bbox` TEXT, `reviewState` TEXT NOT NULL, `alternatives` TEXT, PRIMARY KEY(`id`), FOREIGN KEY(`documentId`) REFERENCES `documents`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `documentId` TEXT NOT NULL, `fieldName` TEXT NOT NULL, `fieldValue` TEXT NOT NULL, `fieldType` TEXT NOT NULL, `confidence` REAL NOT NULL, `pageNumber` INTEGER, `isConfirmed` INTEGER NOT NULL, `source` TEXT NOT NULL, `machineValue` TEXT, `machineConfidence` REAL, `deletedByUser` INTEGER NOT NULL, `hasUnreviewedMachineChange` INTEGER NOT NULL, `engineVersion` TEXT, `updatedAt` INTEGER NOT NULL, `slotKey` TEXT, `role` TEXT, `origin` TEXT, `aiConfidence` REAL, `evidence` TEXT, `bbox` TEXT, `reviewState` TEXT NOT NULL, `alternatives` TEXT, `importance` REAL, PRIMARY KEY(`id`), FOREIGN KEY(`documentId`) REFERENCES `documents`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -739,6 +739,12 @@
             "fieldPath": "alternatives",
             "columnName": "alternatives",
             "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "importance",
+            "columnName": "importance",
+            "affinity": "REAL",
             "notNull": false
           }
         ],
@@ -2070,7 +2076,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '74fab16eddcebe8d1ba70931de1ac345')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '52f52b6a69c89112603aa6e12034e28b')"
     ]
   }
 }

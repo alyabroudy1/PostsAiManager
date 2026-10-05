@@ -11,7 +11,9 @@ import com.postsaimanager.core.domain.extraction.text.SummaryFactsReader
 import com.postsaimanager.core.domain.extraction.text.SummaryResult
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.model.EnrichmentTicket
+import com.postsaimanager.core.model.KeySlot
 import com.postsaimanager.core.model.OcrBlock
+import com.postsaimanager.core.model.TicketSlot
 
 /**
  * Runs the stages in order; every stage is a port, so this class only sequences them.
@@ -90,6 +92,7 @@ class ExtractionV2Pipeline(
         var ticket: EnrichmentTicket? = null
         var summary: SummaryResult? = null
         var actions: List<String>? = null
+        var keySlots: List<KeySlot>? = null
         val pageTexts = pages.map { blocks -> blocks.joinToString("\n") { OcrText.normalizeChars(it.text) } }
         fun context(rawText: String?, textError: String?) = VerificationContext(
             candidates = candidates,
@@ -111,6 +114,7 @@ class ExtractionV2Pipeline(
             val first = EnrichmentTicket(
                 typeId = raw.type, takenIds = takenIds(raw), established = raw.established, topics = firstReading.topics,
                 facts = SummaryFactsReader.of(firstReading).carried(),
+                slots = firstReading.slots.mapNotNull { (key, v) -> v.value.trim().takeIf { it.isNotEmpty() && !v.blocked }?.let { TicketSlot(key.json, key.label, it) } },
             )
             if (stages == Stages.FIRST) {
                 ticket = first
@@ -128,6 +132,7 @@ class ExtractionV2Pipeline(
                         textError = enriched.enrichment.textError
                         summary = enriched.enrichment.summary
                         actions = enriched.enrichment.actions
+                        keySlots = enriched.enrichment.keySlots
                     }
                     is EnrichmentOutcome.Failed -> textError = enriched.reason
                 }
@@ -144,7 +149,7 @@ class ExtractionV2Pipeline(
         val verified = verifier.verify(raw, text, context(rawText, textError))
         lap("verify")
         return verified.copy(
-            enrichment = ticket, summary = summary, actions = actions,
+            enrichment = ticket, summary = summary, actions = actions, keySlots = keySlots,
             composedTitle = composeTitle(verified, verified.parties.sender?.name),
         ).withReading(
             layoutTrace(pages, layout, candidates, offered, description, traceContent) + timings + interpreter.trace,
@@ -191,7 +196,7 @@ class ExtractionV2Pipeline(
             ),
         )
         return verified.copy(
-            summary = done?.summary, actions = done?.actions,
+            summary = done?.summary, actions = done?.actions, keySlots = done?.keySlots,
             composedTitle = composeTitle(verified, ticket.facts[SummaryFacts.SENDER]),
             diagnostics = verified.diagnostics.copy(modelCalled = true, modelUsed = done != null, trace = timings + interpreter.trace),
         )
@@ -207,7 +212,7 @@ class ExtractionV2Pipeline(
         layout: LetterLayout, offered: OfferedCandidates, pageAspect: Float?, direction: DocDirection, ticket: EnrichmentTicket, ocrText: String,
     ) = EnrichmentRequest(
         offered, layout, pageAspect, direction, ticket.takenIds.toSet(), ticket.typeId, ticket.established,
-        topics = ticket.topics, facts = ticket.facts, ocrText = ocrText,
+        topics = ticket.topics, facts = ticket.facts, ocrText = ocrText, slots = ticket.slots,
     )
 
     /** The candidate ids the reading's slots and parties took (before verification: the ids the model's scores chose). */

@@ -315,6 +315,52 @@ class ExtractedPresenterTest {
             assertThat(p.detailSlots()).containsExactly("invoice_no")
         }
 
+        /** The invoice fields with the invoice number and the IBAN picked as key information (the IBAN the better). */
+        private fun pickedFields() = invoiceFields().map {
+            when (it.slotKey) {
+                "invoice_no" -> it.copy(importance = 1.5f)
+                "iban" -> it.copy(importance = 3f)
+                else -> it
+            }
+        }
+
+        @Test
+        fun `the slot rows the AI picked are key information after the subject, best score first, then the extras`() {
+            val p = present(pickedFields(), type = "invoice_bill")
+
+            assertThat(p.essentials.subject!!.fieldValue).isEqualTo("Zahlungserinnerung")
+            assertThat(p.essentials.keyInfo.map { it.fieldName }).containsExactly("IBAN", "Invoice Number", "Mandatsreferenz", "Tarif").inOrder()
+            // They are not in "All details" as well.
+            assertThat(p.detailSlots()).containsExactly("due_date", "total")
+        }
+
+        @Test
+        fun `a picked slot row an action line already states stays in that line, not drawn twice`() {
+            val p = present(pickedFields(), type = "invoice_bill", actions = listOf("Überweise auf DE89 3704 0044 0532 0130 00."))
+
+            assertThat(p.essentials.actions.single().rows.map { it.slotKey }).containsExactly("iban")
+            assertThat(p.essentials.keyInfo.map { it.fieldName }).containsExactly("Invoice Number", "Mandatsreferenz", "Tarif").inOrder()
+            assertThat(p.essentials.rows.map { it.id }).containsNoDuplicates()
+        }
+
+        @Test
+        fun `Check these counts an unsure picked slot row, and one nobody picked stays in All details`() {
+            val rows = pickedFields().map { if (it.slotKey == "invoice_no") it.copy(confidence = 0.4f) else if (it.slotKey == "total") it.copy(confidence = 0.4f) else it }
+            val p = present(rows, type = "invoice_bill")
+
+            assertThat(p.checkCount).isEqualTo(1)
+            assertThat(p.review.uncertain).isEqualTo(1)
+            assertThat(p.detailSlots()).contains("total")
+        }
+
+        @Test
+        fun `a picked slot row is key information only for a document read by a version that picks them`() {
+            val p = present(pickedFields(), type = "invoice_bill", version = "extraction-v2-2")
+
+            assertThat(p.essentials.keyInfo).isEmpty()
+            assertThat(p.detailSlots()).containsAtLeast("iban", "invoice_no")
+        }
+
         @Test
         fun `a document with no action lines has no actions, whatever fields it holds`() {
             val p = present(invoiceFields(), type = "invoice_bill", actions = emptyList())

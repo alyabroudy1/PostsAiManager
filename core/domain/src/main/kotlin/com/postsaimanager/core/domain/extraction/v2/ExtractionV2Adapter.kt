@@ -118,6 +118,7 @@ class ExtractionV2Adapter(
             summaryCode = summary?.code,
             summaryArgs = summary?.args.orEmpty(),
             actionItems = result.actions,
+            keySlots = result.keySlots,
             suggestedQuestions = result.freeText.suggestedQuestions,
             modelUsed = result.diagnostics.modelUsed,
             readingTrace = result.diagnostics.trace,

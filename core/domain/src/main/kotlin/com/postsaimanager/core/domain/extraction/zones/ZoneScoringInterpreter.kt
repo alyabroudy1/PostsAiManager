@@ -48,6 +48,8 @@ import com.postsaimanager.core.domain.extraction.v2.StructuredGrammar
 import com.postsaimanager.core.domain.extraction.v2.TextOutcome
 import com.postsaimanager.core.domain.extraction.v2.TextRequest
 import com.postsaimanager.core.domain.extraction.v2.UnreadText
+import com.postsaimanager.core.model.KeySlot
+import com.postsaimanager.core.model.TicketSlot
 import java.util.Locale
 
 /**
@@ -317,14 +319,18 @@ class ZoneScoringInterpreter(
             // The family's hint says what matters in this kind of document: it steers which facts are kept as the key information
             // (the extras) and what the action lines say; the model still decides, code only verifies.
             val hint = (request.documentTypeId?.let { schema.family(it) } ?: schema.abstain)?.hint
-            val picked = pickExtras(open.setup, request.takenIds, hint)
+            val picks = pickExtras(open.setup, request.takenIds, hint, request.slots)
+            val picked = picks.extras
             // A profile that keeps the topics out of the first stage scores them here, still in the body session.
             val lateTopics = if (topicsInFirstStage || request.topics.isNotEmpty()) null else classifier().topics(tail)
             // The letter as plain text: no zone hints and no summary of the header, which a small model copies instead of the letter.
             val writing = switchToWriting(open.setup, ZonePrompt.bodyUser("", open.setup.zoned.render(open.zonesInPrefix, open.budget)))
             if (!writing) {
                 return EnrichmentOutcome.Done(
-                    Enrichment(language = null, extras = emptyList(), text = null, textError = "the model could not read the letter again", topics = lateTopics),
+                    Enrichment(
+                        language = null, extras = emptyList(), text = null, textError = "the model could not read the letter again", topics = lateTopics,
+                        keySlots = picks.keySlots,
+                    ),
                 )
             }
             val language = ask(QuestionnairePrompt.language())?.let { AnswerReader.language(it) }
@@ -342,6 +348,7 @@ class ZoneScoringInterpreter(
                 Enrichment(
                     language = language, extras = extras, text = written,
                     textError = (text as? TextOutcome.Failed)?.reason, summary = summary, topics = lateTopics, actions = actions,
+                    keySlots = picks.keySlots,
                 ),
             )
         } catch (e: Abort) {
@@ -393,21 +400,30 @@ class ZoneScoringInterpreter(
      * for every other value. Names are never offered: the parties were scored already, and the names the extractor finds that are
      * not a party are mostly labels and fragments of lines ("Fällig am", "Betrag €"). A failed scoring leaves no extras.
      */
-    private suspend fun pickExtras(setup: ZoneSetup, taken: Set<String>, hint: String?): List<Picked> {
+    private suspend fun pickExtras(setup: ZoneSetup, taken: Set<String>, hint: String?, slots: List<TicketSlot>): Picks {
         val zoned = setup.zoned
         val zones = setup.plan.zones(QuestionNames.EXTRAS_SCORED).filter { zoned.hasText(it) }
-        if (zones.isEmpty()) return emptyList()
-        val cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.id !in taken && it.kind != CandidateKind.NAME }
-        if (cands.isEmpty()) return emptyList()
-        val block = block(setup, zones)
+        val cands = if (zones.isEmpty()) emptyList() else zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.id !in taken && it.kind != CandidateKind.NAME }
+        // The stored slot values ride in the same batch (one decode of the shared block): does the reader need this one, given the hint.
+        val asked = slots.take(ScoringDescriptions.MAX_KEY_SLOT_SCORES)
+        if (cands.isEmpty() && asked.isEmpty()) return Picks(emptyList(), null)
+        val block = if (cands.isEmpty()) "" else block(setup, zones)
         val scores = scoreBatch(
             ScoringDescriptions.EXTRAS_ASK, block,
-            cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), ScoringDescriptions.extra(hint)) },
-        ) ?: return emptyList()
+            cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), ScoringDescriptions.extra(hint)) } +
+                asked.map { ZonePrompt.keySlotQuestion(it.label, it.value, hint) },
+        ) ?: return Picks(emptyList(), null)
         val threshold = profile.threshold(ScoringDescriptions.EXTRAS_ASK)
-        return scores.indices.filter { scores[it] > threshold }.sortedByDescending { scores[it] }
+        val extras = cands.indices.filter { scores[it] > threshold }.sortedByDescending { scores[it] }
             .take(StructuredGrammar.MAX_EXTRAS).map { Picked(cands[it], scores[it]) }
+        val slotThreshold = profile.threshold(ScoringDescriptions.KEY_SLOTS_ASK)
+        val keySlots = asked.indices.filter { scores[cands.size + it] > slotThreshold }.sortedByDescending { scores[cands.size + it] }
+            .map { KeySlot(asked[it].key, scores[cands.size + it].toFloat()) }
+        return Picks(extras, if (asked.isEmpty()) null else keySlots)
     }
+
+    /** What the extras batch decided: the extras picked, and the stored slots picked as key information (null when none were scored). */
+    private class Picks(val extras: List<Picked>, val keySlots: List<KeySlot>?)
 
     /**
      * Names each picked extra with one short constrained ask: the words the letter prints next to it. The value is the candidate

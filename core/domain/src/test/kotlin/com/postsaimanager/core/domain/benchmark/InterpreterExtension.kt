@@ -278,6 +278,16 @@ internal class ReplayPromptSession(private val recording: Recording, private val
 
     /** A recorded scored batch (`score:*`): its questions in order, its answer the comma-separated scores. */
     override suspend fun score(continuations: List<String>, yes: String, no: String, shared: String): PamResult<List<Double>> {
+        // The stored-slot questions (key information) are newer than any recording: they are scripted as "not scored" (no threshold accepts
+        // that), and the rest of the batch is replayed as recorded.
+        val keySlot = continuations.indices.filter { continuations[it].contains(KEY_SLOT_QUESTION) }.toSet()
+        if (keySlot.isNotEmpty()) {
+            val rest = continuations.filterIndexed { i, _ -> i !in keySlot }
+            val replayed = if (rest.isEmpty()) PamResult.Success(emptyList()) else score(rest, yes, no, shared)
+            if (replayed !is PamResult.Success) return replayed
+            val scores = replayed.data.iterator()
+            return PamResult.Success(continuations.indices.map { if (it in keySlot) LegacyFamilyBridge.NOT_RECORDED else scores.next() })
+        }
         // A recording holds each question whole; the live one arrives as the shared level and the rest, read as one text.
         val asked = continuations.map { withoutIds((shared + it).removePrefix("\n\n")) }
         val live = asked
@@ -340,6 +350,7 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         val ID_TOKEN = Regex("\\b[A-Z]{1,2}\\d{1,3}\\b")
         val HINTED: List<Pair<String, String>> = ExtractionSchema.DEFAULT.families.map { it.hint }.filter { it.isNotBlank() }
             .map { "${ScoringDescriptions.EXTRA}. $it" to ScoringDescriptions.EXTRA }
+        const val KEY_SLOT_QUESTION = "the reader need «"
         const val SCORE_SEPARATOR = "\n@@\n"
         const val MISS_CHARS = 70
     }

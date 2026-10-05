@@ -183,6 +183,7 @@ class DocumentMapper @Inject constructor() {
         bbox = JsonColumns.decodeBounds(entity.bbox),
         reviewState = ReviewState.parse(entity.reviewState),
         alternatives = JsonColumns.decodeAlternatives(entity.alternatives),
+        importance = entity.importance,
     )
 
     /** A list row's slice of a field: everything the row reads, the rest at its defaults. */
@@ -226,6 +227,7 @@ class DocumentMapper @Inject constructor() {
         bbox = JsonColumns.encodeBounds(domain.bbox),
         reviewState = domain.reviewState.name,
         alternatives = JsonColumns.encodeAlternatives(domain.alternatives),
+        importance = domain.importance,
     )
 
     fun revisionToEntity(domain: FieldRevision) = FieldRevisionEntity(

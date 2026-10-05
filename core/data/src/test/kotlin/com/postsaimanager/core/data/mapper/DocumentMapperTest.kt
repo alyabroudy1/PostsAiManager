@@ -34,6 +34,16 @@ class DocumentMapperTest {
     }
 
     @Test
+    fun `a slot row keeps the importance it was picked with through storage, and a row stored before v18 has none`() {
+        val picked = ExtractedData("f1", "d1", "Invoice Number", "R-1", ExtractedFieldType.REFERENCE_NUMBER, 0.9f, slotKey = "invoice_no", importance = 2.5f)
+
+        val entity = mapper.extractedDataToEntity(picked)
+        assertThat(entity.importance).isEqualTo(2.5f)
+        assertThat(mapper.extractedDataToDomain(entity)).isEqualTo(picked)
+        assertThat(mapper.extractedDataToDomain(entity.copy(importance = null)).isKeySlot).isFalse()
+    }
+
+    @Test
     fun `a stored box that cannot be read is absent, not a failure`() {
         val entity = mapper.extractedDataToEntity(
             ExtractedData("f", "d", "n", "v", ExtractedFieldType.TEXT, 0.9f),
