@@ -40,6 +40,12 @@ object ExtractorVersion {
         return storedNumber < currentNumber
     }
 
+    /**
+     * Whether a document stamped [stored] was read without the model (only values found by code), so it is owed a real reading once
+     * the model is installed. Not [isOutdated]: re-reading it without a model would only produce the same stamp again.
+     */
+    fun awaitsModel(stored: String?): Boolean = stored?.startsWith(FOUND_PREFIX) == true
+
     private fun number(version: String): Int? =
         version.removePrefix(MODEL_PREFIX).takeIf { version.startsWith(MODEL_PREFIX) }?.toIntOrNull()
 }

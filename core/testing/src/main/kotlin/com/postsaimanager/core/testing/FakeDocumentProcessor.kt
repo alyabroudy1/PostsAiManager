@@ -39,8 +39,11 @@ class FakeDocumentProcessor : DocumentProcessor {
             ExtractionResult(documentId = documentId, language = null, fields = emptyList()),
         )
 
-    override suspend fun enqueueReprocess(documentId: String) {
+    val urgentReprocessCalls = mutableListOf<String>()
+
+    override suspend fun enqueueReprocess(documentId: String, urgent: Boolean) {
         reprocessCalls += documentId
+        if (urgent) urgentReprocessCalls += documentId
     }
 
     /** The documents a test says have a second stage pending ([enrichingDocuments]). */

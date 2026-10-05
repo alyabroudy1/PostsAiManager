@@ -68,7 +68,7 @@ class ReprocessDocumentWorker @AssistedInject constructor(
     private fun cancelSiblings(documentId: String) {
         val workManager = WorkManager.getInstance(applicationContext)
         val self = tags.firstOrNull { it.startsWith(NAME_PREFIX) }
-        listOf(chargingWorkName(documentId), idleWorkName(documentId))
+        listOf(chargingWorkName(documentId), idleWorkName(documentId), urgentWorkName(documentId))
             .filter { it != self }
             .forEach { workManager.cancelUniqueWork(it) }
     }
@@ -82,6 +82,15 @@ class ReprocessDocumentWorker @AssistedInject constructor(
 
         fun chargingWorkName(documentId: String) = "$NAME_PREFIX$documentId"
         fun idleWorkName(documentId: String) = "$NAME_PREFIX$documentId-idle"
+        fun urgentWorkName(documentId: String) = "$NAME_PREFIX$documentId-now"
+
+        /** Only the battery condition: for a letter scanned before the model was there, which should be read as soon as it is. */
+        val urgentConstraints: Constraints = Constraints.Builder()
+            .setRequiresBatteryNotLow(true)
+            .build()
+
+        fun urgentRequest(documentId: String): Pair<String, OneTimeWorkRequest> =
+            urgentWorkName(documentId) to request(documentId, urgentConstraints, urgentWorkName(documentId))
 
         /**
          * WorkManager constraints are all required together, so "charging OR idle" is two requests
@@ -125,7 +134,7 @@ internal object ReprocessGate {
     fun decide(document: DocumentEntity?, scansInFlight: Boolean): Decision = when {
         document == null || document.deletedAt != null -> Decision.SKIP
         document.status != DocumentStatus.EXTRACTED.name -> Decision.SKIP
-        !ExtractorVersion.isOutdated(document.extractorVersion) -> Decision.SKIP
+        !ExtractorVersion.isOutdated(document.extractorVersion) && !ExtractorVersion.awaitsModel(document.extractorVersion) -> Decision.SKIP
         // A scan is queued or running: new scans always go first.
         scansInFlight -> Decision.DEFER
         else -> Decision.RUN

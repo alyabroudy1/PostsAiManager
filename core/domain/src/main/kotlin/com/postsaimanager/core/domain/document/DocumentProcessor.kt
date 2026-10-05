@@ -41,8 +41,11 @@ interface DocumentProcessor {
      * low, so it never competes with a new scan; joins work already pending for the same document.
      * Unlike [enqueue] it leaves the document's status alone: the user sees no progress and no
      * failure, and a document that fails to re-read keeps its earlier data.
+     *
+     * @param urgent the re-read is owed because the model was missing when the letter was scanned and is there now: it starts as
+     *   soon as the battery is not low and no scan is running, instead of waiting for a charger or an idle device.
      */
-    suspend fun enqueueReprocess(documentId: String)
+    suspend fun enqueueReprocess(documentId: String, urgent: Boolean = false)
 
     /**
      * Schedules [documentId] to be processed in the background, surviving navigation and

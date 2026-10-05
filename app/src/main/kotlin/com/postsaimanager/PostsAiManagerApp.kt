@@ -12,6 +12,7 @@ import com.postsaimanager.core.ai.local.InferenceCrashObserver
 import com.postsaimanager.core.ai.local.InferenceMemoryPressureObserver
 import com.postsaimanager.core.data.worker.DocumentProcessingRecovery
 import com.postsaimanager.core.domain.document.PurgeExpiredDocumentsUseCase
+import com.postsaimanager.core.domain.document.ReadDocumentsAwaitingModelUseCase
 import com.postsaimanager.core.domain.document.ReprocessOutdatedDocumentsUseCase
 import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
@@ -83,6 +84,10 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
     @Inject
     lateinit var reprocessOutdatedDocuments: Lazy<ReprocessOutdatedDocumentsUseCase>
 
+    // Same reason: letters scanned while the model was still downloading are read properly once it is installed.
+    @Inject
+    lateinit var readDocumentsAwaitingModel: Lazy<ReadDocumentsAwaitingModelUseCase>
+
     // Lazy for the same reason as above: only the main process has a UI to lock.
     @Inject
     lateinit var appLockCoordinator: Lazy<AppLockCoordinator>
@@ -118,6 +123,11 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
         // start-up, and it must not block it either.
         applicationScope.launch {
             runCatching { reprocessOutdatedDocuments.get().invoke() }
+                .onFailure { if (it is CancellationException) throw it }
+        }
+        // Whenever a model becomes installed (and at start when one is), the letters waiting for it are scheduled to be read.
+        applicationScope.launch {
+            runCatching { readDocumentsAwaitingModel.get().watch() }
                 .onFailure { if (it is CancellationException) throw it }
         }
     }

@@ -138,11 +138,12 @@ class DocumentProcessingPipeline @Inject constructor(
         Unit
     }
 
-    override suspend fun enqueueReprocess(documentId: String) = withContext(ioDispatcher) {
+    override suspend fun enqueueReprocess(documentId: String, urgent: Boolean) = withContext(ioDispatcher) {
         // KEEP: work already pending for this document (from an earlier start) is left alone.
         // Its own unique names, never `process-document-<id>`, so it cannot join, replace or be
         // replaced by a scan; the status is not touched, so the UI never shows it.
-        ReprocessDocumentWorker.requests(documentId).forEach { (name, request) ->
+        val requests = if (urgent) listOf(ReprocessDocumentWorker.urgentRequest(documentId)) else ReprocessDocumentWorker.requests(documentId)
+        requests.forEach { (name, request) ->
             workManager.enqueueUniqueWork(name, ExistingWorkPolicy.KEEP, request)
         }
         Unit
@@ -154,6 +155,7 @@ class DocumentProcessingPipeline @Inject constructor(
         workManager.cancelUniqueWork(DocumentProcessingWorker.workName(documentId))
         workManager.cancelUniqueWork(ReprocessDocumentWorker.chargingWorkName(documentId))
         workManager.cancelUniqueWork(ReprocessDocumentWorker.idleWorkName(documentId))
+        workManager.cancelUniqueWork(ReprocessDocumentWorker.urgentWorkName(documentId))
     }
 
     override suspend fun processDocument(
