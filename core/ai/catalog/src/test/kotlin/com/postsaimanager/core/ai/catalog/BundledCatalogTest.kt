@@ -1,6 +1,7 @@
 package com.postsaimanager.core.ai.catalog
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -16,6 +17,15 @@ import org.junit.jupiter.api.Test
 class BundledCatalogTest {
 
     @Test
+    @DisplayName("every catalogue model has a reading profile, so none silently falls back to the single call")
+    fun `every catalogue model id has a model profile`() {
+        BundledCatalog.models.forEach { model ->
+            assertThat(ModelProfiles.isKnown(model.id)).isTrue()
+            assertThat(ModelProfiles.of(model.id).modelId).isEqualTo(model.id)
+        }
+    }
+
+    @Test
     @DisplayName("every model can actually be installed")
     fun `all entries carry a url and a hash`() {
         // The state this replaced: every entry was NotInstallable, so the model manager
@@ -24,6 +34,37 @@ class BundledCatalogTest {
             assertThat(model.isInstallable).isTrue()
         }
         assertThat(BundledCatalog.models).isNotEmpty()
+    }
+
+    @Test
+    @DisplayName("the reader is the installable Qwen3.5 0.8B, and the only one")
+    fun `reader model is the small default`() {
+        val model = BundledCatalog.readerModel
+        assertThat(model.name).isEqualTo("Qwen3.5 0.8B")
+        assertThat(model.id).isEqualTo(BundledCatalog.READER_MODEL_ID)
+        assertThat(model.quantization).isEqualTo("Q4_K_M")
+        assertThat(model.isInstallable).isTrue()
+        assertThat(BundledCatalog.models.count { it.role == com.postsaimanager.core.model.ModelRole.READER_AND_CHAT }).isEqualTo(1)
+    }
+
+    @Test
+    @DisplayName("every model carries memory thresholds that order sensibly")
+    fun `memory thresholds are data and consistent`() {
+        BundledCatalog.models.forEach { model ->
+            assertThat(model.minRamGb).isGreaterThan(0.0)
+            assertThat(model.recommendedRamGb).isAtLeast(model.minRamGb)
+            assertThat(model.approxRamUseGb).isGreaterThan(0.0)
+        }
+    }
+
+    @Test
+    @DisplayName("only the 0.8B and 2B may be the default, and the slower models say so")
+    fun `preselectable models and speed hints`() {
+        val preselectable = BundledCatalog.models.filter { it.preselectable }.map { it.id }
+        assertThat(preselectable).containsExactly("qwen3.5-0.8b-q4_k_m", "qwen3.5-2b-q4_k_m")
+        BundledCatalog.models.filterNot { it.preselectable }.forEach {
+            assertThat(it.speedHint).isEqualTo(com.postsaimanager.core.model.SpeedHint.MUCH_SLOWER)
+        }
     }
 
     @Test

@@ -1,0 +1,299 @@
+{
+    "key": "N10-kinderarzt-termin-1p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Kinder- und Jugendarztpraxis Beispiel",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.04745618,
+                        "right": 0.5949214,
+                        "bottom": 0.067550234
+                    },
+                    "confidence": 0.8440947,
+                    "language": "und"
+                },
+                {
+                    "text": "Gesundheitsweg 512345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.11305925,
+                        "top": 0.075673364,
+                        "right": 0.32345828,
+                        "bottom": 0.08422403
+                    },
+                    "confidence": 0.88873106,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 700 20",
+                    "bounds": {
+                        "left": 0.11305925,
+                        "top": 0.08807182,
+                        "right": 0.20737606,
+                        "bottom": 0.09491236
+                    },
+                    "confidence": 0.86300224,
+                    "language": "und"
+                },
+                {
+                    "text": "praxis@kinderarzt-beispiel.example",
+                    "bounds": {
+                        "left": 0.113663845,
+                        "top": 0.097477555,
+                        "right": 0.2968561,
+                        "bottom": 0.10773835
+                    },
+                    "confidence": 0.8569623,
+                    "language": "und"
+                },
+                {
+                    "text": "Kinder- und Jugendarztpraxis Beispiel Gesundheitsweg 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.11426844,
+                        "top": 0.15177426,
+                        "right": 0.47460702,
+                        "bottom": 0.16160752
+                    },
+                    "confidence": 0.852036,
+                    "language": "und"
+                },
+                {
+                    "text": "Erziehungsberechtigte von",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.17272338,
+                        "right": 0.31680775,
+                        "bottom": 0.18469432
+                    },
+                    "confidence": 0.8753255,
+                    "language": "und"
+                },
+                {
+                    "text": "Adam Mustermann",
+                    "bounds": {
+                        "left": 0.11487304,
+                        "top": 0.18939717,
+                        "right": 0.25755742,
+                        "bottom": 0.1988029
+                    },
+                    "confidence": 0.8702567,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterstraße 12",
+                    "bounds": {
+                        "left": 0.11608222,
+                        "top": 0.2052159,
+                        "right": 0.2382104,
+                        "bottom": 0.21504916
+                    },
+                    "confidence": 0.8984375,
+                    "language": "und"
+                },
+                {
+                    "text": "54321 Beispieldorf",
+                    "bounds": {
+                        "left": 0.11608222,
+                        "top": 0.22146216,
+                        "right": 0.25695285,
+                        "bottom": 0.23300555
+                    },
+                    "confidence": 0.8786765,
+                    "language": "und"
+                },
+                {
+                    "text": "Terminerinnerung für Adam Mustermann",
+                    "bounds": {
+                        "left": 0.11729141,
+                        "top": 0.33775118,
+                        "right": 0.4987908,
+                        "bottom": 0.35442495
+                    },
+                    "confidence": 0.8912169,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrte Eltern,",
+                    "bounds": {
+                        "left": 0.11789601,
+                        "top": 0.36981615,
+                        "right": 0.26844016,
+                        "bottom": 0.38221464
+                    },
+                    "confidence": 0.81640625,
+                    "language": "und"
+                },
+                {
+                    "text": "Donnerstag, 12.11.2026 um 09:30 Uhr",
+                    "bounds": {
+                        "left": 0.1191052,
+                        "top": 0.41898248,
+                        "right": 0.46614268,
+                        "bottom": 0.4373664
+                    },
+                    "confidence": 0.890247,
+                    "language": "und"
+                },
+                {
+                    "text": "wir möchten Sie an den folgenden Termin für Ihr Kind Adam Mustermann erinnern:",
+                    "bounds": {
+                        "left": 0.11729141,
+                        "top": 0.39204788,
+                        "right": 0.74365175,
+                        "bottom": 0.40701154
+                    },
+                    "confidence": 0.86576706,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.12091898,
+                        "top": 0.5348439,
+                        "right": 0.30229747,
+                        "bottom": 0.5446772
+                    },
+                    "confidence": 0.8141741,
+                    "language": "und"
+                },
+                {
+                    "text": "Kinder- und Jugendarztpraxis Beispiel, Gesundheitsweg 5, 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.1191052,
+                        "top": 0.44463447,
+                        "right": 0.71825874,
+                        "bottom": 0.46173579
+                    },
+                    "confidence": 0.8790195,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Praxisteam",
+                    "bounds": {
+                        "left": 0.12152358,
+                        "top": 0.5686191,
+                        "right": 0.22974607,
+                        "bottom": 0.5780248
+                    },
+                    "confidence": 0.8629808,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Zeichen:\nPraxis:\nTelefon:",
+                    "bounds": {
+                        "left": 0.5900847,
+                        "top": 0.17015819,
+                        "right": 0.64993954,
+                        "bottom": 0.2052159
+                    },
+                    "confidence": 0.8313591,
+                    "language": "und"
+                },
+                {
+                    "text": "Bitte bringen Sie die Versichertenkarte mit. Wenn Sie den Termin nicht wahrnehmen können, sagen\nSie ihn bitte mindestens 24 Stunden vorher unter 01234 700 20 ab, damit wir den Platz anderweitig\nvergeben können.",
+                    "bounds": {
+                        "left": 0.1191052,
+                        "top": 0.4668662,
+                        "right": 0.8754535,
+                        "bottom": 0.52116287
+                    },
+                    "confidence": 0.86463886,
+                    "language": "und"
+                },
+                {
+                    "text": "Kinder- und Jugendarztpraxis Beispiel\nDr. med. Anna Beispiel\nGesundheitsweg 5, 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.12575574,
+                        "top": 0.9080804,
+                        "right": 0.30290204,
+                        "bottom": 0.93629754
+                    },
+                    "confidence": 0.84276843,
+                    "language": "und"
+                },
+                {
+                    "text": "Datum:",
+                    "bounds": {
+                        "left": 0.5912938,
+                        "top": 0.21376656,
+                        "right": 0.62636036,
+                        "bottom": 0.22017956
+                    },
+                    "confidence": 0.8795573,
+                    "language": "und"
+                },
+                {
+                    "text": "Sprechzeiten:",
+                    "bounds": {
+                        "left": 0.38512698,
+                        "top": 0.9055152,
+                        "right": 0.44498187,
+                        "bottom": 0.9136383
+                    },
+                    "confidence": 0.8233173,
+                    "language": "und"
+                },
+                {
+                    "text": "Dr. A. Beispiel\n01234 700 20\n25.09.2026",
+                    "bounds": {
+                        "left": 0.7025393,
+                        "top": 0.17999145,
+                        "right": 0.78355503,
+                        "bottom": 0.21889697
+                    },
+                    "confidence": 0.895603,
+                    "language": "und"
+                },
+                {
+                    "text": "Mo-Fr 8:00-12:00 Uhr\nMo, Di, Do 15-00-17:30 Uhr",
+                    "bounds": {
+                        "left": 0.38573155,
+                        "top": 0.9170586,
+                        "right": 0.5114873,
+                        "bottom": 0.9337324
+                    },
+                    "confidence": 0.7806483,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 700 20",
+                    "bounds": {
+                        "left": 0.6451028,
+                        "top": 0.90337753,
+                        "right": 0.72430474,
+                        "bottom": 0.9110731
+                    },
+                    "confidence": 0.87834823,
+                    "language": "und"
+                },
+                {
+                    "text": "praxis @kinderarzt-beispiel.example",
+                    "bounds": {
+                        "left": 0.64570737,
+                        "top": 0.9136383,
+                        "right": 0.8071342,
+                        "bottom": 0.9226165
+                    },
+                    "confidence": 0.84535843,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 1",
+                    "bounds": {
+                        "left": 0.8391777,
+                        "top": 0.95810175,
+                        "right": 0.9038694,
+                        "bottom": 0.96451473
+                    },
+                    "confidence": 0.8183594,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}

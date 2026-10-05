@@ -52,11 +52,71 @@ data class ExtractedData(
     /** Extraction now disagrees with the value the user set. Surfaced, not auto-resolved. */
     val hasUnreviewedMachineChange: Boolean = false,
 
-    /** Which extractor produced [machineValue]. */
+    /** Which extractor produced [machineValue]. The stored "extractor version" of this row. */
     val engineVersion: String? = null,
 
     val updatedAt: Long = 0L,
+
+    /**
+     * The stable key of the slot this value fills (`total`, `due_date`, `sender`, or `x:` plus the
+     * printed label for an open extra). Null for a row a person added and for rows read by an
+     * older extractor. It is the identity a re-read is matched by, ahead of [fieldName], and the
+     * key the UI renders a label from, so [fieldName] can be reworded without losing the row.
+     */
+    val slotKey: String? = null,
+
+    /** What the model said the value is (an amount or date role, or a party role); null when it did not say. */
+    val role: String? = null,
+
+    /** How the value was obtained (`MODEL_CHOICE`, `MODEL_QUOTED`, `MODEL_GENERATED`, `FOUND`); null for a person's row. */
+    val origin: String? = null,
+
+    /** What the model said about its own answer, kept unchanged next to the final [confidence] for calibration. */
+    val aiConfidence: Float? = null,
+
+    /** The text of the page the value was read from. */
+    val evidence: String? = null,
+
+    /** Where on [pageNumber] the evidence sits, in the page's own scale-free coordinates. */
+    val bbox: TextBounds? = null,
+
+    /**
+     * The owner of review state. [isConfirmed] and [deletedByUser] stay as plain stored properties
+     * so every existing caller keeps compiling, and are kept in step with this one: the default
+     * derives it from them when a caller only knows the old flags, the mapper writes all three
+     * together, and `MergeExtractionUseCase` sets both on every edit, confirm and delete. Readers
+     * that decide protection ask this.
+     */
+    val reviewState: ReviewState = ReviewState.fromFlags(isConfirmed, deletedByUser, source, valueChanged = fieldValue != machineValue),
+
+    /** The runner-up readings for this slot (the Edit sheet's chips), best first; empty when there were none. */
+    val alternatives: List<FieldAlternative> = emptyList(),
 ) {
+    /**
+     * Whether the legacy flags agree with [reviewState] (the owner): [deletedByUser] is exactly "ignored"; a confirmed or edited
+     * row is [isConfirmed]; an unreviewed row is not. An ignored row may keep whatever [isConfirmed] it had.
+     *
+     * The flags are plain constructor properties, so `copy(isConfirmed = ...)` can still desync them; a writer that changes one sets all
+     * three, and the tests of every writer (`MergeExtractionUseCase`, the mapper, the fake repository) assert this holds for what they produce.
+     */
+    val flagsMatchReviewState: Boolean
+        get() = deletedByUser == (reviewState == ReviewState.IGNORED) &&
+            when (reviewState) {
+                ReviewState.CONFIRMED, ReviewState.EDITED -> isConfirmed
+                ReviewState.UNREVIEWED -> !isConfirmed
+                ReviewState.IGNORED -> true
+            }
+
+    /** True for an open extra: something the model found that no fixed slot covers, keyed by its printed label. */
+    val isExtra: Boolean get() = slotKey?.startsWith(EXTRA_KEY_PREFIX) == true
+
+    /**
+     * What a screen or a log entry renders a label from: the slot key of a fixed slot (a string
+     * resource per key), else [fieldName] (an extra keeps the label the letter printed; a person's
+     * or an older row has only its name).
+     */
+    val labelKey: String get() = slotKey?.takeUnless { it.startsWith(EXTRA_KEY_PREFIX) } ?: fieldName
+
     /**
      * Worth the user's eye.
      *
@@ -72,28 +132,34 @@ data class ExtractedData(
                 )
 
     companion object {
+        /** [slotKey]s of open extras start with this, followed by the folded printed label. */
+        const val EXTRA_KEY_PREFIX = "x:"
+
         /**
-         * Below this, a machine value is flagged for review.
+         * Below this, a machine value is flagged for review ("worth checking").
          *
-         * **Currently inert, and honestly so.** `EntityExtractor` does not measure
-         * confidence — it assigns a constant per field kind: every `Receiver Name` is
-         * 0.80 whether it read "Aylin Mustermann" or, as it did on a real scan, the bare
-         * salutation "Frau". The values it emits span 0.70 to 0.95, so no threshold below
-         * 0.70 can ever fire and any threshold above it flags whole categories of field
-         * regardless of whether they are right.
-         *
-         * The number is kept at a defensible level rather than tuned to make something
-         * happen, because tuning it against constants would only encode which *kinds* of
-         * field the extractor guesses about — not which values are likely wrong. It starts
-         * being useful the moment extraction reports evidence instead of a category, and
-         * nothing above this line has to change when it does.
+         * Since extraction v2 the confidence is honest: the model's own word (LOW 0.4, MEDIUM 0.7,
+         * HIGH 0.9) capped by what the code's checks found, and never raised by them. So a
+         * medium-confidence answer and anything a check failed are flagged, a high one is not.
+         * Kept equal to `ConfidenceCombiner.REVIEW_BELOW` in `:core:domain`, which flags the same
+         * values while extraction runs.
          *
          * The other half of [needsReview] — the extractor disagreeing with a value the user
-         * set — does not depend on confidence and works today.
+         * set — does not depend on confidence.
          */
-        const val LOW_CONFIDENCE = 0.6f
+        const val LOW_CONFIDENCE = 0.75f
     }
 }
+
+/** A runner-up reading of a slot: what else the letter offered, how it scored and where it sits. */
+@Serializable
+data class FieldAlternative(
+    val value: String,
+    val normalized: String? = null,
+    val score: Float? = null,
+    val page: Int? = null,
+    val bbox: TextBounds? = null,
+)
 
 /**
  * One entry in a field's history.

@@ -26,6 +26,13 @@ import com.postsaimanager.core.model.OcrBlock
  * left-to-right, keeping each column intact.
  *
  * Pure, so every layout decision is testable without a camera or a model.
+ *
+ * ### Status
+ * [readingOrder] and [plainText] are still the per-page column-aware ordering used by
+ * [LetterLayoutAnalyzer] and OCR. [zoneOf] / [describe] are the older fixed-fraction, page-blind
+ * description and are superseded by [LetterLayoutAnalyzer] + [LetterLayout.describe], which find
+ * zones from content, keep pages apart and respect a budget. They remain only for callers that
+ * have no page structure.
  */
 object DocumentLayout {
 

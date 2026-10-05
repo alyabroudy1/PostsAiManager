@@ -1,0 +1,889 @@
+{
+  "note": "All content in N1-N10 is synthetic/fictional (test IBANs: DE89 3704 0044 0532 0130 00, DE02 1203 0000 0000 2020 51, DE02 1001 0010 0006 8201 01). Web docs are in web/ and are third-party samples, LOCAL ONLY.",
+  "schema_extensions": "roles{sender,addressees[],co_addressees[],routing_person,subject_persons[],household}; expected_tasks[{text,due,relative_rule?}]; qr{epc_payload,...}",
+  "documents": [
+    {
+      "id": "N1-mahnung-telco-qr-1p",
+      "topics": ["telecom"],
+      "folder": "N1-mahnung-telco-qr-1p",
+      "subject": "Zahlungserinnerung / 1. Mahnung – Rechnung 2026-08-771204",
+      "language": "de",
+      "pages": 1,
+      "document_type": "Mahnung",
+      "edge_case": "Sender name+address top right AND repeated in Rücksendeangabe; EPC GiroCode QR; relative deadline (14 Tage nach Zugang); previous invoice number; Mahngebühr in total.",
+      "roles": {
+        "sender": "Nordlicht Mobilfunk GmbH",
+        "addressees": [
+          "Erika Mustermann"
+        ],
+        "co_addressees": [],
+        "routing_person": null,
+        "subject_persons": [
+          "Erika Mustermann"
+        ],
+        "household": false
+      },
+      "expected_tasks": [
+        {
+          "text": "Offenen Betrag 64,98 € überweisen (Mahnung)",
+          "due": null,
+          "relative_rule": "14 Tage nach Zugang des Schreibens; Brief datiert 25.09.2026"
+        }
+      ],
+      "qr": {
+        "epc_payload": "BCD\n002\n1\nSCT\nCOBADEFFXXX\nNordlicht Mobilfunk GmbH\nDE02120300000000202051\nEUR64.98\n\n\nRE 2026-08-771204 Kd 4402917 Mahnung",
+        "decoded_fields": {
+          "bic": "COBADEFFXXX",
+          "name": "Nordlicht Mobilfunk GmbH",
+          "iban": "DE02120300000000202051",
+          "amount": "64.98",
+          "text": "RE 2026-08-771204 Kd 4402917 Mahnung"
+        }
+      },
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Nordlicht Mobilfunk GmbH",
+          "page": 1
+        },
+        {
+          "field": "addressee",
+          "value": "Erika Mustermann",
+          "page": 1
+        },
+        {
+          "field": "document_type",
+          "value": "Mahnung / Zahlungserinnerung",
+          "page": 1
+        },
+        {
+          "field": "reference_number (Rechnung)",
+          "value": "2026-08-771204",
+          "page": 1
+        },
+        {
+          "field": "customer_number",
+          "value": "4402917",
+          "page": 1
+        },
+        {
+          "field": "date",
+          "value": "25.09.2026",
+          "page": 1
+        },
+        {
+          "field": "previous_invoice_date",
+          "value": "05.08.2026",
+          "page": 1
+        },
+        {
+          "field": "original_due_date",
+          "value": "19.08.2026",
+          "page": 1
+        },
+        {
+          "field": "amount (offen inkl. Mahngebühr)",
+          "value": "64,98 €",
+          "page": 1
+        },
+        {
+          "field": "fee",
+          "value": "5,00 € Mahngebühr",
+          "page": 1
+        },
+        {
+          "field": "deadline",
+          "value": "14 Tage nach Zugang (relativ)",
+          "page": 1
+        },
+        {
+          "field": "iban",
+          "value": "DE02 1203 0000 0000 2020 51",
+          "page": 1
+        }
+      ],
+      "questions": [
+        {
+          "question": "Wie viel muss ich zahlen und bis wann?",
+          "expected_answer_gist": "64,98 € innerhalb von 14 Tagen nach Zugang",
+          "citation_page": 1
+        },
+        {
+          "question": "Um welche Rechnung geht es?",
+          "expected_answer_gist": "2026-08-771204 vom 05.08.2026",
+          "citation_page": 1
+        },
+        {
+          "question": "Wer schickt den Brief und an wen ist er gerichtet?",
+          "expected_answer_gist": "Nordlicht Mobilfunk GmbH an Erika Mustermann",
+          "citation_page": 1
+        }
+      ]
+    },
+    {
+      "id": "N2-kfz-verlaengerung-2p",
+      "topics": ["insurance", "vehicle"],
+      "folder": "N2-kfz-verlaengerung-2p",
+      "subject": "Ihre Kfz-Versicherung – Beitrag ab 01.01.2027",
+      "language": "de",
+      "pages": 2,
+      "document_type": "Versicherung – Beitragsanpassung / Verlängerung",
+      "edge_case": "Co-addressees 'Herrn und Frau / Max und Erika Mustermann' (household); price comparison old vs new; Sonderkündigungsrecht deadline on page 2 (optional action); policy number.",
+      "roles": {
+        "sender": "Nordstern Direkt Versicherung AG",
+        "addressees": [
+          "Max Mustermann",
+          "Erika Mustermann"
+        ],
+        "co_addressees": [
+          "Erika Mustermann"
+        ],
+        "routing_person": null,
+        "subject_persons": [
+          "Max Mustermann",
+          "Erika Mustermann"
+        ],
+        "household": true
+      },
+      "expected_tasks": [
+        {
+          "text": "Beitragserhöhung prüfen; ggf. Sonderkündigung einreichen (optional, sonst nichts tun)",
+          "due": "2026-11-30"
+        }
+      ],
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Nordstern Direkt Versicherung AG",
+          "page": 1
+        },
+        {
+          "field": "addressee",
+          "value": "Herrn und Frau Max und Erika Mustermann",
+          "page": 1
+        },
+        {
+          "field": "policy_number",
+          "value": "KFZ-4471-882-19",
+          "page": 1
+        },
+        {
+          "field": "license_plate",
+          "value": "XX-AB 1234",
+          "page": 1
+        },
+        {
+          "field": "date",
+          "value": "14.09.2026",
+          "page": 1
+        },
+        {
+          "field": "old_premium",
+          "value": "579,10 € pro Jahr",
+          "page": 1
+        },
+        {
+          "field": "new_premium",
+          "value": "612,40 € pro Jahr ab 01.01.2027",
+          "page": 1
+        },
+        {
+          "field": "deadline (Sonderkündigung)",
+          "value": "30.11.2026",
+          "page": 2
+        },
+        {
+          "field": "payment_method",
+          "value": "SEPA-Lastschrift (keine Zahlung nötig)",
+          "page": 1
+        }
+      ],
+      "questions": [
+        {
+          "question": "Wie hoch ist der neue Beitrag und was war er vorher?",
+          "expected_answer_gist": "612,40 € statt 579,10 € pro Jahr",
+          "citation_page": 1
+        },
+        {
+          "question": "Bis wann kann ich sonderkündigen?",
+          "expected_answer_gist": "bis 30.11.2026",
+          "citation_page": 2
+        },
+        {
+          "question": "Muss ich etwas zahlen?",
+          "expected_answer_gist": "Nein, Lastschrift wie gewohnt",
+          "citation_page": 1
+        }
+      ]
+    },
+    {
+      "id": "N3-schule-familie-2p",
+      "topics": ["school_education"],
+      "folder": "N3-schule-familie-2p",
+      "subject": "Klassenausflug der Klasse 3b am 24.11.2026",
+      "language": "de",
+      "pages": 2,
+      "document_type": "Schulbrief / Elternbrief mit Rückmeldeabschnitt",
+      "edge_case": "Addressee 'Familie Mustermann' (household); child Lea Mustermann Klasse 3b is the subject person; tear-off slip on page 2 with deadline; cost 35,00 €; event date 24.11.2026 differs from reply deadline.",
+      "roles": {
+        "sender": "Grundschule Am Beispielweg",
+        "addressees": [
+          "Familie Mustermann"
+        ],
+        "co_addressees": [],
+        "routing_person": null,
+        "subject_persons": [
+          "Lea Mustermann"
+        ],
+        "household": true
+      },
+      "expected_tasks": [
+        {
+          "text": "Rückmeldeabschnitt unterschreiben und mit 35,00 € an die Schule zurückgeben",
+          "due": "2026-10-16"
+        },
+        {
+          "text": "Lea: Lunchpaket und wetterfeste Kleidung für den Ausflug am 24.11.2026 (Ereignis, kein Frist)",
+          "due": "2026-11-24"
+        }
+      ],
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Grundschule Am Beispielweg",
+          "page": 1
+        },
+        {
+          "field": "addressee",
+          "value": "Familie Mustermann",
+          "page": 1
+        },
+        {
+          "field": "subject_person",
+          "value": "Lea Mustermann, Klasse 3b",
+          "page": 1
+        },
+        {
+          "field": "date",
+          "value": "28.09.2026",
+          "page": 1
+        },
+        {
+          "field": "event_date",
+          "value": "24.11.2026",
+          "page": 1
+        },
+        {
+          "field": "amount",
+          "value": "35,00 €",
+          "page": 1
+        },
+        {
+          "field": "deadline (Rückgabe Abschnitt)",
+          "value": "Freitag, 16.10.2026",
+          "page": 2
+        },
+        {
+          "field": "teacher",
+          "value": "Sabine Sommer, Klassenlehrerin",
+          "page": 1
+        }
+      ],
+      "questions": [
+        {
+          "question": "Bis wann muss der Abschnitt zurück und was kostet der Ausflug?",
+          "expected_answer_gist": "unterschrieben bis Freitag 16.10.2026; 35,00 €",
+          "citation_page": 2
+        },
+        {
+          "question": "Um welches Kind geht es?",
+          "expected_answer_gist": "Lea Mustermann, Klasse 3b",
+          "citation_page": 1
+        },
+        {
+          "question": "Wann ist der Ausflug?",
+          "expected_answer_gist": "24.11.2026",
+          "citation_page": 1
+        }
+      ]
+    },
+    {
+      "id": "N4-zhd-firma-1p",
+      "topics": [],
+      "folder": "N4-zhd-firma-1p",
+      "subject": "Wartungsvertrag WV-2291 – Verlängerung ab 01.01.2027",
+      "language": "de",
+      "pages": 1,
+      "document_type": "Angebot / Vertragsverlängerung",
+      "edge_case": "Addressee is the organisation; 'z. Hd. Frau Erika Mustermann' is only the routing person and NOT the subject/addressee person.",
+      "roles": {
+        "sender": "Büro-Partner Beispiel KG",
+        "addressees": [
+          "Mustermann Consulting GmbH"
+        ],
+        "co_addressees": [],
+        "routing_person": "Erika Mustermann",
+        "subject_persons": [],
+        "household": false
+      },
+      "expected_tasks": [
+        {
+          "text": "Verlängerung des Wartungsvertrags WV-2291 bestätigen (sonst Vertragsende 31.12.2026)",
+          "due": "2026-10-15"
+        }
+      ],
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Büro-Partner Beispiel KG",
+          "page": 1
+        },
+        {
+          "field": "addressee",
+          "value": "Mustermann Consulting GmbH",
+          "page": 1
+        },
+        {
+          "field": "routing_person (z. Hd.)",
+          "value": "Erika Mustermann",
+          "page": 1
+        },
+        {
+          "field": "reference_number",
+          "value": "WV-2291",
+          "page": 1
+        },
+        {
+          "field": "date",
+          "value": "23.09.2026",
+          "page": 1
+        },
+        {
+          "field": "amount (netto p. a.)",
+          "value": "1.428,00 €",
+          "page": 1
+        },
+        {
+          "field": "deadline",
+          "value": "15.10.2026",
+          "page": 1
+        },
+        {
+          "field": "contract_end",
+          "value": "31.12.2026",
+          "page": 1
+        }
+      ],
+      "questions": [
+        {
+          "question": "An wen ist das Schreiben gerichtet?",
+          "expected_answer_gist": "an die Mustermann Consulting GmbH, z. Hd. Frau Erika Mustermann",
+          "citation_page": 1
+        },
+        {
+          "question": "Bis wann muss ich reagieren?",
+          "expected_answer_gist": "bis 15.10.2026",
+          "citation_page": 1
+        }
+      ]
+    },
+    {
+      "id": "N5-co-familie-1p",
+      "topics": ["school_education"],
+      "folder": "N5-co-familie-1p",
+      "subject": "Rückmeldung zum Wintersemester 2026/27",
+      "language": "de",
+      "pages": 1,
+      "document_type": "Zahlungsaufforderung (Semesterbeitrag)",
+      "edge_case": "'c/o Familie Beispiel' is the mailbox name, NOT the addressee; the real addressee is 'Herrn Jonas Mustermann' (line 1-2 of address block).",
+      "roles": {
+        "sender": "Universität Beispielstadt",
+        "addressees": [
+          "Jonas Mustermann"
+        ],
+        "co_addressees": [],
+        "routing_person": "Familie Beispiel (c/o)",
+        "subject_persons": [
+          "Jonas Mustermann"
+        ],
+        "household": false
+      },
+      "expected_tasks": [
+        {
+          "text": "Semesterbeitrag 187,50 € überweisen",
+          "due": "2026-10-12"
+        }
+      ],
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Universität Beispielstadt",
+          "page": 1
+        },
+        {
+          "field": "addressee",
+          "value": "Jonas Mustermann",
+          "page": 1
+        },
+        {
+          "field": "care_of",
+          "value": "Familie Beispiel",
+          "page": 1
+        },
+        {
+          "field": "matriculation_number",
+          "value": "1234567",
+          "page": 1
+        },
+        {
+          "field": "date",
+          "value": "24.09.2026",
+          "page": 1
+        },
+        {
+          "field": "amount",
+          "value": "187,50 €",
+          "page": 1
+        },
+        {
+          "field": "deadline",
+          "value": "12.10.2026",
+          "page": 1
+        },
+        {
+          "field": "iban",
+          "value": "DE02 1001 0010 0006 8201 01",
+          "page": 1
+        }
+      ],
+      "questions": [
+        {
+          "question": "Für wen ist der Brief?",
+          "expected_answer_gist": "Jonas Mustermann (c/o Familie Beispiel ist nur die Adresse)",
+          "citation_page": 1
+        },
+        {
+          "question": "Was kostet es und wann ist es fällig?",
+          "expected_answer_gist": "187,50 € bis 12.10.2026",
+          "citation_page": 1
+        }
+      ]
+    },
+    {
+      "id": "N6-nebenkosten-3p",
+      "topics": ["housing_utilities"],
+      "folder": "N6-nebenkosten-3p",
+      "subject": "Betriebskostenabrechnung 01.01.2025 – 31.12.2025",
+      "language": "de",
+      "pages": 3,
+      "document_type": "Nebenkostenabrechnung",
+      "edge_case": "Cost table split across pages 1-2; result on page 3 (retrieval beyond page 1); Nachzahlung vs new Vorauszahlung (two different amounts, two tasks); landlord letterhead top right.",
+      "roles": {
+        "sender": "Hausverwaltung Beispiel GmbH",
+        "addressees": [
+          "Mohammad Mustermann"
+        ],
+        "co_addressees": [],
+        "routing_person": null,
+        "subject_persons": [
+          "Mohammad Mustermann"
+        ],
+        "household": false
+      },
+      "expected_tasks": [
+        {
+          "text": "Nachzahlung 186,32 € überweisen",
+          "due": "2026-10-31"
+        },
+        {
+          "text": "Dauerauftrag/Vorauszahlung auf 245,00 € monatlich anpassen",
+          "due": "2026-11-01"
+        }
+      ],
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Hausverwaltung Beispiel GmbH",
+          "page": 1
+        },
+        {
+          "field": "addressee",
+          "value": "Mohammad Mustermann",
+          "page": 1
+        },
+        {
+          "field": "date",
+          "value": "22.09.2026",
+          "page": 1
+        },
+        {
+          "field": "period",
+          "value": "01.01.2025 – 31.12.2025",
+          "page": 1
+        },
+        {
+          "field": "reference_number",
+          "value": "BK-2025-0318",
+          "page": 1
+        },
+        {
+          "field": "total_costs",
+          "value": "2.826,32 €",
+          "page": 2
+        },
+        {
+          "field": "advance_paid",
+          "value": "2.640,00 € (12 × 220,00 €)",
+          "page": 3
+        },
+        {
+          "field": "amount (Nachzahlung)",
+          "value": "186,32 €",
+          "page": 3
+        },
+        {
+          "field": "deadline",
+          "value": "31.10.2026",
+          "page": 3
+        },
+        {
+          "field": "new_monthly_advance",
+          "value": "245,00 € ab 01.11.2026",
+          "page": 3
+        },
+        {
+          "field": "iban",
+          "value": "DE89 3704 0044 0532 0130 00",
+          "page": 3
+        }
+      ],
+      "questions": [
+        {
+          "question": "Wie viel Nachzahlung und bis wann?",
+          "expected_answer_gist": "186,32 € bis 31.10.2026",
+          "citation_page": 3
+        },
+        {
+          "question": "Wie hoch ist die neue monatliche Vorauszahlung?",
+          "expected_answer_gist": "245,00 € ab 01.11.2026 (bisher 220,00 €)",
+          "citation_page": 3
+        },
+        {
+          "question": "Wie hoch sind die Kosten für Heizung und Warmwasser (mein Anteil)?",
+          "expected_answer_gist": "934,60 €",
+          "citation_page": 1
+        }
+      ]
+    },
+    {
+      "id": "N7-beitragsservice-1p",
+      "topics": ["government"],
+      "folder": "N7-beitragsservice-1p",
+      "subject": "Zahlungserinnerung – Beitragsnummer 987 654 321",
+      "language": "de",
+      "pages": 1,
+      "document_type": "Rundfunkbeitrag – Zahlungsaufforderung",
+      "edge_case": "Sender address is a Postfach; Beitragsnummer in info block AND subject; quarterly amount; sender letterhead top right.",
+      "roles": {
+        "sender": "Beitragsservice Beispiel",
+        "addressees": [
+          "Erika Mustermann"
+        ],
+        "co_addressees": [],
+        "routing_person": null,
+        "subject_persons": [
+          "Erika Mustermann"
+        ],
+        "household": false
+      },
+      "expected_tasks": [
+        {
+          "text": "Rundfunkbeitrag Q4/2026 55,08 € zahlen",
+          "due": "2026-10-15"
+        }
+      ],
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Beitragsservice Beispiel",
+          "page": 1
+        },
+        {
+          "field": "addressee",
+          "value": "Erika Mustermann",
+          "page": 1
+        },
+        {
+          "field": "reference_number (Beitragsnummer)",
+          "value": "987 654 321",
+          "page": 1
+        },
+        {
+          "field": "date",
+          "value": "26.09.2026",
+          "page": 1
+        },
+        {
+          "field": "period",
+          "value": "01.10.2026 – 31.12.2026",
+          "page": 1
+        },
+        {
+          "field": "amount",
+          "value": "55,08 €",
+          "page": 1
+        },
+        {
+          "field": "deadline",
+          "value": "15.10.2026",
+          "page": 1
+        },
+        {
+          "field": "iban",
+          "value": "DE02 1001 0010 0006 8201 01",
+          "page": 1
+        }
+      ],
+      "questions": [
+        {
+          "question": "Wie hoch ist der Beitrag und wann fällig?",
+          "expected_answer_gist": "55,08 € bis 15.10.2026",
+          "citation_page": 1
+        },
+        {
+          "question": "Wie lautet die Beitragsnummer?",
+          "expected_answer_gist": "987 654 321",
+          "citation_page": 1
+        }
+      ]
+    },
+    {
+      "id": "N8-info-bank-noaction-1p",
+      "topics": ["bank_finance"],
+      "folder": "N8-info-bank-noaction-1p",
+      "subject": "Informationen zu unserem neuen Kundenportal",
+      "language": "de",
+      "pages": 1,
+      "document_type": "Informationsschreiben",
+      "edge_case": "No action required. Contains a date (01.11.2026), a phone number and 'Kundennummer' to tempt a false task; expected_tasks must be empty.",
+      "roles": {
+        "sender": "Beispielbank eG",
+        "addressees": [
+          "Max Mustermann"
+        ],
+        "co_addressees": [],
+        "routing_person": null,
+        "subject_persons": [
+          "Max Mustermann"
+        ],
+        "household": false
+      },
+      "expected_tasks": [],
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Beispielbank eG",
+          "page": 1
+        },
+        {
+          "field": "addressee",
+          "value": "Max Mustermann",
+          "page": 1
+        },
+        {
+          "field": "document_type",
+          "value": "Informationsschreiben",
+          "page": 1
+        },
+        {
+          "field": "date",
+          "value": "21.09.2026",
+          "page": 1
+        },
+        {
+          "field": "customer_number",
+          "value": "7788123",
+          "page": 1
+        },
+        {
+          "field": "info_date (Portal-Start)",
+          "value": "01.11.2026",
+          "page": 1
+        }
+      ],
+      "questions": [
+        {
+          "question": "Muss ich etwas tun?",
+          "expected_answer_gist": "Nein, reines Informationsschreiben",
+          "citation_page": 1
+        },
+        {
+          "question": "Ab wann gibt es das neue Portal?",
+          "expected_answer_gist": "01.11.2026",
+          "citation_page": 1
+        }
+      ]
+    },
+    {
+      "id": "N9-fuzzy-name-1p",
+      "topics": ["housing_utilities"],
+      "folder": "N9-fuzzy-name-1p",
+      "subject": "Abschlagsrechnung Oktober 2026",
+      "language": "de",
+      "pages": 1,
+      "document_type": "Rechnung (Abschlag)",
+      "edge_case": "Addressee misspelled 'Mohamad Mustermann' vs profile 'Mohammad Mustermann' (one letter). Tests fuzzy match -> should be treated as the profile owner (or ask), not a stranger.",
+      "profile_name": "Mohammad Mustermann",
+      "roles": {
+        "sender": "Energie Beispielstadt GmbH",
+        "addressees": [
+          "Mohamad Mustermann"
+        ],
+        "co_addressees": [],
+        "routing_person": null,
+        "subject_persons": [
+          "Mohamad Mustermann"
+        ],
+        "household": false,
+        "fuzzy_matches_profile": true
+      },
+      "expected_tasks": [
+        {
+          "text": "Abschlag 78,00 € überweisen",
+          "due": "2026-10-12"
+        }
+      ],
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Energie Beispielstadt GmbH",
+          "page": 1
+        },
+        {
+          "field": "addressee (as printed)",
+          "value": "Mohamad Mustermann",
+          "page": 1
+        },
+        {
+          "field": "customer_number",
+          "value": "60012987",
+          "page": 1
+        },
+        {
+          "field": "reference_number",
+          "value": "AB-2026-10-4471",
+          "page": 1
+        },
+        {
+          "field": "date",
+          "value": "27.09.2026",
+          "page": 1
+        },
+        {
+          "field": "amount",
+          "value": "78,00 €",
+          "page": 1
+        },
+        {
+          "field": "deadline",
+          "value": "12.10.2026",
+          "page": 1
+        },
+        {
+          "field": "iban",
+          "value": "DE89 3704 0044 0532 0130 00",
+          "page": 1
+        }
+      ],
+      "questions": [
+        {
+          "question": "Wie viel und bis wann?",
+          "expected_answer_gist": "78,00 € bis 12.10.2026",
+          "citation_page": 1
+        },
+        {
+          "question": "Ist der Brief für mich (Profil Mohammad Mustermann)?",
+          "expected_answer_gist": "Wahrscheinlich ja: Schreibweise 'Mohamad' weicht um einen Buchstaben ab",
+          "citation_page": 1
+        }
+      ]
+    },
+    {
+      "id": "N10-kinderarzt-termin-1p",
+      "topics": ["health"],
+      "folder": "N10-kinderarzt-termin-1p",
+      "subject": "Terminerinnerung für Adam Mustermann",
+      "language": "de",
+      "pages": 1,
+      "document_type": "Terminerinnerung (Arzt)",
+      "edge_case": "Addressee is 'Erziehungsberechtigte von Adam Mustermann' (parent/guardian); subject person is the child Adam. Appointment date+time is an event, not a payment. No medical details.",
+      "roles": {
+        "sender": "Kinder- und Jugendarztpraxis Beispiel",
+        "addressees": [
+          "Erziehungsberechtigte von Adam Mustermann"
+        ],
+        "co_addressees": [],
+        "routing_person": null,
+        "subject_persons": [
+          "Adam Mustermann"
+        ],
+        "household": true
+      },
+      "expected_tasks": [
+        {
+          "text": "Termin für Adam am 12.11.2026 um 09:30 wahrnehmen, Versichertenkarte mitbringen",
+          "due": "2026-11-12T09:30"
+        }
+      ],
+      "expected": [
+        {
+          "field": "sender",
+          "value": "Kinder- und Jugendarztpraxis Beispiel",
+          "page": 1
+        },
+        {
+          "field": "addressee",
+          "value": "Erziehungsberechtigte von Adam Mustermann",
+          "page": 1
+        },
+        {
+          "field": "subject_person",
+          "value": "Adam Mustermann",
+          "page": 1
+        },
+        {
+          "field": "date",
+          "value": "25.09.2026",
+          "page": 1
+        },
+        {
+          "field": "appointment",
+          "value": "12.11.2026 09:30 Uhr",
+          "page": 1
+        },
+        {
+          "field": "bring",
+          "value": "Versichertenkarte",
+          "page": 1
+        },
+        {
+          "field": "cancel_notice",
+          "value": "mindestens 24 Stunden vorher",
+          "page": 1
+        }
+      ],
+      "questions": [
+        {
+          "question": "Wann ist der Termin und was muss ich mitbringen?",
+          "expected_answer_gist": "12.11.2026 um 09:30, Versichertenkarte",
+          "citation_page": 1
+        },
+        {
+          "question": "Für wen ist der Termin?",
+          "expected_answer_gist": "Adam Mustermann",
+          "citation_page": 1
+        }
+      ]
+    }
+  ]
+}

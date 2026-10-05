@@ -49,6 +49,25 @@ data class RecognisedEntity(
     /** Free text, e.g. "spouse of the recipient". Empty when there is none. */
     val relation: String = "",
     val confidence: Float,
+    val provenance: FieldProvenance? = null,
+)
+
+/**
+ * Where a value came from and what it filled, carried from extraction to storage unchanged: the slot
+ * key, the model's role word, how it was obtained, the model's own confidence (the value's
+ * `confidence` is the final one), and the evidence with its page and position.
+ */
+@Serializable
+data class FieldProvenance(
+    val slotKey: String? = null,
+    val role: String? = null,
+    val origin: String? = null,
+    val aiConfidence: Float? = null,
+    val evidence: String? = null,
+    val page: Int? = null,
+    val bbox: TextBounds? = null,
+    /** The runner-up readings of the slot (the Edit sheet's chips), best first; carried to `ExtractedData.alternatives`. */
+    val alternatives: List<FieldAlternative> = emptyList(),
 )
 
 /** What kind of fact a value is, so the app knows what it can do with it. */
@@ -90,6 +109,32 @@ data class RecognisedFact(
     val value: String,
     val kind: FactKind,
     val confidence: Float,
+    val provenance: FieldProvenance? = null,
+)
+
+/**
+ * What the second stage of a reading needs from the first (see `ExtractionV2Pipeline`'s stages): the first stage decides the type,
+ * the parties and the slots and is stored at once; the language, the extras and the free text are written afterwards, in the
+ * background, and must not offer a value the first stage already took.
+ *
+ * @property typeId the document type the first stage chose.
+ * @property takenIds candidate ids the first stage's slots and parties took.
+ * @property established what the first stage told the second about the header (who the sender and the addressee are), so the second
+ *   reads the letter under the same words the first did.
+ * @property topics the topic ids the first stage found, best first (empty when the topics are scored in the second stage).
+ * @property facts the verified values the summary and the title are built from (role to value: `sender`, `addressed_to`, `amount`,
+ *   `due_date`, `date`, `reference`), so the second stage does not need the first stage's result in memory.
+ * @property takenValues the values the first stage's fields hold, as stored. Only a ticket rebuilt from the stored document has them (it
+ *   cannot know the candidate ids): a candidate that reads as one of these is never offered as an extra, as one in [takenIds] is not.
+ */
+@Serializable
+data class EnrichmentTicket(
+    val typeId: String? = null,
+    val takenIds: List<String> = emptyList(),
+    val established: String = "",
+    val topics: List<String> = emptyList(),
+    val facts: Map<String, String> = emptyMap(),
+    val takenValues: List<String> = emptyList(),
 )
 
 /**
@@ -130,6 +175,58 @@ data class DocumentUnderstanding(
      * the whole document fit inside the budget.
      */
     val inputTruncation: InputTruncation? = null,
+
+    /**
+     * At most eight words in the letter's language, sender and purpose. Written by the model, so
+     * it is a label, not a fact. Empty when there was none.
+     */
+    val title: String = "",
+
+    /** The model's own confidence in [documentType]; no check can raise or lower it. 0 when there was no reading. */
+    val documentTypeConfidence: Float = 0f,
+
+    /** One or two sentences: what the reader must know or do. Empty when there was none. */
+    val summary: String = "",
+
+    /** Questions a reader might ask, in the letter's language, for the chat to offer. */
+    val suggestedQuestions: List<String> = emptyList(),
+
+    /**
+     * False when no model read the document and [facts] are only values found by code, without
+     * roles or meaning. A caller must not link entities or trust the facts as it would a reading.
+     */
+    val modelUsed: Boolean = true,
+
+    /**
+     * What the reading did, as structure only (which interpreter, which layout template, zone and candidate
+     * counts, the ids and scores chosen): never a word of the letter. For diagnostics; the data layer logs it
+     * in a debug build and nothing stores it.
+     */
+    val readingTrace: List<String> = emptyList(),
+
+    /**
+     * Set on the result of a reading's first stage when a second stage is to follow (language, extras, title, subject,
+     * summary, suggested questions are still unwritten); null when this reading is complete.
+     */
+    val enrichment: EnrichmentTicket? = null,
+
+    /** The topic ids the reading found, best first; empty when it found none (or, in a first stage, scores them later). */
+    val topics: List<String> = emptyList(),
+
+    /** The id of the layout template the letter matched; null when the reading had no layout. */
+    val layoutTemplate: String? = null,
+
+    /**
+     * The composed title as a code with its args (`composed`, family / sender / subject; see `TitleComposer`); null when nothing
+     * could be composed. [title] holds the same title as plain text, a fallback for places that cannot resolve the code.
+     */
+    val titleCode: String? = null,
+    val titleArgs: List<String> = emptyList(),
+
+    /** Where [summary] came from; null when there is none. When [SummarySource.TEMPLATE], [summary] is empty and [summaryCode] + [summaryArgs] render it. */
+    val summarySource: SummarySource? = null,
+    val summaryCode: String? = null,
+    val summaryArgs: List<String> = emptyList(),
 ) {
     val sender: RecognisedEntity? get() = entities.firstOrNull { it.role == EntityRole.SENDER }
 

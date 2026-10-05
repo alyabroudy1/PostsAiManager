@@ -40,11 +40,11 @@ object DownloadNotifications {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Model downloads",
+                context.getString(R.string.download_channel_name),
                 // LOW: an ongoing transfer should be visible, not intrusive.
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "Progress for AI models downloading in the background."
+                description = context.getString(R.string.download_channel_description)
                 setShowBadge(false)
             },
         )

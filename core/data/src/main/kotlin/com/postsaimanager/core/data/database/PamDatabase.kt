@@ -6,10 +6,11 @@ import com.postsaimanager.core.data.database.dao.ConversationDao
 import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.data.database.dao.DocumentChunkDao
-import com.postsaimanager.core.data.database.dao.EntityProposalDao
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
+import com.postsaimanager.core.data.database.dao.FormFillDao
 import com.postsaimanager.core.data.database.dao.MessageDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
+import com.postsaimanager.core.data.database.dao.ProfileFactDao
 import com.postsaimanager.core.data.database.dao.TimelineDao
 import com.postsaimanager.core.data.database.entity.*
 
@@ -30,10 +31,12 @@ import com.postsaimanager.core.data.database.entity.*
         DocumentChunkEntity::class,
         FieldRevisionEntity::class,
         DismissedEntityEntity::class,
-        EntityProposalEntity::class,
         MessageSourceEntity::class,
+        ProfileFactEntity::class,
+        FormFillEntity::class,
+        FormFieldEntity::class,
     ],
-    version = 13,
+    version = 17,
     exportSchema = true,
 )
 abstract class PamDatabase : RoomDatabase() {
@@ -45,7 +48,8 @@ abstract class PamDatabase : RoomDatabase() {
     abstract fun documentChunkDao(): DocumentChunkDao
     abstract fun fieldRevisionDao(): FieldRevisionDao
     abstract fun dismissedEntityDao(): DismissedEntityDao
-    abstract fun entityProposalDao(): EntityProposalDao
+    abstract fun profileFactDao(): ProfileFactDao
+    abstract fun formFillDao(): FormFillDao
 
     companion object {
         const val DATABASE_NAME = "pam_database"

@@ -5,9 +5,9 @@ agp = "8.7.3"
 kotlin = "2.1.0"
 ksp = "2.1.0-1.0.29"
 jvmTarget = "17"
-compileSdk = "35"
+compileSdk = "36"
 minSdk = "26"
-targetSdk = "35"
+targetSdk = "36"
 
 # Compose
 composeBom = "2024.12.01"
@@ -41,8 +41,6 @@ ktor = "3.0.3"
 # ML Kit
 mlkitDocumentScanner = "16.0.0-beta1"
 mlkitTextRecognition = "16.0.1"
-mlkitLanguageId = "17.0.6"
-mlkitEntityExtraction = "16.0.0-beta5"
 
 # UI
 coil = "3.0.4"
@@ -56,9 +54,6 @@ lottieCompose = "6.6.2"
 credentialManager = "1.5.0-beta01"
 googleDrive = "3.0.0"
 playServicesAuth = "21.3.0"
-
-# Firebase
-firebaseBom = "33.7.0"
 
 # WorkManager
 workManager = "2.10.0"
@@ -78,6 +73,7 @@ konsist = "0.17.3"
 # AndroidX
 coreKtx = "1.15.0"
 appcompat = "1.7.0"
+biometric = "1.1.0"
 material = "1.12.0"
 
 [libraries]
@@ -137,8 +133,6 @@ ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version
 # ML Kit
 mlkit-document-scanner = { group = "com.google.android.gms", name = "play-services-mlkit-document-scanner", version.ref = "mlkitDocumentScanner" }
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
-mlkit-language-id = { group = "com.google.mlkit", name = "language-id", version.ref = "mlkitLanguageId" }
-mlkit-entity-extraction = { group = "com.google.mlkit", name = "entity-extraction", version.ref = "mlkitEntityExtraction" }
 
 # UI
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
@@ -153,17 +147,18 @@ hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.
 # Security
 security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 
-# Firebase
-firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
-firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
-
 # AndroidX
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycleCompose" }
 
 # Testing
 junit5-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "junit5" }
 junit5-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junit5" }
+# Runs JUnit 4 tests (a Compose test rule) on the JUnit 5 platform; it versions with the Jupiter engine.
+junit-vintage-engine = { group = "org.junit.vintage", name = "junit-vintage-engine", version.ref = "junit5" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }

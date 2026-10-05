@@ -1,0 +1,505 @@
+{
+ "key": "tax-long-7p",
+ "interpreter": "zonesscoring",
+ "pages": 7,
+ "trace": [
+  "t layout ms=55",
+  "t candidates ms=221",
+  "t fitLayout ms=5",
+  "t interpret (everything the model decides: sessions, scoring, decoding) ms=150272",
+  "t enrich (language, extras, summary, free text) ms=92283",
+  "t verify ms=85",
+  "t open header prefixTokens=142 ms=1691",
+  "t score sender n=1 ms=1520 msPerScore=1520",
+  "t score kind:sender n=3 ms=3496 msPerScore=1165",
+  "t score addressee n=1 ms=1302 msPerScore=1302",
+  "t score kind:addressee n=3 ms=3276 msPerScore=1092",
+  "t score household n=1 ms=1568 msPerScore=1568",
+  "t score care_of n=1 ms=2490 msPerScore=2490",
+  "t score kind:care_of n=3 ms=3648 msPerScore=1216",
+  "t score slot:letter_date n=1 ms=2952 msPerScore=2952",
+  "t open body#1 prefixTokens=2132 ms=61806",
+  "t score family n=24 ms=11937 msPerScore=497",
+  "t score subject_person n=1 ms=1436 msPerScore=1436",
+  "t score kind:subject_person n=3 ms=3993 msPerScore=1331",
+  "t score slot:total n=17 ms=25026 msPerScore=1472",
+  "t score slot:due_date n=2 ms=4030 msPerScore=2015",
+  "t score slot:iban n=1 ms=2699 msPerScore=2699",
+  "t score slot:reference n=2 ms=3570 msPerScore=1785",
+  "t score slot:customer_no n=2 ms=4300 msPerScore=2150",
+  "t score slot:tax_no n=2 ms=4777 msPerScore=2389",
+  "t score slot:case_no n=2 ms=4641 msPerScore=2321",
+  "t decode ms=24 (includes the kind and household scoring of a changed answer)",
+  "t scoring total batches=18 scores=70 ms=86661 msPerScore=1238",
+  "t score extras n=18 ms=43694 msPerScore=2427",
+  "t open writing prefixTokens=1992 ms=20092",
+  "t ask lang ms=462 answerChars=2",
+  "t ask extra:name ms=1462 answerChars=11",
+  "t ask extra:name ms=1475 answerChars=26",
+  "t ask extra:name ms=1771 answerChars=28",
+  "t ask extra:name ms=1925 answerChars=11",
+  "t ask extra:name ms=2236 answerChars=10",
+  "t ask extra:name ms=1654 answerChars=10",
+  "t ask text:subject ms=1122 answerChars=40",
+  "t ask text:questions ms=5109 answerChars=240",
+  "t ask text:summary ms=5293 answerChars=128",
+  "t ask text:summary ms=5571 answerChars=147"
+ ],
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Finanzamt Beispielstadt",
+   "normalized": "Finanzamt Beispielstadt",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Festsetzung der Einkommensteuer und Nachzahlung",
+   "normalized": "Festsetzung der Einkommensteuer und Nachzahlung",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "24.09.2026",
+   "normalized": "2026-09-24",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "03.11.2026",
+   "normalized": "2026-11-03",
+   "page": 6
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "2.317,00 €",
+   "normalized": "2317.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "9.817,00 €",
+   "normalized": "9817.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "7.500,00 €",
+   "normalized": "7500.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "46.020,00",
+   "normalized": "46020.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A5",
+   "kind": "AMOUNT",
+   "raw": "2.140,00",
+   "normalized": "2140.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A6",
+   "kind": "AMOUNT",
+   "raw": "43.880,00",
+   "normalized": "43880.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A7",
+   "kind": "AMOUNT",
+   "raw": "4.720,00",
+   "normalized": "4720.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A8",
+   "kind": "AMOUNT",
+   "raw": "260,00",
+   "normalized": "260.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A9",
+   "kind": "AMOUNT",
+   "raw": "38.900,00",
+   "normalized": "38900.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A11",
+   "kind": "AMOUNT",
+   "raw": "1.410,00",
+   "normalized": "1410.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A12",
+   "kind": "AMOUNT",
+   "raw": "44.610,00",
+   "normalized": "44610.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A13",
+   "kind": "AMOUNT",
+   "raw": "3.980,00",
+   "normalized": "3980.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A14",
+   "kind": "AMOUNT",
+   "raw": "0,00",
+   "normalized": "0.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A15",
+   "kind": "AMOUNT",
+   "raw": "40.630,00",
+   "normalized": "40630.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A16",
+   "kind": "AMOUNT",
+   "raw": "10.117,00",
+   "normalized": "10117.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A17",
+   "kind": "AMOUNT",
+   "raw": "300,00",
+   "normalized": "300.00 EUR",
+   "page": 3
+  },
+  {
+   "id": "A22",
+   "kind": "AMOUNT",
+   "raw": "1.875,00 €",
+   "normalized": "1875.00 EUR",
+   "page": 4
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 6
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "123\/456\/78901",
+   "normalized": "123\/456\/78901",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "EST-2025-0047118",
+   "normalized": "EST-2025-0047118",
+   "page": 1
+  },
+  {
+   "id": "N11",
+   "kind": "REFERENCE",
+   "raw": "1-12345",
+   "normalized": "1-12345",
+   "page": 7
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "00 00 00",
+   "normalized": "00 00 00",
+   "page": 1
+  },
+  {
+   "id": "T7",
+   "kind": "PHONE",
+   "raw": "01234 555000",
+   "normalized": "01234 555000",
+   "page": 7
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 6
+  }
+ ],
+ "call1": "score:sender: 0.029994964599609375\nscore:kind:sender: -0.5994834899902344,-0.4254150390625,-0.2690391540527344\nscore:addressee: 0.47016143798828125\nscore:kind:addressee: 0.28221702575683594,-1.155609130859375,-1.0632247924804688\nscore:household: -0.4405555725097656\nscore:care_of: 0.7705936431884766\nscore:kind:care_of: 0.28221702575683594,-1.155609130859375,-1.0632247924804688\nscore:slot:letter_date: 0.4599018096923828\nscore:family: 0.19347190856933594,0.2158966064453125,-1.871194839477539,-0.7526206970214844,-0.227264404296875,-0.5312404632568359,-1.1524105072021484,-1.0053596496582031,-0.8183040618896484,0.41748809814453125,0.91363525390625,1.0623359680175781,-0.7718086242675781,-1.1486778259277344,1.829996109008789,-0.7135467529296875,0.44246673583984375,-0.9491519927978516,-0.9431724548339844,-1.4902362823486328,-1.5299186706542969,-0.9349098205566406,0.08697700500488281,0.29057884216308594\nscore:subject_person: 0.38932037353515625\nscore:kind:subject_person: -0.754730224609375,-0.42020416259765625,-1.2927017211914062\nscore:slot:total: 0.1624927520751953,0.02292633056640625,0.08909988403320312,0.16586685180664062,-0.26548004150390625,0.467010498046875,0.4117584228515625,0.2747077941894531,0.10786819458007812,0.13554763793945312,0.2862205505371094,0.48603057861328125,0.11127471923828125,0.7106189727783203,0.5260238647460938,0.09509849548339844,0.7060337066650391\nscore:slot:due_date: 0.7712802886962891,1.1486072540283203\nscore:slot:iban: 1.1042003631591797\nscore:slot:reference: 0.4396858215332031,0.4632835388183594\nscore:slot:customer_no: 0.512908935546875,-0.0055389404296875\nscore:slot:tax_no: 0.7808074951171875,-0.3023719787597656\nscore:slot:case_no: 0.24574851989746094,0.1500225067138672",
+ "call1Ms": 150271,
+ "call2Ms": 0,
+ "prefixTokens": 4266,
+ "prefixMs": 83589,
+ "template": "DIN5008_A",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "score:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nAktenzeichen: EST-2025-0047118 \/ Finanzamt Beispielstadt\nIs «Finanzamt Beispielstadt» (context: line above: Aktenzeichen: EST-2025-0047118; line below: Erika Mustermann) the sender: the party that wrote and sent this letter? Answer:",
+   "answer": "0.029994964599609375",
+   "ms": 1520,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nAktenzeichen: EST-2025-0047118 \/ Finanzamt Beispielstadt\nIs «Finanzamt Beispielstadt» (context: line above: Aktenzeichen: EST-2025-0047118; line below: Erika Mustermann) the name of a private person? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nAktenzeichen: EST-2025-0047118 \/ Finanzamt Beispielstadt\nIs «Finanzamt Beispielstadt» (context: line above: Aktenzeichen: EST-2025-0047118; line below: Erika Mustermann) the name of an authority or public body? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nAktenzeichen: EST-2025-0047118 \/ Finanzamt Beispielstadt\nIs «Finanzamt Beispielstadt» (context: line above: Aktenzeichen: EST-2025-0047118; line below: Erika Mustermann) the name of a company or other organisation? Answer:",
+   "answer": "-0.5994834899902344,-0.4254150390625,-0.2690391540527344",
+   "ms": 3496,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Finanzamt Beispielstadt; line below: Musterstraße 12) the addressee: the party this letter is addressed to? Answer:",
+   "answer": "0.47016143798828125",
+   "ms": 1302,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Finanzamt Beispielstadt; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Finanzamt Beispielstadt; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Finanzamt Beispielstadt; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
+   "answer": "0.28221702575683594,-1.155609130859375,-1.0632247924804688",
+   "ms": 3276,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:household",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Finanzamt Beispielstadt; line below: Musterstraße 12) the name of a family or household (several people living together)? Answer:",
+   "answer": "-0.4405555725097656",
+   "ms": 1568,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Finanzamt Beispielstadt; line below: Musterstraße 12) a party in whose care the letter is sent (a mailbox for the addressee)? Answer:",
+   "answer": "0.7705936431884766",
+   "ms": 2490,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Finanzamt Beispielstadt; line below: Musterstraße 12) the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Finanzamt Beispielstadt; line below: Musterstraße 12) the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Erika Mustermann» (context: line above: Finanzamt Beispielstadt; line below: Musterstraße 12) the name of a company or other organisation? Answer:",
+   "answer": "0.28221702575683594,-1.155609130859375,-1.0632247924804688",
+   "ms": 3648,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nIs «24.09.2026» (context: printed on the line: Steuernummer: 123\/456\/78901 Bescheiddatum: 24.09.2026 Veranlagungszeit; line above: Festsetzung der Einkommensteuer und Nachzahlung; line below: Sehr geehrte Frau Mustermann,) the date of the letter itself (when it was written or issued)? Answer:",
+   "answer": "0.4599018096923828",
+   "ms": 2952,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:family",
+   "question": "Is this document a letter or decision from an authority, employer, school or other organisation that informs the reader or decides something? Answer:\n@@\nIs this document an invoice, a bill or a payment reminder that asks the reader to pay? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document a form or an application that is filled in and returned? Answer:\n@@\nIs this document a statement of account, a bank statement or a summary of transactions or consumption? Answer:\n@@\nIs this document a contract, an insurance policy, or a change to its price or terms? Answer:\n@@\nIs this document a certificate, an identity document, a licence or a card? Answer:\n@@\nIs this document a letter from a doctor, clinic or hospital, such as an appointment, a referral or a result? Answer:\n@@\nIs this document a ticket, a booking confirmation or a travel itinerary? Answer:\n@@\nIs this document a printout of an email message or of a web page? Answer:\n@@\nDoes this document concern a government agency, a public authority or a public service? Answer:\n@@\nDoes this document concern taxes, a tax office or a tax return? Answer:\n@@\nDoes this document concern health, medical care, a doctor or a health insurer? Answer:\n@@\nDoes this document concern an insurance policy or an insurance company? Answer:\n@@\nDoes this document concern a bank, a loan, an account, savings or other personal finance? Answer:\n@@\nDoes this document concern housing, rent, a property or a household utility such as energy, water or heating? Answer:\n@@\nDoes this document concern a job, an employer, employment or a salary? Answer:\n@@\nDoes this document concern a school, a kindergarten, a university or education? Answer:\n@@\nDoes this document concern a car, another vehicle, a driving licence or road traffic? Answer:\n@@\nDoes this document concern a phone, mobile, internet or television service? Answer:\n@@\nDoes this document concern a purchase from a shop or an online order? Answer:\n@@\nDoes this document concern a trip, a flight, a hotel or a holiday? Answer:\n@@\nDoes this document concern a court, a lawyer or a legal dispute? Answer:\n@@\nDoes this document concern a private matter, family or personal correspondence? Answer:",
+   "answer": "0.19347190856933594,0.2158966064453125,-1.871194839477539,-0.7526206970214844,-0.227264404296875,-0.5312404632568359,-1.1524105072021484,-1.0053596496582031,-0.8183040618896484,0.41748809814453125,0.91363525390625,1.0623359680175781,-0.7718086242675781,-1.1486778259277344,1.829996109008789,-0.7135467529296875,0.44246673583984375,-0.9491519927978516,-0.9431724548339844,-1.4902362823486328,-1.5299186706542969,-0.9349098205566406,0.08697700500488281,0.29057884216308594",
+   "ms": 11937,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Festsetzung der Einkommensteuer und Nachzahlung» (context: line above: Einkommensteuerbescheid 2025; line below: Steuernummer: 123\/456\/78901 Bescheiddatum: 24.09.2026 Veranlagungszeit) a person the letter is about, other than the addressee? Answer:",
+   "answer": "0.38932037353515625",
+   "ms": 1436,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Festsetzung der Einkommensteuer und Nachzahlung» (context: line above: Einkommensteuerbescheid 2025; line below: Steuernummer: 123\/456\/78901 Bescheiddatum: 24.09.2026 Veranlagungszeit) the name of a private person? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Festsetzung der Einkommensteuer und Nachzahlung» (context: line above: Einkommensteuerbescheid 2025; line below: Steuernummer: 123\/456\/78901 Bescheiddatum: 24.09.2026 Veranlagungszeit) the name of an authority or public body? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «Festsetzung der Einkommensteuer und Nachzahlung» (context: line above: Einkommensteuerbescheid 2025; line below: Steuernummer: 123\/456\/78901 Bescheiddatum: 24.09.2026 Veranlagungszeit) the name of a company or other organisation? Answer:",
+   "answer": "-0.754730224609375,-0.42020416259765625,-1.2927017211914062",
+   "ms": 3993,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «2.317,00 €» (context: printed on the line: Ergebnis: Nachzahlung 2.317,00 €; line above: bitte den nachfolgenden Erläuterungen.; line below: Festgesetzte Einkommensteuer 9.817,00 € abzüglich Vorauszahlungen 7.50) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «9.817,00 €» (context: printed on the line: Festgesetzte Einkommensteuer 9.817,00 € abzüglich Vorauszahlungen 7.50; line above: Ergebnis: Nachzahlung 2.317,00 €; line below: Einkommensteuerbescheid 2025) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «7.500,00 €» (context: printed on the line: Festgesetzte Einkommensteuer 9.817,00 € abzüglich Vorauszahlungen 7.50; line above: Ergebnis: Nachzahlung 2.317,00 €; line below: Einkommensteuerbescheid 2025) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «46.020,00» (context: line above: Berechnungsgrundlage; line below: 46.020,00) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «2.140,00» (context: line above: Einkünfte aus nichtselbständiger Arbeit; line below: 1.410,00) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «43.880,00» (context: line above: abzüglich Werbungskosten; line below: 44.610,00) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «4.720,00» (context: line above: Summe der Einkünfte; line below: 3.980,00) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «260,00» (context: line above: abzüglich Sonderausgaben; line below: 0,00) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «38.900,00» (context: line above: abzüglich außergewöhnliche Belastungen; line below: 40.630,00) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.410,00» (context: line above: 2.140,00; line below: abzüglich Werbungskosten) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «44.610,00» (context: line above: 43.880,00; line below: Summe der Einkünfte) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «3.980,00» (context: line above: 4.720,00; line below: abzüglich Sonderausgaben) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «0,00» (context: line above: 260,00; line below: abzüglich außergewöhnliche Belastungen) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «40.630,00» (context: line above: 38.900,00; line below: Zu versteuerndes Einkommen) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «10.117,00» (context: line above: Zu versteuerndes Einkommen; line below: Tarifliche Einkommensteuer) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «300,00» (context: line above: Tarifliche Einkommensteuer; line below: abzüglich Steuerermäßigung § 35a EStG) the main amount of this document: what the reader has to pay, or the total? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.875,00 €» (context: printed on the line: Die Vorauszahlungen für das Jahr 2025 wurden in vier Raten zu jeweils ; line above: 2.317,00; line below: angerechnet. Eine Erstattung überzahlter Beträge ist nicht möglich, da) the main amount of this document: what the reader has to pay, or the total? Answer:",
+   "answer": "0.1624927520751953,0.02292633056640625,0.08909988403320312,0.16586685180664062,-0.26548004150390625,0.467010498046875,0.4117584228515625,0.2747077941894531,0.10786819458007812,0.13554763793945312,0.2862205505371094,0.48603057861328125,0.11127471923828125,0.7106189727783203,0.5260238647460938,0.09509849548339844,0.7060337066650391",
+   "ms": 25026,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «24.09.2026» (context: printed on the line: Steuernummer: 123\/456\/78901 Bescheiddatum: 24.09.2026 Veranlagungszeit; line above: Festsetzung der Einkommensteuer und Nachzahlung; line below: Sehr geehrte Frau Mustermann,) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «03.11.2026» (context: printed on the line: Die Abschlusszahlung von 2.317,00€ ist fällig am 03.11.2026. Bitte übe; line above: Zahlungsaufforderung; line below: Finanzkasse Beispielstadt: IBAN DE89 3704 0044 0532 0130 00, BIC COBAD) the date by which the reader must pay or act? Answer:",
+   "answer": "0.7712802886962891,1.1486072540283203",
+   "ms": 4030,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:iban",
+   "question": "ZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\n(the text of this zone is in the letter above)\nIs «DE89 3704 0044 0532 0130 00» (context: printed on the line: Finanzkasse Beispielstadt: IBAN DE89 3704 0044 0532 0130 00, BIC COBAD; line above: Die Abschlusszahlung von 2.317,00€ ist fällig am 03.11.2026. Bitte übe; line below: Steuernummer 123\/456\/78901 EST 2025. Der Einspruch entbindet nicht von) the IBAN of the account the reader should pay to? Answer:",
+   "answer": "1.1042003631591797",
+   "ms": 2699,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «123\/456\/78901» (context: printed on the line: Steuernummer: 123\/456\/78901 Bescheiddatum: 24.09.2026 Veranlagungszeit; line above: Festsetzung der Einkommensteuer und Nachzahlung; line below: Sehr geehrte Frau Mustermann,) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «EST-2025-0047118» (context: printed on the line: Aktenzeichen: EST-2025-0047118; line below: Finanzamt Beispielstadt) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
+   "answer": "0.4396858215332031,0.4632835388183594",
+   "ms": 3570,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «123\/456\/78901» (context: printed on the line: Steuernummer: 123\/456\/78901 Bescheiddatum: 24.09.2026 Veranlagungszeit; line above: Festsetzung der Einkommensteuer und Nachzahlung; line below: Sehr geehrte Frau Mustermann,) the number that identifies the reader as a customer, member or account holder? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «EST-2025-0047118» (context: printed on the line: Aktenzeichen: EST-2025-0047118; line below: Finanzamt Beispielstadt) the number that identifies the reader as a customer, member or account holder? Answer:",
+   "answer": "0.512908935546875,-0.0055389404296875",
+   "ms": 4300,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:tax_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «123\/456\/78901» (context: printed on the line: Steuernummer: 123\/456\/78901 Bescheiddatum: 24.09.2026 Veranlagungszeit; line above: Festsetzung der Einkommensteuer und Nachzahlung; line below: Sehr geehrte Frau Mustermann,) the tax number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «EST-2025-0047118» (context: printed on the line: Aktenzeichen: EST-2025-0047118; line below: Finanzamt Beispielstadt) the tax number? Answer:",
+   "answer": "0.7808074951171875,-0.3023719787597656",
+   "ms": 4777,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:case_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «123\/456\/78901» (context: printed on the line: Steuernummer: 123\/456\/78901 Bescheiddatum: 24.09.2026 Veranlagungszeit; line above: Festsetzung der Einkommensteuer und Nachzahlung; line below: Sehr geehrte Frau Mustermann,) the case number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE subject. HINT: This line is usually the subject of the letter.\n(the text of this zone is in the letter above)\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «EST-2025-0047118» (context: printed on the line: Aktenzeichen: EST-2025-0047118; line below: Finanzamt Beispielstadt) the case number? Answer:",
+   "answer": "0.24574851989746094,0.1500225067138672",
+   "ms": 4641,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:extras",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «2.317,00 €» (context: printed on the line: Ergebnis: Nachzahlung 2.317,00 €; line above: bitte den nachfolgenden Erläuterungen.; line below: Festgesetzte Einkommensteuer 9.817,00 € abzüglich Vorauszahlungen 7.50) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «9.817,00 €» (context: printed on the line: Festgesetzte Einkommensteuer 9.817,00 € abzüglich Vorauszahlungen 7.50; line above: Ergebnis: Nachzahlung 2.317,00 €; line below: Einkommensteuerbescheid 2025) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «7.500,00 €» (context: printed on the line: Festgesetzte Einkommensteuer 9.817,00 € abzüglich Vorauszahlungen 7.50; line above: Ergebnis: Nachzahlung 2.317,00 €; line below: Einkommensteuerbescheid 2025) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «46.020,00» (context: line above: Berechnungsgrundlage; line below: 46.020,00) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «2.140,00» (context: line above: Einkünfte aus nichtselbständiger Arbeit; line below: 1.410,00) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «43.880,00» (context: line above: abzüglich Werbungskosten; line below: 44.610,00) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «4.720,00» (context: line above: Summe der Einkünfte; line below: 3.980,00) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «260,00» (context: line above: abzüglich Sonderausgaben; line below: 0,00) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «38.900,00» (context: line above: abzüglich außergewöhnliche Belastungen; line below: 40.630,00) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.410,00» (context: line above: 2.140,00; line below: abzüglich Werbungskosten) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «44.610,00» (context: line above: 43.880,00; line below: Summe der Einkünfte) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «3.980,00» (context: line above: 4.720,00; line below: abzüglich Sonderausgaben) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «0,00» (context: line above: 260,00; line below: abzüglich außergewöhnliche Belastungen) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «10.117,00» (context: line above: Zu versteuerndes Einkommen; line below: Tarifliche Einkommensteuer) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «300,00» (context: line above: Tarifliche Einkommensteuer; line below: abzüglich Steuerermäßigung § 35a EStG) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «1.875,00 €» (context: printed on the line: Die Vorauszahlungen für das Jahr 2025 wurden in vier Raten zu jeweils ; line above: 2.317,00; line below: angerechnet. Eine Erstattung überzahlter Beträge ist nicht möglich, da) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «01234 555000» (context: printed on the line: Auskünfte erteilt Ihnen das Servicezentrum des Finanzamts Beispielstad; line above: Verarbeitung erfolgt zur Erfllung der der Behörde übertragenen Aufgabe; line below: montags bis freitags von 8 bis 12 Uhr sowie donnerstags zusatzlich von) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 24.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nIs «COBADEFFXXX» (context: printed on the line: Finanzkasse Beispielstadt: IBAN DE89 3704 0044 0532 0130 00, BIC COBAD; line above: Die Abschlusszahlung von 2.317,00€ ist fällig am 03.11.2026. Bitte übe; line below: Steuernummer 123\/456\/78901 EST 2025. Der Einspruch entbindet nicht von) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:",
+   "answer": "-0.22945022583007812,-0.2780609130859375,-0.9422893524169922,0.5534248352050781,-0.1930255889892578,-0.34855079650878906,0.030324935913085938,0.35349082946777344,-0.5424633026123047,-0.300994873046875,0.12812042236328125,-0.024003982543945312,-0.03638458251953125,0.2074604034423828,-0.4286518096923828,-0.49040794372558594,-0.7180137634277344,-0.5542697906494141",
+   "ms": 43694,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "lang",
+   "question": "QUESTION: In which language is this letter written? Answer with its BCP-47 language code (for example de, en, ar).\nANSWER FORMAT: the code only",
+   "answer": "de",
+   "ms": 462,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «46.020,00» is an important fact of this letter: it is printed on the line «46.020,00», the line above it is «Berechnungsgrundlage». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"46.020,00\"",
+   "ms": 1462,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «260,00» is an important fact of this letter: it is printed on the line «260,00», the line above it is «abzüglich Sonderausgaben». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"abzüglich Sonderausgaben\"",
+   "ms": 1475,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «10.117,00» is an important fact of this letter: it is printed on the line «10.117,00», the line above it is «Zu versteuerndes Einkommen». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"Zu versteuerndes Einkommen\"",
+   "ms": 1771,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «44.610,00» is an important fact of this letter: it is printed on the line «44.610,00», the line above it is «43.880,00». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"44.610,00\"",
+   "ms": 1925,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «4.720,00» is an important fact of this letter: it is printed on the line «4.720,00», the line above it is «Summe der Einkünfte». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"4.720,00\"",
+   "ms": 2236,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «3.980,00» is an important fact of this letter: it is printed on the line «3.980,00», the line above it is «4.720,00». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"3.980,00\"",
+   "ms": 1654,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Bitte den nachfolgenden Erläuterungen.\"",
+   "ms": 1122,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"1. Was ist der Nachzahlungsbetrag und wie hoch ist die Festgesetzte Einkommensteuer?\" \"2. Wie lautet der Fälligkeitstermin für die Abschlusszahlung?\" \"3. Was ist der Zweck der elektronischen Übermittlung der Lohnsteuerbescheinigungsdaten?\"",
+   "ms": 5109,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:summary",
+   "question": "FACTS (verified; use only these):\n- sender: Finanzamt Beispielstadt\n- addressed_to: Erika Mustermann\n- amount: 40.630,00\n- due_date: 03.11.2026\n- date: 24.09.2026\n- subject: Bitte den nachfolgenden Erläuterungen.\n- reference: EST-2025-0047118\n\nQUESTION: Write one or two sentences, at most 30 words, saying what the reader must know or do. Use only the facts above. Write in the language with the code \"de\".\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Die Finanzverwaltung hat eine Zahlungsaufforderung für 2.317,00 € auf 03.11.2026 und eine Frist von 124 Tagen für die Zahlung.\"",
+   "ms": 5293,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:summary",
+   "question": "FACTS (verified; use only these):\n- sender: Finanzamt Beispielstadt\n- addressed_to: Erika Mustermann\n- amount: 40.630,00\n- due_date: 03.11.2026\n- date: 24.09.2026\n- subject: Bitte den nachfolgenden Erläuterungen.\n- reference: EST-2025-0047118\n\nQUESTION: Write one or two sentences, at most 30 words, saying what the reader must know or do. Use only the facts above. Write in the language with the code \"de\". Do not copy any line of the letter; put it in your own words.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Sie müssen den Nachzahlungsbetrag von 2.317,00 € auf das Konto der Finanzkasse Beispielstadt überweisen, da der Fälligkeitstermin 03.11.2026 ist.\"",
+   "ms": 5571,
+   "questionTokens": -1,
+   "answerTokens": -1
+  }
+ ],
+ "wallMs": 242924,
+ "model": "text.gguf"
+}

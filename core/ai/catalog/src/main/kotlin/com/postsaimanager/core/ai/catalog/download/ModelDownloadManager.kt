@@ -1,6 +1,7 @@
 package com.postsaimanager.core.ai.catalog.download
 
 import android.content.Context
+import com.postsaimanager.core.download.DownloadNotificationCenter
 import com.postsaimanager.core.download.ModelDownloadWorker
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
@@ -39,6 +40,7 @@ sealed interface ModelDownloadStatus {
 @Singleton
 class ModelDownloadManager @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val center: DownloadNotificationCenter,
 ) {
 
     private val workManager get() = WorkManager.getInstance(context)
@@ -68,6 +70,7 @@ class ModelDownloadManager @Inject constructor(
             )
             .setInputData(
                 workDataOf(
+                    ModelDownloadWorker.KEY_MODEL_ID to descriptor.id,
                     ModelDownloadWorker.KEY_URL to url,
                     ModelDownloadWorker.KEY_SHA256 to sha256,
                     ModelDownloadWorker.KEY_DESTINATION to destinationFor(descriptor).absolutePath,
@@ -80,6 +83,7 @@ class ModelDownloadManager @Inject constructor(
 
         // KEEP, not REPLACE: re-tapping Install must join the running job rather than
         // restart the transfer.
+        center.queued(descriptor.id, descriptor.name, descriptor.sizeBytes)
         workManager.enqueueUniqueWork(
             ModelDownloadWorker.workName(descriptor.id),
             ExistingWorkPolicy.KEEP,
@@ -90,6 +94,7 @@ class ModelDownloadManager @Inject constructor(
 
     /** Cancels the job. The `.part` file is deliberately kept so a later retry resumes. */
     fun cancel(modelId: String) {
+        center.removed(modelId)
         workManager.cancelUniqueWork(ModelDownloadWorker.workName(modelId))
     }
 

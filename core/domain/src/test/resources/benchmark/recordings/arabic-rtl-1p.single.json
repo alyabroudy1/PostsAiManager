@@ -1,0 +1,36 @@
+{
+ "key": "arabic-rtl-1p",
+ "interpreter": "single",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "20.10.2026",
+   "normalized": "2026-10-20",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "450,00 €",
+   "normalized": "450.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "2026-041",
+   "normalized": "2026-041",
+   "page": 1
+  }
+ ],
+ "call1": "{\"type\":\"reminder_dunning\",\"tc\":\"LOW\",\"lang\":\"de\",\"parties\":[{\"r\":\"ADDRESSEE\",\"id\":\"N1\",\"n\":\"2026-041\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"ROUTING\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"CARE_OF\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"CARE_OF\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"ADDRESSEE\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"ROUTING\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"CARE_OF\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"CARE_OF\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"ADDRESSEE\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"ROUTING\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"CARE_OF\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"CARE_OF\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"ADDRESSEE\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"ROUTING\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"CARE_OF\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"CARE_OF\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"ADDRESSEE\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"ROUTING\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"LOW\"},{\"r\":\"CARE_OF\",\"id\":\"NONE\",\"n\":\"NONE\",\"k\":\"OTHER\",\"rel\":\"NONE",
+ "call1Ms": 61338,
+ "call2Ms": 10036,
+ "layoutTextChars": 219,
+ "call2": "{\"other\": \"reminder_dunning\", \"title\": \"Zahlungserinnerung\", \"subject\": \"Zahlungserinnerung zu Rechnung 2026-041\", \"summary\": \"Sie erhalten eine Zahlungserinnerung für eine Rechnung vom 20.10.2026 mit einem Betrag von 450,00 €.\", \"qs\": [\"Wie lange ist die Zahlungsbefreiung?\", \"Welche Fristen gelten für die Zahlung?\", \"Wie wird die Zahlungserinnerung übermittelt?\"]}",
+ "wallMs": 71432,
+ "model": "text.gguf"
+}

@@ -64,7 +64,11 @@ android {
                 arguments += listOf(
                     "-DANDROID_STL=c++_shared",
                     "-DCMAKE_BUILD_TYPE=Release",
+                    // NDK 27 still links with 4 KB segment alignment by default (28+ flips it).
+                    // Google Play requires 16 KB support for apps targeting Android 15+.
+                    "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
                 )
+                (project.findProperty("pam.cpuArch") as String?)?.let { arguments += "-DPAM_CPU_ARM_ARCH=$it" }
                 if (gpuBackend == "vulkan") {
                     arguments += "-DGGML_VULKAN=ON"
 

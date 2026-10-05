@@ -9,8 +9,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,7 +29,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -67,7 +64,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -75,22 +72,20 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.postsaimanager.core.common.extensions.toRelativeTime
+import com.postsaimanager.core.designsystem.component.PagePreviewDialog
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
+import com.postsaimanager.core.designsystem.component.documentDisplayTitle
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
+import com.postsaimanager.core.domain.extraction.text.TitleComposer
+import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
-import com.postsaimanager.core.model.EntityProposal
-import com.postsaimanager.core.model.EntityRole
-import com.postsaimanager.core.model.ExtractedData
-import com.postsaimanager.core.model.ValueSource
 import com.postsaimanager.core.model.ExtractedFieldType
-import com.postsaimanager.core.model.MatchType
 import com.postsaimanager.core.model.ProcessingStage
 import com.postsaimanager.core.model.ProcessingState
-import com.postsaimanager.core.model.ProfileSuggestion
 import com.postsaimanager.core.model.TimelineEvent
 import com.postsaimanager.core.model.TimelineEventType
 import java.io.File
@@ -100,6 +95,11 @@ import java.io.File
 fun DocumentDetailScreen(
     onNavigateBack: () -> Unit,
     onChatClick: (String) -> Unit,
+    /**
+     * "Help me fill it" / "Fill in this form": opens the document's chat with the form fill started. Null when form filling is
+     * switched off: neither the menu item nor the Extracted-tab card is shown.
+     */
+    onFillForm: ((String) -> Unit)? = null,
     /**
      * Called once the document has been moved to the trash. The caller navigates away and
      * owns the "moved to Recently deleted / Undo" snackbar, so it outlives this screen.
@@ -117,13 +117,26 @@ fun DocumentDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val processingState by viewModel.processingProgress.collectAsStateWithLifecycle()
-    val profileSuggestions by viewModel.profileSuggestions.collectAsStateWithLifecycle()
-    val editingProfileSuggestion by viewModel.editingProfileSuggestion.collectAsStateWithLifecycle()
-    val entityProposals by viewModel.entityProposals.collectAsStateWithLifecycle()
+    val summaryComing by viewModel.summaryComing.collectAsStateWithLifecycle()
     val pendingConfirmAllUndo by viewModel.pendingConfirmAllUndo.collectAsStateWithLifecycle()
+    val fieldPreview by viewModel.fieldPreview.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val resources = LocalContext.current.resources
+    val undoLabel = stringResource(R.string.action_undo)
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+
+    (uiState as? DocumentDetailUiState.Success)?.document?.takeIf { showRenameDialog }?.let { document ->
+        RenameDocumentDialog(
+            currentTitle = screenTitle(document),
+            onDismiss = { showRenameDialog = false },
+            onSave = { title ->
+                showRenameDialog = false
+                viewModel.renameDocument(title)
+            },
+        )
+    }
 
     // A citation chip always means "show me that page" — even if the user was last looking
     // at a different tab (Extracted, Timeline) when they left this document.
@@ -131,15 +144,15 @@ fun DocumentDetailScreen(
         if (initialPage != null) viewModel.selectTab(DetailTab.PAGES)
     }
 
-    // 5.3: "Confirm all" offers a cheap undo — the Snackbar itself both shows and resolves
+    // "Confirm n confident" / "Confirm all" offer a cheap undo — the Snackbar itself both shows and resolves
     // it, so there is nothing to reconcile if the screen is left before it times out (the
     // ViewModel still holds the undo state; only its Snackbar is gone).
     LaunchedEffect(pendingConfirmAllUndo) {
         val confirmed = pendingConfirmAllUndo ?: return@LaunchedEffect
         val count = confirmed.size
         val result = snackbarHostState.showSnackbar(
-            message = if (count == 1) "1 field confirmed" else "$count fields confirmed",
-            actionLabel = "Undo",
+            message = resources.getQuantityString(R.plurals.fields_confirmed, count, count),
+            actionLabel = undoLabel,
             duration = SnackbarDuration.Long,
         )
         if (result == SnackbarResult.ActionPerformed) {
@@ -153,7 +166,7 @@ fun DocumentDetailScreen(
         topBar = {
             PamTopAppBar(
                 title = when (val state = uiState) {
-                    is DocumentDetailUiState.Success -> state.document.title
+                    is DocumentDetailUiState.Success -> screenTitle(state.document)
                     else -> "Document"
                 },
                 onNavigateBack = onNavigateBack,
@@ -163,6 +176,23 @@ fun DocumentDetailScreen(
                             Icon(PamIcons.More, contentDescription = "More options")
                         }
                         DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_rename)) },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    showRenameDialog = true
+                                },
+                            )
+                            // Offered on any document: a letter can come with a form to fill in, and the user can always ask.
+                            (uiState as? DocumentDetailUiState.Success)?.document?.takeUnless { it.isTrashed }?.let { document ->
+                                if (onFillForm != null) DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_fill_form)) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onFillForm(document.id)
+                                    },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("Delete") },
                                 onClick = {
@@ -195,6 +225,9 @@ fun DocumentDetailScreen(
         AnimatedContent(
             targetState = uiState,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
+            // Animate between kinds of state only: every edit of the document is a new Success, and treating it as new content
+            // would rebuild the tab and reset its scroll position.
+            contentKey = { s -> if (s is DocumentDetailUiState.Success) "success-${s.document.isTrashed}" else s::class },
             label = "detail_content",
             modifier = Modifier.padding(innerPadding),
         ) { state ->
@@ -209,7 +242,7 @@ fun DocumentDetailScreen(
                 // e.g. when opened from Recently deleted or via a citation/deep link.
                 state is DocumentDetailUiState.Success && state.document.isTrashed ->
                     TrashedDocumentState(
-                        title = state.document.title,
+                        title = screenTitle(state.document),
                         onRestore = viewModel::restoreDocument,
                     )
                 state is DocumentDetailUiState.Success -> DocumentDetailContent(
@@ -217,23 +250,31 @@ fun DocumentDetailScreen(
                     selectedTab = selectedTab,
                     initialPage = initialPage,
                     processingState = processingState,
-                    profileSuggestions = profileSuggestions,
-                    entityProposals = entityProposals,
+                    summaryComing = summaryComing,
                     onTabSelected = viewModel::selectTab,
                     onProcess = { force -> viewModel.startProcessing(force) },
-                    onConfirmField = viewModel::confirmField,
-                    onConfirmAllFields = viewModel::confirmAllFields,
+                    fieldActions = FieldActions(
+                        confirm = viewModel::confirmFields,
+                        ignore = viewModel::ignoreFields,
+                        restore = viewModel::restoreField,
+                        edit = {},
+                    ),
+                    onConfirmConfident = viewModel::confirmConfidentFields,
+                    onConfirmAll = viewModel::confirmAllFields,
                     onAddClick = { showAddDialog = true },
                     onUpdateField = viewModel::updateField,
-                    onDeleteField = viewModel::deleteField,
-                    onLinkProfile = viewModel::linkSuggestionToProfile,
-                    onCreateProfile = viewModel::openProfileCreation,
-                    onDismissSuggestion = viewModel::dismissSuggestion,
-                    onAcceptProposal = viewModel::acceptProposal,
-                    onDismissProposal = viewModel::dismissProposal,
+                    onUpdateSummary = viewModel::updateSummary,
+                    onChangeFamily = viewModel::changeFamily,
+                    onReadAgainAs = viewModel::readAgainAs,
+                    onShowOnPage = viewModel::showOnPage,
                     onChatClick = { onChatClick(state.document.id) },
+                    onFillForm = onFillForm?.let { fill -> { fill(state.document.id) } },
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSharePdf = { viewModel.generatePdf() },
+                    externalLaunch = ExternalLaunch(
+                        expect = viewModel::onExternalLaunching,
+                        finish = viewModel::onExternalLaunchFinished,
+                    ),
                     onDelete = { viewModel.moveToTrash(onDeleted) },
                 )
             }
@@ -250,23 +291,27 @@ fun DocumentDetailScreen(
         )
     }
 
-    // Profile creation sheet
-    editingProfileSuggestion?.let { suggestion ->
-        ProfileEditSheet(
-            initialData = ProfileFormData(
-                name = suggestion.extractedName ?: "",
-                organization = suggestion.extractedOrganization ?: "",
-                phone = suggestion.extractedPhone ?: "",
-                email = suggestion.extractedEmail ?: "",
-                street = suggestion.extractedAddress ?: "",
-                type = if (suggestion.extractedOrganization != null) com.postsaimanager.core.model.ProfileType.AUTHORITY
-                    else com.postsaimanager.core.model.ProfileType.PERSON,
-            ),
-            isEditing = false,
-            onSave = { formData -> viewModel.saveProfileFromForm(formData, suggestion) },
-            onDismiss = { viewModel.dismissProfileCreation() },
+    // "Show on page": layered over the screen, so closing returns to the open edit sheet.
+    fieldPreview?.let { preview ->
+        PagePreviewDialog(
+            title = null,
+            preview = preview.preview,
+            loading = preview.loading,
+            initialPageIndex = preview.initialPageIndex,
+            onClose = viewModel::closeFieldPreview,
+            onOpenDocument = null,
         )
     }
+}
+
+/** The title to show for [document]: a composed title is worded from the family's string resource, anything else as stored. */
+@Composable
+private fun screenTitle(document: Document): String {
+    val context = LocalContext.current
+    if (TitleComposer.isComposed(document.titleCode)) {
+        composedTitleText(context, document.titleArgs)?.let { return it }
+    }
+    return documentDisplayTitle(document)
 }
 
 @Composable
@@ -275,25 +320,26 @@ private fun DocumentDetailContent(
     selectedTab: DetailTab,
     initialPage: Int?,
     processingState: ProcessingState,
-    profileSuggestions: List<ProfileSuggestion>,
-    entityProposals: List<EntityProposal>,
+    /** The reading's second stage (summary, extras) is still being written: the summary card says so. */
+    summaryComing: Boolean,
     onTabSelected: (DetailTab) -> Unit,
     /** `force = true` restarts a document that is already `EXTRACTED`/`REVIEWED`, or retries
      * one that `FAILED`; `false` is used only for the auto-enqueue done by the ViewModel on
      * open, which this Composable never triggers directly. */
     onProcess: (force: Boolean) -> Unit,
-    onConfirmField: (String) -> Unit,
-    onConfirmAllFields: () -> Unit,
+    fieldActions: FieldActions,
+    onConfirmConfident: () -> Unit,
+    onConfirmAll: () -> Unit,
     onAddClick: () -> Unit,
     onUpdateField: (String, String, String) -> Unit,
-    onDeleteField: (String) -> Unit,
-    onLinkProfile: (ProfileSuggestion) -> Unit,
-    onCreateProfile: (ProfileSuggestion) -> Unit,
-    onDismissSuggestion: (ProfileSuggestion) -> Unit,
-    onAcceptProposal: (EntityProposal) -> Unit,
-    onDismissProposal: (EntityProposal) -> Unit,
+    onUpdateSummary: (String) -> Unit,
+    onChangeFamily: (String) -> Unit,
+    onReadAgainAs: (String) -> Unit,
+    onShowOnPage: (Int?, com.postsaimanager.core.model.TextBounds?) -> Unit,
     onSharePdf: () -> File?,
+    externalLaunch: ExternalLaunch,
     onChatClick: () -> Unit,
+    onFillForm: (() -> Unit)?,
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -370,25 +416,22 @@ private fun DocumentDetailContent(
         }
 
         when (selectedTab) {
-            DetailTab.PAGES -> PagesTab(state.pages, onSharePdf, initialPage)
-            DetailTab.EXTRACTED -> ExtractedTemplateTab(
+            DetailTab.PAGES -> PagesTab(state.pages, onSharePdf, externalLaunch, initialPage)
+            DetailTab.EXTRACTED -> ExtractedTab(
+                document = state.document,
                 data = state.extractedData,
-                language = state.document.language,
-                extractionPagesRead = state.document.extractionPagesRead,
-                extractionTotalPages = state.document.extractionTotalPages,
-                profileSuggestions = profileSuggestions,
-                entityProposals = entityProposals,
-                onConfirm = onConfirmField,
-                onConfirmAll = onConfirmAllFields,
+                summaryComing = summaryComing,
+                actions = fieldActions,
                 onAddClick = onAddClick,
-                onUpdate = onUpdateField,
-                onDelete = onDeleteField,
-                onLinkProfile = onLinkProfile,
-                onCreateProfile = onCreateProfile,
-                onDismissSuggestion = onDismissSuggestion,
-                onAcceptProposal = onAcceptProposal,
-                onDismissProposal = onDismissProposal,
                 onReprocess = { onProcess(true) },
+                onChangeFamily = onChangeFamily,
+                onReadAgainAs = onReadAgainAs,
+                onConfirmConfident = onConfirmConfident,
+                onConfirmAll = onConfirmAll,
+                onUpdateField = onUpdateField,
+                onUpdateSummary = onUpdateSummary,
+                onShowOnPage = onShowOnPage,
+                onFillForm = onFillForm,
             )
             DetailTab.TIMELINE -> TimelineTab(state.timeline)
         }
@@ -537,7 +580,12 @@ private fun ProcessingState.Running.toDisplayMessage(): String = when (stage) {
 // ═══════════════════════════════════════════════════════════
 
 @Composable
-private fun PagesTab(pages: List<DocumentPage>, onSharePdf: () -> File?, initialPage: Int? = null) {
+private fun PagesTab(
+    pages: List<DocumentPage>,
+    onSharePdf: () -> File?,
+    externalLaunch: ExternalLaunch,
+    initialPage: Int? = null,
+) {
     if (pages.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No pages scanned yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -578,14 +626,14 @@ private fun PagesTab(pages: List<DocumentPage>, onSharePdf: () -> File?, initial
                 ) {
                     // Share as PDF
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        FilledTonalIconButton(onClick = { sharePdf(context, onSharePdf) }) {
+                        FilledTonalIconButton(onClick = { sharePdf(context, onSharePdf, externalLaunch) }) {
                             Icon(PamIcons.Pdf, contentDescription = "Share PDF", modifier = Modifier.size(20.dp))
                         }
                         Text("Share PDF", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     // Open / Download
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        FilledTonalIconButton(onClick = { openPageImage(context, page) }) {
+                        FilledTonalIconButton(onClick = { openPageImage(context, page, externalLaunch) }) {
                             Icon(PamIcons.Gallery, contentDescription = "Open", modifier = Modifier.size(20.dp))
                         }
                         Text("Open", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -635,7 +683,15 @@ private fun getFileUri(context: Context, path: String): Uri? {
     } catch (_: Exception) { null }
 }
 
-private fun sharePdf(context: Context, generatePdf: () -> File?) {
+/**
+ * The screen's side of [com.postsaimanager.core.domain.applock.ExternalFlowGuard]: say a trip out of
+ * the app is about to happen ([expect]), and say it did not (or has ended) ([finish]). The pattern is
+ * expect, then launch, then finish when the launch fails or a result comes back; a return from the
+ * background consumes the protection by itself.
+ */
+private class ExternalLaunch(val expect: (reason: String) -> Unit, val finish: () -> Unit)
+
+private fun sharePdf(context: Context, generatePdf: () -> File?, external: ExternalLaunch) {
     val pdfFile = generatePdf()
     if (pdfFile != null && pdfFile.exists()) {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", pdfFile)
@@ -644,22 +700,33 @@ private fun sharePdf(context: Context, generatePdf: () -> File?) {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(shareIntent, "Share document as PDF"))
+        // The share sheet sends the user to another app and back: the app lock must not treat the
+        // return as an ordinary background.
+        external.expect("share-pdf")
+        try {
+            context.startActivity(Intent.createChooser(shareIntent, "Share document as PDF"))
+        } catch (_: Exception) {
+            external.finish()
+            Toast.makeText(context, context.getString(R.string.share_sheet_unavailable), Toast.LENGTH_SHORT).show()
+        }
     } else {
         Toast.makeText(context, "Failed to generate PDF", Toast.LENGTH_SHORT).show()
     }
 }
 
-private fun openPageImage(context: Context, page: DocumentPage) {
+private fun openPageImage(context: Context, page: DocumentPage, external: ExternalLaunch) {
     val uri = getFileUri(context, page.imagePath)
     if (uri != null) {
         val viewIntent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "image/*")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+        // Opening the page in another app is a trip out and back, like the share sheet.
+        external.expect("open-in-another-app")
         try {
             context.startActivity(viewIntent)
         } catch (_: Exception) {
+            external.finish()
             Toast.makeText(context, "No app found to open images", Toast.LENGTH_SHORT).show()
         }
     } else {
@@ -674,350 +741,7 @@ private fun copyOcrText(context: Context, page: DocumentPage) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Extracted Tab — with profile suggestions
-// ═══════════════════════════════════════════════════════════
-
-@Composable
-private fun ExtractedTemplateTab(
-    data: List<ExtractedData>,
-    language: String?,
-    /** See [com.postsaimanager.core.model.Document.extractionPagesRead] (5.4). */
-    extractionPagesRead: Int?,
-    extractionTotalPages: Int?,
-    profileSuggestions: List<ProfileSuggestion>,
-    entityProposals: List<EntityProposal>,
-    onConfirm: (String) -> Unit,
-    onConfirmAll: () -> Unit,
-    onAddClick: () -> Unit,
-    onUpdate: (String, String, String) -> Unit,
-    onDelete: (String) -> Unit,
-    onLinkProfile: (ProfileSuggestion) -> Unit,
-    onCreateProfile: (ProfileSuggestion) -> Unit,
-    onDismissSuggestion: (ProfileSuggestion) -> Unit,
-    onAcceptProposal: (EntityProposal) -> Unit,
-    onDismissProposal: (EntityProposal) -> Unit,
-    onReprocess: () -> Unit,
-) {
-    var editingField by remember { mutableStateOf<ExtractedData?>(null) }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (data.isEmpty() && profileSuggestions.isEmpty() && entityProposals.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("No extracted data yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("Process the document or add data manually", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = onAddClick) {
-                    Icon(PamIcons.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add Manually")
-                }
-            }
-        } else {
-            // 5.3: within each section, the fields worth a look — low confidence, or the
-            // extractor now disagreeing with a value the user set (`needsReview`) — sort
-            // first. `sortedByDescending` is stable, so fields that tie (both needing review,
-            // or both not) keep their original relative order; only the needs-review split
-            // itself reorders anything.
-            val sortedData = data.sortedByDescending { it.needsReview }
-            val senderFields = sortedData.filter { it.fieldName.startsWith("Sender") }
-            val receiverFields = sortedData.filter { it.fieldName.startsWith("Receiver") }
-            val metadataFields = sortedData.filter { it.fieldType in listOf(ExtractedFieldType.DATE, ExtractedFieldType.SUBJECT, ExtractedFieldType.REFERENCE_NUMBER, ExtractedFieldType.DEADLINE) }
-            val financialFields = sortedData.filter { it.fieldType == ExtractedFieldType.IBAN || it.fieldName == "Amount" }
-            val contactFields = sortedData.filter { it.fieldType in listOf(ExtractedFieldType.EMAIL, ExtractedFieldType.PHONE) && !it.fieldName.startsWith("Sender") && !it.fieldName.startsWith("Receiver") }
-            val contentFields = sortedData.filter { it.fieldType == ExtractedFieldType.TEXT }
-
-            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                // Language + retry header
-                item {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        val langName = when (language) { "de" -> "🇩🇪 German"; "ar" -> "🇸🇦 Arabic"; "en" -> "🇬🇧 English"; else -> "🌐 ${language ?: "Unknown"}" }
-                        Text("Detected: $langName", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                        OutlinedButton(onClick = onReprocess, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
-                            Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Re-extract", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-
-                // 5.4: the assistant did not see the whole document — a long letter's layout
-                // had to be cut to fit the extraction budget. Subtle (a caption, not a
-                // warning colour) because it is informational, not something wrong with the
-                // extraction that already happened.
-                if (extractionPagesRead != null && extractionTotalPages != null &&
-                    extractionPagesRead < extractionTotalPages
-                ) {
-                    item {
-                        Text(
-                            "Only the first $extractionPagesRead of $extractionTotalPages pages " +
-                                "were read by the assistant — check the rest yourself.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        )
-                    }
-                }
-
-                // ── Entity Proposals — found in the document, but not something the app
-                // decides on its own (see EntityLinkingUseCase). Above the profile-matching
-                // suggestions below: these are the ones still waiting on a person, so they
-                // are seen first rather than after scrolling past what already matched.
-                if (entityProposals.isNotEmpty()) {
-                    item { EntityProposalsSummary(entityProposals) }
-                    items(entityProposals, key = { it.id }) { proposal ->
-                        EntityProposalCard(
-                            proposal = proposal,
-                            onAccept = { onAcceptProposal(proposal) },
-                            onDismiss = { onDismissProposal(proposal) },
-                        )
-                    }
-                }
-
-                // ── Profile Suggestions ──
-                val activeSuggestions = profileSuggestions.filter { !it.isAutoLinked }
-                val autoLinked = profileSuggestions.filter { it.isAutoLinked }
-
-                if (activeSuggestions.isNotEmpty()) {
-                    item { SectionHeader("👤 Profile Suggestions") }
-                    items(activeSuggestions) { suggestion ->
-                        ProfileSuggestionCard(
-                            suggestion = suggestion,
-                            onLink = { onLinkProfile(suggestion) },
-                            onCreate = { onCreateProfile(suggestion) },
-                            onDismiss = { onDismissSuggestion(suggestion) },
-                        )
-                    }
-                }
-
-                if (autoLinked.isNotEmpty()) {
-                    item { SectionHeader("✅ Linked Profiles") }
-                    items(autoLinked) { suggestion ->
-                        LinkedProfileCard(suggestion)
-                    }
-                }
-
-                // ── Extracted Data Sections ──
-                // Above the fields, so what needs attention is seen before the scroll
-                // rather than found during it.
-                item { ReviewSummary(data, onConfirmAll) }
-
-                if (senderFields.isNotEmpty()) {
-                    item { SectionHeader("📤 Sender") }
-                    items(senderFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
-                }
-                if (receiverFields.isNotEmpty()) {
-                    item { SectionHeader("📥 Receiver") }
-                    items(receiverFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
-                }
-                if (metadataFields.isNotEmpty()) {
-                    item { SectionHeader("📋 Document Info") }
-                    items(metadataFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
-                }
-                if (financialFields.isNotEmpty()) {
-                    item { SectionHeader("💰 Financial") }
-                    items(financialFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
-                }
-                if (contactFields.isNotEmpty()) {
-                    item { SectionHeader("📞 Contact") }
-                    items(contactFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
-                }
-                if (contentFields.isNotEmpty()) {
-                    item { SectionHeader("📝 Content") }
-                    items(contentFields, key = { it.id }) { field -> FieldCard(field, onConfirm, { editingField = it }, onDelete) }
-                }
-                item { Spacer(modifier = Modifier.height(72.dp)) }
-            }
-        }
-    }
-
-    editingField?.let { field ->
-        EditFieldDialog(field = field, onDismiss = { editingField = null }, onSave = { name, value -> onUpdate(field.id, name, value); editingField = null })
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-// Profile Suggestion Cards
-// ═══════════════════════════════════════════════════════════
-
-@Composable
-private fun ProfileSuggestionCard(
-    suggestion: ProfileSuggestion,
-    onLink: () -> Unit,
-    onCreate: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = when (suggestion.matchType) {
-                MatchType.EXACT_MATCH -> MaterialTheme.colorScheme.primaryContainer
-                MatchType.POSSIBLE_MATCH -> MaterialTheme.colorScheme.tertiaryContainer
-                MatchType.NEW_PROFILE -> MaterialTheme.colorScheme.secondaryContainer
-            },
-        ),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Header
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = (suggestion.extractedOrganization ?: suggestion.extractedName ?: "?")
-                            .take(2).uppercase(),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = when (suggestion.role) {
-                            com.postsaimanager.core.model.ProfileRole.SENDER -> "📤 Sender"
-                            com.postsaimanager.core.model.ProfileRole.RECEIVER -> "📥 Receiver"
-                            else -> "👤 Contact"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = suggestion.extractedOrganization ?: suggestion.extractedName ?: "Unknown",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    if (suggestion.extractedName != null && suggestion.extractedOrganization != null) {
-                        Text(
-                            text = suggestion.extractedName!!,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                IconButton(onClick = onDismiss) {
-                    Icon(PamIcons.Close, contentDescription = "Dismiss", modifier = Modifier.size(18.dp))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Match info
-            when (suggestion.matchType) {
-                MatchType.EXACT_MATCH -> {
-                    Text(
-                        text = "✅ Matches existing profile: ${suggestion.existingProfile?.name}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = "${(suggestion.confidence * 100).toInt()}% match confidence",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = onLink, modifier = Modifier.fillMaxWidth()) {
-                        Icon(PamIcons.Profiles, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Link to ${suggestion.existingProfile?.name}")
-                    }
-                }
-
-                MatchType.POSSIBLE_MATCH -> {
-                    Text(
-                        text = "🔍 Possible match: ${suggestion.existingProfile?.name}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    Text(
-                        text = "${(suggestion.confidence * 100).toInt()}% match — is this the same profile?",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onLink, modifier = Modifier.weight(1f)) {
-                            Text("Yes, link it")
-                        }
-                        OutlinedButton(onClick = onCreate, modifier = Modifier.weight(1f)) {
-                            Text("No, new profile")
-                        }
-                    }
-                }
-
-                MatchType.NEW_PROFILE -> {
-                    Text(
-                        text = "🆕 No matching profile found",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    suggestion.extractedEmail?.let {
-                        Text("📧 $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    suggestion.extractedPhone?.let {
-                        Text("📞 $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = onCreate,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                    ) {
-                        Icon(PamIcons.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Create Profile")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LinkedProfileCard(suggestion: ProfileSuggestion) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    (suggestion.existingProfile?.name ?: "?").take(2).uppercase(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = suggestion.existingProfile?.name ?: suggestion.extractedOrganization ?: "Profile",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
-                    text = "Linked as ${suggestion.role.name.lowercase().replaceFirstChar { it.uppercase() }}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(PamIcons.Favorite, contentDescription = "Linked", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-// Add/Edit Dialogs
+// Dialogs
 // ═══════════════════════════════════════════════════════════
 
 @Composable
@@ -1070,355 +794,51 @@ private fun AddFieldDialog(onDismiss: () -> Unit, onAdd: (String, String, Extrac
 }
 
 @Composable
-private fun EditFieldDialog(field: ExtractedData, onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
-    var editName by remember { mutableStateOf(field.fieldName) }
-    var editValue by remember { mutableStateOf(field.fieldValue) }
-
+private fun RenameDocumentDialog(currentTitle: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var title by remember { mutableStateOf(currentTitle) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Field") },
+        title = { Text(stringResource(R.string.rename_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = editName, onValueChange = { editName = it }, label = { Text("Field Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = editValue, onValueChange = { editValue = it }, label = { Text("Value") }, modifier = Modifier.fillMaxWidth(), maxLines = 5)
-                Text("Type: ${field.fieldType.name} · ${(field.confidence * 100).toInt()}% confidence", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text(stringResource(R.string.rename_label)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            Button(onClick = { onSave(title.trim()) }, enabled = title.isNotBlank()) {
+                Text(stringResource(R.string.action_save))
             }
         },
-        confirmButton = { Button(onClick = { onSave(editName.trim(), editValue.trim()) }, enabled = editName.isNotBlank() && editValue.isNotBlank()) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
-}
-
-// ═══════════════════════════════════════════════════════════
-// Shared Components
-// ═══════════════════════════════════════════════════════════
-
-@Composable
-private fun SectionHeader(title: String) {
-    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-}
-
-/**
- * One extracted field.
- *
- * Three states are visually distinct, because they mean different things to the person
- * reading them:
- *
- *  - **Needs review** — the extractor was unsure, or now disagrees with the value here.
- *    Outlined in the error colour: it is the only state that is asking for something.
- *  - **Yours / confirmed** — you wrote or accepted this. The machine will not change it.
- *  - **Machine, confident** — plain. Most fields, and they should recede.
- */
-@Composable
-private fun FieldCard(field: ExtractedData, onConfirm: (String) -> Unit, onEdit: (ExtractedData) -> Unit, onDelete: (String) -> Unit) {
-    var showMenu by remember { mutableStateOf(false) }
-    val isUsers = field.source == ValueSource.USER
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        border = if (field.needsReview) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.error)
-        } else {
-            null
-        },
-        colors = CardDefaults.cardColors(
-            containerColor = when {
-                field.needsReview -> MaterialTheme.colorScheme.errorContainer
-                isUsers || field.isConfirmed -> MaterialTheme.colorScheme.secondaryContainer
-                else -> MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
-    ) {
-        Column(modifier = Modifier.padding(12.dp).clickable { onEdit(field) }) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(field.fieldName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(field.fieldValue, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        // Confidence is the extractor's opinion of its own reading. Once a
-                        // person has set the value it says nothing, so it is not shown.
-                        if (isUsers) "You set this" else "${(field.confidence * 100).toInt()}% confidence",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Box {
-                    IconButton(onClick = { showMenu = true }) { Icon(PamIcons.More, contentDescription = "More", modifier = Modifier.size(20.dp)) }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(text = { Text("Edit") }, onClick = { showMenu = false; onEdit(field) }, leadingIcon = { Icon(PamIcons.Edit, null, Modifier.size(18.dp)) })
-                        if (!field.isConfirmed) {
-                            DropdownMenuItem(text = { Text("Confirm") }, onClick = { showMenu = false; onConfirm(field.id) }, leadingIcon = { Icon(PamIcons.Favorite, null, Modifier.size(18.dp)) })
-                        }
-                        DropdownMenuItem(text = { Text("Delete", color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; onDelete(field.id) },
-                            leadingIcon = { Icon(PamIcons.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) })
-                    }
-                }
-            }
-
-            // The disagreement, spelled out. "This changed" would not be enough for anyone
-            // to decide anything — the previous reading is what makes it actionable.
-            if (field.hasUnreviewedMachineChange && field.machineValue != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "The document now reads \"${field.machineValue}\" here.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { onConfirm(field.id) }) { Text("Keep mine") }
-                    TextButton(onClick = { onEdit(field) }) { Text("Review") }
-                }
-            } else if (field.needsReview) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    "Low confidence — worth checking.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                )
-            }
-        }
-    }
-}
-
-/**
- * A count of what wants attention, above the fields, plus "Confirm all" (5.3) when there is
- * anything left to confirm.
- *
- * Without the count, a low-confidence field is only found by scrolling and noticing a colour
- * — fine for three fields, useless for a document with twenty. Without "Confirm all", clearing
- * a document with many machine-confident fields means tapping Confirm on each one individually
- * even though most of them are not in question at all.
- */
-@Composable
-private fun ReviewSummary(fields: List<ExtractedData>, onConfirmAll: () -> Unit) {
-    val needing = fields.count { it.needsReview }
-    val unconfirmed = fields.count { !it.isConfirmed && !it.deletedByUser }
-    if (needing == 0 && unconfirmed == 0) return
-
-    // "Confirm all" stays available even with low-confidence fields among them — it just
-    // asks once first, rather than being hidden or requiring them to be resolved individually.
-    var showLowConfidencePrompt by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (needing > 0) {
-                MaterialTheme.colorScheme.errorContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            if (needing > 0) {
-                Text(
-                    if (needing == 1) "1 field is worth checking" else "$needing fields are worth checking",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    "The extractor was unsure, or the document now reads differently. " +
-                        "Your corrections are kept when a document is processed again.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                )
-            }
-            if (unconfirmed > 0) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = if (needing > 0) 8.dp else 0.dp),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(
-                        onClick = { if (needing > 0) showLowConfidencePrompt = true else onConfirmAll() },
-                    ) {
-                        Text(if (unconfirmed == 1) "Confirm 1 field" else "Confirm all $unconfirmed fields")
-                    }
-                }
-            }
-        }
-    }
-
-    if (showLowConfidencePrompt) {
-        AlertDialog(
-            onDismissRequest = { showLowConfidencePrompt = false },
-            title = { Text("Confirm anyway?") },
-            text = {
-                Text(
-                    if (needing == 1) {
-                        "1 field is worth checking — confirm anyway?"
-                    } else {
-                        "$needing fields are worth checking — confirm anyway?"
-                    },
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { showLowConfidencePrompt = false; onConfirmAll() }) {
-                    Text("Confirm all")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLowConfidencePrompt = false }) { Text("Cancel") }
-            },
-        )
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-// Entity Proposals — people/organisations the model found but would not act on alone
-// ═══════════════════════════════════════════════════════════
-
-/**
- * A count of what is waiting on a person's answer, above the individual questions.
- *
- * Mirrors [ReviewSummary]'s reasoning: without a total, "is this me?" for the recipient and
- * "add Layla?" for a mentioned spouse are each found only by scrolling — fine for one entity,
- * easy to miss for several.
- */
-@Composable
-private fun EntityProposalsSummary(proposals: List<EntityProposal>) {
-    if (proposals.isEmpty()) return
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-        ),
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            Text(
-                if (proposals.size == 1) "1 thing found in this document needs your answer"
-                else "${proposals.size} things found in this document need your answer",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                "The app will not create a profile for any of these on its own.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-            )
-        }
-    }
-}
-
-/**
- * One [EntityProposal], asked in words rather than shown as raw data — never
- * "Entity proposal: Layla (MENTIONED, 0.95)". See [EntityProposal.question] and
- * [EntityLinkingUseCase][com.postsaimanager.core.domain.usecase.EntityLinkingUseCase]'s class
- * doc for why the app asks instead of deciding here.
- *
- * Answering either way is final: accepting creates and links the profile, dismissing tells
- * the app not to ask about this entity on this document again (see `EntityProposalService`).
- * There is no third "later" option, because [pendingProposals][
- * com.postsaimanager.core.domain.document.EntityProposalService.pendingProposals] already
- * keeps the question on screen until one of these two is pressed.
- */
-@Composable
-private fun EntityProposalCard(
-    proposal: EntityProposal,
-    onAccept: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val isRecipient = proposal.entityRole == EntityRole.RECIPIENT
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(proposal.question(), style = MaterialTheme.typography.bodyLarge)
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onAccept, modifier = Modifier.weight(1f)) {
-                    Text(
-                        when {
-                            isRecipient -> "Yes, that's me"
-                            // A known profile is on file — accepting links to it, not a
-                            // second row for the same person/organisation, so the button
-                            // must not promise "profile" as if one will be made.
-                            proposal.existingProfileId != null -> "Link profile"
-                            else -> "Add profile"
-                        },
-                    )
-                }
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
-                    Text(if (isRecipient) "No, someone else" else "Not now")
-                }
-            }
-        }
-    }
-}
-
-/**
- * The plain-English question for one [EntityProposal].
- *
- * [EntityRole] decides the shape of the sentence, exactly as it decides the shape of the
- * underlying decision in `EntityLinkingUseCase` — a `RECIPIENT` proposal is never "add a
- * profile for this name", it is "is this you?", because that is the one thing the app is
- * actually unsure about (see that class's doc on `ProfileType.USER_SELF`). A `MENTIONED`
- * proposal states what the document said and mentions the relation whenever the model
- * supplied one, since "spouse of the recipient" is what makes the entity meaningful rather
- * than an unexplained name.
- *
- * [existingProfileId] shifts the closing question from creating to linking for the same
- * reason the button does (see [EntityProposalCard]) — a plausible match was already found,
- * so "add them as a contact?" would describe a profile the app is not actually about to
- * make. `RECIPIENT` is unaffected: "is this you?" already asks about identity, not creation,
- * so it reads correctly whether accepting links or creates.
- */
-private fun EntityProposal.question(): String = when (entityRole) {
-    EntityRole.RECIPIENT ->
-        "This document is addressed to \"$entityName\". Is this you?"
-
-    EntityRole.MENTIONED -> if (relation.isNotBlank()) {
-        "\"$entityName\" is mentioned in this document, as $relation. " +
-            if (existingProfileId != null) {
-                "Link them to the existing profile?"
-            } else {
-                "Add them as a profile?"
-            }
-    } else {
-        "\"$entityName\" is mentioned in this document. " +
-            if (existingProfileId != null) {
-                "Link them to the existing profile?"
-            } else {
-                "Add them as a profile?"
-            }
-    }
-
-    EntityRole.SENDER_CONTACT -> if (organization != null) {
-        "\"$entityName\" signed this document on behalf of $organization. " +
-            if (existingProfileId != null) {
-                "Link them to the existing contact?"
-            } else {
-                "Add them as a contact?"
-            }
-    } else {
-        "\"$entityName\" signed this document, but it is not clear yet who sent it. " +
-            if (existingProfileId != null) {
-                "Link them to the existing contact anyway?"
-            } else {
-                "Add them as a contact anyway?"
-            }
-    }
-
-    EntityRole.SENDER -> if (existingProfileId != null) {
-        "\"$entityName\" appears to have sent this document. Link them to the existing profile?"
-    } else {
-        "\"$entityName\" appears to have sent this document. Add a profile for them?"
-    }
 }
 
 // ═══════════════════════════════════════════════════════════
 // Timeline Tab
 // ═══════════════════════════════════════════════════════════
+
+/** The title and the optional second line of a timeline entry, worded from string resources. */
+@Composable
+private fun timelineLines(text: TimelineText): Pair<String, String?> {
+    val resources = LocalContext.current.resources
+    return when (text) {
+        is TimelineText.OcrDone -> resources.getQuantityString(R.plurals.timeline_ocr_done, text.pages, text.pages) to
+            text.confidencePercent?.let { stringResource(R.string.timeline_ocr_confidence, it) }
+        is TimelineText.FieldsExtracted -> resources.getQuantityString(R.plurals.timeline_fields_extracted, text.count, text.count) to
+            text.labelKeys.map { labelText(it) }.joinToString(", ").ifBlank { null }
+        is TimelineText.ReviewFlagged -> resources.getQuantityString(R.plurals.timeline_review_flagged, text.count, text.count) to
+            text.labelKeys.map { labelText(it) }.joinToString(", ").takeIf { it.isNotBlank() }
+                ?.let { stringResource(R.string.timeline_review_flagged_detail, it) }
+        is TimelineText.ProcessingFailed -> stringResource(R.string.timeline_processing_failed) to text.detail
+        is TimelineText.Reprocessed -> stringResource(R.string.timeline_reprocessed) to null
+        is TimelineText.ReprocessFailed -> stringResource(R.string.timeline_reprocess_failed) to null
+        is TimelineText.Stored -> text.title to text.description
+    }
+}
 
 @Composable
 private fun TimelineTab(events: List<TimelineEvent>) {
@@ -1434,8 +854,9 @@ private fun TimelineTab(events: List<TimelineEvent>) {
                 Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(event.title, style = MaterialTheme.typography.titleSmall)
-                    event.description?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    val (title, description) = timelineLines(event.toText())
+                    Text(title, style = MaterialTheme.typography.titleSmall)
+                    description?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     Text(event.createdAt.toRelativeTime(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                 }
             }

@@ -1,0 +1,296 @@
+{
+ "key": "N5-co-familie-1p",
+ "interpreter": "questionnaire2",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Universität Beispielstadt",
+   "normalized": "Universität Beispielstadt",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Studierendensekretariat",
+   "normalized": "Studierendensekretariat",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Jonas Mustermann",
+   "normalized": "Jonas Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "clo Familie Beispiel",
+   "normalized": "clo Familie Beispiel",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Körperschaft des öffentlichen Rechts",
+   "normalized": "Körperschaft des öffentlichen Rechts",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "BIC BELADEBEXXX",
+   "normalized": "BIC BELADEBEXXX",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "Frau L. Test",
+   "normalized": "Frau L. Test",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "12.10.2026",
+   "normalized": "2026-10-12",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "31.03.2027",
+   "normalized": "2027-03-31",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "24.09.2026",
+   "normalized": "2026-09-24",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "187,50 €",
+   "normalized": "187.50 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DEo2 10o1 0010 0006 8201 01",
+   "normalized": "DE02100100100006820101",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "o1234",
+   "normalized": "o1234",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "2026\/27",
+   "normalized": "2026\/27",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "1234567",
+   "normalized": "1234567",
+   "page": 1
+  },
+  {
+   "id": "N4",
+   "kind": "REFERENCE",
+   "raw": "WS2026\/27",
+   "normalized": "WS2026\/27",
+   "page": 1
+  },
+  {
+   "id": "N9",
+   "kind": "REFERENCE",
+   "raw": "O1234",
+   "normalized": "O1234",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "sekretariat@uni-beispiel.example",
+   "normalized": "sekretariat@uni-beispiel.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "BELADEBEXXX",
+   "normalized": "BELADEBEXXX",
+   "page": 1
+  }
+ ],
+ "call1": "type: bill de HIGH\nsender: M1 AUTHORITY \"Universität Beispielstadt\" HIGH\naddressee: M3 AUTHORITY HOUSEHOLD \"Jonas Mustermann\" HIGH\nsubject_person: M1 AUTHORITY \"Universität Beispielstadt\" HIGH\ncontact: M8 PERSON \"Frau L. Test\" HIGH\ncare_of: M4 COMPANY \"clo Familie Beispiel\" HIGH\nslot:letter_date: D1 OTHER LOW\nslot:total: A1 TOTAL_DUE HIGH\nslot:due_date: RULE \"12.10.2026\" LETTER_DATE HIGH\nslot:iban: I1 LOW\nslot:reference: N3 HIGH\nslot:customer_no: N3 HIGH\nslot:invoice_no: N3 HIGH\nextras: N1 \"o1234\" english_key \"Tel\" HIGH",
+ "call1Ms": 56353,
+ "call2Ms": 7591,
+ "layoutTextChars": 1505,
+ "call2": "text:title: \"Studierendensekretariat\"\ntext:subject: \"Rückmeldung zum Wintersemester 2026\/27\"\ntext:summary: \"1234567\"\ntext:questions: \"1. Which amount is mentioned in the letter? \" \"2. What is the deadline mentioned in the letter? \" \"3. What is the recipient's name? \"",
+ "prefixTokens": 1519,
+ "prefixMs": 19464,
+ "asks": [
+  {
+   "name": "type",
+   "question": "QUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "bill de HIGH",
+   "ms": 2699,
+   "questionTokens": 213,
+   "answerTokens": 3
+  },
+  {
+   "name": "sender",
+   "question": "QUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Universität Beispielstadt [letterhead] p.1\nM2: Studierendensekretariat [letterhead] p.1\nM3: Jonas Mustermann [address-field] p.1\nM4: clo Familie Beispiel [address-field] p.1\nM6: Körperschaft des öffentlichen Rechts [footer] p.1\nM7: BIC BELADEBEXXX [footer] p.1\nM8: Frau L. Test p.1",
+   "answer": "M1 AUTHORITY \"Universität Beispielstadt\" HIGH",
+   "ms": 2793,
+   "questionTokens": 148,
+   "answerTokens": 10
+  },
+  {
+   "name": "addressee",
+   "question": "QUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Universität Beispielstadt [letterhead] p.1\nM2: Studierendensekretariat [letterhead] p.1\nM3: Jonas Mustermann [address-field] p.1\nM4: clo Familie Beispiel [address-field] p.1\nM6: Körperschaft des öffentlichen Rechts [footer] p.1\nM7: BIC BELADEBEXXX [footer] p.1\nM8: Frau L. Test p.1",
+   "answer": "M3 AUTHORITY HOUSEHOLD \"Jonas Mustermann\" HIGH",
+   "ms": 3764,
+   "questionTokens": 212,
+   "answerTokens": 14
+  },
+  {
+   "name": "subject_person",
+   "question": "QUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Universität Beispielstadt [letterhead] p.1\nM2: Studierendensekretariat [letterhead] p.1\nM3: Jonas Mustermann [address-field] p.1\nM4: clo Familie Beispiel [address-field] p.1\nM6: Körperschaft des öffentlichen Rechts [footer] p.1\nM7: BIC BELADEBEXXX [footer] p.1\nM8: Frau L. Test p.1",
+   "answer": "M1 AUTHORITY \"Universität Beispielstadt\" HIGH",
+   "ms": 3123,
+   "questionTokens": 182,
+   "answerTokens": 10
+  },
+  {
+   "name": "contact",
+   "question": "QUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Universität Beispielstadt [letterhead] p.1\nM2: Studierendensekretariat [letterhead] p.1\nM3: Jonas Mustermann [address-field] p.1\nM4: clo Familie Beispiel [address-field] p.1\nM6: Körperschaft des öffentlichen Rechts [footer] p.1\nM7: BIC BELADEBEXXX [footer] p.1\nM8: Frau L. Test p.1",
+   "answer": "M8 PERSON \"Frau L. Test\" HIGH",
+   "ms": 2796,
+   "questionTokens": 156,
+   "answerTokens": 11
+  },
+  {
+   "name": "care_of",
+   "question": "QUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE\nOPTIONS:\nM1: Universität Beispielstadt [letterhead] p.1\nM2: Studierendensekretariat [letterhead] p.1\nM3: Jonas Mustermann [address-field] p.1\nM4: clo Familie Beispiel [address-field] p.1\nM6: Körperschaft des öffentlichen Rechts [footer] p.1\nM7: BIC BELADEBEXXX [footer] p.1\nM8: Frau L. Test p.1",
+   "answer": "M4 COMPANY \"clo Familie Beispiel\" HIGH",
+   "ms": 3209,
+   "questionTokens": 173,
+   "answerTokens": 9
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "QUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nD1: 12.10.2026 (near: \"bis zum\") p.1\nD2: 31.03.2027 p.1\nD3: 24.09.2026 p.1",
+   "answer": "D1 OTHER LOW",
+   "ms": 2180,
+   "questionTokens": 141,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:total",
+   "question": "QUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE\nOPTIONS:\nA1: 187,50 € (near: \"Semesterbeitrag\") p.1",
+   "answer": "A1 TOTAL_DUE HIGH",
+   "ms": 1866,
+   "questionTokens": 109,
+   "answerTokens": 6
+  },
+  {
+   "name": "slot:due_date",
+   "question": "QUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE\nOPTIONS:\nD1: 12.10.2026 (near: \"bis zum\") p.1\nD2: 31.03.2027 p.1\nD3: 24.09.2026 p.1",
+   "answer": "RULE \"12.10.2026\" LETTER_DATE HIGH",
+   "ms": 3062,
+   "questionTokens": 160,
+   "answerTokens": 16
+  },
+  {
+   "name": "slot:iban",
+   "question": "QUESTION: Which IBAN is the account the reader should pay to?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nI1: DEo2 10o1 0010 0006 8201 01 (near: \"IBAN\") p.1",
+   "answer": "I1 LOW",
+   "ms": 1365,
+   "questionTokens": 74,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:reference",
+   "question": "QUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: o1234 (near: \"Tel\") p.1\nN2: 2026\/27 (near: \"Rückmeldung zum Wintersemester\") p.1\nN3: 1234567 (near: \"Verwendungszweck\" | \"Matrikelnummer\" | \"Matrikelnummer: Ansprechpartner\") p.1\nN4: WS2026\/27 (near: \"Verwendungszweck: 1234567\") p.1\nN9: O1234 (near: \"Telefon\") p.1",
+   "answer": "N3 HIGH",
+   "ms": 2393,
+   "questionTokens": 182,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "QUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: o1234 (near: \"Tel\") p.1\nN2: 2026\/27 (near: \"Rückmeldung zum Wintersemester\") p.1\nN3: 1234567 (near: \"Verwendungszweck\" | \"Matrikelnummer\" | \"Matrikelnummer: Ansprechpartner\") p.1\nN4: WS2026\/27 (near: \"Verwendungszweck: 1234567\") p.1\nN9: O1234 (near: \"Telefon\") p.1",
+   "answer": "N3 HIGH",
+   "ms": 2434,
+   "questionTokens": 175,
+   "answerTokens": 3
+  },
+  {
+   "name": "slot:invoice_no",
+   "question": "QUESTION: Which number is the invoice number (the bill this letter is about)?\nANSWER FORMAT: ID CONFIDENCE, or NONE\nOPTIONS:\nN1: o1234 (near: \"Tel\") p.1\nN2: 2026\/27 (near: \"Rückmeldung zum Wintersemester\") p.1\nN3: 1234567 (near: \"Verwendungszweck\" | \"Matrikelnummer\" | \"Matrikelnummer: Ansprechpartner\") p.1\nN4: WS2026\/27 (near: \"Verwendungszweck: 1234567\") p.1\nN9: O1234 (near: \"Telefon\") p.1",
+   "answer": "N3 HIGH",
+   "ms": 2516,
+   "questionTokens": 175,
+   "answerTokens": 3
+  },
+  {
+   "name": "extras",
+   "question": "QUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "N1 \"o1234\" english_key \"Tel\" HIGH",
+   "ms": 2557,
+   "questionTokens": 122,
+   "answerTokens": 15
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this bill: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Studierendensekretariat\"",
+   "ms": 1393,
+   "questionTokens": 50,
+   "answerTokens": 8
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"Rückmeldung zum Wintersemester 2026\/27\"",
+   "ms": 1477,
+   "questionTokens": 31,
+   "answerTokens": 16
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"1234567\"",
+   "ms": 1271,
+   "questionTokens": 51,
+   "answerTokens": 9
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"1. Which amount is mentioned in the letter? \" \"2. What is the deadline mentioned in the letter? \" \"3. What is the recipient's name? \"",
+   "ms": 3433,
+   "questionTokens": 61,
+   "answerTokens": 36
+  }
+ ],
+ "wallMs": 64047,
+ "model": "text.gguf"
+}

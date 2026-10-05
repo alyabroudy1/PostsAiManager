@@ -1,0 +1,425 @@
+{
+ "key": "N3-schule-familie-2p",
+ "interpreter": "zonesscoring",
+ "pages": 2,
+ "trace": [
+  "t layout ms=25",
+  "t candidates ms=85",
+  "t fitLayout ms=1",
+  "t interpret (everything the model decides: sessions, scoring, decoding) ms=58046",
+  "t enrich (language, extras, summary, free text) ms=17878",
+  "t verify ms=34",
+  "t open header prefixTokens=146 ms=1342",
+  "t score sender n=1 ms=1463 msPerScore=1463",
+  "t score kind:sender n=3 ms=4231 msPerScore=1410",
+  "t score addressee n=1 ms=738 msPerScore=738",
+  "t score kind:addressee n=3 ms=2088 msPerScore=696",
+  "t score household n=1 ms=629 msPerScore=629",
+  "t score care_of n=1 ms=815 msPerScore=815",
+  "t score kind:care_of n=3 ms=2164 msPerScore=721",
+  "t score contact n=1 ms=1646 msPerScore=1646",
+  "t score kind:contact n=3 ms=4662 msPerScore=1554",
+  "t score slot:letter_date n=1 ms=1429 msPerScore=1429",
+  "t open body#1 prefixTokens=792 ms=7408",
+  "t score family n=24 ms=7379 msPerScore=307",
+  "t score slot:total n=1 ms=1229 msPerScore=1229",
+  "t score slot:due_date n=2 ms=2425 msPerScore=1213",
+  "t score slot:iban n=1 ms=1545 msPerScore=1545",
+  "t score slot:reference n=1 ms=1305 msPerScore=1305",
+  "t score slot:customer_no n=1 ms=1256 msPerScore=1256",
+  "t score slot:appointment n=2 ms=2285 msPerScore=1143",
+  "t score slot:effective_date n=2 ms=2188 msPerScore=1094",
+  "t score slot:objection_deadline n=2 ms=2194 msPerScore=1097",
+  "t score slot:event_date n=2 ms=2198 msPerScore=1099",
+  "t decode ms=24 (includes the kind and household scoring of a changed answer)",
+  "t score addr grid heads=1 asks=2 ms=1177",
+  "t score addr grid heads=2 asks=4 ms=2790",
+  "t score addr grid heads=1 asks=2 ms=1179",
+  "t addresses recipientCells=10 senderCells=2 retried=false ms=5211",
+  "t scoring total batches=28 scores=68 ms=49015 msPerScore=721",
+  "t score extras n=1 ms=2331 msPerScore=2331",
+  "t open writing prefixTokens=688 ms=6588",
+  "t ask lang ms=623 answerChars=2",
+  "t ask extra:name ms=1630 answerChars=14",
+  "t ask text:subject ms=652 answerChars=8",
+  "t ask text:questions ms=2390 answerChars=99",
+  "t ask text:summary ms=3504 answerChars=120"
+ ],
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Grundschule Am Beispielweg",
+   "normalized": "Grundschule Am Beispielweg",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Familie Mustermann",
+   "normalized": "Familie Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "Frau S. Sommer",
+   "normalized": "Frau S. Sommer",
+   "page": 1
+  },
+  {
+   "id": "M5",
+   "kind": "NAME",
+   "raw": "Förderverein Grundschule Am Beispielweg e. V.",
+   "normalized": "Förderverein Grundschule Am Beispielweg e. V.",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Sparkasse Beispielstadt",
+   "normalized": "Sparkasse Beispielstadt",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "24.11.2026",
+   "normalized": "2026-11-24",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "16.10.2026",
+   "normalized": "2026-10-16",
+   "page": 1
+  },
+  {
+   "id": "D4",
+   "kind": "DATE",
+   "raw": "28.09.2026",
+   "normalized": "2026-09-28",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "35,00 €",
+   "normalized": "35.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "30-12",
+   "normalized": "30-12",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 777 10",
+   "normalized": "01234 777 10",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "sekretariat@gs-beispielweg.example",
+   "normalized": "sekretariat@gs-beispielweg.example",
+   "page": 1
+  }
+ ],
+ "call1": "score:sender: 1.2417716979980469\nscore:kind:sender: -0.5197563171386719,-0.9122943878173828,-0.5269203186035156\nscore:addressee: 0.5138778686523438\nscore:kind:addressee: 0.593902587890625,-0.1390838623046875,0.07275390625\nscore:household: 0.7913494110107422\nscore:care_of: 0.2505168914794922\nscore:kind:care_of: 0.593902587890625,-0.1390838623046875,0.07275390625\nscore:contact: 0.6884250640869141\nscore:kind:contact: 0.35482025146484375,-0.5135841369628906,-0.23348236083984375\nscore:slot:letter_date: 0.2180328369140625\nscore:family: 0.3837547302246094,-1.4293193817138672,-1.8287887573242188,-0.22129440307617188,-1.6805152893066406,-0.8515262603759766,-1.5715198516845703,-1.6697921752929688,-0.8480815887451172,-0.2276020050048828,-0.41898155212402344,-1.4821128845214844,-1.186880111694336,-1.281198501586914,-0.6898956298828125,-1.342874526977539,-0.7255191802978516,0.9274673461914062,-1.2601947784423828,-0.9902286529541016,-0.5707607269287109,0.18688583374023438,-0.473052978515625,1.1024818420410156\nscore:slot:total: 0.25693702697753906\nscore:slot:due_date: -0.14287757873535156,0.07732391357421875\nscore:slot:iban: 0.31838417053222656\nscore:slot:reference: -0.40521240234375\nscore:slot:customer_no: -0.7279224395751953\nscore:slot:appointment: -0.11444473266601562,-0.4214019775390625\nscore:slot:effective_date: -0.7724227905273438,-0.7091751098632812\nscore:slot:objection_deadline: -0.5646724700927734,-0.6959228515625\nscore:slot:event_date: 0.7001018524169922,-0.07484626770019531\nscore:addr: -1.6445636749267578\nscore:addr: -1.4544601440429688\nscore:addr: -0.7339515686035156,-1.1146392822265625\nscore:addr: -0.7587471008300781,-0.8617782592773438\nscore:addr: -0.5756645202636719,-0.7374496459960938\nscore:addr: -0.9110164642333984,-1.032613754272461\nscore:addr: -1.9940986633300781\nscore:addr: -1.5637035369873047",
+ "call1Ms": 58045,
+ "call2Ms": 0,
+ "prefixTokens": 1626,
+ "prefixMs": 15338,
+ "template": "DIN5008_B",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "score:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nGrundschule Am Beispielweg \/ Beispielweg 20 12345 Beispielstadt \/ Tel. 01234 777 10 \/ sekretariat@gs-beispielweg.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nGrundschule Am Beispielweg Beispielweg 20 12345 Beispielstadt\nIs «Grundschule Am Beispielweg» (context: line below: Beispielweg 20 12345 Beispielstadt) the sender: the party that wrote and sent this letter? Answer:",
+   "answer": "1.2417716979980469",
+   "ms": 1463,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nGrundschule Am Beispielweg \/ Beispielweg 20 12345 Beispielstadt \/ Tel. 01234 777 10 \/ sekretariat@gs-beispielweg.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nGrundschule Am Beispielweg Beispielweg 20 12345 Beispielstadt\nIs «Grundschule Am Beispielweg» (context: line below: Beispielweg 20 12345 Beispielstadt) the name of a private person? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nGrundschule Am Beispielweg \/ Beispielweg 20 12345 Beispielstadt \/ Tel. 01234 777 10 \/ sekretariat@gs-beispielweg.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nGrundschule Am Beispielweg Beispielweg 20 12345 Beispielstadt\nIs «Grundschule Am Beispielweg» (context: line below: Beispielweg 20 12345 Beispielstadt) the name of an authority or public body? Answer:\n@@\nZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nGrundschule Am Beispielweg \/ Beispielweg 20 12345 Beispielstadt \/ Tel. 01234 777 10 \/ sekretariat@gs-beispielweg.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nGrundschule Am Beispielweg Beispielweg 20 12345 Beispielstadt\nIs «Grundschule Am Beispielweg» (context: line below: Beispielweg 20 12345 Beispielstadt) the name of a company or other organisation? Answer:",
+   "answer": "-0.5197563171386719,-0.9122943878173828,-0.5269203186035156",
+   "ms": 4231,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFamilie \/ Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Familie Mustermann» the addressee: the party this letter is addressed to? Answer:",
+   "answer": "0.5138778686523438",
+   "ms": 738,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFamilie \/ Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Familie Mustermann» the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFamilie \/ Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Familie Mustermann» the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFamilie \/ Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Familie Mustermann» the name of a company or other organisation? Answer:",
+   "answer": "0.593902587890625,-0.1390838623046875,0.07275390625",
+   "ms": 2088,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:household",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFamilie \/ Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Familie Mustermann» the name of a family or household (several people living together)? Answer:",
+   "answer": "0.7913494110107422",
+   "ms": 629,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFamilie \/ Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Familie Mustermann» a party in whose care the letter is sent (a mailbox for the addressee)? Answer:",
+   "answer": "0.2505168914794922",
+   "ms": 815,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFamilie \/ Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Familie Mustermann» the name of a private person? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFamilie \/ Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Familie Mustermann» the name of an authority or public body? Answer:\n@@\nZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nFamilie \/ Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nIs «Familie Mustermann» the name of a company or other organisation? Answer:",
+   "answer": "0.593902587890625,-0.1390838623046875,0.07275390625",
+   "ms": 2164,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Klassenlehrerin: \/ Telefon: \/ Datum: \/ KL. 3b \/ 2026-27 \/ Frau S. Sommer \/ 01234 777 10 \/ 28.09.2026\nIs «Frau S. Sommer» (context: line above: KL. 3b \/ 2026-27; line below: 01234 777 10) a contact person named as the one who handles the matter? Answer:",
+   "answer": "0.6884250640869141",
+   "ms": 1646,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:kind:contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Klassenlehrerin: \/ Telefon: \/ Datum: \/ KL. 3b \/ 2026-27 \/ Frau S. Sommer \/ 01234 777 10 \/ 28.09.2026\nIs «Frau S. Sommer» (context: line above: KL. 3b \/ 2026-27; line below: 01234 777 10) the name of a private person? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Klassenlehrerin: \/ Telefon: \/ Datum: \/ KL. 3b \/ 2026-27 \/ Frau S. Sommer \/ 01234 777 10 \/ 28.09.2026\nIs «Frau S. Sommer» (context: line above: KL. 3b \/ 2026-27; line below: 01234 777 10) the name of an authority or public body? Answer:\n@@\nZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Klassenlehrerin: \/ Telefon: \/ Datum: \/ KL. 3b \/ 2026-27 \/ Frau S. Sommer \/ 01234 777 10 \/ 28.09.2026\nIs «Frau S. Sommer» (context: line above: KL. 3b \/ 2026-27; line below: 01234 777 10) the name of a company or other organisation? Answer:",
+   "answer": "0.35482025146484375,-0.5135841369628906,-0.23348236083984375",
+   "ms": 4662,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Klassenlehrerin: \/ Telefon: \/ Datum: \/ KL. 3b \/ 2026-27 \/ Frau S. Sommer \/ 01234 777 10 \/ 28.09.2026\nIs «28.09.2026» (context: line above: 01234 777 10; line below: Klassenausflug der Klasse 3b am 24.11.2026) the date of the letter itself (when it was written or issued)? Answer:",
+   "answer": "0.2180328369140625",
+   "ms": 1429,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:family",
+   "question": "Is this document a letter or decision from an authority, employer, school or other organisation that informs the reader or decides something? Answer:\n@@\nIs this document an invoice, a bill or a payment reminder that asks the reader to pay? Answer:\n@@\nIs this document a receipt or proof of a purchase? Answer:\n@@\nIs this document a form or an application that is filled in and returned? Answer:\n@@\nIs this document a statement of account, a bank statement or a summary of transactions or consumption? Answer:\n@@\nIs this document a contract, an insurance policy, or a change to its price or terms? Answer:\n@@\nIs this document a certificate, an identity document, a licence or a card? Answer:\n@@\nIs this document a letter from a doctor, clinic or hospital, such as an appointment, a referral or a result? Answer:\n@@\nIs this document a ticket, a booking confirmation or a travel itinerary? Answer:\n@@\nIs this document a printout of an email message or of a web page? Answer:\n@@\nDoes this document concern a government agency, a public authority or a public service? Answer:\n@@\nDoes this document concern taxes, a tax office or a tax return? Answer:\n@@\nDoes this document concern health, medical care, a doctor or a health insurer? Answer:\n@@\nDoes this document concern an insurance policy or an insurance company? Answer:\n@@\nDoes this document concern a bank, a loan, an account, savings or other personal finance? Answer:\n@@\nDoes this document concern housing, rent, a property or a household utility such as energy, water or heating? Answer:\n@@\nDoes this document concern a job, an employer, employment or a salary? Answer:\n@@\nDoes this document concern a school, a kindergarten, a university or education? Answer:\n@@\nDoes this document concern a car, another vehicle, a driving licence or road traffic? Answer:\n@@\nDoes this document concern a phone, mobile, internet or television service? Answer:\n@@\nDoes this document concern a purchase from a shop or an online order? Answer:\n@@\nDoes this document concern a trip, a flight, a hotel or a holiday? Answer:\n@@\nDoes this document concern a court, a lawyer or a legal dispute? Answer:\n@@\nDoes this document concern a private matter, family or personal correspondence? Answer:",
+   "answer": "0.3837547302246094,-1.4293193817138672,-1.8287887573242188,-0.22129440307617188,-1.6805152893066406,-0.8515262603759766,-1.5715198516845703,-1.6697921752929688,-0.8480815887451172,-0.2276020050048828,-0.41898155212402344,-1.4821128845214844,-1.186880111694336,-1.281198501586914,-0.6898956298828125,-1.342874526977539,-0.7255191802978516,0.9274673461914062,-1.2601947784423828,-0.9902286529541016,-0.5707607269287109,0.18688583374023438,-0.473052978515625,1.1024818420410156",
+   "ms": 7379,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «35,00 €» (context: printed on the line: Die Kosten für Fahrt, Eintritt und Workshop betragen 35,00 € pro Kind.; line above: Schule, Rückkehr gegen 13:00 Uhr.; line below: passend und in einem beschrifteten Umschlag (Name des Kindes, Klasse) ) the main amount of this document: what the reader has to pay, or the total? Answer:",
+   "answer": "0.25693702697753906",
+   "ms": 1229,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «24.11.2026» (context: printed on the line: Klassenausflug der Klasse 3b am 24.11.2026; line above: 28.09.2026; line below: Liebe Eltern und Erziehungsberechtigte der Klasse 3b,) the date by which the reader must pay or act? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «16.10.2026» (context: printed on the line: unterschrieben bis Freitag, 16.10.2026 zurück. Ohne Rückmeldung können; line above: Bitte füllen Sie den Rückmeldeabschnitt auf der nächsten Seite aus und; line below: anmelden.) the date by which the reader must pay or act? Answer:",
+   "answer": "-0.14287757873535156,0.07732391357421875",
+   "ms": 2425,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:iban",
+   "question": "ZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\n(the text of this zone is in the letter above)\nIs «DE89 3704 0044 0532 0130 00» (context: printed on the line: IBAN DE89 3704 0044 0532 0130 00; line above: Förderverein Grundschule Am Beispielweg e. V.; line below: Sparkasse Beispielstadt) the IBAN of the account the reader should pay to? Answer:",
+   "answer": "0.31838417053222656",
+   "ms": 1545,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:reference",
+   "question": "ZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\n(the text of this zone is in the letter above)\nIs «30-12» (context: printed on the line: Sekretariat Mo-Fr 7:30-12:00 Uhr; line above: Sparkasse Beispielstadt; line below: sekretariat@gs-beispielweg.example) a reference the letter cites for this matter (a file, case, transaction or payment reference)? Answer:",
+   "answer": "-0.40521240234375",
+   "ms": 1305,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:customer_no",
+   "question": "ZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\n(the text of this zone is in the letter above)\nIs «30-12» (context: printed on the line: Sekretariat Mo-Fr 7:30-12:00 Uhr; line above: Sparkasse Beispielstadt; line below: sekretariat@gs-beispielweg.example) the number that identifies the reader as a customer, member or account holder? Answer:",
+   "answer": "-0.7279224395751953",
+   "ms": 1256,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:appointment",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «24.11.2026» (context: printed on the line: Klassenausflug der Klasse 3b am 24.11.2026; line above: 28.09.2026; line below: Liebe Eltern und Erziehungsberechtigte der Klasse 3b,) the appointment? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «16.10.2026» (context: printed on the line: unterschrieben bis Freitag, 16.10.2026 zurück. Ohne Rückmeldung können; line above: Bitte füllen Sie den Rückmeldeabschnitt auf der nächsten Seite aus und; line below: anmelden.) the appointment? Answer:",
+   "answer": "-0.11444473266601562,-0.4214019775390625",
+   "ms": 2285,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:effective_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «24.11.2026» (context: printed on the line: Klassenausflug der Klasse 3b am 24.11.2026; line above: 28.09.2026; line below: Liebe Eltern und Erziehungsberechtigte der Klasse 3b,) the effective date? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «16.10.2026» (context: printed on the line: unterschrieben bis Freitag, 16.10.2026 zurück. Ohne Rückmeldung können; line above: Bitte füllen Sie den Rückmeldeabschnitt auf der nächsten Seite aus und; line below: anmelden.) the effective date? Answer:",
+   "answer": "-0.7724227905273438,-0.7091751098632812",
+   "ms": 2188,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:objection_deadline",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «24.11.2026» (context: printed on the line: Klassenausflug der Klasse 3b am 24.11.2026; line above: 28.09.2026; line below: Liebe Eltern und Erziehungsberechtigte der Klasse 3b,) the objection deadline? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «16.10.2026» (context: printed on the line: unterschrieben bis Freitag, 16.10.2026 zurück. Ohne Rückmeldung können; line above: Bitte füllen Sie den Rückmeldeabschnitt auf der nächsten Seite aus und; line below: anmelden.) the objection deadline? Answer:",
+   "answer": "-0.5646724700927734,-0.6959228515625",
+   "ms": 2194,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:slot:event_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «24.11.2026» (context: printed on the line: Klassenausflug der Klasse 3b am 24.11.2026; line above: 28.09.2026; line below: Liebe Eltern und Erziehungsberechtigte der Klasse 3b,) the event date? Answer:\n@@\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «16.10.2026» (context: printed on the line: unterschrieben bis Freitag, 16.10.2026 zurück. Ohne Rückmeldung können; line above: Bitte füllen Sie den Rückmeldeabschnitt auf der nächsten Seite aus und; line below: anmelden.) the event date? Answer:",
+   "answer": "0.7001018524169922,-0.07484626770019531",
+   "ms": 2198,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nFamilie\nMustermann\nMusterstraße 12\n54321 BeispieldorfIs «Musterstraße 12» (context: line above: Mustermann; line below: 54321 Beispieldorf) a post office box number, not a street? Answer:",
+   "answer": "-1.6445636749267578",
+   "ms": 588,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nFamilie\nMustermann\nMusterstraße 12\n54321 BeispieldorfIs «Musterstraße 12» (context: line above: Mustermann; line below: 54321 Beispieldorf) a parcel locker or pickup station, not a street? Answer:",
+   "answer": "-1.4544601440429688",
+   "ms": 588,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nFamilie\nMustermann\nMusterstraße 12\n54321 BeispieldorfIs «Familie» (context: line below: Mustermann) the name of a private person? Answer:\n@@\n[address-block]\nFamilie\nMustermann\nMusterstraße 12\n54321 BeispieldorfIs «Mustermann» (context: line above: Familie; line below: Musterstraße 12) the name of a private person? Answer:",
+   "answer": "-0.7339515686035156,-1.1146392822265625",
+   "ms": 697,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nFamilie\nMustermann\nMusterstraße 12\n54321 BeispieldorfIs «Familie» (context: line below: Mustermann) the name of a company, an authority or another organisation? Answer:\n@@\n[address-block]\nFamilie\nMustermann\nMusterstraße 12\n54321 BeispieldorfIs «Mustermann» (context: line above: Familie; line below: Musterstraße 12) the name of a company, an authority or another organisation? Answer:",
+   "answer": "-0.7587471008300781,-0.8617782592773438",
+   "ms": 697,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nFamilie\nMustermann\nMusterstraße 12\n54321 BeispieldorfIs «Familie» (context: line below: Mustermann) a department or unit inside an organisation? Answer:\n@@\n[address-block]\nFamilie\nMustermann\nMusterstraße 12\n54321 BeispieldorfIs «Mustermann» (context: line above: Familie; line below: Musterstraße 12) a department or unit inside an organisation? Answer:",
+   "answer": "-0.5756645202636719,-0.7374496459960938",
+   "ms": 697,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nFamilie\nMustermann\nMusterstraße 12\n54321 BeispieldorfIs «Familie» (context: line below: Mustermann) a routing instruction: the letter is sent care of someone else or for the attention of a named person? Answer:\n@@\n[address-block]\nFamilie\nMustermann\nMusterstraße 12\n54321 BeispieldorfIs «Mustermann» (context: line above: Familie; line below: Musterstraße 12) a routing instruction: the letter is sent care of someone else or for the attention of a named person? Answer:",
+   "answer": "-0.9110164642333984,-1.032613754272461",
+   "ms": 697,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nGrundschule Am Beispielweg\nBeispielweg 20\n12345 BeispielstadtIs «Beispielweg 20» (context: line above: Grundschule Am Beispielweg; line below: 12345 Beispielstadt) a post office box number, not a street? Answer:",
+   "answer": "-1.9940986633300781",
+   "ms": 589,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:addr",
+   "question": "[address-block]\nGrundschule Am Beispielweg\nBeispielweg 20\n12345 BeispielstadtIs «Beispielweg 20» (context: line above: Grundschule Am Beispielweg; line below: 12345 Beispielstadt) a parcel locker or pickup station, not a street? Answer:",
+   "answer": "-1.5637035369873047",
+   "ms": 589,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "score:extras",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nIhr Zeichen: \/ Unser Zeichen: \/ Klassenlehrerin: \/ Telefon: \/ Datum: \/ KL. 3b \/ 2026-27 \/ Frau S. Sommer \/ 01234 777 10 \/ 28.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nIs «01234 777 10» (context: printed on the line: Tel. 01234 777 10; line above: Beispielweg 20 12345 Beispielstadt; line below: sekretariat@gs-beispielweg.example) an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount that matters), other than the letter's main amount, due date, IBAN, reference or customer number? Answer:",
+   "answer": "-0.4397315979003906",
+   "ms": 2331,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "lang",
+   "question": "QUESTION: In which language is this letter written? Answer with its BCP-47 language code (for example de, en, ar).\nANSWER FORMAT: the code only",
+   "answer": "de",
+   "ms": 623,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "extra:name",
+   "question": "QUESTION: The value «01234 777 10» is an important fact of this letter: it is printed on the line «Tel. 01234 777 10», the line above it is «Beispielweg 20 12345 Beispielstadt». What does the letter call this value? Copy the printed words that name it (not the value itself).\nANSWER FORMAT: the printed words in double quotes",
+   "answer": "\"01234 777 10\"",
+   "ms": 1630,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"LETTER\"",
+   "ms": 652,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"Was ist der Preis für den Ausflug?\" \"Wie lange dauert die Fahrt?\" \"Wie lange dauert die Rückkehr?\"",
+   "ms": 2390,
+   "questionTokens": -1,
+   "answerTokens": -1
+  },
+  {
+   "name": "text:summary",
+   "question": "FACTS (verified; use only these):\n- sender: Grundschule Am Beispielweg\n- addressed_to: Familie Mustermann\n- amount: 35,00 €\n- due_date: 16.10.2026\n- date: 28.09.2026\n- subject: LETTER\n- reference: 30-12\n\nQUESTION: Write one or two sentences, at most 30 words, saying what the reader must know or do. Use only the facts above. Write in the language with the code \"de\".\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Bitte geben Sie den Betrag 35,00 € in einem beschrifteten Umschlag zusammen mit dem Rückmeldeabschnitt Ihrem Kind mit.\"",
+   "ms": 3504,
+   "questionTokens": -1,
+   "answerTokens": -1
+  }
+ ],
+ "wallMs": 76072,
+ "model": "text.gguf"
+}

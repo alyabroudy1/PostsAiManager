@@ -1,0 +1,240 @@
+<resources>
+    <!--
+        Labels are rendered from keys: a field's slot key (`slot_<key>`), a document's type id
+        (`doctype_<id>`), a timeline event's code. English only for now; the same names in
+        values-de and values-ar localise the screen without touching data or code.
+    -->
+
+    <!-- Filling in a form with the AI chat -->
+    <string name="fill_form_card_title">This is a form to fill in.</string>
+    <string name="fill_form_card_action">Form filling (beta)</string>
+    <string name="action_fill_form">Form filling (beta)</string>
+
+    <!-- Renaming a document -->
+    <string name="action_rename">Rename</string>
+    <string name="rename_title">Rename document</string>
+    <string name="rename_label">Title</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="share_sheet_unavailable">Unable to open the share sheet</string>
+
+    <!-- Summary card -->
+    <string name="card_from">From</string>
+    <string name="card_for">For</string>
+    <string name="card_type">Type</string>
+    <string name="card_amount">Amount</string>
+    <string name="card_due">Due</string>
+    <string name="card_worth_checking">Worth checking</string>
+    <!-- The badge says where the summary came from -->
+    <string name="card_ai_summary">AI summary</string>
+    <string name="card_summary_from_fields">Summary from the fields</string>
+    <string name="card_summary_yours">Your summary</string>
+    <string name="card_summary_coming">Summary coming…</string>
+    <string name="summary_edit">Edit summary</string>
+    <string name="summary_edit_title">Edit summary</string>
+    <string name="summary_edit_label">Summary</string>
+
+    <!-- A summary put together from the verified fields (TemplateSummary); parts the letter did not give are left out -->
+    <string name="summary_intro">%1$s.</string>
+    <string name="summary_intro_from">%1$s from %2$s.</string>
+    <string name="summary_intro_for">%1$s for %2$s.</string>
+    <string name="summary_intro_from_for">%1$s from %2$s for %3$s.</string>
+    <string name="summary_amount_due">Amount %1$s, due %2$s.</string>
+    <string name="summary_amount">Amount %1$s.</string>
+    <string name="summary_due">Due %1$s.</string>
+    <string name="summary_subject">About: %1$s.</string>
+
+    <!-- The Extracted tab -->
+    <string name="extracted_empty_title">No extracted data yet</string>
+    <string name="extracted_empty_hint">Process the document or add data manually</string>
+    <string name="extracted_add_manually">Add Manually</string>
+    <string name="action_re_extract">Re-extract</string>
+
+    <!-- Header: the family chip, its menu and the confidence dot -->
+    <string name="header_family_chip">%1$s ▾</string>
+    <string name="header_type_unknown">Type unknown</string>
+    <string name="header_change_type">Change type</string>
+    <string name="header_read_again_as">Read again as…</string>
+    <string name="picker_change_title">Change type</string>
+    <string name="picker_read_again_title">Read again as</string>
+    <string name="picker_current">Current type</string>
+    <string name="confidence_high">The type was recognised with high confidence</string>
+    <string name="confidence_medium">The type was recognised with medium confidence</string>
+    <string name="confidence_low">The type was recognised with low confidence</string>
+
+    <!-- Review -->
+    <string name="review_confirm_confident">Confirm %1$d confident</string>
+    <string name="review_confirm_all">Confirm all</string>
+    <plurals name="fields_confirmed">
+        <item quantity="one">%1$d field confirmed</item>
+        <item quantity="other">%1$d fields confirmed</item>
+    </plurals>
+    <string name="action_undo">Undo</string>
+
+    <!-- Sections -->
+    <string name="section_check">Check these (%1$d)</string>
+    <string name="section_ignored">Ignored (%1$d)</string>
+    <string name="section_recipient">Recipient</string>
+    <string name="section_sender">Sender</string>
+    <string name="section_merchant">Merchant</string>
+    <string name="section_action">Action</string>
+    <string name="section_payment">Total and payment</string>
+    <string name="section_other_details">Other details</string>
+    <string name="section_other_details_count">Other details (%1$d)</string>
+    <string name="other_details_show_all">Show all (%1$d more)</string>
+    <string name="other_details_show_fewer">Show fewer</string>
+    <string name="group_parties">People and organisations</string>
+    <string name="group_dates">Dates</string>
+    <string name="group_references">References</string>
+    <string name="group_text">Subject and text</string>
+
+    <!-- Fields: the three inline actions name the row they act on (screen readers read these) -->
+    <string name="field_worth_checking">Worth checking.</string>
+    <string name="field_confidence">%1$d%% confidence</string>
+    <string name="field_machine_changed">The document now reads \"%1$s\" here.</string>
+    <string name="field_keep_mine">Keep mine</string>
+    <string name="field_review">Review</string>
+    <string name="field_confirmed">%1$s, confirmed</string>
+    <string name="action_confirm_field">Confirm %1$s</string>
+    <string name="action_edit_field">Edit %1$s</string>
+    <string name="action_ignore_field">Ignore %1$s</string>
+    <string name="action_restore_field">Restore %1$s</string>
+    <string name="action_restore">Restore</string>
+    <string name="part_description">%1$s: %2$s</string>
+    <string name="part_description_uncertain">%1$s: %2$s, worth checking</string>
+
+    <!-- Edit sheet -->
+    <string name="edit_title">Edit %1$s</string>
+    <string name="edit_name_label">Field name</string>
+    <string name="edit_value_label">Value</string>
+    <string name="edit_alternatives">Other readings</string>
+    <string name="edit_alternative_on_page">%1$s · page %2$d</string>
+    <string name="edit_show_on_page">Show on page</string>
+
+    <!-- Slot labels, keyed by slot key -->
+    <string name="slot_sender">Sender</string>
+    <string name="slot_addressee">Receiver</string>
+    <string name="slot_contact">Contact person</string>
+    <string name="slot_subject">Subject</string>
+    <string name="slot_unlabelled">Detail</string>
+    <!-- The parts of a structured address, per role (see SlotLabels.addressParts) -->
+    <string name="addr_addressee_name">Receiver name</string>
+    <string name="addr_addressee_organisation">Receiver organisation</string>
+    <string name="addr_addressee_department">Receiver department</string>
+    <string name="addr_addressee_care_of">Receiver care of</string>
+    <string name="addr_addressee_street">Receiver street</string>
+    <string name="addr_addressee_house_number">Receiver house number</string>
+    <string name="addr_addressee_extra">Receiver address line</string>
+    <string name="addr_addressee_postcode">Receiver postcode</string>
+    <string name="addr_addressee_city">Receiver city</string>
+    <string name="addr_addressee_region">Receiver region</string>
+    <string name="addr_addressee_country">Receiver country</string>
+    <string name="addr_addressee_po_box">Receiver post office box</string>
+    <string name="addr_addressee_packstation">Receiver parcel locker</string>
+    <string name="addr_addressee_raw">Receiver address as printed</string>
+    <string name="addr_sender_name">Sender name</string>
+    <string name="addr_sender_organisation">Sender organisation</string>
+    <string name="addr_sender_department">Sender department</string>
+    <string name="addr_sender_care_of">Sender care of</string>
+    <string name="addr_sender_street">Sender street</string>
+    <string name="addr_sender_house_number">Sender house number</string>
+    <string name="addr_sender_extra">Sender address line</string>
+    <string name="addr_sender_postcode">Sender postcode</string>
+    <string name="addr_sender_city">Sender city</string>
+    <string name="addr_sender_region">Sender region</string>
+    <string name="addr_sender_country">Sender country</string>
+    <string name="addr_sender_po_box">Sender post office box</string>
+    <string name="addr_sender_packstation">Sender parcel locker</string>
+    <string name="addr_sender_raw">Sender address as printed</string>
+    <!-- Values code found on the page that nobody classified; %1$d is the running number -->
+    <string name="found_date">Found date %1$d</string>
+    <string name="found_amount">Found amount %1$d</string>
+    <string name="found_iban">Found IBAN %1$d</string>
+    <string name="found_reference">Found reference %1$d</string>
+    <string name="found_phone">Found phone %1$d</string>
+    <string name="found_email">Found e-mail %1$d</string>
+    <string name="slot_letter_date">Document date</string>
+    <string name="slot_total">Amount</string>
+    <string name="slot_due_date">Deadline</string>
+    <string name="slot_iban">IBAN</string>
+    <string name="slot_reference">Reference</string>
+    <string name="slot_customer_no">Customer number</string>
+    <string name="slot_fee">Fee</string>
+    <string name="slot_new_amount">New amount</string>
+    <string name="slot_previous_amount">Previous amount</string>
+    <string name="slot_proof_amount">Amount paid</string>
+    <string name="slot_objection_deadline">Objection deadline</string>
+    <string name="slot_original_due_date">Original due date</string>
+    <string name="slot_effective_date">Effective date</string>
+    <string name="slot_contract_end">Contract end</string>
+    <string name="slot_event_date">Event date</string>
+    <string name="slot_appointment">Appointment</string>
+    <string name="slot_sent_date">Sent date</string>
+    <string name="slot_proof_date">Payment date</string>
+    <string name="slot_invoice_no">Invoice number</string>
+    <string name="slot_contract_no">Contract number</string>
+    <string name="slot_policy_no">Policy number</string>
+    <string name="slot_case_no">Case number</string>
+    <string name="slot_tax_no">Tax number</string>
+    <string name="slot_receipt_no">Receipt number</string>
+    <string name="slot_proof_reference">Payment reference</string>
+    <string name="slot_recipient_org">Sent to</string>
+    <string name="slot_proof_recipient">Paid to</string>
+    <string name="slot_cited_references">Cited references</string>
+    <string name="slot_action_kind">Action</string>
+
+    <!-- Document families, keyed by family id; a legacy type id is shown as the family it maps to -->
+    <string name="doctype_receipt">Receipt</string>
+    <string name="doctype_outgoing_letter">Letter you sent</string>
+    <string name="doctype_payment_proof">Proof of payment</string>
+    <string name="doctype_official_letter">Official letter</string>
+    <string name="doctype_invoice_bill">Invoice or bill</string>
+    <string name="doctype_form_application">Form or application</string>
+    <string name="doctype_statement">Statement</string>
+    <string name="doctype_contract_policy">Contract or policy</string>
+    <string name="doctype_certificate_id">Certificate or ID</string>
+    <string name="doctype_medical">Medical</string>
+    <string name="doctype_ticket_booking">Ticket or booking</string>
+    <string name="doctype_free_form">Other document</string>
+
+    <!-- Topics, keyed by topic id -->
+    <string name="topic_government">Government</string>
+    <string name="topic_tax">Tax</string>
+    <string name="topic_health">Health</string>
+    <string name="topic_insurance">Insurance</string>
+    <string name="topic_bank_finance">Bank and finance</string>
+    <string name="topic_housing_utilities">Housing and utilities</string>
+    <string name="topic_work">Work</string>
+    <string name="topic_school_education">School and education</string>
+    <string name="topic_vehicle">Vehicle</string>
+    <string name="topic_telecom">Phone and internet</string>
+    <string name="topic_shopping">Shopping</string>
+    <string name="topic_travel">Travel</string>
+    <string name="topic_legal">Legal</string>
+    <string name="topic_personal">Personal</string>
+
+    <!-- Partial read -->
+    <plurals name="extraction_partial_notice">
+        <item quantity="one">Only the first %1$d of %2$d page was read by the assistant — check the rest yourself.</item>
+        <item quantity="other">Only the first %1$d of %2$d pages were read by the assistant — check the rest yourself.</item>
+    </plurals>
+
+    <!-- Timeline, keyed by event code -->
+    <plurals name="timeline_ocr_done">
+        <item quantity="one">Text extracted from %1$d page</item>
+        <item quantity="other">Text extracted from %1$d pages</item>
+    </plurals>
+    <string name="timeline_ocr_confidence">Average confidence: %1$d%%</string>
+    <plurals name="timeline_fields_extracted">
+        <item quantity="one">Extracted %1$d field</item>
+        <item quantity="other">Extracted %1$d fields</item>
+    </plurals>
+    <plurals name="timeline_review_flagged">
+        <item quantity="one">%1$d field needs your review</item>
+        <item quantity="other">%1$d fields need your review</item>
+    </plurals>
+    <string name="timeline_review_flagged_detail">A new reading differs from your version: %1$s</string>
+    <string name="timeline_processing_failed">Processing failed</string>
+    <string name="timeline_reprocessed">Read again with the latest version</string>
+    <string name="timeline_reprocess_failed">Automatic update skipped; your data is unchanged</string>
+</resources>

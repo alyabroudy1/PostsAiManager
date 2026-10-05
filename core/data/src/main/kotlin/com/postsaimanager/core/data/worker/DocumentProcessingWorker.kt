@@ -11,11 +11,12 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.document.DocumentProcessor
-import com.postsaimanager.core.model.ProcessingStage
+import com.postsaimanager.core.domain.repository.UserPreferencesRepository
 import com.postsaimanager.core.model.ProcessingState
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -43,6 +44,7 @@ class DocumentProcessingWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val documentProcessor: DocumentProcessor,
+    private val userPreferencesRepository: UserPreferencesRepository,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = coroutineScope {
@@ -65,7 +67,8 @@ class DocumentProcessingWorker @AssistedInject constructor(
         }
 
         try {
-            when (val result = documentProcessor.processDocument(documentId)) {
+            val forcedFamily = inputData.getString(KEY_FORCED_FAMILY)?.takeIf { it.isNotBlank() }
+            when (val result = documentProcessor.processDocument(documentId, forcedFamily = forcedFamily)) {
                 is PamResult.Success -> Result.success()
                 is PamResult.Error -> {
                     // The pipeline itself already logged (and recorded on the timeline) the
@@ -83,13 +86,28 @@ class DocumentProcessingWorker @AssistedInject constructor(
 
     override suspend fun getForegroundInfo(): ForegroundInfo = foregroundInfo(null)
 
-    private fun foregroundInfo(state: ProcessingState.Running?): ForegroundInfo {
+    private suspend fun foregroundInfo(state: ProcessingState.Running?): ForegroundInfo {
         DocumentProcessingNotifications.ensureChannel(applicationContext)
 
+        // Read fresh each time so turning the app lock on mid-run takes effect at the next
+        // update. A failed read means "not locked", the same default as the stored value.
+        val discreet = runCatching {
+            userPreferencesRepository.getUserPreferences().first().biometricEnabled
+        }.getOrDefault(false)
+
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setContentTitle("Reading your document…")
-            .setContentText(state?.toNotificationText() ?: "Starting…")
+            .setContentTitle(applicationContext.getString(DocumentProcessingNotifications.TITLE))
+            .setContentText(DocumentProcessingNotifications.progressText(state, discreet).resolve(applicationContext))
             .setSmallIcon(android.R.drawable.ic_menu_edit)
+            // Progress is not shown on a locked screen; the same generic line is.
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(
+                NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+                    .setContentTitle(applicationContext.getString(DocumentProcessingNotifications.TITLE))
+                    .setContentText(DocumentProcessingNotifications.DISCREET_TEXT.resolve(applicationContext))
+                    .setSmallIcon(android.R.drawable.ic_menu_edit)
+                    .build(),
+            )
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setProgress(0, 0, true)
@@ -111,30 +129,14 @@ class DocumentProcessingWorker @AssistedInject constructor(
         }
     }
 
-    /**
-     * A short notification line for [state]. Duplicates a little of the sentence-building
-     * `DocumentDetailScreen.toDisplayMessage` already does for the in-app banner — that one
-     * cannot be reused here because a feature module owns it and `:core:data` may not depend
-     * on `feature:documents`. Kept intentionally terser than the banner: a notification has
-     * one line, the banner has room for more.
-     */
-    private fun ProcessingState.Running.toNotificationText(): String = when (stage) {
-        ProcessingStage.CAPTURE -> "Preparing…"
-        ProcessingStage.READ -> if (currentPage != null && totalPages != null) {
-            "Reading page $currentPage of $totalPages"
-        } else {
-            "Reading…"
-        }
-        ProcessingStage.UNDERSTAND -> "Analysing…"
-        ProcessingStage.LINK -> "Matching profiles…"
-        ProcessingStage.INDEX -> "Indexing for search…"
-    }
-
     companion object {
         private const val TAG = "DocProcessingWorker"
         const val CHANNEL_ID = DocumentProcessingNotifications.CHANNEL_ID
         const val NOTIFICATION_ID_BASE = 5711
         const val KEY_DOCUMENT_ID = "documentId"
+
+        /** The family a person chose for "Read again as ..."; empty or absent for every other run. */
+        const val KEY_FORCED_FAMILY = "forcedFamily"
 
         /**
          * One unique work name per document, so opening the same `NEW` document twice, or a

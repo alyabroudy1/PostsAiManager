@@ -1,4 +1,6 @@
 *.iml
+# Benchmark page images (web samples must never be committed); only the JSON fixtures are kept.
+**/src/androidTest/assets/benchmark/
 .gradle/
 /local.properties
 /.idea/

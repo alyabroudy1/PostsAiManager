@@ -1,0 +1,183 @@
+{
+ "key": "N1-mahnung-telco-qr-1p",
+ "interpreter": "single",
+ "pages": 1,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Position",
+   "normalized": "Position",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Nordlicht Mobilfunk GmbH",
+   "normalized": "Nordlicht Mobilfunk GmbH",
+   "page": 1
+  },
+  {
+   "id": "M4",
+   "kind": "NAME",
+   "raw": "BIC COBADEFFXXX",
+   "normalized": "BIC COBADEFFXXX",
+   "page": 1
+  },
+  {
+   "id": "M6",
+   "kind": "NAME",
+   "raw": "Rechnung vom",
+   "normalized": "Rechnung vom",
+   "page": 1
+  },
+  {
+   "id": "M7",
+   "kind": "NAME",
+   "raw": "Team Forderungen",
+   "normalized": "Team Forderungen",
+   "page": 1
+  },
+  {
+   "id": "M8",
+   "kind": "NAME",
+   "raw": "Fällig am",
+   "normalized": "Fällig am",
+   "page": 1
+  },
+  {
+   "id": "M9",
+   "kind": "NAME",
+   "raw": "Betrag €",
+   "normalized": "Betrag €",
+   "page": 1
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "05.08.2026",
+   "normalized": "2026-08-05",
+   "page": 1
+  },
+  {
+   "id": "D2",
+   "kind": "DATE",
+   "raw": "19.08.2026",
+   "normalized": "2026-08-19",
+   "page": 1
+  },
+  {
+   "id": "D4",
+   "kind": "DATE",
+   "raw": "25.09.2026",
+   "normalized": "2026-09-25",
+   "page": 1
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "64,98€",
+   "normalized": "64.98 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "59,98",
+   "normalized": "59.98 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "5,00",
+   "normalized": "5.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE02 1203 0000 0000 2020 51",
+   "normalized": "DE02120300000000202051",
+   "page": 1
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "2026-08-771204",
+   "normalized": "2026-08-771204",
+   "page": 1
+  },
+  {
+   "id": "N5",
+   "kind": "REFERENCE",
+   "raw": "4402917",
+   "normalized": "4402917",
+   "page": 1
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "000000",
+   "normalized": "000000",
+   "page": 1
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "FIB-Mahn 4402917 4402917",
+   "normalized": "FIB-Mahn 4402917 4402917",
+   "page": 1
+  },
+  {
+   "id": "N8",
+   "kind": "REFERENCE",
+   "raw": "DEO00000000",
+   "normalized": "DE000000000",
+   "page": 1
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "0800 555 0100",
+   "normalized": "0800 555 0100",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "0800 555 0199",
+   "normalized": "0800 555 0199",
+   "page": 1
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "service@nordlicht-mobil.example",
+   "normalized": "service@nordlicht-mobil.example",
+   "page": 1
+  },
+  {
+   "id": "B1",
+   "kind": "BIC",
+   "raw": "COBADEFFXXX",
+   "normalized": "COBADEFFXXX",
+   "page": 1
+  }
+ ],
+ "call1": "{\"type\":\"payment_proof\",\"tc\":\"MEDIUM\",\"lang\":\"de\",\"parties\":[{\"r\":\"SENDER\",\"id\":\"M3\",\"n\":\"Nordlicht Mobilfunk GmbH\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"ADDRESSEE\",\"id\":\"M2\",\"n\":\"Erika Mustermann\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M6\",\"n\":\"Rechnung vom p.1\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"ROUTING\",\"id\":\"M4\",\"n\":\"BIC COBADEFFXXX\",\"k\":\"OTHER\",\"rel\":\"NONE\",\"c\":\"HIGH\"},{\"r\":\"CARE_OF\",\"id\":\"M6\",\"n\":\"Rechnung vom p.1\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M7\",\"n\":\"Team Forderungen\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M8\",\"n\":\"Fällig am p.1\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"M9\",\"n\":\"Betrag € p.1\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D1\",\"n\":\"05.08.2026\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D2\",\"n\":\"19.08.2026\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"D4\",\"n\":\"25.09.2026\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A1\",\"n\":\"64,98€\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A2\",\"n\":\"59,98\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"A3\",\"n\":\"5,00\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"I1\",\"n\":\"DE02 1203 0000 0000 2020 51\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N1\",\"n\":\"2026-08-771204\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N5\",\"n\":\"4402917\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"MEDIUM\"},{\"r\":\"SUBJECT_PERSON\",\"id\":\"N6\",\"n\":\"000000\",\"k\":\"PERSON\",\"rel\":\"NONE\",\"c\":\"M",
+ "call1Ms": 54665,
+ "call2Ms": 18817,
+ "layoutTextChars": 2045,
+ "call2": "{\"other\": \"letter\", \"title\": \"Payment Proof Letter\", \"subject\": \"Zahlungserinnerung\", \"summary\": \"Die Zahlungserinnerung ist als Gegenstand des Schreibens zu betrachten, da keine Zahlungseingang festgestellt wurde. Der Betrag von 64,98€ muss innerhalb von 14 Tagen auf das Konto überweisen. Nach Ablauf der Frist können weitere Schritte wie Übergabe an ein Inkassounternehmen vorliegen.\", \"qs\": [\"Wann wurde die Zahlungserinnerung an Frau Mustermann gesendet?\", \"Wie wurde der offene Betrag von 64,98€ auf das Konto überweisen?\", \"Was ist der genaue Betrag, der auf das Konto zu überweisen ist?\"]}",
+ "wallMs": 74036,
+ "model": "text.gguf"
+}

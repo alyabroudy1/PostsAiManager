@@ -361,6 +361,131 @@ object PamMigrations {
         }
     }
 
+    /**
+     * Persist and display what extraction v2 reads (Phase 1, workstream E). Purely additive: every
+     * new column is nullable (or defaults to false), so existing rows read as "an older extractor
+     * wrote this" and nothing is rewritten.
+     *
+     * - `extracted_data`: the slot the value fills (`slotKey`, the identity a re-read is matched
+     *   by), the model's `role` word, `origin`, the model's own `aiConfidence` next to the final
+     *   `confidence`, the `evidence` text and its `bbox` (JSON). The extractor version is the
+     *   existing `engineVersion`; the page is the existing `pageNumber`.
+     * - `documents`: the model's type and its confidence, the extractor version, whether the title
+     *   is a person's, the three suggested chat questions and the summary (JSON / text), and the
+     *   title as a code with arguments while it is still an app default ("Scanned N pages").
+     * - `timeline_events`: `code` and `args` (JSON), so an event is stored as data and rendered from
+     *   string resources; rows without a code keep showing their stored title and description.
+     */
+    val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `slotKey` TEXT")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `role` TEXT")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `origin` TEXT")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `aiConfidence` REAL")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `evidence` TEXT")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `bbox` TEXT")
+
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `extractionType` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `extractionTypeConfidence` REAL")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `extractorVersion` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `isUserTitle` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `suggestedQuestions` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `summary` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `titleCode` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `titleArgs` TEXT")
+
+            db.execSQL("ALTER TABLE `timeline_events` ADD COLUMN `code` TEXT")
+            db.execSQL("ALTER TABLE `timeline_events` ADD COLUMN `args` TEXT")
+
+            // A default title the scanner wrote ("Scanned 3 page(s)") becomes a code with its page
+            // count, so it can be shown in the user's language. The stored title stays as the
+            // English fallback. Only the exact default shape is converted; anything else was
+            // written by the model or a person.
+            db.execSQL(
+                """
+                UPDATE `documents`
+                SET `titleCode` = 'scanned_pages',
+                    `titleArgs` = '["' || CAST(`pageCount` AS TEXT) || '"]'
+                WHERE `title` = 'Scanned ' || CAST(`pageCount` AS TEXT) || ' page(s)'
+                """.trimIndent(),
+            )
+        }
+    }
+
+    /**
+     * The final extraction architecture's storage (P0b). Additive: every new column is nullable or has a
+     * default, and existing rows are backfilled from what they already say.
+     *
+     * - `extracted_data.reviewState` becomes the owner of review state. Backfill, later rule wins:
+     *   confirmed -> CONFIRMED; a confirmed value that differs from the machine's (or has none) -> EDITED; deletedByUser -> IGNORED.
+     *   `isConfirmed` and `deletedByUser` stay and are written in step. `alternatives` is a JSON list.
+     * - `documents`: `topics` (JSON list), `familySource`, `titleSource` (a person's title -> USER, a
+     *   default with a code -> DEFAULT, other real words -> MODEL), `summarySource` (an existing summary
+     *   -> MODEL), `summaryCode`/`summaryArgs`, `layoutTemplate` and `enrichmentAttempts` (how many times the second stage ran
+     *   without settling a summary; 0) and `enrichmentPending` (a second stage is owed; 0).
+     * - `documents.extractionType` now holds a family id: the legacy type ids are rewritten and their
+     *   topics filled by [LegacyTypeSql] from `LegacyTypes`, so old documents render before a re-read.
+     *
+     * - `entity_proposals` is dropped (the "is this you?" proposals are gone; v15 is unreleased, so the drop is part of this
+     *   migration). `dismissed_entities` stays: it keeps a deleted machine-made profile from coming back.
+     */
+    val MIGRATION_14_15 = object : Migration(14, 15) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("DROP TABLE IF EXISTS `entity_proposals`")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `reviewState` TEXT NOT NULL DEFAULT 'UNREVIEWED'")
+            db.execSQL("ALTER TABLE `extracted_data` ADD COLUMN `alternatives` TEXT")
+            db.execSQL("UPDATE `extracted_data` SET `reviewState` = 'CONFIRMED' WHERE `isConfirmed` = 1")
+            // A confirmation also set source = USER, so a confirmed value is EDITED only when it differs from the machine's.
+            db.execSQL(
+                "UPDATE `extracted_data` SET `reviewState` = 'EDITED' WHERE `source` = 'USER' AND `isConfirmed` = 1 " +
+                    "AND (`machineValue` IS NULL OR `fieldValue` != `machineValue`)",
+            )
+            db.execSQL("UPDATE `extracted_data` SET `reviewState` = 'IGNORED' WHERE `deletedByUser` = 1")
+
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `topics` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `familySource` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `titleSource` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `summarySource` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `summaryCode` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `summaryArgs` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `layoutTemplate` TEXT")
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `enrichmentAttempts` INTEGER NOT NULL DEFAULT 0")
+            // A second stage is owed (startup recovery keys on it; a migrated document owes none).
+            db.execSQL("ALTER TABLE `documents` ADD COLUMN `enrichmentPending` INTEGER NOT NULL DEFAULT 0")
+
+            db.execSQL(
+                """
+                UPDATE `documents` SET `titleSource` = CASE
+                    WHEN `isUserTitle` = 1 THEN 'USER'
+                    WHEN `titleCode` IS NOT NULL THEN 'DEFAULT'
+                    ELSE 'MODEL' END
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "UPDATE `documents` SET `summarySource` = 'MODEL' WHERE `summary` IS NOT NULL AND trim(`summary`) != ''",
+            )
+            LegacyTypeSql.statements().forEach(db::execSQL)
+        }
+    }
+
+    /**
+     * v15 to v16 (form assist, additive; v16 is unreleased, so later form-assist tables join this migration through
+     * [FormAssistSchemaSql]): the family-profile columns on `profiles`, the `profile_facts` table and the form-filling
+     * conversation's `form_fills` and `form_fields` tables.
+     */
+    val MIGRATION_15_16 = object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            FormAssistSchemaSql.statements().forEach(db::execSQL)
+        }
+    }
+
+    /** v16 to v17: a form fill records the reading (way of reading plus OCR) it was built from, so an out-of-date fill is never resumed. */
+    val MIGRATION_16_17 = object : Migration(16, 17) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `form_fills` ADD COLUMN `readingKey` TEXT")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -374,5 +499,9 @@ object PamMigrations {
         MIGRATION_10_11,
         MIGRATION_11_12,
         MIGRATION_12_13,
+        MIGRATION_13_14,
+        MIGRATION_14_15,
+        MIGRATION_15_16,
+        MIGRATION_16_17,
     )
 }

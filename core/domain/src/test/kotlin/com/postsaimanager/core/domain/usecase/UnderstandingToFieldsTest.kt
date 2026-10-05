@@ -6,6 +6,8 @@ import com.postsaimanager.core.model.EntityKind
 import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.FactKind
+import com.postsaimanager.core.model.FieldAlternative
+import com.postsaimanager.core.model.FieldProvenance
 import com.postsaimanager.core.model.RecognisedEntity
 import com.postsaimanager.core.model.RecognisedFact
 import org.junit.jupiter.api.DisplayName
@@ -104,6 +106,22 @@ class UnderstandingToFieldsTest {
     }
 
     @Test
+    fun `the alternatives of a fact's provenance reach the stored field`() {
+        val alt = FieldAlternative(value = "BG 1234/5679", score = 0.4f)
+        val withAlternatives = DocumentUnderstanding(
+            language = "de",
+            facts = listOf(
+                RecognisedFact(
+                    "Aktenzeichen", "BG 1234/5678", FactKind.REFERENCE, 0.9f,
+                    provenance = FieldProvenance(slotKey = "reference", alternatives = listOf(alt)),
+                ),
+            ),
+        )
+
+        assertThat(map(withAlternatives).single().alternatives).containsExactly(alt)
+    }
+
+    @Test
     fun `the letter date does not become the deadline`() {
         val fields = map(letter).associateBy { it.fieldName }
 
@@ -125,6 +143,17 @@ class UnderstandingToFieldsTest {
 
         assertThat(fields["Aktenzeichen"]?.fieldValue).isEqualTo("BG 1234/5678")
         assertThat(fields["Ihr Zeichen"]?.fieldValue).isEqualTo("WS-2026-0142")
+    }
+
+    @Test
+    @DisplayName("a value with no label is stored under a slot key, never under an English word")
+    fun `a fact without a label gets the unlabelled key`() {
+        val unlabelled = letter.copy(facts = listOf(RecognisedFact("  ", "4711-X", FactKind.REFERENCE, 0.7f)))
+
+        val field = map(unlabelled).single { it.fieldValue == "4711-X" }
+
+        assertThat(field.fieldName).isEqualTo(UnderstandingToFields.SLOT_UNLABELLED)
+        assertThat(field.slotKey).isEqualTo(UnderstandingToFields.SLOT_UNLABELLED)
     }
 
     @Test

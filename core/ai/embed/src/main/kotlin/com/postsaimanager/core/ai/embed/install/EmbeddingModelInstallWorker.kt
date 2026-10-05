@@ -1,9 +1,7 @@
 package com.postsaimanager.core.ai.embed.install
 
 import android.content.Context
-import android.content.pm.ServiceInfo
-import android.os.Build
-import androidx.core.app.NotificationCompat
+import android.os.SystemClock
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.Constraints
@@ -16,10 +14,12 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.postsaimanager.core.common.result.PamResult
-import com.postsaimanager.core.download.DownloadNotifications
+import com.postsaimanager.core.download.DownloadNotificationCenter
 import com.postsaimanager.core.download.ModelDownloadWorker
+import com.postsaimanager.core.download.ProgressThrottle
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -39,67 +39,59 @@ class EmbeddingModelInstallWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val installer: EmbeddingModelInstaller,
+    private val center: DownloadNotificationCenter,
 ) : CoroutineWorker(appContext, params) {
 
-    override suspend fun doWork(): Result {
-        setForeground(foregroundInfo(progress = null))
+    private val itemName: String
+        get() = applicationContext.getString(com.postsaimanager.core.download.R.string.download_search_model)
 
-        val result = installer.install { progress ->
-            setProgressAsync(
-                workDataOf(
-                    KEY_PROGRESS_BYTES to progress.bytesDownloaded,
-                    KEY_PROGRESS_TOTAL to progress.totalBytes,
-                ),
-            )
+    override suspend fun doWork(): Result {
+        center.progress(WORK_NAME, itemName, 0L, EmbeddingModelRelease.totalBytes)
+        setForeground(center.foregroundInfo())
+
+        // See ModelDownloadWorker: an unthrottled progress write per chunk floods WorkManager and the bar never moves.
+        val throttle = ProgressThrottle(PROGRESS_INTERVAL_MS)
+        val result = try {
+            installer.install { progress ->
+                center.progress(WORK_NAME, itemName, progress.bytesDownloaded, progress.totalBytes)
+                if (throttle.allow(SystemClock.elapsedRealtime())) {
+                    setProgressAsync(
+                        workDataOf(
+                            KEY_PROGRESS_BYTES to progress.bytesDownloaded,
+                            KEY_PROGRESS_TOTAL to progress.totalBytes,
+                        ),
+                    )
+                }
+            }
+        } catch (e: CancellationException) {
+            center.waiting(WORK_NAME)
+            throw e
         }
 
         return when (result) {
-            is PamResult.Success -> Result.success()
+            is PamResult.Success -> {
+                center.done(WORK_NAME)
+                Result.success()
+            }
             // Retryable: verified files stay put and the partial one resumes, so a retry
             // costs only the bytes that had not arrived.
-            is PamResult.Error -> Result.retry()
-        }
-    }
-
-    override suspend fun getForegroundInfo(): ForegroundInfo = foregroundInfo(progress = null)
-
-    private fun foregroundInfo(progress: Int?): ForegroundInfo {
-        // Must happen before the notification is built. Posting to a channel that does not
-        // exist is an invalid notification, and a foreground service that posts one is
-        // killed rather than merely ignored.
-        DownloadNotifications.ensureChannel(applicationContext)
-
-        val notification = NotificationCompat.Builder(
-            applicationContext,
-            DownloadNotifications.CHANNEL_ID,
-        )
-            .setContentTitle("Preparing document search")
-            // Says what the user gets, not what the app is doing. "Downloading
-            // distiluse-base-multilingual-cased-v2" means nothing to them.
-            .setContentText("Downloading the model that lets you search your documents by meaning.")
-            .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .apply {
-                if (progress != null) setProgress(100, progress, false)
-                else setProgress(0, 0, true)
+            is PamResult.Error -> if (runAttemptCount + 1 >= MAX_ATTEMPTS) {
+                center.failed(WORK_NAME)
+                Result.failure()
+            } else {
+                center.waiting(WORK_NAME)
+                Result.retry()
             }
-            .build()
-
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ForegroundInfo(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
-            )
-        } else {
-            ForegroundInfo(NOTIFICATION_ID, notification)
         }
     }
+
+    override suspend fun getForegroundInfo(): ForegroundInfo = center.foregroundInfo()
 
     companion object {
-        /** Distinct from [ModelDownloadWorker]'s, so the two notifications coexist. */
-        const val NOTIFICATION_ID = 4712
+        /** The same id as [ModelDownloadWorker]'s: one notification for all downloads, rendered by [DownloadNotificationCenter]. */
+        const val NOTIFICATION_ID = DownloadNotificationCenter.NOTIFICATION_ID
+        private const val PROGRESS_INTERVAL_MS = 250L
+        private const val MAX_ATTEMPTS = 5
 
         const val WORK_NAME = "embedding-model-install"
         const val KEY_PROGRESS_BYTES = "progressBytes"

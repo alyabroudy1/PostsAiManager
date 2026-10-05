@@ -1,6 +1,8 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.layout.LetterLayoutAnalyzer
+import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.model.LayoutZone
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.TextBounds
@@ -170,6 +172,30 @@ class DocumentLayoutTest {
         @Test
         fun `an empty page describes as nothing`() {
             assertThat(DocumentLayout.describe(emptyList())).isEmpty()
+        }
+    }
+
+    @Nested
+    @DisplayName("Structured layout (LetterLayoutAnalyzer)")
+    inner class Structured {
+
+        @Test
+        fun `the same page keeps address and reference apart, by content`() {
+            val layout = LetterLayoutAnalyzer.analyze(listOf(page))
+
+            assertThat(layout.zone(LetterZone.ADDRESS_FIELD).map { it.text })
+                .containsExactly("Frau", "Aylin Mustermann", "Seestraße 42").inOrder()
+            assertThat(layout.zone(LetterZone.INFO_BLOCK).map { it.text })
+                .containsExactly("Aktenzeichen: BG 1234/5678", "Ihr Zeichen: WS-2026-0142", "Datum: 15.01.2026")
+            assertThat(layout.zone(LetterZone.LETTERHEAD).map { it.text }).containsExactly(letterhead.text)
+        }
+
+        @Test
+        fun `describe is compact and tagged`() {
+            val d = LetterLayoutAnalyzer.analyze(listOf(page)).describe().text
+            assertThat(d).startsWith("=== PAGE 1 ===")
+            assertThat(d).contains("[address-field] Frau / Aylin Mustermann / Seestraße 42")
+            assertThat(d).doesNotContain("%")
         }
     }
 

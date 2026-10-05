@@ -9,12 +9,15 @@ import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.InferenceCrash
+import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -54,7 +57,7 @@ import javax.inject.Inject
  */
 internal class LocalAiEngine @Inject constructor(
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
-) : AiEngine {
+) : AiEngine, PromptSession {
 
     private val mutex = Mutex()
 
@@ -366,6 +369,107 @@ internal class LocalAiEngine @Inject constructor(
         val current = handle
         if (current == 0L) return
         mutex.withLock { withContext(ioDispatcher) { LlamaNative.resetChatSession(current) } }
+    }
+
+    // ── PromptSession — the in-process twin of RemoteAiEngine's (see its KDoc) ──────────
+
+    @Volatile
+    private var promptPrefix: String? = null
+
+    override suspend fun open(prefix: String): PamResult<Int> = mutex.withLock {
+        withContext(ioDispatcher) { openLocked(prefix) }
+    }
+
+    /** Caller must hold [mutex]. */
+    private fun openLocked(prefix: String): PamResult<Int> {
+        val current = handle
+        if (current == 0L) return PamResult.Error(PamError.ModelNotLoaded("No model is loaded."))
+        sessionConversationId = null
+        val tokens = LlamaNative.promptOpen(current, prefix)
+        return when {
+            tokens >= 0 -> {
+                promptPrefix = prefix
+                PamResult.Success(tokens)
+            }
+            tokens == -2 -> PamResult.Error(PamError.InferenceError("the letter is too long for the model's context window"))
+            else -> PamResult.Error(PamError.InferenceError("the model could not read the letter"))
+        }
+    }
+
+    override suspend fun ask(question: String, grammar: String, maxTokens: Int): PamResult<String> = mutex.withLock {
+        withContext(ioDispatcher) {
+            val current = handle
+            if (current == 0L) return@withContext PamResult.Error(PamError.ModelNotLoaded("No model is loaded."))
+            val prefix = promptPrefix
+                ?: return@withContext PamResult.Error(PamError.InferenceError("no prompt session is open"))
+            withCancelHook({ LlamaNative.promptCancel() }) {
+                var answer = LlamaNative.promptAsk(current, question, grammar, maxTokens)
+                if (answer == null && coroutineContext.isActive) {
+                    if (openLocked(prefix) is PamResult.Success) {
+                        answer = LlamaNative.promptAsk(current, question, grammar, maxTokens)
+                    }
+                }
+                if (answer == null) PamResult.Error(PamError.InferenceError("the question could not be answered")) else PamResult.Success(answer)
+            }
+        }
+    }
+
+    override suspend fun score(continuations: List<String>, yes: String, no: String, shared: String): PamResult<List<Double>> = mutex.withLock {
+        withContext(ioDispatcher) {
+            val current = handle
+            if (current == 0L) return@withContext PamResult.Error(PamError.ModelNotLoaded("No model is loaded."))
+            val prefix = promptPrefix
+                ?: return@withContext PamResult.Error(PamError.InferenceError("no prompt session is open"))
+            if (continuations.isEmpty()) return@withContext PamResult.Success(emptyList())
+            val array = continuations.toTypedArray()
+            withCancelHook({ LlamaNative.promptCancel() }) {
+                var scores = LlamaNative.promptScore(current, shared, array, yes, no)
+                if (scores == null && coroutineContext.isActive) {
+                    if (openLocked(prefix) is PamResult.Success) scores = LlamaNative.promptScore(current, shared, array, yes, no)
+                }
+                if (scores == null) PamResult.Error(PamError.InferenceError("the continuations could not be scored")) else PamResult.Success(scores.toList())
+            }
+        }
+    }
+
+    override suspend fun scoreGrid(shared: String, heads: List<String>, asks: List<String>, yes: String, no: String): PamResult<List<List<Double>>> = mutex.withLock {
+        withContext(ioDispatcher) {
+            val current = handle
+            if (current == 0L) return@withContext PamResult.Error(PamError.ModelNotLoaded("No model is loaded."))
+            val prefix = promptPrefix
+                ?: return@withContext PamResult.Error(PamError.InferenceError("no prompt session is open"))
+            if (heads.isEmpty() || asks.isEmpty()) return@withContext PamResult.Success(heads.map { emptyList() })
+            val headArray = heads.toTypedArray()
+            val askArray = asks.toTypedArray()
+            withCancelHook({ LlamaNative.promptCancel() }) {
+                var flat = LlamaNative.promptScoreGrid(current, shared, headArray, askArray, yes, no)
+                if (flat == null && coroutineContext.isActive) {
+                    if (openLocked(prefix) is PamResult.Success) flat = LlamaNative.promptScoreGrid(current, shared, headArray, askArray, yes, no)
+                }
+                if (flat == null || flat.size != heads.size * asks.size) {
+                    PamResult.Error(PamError.InferenceError("the grid could not be scored"))
+                } else {
+                    PamResult.Success(heads.indices.map { i -> asks.indices.map { j -> flat[i * asks.size + j] } })
+                }
+            }
+        }
+    }
+
+    override suspend fun close() {
+        val current = handle
+        if (current == 0L || promptPrefix == null) return
+        mutex.withLock {
+            withContext(ioDispatcher) {
+                promptPrefix = null
+                LlamaNative.promptClose(current)
+            }
+        }
+    }
+
+    override suspend fun countTokens(text: String): Int? {
+        val current = handle
+        if (current == 0L) return null
+        return mutex.withLock { withContext(ioDispatcher) { LlamaNative.countTokens(current, text) } }.takeIf { it >= 0 }
     }
 
     override suspend fun unload() = coordinator.unload()

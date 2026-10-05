@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.usecase
 
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.FieldRevision
+import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.ValueSource
 import javax.inject.Inject
 
@@ -44,8 +45,16 @@ class MergeExtractionUseCase @Inject constructor() {
         /** Slots where extraction now disagrees with the user — the review queue. */
         val newlyFlagged: List<String>
             get() = toPersist.filter { it.hasUnreviewedMachineChange }.map { it.fieldName }
+
+        /** [newlyFlagged] as label keys ([ExtractedData.labelKey]), for the UI to render labels from. */
+        val newlyFlaggedKeys: List<String>
+            get() = toPersist.filter { it.hasUnreviewedMachineChange }.map { it.labelKey }
     }
 
+    /**
+     * Every run, first or manual reprocess, treats a value the user confirmed like one they wrote:
+     * a differing new reading is flagged for review, never applied over it.
+     */
     operator fun invoke(
         existing: List<ExtractedData>,
         extracted: List<ExtractedData>,
@@ -53,10 +62,16 @@ class MergeExtractionUseCase @Inject constructor() {
         now: Long,
         newId: (String) -> String,
     ): Outcome {
+        // A value a person confirmed or edited stands; a differing new reading is flagged instead.
+        // An ignored row is protected too: it is a tombstone (handled first below), never resurrected.
+        fun ExtractedData.isProtected() = reviewState != ReviewState.UNREVIEWED
+
         // Slot identity, not row identity. Ids are regenerated on every extraction run, so
-        // matching by id would make every run look entirely new.
-        val existingBySlot = existing.associateBy { it.fieldName }
-        val extractedBySlot = extracted.associateBy { it.fieldName }
+        // matching by id would make every run look entirely new. See [pair] for how a stored row
+        // finds its fresh reading.
+        val pairs = pair(existing, extracted)
+        val takenNames = existing.map { it.fieldName }.toSet()
+        val matchedFresh = pairs.values.map { it.id }.toSet()
 
         val toPersist = mutableListOf<ExtractedData>()
         val idsToDelete = mutableListOf<String>()
@@ -75,14 +90,14 @@ class MergeExtractionUseCase @Inject constructor() {
             )
         }
 
-        for ((slot, current) in existingBySlot) {
-            val fresh = extractedBySlot[slot]
+        for (current in existing) {
+            val fresh = pairs[current.id]
 
             when {
                 // Tombstone. The machine reading is still recorded, so the history stays
                 // complete and the user can see what it would have said — but the field
                 // does not come back.
-                current.deletedByUser -> {
+                current.reviewState == ReviewState.IGNORED -> {
                     val updated = current.copy(
                         machineValue = fresh?.fieldValue ?: current.machineValue,
                         machineConfidence = fresh?.confidence ?: current.machineConfidence,
@@ -95,7 +110,7 @@ class MergeExtractionUseCase @Inject constructor() {
                     }
                 }
 
-                current.source == ValueSource.USER -> {
+                current.isProtected() -> {
                     if (fresh == null) {
                         // The extractor no longer finds it, but a person put it there.
                         // Keeping it is the whole point of tracking who authored a value.
@@ -106,6 +121,7 @@ class MergeExtractionUseCase @Inject constructor() {
                             machineValue = fresh.fieldValue,
                             machineConfidence = fresh.confidence,
                             engineVersion = engineVersion,
+                            alternatives = fresh.alternatives,
                             // Sticky: an unresolved flag from an earlier run is not cleared
                             // by a later run that happens to agree with the previous reading.
                             hasUnreviewedMachineChange =
@@ -125,7 +141,11 @@ class MergeExtractionUseCase @Inject constructor() {
 
                 else -> {
                     val changed = fresh.fieldValue != current.fieldValue
+                    // A renamed machine slot is the same row under its new name, unless the new
+                    // name is held by another stored row (the name is unique per document).
+                    val renamed = fresh.fieldName != current.fieldName && fresh.fieldName !in takenNames
                     val updated = current.copy(
+                        fieldName = if (renamed) fresh.fieldName else current.fieldName,
                         fieldValue = fresh.fieldValue,
                         fieldType = fresh.fieldType,
                         confidence = fresh.confidence,
@@ -134,10 +154,16 @@ class MergeExtractionUseCase @Inject constructor() {
                         machineConfidence = fresh.confidence,
                         engineVersion = engineVersion,
                         source = ValueSource.MACHINE,
-                        // A value the extractor has since changed is no longer the one the
-                        // user confirmed, so the confirmation does not carry over.
-                        isConfirmed = current.isConfirmed && !changed,
-                        updatedAt = if (changed) now else current.updatedAt,
+                        slotKey = fresh.slotKey ?: current.slotKey,
+                        role = fresh.role,
+                        origin = fresh.origin,
+                        aiConfidence = fresh.aiConfidence,
+                        evidence = fresh.evidence,
+                        bbox = fresh.bbox,
+                        alternatives = fresh.alternatives,
+                        // No isConfirmed handling here: a confirmed row is protected above (never
+                        // overwritten), so a row reaching this branch is not confirmed.
+                        updatedAt = if (changed || renamed) now else current.updatedAt,
                     )
                     toPersist += updated
                     if (changed) {
@@ -148,8 +174,8 @@ class MergeExtractionUseCase @Inject constructor() {
         }
 
         // Slots the extractor found that are not stored at all.
-        for ((slot, fresh) in extractedBySlot) {
-            if (slot in existingBySlot) continue
+        for (fresh in extracted) {
+            if (fresh.id in matchedFresh) continue
             val created = fresh.copy(
                 source = ValueSource.MACHINE,
                 machineValue = fresh.fieldValue,
@@ -163,6 +189,52 @@ class MergeExtractionUseCase @Inject constructor() {
 
         return Outcome(toPersist, idsToDelete, revisions)
     }
+
+    /**
+     * Which fresh reading belongs to which stored row (keyed by the stored row's id).
+     *
+     * 1. By **slot key**: the stable identity, so a field the AI relabelled or a sender whose kind
+     *    changed (name to organisation) is the same row.
+     * 2. By **field name**: rows stored before slot keys, and rows a person added or renamed.
+     * 3. By **normalised value**, for an open extra whose printed label changed between runs: a
+     *    machine row still unmatched and a fresh reading with the same value (and no rival on either
+     *    side) are one field renamed, not one deleted and one created. A person's row and a deleted
+     *    field are never matched this way.
+     */
+    private fun pair(existing: List<ExtractedData>, extracted: List<ExtractedData>): Map<String, ExtractedData> {
+        val pairs = LinkedHashMap<String, ExtractedData>()
+        val free = extracted.toMutableList()
+
+        fun take(candidate: ExtractedData?, current: ExtractedData) {
+            if (candidate == null) return
+            free.remove(candidate)
+            pairs[current.id] = candidate
+        }
+
+        for (current in existing) {
+            val key = current.slotKey ?: continue
+            take(free.firstOrNull { it.slotKey == key }, current)
+        }
+        for (current in existing) {
+            if (current.id in pairs) continue
+            take(free.firstOrNull { it.fieldName == current.fieldName }, current)
+        }
+
+        val renameable = existing.filter {
+            it.id !in pairs && it.source == ValueSource.MACHINE && it.reviewState == ReviewState.UNREVIEWED && valueKey(it.fieldValue).isNotEmpty()
+        }
+        for (current in renameable) {
+            val key = valueKey(current.fieldValue)
+            val rivalsInStore = renameable.count { valueKey(it.fieldValue) == key }
+            val candidates = free.filter { valueKey(it.fieldValue) == key }
+            if (rivalsInStore == 1 && candidates.size == 1) take(candidates.single(), current)
+        }
+        return pairs
+    }
+
+    /** A value with case, spacing and punctuation folded away, so "12,50 EUR" and "12.50 eur" compare equal. */
+    private fun valueKey(value: String): String =
+        value.lowercase().filter { it.isLetterOrDigit() }
 
     /**
      * Applies a user's edit, recording it as theirs.
@@ -182,6 +254,8 @@ class MergeExtractionUseCase @Inject constructor() {
             source = ValueSource.USER,
             // Editing is a stronger statement than confirming.
             isConfirmed = true,
+            // Confirming adopts the value as it is (the same text); anything else is an edit.
+            reviewState = if (newValue == field.fieldValue) ReviewState.CONFIRMED else ReviewState.EDITED,
             // The user has now seen whatever the extractor was saying.
             hasUnreviewedMachineChange = false,
             deletedByUser = false,
@@ -204,9 +278,32 @@ class MergeExtractionUseCase @Inject constructor() {
     fun applyUserDelete(field: ExtractedData, now: Long): ExtractedData =
         field.copy(
             deletedByUser = true,
+            reviewState = ReviewState.IGNORED,
             hasUnreviewedMachineChange = false,
             updatedAt = now,
         )
+
+    /**
+     * Moves a field to [state] without touching its value, keeping the legacy flags in step.
+     * [ReviewState.CONFIRMED] is normally applied through [applyUserEdit] (which also records the
+     * revision); this covers the states that change no text.
+     */
+    fun applyReviewState(field: ExtractedData, state: ReviewState, now: Long): ExtractedData = when (state) {
+        ReviewState.IGNORED -> applyUserDelete(field, now)
+        ReviewState.UNREVIEWED -> field.copy(
+            isConfirmed = false,
+            deletedByUser = false,
+            reviewState = ReviewState.UNREVIEWED,
+            updatedAt = now,
+        )
+        ReviewState.CONFIRMED, ReviewState.EDITED -> field.copy(
+            isConfirmed = true,
+            deletedByUser = false,
+            reviewState = state,
+            source = ValueSource.USER,
+            updatedAt = now,
+        )
+    }
 
     /** The user accepted the extractor's newer reading, ending the disagreement. */
     fun acceptMachineValue(
@@ -230,6 +327,8 @@ class MergeExtractionUseCase @Inject constructor() {
             // Accepting is an act of review, so the value is confirmed even though the
             // machine authored it.
             isConfirmed = true,
+            deletedByUser = false,
+            reviewState = ReviewState.CONFIRMED,
             updatedAt = now,
         )
         return updated to FieldRevision(

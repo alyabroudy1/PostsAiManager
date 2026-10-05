@@ -3,6 +3,8 @@ package com.postsaimanager.core.ai.catalog
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.AiModelDescriptor
 import com.postsaimanager.core.model.BackendSpec
+import com.postsaimanager.core.model.ModelRole
+import com.postsaimanager.core.model.SpeedHint
 
 /**
  * The models that ship knowable, compiled into the APK.
@@ -67,9 +69,16 @@ object BundledCatalog {
                 "$QWEN35_08B_REV/Qwen3.5-0.8B-Q4_K_M.gguf",
             sha256 = "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
             supportsTools = true,
-            description = "Smallest usable assistant. Fits a low-memory phone; expect it to " +
-                "miss details a larger model catches when reading a letter.",
+            description = "Recommended default. Small and fast, fits any supported phone and " +
+                "reads letters well for its size; a larger model catches more details.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            // Reads every letter (the tuned profile is measured on it), so it is always installed.
+            role = ModelRole.READER_AND_CHAT,
+            // Total memory as Android reports it (decimal GB): a "4 GB" phone reads about 3.7.
+            minRamGb = 2.5,
+            recommendedRamGb = 3.0,
+            approxRamUseGb = 0.6,
+            preselectable = true,
         ),
         AiModelDescriptor(
             id = "qwen3.5-2b-q4_k_m",
@@ -85,9 +94,16 @@ object BundledCatalog {
                 "$QWEN35_2B_REV/Qwen3.5-2B-Q4_K_M.gguf",
             sha256 = "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
             supportsTools = true,
-            description = "The default. Reads a letter and fills structured fields reliably " +
-                "while still fitting a mid-range phone.",
+            // Not "used for form filling": that feature is hidden in release builds, so the line would be untrue there.
+            description = "Better answers than the recommended 0.8B, but slower and needs more " +
+                "memory.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            minRamGb = 4.5,
+            recommendedRamGb = 5.0,
+            approxRamUseGb = 1.6,
+            // Measured 2-3x slower than the 0.8B on the CPU engine.
+            preselectable = true,
+            speedHint = SpeedHint.SLOWER,
         ),
         AiModelDescriptor(
             id = "qwen3.5-4b-q4_k_m",
@@ -106,6 +122,11 @@ object BundledCatalog {
             description = "Noticeably better at multi-step reasoning and at picking the " +
                 "right entity out of a crowded page.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            // A flagship with 11.3 GB total had 2.5 GB free in practice: a 4B model is that phone's limit.
+            minRamGb = 8.0,
+            recommendedRamGb = 10.0,
+            approxRamUseGb = 3.3,
+            speedHint = SpeedHint.MUCH_SLOWER,
         ),
         AiModelDescriptor(
             id = "gemma-4-e2b-it-qat-q4_0",
@@ -130,6 +151,10 @@ object BundledCatalog {
                 "trained, not rounded afterwards. Strong multilingual reading, including " +
                 "German.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            minRamGb = 8.0,
+            recommendedRamGb = 12.0,
+            approxRamUseGb = 4.2,
+            speedHint = SpeedHint.MUCH_SLOWER,
         ),
         AiModelDescriptor(
             id = "gemma-4-e4b-it-qat-q4_0",
@@ -150,6 +175,19 @@ object BundledCatalog {
                 "most reliable at identifying people and organisations. Needs a high-end " +
                 "phone with memory to spare.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            minRamGb = 12.0,
+            recommendedRamGb = 16.0,
+            approxRamUseGb = 6.0,
+            speedHint = SpeedHint.MUCH_SLOWER,
         ),
     )
+
+    /**
+     * The reader model (flagged [ModelRole.READER_AND_CHAT] above, which a test pins): setup always installs it, and extraction runs
+     * on it whenever it is installed. The id is only for code that has no descriptor list at hand.
+     */
+    const val READER_MODEL_ID = "qwen3.5-0.8b-q4_k_m"
+
+    val readerModel: AiModelDescriptor
+        get() = models.first { it.role == ModelRole.READER_AND_CHAT }
 }

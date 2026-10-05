@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.postsaimanager.core.ai.embed.EmbeddingModelFiles
+import com.postsaimanager.core.download.DownloadNotificationCenter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -28,6 +29,7 @@ class EmbeddingModelManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val files: EmbeddingModelFiles,
     private val installer: EmbeddingModelInstaller,
+    private val center: DownloadNotificationCenter,
 ) {
 
     private val workManager get() = WorkManager.getInstance(context)
@@ -42,10 +44,16 @@ class EmbeddingModelManager @Inject constructor(
     fun isInstalled(): Boolean = files.arePresent()
 
     fun install(allowMetered: Boolean = false) {
+        center.queued(
+            EmbeddingModelInstallWorker.WORK_NAME,
+            context.getString(com.postsaimanager.core.download.R.string.download_search_model),
+            EmbeddingModelRelease.totalBytes,
+        )
         EmbeddingModelInstallWorker.enqueue(context, allowMetered)
     }
 
     fun cancel() {
+        center.removed(EmbeddingModelInstallWorker.WORK_NAME)
         // The partial file survives, so resuming later costs only the missing bytes.
         workManager.cancelUniqueWork(EmbeddingModelInstallWorker.WORK_NAME)
     }

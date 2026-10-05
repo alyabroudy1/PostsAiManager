@@ -38,7 +38,7 @@ class SendChatMessageUseCaseTest {
     private val conversations = FakeConversationRepository()
     private val buildChatContext = BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository())
     private val chunkRepository = FakeDocumentChunkRepository()
-    private val retrieveChunks = RetrieveChunksUseCase(chunkRepository, FakeEmbeddingService())
+    private val retrieveChunks = RetrieveChunksUseCase(chunkRepository, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(FakeDocumentRepository()))
     private val sendChatMessage =
         SendChatMessageUseCase(conversations, engine, models, buildChatContext, retrieveChunks)
 
@@ -624,7 +624,7 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "The deadline is 31.01.2026."
@@ -655,7 +655,7 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "answer one"
@@ -687,7 +687,7 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(FakeDocumentChunkRepository(), FakeEmbeddingService()),
+            RetrieveChunksUseCase(FakeDocumentChunkRepository(), FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "hi"
@@ -713,13 +713,52 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "hi"
         useCase("conv-1", documentId = "d1", text = "hello").toList()
 
         assertThat(engine.lastChatUserText).isEqualTo("hello")
+    }
+
+    @Test
+    @DisplayName("a document that fits whole still cites its best passages, without putting them in the prompt")
+    fun `whole-document chat attaches the top two passages as sources`() = runTest {
+        val documents = FakeDocumentRepository()
+        documents.seed(testDocument(id = "d1"))
+        documents.seedPages(
+            "d1",
+            DocumentPage(
+                id = "p1", documentId = "d1", pageNumber = 1,
+                imagePath = "/tmp/p1.jpg", ocrText = "Kurzer Brief.", width = 0, height = 0,
+            ),
+        )
+        val chunks = FakeDocumentChunkRepository()
+        chunks.seed(testChunk("c1", documentId = "d1", ordinal = 0, pageNumber = 1, text = "Rechnung Nummer 12."))
+        chunks.seed(testChunk("c2", documentId = "d1", ordinal = 1, pageNumber = 1, text = "Zahlung faellig am 31.01.2026."))
+        chunks.seed(testChunk("c3", documentId = "d1", ordinal = 2, pageNumber = 2, text = "Bankverbindung."))
+        val useCase = SendChatMessageUseCase(
+            conversations, engine, models,
+            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
+        )
+
+        engine.response = "Am 31.01.2026."
+        val turns = useCase("conv-1", documentId = "d1", text = "Wann ist die Zahlung faellig?").toList()
+
+        val complete = turns.filterIsInstance<ChatTurn.Complete>().single()
+        // Only the passage sharing terms with the question ranks; its page number rides along.
+        assertThat(complete.sources.map { it.chunk.id }).containsExactly("c2")
+        assertThat(complete.message.sources.map { it.chunkId }).containsExactly("c2")
+        // The prompt is unchanged: the whole document is already in the grounding.
+        assertThat(engine.lastChatUserText).isEqualTo("Wann ist die Zahlung faellig?")
+
+        // A question with no keyword signal (and no search model) falls back to reading order, capped at two.
+        engine.response = "Ja."
+        val second = useCase("conv-2", documentId = "d1", text = "und dann?").toList()
+            .filterIsInstance<ChatTurn.Complete>().single()
+        assertThat(second.sources.map { it.chunk.id }).containsExactly("c1", "c2").inOrder()
     }
 
     @Test
@@ -734,7 +773,7 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "hi"
@@ -753,7 +792,7 @@ class SendChatMessageUseCaseTest {
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
             BuildChatContextUseCase(documents, FakeProfileRepository()),
-            RetrieveChunksUseCase(chunks, FakeEmbeddingService()),
+            RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
         engine.response = "answer"

@@ -1,0 +1,299 @@
+{
+    "key": "N8-info-bank-noaction-1p",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "width": 1654,
+            "height": 2339,
+            "ocrFailed": false,
+            "blocks": [
+                {
+                    "text": "Beispielbank eG",
+                    "bounds": {
+                        "left": 0.11547763,
+                        "top": 0.04788371,
+                        "right": 0.34885126,
+                        "bottom": 0.07054297
+                    },
+                    "confidence": 0.9146205,
+                    "language": "und"
+                },
+                {
+                    "text": "Marktplatz 2 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.12152358,
+                        "top": 0.0748183,
+                        "right": 0.31015718,
+                        "bottom": 0.08465156
+                    },
+                    "confidence": 0.87648165,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 400 0",
+                    "bounds": {
+                        "left": 0.113663845,
+                        "top": 0.08849936,
+                        "right": 0.21160822,
+                        "bottom": 0.09533989
+                    },
+                    "confidence": 0.82211536,
+                    "language": "und"
+                },
+                {
+                    "text": "kundenservice@belspielbank.example",
+                    "bounds": {
+                        "left": 0.11487304,
+                        "top": 0.09876015,
+                        "right": 0.33071342,
+                        "bottom": 0.10773835
+                    },
+                    "confidence": 0.83984375,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielbank eG Marktplatz 2 12345 Beispielstadt",
+                    "bounds": {
+                        "left": 0.12091898,
+                        "top": 0.15177426,
+                        "right": 0.38694075,
+                        "bottom": 0.16203506
+                    },
+                    "confidence": 0.8832667,
+                    "language": "und"
+                },
+                {
+                    "text": "Herrn",
+                    "bounds": {
+                        "left": 0.11608222,
+                        "top": 0.17315091,
+                        "right": 0.16203144,
+                        "bottom": 0.18298419
+                    },
+                    "confidence": 0.8875,
+                    "language": "und"
+                },
+                {
+                    "text": "Max Mustermann",
+                    "bounds": {
+                        "left": 0.11668682,
+                        "top": 0.19025224,
+                        "right": 0.2617896,
+                        "bottom": 0.19965798
+                    },
+                    "confidence": 0.88521636,
+                    "language": "und"
+                },
+                {
+                    "text": "Musterstraße 12",
+                    "bounds": {
+                        "left": 0.11668682,
+                        "top": 0.20564343,
+                        "right": 0.25453445,
+                        "bottom": 0.21590424
+                    },
+                    "confidence": 0.86383927,
+                    "language": "und"
+                },
+                {
+                    "text": "54321 Beispieldorf",
+                    "bounds": {
+                        "left": 0.11729141,
+                        "top": 0.22146216,
+                        "right": 0.2756953,
+                        "bottom": 0.23386063
+                    },
+                    "confidence": 0.8913143,
+                    "language": "und"
+                },
+                {
+                    "text": "Sehr geehrter Herr Mustermann,",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.37109876,
+                        "right": 0.39661428,
+                        "bottom": 0.38264215
+                    },
+                    "confidence": 0.8680556,
+                    "language": "und"
+                },
+                {
+                    "text": "Informationen zu unserem neuen Kundenportal",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.3394613,
+                        "right": 0.6541717,
+                        "bottom": 0.3535699
+                    },
+                    "confidence": 0.88872194,
+                    "language": "und"
+                },
+                {
+                    "text": "Wir danken Ihnen für Ihr Vertrauen.",
+                    "bounds": {
+                        "left": 0.12091898,
+                        "top": 0.5746045,
+                        "right": 0.43107617,
+                        "bottom": 0.5857204
+                    },
+                    "confidence": 0.86679685,
+                    "language": "und"
+                },
+                {
+                    "text": "wir entwickeln unser Angebot für Sie stetig weiter. Ab dem 01.11.2026 steht Ihnen unser\nneues Kundenportal zur Verfügung, in dem Sie Ihre Kontoumsätze, Dokumente und\nNachrichten übersichtlich an einem Ort finden.",
+                    "bounds": {
+                        "left": 0.118500605,
+                        "top": 0.39162034,
+                        "right": 0.88754535,
+                        "bottom": 0.44206926
+                    },
+                    "confidence": 0.88514686,
+                    "language": "und"
+                },
+                {
+                    "text": "Mit freundlichen Grüßen",
+                    "bounds": {
+                        "left": 0.12212817,
+                        "top": 0.60837966,
+                        "right": 0.32648125,
+                        "bottom": 0.61906797
+                    },
+                    "confidence": 0.8922991,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihr Zeichen:",
+                    "bounds": {
+                        "left": 0.5912938,
+                        "top": 0.17058572,
+                        "right": 0.66021764,
+                        "bottom": 0.17742625
+                    },
+                    "confidence": 0.8547585,
+                    "language": "und"
+                },
+                {
+                    "text": "Für Sie ändert sich dadurch nichts: Ihre Konten, Karten und Zugangsdaten für das\nOnline-Banking bleiben unverändert. Sie müssen nichts unternehmen; dieses Schreiben\ndient ausschließlich Ihrer Information.",
+                    "bounds": {
+                        "left": 0.1191052,
+                        "top": 0.44933733,
+                        "right": 0.87605804,
+                        "bottom": 0.5006413
+                    },
+                    "confidence": 0.8736835,
+                    "language": "und"
+                },
+                {
+                    "text": "Ihre Beispielbank eG",
+                    "bounds": {
+                        "left": 0.12212817,
+                        "top": 0.6417272,
+                        "right": 0.2986699,
+                        "bottom": 0.6541257
+                    },
+                    "confidence": 0.8645833,
+                    "language": "und"
+                },
+                {
+                    "text": "Kundennummer: 7788123\nAnsprechpartner: Ihr Berater-Team\n01234 400 55\n21.09.2026",
+                    "bounds": {
+                        "left": 0.5912938,
+                        "top": 0.18298419,
+                        "right": 0.8174123,
+                        "bottom": 0.23514323
+                    },
+                    "confidence": 0.8822423,
+                    "language": "und"
+                },
+                {
+                    "text": "Wenn Sie mehr über das Portal erfahren möchten, finden Sie Einzelheiten auf unserer\nInternetseite oder erhalten Sie in Ihrer Filiale. Unser Kundenservice ist Montag bis Freitag\nvon 8 bis 18 Uhr unter 01234 400 55 für Sie da.",
+                    "bounds": {
+                        "left": 0.12031439,
+                        "top": 0.510047,
+                        "right": 0.8948005,
+                        "bottom": 0.55921334
+                    },
+                    "confidence": 0.86326003,
+                    "language": "und"
+                },
+                {
+                    "text": "Beispielbank eG",
+                    "bounds": {
+                        "left": 0.12454655,
+                        "top": 0.9089354,
+                        "right": 0.20737606,
+                        "bottom": 0.91663104
+                    },
+                    "confidence": 0.8822545,
+                    "language": "und"
+                },
+                {
+                    "text": "Telefon:",
+                    "bounds": {
+                        "left": 0.5912938,
+                        "top": 0.2141941,
+                        "right": 0.63724303,
+                        "bottom": 0.22103463
+                    },
+                    "confidence": 0.84228516,
+                    "language": "und"
+                },
+                {
+                    "text": "Bankverbindung: Beispielbank eG\nBIC COBADEFFXXX",
+                    "bounds": {
+                        "left": 0.38452238,
+                        "top": 0.90679777,
+                        "right": 0.5604595,
+                        "bottom": 0.9238991
+                    },
+                    "confidence": 0.8153479,
+                    "language": "und"
+                },
+                {
+                    "text": "Datum:",
+                    "bounds": {
+                        "left": 0.592503,
+                        "top": 0.22915776,
+                        "right": 0.63301086,
+                        "bottom": 0.23557076
+                    },
+                    "confidence": 0.8847656,
+                    "language": "und"
+                },
+                {
+                    "text": "Vorstand: A. Muster, B. Beispiel\nGenossenschaftsregister Beispielstadt GnR 0000 Bankleitzahl 000 O00 00",
+                    "bounds": {
+                        "left": 0.12454655,
+                        "top": 0.9170586,
+                        "right": 0.5102781,
+                        "bottom": 0.9367251
+                    },
+                    "confidence": 0.8655522,
+                    "language": "und"
+                },
+                {
+                    "text": "Tel. 01234 400 0\nwww.beispielbank.example",
+                    "bounds": {
+                        "left": 0.6438936,
+                        "top": 0.90423256,
+                        "right": 0.7841596,
+                        "bottom": 0.923044
+                    },
+                    "confidence": 0.84380007,
+                    "language": "und"
+                },
+                {
+                    "text": "Seite 1 von 1",
+                    "bounds": {
+                        "left": 0.82950425,
+                        "top": 0.9576742,
+                        "right": 0.9038694,
+                        "bottom": 0.9662249
+                    },
+                    "confidence": 0.8066406,
+                    "language": "und"
+                }
+            ]
+        }
+    ]
+}

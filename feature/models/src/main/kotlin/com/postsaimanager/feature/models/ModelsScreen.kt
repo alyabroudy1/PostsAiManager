@@ -39,7 +39,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.ai.catalog.CatalogEntry
 import com.postsaimanager.core.ai.catalog.download.ModelDownloadStatus
 import com.postsaimanager.core.ai.embed.install.InstallStatus
+import com.postsaimanager.core.designsystem.component.ChatModelFitBadge
+import com.postsaimanager.core.designsystem.component.deviceTierLabel
+import com.postsaimanager.core.designsystem.component.ModelSpeedHint
 import com.postsaimanager.core.designsystem.component.PamLoadingState
+import com.postsaimanager.core.model.ChatModelFit
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.model.DeviceCapability
 import com.postsaimanager.core.model.ModelFit
@@ -48,6 +52,8 @@ import com.postsaimanager.core.model.ModelFit
 @Composable
 fun ModelsScreen(
     onNavigateBack: () -> Unit,
+    /** False when form filling is switched off: the "Used for form filling" note is hidden. */
+    showFormFillingNote: Boolean = false,
     viewModel: ModelsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -118,16 +124,18 @@ fun ModelsScreen(
                     items(state.installed, key = { it.descriptor.id }) { entry ->
                         InstalledCard(
                             entry = entry,
+                            chatFit = state.fits[entry.descriptor.id],
                             onSetActive = { viewModel.setActive(it) },
                             onSetExtraction = { viewModel.setExtractionModel(it) },
                             onUninstall = { viewModel.uninstall(it) },
+                            showFormFillingNote = showFormFillingNote,
                         )
                     }
                 }
 
                 item { SectionHeader("Available") }
                 items(state.available, key = { it.descriptor.id }) { entry ->
-                    AvailableCard(entry = entry, viewModel = viewModel)
+                    AvailableCard(entry = entry, chatFit = state.fits[entry.descriptor.id], viewModel = viewModel)
                 }
             }
         }
@@ -161,7 +169,7 @@ private fun DeviceCard(capability: DeviceCapability) {
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                "${capability.freeStorageBytes.gb()} storage free · ${capability.tier.name}",
+                "${capability.freeStorageBytes.gb()} storage free · ${deviceTierLabel(capability.tier)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -186,9 +194,9 @@ private fun OfflineCatalogNotice() {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Offline catalog", style = MaterialTheme.typography.titleSmall)
             Text(
-                "Showing the models bundled with the app. Downloads require a signed " +
-                    "catalog, which this build does not yet have — so nothing here can be " +
-                    "installed.",
+                "Showing the models built into the app. Each one downloads from Hugging Face " +
+                    "and is checked against a fixed fingerprint before it is used. New models " +
+                    "will appear here with a later update.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -198,9 +206,11 @@ private fun OfflineCatalogNotice() {
 @Composable
 private fun InstalledCard(
     entry: CatalogEntry,
+    chatFit: ChatModelFit?,
     onSetActive: (String) -> Unit,
     onSetExtraction: (String) -> Unit,
     onUninstall: (String) -> Unit,
+    showFormFillingNote: Boolean,
 ) {
     Card {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -227,6 +237,16 @@ private fun InstalledCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            ModelSpeedHint(entry.descriptor.speedHint)
+            chatFit?.let { ChatModelFitBadge(it) }
+            if (entry.isFormModel && showFormFillingNote) {
+                // The form agent prefers this model over the chat model while it is installed (ModelProfiles.FORM_AGENT_MODELS).
+                Text(
+                    "Used for form filling (better, slower)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             if (entry.descriptor.recommendedForExtraction && !entry.isExtractionModel) {
                 // Said plainly, because the difference is not obvious from a model name and
                 // the gain is concrete: on a real letter this is the difference between
@@ -259,7 +279,7 @@ private fun InstalledCard(
 }
 
 @Composable
-private fun AvailableCard(entry: CatalogEntry, viewModel: ModelsViewModel) {
+private fun AvailableCard(entry: CatalogEntry, chatFit: ChatModelFit?, viewModel: ModelsViewModel) {
     val status by viewModel.downloadStatus(entry.descriptor.id)
         .collectAsStateWithLifecycle(initialValue = ModelDownloadStatus.NotStarted)
 
@@ -281,6 +301,8 @@ private fun AvailableCard(entry: CatalogEntry, viewModel: ModelsViewModel) {
             entry.descriptor.description?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium)
             }
+            ModelSpeedHint(entry.descriptor.speedHint)
+            chatFit?.let { ChatModelFitBadge(it) }
 
             fitMessage?.let {
                 Text(

@@ -1,0 +1,310 @@
+{
+ "key": "degraded-3p",
+ "interpreter": "zones",
+ "pages": 3,
+ "contextTokens": 4096,
+ "candidates": [
+  {
+   "id": "M1",
+   "kind": "NAME",
+   "raw": "Stadtwerke Beispielstadt",
+   "normalized": "Stadtwerke Beispielstadt",
+   "page": 1
+  },
+  {
+   "id": "M2",
+   "kind": "NAME",
+   "raw": "Erika Mustermann",
+   "normalized": "Erika Mustermann",
+   "page": 1
+  },
+  {
+   "id": "M3",
+   "kind": "NAME",
+   "raw": "Zeitraum",
+   "normalized": "Zeitraum",
+   "page": 2
+  },
+  {
+   "id": "D1",
+   "kind": "DATE",
+   "raw": "01.12.2026",
+   "normalized": "2026-12-01",
+   "page": 1
+  },
+  {
+   "id": "D3",
+   "kind": "DATE",
+   "raw": "25.09.2026",
+   "normalized": "2026-09-25",
+   "page": 1
+  },
+  {
+   "id": "D4",
+   "kind": "DATE",
+   "raw": "01.10.2025",
+   "normalized": "2025-10-01",
+   "page": 2
+  },
+  {
+   "id": "D5",
+   "kind": "DATE",
+   "raw": "30.09.2026",
+   "normalized": "2026-09-30",
+   "page": 2
+  },
+  {
+   "id": "A1",
+   "kind": "AMOUNT",
+   "raw": "89,00 €",
+   "normalized": "89.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A2",
+   "kind": "AMOUNT",
+   "raw": "74,00 €",
+   "normalized": "74.00 EUR",
+   "page": 1
+  },
+  {
+   "id": "A3",
+   "kind": "AMOUNT",
+   "raw": "888,00",
+   "normalized": "888.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "A4",
+   "kind": "AMOUNT",
+   "raw": "1.068.00",
+   "normalized": "1068.00 EUR",
+   "page": 2
+  },
+  {
+   "id": "I1",
+   "kind": "IBAN",
+   "raw": "DE89 3704 0044 0532 0130 00",
+   "normalized": "DE89370400440532013000",
+   "page": 2
+  },
+  {
+   "id": "N1",
+   "kind": "REFERENCE",
+   "raw": "3300 5521 08",
+   "normalized": "3300 5521 08",
+   "page": 1
+  },
+  {
+   "id": "N2",
+   "kind": "REFERENCE",
+   "raw": "1EMHO000123456",
+   "normalized": "1EMH0000123456",
+   "page": 1
+  },
+  {
+   "id": "N3",
+   "kind": "REFERENCE",
+   "raw": "DE00Z7Z00000000000",
+   "normalized": "DE00Z7Z00000000000",
+   "page": 1
+  },
+  {
+   "id": "N5",
+   "kind": "REFERENCE",
+   "raw": "2026\/27",
+   "normalized": "2026\/27",
+   "page": 2
+  },
+  {
+   "id": "N6",
+   "kind": "REFERENCE",
+   "raw": "DEO0ZZZ0000000o000",
+   "normalized": "DE00ZZZ00000000000",
+   "page": 2
+  },
+  {
+   "id": "N7",
+   "kind": "REFERENCE",
+   "raw": "3-12345",
+   "normalized": "3-12345",
+   "page": 3
+  },
+  {
+   "id": "T1",
+   "kind": "PHONE",
+   "raw": "01234 000111",
+   "normalized": "01234 000111",
+   "page": 1
+  },
+  {
+   "id": "T2",
+   "kind": "PHONE",
+   "raw": "0532 0130 00",
+   "normalized": "0532 0130 00",
+   "page": 2
+  },
+  {
+   "id": "E1",
+   "kind": "EMAIL",
+   "raw": "kundenservice@stadtwerke-beispiel.example",
+   "normalized": "kundenservice@stadtwerke-beispiel.example",
+   "page": 1
+  }
+ ],
+ "call1": "sender: M1 PERSON \"Stadtwerke Beispielstadt\" HIGH\naddressee: NONE\ncare_of: NONE\ncontact: NONE\nslot:letter_date: D3 OTHER LOW\ntype: bill de HIGH\nsubject_person: NONE\nslot:total: A3 TOTAL_DUE MEDIUM\nslot:due_date: D1 OTHER LOW\nslot:iban: NONE\nslot:reference: NONE\nslot:customer_no: NONE\nslot:invoice_no: N1 HIGH\nextras: NONE",
+ "call1Ms": 37145,
+ "call2Ms": 4582,
+ "prefixTokens": 1305,
+ "prefixMs": 10328,
+ "template": "DIN5008_B",
+ "templateScore": 1,
+ "asks": [
+  {
+   "name": "sender",
+   "question": "ZONE letterhead. HINT: This block is usually the letterhead: the name and contact details of whoever wrote the letter.\nStadtwerke Beispielstadt Energieweg 3 \/ 12345 Beispielstadt \/ Tel. 01234 000111 \/ Stadtwerke BeispielstadtEnergieweg 3 12345 Beispielstadt \/ kundenservice@stadtwerke-beispiel.example\nZONE return-address-line. HINT: This small line above the address window usually holds the sender's name and address.\nStadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt\nCANDIDATES IN THESE ZONES\nM1: Stadtwerke Beispielstadt [letterhead] p.1\nM2: Erika Mustermann [return-address-line] p.1\nQUESTION: Who wrote and sent this letter? Look at the letterhead, the sender line and the signature.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "M1 PERSON \"Stadtwerke Beispielstadt\" HIGH",
+   "ms": 2418,
+   "questionTokens": 217,
+   "answerTokens": 10
+  },
+  {
+   "name": "addressee",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nCANDIDATES IN THESE ZONES\nM2: Erika Mustermann [return-address-line] p.1\nQUESTION: To whom is the letter addressed (the recipient in the address field)? If several people or parties are addressed together, list up to 3 separated by \"; \", the main addressee first. RELATION is HOUSEHOLD when a family or household is addressed, GUARDIAN_OF when the addressee acts for another person the letter is about (for example the parents of a child), otherwise NONE.\nANSWER FORMAT: ID KIND RELATION \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1598,
+   "questionTokens": 184,
+   "answerTokens": 1
+  },
+  {
+   "name": "care_of",
+   "question": "ZONE address-field. HINT: This block is usually the recipient's address field: the name and address of whoever the letter is addressed to.\nErika Mustermann \/ Musterstraße 12 \/ 54321 Beispieldorf\nCANDIDATES IN THESE ZONES\nM2: Erika Mustermann [return-address-line] p.1\nQUESTION: Is the letter sent in care of someone: a person or household whose address is only used as a mailbox for the addressee (\"c\/o\", \"care of\", \"bei\")? Answer NONE when it is not.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1279,
+   "questionTokens": 145,
+   "answerTokens": 1
+  },
+  {
+   "name": "contact",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nCANDIDATES IN THESE ZONES\n(none)\nQUESTION: Is a contact person named, or a person \"for the attention of\" or who handles the matter? Answer NONE when no one is.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1006,
+   "questionTokens": 110,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:letter_date",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nCANDIDATES IN THESE ZONES\nD3: 25.09.2026 (near: \"Ort, Datum\") p.1\nQUESTION: Which date is the date of the letter itself (when it was written or issued)? Not a deadline, a due date or an event.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D3 OTHER LOW",
+   "ms": 1665,
+   "questionTokens": 159,
+   "answerTokens": 4
+  },
+  {
+   "name": "type",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nQUESTION: What kind of document is this, and in which language is it written? The types are:\n- bill: an invoice or bill that asks the reader to pay\n- reminder_dunning: a payment reminder or dunning letter about an unpaid bill\n- authority_tax: a letter or decision from an authority, tax office or public body\n- health: a letter from a doctor, clinic or health insurer, such as an appointment\n- insurance_contract: an insurance or service contract, or a change to its price or terms\n- school: a letter from a school or kindergarten to parents\n- receipt: a receipt or proof of a purchase\n- info_no_action: an information letter or statement that asks nothing of the reader\n- outgoing_letter: a letter the reader wrote and sent to someone else\n- payment_proof: a confirmation that a payment was made\n- other: anything that fits none of the other types\nANSWER FORMAT: TYPE LANGUAGE-CODE CONFIDENCE (for example: bill de HIGH)",
+   "answer": "bill de HIGH",
+   "ms": 2114,
+   "questionTokens": 240,
+   "answerTokens": 3
+  },
+  {
+   "name": "subject_person",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM1: Stadtwerke Beispielstadt [letterhead] p.1\nQUESTION: Who is the letter about, if that is a different person from the addressee (a patient, a child, the insured person)? If it is about several, list up to 3 separated by \"; \". Answer NONE when it is about the addressee.\nANSWER FORMAT: ID KIND \"name\" CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1087,
+   "questionTokens": 128,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:total",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nA1: 89,00 € (near: \"Abschlag\") p.1\/2\nA2: 74,00 € (near: \"Bisher\") p.1\nA3: 888,00 (near: \"Betrag\") p.2\nA4: 1.068.00 p.2\nQUESTION: Which amount is the main amount of this document: what the reader has to pay, or the total? Not a net or VAT part of it.\nANSWER FORMAT: ID ROLE CONFIDENCE (ROLE is one of TOTAL_DUE, NET, VAT, GROSS, INSTALMENT, ADVANCE, FEE, CREDIT, PREVIOUS, OTHER), or NONE",
+   "answer": "A3 TOTAL_DUE MEDIUM",
+   "ms": 2145,
+   "questionTokens": 232,
+   "answerTokens": 7
+  },
+  {
+   "name": "slot:due_date",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nD1: 01.12.2026 (near: \"ab\") p.1\/2\nD4: 01.10.2025 (near: \"Zeitraum\") p.2\nD5: 30.09.2026 (near: \"Zeitraum\") p.2\nQUESTION: By which date must the reader pay or act? If the letter gives only a period in words (for example \"within 14 days\"), answer RULE and copy those words exactly.\nANSWER FORMAT: ID ROLE CONFIDENCE, or RULE \"words\" ROLE CONFIDENCE (ROLE is one of LETTER_DATE, DUE_DATE, DEADLINE, APPOINTMENT, EFFECTIVE_FROM, PERIOD, EVENT, OTHER), or NONE",
+   "answer": "D1 OTHER LOW",
+   "ms": 2495,
+   "questionTokens": 241,
+   "answerTokens": 4
+  },
+  {
+   "name": "slot:iban",
+   "question": "ZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nZONE footer. HINT: This is the small print at the foot of the page: often the sender's company and bank details, and the page number.\nStadtwerke Beispielstadt Energieweg 3 12345 Beispielstadt Gläubiger-HD DE00Z7Z00000000000 \/ Seite 1 von 3 \/ Zeitraum \/ Stadtwerke Beispielstadt Energieweg 3-12345 Beispielstadt Gläubiger-D DE00ZZZO0000000000\nCANDIDATES IN THESE ZONES\nI1: DE89 3704 0044 0532 0130 00 (near: \"IBAN\") p.2\nQUESTION: Which IBAN is the account the reader should pay to?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1955,
+   "questionTokens": 230,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:reference",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: 3300 5521 08 (near: \"Vertragskonto\") p.1\/2\nN2: 1EMHO000123456 (near: \"Zählernummer\") p.1\nN5: 2026\/27 (near: \"Prognose\") p.2\nQUESTION: Which reference does the letter itself cite for this matter (a file, case, transaction or payment reference)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1750,
+   "questionTokens": 204,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:customer_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: 3300 5521 08 (near: \"Vertragskonto\") p.1\/2\nN2: 1EMHO000123456 (near: \"Zählernummer\") p.1\nN5: 2026\/27 (near: \"Prognose\") p.2\nQUESTION: Which number identifies the reader as a customer, member or account holder?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "NONE",
+   "ms": 1859,
+   "questionTokens": 197,
+   "answerTokens": 1
+  },
+  {
+   "name": "slot:invoice_no",
+   "question": "ZONE info-block. HINT: This block usually holds reference data: the date of the letter, reference and customer numbers, a contact person.\nBeispielstadt, 25.09.2026\nZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nZONE payment. HINT: These lines usually concern amounts, bank details and payment deadlines.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nN1: 3300 5521 08 (near: \"Vertragskonto\") p.1\/2\nN2: 1EMHO000123456 (near: \"Zählernummer\") p.1\nN5: 2026\/27 (near: \"Prognose\") p.2\nN6: DEO0ZZZ0000000o000 (near: \"12345 Beispielstadt Glaubiger-D\" | \"3-12345 Beispielstadt Gläubiger-D\") p.2\/3\nQUESTION: Which number is the invoice number (the bill this letter is about)?\nANSWER FORMAT: ID CONFIDENCE, or NONE",
+   "answer": "N1 HIGH",
+   "ms": 2449,
+   "questionTokens": 284,
+   "answerTokens": 3
+  },
+  {
+   "name": "extras",
+   "question": "ZONE body. HINT: This is the text of the letter.\n(the text of this zone is in the letter above)\nCANDIDATES IN THESE ZONES\nM1: Stadtwerke Beispielstadt [letterhead] p.1\nD1: 01.12.2026 (near: \"ab\") p.1\/2\nA1: 89,00 € (near: \"Abschlag\") p.1\/2\nA2: 74,00 € (near: \"Bisher\") p.1\nN1: 3300 5521 08 (near: \"Vertragskonto\") p.1\/2\nN2: 1EMHO000123456 (near: \"Zählernummer\") p.1\nN5: 2026\/27 (near: \"Prognose\") p.2\nT2: 0532 0130 00 p.2\nQUESTION: List up to 6 other important facts of this letter that the earlier questions did not cover (a meter number, a tariff, a policy holder, a vehicle plate, a school class, a phone number to call ...). Separate the facts with \"; \". Answer NONE when there are none. Use only ids that were not answered before.\nANSWER FORMAT: ID \"label as printed\" english_key \"value copied from the letter, empty when an id is given\" CONFIDENCE, or NONE \"label\" english_key \"value\" CONFIDENCE when no id fits",
+   "answer": "NONE",
+   "ms": 2923,
+   "questionTokens": 346,
+   "answerTokens": 1
+  },
+  {
+   "name": "text:title",
+   "question": "QUESTION: Write a title of at most 8 words for this bill: who wrote it and what it is for. Write it in the letter's own language.\nANSWER FORMAT: one line of text in double quotes",
+   "answer": "\"Stadtwerke Beispielstadt\"",
+   "ms": 691,
+   "questionTokens": 50,
+   "answerTokens": 6
+  },
+  {
+   "name": "text:subject",
+   "question": "QUESTION: Copy the subject line of the letter exactly as it is printed.\nANSWER FORMAT: the subject line in double quotes",
+   "answer": "\"ESTABLISHED FROM THE HEADER OF THE LETTER\"",
+   "ms": 930,
+   "questionTokens": 31,
+   "answerTokens": 11
+  },
+  {
+   "name": "text:summary",
+   "question": "QUESTION: Write one or two sentences saying what the reader must know or do. Copy sentences from the letter where you can. Write it in the letter's own language.\nANSWER FORMAT: one or two sentences in double quotes",
+   "answer": "\"Sie müssen nichts weiter veranlassen.\"",
+   "ms": 874,
+   "questionTokens": 51,
+   "answerTokens": 9
+  },
+  {
+   "name": "text:questions",
+   "question": "QUESTION: Write three short questions the reader may ask about the content of this letter (for example about an amount, a deadline or what to do next). Write it in the letter's own language.\nANSWER FORMAT: three questions, each in double quotes, separated by spaces",
+   "answer": "\"1. What is the current monthly electricity bill amount?\" \"2. What is the new monthly electricity bill amount?\" \"3. What is the next payment due date?\"",
+   "ms": 2064,
+   "questionTokens": 61,
+   "answerTokens": 35
+  }
+ ],
+ "wallMs": 41852,
+ "model": "text.gguf"
+}

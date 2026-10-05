@@ -3,8 +3,10 @@ package com.postsaimanager.core.domain.usecase
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.testing.FakeDocumentChunkRepository
+import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeEmbeddingService
 import com.postsaimanager.core.testing.testChunk
+import com.postsaimanager.core.testing.testDocument
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -21,7 +23,10 @@ class RetrieveChunksUseCaseTest {
 
     private val repo = FakeDocumentChunkRepository()
     private val embedder = FakeEmbeddingService()
-    private val useCase = RetrieveChunksUseCase(repo, embedder)
+    private val documents = FakeDocumentRepository().apply {
+        (0..19).forEach { seed(testDocument(id = "d$it")) }
+    }
+    private val useCase = RetrieveChunksUseCase(repo, embedder, ObserveChatVisibleDocumentsUseCase(documents))
 
     // Orthogonal-ish vectors so "related" and "unrelated" are unambiguous.
     private val appealTopic = floatArrayOf(1f, 0f, 0f, 0f)
@@ -165,6 +170,36 @@ class RetrieveChunksUseCaseTest {
 
             assertThat(result.chunks.map { it.chunk.documentId }.distinct()).containsExactly("d2")
         }
+
+        @Test
+        fun `the all-documents corpus leaves out health letters and trashed documents`() = runTest {
+            documents.seed(
+                testDocument(id = "health", extractionType = "health"),
+                testDocument(id = "bill", extractionType = "bill"),
+                testDocument(id = "gone", deletedAt = 1L),
+            )
+            repo.seed(
+                testChunk("h", documentId = "health", text = "Widerspruch Diagnose", embedding = appealTopic),
+                testChunk("b", documentId = "bill", text = "Widerspruch Rechnung", embedding = appealTopic),
+                testChunk("t", documentId = "gone", text = "Widerspruch gelöscht", embedding = appealTopic),
+            )
+            embedder.register("Widerspruch", appealTopic)
+
+            val result = useCase("Widerspruch")
+
+            assertThat(result.chunks.map { it.chunk.id }).containsExactly("b")
+        }
+
+        @Test
+        fun `a health letter stays fully searchable in its own document chat`() = runTest {
+            documents.seed(testDocument(id = "health", extractionType = "health"))
+            repo.seed(testChunk("h", documentId = "health", text = "Widerspruch Diagnose", embedding = appealTopic))
+            embedder.register("Widerspruch", appealTopic)
+
+            val result = useCase("Widerspruch", documentId = "health")
+
+            assertThat(result.chunks.map { it.chunk.id }).containsExactly("h")
+        }
     }
 
     @Nested
@@ -241,6 +276,33 @@ class RetrieveChunksUseCaseTest {
             val vectorless = result.chunks.single { it.chunk.id == "c2" }
             assertThat(vectorless.matchedByKeyword).isTrue()
             assertThat(vectorless.matchedSemantically).isFalse()
+        }
+
+        @Test
+        fun `in one document with no search model and no keyword match the passages come in reading order`() = runTest {
+            embedder.isReady = false
+            repo.seed(
+                testChunk("c2", documentId = "d1", ordinal = 1, text = "Zweiter Absatz.", embedding = null, embeddingModelId = null),
+                testChunk("c1", documentId = "d1", ordinal = 0, text = "Erster Absatz.", embedding = null, embeddingModelId = null),
+                testChunk("x", documentId = "d2", ordinal = 0, text = "Anderes Dokument.", embedding = null, embeddingModelId = null),
+            )
+
+            val result = useCase("wann muss ich das machen?", limit = 1, documentId = "d1")
+
+            assertThat(result.semanticSearchUsed).isFalse()
+            assertThat(result.chunks.map { it.chunk.id }).containsExactly("c1", "c2").inOrder()
+        }
+
+        @Test
+        fun `the reading-order fallback is for one document only and never replaces a keyword match`() = runTest {
+            embedder.isReady = false
+            repo.seed(
+                testChunk("c1", documentId = "d1", ordinal = 0, text = "Erster Absatz.", embedding = null, embeddingModelId = null),
+                testChunk("c2", documentId = "d1", ordinal = 1, text = "Aktenzeichen BG 1234/5678", embedding = null, embeddingModelId = null),
+            )
+
+            assertThat(useCase("wann muss ich das machen?").chunks).isEmpty()
+            assertThat(useCase("BG 1234/5678", documentId = "d1").chunks.map { it.chunk.id }).containsExactly("c2")
         }
 
         @Test

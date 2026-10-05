@@ -2,6 +2,7 @@ package com.postsaimanager.core.ai.catalog
 
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.AiEngine
+import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
 import com.postsaimanager.core.domain.repository.InferenceSettingsRepository
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.BackendSpec
@@ -44,6 +45,30 @@ class CatalogActiveModelProvider @Inject constructor(
     override suspend fun extractionModelPath(): String? {
         installedStore.reconcile()
         return installedStore.extractionModel()?.filePath
+    }
+
+    override suspend fun extractionModelId(): String? = installedStore.extractionModel()?.descriptorId
+
+    override suspend fun activeModelId(): String? = installedStore.activeModel()?.descriptorId
+
+    /**
+     * The model the form agent runs on: the first installed of [ModelProfiles.FORM_AGENT_MODELS] (the 2B, which handles tool calls far
+     * better than the 0.8B), else the chat model. Chosen per run; the chat model is loaded again by the next chat message.
+     */
+    private fun formModel(): InstalledModel? =
+        ModelProfiles.FORM_AGENT_MODELS.firstNotNullOfOrNull { id -> installedStore.models().firstOrNull { it.descriptorId == id } }
+            ?: installedStore.activeModel()
+
+    override suspend fun formModelPath(): String? {
+        installedStore.reconcile()
+        return formModel()?.filePath
+    }
+
+    override suspend fun formModelId(): String? = formModel()?.descriptorId
+
+    override suspend fun formModelConfig(): InferenceConfig {
+        val model = formModel()
+        return effectiveConfig(model?.contextTokens ?: DEFAULT_CONTEXT_TOKENS, backendSpec(model), model?.filePath)
     }
 
     /**

@@ -41,11 +41,14 @@ data class RetrievedChunk(
  *
  * With no embedding model the semantic half is skipped and keyword results are returned
  * alone. Search gets worse, not broken — and callers are told which happened so the UI can
- * say so rather than quietly returning less.
+ * say so rather than quietly returning less. Within one document, a question with no keyword
+ * signal falls back to the document's passages in reading order (all of them; the caller's
+ * budget decides how many are used), so the model is never left without the document's text.
  */
 class RetrieveChunksUseCase @Inject constructor(
     private val chunkRepository: DocumentChunkRepository,
     private val embeddingService: EmbeddingService,
+    private val chatVisibleDocuments: ObserveChatVisibleDocumentsUseCase,
 ) {
 
     data class Result(
@@ -58,13 +61,17 @@ class RetrieveChunksUseCase @Inject constructor(
         query: String,
         limit: Int = DEFAULT_LIMIT,
         documentId: String? = null,
+        /** Within one document: when nothing ranks, return its passages in reading order instead of none (for attribution only). */
+        readingOrderIfNoMatch: Boolean = false,
     ): Result {
         if (query.isBlank()) return Result(emptyList(), false)
 
         val corpus = if (documentId != null) {
             chunkRepository.getForDocument(documentId)
         } else {
-            chunkRepository.getAll()
+            // The all-documents corpus: only documents the chat may see (no health letters).
+            val visibleIds = chatVisibleDocuments.current().mapTo(HashSet()) { it.id }
+            chunkRepository.getAll().filter { it.documentId in visibleIds }
         }
         if (corpus.isEmpty()) return Result(emptyList(), false)
 
@@ -77,6 +84,17 @@ class RetrieveChunksUseCase @Inject constructor(
         }
 
         if (queryVector == null) {
+            // Nothing to rank by (no search model, and the question shares no term with the document): in one document, the model
+            // still needs its text. Hand over the document's passages in reading order; the caller keeps as many as its budget
+            // takes, and those are the ones cited.
+            if (documentId != null && keywordRanked.isEmpty()) {
+                return Result(
+                    chunks = corpus.sortedBy { it.ordinal }.map {
+                        RetrievedChunk(it, 0f, matchedSemantically = false, matchedByKeyword = false)
+                    },
+                    semanticSearchUsed = false,
+                )
+            }
             return Result(
                 chunks = keywordRanked.take(limit).map {
                     RetrievedChunk(it, 0f, matchedSemantically = false, matchedByKeyword = true)
@@ -103,6 +121,15 @@ class RetrieveChunksUseCase @Inject constructor(
 
         val semanticIds = semanticRanked.map { it.first.id }.toSet()
         val keywordIds = keywordRanked.map { it.id }.toSet()
+
+        if (fused.isEmpty() && readingOrderIfNoMatch && documentId != null) {
+            return Result(
+                chunks = corpus.sortedBy { it.ordinal }.take(limit).map {
+                    RetrievedChunk(it, 0f, matchedSemantically = false, matchedByKeyword = false)
+                },
+                semanticSearchUsed = true,
+            )
+        }
 
         return Result(
             chunks = fused.take(limit).map { (chunk, score) ->

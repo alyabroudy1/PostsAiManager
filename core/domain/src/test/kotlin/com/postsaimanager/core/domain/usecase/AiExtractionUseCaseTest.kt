@@ -1,10 +1,14 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
-import com.postsaimanager.core.model.EntityKind
+import com.postsaimanager.core.domain.ai.AiRequest
+import com.postsaimanager.core.domain.extraction.v2.Letters
+import com.postsaimanager.core.domain.extraction.v2.Oracle
+import com.postsaimanager.core.domain.extraction.v2.Prepared
+import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EntityRole
-import com.postsaimanager.core.model.FactKind
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.TextBounds
 import com.postsaimanager.core.testing.FakeActiveModelProvider
@@ -15,15 +19,9 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 /**
- * Tests for [AiExtractionUseCase].
- *
- * The model is faked, so these are about everything *around* generation: that the page is
- * described with its layout, that the grammar is actually attached, that a truncated or
- * nonsensical answer degrades instead of crashing, and that a schema-valid but senseless
- * result is cleaned up before it reaches storage.
- *
- * Whether the real model reads a real letter correctly is a device test — no fake can
- * answer it.
+ * Tests for [AiExtractionUseCase], the thin orchestrator: it loads the model, hands the pages to the
+ * v2 pipeline, and returns the adapted result. The model is faked, so these are about everything around
+ * generation; whether a real model reads a real letter is a device test.
  */
 class AiExtractionUseCaseTest {
 
@@ -31,414 +29,220 @@ class AiExtractionUseCaseTest {
     private val models = FakeActiveModelProvider()
     private val extract = AiExtractionUseCase(engine, models)
 
-    private fun block(text: String, left: Float, top: Float) = OcrBlock(
-        text = text,
-        bounds = TextBounds(left, top, left + 0.3f, top + 0.05f),
-        confidence = 0.9f,
-    )
+    private val letter = Letters.n1
+    private val blocks: List<OcrBlock> = letter.pages.flatten()
+    private val counts: List<Int> = letter.pages.map { it.size }
 
-    private val page = listOf(
-        block("Jobcenter Berlin Mitte", 0.08f, 0.04f),
-        block("Frau\nAylin Mustermann", 0.08f, 0.20f),
-        block("Aktenzeichen: BG 1234/5678", 0.60f, 0.20f),
-        // Deliberately does not name "Layla" — goodAnswer below claims her anyway, so that
-        // the mismatch between claim and page stands in for a model hallucinating a
-        // specific name the source text never gave it.
-        block("Ihre Ehefrau ist ebenfalls betroffen.", 0.08f, 0.55f),
-    )
-
-    private val goodAnswer = """
-        {"language":"de","documentType":"Widerspruchsbescheid","subject":"Widerspruch",
-         "entities":[
-           {"name":"Jobcenter Berlin Mitte","kind":"AUTHORITY","role":"SENDER","relation":"","confidence":0.95},
-           {"name":"Aylin Mustermann","kind":"PERSON","role":"RECIPIENT","relation":"","confidence":0.9},
-           {"name":"Layla","kind":"PERSON","role":"MENTIONED","relation":"spouse of the recipient","confidence":0.6}
-         ],
-         "facts":[
-           {"label":"Aktenzeichen","value":"BG 1234/5678","kind":"REFERENCE","confidence":0.92},
-           {"label":"Frist","value":"31.01.2026","kind":"DEADLINE","confidence":0.85}
-         ]}
-    """.trimIndent()
-
-    // Mirrors the real device failure this whole mechanism exists for: a well-formed answer
-    // with two entities and two complete facts, cut off mid-way through a third fact's value.
-    // Before the salvage path existed this discarded everything — both entities and both
-    // finished facts — and fell back to the regex extractor with no explanation on screen.
-    private val truncatedAnswer = """
-        {"language":"de","documentType":"Bescheid","subject":"Widerspruch",
-         "entities":[
-           {"name":"Jobcenter Berlin Mitte","kind":"AUTHORITY","role":"SENDER","relation":"","confidence":0.95},
-           {"name":"Aylin Mustermann","kind":"PERSON","role":"RECIPIENT","relation":"","confidence":0.9}
-         ],
-         "facts":[
-           {"label":"Aktenzeichen","value":"BG 1234/5678","kind":"REFERENCE","confidence":0.92},
-           {"label":"Frist","value":"31.01.2026","kind":"DEADLINE","confidence":0.85},
-           {"label":"Regelleistung","value":"502,00 EUR pro Monat ab dem naechsten M
-    """.trimIndent()
+    /** Answers the structured call and the text call the way a correct model would. */
+    private fun scripted(l: com.postsaimanager.core.domain.extraction.v2.Letter = letter) {
+        val structured = Oracle.structured(l, Prepared(l.pages)).json
+        val text = Oracle.text(l)
+        engine.responder = { request: AiRequest -> if (request.grammar!!.contains("\\\"tc\\\":")) structured else text }
+    }
 
     @Nested
     @DisplayName("What the model is asked")
-    inner class Request {
+    inner class Requests {
 
         @Test
-        @DisplayName("the page is described with positions, not as flat text")
-        fun `sends layout`() = runTest {
-            engine.response = goodAnswer
-            extract(page)
-
-            val userMessage = engine.lastMessages.last().content
-            // Position is the whole reason one prompt can work across sender formats.
-            assertThat(userMessage).contains("address block")
-            assertThat(userMessage).contains("reference block")
-            assertThat(userMessage).contains("BG 1234/5678")
+        fun `two calls, the structured reading first and then the free text`() = runTest {
+            scripted()
+            extract(blocks, pageBlockCounts = counts)
+            assertThat(engine.generateRequests).hasSize(2)
+            assertThat(engine.generateRequests[0].grammar).contains("\\\"tc\\\":")
+            assertThat(engine.generateRequests[1].grammar).contains("\\\"qs\\\":")
+            assertThat(engine.generateRequests[1].grammar).doesNotContain("\\\"tc\\\":")
         }
 
         @Test
-        fun `attaches the grammar`() = runTest {
-            engine.response = goodAnswer
-            extract(page)
-
-            // Without this the model may answer in prose, and the whole class of parsing
-            // bugs this design avoids comes back.
-            val grammar = engine.lastRequest?.grammar
-            assertThat(grammar).isNotNull()
-            assertThat(grammar).contains("SENDER_CONTACT")
-            assertThat(grammar).contains("DEADLINE")
+        fun `the first call carries the letter with positions and the candidate table`() = runTest {
+            scripted()
+            extract(blocks, pageBlockCounts = counts)
+            val prompt = engine.generateRequests[0].prompt
+            assertThat(prompt).contains("=== PAGE 1 ===")
+            assertThat(prompt).contains("[address-field]")
+            assertThat(prompt).contains("[info-block]")
+            assertThat(prompt).contains("CANDIDATES")
+            assertThat(prompt).contains("64,98")
+            assertThat(prompt).contains("(near:")
         }
 
         @Test
-        @DisplayName("temperature is near zero — reading, not writing")
-        fun `is near deterministic`() = runTest {
-            engine.response = goodAnswer
-            extract(page)
+        fun `the second call carries the letter again and the type the first one chose`() = runTest {
+            scripted()
+            extract(blocks, pageBlockCounts = counts)
+            val prompt = engine.generateRequests[1].prompt
+            assertThat(prompt).contains("DOCUMENT TYPE: invoice_bill")
+            assertThat(prompt).contains("=== PAGE 1 ===")
+            assertThat(prompt).doesNotContain("CANDIDATES")
+        }
 
-            // Two runs over one document must not disagree, or the merge would flag
-            // sampling noise as the document having changed.
-            assertThat(engine.lastRequest!!.temperature).isLessThan(0.3f)
+        @Test
+        @DisplayName("greedy and without thinking: reading, not writing")
+        fun `sampling is the extraction path's own`() = runTest {
+            scripted()
+            extract(blocks, pageBlockCounts = counts)
+            for (request in engine.generateRequests) {
+                assertThat(request.temperature).isEqualTo(0f)
+                assertThat(request.thinkingEnabled).isFalse()
+                assertThat(request.grammar).isNotNull()
+            }
+            assertThat(engine.generateRequests[0].maxTokens).isEqualTo(640)
+            assertThat(engine.generateRequests[1].maxTokens).isEqualTo(384)
+        }
+
+        @Test
+        fun `the grammar only lists ids that are in the candidate table`() = runTest {
+            scripted()
+            extract(blocks, pageBlockCounts = counts)
+            val request = engine.generateRequests[0]
+            val ids = Regex("^([A-Z]{1,2}\\d+): ", RegexOption.MULTILINE).findAll(request.prompt).map { it.groupValues[1] }.toSet()
+            val inGrammar = Regex("\\\\\"([A-Z]{1,2}\\d+)\\\\\"").findAll(request.grammar!!).map { it.groupValues[1] }.toSet()
+            assertThat(ids).isNotEmpty()
+            assertThat(ids).containsAtLeastElementsIn(inGrammar)
         }
 
         @Test
         @DisplayName("the window budgeted against is the window loaded with")
         fun `budget follows the provider`() = runTest {
-            engine.response = goodAnswer
+            scripted()
             engine.isReady = false
-            // The device cap, not the model's catalogued maximum. Loading 32k of KV cache on
-            // a phone with 2.5 GB free aborted inside llama_decode — a native crash, so
-            // nothing catchable.
             models.contextTokens = 2048
+            val huge = (1..3).map { p -> (1..80).map { OcrBlock("Ein sehr langer Absatz mit viel Inhalt $p.$it", TextBounds(0.1f, 0.05f + 0.01f * it, 0.9f, 0.06f + 0.01f * it), 0.9f) } }
 
-            extract(page)
+            extract(huge.flatten(), pageBlockCounts = huge.map { it.size })
 
-            assertThat(engine.lastMessages.last().content.length).isAtMost(2048 * 3)
+            // Overflowing the window does not error, it silently drops the start of the prompt,
+            // including the instructions, so the budget has to be respected.
+            for (request in engine.generateRequests) assertThat(request.prompt.length).isLessThan((2048 * 2.5).toInt())
         }
 
         @Test
-        fun `a long page is truncated to fit the context`() = runTest {
-            engine.response = goodAnswer
-            val huge = List(400) { block("Ein sehr langer Absatz mit viel Inhalt $it", 0.08f, 0.5f) }
-
-            extract(huge, contextTokens = 2048)
-
-            // Overflowing the window does not error, it silently drops the *start* of the
-            // prompt — including the instructions — so the budget has to be respected here.
-            assertThat(engine.lastMessages.last().content.length).isLessThan(2048 * 3)
-        }
-    }
-
-    // ── 5.4: recording that the document itself was cut to fit the budget ──
-
-    @Nested
-    @DisplayName("Input truncation")
-    inner class InputTruncationTests {
-
-        @Test
-        @DisplayName("a page that fits whole records no truncation")
-        fun `no truncation when the page fits`() = runTest {
-            engine.response = goodAnswer
-
-            val result = (extract(page) as PamResult.Success).data
-
-            assertThat(result.inputTruncation).isNull()
-        }
-
-        @Test
-        @DisplayName("a page cut to fit the budget records exact character coverage")
-        fun `records character coverage when cut`() = runTest {
-            engine.response = goodAnswer
-            val huge = List(400) { block("Ein sehr langer Absatz mit viel Inhalt $it", 0.08f, 0.5f) }
-
-            val result = (extract(huge, contextTokens = 2048) as PamResult.Success).data
-
-            val truncation = result.inputTruncation
-            assertThat(truncation).isNotNull()
-            assertThat(truncation!!.charactersRead).isLessThan(truncation.totalCharacters)
-            // What was actually sent to the model is exactly `charactersRead` long.
-            assertThat(engine.lastMessages.last().content.length).isEqualTo(truncation.charactersRead)
-        }
-
-        @Test
-        @DisplayName("page boundaries turn a character cut into a page estimate")
-        fun `estimates pages read from page boundaries`() = runTest {
-            engine.response = goodAnswer
-            // Big enough on its own to run past the (small, floored) budget, so page 2 never
-            // even starts — pinning the "only the pages that started within budget count"
-            // rule against the more common "page 1 alone already overflows" shape.
-            val page1 = List(30) { block("Ein sehr langer Absatz mit viel Inhalt $it", 0.08f, 0.5f) }
-            val page2 = List(400) { block("Noch mehr Inhalt auf der zweiten Seite $it", 0.08f, 0.5f) }
-
-            val result = (
-                extract(
-                    page1 + page2,
-                    contextTokens = 2048,
-                    pageBlockCounts = listOf(page1.size, page2.size),
-                ) as PamResult.Success
-                ).data
-
-            val truncation = result.inputTruncation
-            assertThat(truncation).isNotNull()
-            assertThat(truncation!!.totalPages).isEqualTo(2)
-            // Only the first (short) page fit before the budget ran out.
-            assertThat(truncation.pagesRead).isEqualTo(1)
-        }
-
-        @Test
-        @DisplayName("no page boundaries supplied still records character coverage, without a page estimate")
-        fun `no page boundaries means no page estimate`() = runTest {
-            engine.response = goodAnswer
-            val huge = List(400) { block("Ein sehr langer Absatz mit viel Inhalt $it", 0.08f, 0.5f) }
-
-            val result = (extract(huge, contextTokens = 2048) as PamResult.Success).data
-
-            val truncation = result.inputTruncation
-            assertThat(truncation).isNotNull()
-            assertThat(truncation!!.pagesRead).isNull()
-            assertThat(truncation.totalPages).isNull()
+        fun `a model that is installed but not loaded is loaded on demand, once`() = runTest {
+            scripted()
+            engine.isReady = false
+            extract(blocks, pageBlockCounts = counts)
+            assertThat(engine.isReady).isTrue()
+            assertThat(engine.loadCalls).hasSize(1)
+            assertThat(engine.loadCalls.single().second.contextTokens).isEqualTo(models.contextTokens)
         }
     }
 
     @Nested
-    @DisplayName("Reading the answer")
-    inner class Parsing {
+    @DisplayName("What comes back")
+    inner class Results {
 
         @Test
-        fun `entities carry kind, role and relation`() = runTest {
-            engine.response = goodAnswer
-
-            val result = (extract(page) as PamResult.Success).data
-
-            assertThat(result.language).isEqualTo("de")
-            assertThat(result.entities).hasSize(3)
-
-            val sender = result.sender!!
-            assertThat(sender.name).isEqualTo("Jobcenter Berlin Mitte")
-            assertThat(sender.kind).isEqualTo(EntityKind.AUTHORITY)
-
-            val layla = result.entities.single { it.name == "Layla" }
-            assertThat(layla.role).isEqualTo(EntityRole.MENTIONED)
-            assertThat(layla.relation).contains("spouse")
+        fun `the type, the roles, the fields and the texts of the letter`() = runTest {
+            scripted()
+            val u = (extract(blocks, pageBlockCounts = counts) as PamResult.Success).data
+            assertThat(u.modelUsed).isTrue()
+            assertThat(u.documentType).isEqualTo("invoice_bill")
+            assertThat(u.language).isEqualTo("de")
+            assertThat(u.entities.single { it.role == EntityRole.SENDER }.name).isEqualTo("Nordlicht Mobilfunk GmbH")
+            assertThat(u.entities.single { it.role == EntityRole.RECIPIENT }.name).isEqualTo("Erika Mustermann")
+            assertThat(u.facts.single { it.label == "Amount" }.value).isEqualTo("64,98 €")
+            assertThat(u.title).isNotEmpty()
+            assertThat(u.suggestedQuestions).hasSize(3)
         }
 
         @Test
-        fun `facts distinguish a deadline from the letter date`() = runTest {
-            engine.response = goodAnswer
-
-            val result = (extract(page) as PamResult.Success).data
-
-            // Only a DEADLINE should ever become a reminder; the letter's own date must not.
-            assertThat(result.deadline?.value).isEqualTo("31.01.2026")
-            assertThat(result.facts.single { it.kind == FactKind.REFERENCE }.value)
-                .isEqualTo("BG 1234/5678")
+        fun `a letter read whole records no truncation`() = runTest {
+            scripted()
+            val u = (extract(blocks, pageBlockCounts = counts) as PamResult.Success).data
+            assertThat(u.inputTruncation).isNull()
         }
 
         @Test
-        @DisplayName("confidence decides linking, and is exposed for it")
-        fun `splits confident from needing review`() = runTest {
-            engine.response = goodAnswer
+        fun `a letter cut to fit records exact coverage and, given page boundaries, a page estimate`() = runTest {
+            scripted()
+            val huge = (1..3).map { p -> (1..120).map { OcrBlock("Ein sehr langer Absatz mit viel Inhalt $p.$it", TextBounds(0.1f, 0.05f + 0.005f * it, 0.9f, 0.055f + 0.005f * it), 0.9f) } }
+            val withPages = (extract(huge.flatten(), contextTokens = 2048, pageBlockCounts = huge.map { it.size }) as PamResult.Success).data
+            val t = withPages.inputTruncation!!
+            assertThat(t.charactersRead).isLessThan(t.totalCharacters)
+            assertThat(t.totalPages).isEqualTo(3)
+            assertThat(t.pagesRead).isAtMost(3)
 
-            val result = (extract(page) as PamResult.Success).data
-
-            // Jobcenter and Aylin are both copied straight from a block on the page, so
-            // ExtractionConfidence grounds them at the top band. Layla's name is nowhere in
-            // `page` (see its definition above) — the model's self-reported 0.6 is discarded
-            // entirely, and it is the *lack of grounding* that puts her in review, not a
-            // number the model happened to attach to her.
-            assertThat(result.confident().map { it.name })
-                .containsExactly("Jobcenter Berlin Mitte", "Aylin Mustermann")
-            assertThat(result.needingReview().map { it.name }).containsExactly("Layla")
-        }
-
-        @Test
-        @DisplayName("a complete answer is not marked as truncated")
-        fun `complete answer is not flagged`() = runTest {
-            engine.response = goodAnswer
-
-            val result = (extract(page) as PamResult.Success).data
-
-            // The flag exists so a caller can tell a partial reading from a full one. A
-            // false positive here would make every ordinary result look suspect.
-            assertThat(result.truncated).isFalse()
+            val withoutPages = (extract(huge.flatten(), contextTokens = 2048) as PamResult.Success).data
+            val u = withoutPages.inputTruncation!!
+            assertThat(u.charactersRead).isLessThan(u.totalCharacters)
+            assertThat(u.pagesRead).isNull()
+            assertThat(u.totalPages).isNull()
         }
     }
 
     @Nested
-    @DisplayName("When the answer is unusable")
+    @DisplayName("Without a usable model")
     inner class Degradation {
 
-        @Test
-        fun `truncated json is an error, not a crash`() = runTest {
-            // The grammar prevents malformed output but not output cut off at the token
-            // limit, which is valid-so-far and not valid JSON. This cut lands before even
-            // one entity finished, so there is nothing for the salvage path to recover
-            // either — it must fall through to the same error as before, not crash trying.
-            engine.response = """{"language":"de","entities":[{"name":"Jobcen"""
-
-            assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
+        private fun assertFoundOnly(u: DocumentUnderstanding) {
+            assertThat(u.modelUsed).isFalse()
+            assertThat(u.entities).isEmpty()
+            assertThat(u.documentType).isEmpty()
+            assertThat(u.facts).isNotEmpty()
+            assertThat(u.facts.all { it.label.startsWith("found:") }).isTrue()
         }
 
         @Test
-        fun `an empty answer is an error`() = runTest {
-            engine.response = "   "
-            assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
-        }
-
-        @Test
-        fun `a dead engine reports rather than throwing`() = runTest {
-            engine.failWith = IllegalStateException("native crash")
-            assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
-        }
-
-        @Test
-        fun `no model installed is reported, not attempted`() = runTest {
-            engine.isReady = false
+        fun `no model installed gives the found values, marked and roleless`() = runTest {
             models.path = null
-            assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
+            val result = extract(blocks, pageBlockCounts = counts)
+            assertFoundOnly((result as PamResult.Success).data)
+            assertThat(engine.generateRequests).isEmpty()
         }
 
         @Test
-        @DisplayName("a model that is installed but not loaded is loaded on demand")
-        fun `loads when needed`() = runTest {
-            engine.isReady = false
-            engine.response = goodAnswer
+        fun `a model that will not load gives the found values`() = runTest {
+            engine.loadFailsWith = PamResult.Error(PamError.ModelNotLoaded("test"))
+            assertFoundOnly((extract(blocks, pageBlockCounts = counts) as PamResult.Success).data)
+            assertThat(engine.generateRequests).isEmpty()
+        }
 
-            // Processing runs in the background after a scan, when nothing has yet had
-            // reason to load a model. Failing because the user has not opened chat would
-            // be arbitrary.
-            val result = extract(page)
+        @Test
+        fun `a dead engine reports rather than throwing and gives the found values`() = runTest {
+            engine.failWith = IllegalStateException("native crash")
+            assertFoundOnly((extract(blocks, pageBlockCounts = counts) as PamResult.Success).data)
+        }
 
-            assertThat(result).isInstanceOf(PamResult.Success::class.java)
-            assertThat(engine.isReady).isTrue()
+        @Test
+        fun `an unreadable answer gives the found values`() = runTest {
+            engine.response = "I am sorry, I cannot help with that."
+            assertFoundOnly((extract(blocks, pageBlockCounts = counts) as PamResult.Success).data)
+        }
+
+        @Test
+        fun `a structured answer cut off before its type gives the found values`() = runTest {
+            engine.response = """{"tc":"HIGH","lang":"de","parties":[{"r":"SENDER","id":"O1","k":"COMP"""
+            assertFoundOnly((extract(blocks, pageBlockCounts = counts) as PamResult.Success).data)
+        }
+
+        @Test
+        fun `a structured answer cut off after its type is salvaged, not discarded`() = runTest {
+            engine.response = """{"type":"bill","tc":"HIGH","lang":"de","parties":[{"r":"SENDER","id":"O1","k":"COMP"""
+            val u = (extract(blocks, pageBlockCounts = counts) as PamResult.Success).data
+            assertThat(u.modelUsed).isTrue()
         }
 
         @Test
         fun `an empty page needs no model at all`() = runTest {
             engine.isReady = false
+            models.path = null
             val result = extract(emptyList())
-
-            // Nothing to read is not a failure, and must not require an engine.
             assertThat((result as PamResult.Success).data.entities).isEmpty()
-        }
-    }
-
-    @Nested
-    @DisplayName("Cleaning up what the grammar cannot prevent")
-    inner class Sanitising {
-
-        @Test
-        @DisplayName("a nameless entity is dropped, however confident")
-        fun `drops blank names`() = runTest {
-            engine.response = """
-                {"language":"de","documentType":"","subject":"","entities":[
-                  {"name":"  ","kind":"PERSON","role":"SENDER","relation":"","confidence":0.99}
-                ],"facts":[]}
-            """.trimIndent()
-
-            // A grammar constrains shape, not sense. Storing this would create a nameless
-            // profile.
-            assertThat((extract(page) as PamResult.Success).data.entities).isEmpty()
+            assertThat(engine.generateRequests).isEmpty()
         }
 
         @Test
-        fun `the same entity named twice in one role is one entity`() = runTest {
-            engine.response = """
-                {"language":"de","documentType":"","subject":"","entities":[
-                  {"name":"Jobcenter Berlin","kind":"AUTHORITY","role":"SENDER","relation":"","confidence":0.9},
-                  {"name":"jobcenter berlin","kind":"AUTHORITY","role":"SENDER","relation":"","confidence":0.8}
-                ],"facts":[]}
-            """.trimIndent()
-
-            // Otherwise a letter that names its sender in the header and the footer creates
-            // the profile twice.
-            assertThat((extract(page) as PamResult.Success).data.entities).hasSize(1)
-        }
-
-        @Test
-        fun `out of range confidence is clamped`() = runTest {
-            engine.response = """
-                {"language":"de","documentType":"","subject":"","entities":[
-                  {"name":"Jobcenter","kind":"AUTHORITY","role":"SENDER","relation":"","confidence":9.0}
-                ],"facts":[]}
-            """.trimIndent()
-
-            assertThat((extract(page) as PamResult.Success).data.entities.single().confidence)
-                .isAtMost(1f)
-        }
-    }
-
-    @Nested
-    @DisplayName("Recovering a truncated answer")
-    inner class Salvaging {
-
-        @Test
-        @DisplayName("keeps the entities and facts the model had already finished")
-        fun `salvages the complete prefix of a cut-off answer`() = runTest {
-            // The bug on a real device: a legal answer cut off mid-way through the seventh
-            // fact discarded six complete facts and every entity along with it, and the
-            // user saw the regex fallback's worse fields with nothing explaining why.
-            engine.response = truncatedAnswer
-
-            val result = (extract(page) as PamResult.Success).data
-
-            assertThat(result.truncated).isTrue()
-            assertThat(result.entities.map { it.name })
-                .containsExactly("Jobcenter Berlin Mitte", "Aylin Mustermann")
-            // The third fact was cut mid-value and is gone, not garbled into the other two.
-            assertThat(result.facts.map { it.label }).containsExactly("Aktenzeichen", "Frist")
-        }
-
-        @Test
-        @DisplayName("with nothing complete, still reports the original parse error")
-        fun `does not salvage when the cut lands before anything finished`() = runTest {
-            // The failure a naive "always return what we can" fix would cause: turning a
-            // model that produced nothing usable at all into a silent, empty success would
-            // hide that from the user entirely instead of falling back to patterns.
-            engine.response = """{"language":"de","documentType":"Bescheid ueber Leistungsanspr"""
-
-            assertThat(extract(page)).isInstanceOf(PamResult.Error::class.java)
-        }
-    }
-
-    @Nested
-    @DisplayName("Token budget")
-    inner class TokenBudget {
-
-        @Test
-        @DisplayName("MAX_TOKENS covers the grammar's own worst-case answer, with headroom")
-        fun `token budget and grammar bounds agree`() {
-            // The defect this guards against: MAX_ENTITIES and MAX_FACTS bound the grammar,
-            // but nothing forced MAX_TOKENS to be big enough for a legal answer at those
-            // bounds. A real device produced exactly that — a well-formed, schema-valid
-            // answer generation still cut off — because 8 entities and 10 facts add up to
-            // more JSON than 768 tokens can hold. If a future change raises either bound
-            // without raising MAX_TOKENS to match, this fails instead of shipping the same
-            // bug again.
-            val worstCaseTokens = (AiExtractionUseCase.MAX_ANSWER_CHARS +
-                AiExtractionUseCase.CHARS_PER_TOKEN - 1) / AiExtractionUseCase.CHARS_PER_TOKEN
-
-            assertThat(AiExtractionUseCase.MAX_TOKENS).isAtLeast(worstCaseTokens)
-            // Not just "fits" but "fits comfortably" — a budget sized to the exact worst
-            // case leaves no room for the model's own formatting choices (extra whitespace,
-            // a slightly longer name than assumed) before the same failure returns.
-            assertThat(AiExtractionUseCase.MAX_TOKENS).isAtLeast((worstCaseTokens * 1.1).toInt())
+        fun `a free text call that fails leaves the reading intact`() = runTest {
+            val structured = Oracle.structured(letter, Prepared(letter.pages)).json
+            engine.responder = { request -> if (request.grammar!!.contains("\\\"tc\\\":")) structured else "not json" }
+            val u = (extract(blocks, pageBlockCounts = counts) as PamResult.Success).data
+            assertThat(u.modelUsed).isTrue()
+            assertThat(u.documentType).isEqualTo("invoice_bill")
+            // No free text, so no subject: the title is still composed, from the family and the sender.
+            assertThat(u.titleCode).isEqualTo("composed")
+            assertThat(u.titleArgs).containsExactly("invoice_bill", "Nordlicht Mobilfunk GmbH", "").inOrder()
+            assertThat(u.facts.any { it.label == "Amount" }).isTrue()
         }
     }
 }

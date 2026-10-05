@@ -1,9 +1,7 @@
 package com.postsaimanager.core.download
 
 import android.content.Context
-import android.content.pm.ServiceInfo
-import android.os.Build
-import androidx.core.app.NotificationCompat
+import android.os.SystemClock
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -13,6 +11,7 @@ import androidx.work.workDataOf
 import com.postsaimanager.core.common.result.PamResult
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import java.io.File
 
 /**
@@ -35,6 +34,7 @@ class ModelDownloadWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val downloader: ModelDownloader,
+    private val center: DownloadNotificationCenter,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -49,71 +49,66 @@ class ModelDownloadWorker @AssistedInject constructor(
         )
         val modelName = inputData.getString(KEY_MODEL_NAME) ?: "model"
         val expectedSize = inputData.getLong(KEY_SIZE_BYTES, -1L).takeIf { it > 0 }
+        val itemId = inputData.getString(KEY_MODEL_ID) ?: destinationPath
 
-        setForeground(foregroundInfo(modelName, progress = null))
+        center.progress(itemId, modelName, 0L, expectedSize ?: 0L)
+        setForeground(center.foregroundInfo())
 
-        val result = downloader.download(
-            url = url,
-            destination = File(destinationPath),
-            expectedSha256 = sha256,
-            expectedSize = expectedSize,
-        ) { progress ->
-            setProgressAsync(
-                workDataOf(
-                    KEY_PROGRESS_BYTES to progress.bytesDownloaded,
-                    KEY_PROGRESS_TOTAL to (progress.totalBytes ?: -1L),
-                ),
-            )
+        // A write per 64 KB chunk (thousands a second) floods WorkManager's progress queue and the observers behind it: the bar
+        // moved once and then lagged behind for good. A few updates a second is smooth and cheap.
+        val throttle = ProgressThrottle(PROGRESS_INTERVAL_MS)
+        val result = try {
+            downloader.download(
+                url = url,
+                destination = File(destinationPath),
+                expectedSha256 = sha256,
+                expectedSize = expectedSize,
+            ) { progress ->
+                center.progress(itemId, modelName, progress.bytesDownloaded, progress.totalBytes ?: 0L)
+                if (throttle.allow(SystemClock.elapsedRealtime())) {
+                    setProgressAsync(
+                        workDataOf(
+                            KEY_PROGRESS_BYTES to progress.bytesDownloaded,
+                            KEY_PROGRESS_TOTAL to (progress.totalBytes ?: -1L),
+                        ),
+                    )
+                }
+            }
+        } catch (e: CancellationException) {
+            center.waiting(itemId)
+            throw e
         }
 
         return when (result) {
-            is PamResult.Success -> Result.success(
-                workDataOf(KEY_DESTINATION to result.data.absolutePath),
-            )
+            is PamResult.Success -> {
+                center.done(itemId)
+                Result.success(workDataOf(KEY_DESTINATION to result.data.absolutePath))
+            }
             // Retryable: the partial file is preserved, so a retry resumes rather than
             // restarting. WorkManager applies its own backoff.
-            is PamResult.Error -> Result.retry()
-        }
-    }
-
-    override suspend fun getForegroundInfo(): ForegroundInfo =
-        foregroundInfo(inputData.getString(KEY_MODEL_NAME) ?: "model", progress = null)
-
-    private fun foregroundInfo(modelName: String, progress: Int?): ForegroundInfo {
-        DownloadNotifications.ensureChannel(applicationContext)
-
-        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setContentTitle("Downloading $modelName")
-            .setContentText("The model is downloading in the background.")
-            .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .apply {
-                if (progress != null) setProgress(100, progress, false)
-                else setProgress(0, 0, true)
+            is PamResult.Error -> if (runAttemptCount + 1 >= MAX_ATTEMPTS) {
+                // Not forever: the user sees "failed" with a way to retry, instead of a download that never ends.
+                center.failed(itemId)
+                Result.failure(errorData(result.error.userMessage))
+            } else {
+                center.waiting(itemId)
+                Result.retry()
             }
-            .build()
-
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Required from API 29 and enforced from 34: a foreground service must declare
-            // its type, and it must match the manifest permission.
-            ForegroundInfo(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
-            )
-        } else {
-            ForegroundInfo(NOTIFICATION_ID, notification)
         }
     }
+
+    override suspend fun getForegroundInfo(): ForegroundInfo = center.foregroundInfo()
 
     private fun errorData(message: String): Data = workDataOf(KEY_ERROR to message)
 
     companion object {
         /** Delegates so the id can never be used without its channel existing. */
         const val CHANNEL_ID = DownloadNotifications.CHANNEL_ID
-        const val NOTIFICATION_ID = 4711
+        const val NOTIFICATION_ID = DownloadNotificationCenter.NOTIFICATION_ID
+        private const val PROGRESS_INTERVAL_MS = 250L
+        private const val MAX_ATTEMPTS = 5
 
+        const val KEY_MODEL_ID = "modelId"
         const val KEY_URL = "url"
         const val KEY_SHA256 = "sha256"
         const val KEY_DESTINATION = "destination"

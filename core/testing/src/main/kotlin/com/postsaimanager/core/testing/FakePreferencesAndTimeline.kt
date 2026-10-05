@@ -51,8 +51,20 @@ class FakeUserPreferencesRepository(
     override suspend fun setBiometricEnabled(enabled: Boolean) =
         update { it.copy(biometricEnabled = enabled) }
 
+    override suspend fun setAppLockTimeoutMinutes(minutes: Int) =
+        update { it.copy(appLockTimeoutMinutes = minutes) }
+
     override suspend fun setNotificationPermissionRequested(requested: Boolean) =
         update { it.copy(notificationPermissionRequested = requested) }
+
+    override suspend fun setUpdateOlderLettersAutomatically(enabled: Boolean) =
+        update { it.copy(updateOlderLettersAutomatically = enabled) }
+
+    override suspend fun setSearchModelHintDismissed(dismissed: Boolean) =
+        update { it.copy(searchModelHintDismissed = dismissed) }
+
+    override suspend fun setModelSetupSkipped(skipped: Boolean) =
+        update { it.copy(modelSetupSkipped = skipped) }
 }
 
 /** In-memory [InferenceSettingsRepository], the same shape as the DataStore-backed one. */

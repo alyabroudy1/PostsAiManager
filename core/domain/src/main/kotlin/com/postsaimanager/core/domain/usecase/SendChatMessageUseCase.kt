@@ -1,6 +1,8 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.setup.DownloadActivity
+import com.postsaimanager.core.domain.setup.NoDownloadActivity
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.AiEngine
@@ -89,6 +91,9 @@ enum class ChatErrorAction {
 
     /** Transient; offer retry. */
     RETRY,
+
+    /** The model is on its way (downloading in the background): nothing to fix, just wait. */
+    MODEL_DOWNLOADING,
 }
 
 /**
@@ -169,6 +174,8 @@ class SendChatMessageUseCase @Inject constructor(
     private val activeModelProvider: ActiveModelProvider,
     private val buildChatContext: BuildChatContextUseCase,
     private val retrieveChunks: RetrieveChunksUseCase,
+    /** Tells "no model yet" from "no model yet, but it is downloading". */
+    private val downloads: DownloadActivity = NoDownloadActivity,
 ) {
 
     operator fun invoke(
@@ -238,11 +245,19 @@ class SendChatMessageUseCase @Inject constructor(
         // stale one — see the coordinator's docs on `lastRequested`.
         val activeModelPath = activeModelProvider.activeModelPath()
         if (activeModelPath == null) {
+            val downloading = downloads.summary.first()?.takeUnless { it.failed } != null
             emit(
-                ChatTurn.Failed(
-                    "No AI model is installed yet. Install one to chat about your documents.",
-                    ChatErrorAction.INSTALL_MODEL,
-                ),
+                if (downloading) {
+                    ChatTurn.Failed(
+                        "The AI model is still downloading. Chat will work as soon as it is ready.",
+                        ChatErrorAction.MODEL_DOWNLOADING,
+                    )
+                } else {
+                    ChatTurn.Failed(
+                        "No AI model is installed yet. Install one to chat about your documents.",
+                        ChatErrorAction.INSTALL_MODEL,
+                    )
+                },
             )
             return@flow
         }
@@ -274,10 +289,21 @@ class SendChatMessageUseCase @Inject constructor(
         )
 
         val (loaded, retrieved) = coroutineScope {
-            val retrievalDeferred = if (chatContext.retrievalMode) {
-                async { retrieveChunks(retrievalQuery, limit = RETRIEVAL_LIMIT, documentId = documentId) }
-            } else {
-                null
+            val retrievalDeferred = when {
+                chatContext.retrievalMode ->
+                    async { retrieveChunks(retrievalQuery, limit = RETRIEVAL_LIMIT, documentId = documentId) }
+                // The whole document is already in the grounding, but the answer should still cite where it lives: rank the
+                // document's passages for the question, only to attach them as sources (they are never put in the prompt).
+                documentId != null ->
+                    async {
+                        retrieveChunks(
+                            retrievalQuery,
+                            limit = WHOLE_DOCUMENT_SOURCE_LIMIT,
+                            documentId = documentId,
+                            readingOrderIfNoMatch = true,
+                        )
+                    }
+                else -> null
             }
             val loadResult = try {
                 engine.load(activeModelPath, config)
@@ -336,7 +362,12 @@ class SendChatMessageUseCase @Inject constructor(
         // engine actually sees; `text` (persisted a few lines up, and again in `buildHistory`
         // on a future re-prime) never changes. `sources` is every passage that made it in —
         // persisted verbatim on the assistant reply (4.3), see [persistAssistant].
-        val (sentText, sources) = withPassages(text, retrieved, documentId, contextTokens)
+        val (sentText, sources) = if (chatContext.retrievalMode) {
+            withPassages(text, retrieved, documentId, contextTokens)
+        } else {
+            // Whole document in the grounding: the prompt is the bare question; the top passages are cited, not injected.
+            text to retrieved?.chunks.orEmpty().take(WHOLE_DOCUMENT_SOURCE_LIMIT)
+        }
 
         // With thinking on, the engine starts the reply inside an already-open `<think>` block
         // (see llama_jni.cpp's sendChatMessage), so the stream never carries the opening tag.
@@ -838,6 +869,9 @@ class SendChatMessageUseCase @Inject constructor(
          * contention.
          */
         const val RETRIEVAL_LIMIT = 4
+
+        /** How many passages a whole-document chat cites as sources (the document is fully in the prompt, so this is only attribution). */
+        const val WHOLE_DOCUMENT_SOURCE_LIMIT = 2
 
         /**
          * Retrieved passages get at most this fraction of the context window, in

@@ -80,11 +80,10 @@ data class InferenceConfig(
             return InferenceConfig(
                 contextTokens = affordableContext(deviceCapability, catalogedContextTokens),
                 threads = threads,
-                // Prompt processing (threadsBatch) parallelises across the whole batch, so —
-                // unlike token generation, which is a mostly-serial chain of single-token
-                // decodes — it benefits from every performance core it can get on a
-                // big.LITTLE SoC, not just half of them. See performanceCoreThreadCount's doc.
-                threadsBatch = performanceCoreThreadCount(coreMaxFreqsKHz) ?: threads,
+                // Prompt processing (threadsBatch) parallelises across the batch, but more threads than
+                // [threadsFor] gives were measured SLOWER on the reference device (see [threadsFor]): the
+                // detected performance cores only ever lower it.
+                threadsBatch = performanceCoreThreadCount(coreMaxFreqsKHz)?.let { minOf(it, threads) } ?: threads,
             )
         }
 
@@ -171,8 +170,20 @@ data class InferenceConfig(
          * Using every core measurably starves the UI thread — generation is CPU-bound and
          * will happily consume everything it is given.
          */
-        fun defaultThreadCount(): Int =
-            (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(2)
+        fun defaultThreadCount(): Int = threadsFor(Runtime.getRuntime().availableProcessors())
+
+        /**
+         * The thread count for a device with [cores] logical cores, as data: [THREADS_MEASURED] holds what was measured, and any other
+         * core count gets half the cores (at least two), the rule that matches it.
+         *
+         * Measured on the reference device (Galaxy S23, 8 cores, Qwen3.5-0.8B Q4_K_M, CPU), prompt processing in tokens per second:
+         * 3 threads 68, 4 threads 106, 5 threads 66, 6 threads 59, 8 threads 21 (the extra threads land on the slow efficiency cores
+         * and the whole batch waits for them). Generation showed the same order. So 4, which is also half the cores.
+         */
+        fun threadsFor(cores: Int): Int = THREADS_MEASURED[cores] ?: (cores / 2).coerceAtLeast(2)
+
+        /** Logical core count to the thread count that measured best on such a device. */
+        private val THREADS_MEASURED = mapOf(8 to 4)
 
         private const val MB = 1024L * 1024L
 
