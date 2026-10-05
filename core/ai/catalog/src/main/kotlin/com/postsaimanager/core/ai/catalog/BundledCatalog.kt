@@ -67,8 +67,8 @@ object BundledCatalog {
                 "$QWEN35_08B_REV/Qwen3.5-0.8B-Q4_K_M.gguf",
             sha256 = "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
             supportsTools = true,
-            description = "Smallest usable assistant. Fits a low-memory phone; expect it to " +
-                "miss details a larger model catches when reading a letter.",
+            description = "Recommended default. Small and fast, fits any supported phone and " +
+                "reads letters well for its size; a larger model catches more details.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
         ),
         AiModelDescriptor(
@@ -85,8 +85,9 @@ object BundledCatalog {
                 "$QWEN35_2B_REV/Qwen3.5-2B-Q4_K_M.gguf",
             sha256 = "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
             supportsTools = true,
-            description = "The default. Reads a letter and fills structured fields reliably " +
-                "while still fitting a mid-range phone.",
+            // Not "used for form filling": that feature is hidden in release builds, so the line would be untrue there.
+            description = "Better answers than the recommended 0.8B, but slower and needs more " +
+                "memory.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
         ),
         AiModelDescriptor(
