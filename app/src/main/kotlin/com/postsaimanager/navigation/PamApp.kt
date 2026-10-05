@@ -203,6 +203,7 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
                         }
                     },
                     initialPage = page.takeIf { it != NO_INITIAL_PAGE },
+                    onInstallModel = { navController.navigate(StartRoutes.SETUP) },
                 )
             }
 
