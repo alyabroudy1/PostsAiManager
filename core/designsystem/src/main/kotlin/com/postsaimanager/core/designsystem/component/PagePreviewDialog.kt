@@ -21,8 +21,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.tappableElement
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -110,7 +114,10 @@ fun PagePreviewDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-            Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))) {
+            // Top and sides here; the bottom is cleared where the pages are drawn (see [dialogBottomInsetPx]), because a Dialog window is
+            // not always handed the navigation bar's insets.
+            val topAndSides = WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal).union(WindowInsets.displayCutout)
+            Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(topAndSides)) {
                 if (preview == null || preview.pages.isEmpty()) {
                     PreviewHeader(title = title ?: stringResource(R.string.page_preview_default_title), onClose = onClose)
                     Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -168,16 +175,11 @@ private fun ColumnScope.PreviewPager(
             }
         }
     }
-    // The dialog window is edge to edge and, on some devices (a 3-button bar), is not handed the navigation bar's insets: the bottom of a
-    // tall page then sat under the bar. The bar's real height comes from the activity's window; whatever the dialog's own insets
-    // already cleared is not added twice.
     val density = LocalDensity.current
-    val clearedPx = WindowInsets.navigationBars.getBottom(density)
-    val barPx = activityNavigationBarPx(LocalContext.current)
-    val extra = with(density) { (barPx - clearedPx).coerceAtLeast(0).toDp() }
+    val bottomPx = dialogBottomInsetPx(LocalContext.current)
     HorizontalPager(
         state = pagerState,
-        modifier = Modifier.weight(1f).fillMaxWidth().navigationBarsPadding().padding(bottom = extra),
+        modifier = Modifier.weight(1f).fillMaxWidth().padding(bottom = with(density) { bottomPx.toDp() }),
     ) { index ->
         ZoomablePage(
             page = pages[index],
@@ -186,12 +188,31 @@ private fun ColumnScope.PreviewPager(
     }
 }
 
-/** The height in pixels of the navigation bar as the hosting activity's window sees it (0 when there is no activity or no bar). */
-@Suppress("DEPRECATION")
+/**
+ * How far up from the bottom of the dialog the pages must stop so they clear the navigation bar. A Dialog window on a 3-button bar
+ * (Android 15 and later edge to edge) is not reliably handed the bar's insets, so the largest of what the dialog was handed (the bar, the
+ * tappable area, the system bars) and what the hosting activity's own window reports (the bar's size whether or not it is shown)
+ * is used: whichever source knows the bar, the pages clear it, and none is a hard-coded size.
+ */
+@Composable
+private fun dialogBottomInsetPx(context: Context): Int {
+    val density = LocalDensity.current
+    val handed = maxOf(
+        WindowInsets.navigationBars.getBottom(density),
+        WindowInsets.tappableElement.getBottom(density),
+        WindowInsets.systemBars.getBottom(density),
+    )
+    return maxOf(handed, activityNavigationBarPx(context))
+}
+
+/** The navigation bar's height in pixels as the hosting activity's window reports it (0 when there is no activity or no bar). */
 private fun activityNavigationBarPx(context: Context): Int {
     var c: Context? = context
     while (c is ContextWrapper) {
-        if (c is Activity) return c.window?.decorView?.rootWindowInsets?.stableInsetBottom ?: 0
+        if (c is Activity) {
+            val root = c.window?.decorView?.let { ViewCompat.getRootWindowInsets(it) } ?: return 0
+            return root.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars() or WindowInsetsCompat.Type.tappableElement()).bottom
+        }
         c = c.baseContext
     }
     return 0
