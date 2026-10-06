@@ -29,7 +29,9 @@ class ScannerViewModelTest {
     private val clock = com.postsaimanager.core.testing.FakeMonotonicClock()
     private val appLock = com.postsaimanager.core.domain.applock.AppLockState(clock)
 
-    private fun viewModel() = ScannerViewModel(repo, documentProcessor, userPreferencesRepository, appLock)
+    private fun viewModel() = ScannerViewModel(
+        com.postsaimanager.core.domain.usecase.CreateDocumentFromPagesUseCase(repo, documentProcessor), userPreferencesRepository, appLock,
+    )
 
     /** Uri.toString() isn't stubbed by the Android jar in a plain JVM test. */
     private fun uri(value: String): Uri = mockk<Uri>().also { every { it.toString() } returns value }
