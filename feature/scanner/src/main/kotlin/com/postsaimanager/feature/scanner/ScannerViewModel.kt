@@ -5,16 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
-import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
-import com.postsaimanager.core.domain.document.DocumentProcessor
-import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.UserPreferencesRepository
-import com.postsaimanager.core.model.Document
-import com.postsaimanager.core.model.DocumentPage
-import com.postsaimanager.core.model.DocumentStatus
-import com.postsaimanager.core.model.DocumentTitleCodes
+import com.postsaimanager.core.domain.usecase.CreateDocumentFromPagesUseCase
 import com.postsaimanager.core.model.SourceType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,8 +21,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ScannerViewModel @Inject constructor(
-    private val documentRepository: DocumentRepository,
-    private val documentProcessor: DocumentProcessor,
+    private val createDocumentFromPages: CreateDocumentFromPagesUseCase,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val externalFlowGuard: ExternalFlowGuard,
 ) : ViewModel() {
@@ -75,46 +68,16 @@ class ScannerViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            val documentId = UuidGenerator.generate()
-
-            val pages = pageUris.mapIndexed { index, uri ->
-                DocumentPage(
-                    id = UuidGenerator.generate(),
-                    documentId = documentId,
-                    pageNumber = index + 1,
-                    imagePath = uri.toString(),
-                    width = 0,
-                    height = 0,
-                )
-            }
-
-            val document = Document(
-                id = documentId,
-                // The English text is only the fallback; the code and count are what the UI renders
-                // in the user's language, until extraction gives the document a real title.
-                title = "Scanned ${pageUris.size} page(s)",
-                titleCode = DocumentTitleCodes.SCANNED_PAGES,
-                titleArgs = listOf(pageUris.size.toString()),
-                status = DocumentStatus.NEW,
-                sourceType = SourceType.CAMERA,
-                pageCount = pageUris.size,
-                createdAt = now,
-                modifiedAt = now,
-            )
-
             _uiState.value = ScannerUiState.Processing(
                 message = "Saving document...",
                 progress = 0.5f,
             )
 
-            when (val result = documentRepository.createDocument(document, pages)) {
+            // Stores the document and queues its reading before navigating away (a scanned document is not searchable until it
+            // is processed, documentation/07-document-pipeline.md §7), so it starts reading itself rather than waiting to be opened.
+            when (val result = createDocumentFromPages(pageUris.map { it.toString() }, SourceType.CAMERA)) {
                 is PamResult.Success -> {
-                    // A scanned document is not searchable until it is processed
-                    // (documentation/07-document-pipeline.md §7) — enqueue it before
-                    // navigating away, so it starts reading itself immediately rather than
-                    // waiting for someone to open it.
-                    documentProcessor.enqueue(documentId)
+                    val documentId = result.data
                     // The natural moment to ask for POST_NOTIFICATIONS (API 33+): right after
                     // the first thing that would actually benefit from it — a scan that is now
                     // processing in the background — rather than on first app launch, before

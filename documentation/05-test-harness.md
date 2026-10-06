@@ -208,6 +208,24 @@ worth doing early, because every test written before it is fragile by constructi
 
 ---
 
+### 6.1 Loading test images as one document (debug builds only)
+
+The debug build has `DebugImportActivity` (source: `app/src/debug`; a release build does not contain it, check with
+`./gradlew :app:processReleaseMainManifest` and grep `DebugImport` in the merged manifest). It turns image files into ONE multi-page
+document through the same use case as the scanner (`CreateDocumentFromPagesUseCase`), so no camera, scanner or photo picker is needed:
+
+```bash
+./scripts/dev-adb.sh push page-1.jpg /sdcard/Android/data/com.postsaimanager.debug/files/debug-import/page-1.jpg
+./scripts/dev-adb.sh push page-2.jpg /sdcard/Android/data/com.postsaimanager.debug/files/debug-import/page-2.jpg
+./scripts/dev-adb.sh shell am start -n com.postsaimanager.debug/com.postsaimanager.debug.DebugImportActivity --esa files page-1.jpg,page-2.jpg
+./scripts/dev-adb.sh logcat -d -s DebugImport     # "imported document=<id> pages=2", or "rejected: <reason>"
+```
+
+Pages are in the order named. A name with a path separator or `..` is rejected. The files are copied into the app's own storage and
+deleted from the inbox after a successful import; the app then opens and reads the document in the background.
+
+---
+
 ## 7. Test case format
 
 ```markdown
