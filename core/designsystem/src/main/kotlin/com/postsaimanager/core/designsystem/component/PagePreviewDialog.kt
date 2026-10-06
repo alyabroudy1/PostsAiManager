@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -242,11 +243,13 @@ private fun ZoomablePage(page: PreviewPage, description: String) {
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Main)
                         val fingers = event.changes.count { it.pressed }
-                        if (fingers > 1 || scale > 1.01f) {
+                        // The last event of a gesture has no finger down: its centroid is Unspecified (NaN), which
+                        // would send the page's offset to NaN and blank it. Nothing to apply then.
+                        val centroid = event.calculateCentroid(useCurrent = true)
+                        if (centroid.isSpecified && (fingers > 1 || scale > 1.01f)) {
                             val zoom = event.calculateZoom()
                             val pan = event.calculatePan()
-                            val focus = event.calculateCentroid(useCurrent = true) -
-                                Offset(box.width / 2f, box.height / 2f)
+                            val focus = centroid - Offset(box.width / 2f, box.height / 2f)
                             val newScale = (scale * zoom).coerceIn(1f, MAX_ZOOM)
                             val moved = focus + pan - (focus - offset) * (newScale / scale)
                             scale = newScale
