@@ -20,6 +20,8 @@ import com.postsaimanager.core.domain.extraction.v2.QuoteVerifier
 class ActionWriter(
     private val session: PromptSession,
     private val gate: SummaryGate = SummaryGate(),
+    /** Structure only (counts and the gate's reason names, never a word of the letter or of an answer), for the reading's trace. */
+    private val trace: (String) -> Unit = {},
 ) {
 
     /**
@@ -36,11 +38,17 @@ class ActionWriter(
             val r = session.ask(prompt(facts, hint, languageCode, antiCopy = attempt > 0), QuestionGrammars.actionLines(), ACTION_TOKENS)
             val answer = (r as? PamResult.Success)?.data ?: continue
             answered = true
-            if (isNone(answer.trim())) return emptyList()
+            if (isNone(answer.trim())) {
+                trace("actions ask=${attempt + 1} answer=none")
+                return emptyList()
+            }
             val quoted = AnswerReader.lines(answer)
             // The grammar lets the sentinel be written as a quoted line ("NONE"): that is still "nothing to do", never an action.
-            if (quoted.isNotEmpty() && quoted.all(::isNone)) return emptyList()
-            val kept = accepted(quoted.filterNot(::isNone), ocrText, values)
+            if (quoted.isNotEmpty() && quoted.all(::isNone)) {
+                trace("actions ask=${attempt + 1} answer=none")
+                return emptyList()
+            }
+            val kept = accepted(quoted.filterNot(::isNone), ocrText, values, attempt + 1)
             if (kept.isNotEmpty()) return kept
         }
         return if (answered) emptyList() else null
@@ -49,27 +57,31 @@ class ActionWriter(
     /** The no-action sentinel in any case, with or without quotes or punctuation around it. */
     private fun isNone(text: String): Boolean = text.trim { !it.isLetterOrDigit() }.equals(NONE_ANSWER, ignoreCase = true)
 
-    private fun accepted(lines: List<String>, ocrText: String, values: List<String>): List<String> {
+    private fun accepted(lines: List<String>, ocrText: String, values: List<String>, ask: Int): List<String> {
         val kept = ArrayList<String>()
+        val refused = ArrayList<String>()
         for (line in lines) {
             val text = line.trim().replace(WHITESPACE, " ")
-            if (text.split(' ').size > MAX_WORDS) continue
-            if (gate.check(text, ocrText, values) !is SummaryGate.Verdict.Accepted) continue
+            if (text.split(' ').size > MAX_WORDS) { refused += "TOO_LONG"; continue }
+            val verdict = gate.check(text, ocrText, values)
+            if (verdict !is SummaryGate.Verdict.Accepted) { refused += (verdict as SummaryGate.Verdict.Rejected).reason.name; continue }
             if (kept.any { QuoteVerifier.fold(it) == QuoteVerifier.fold(text) }) continue
             kept += text
             if (kept.size == MAX_LINES) break
         }
+        trace("actions ask=$ask lines=${lines.size} kept=${kept.size} refused=$refused")
         return kept
     }
 
     internal fun prompt(facts: List<Pair<String, String>>, hint: String?, languageCode: String?, antiCopy: Boolean): String = buildString {
         append("FACTS (verified; use only these and the letter):\n")
         facts.forEach { (label, value) -> append("- ").append(label).append(": ").append(value).append('\n') }
-        append("\nQUESTION: What must the reader do, and by when? Write at most ").append(MAX_LINES).append(" short lines, one action each, at most ")
-        append(MAX_WORDS).append(" words per line, using only the facts above. ")
+        append("\nQUESTION: What must or may the reader do, and by when? An option the letter offers with a deadline (to object, to cancel, ")
+        append("to reply) counts, even when doing nothing is also allowed. Write at most ").append(MAX_LINES).append(" short lines, one action each, at most ")
+        append(MAX_WORDS).append(" words per line, using only the facts above and the letter. ")
         hint?.trim()?.takeIf { it.isNotEmpty() }?.let { append(it).append(' ') }
         append(languageCode?.trim()?.takeIf { it.isNotEmpty() }?.let { "Write in the language with the code \"$it\"." } ?: "Write in the letter's own language.")
-        append(" If the reader has nothing to do, answer ").append(NONE_ANSWER).append('.')
+        append(" If the letter asks nothing and offers no option or deadline, answer ").append(NONE_ANSWER).append('.')
         if (antiCopy) append(' ').append(ANTI_COPY)
         append("\nANSWER FORMAT: ").append(NONE_ANSWER).append(", or one to ").append(MAX_LINES).append(" lines, each in double quotes, separated by spaces")
     }

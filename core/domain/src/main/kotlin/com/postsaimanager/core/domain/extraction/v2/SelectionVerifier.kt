@@ -505,7 +505,7 @@ class SelectionVerifier(
         }
 
         private fun quoted(label: String, text: String): SlotValue? {
-            val verified = QuoteVerifier.verify(text, ctx.ocrText)
+            val verified = QuoteVerifier.verifyCopiedLine(text, ctx.ocrText)
             if (verified == null) {
                 rejections += "$label: '${text.take(40)}' is not in the letter"
                 return null

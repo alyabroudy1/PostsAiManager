@@ -45,7 +45,7 @@ class TwoStageReadingTest {
                 q.contains("BCP-47") -> "de"
                 q.contains("What does the letter call this value?") -> "\"Gegenstand\""
                 // The action writer: one line the gate accepts (every number, date and name is in the letter).
-                q.contains("What must the reader do") -> "\"Bitte überweise 1.284,50 € bis zum 15.10.2026 an die Musterfirma GmbH.\""
+                q.contains("What must or may the reader do") -> "\"Bitte überweise 1.284,50 € bis zum 15.10.2026 an die Musterfirma GmbH.\""
                 // The summary writer is given the verified facts; a model that keeps to them writes a sentence the gate accepts.
                 q.contains("FACTS (verified") -> "\"Musterfirma GmbH verlangt 1.284,50 € von Erika Mustermann.\""
                 else -> "\"text\""
@@ -132,7 +132,7 @@ class TwoStageReadingTest {
         assertThat(later.scored.flatten()).isNotEmpty()
         assertThat(later.scored.flatten().all { it.contains(hint) }).isTrue()
         // The actions: one ask with its own grammar, the hint in its prompt, and the line the gate accepted is the result.
-        val ask = later.asks.single { it.question.contains("What must the reader do") }
+        val ask = later.asks.single { it.question.contains("What must or may the reader do") }
         assertThat(ask.question).contains(hint)
         assertThat(ask.question).contains("- amount: 1.284,50 €")
         assertThat(ask.question).contains("\"de\"")
@@ -164,7 +164,10 @@ class TwoStageReadingTest {
         assertThat(batch.any { it.contains(ScoringDescriptions.EXTRA) }).isTrue()
         assertThat(batch.indexOfFirst { it.contains(KEY_SLOT_ASK) }).isGreaterThan(batch.indexOfLast { it.contains(ScoringDescriptions.EXTRA) })
         // Only what the model scored above the threshold (0.0 by default) is picked, best first.
-        assertThat(second.keySlots!!.map { it.key }).containsExactly("total", "letter_date").inOrder()
+        // The key information is one short list: the extras (each scored 2.0) and the slot values compete by score, at most four in all, so
+        // the amount (4.0) stays and the date of the letter (1.0) is out-ranked.
+        assertThat(second.keySlots!!.map { it.key }).containsExactly("total")
+        assertThat(second.extras.size + second.keySlots!!.size).isAtMost(ScoringDescriptions.MAX_KEY_INFO)
         assertThat(second.keySlots!!.map { it.score }).isInOrder(Comparator.reverseOrder<Float>())
         // The adapter hands them to what the data layer stores.
         assertThat(ExtractionV2Adapter().adapt(second).keySlots).isEqualTo(second.keySlots)
@@ -209,12 +212,12 @@ class TwoStageReadingTest {
         val first = run(ExtractionV2Pipeline.Stages.FIRST, session())
         val nothing = session().apply {
             val base = responder
-            responder = { q, g -> if (q.contains("What must the reader do")) "NONE" else base(q, g) }
+            responder = { q, g -> if (q.contains("What must or may the reader do")) "NONE" else base(q, g) }
         }
         assertThat(run(ExtractionV2Pipeline.Stages.SECOND, nothing, first.enrichment).actions).isEmpty()
         val failing = session().apply {
             val base = responder
-            responder = { q, g -> if (q.contains("What must the reader do")) null else base(q, g) }
+            responder = { q, g -> if (q.contains("What must or may the reader do")) null else base(q, g) }
         }
         val failed = run(ExtractionV2Pipeline.Stages.SECOND, failing, first.enrichment)
         assertThat(failed.actions).isNull()

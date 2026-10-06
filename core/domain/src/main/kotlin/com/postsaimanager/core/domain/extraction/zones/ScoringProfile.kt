@@ -154,4 +154,7 @@ object ScoringDescriptions {
 
     /** At most this many stored slot values are scored for key information in one reading: the batch stays small. */
     const val MAX_KEY_SLOT_SCORES = 15
+
+    /** The key information is at most this many rows: extras and stored slot values together, best score first. */
+    const val MAX_KEY_INFO = 4
 }
