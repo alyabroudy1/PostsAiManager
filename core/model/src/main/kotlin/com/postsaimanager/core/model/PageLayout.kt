@@ -43,6 +43,18 @@ data class OcrBlock(
     val bounds: TextBounds,
     val confidence: Float,
     val language: String? = null,
+    /**
+     * The block's own lines with their boxes, in the order ML Kit returned them. Empty for pages read before lines
+     * were kept: only the page preview's text selection uses them, and it falls back to the whole block.
+     */
+    val lines: List<OcrLine> = emptyList(),
+)
+
+/** One recognised line of an [OcrBlock] and where it sat, normalised like [TextBounds] everywhere. */
+@Serializable
+data class OcrLine(
+    val text: String,
+    val bounds: TextBounds,
 )
 
 /** Roughly where on the page a block sits. */

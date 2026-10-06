@@ -12,6 +12,7 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.usecase.DocumentLayout
 import com.postsaimanager.core.model.TextBounds
 import com.postsaimanager.core.model.OcrBlock
+import com.postsaimanager.core.model.OcrLine
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -76,14 +77,15 @@ class OcrService @Inject constructor(
                                 // it says "somewhere on this page", which is true.
                                 val box = block.boundingBox
                                 val bounds = if (box != null) {
-                                    TextBounds(
-                                        left = (box.left / pageWidth).coerceIn(0f, 1f),
-                                        top = (box.top / pageHeight).coerceIn(0f, 1f),
-                                        right = (box.right / pageWidth).coerceIn(0f, 1f),
-                                        bottom = (box.bottom / pageHeight).coerceIn(0f, 1f),
-                                    )
+                                    OcrGeometry.normalise(box.left, box.top, box.right, box.bottom, pageWidth, pageHeight)
                                 } else {
                                     TextBounds(0f, 0f, 1f, 1f)
+                                }
+                                // Lines without a box are skipped (no honest place to draw them); the block still has its text.
+                                val lines = block.lines.mapNotNull { line ->
+                                    line.boundingBox?.let {
+                                        OcrLine(line.text, OcrGeometry.normalise(it.left, it.top, it.right, it.bottom, pageWidth, pageHeight))
+                                    }
                                 }
 
                                 OcrBlock(
@@ -95,6 +97,7 @@ class OcrService @Inject constructor(
                                         .toFloat()
                                         .takeIf { !it.isNaN() } ?: 0f,
                                     language = block.recognizedLanguage,
+                                    lines = lines,
                                 )
                             }
 

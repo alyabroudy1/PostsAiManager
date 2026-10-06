@@ -31,6 +31,18 @@
     <string name="page_preview_close">Close preview</string>
     <string name="page_preview_page_description">Page %1$d of %2$d of %3$s</string>
 
+    <!-- Selecting and copying the text of a scanned page in the preview. -->
+    <string name="page_preview_select_text">Select text</string>
+    <string name="page_preview_select_text_unavailable">No selectable text on this page</string>
+    <string name="page_preview_select_done">Done</string>
+    <string name="page_preview_select_all">Select all</string>
+    <string name="page_preview_select_copy">Copy</string>
+    <string name="page_preview_select_copied">Copied</string>
+    <plurals name="page_preview_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+
     <!-- "Report this answer" on an AI answer: opens an e-mail draft the user sends themselves. -->
     <string name="report_answer_action">Report this answer</string>
     <string name="report_answer_title">Report this answer</string>

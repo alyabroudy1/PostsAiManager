@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Text einer gescannten Seite in der Vorschau auswählen und kopieren. -->
+    <string name="page_preview_select_text">Text auswählen</string>
+    <string name="page_preview_select_text_unavailable">Auf dieser Seite gibt es keinen auswählbaren Text</string>
+    <string name="page_preview_select_done">Fertig</string>
+    <string name="page_preview_select_all">Alles auswählen</string>
+    <string name="page_preview_select_copy">Kopieren</string>
+    <string name="page_preview_select_copied">Kopiert</string>
+    <plurals name="page_preview_selected_count">
+        <item quantity="one">%d ausgewählt</item>
+        <item quantity="other">%d ausgewählt</item>
+    </plurals>
+
     <!-- „Antwort melden“ bei einer KI-Antwort: öffnet einen E-Mail-Entwurf, den die Nutzerin oder der Nutzer selbst sendet. -->
     <string name="report_answer_action">Diese Antwort melden</string>
     <string name="report_answer_title">Diese Antwort melden</string>
