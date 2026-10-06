@@ -62,7 +62,9 @@ class ActionWriter(
         val refused = ArrayList<String>()
         for (line in lines) {
             val text = line.trim().replace(WHITESPACE, " ")
-            if (text.split(' ').size > MAX_WORDS) { refused += "TOO_LONG"; continue }
+            // The ask says MAX_WORDS; a model that runs a few words over with a line the gate would accept is not refused for it (a
+            // car-insurance letter's only action was dropped for being 27 words), only a runaway is.
+            if (text.split(' ').size > ACCEPT_WORDS) { refused += "TOO_LONG"; continue }
             val verdict = gate.check(text, ocrText, values)
             if (verdict !is SummaryGate.Verdict.Accepted) { refused += (verdict as SummaryGate.Verdict.Rejected).reason.name; continue }
             if (kept.any { QuoteVerifier.fold(it) == QuoteVerifier.fold(text) }) continue
@@ -90,6 +92,9 @@ class ActionWriter(
         const val MAX_ASKS = 2
         const val MAX_LINES = 3
         const val MAX_WORDS = 25
+
+        /** The longest line kept: a little over what the ask says, under the gate's own limit. */
+        const val ACCEPT_WORDS = 40
 
         /** Enough for three lines of [MAX_WORDS] words in any of the supported scripts. */
         const val ACTION_TOKENS = 160
