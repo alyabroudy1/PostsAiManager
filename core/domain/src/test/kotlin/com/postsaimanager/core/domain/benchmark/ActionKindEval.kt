@@ -3,7 +3,9 @@ package com.postsaimanager.core.domain.benchmark
 import com.postsaimanager.core.domain.extraction.actions.ActionDates
 import com.postsaimanager.core.domain.extraction.actions.ActionKindProfile
 import com.postsaimanager.core.domain.extraction.actions.ActionKindReader
+import com.postsaimanager.core.domain.extraction.actions.ActionQuestions
 import com.postsaimanager.core.domain.extraction.actions.ActionScorer
+import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.TicketSlot
 import kotlinx.coroutines.runBlocking
@@ -20,7 +22,16 @@ import java.util.Locale
  * One device recording of the action scores of one letter (`benchmark/actions/<key>.json`, written by `ActionKindBenchmarkTest`): the
  * stored slot values the scorer was given, whether a sender was stored, and every action question it scored with its raw log-odds.
  */
-class ActionRecording(val key: String, val slots: List<TicketSlot>, val senderStored: Boolean, val scores: Map<String, Double>) {
+class ActionRecording(
+    val key: String,
+    val slots: List<TicketSlot>,
+    val senderStored: Boolean,
+    val scores: Map<String, Double>,
+    /** The family the reading decided (its description is the gate question's context); null when unknown. */
+    val family: String? = null,
+    /** The gate questions scored over an empty letter (`score:action:baseline`), by question text. */
+    val baseline: Map<String, Double> = emptyMap(),
+) {
 
     /** Replays the recorded scores; a question the recording does not hold is an error, never a quiet zero. */
     val scorer = ActionScorer { _, questions ->
@@ -43,15 +54,20 @@ class ActionRecording(val key: String, val slots: List<TicketSlot>, val senderSt
                 TicketSlot(so.getValue("key").jsonPrimitive.content, so.getValue("label").jsonPrimitive.content, so.getValue("value").jsonPrimitive.content)
             }
             val scores = LinkedHashMap<String, Double>()
+            val baseline = LinkedHashMap<String, Double>()
             for (ask in o.getValue("asks").jsonArray) {
                 val a = ask.jsonObject
                 val answer = a["answer"]?.jsonPrimitive?.contentOrNull ?: continue
                 val questions = a.getValue("question").jsonPrimitive.content.split(SEPARATOR)
                 val values = answer.split(',').map { it.trim().toDouble() }
                 check(questions.size == values.size) { "$key: ${questions.size} questions, ${values.size} scores" }
-                questions.zip(values).forEach { (q, v) -> scores[q] = v }
+                val into = if (a["name"]?.jsonPrimitive?.contentOrNull?.endsWith("baseline") == true) baseline else scores
+                questions.zip(values).forEach { (q, v) -> into[q] = v }
             }
-            return ActionRecording(key, slots, o["senderStored"]?.jsonPrimitive?.contentOrNull == "true", scores)
+            return ActionRecording(
+                key, slots, o["senderStored"]?.jsonPrimitive?.contentOrNull == "true", scores,
+                family = o["family"]?.jsonPrimitive?.contentOrNull, baseline = baseline,
+            )
         }
     }
 }
@@ -141,6 +157,15 @@ class ActionReport(val outcomes: List<ActionOutcome>) {
     val wrongRate: Double get() = ratio(wrong, shown)
     val lettersWithWrong: Int get() = outcomes.count { it.wrongKinds.isNotEmpty() }
 
+    /** The expected actions of kind [kind] (all kinds when null) that are shown, "kept/expected". */
+    fun kept(kind: String? = null): Pair<Int, Int> {
+        val expected = outcomes.flatMap { o -> o.expectedKinds.filter { kind == null || it == kind }.map { o to it } }
+        return expected.count { (o, k) -> k in o.shownKinds } to expected.size
+    }
+
+    fun paymentsKept(): String = kept("pay").let { "${it.first}/${it.second}" }
+    fun correctKept(): String = kept().let { "${it.first}/${it.second}" }
+
     val dates: Tally get() = outcomes.fold(Tally.NONE) { acc, o -> acc + o.dateBindings() }
     val amounts: Tally get() = outcomes.fold(Tally.NONE) { acc, o -> acc + o.amountBindings() }
 
@@ -163,9 +188,20 @@ object ActionKindEval {
         return ActionReport(
             recordings.mapNotNull { rec ->
                 val doc = docs[rec.key] ?: return@mapNotNull null
-                val reading = runBlocking { ActionKindReader(rec.scorer, profile).read(rec.slots, rec.senderStored) }
+                val family = rec.family?.let(ExtractionSchema.DEFAULT::family)
+                val reading = runBlocking { ActionKindReader(rec.scorer, profile).read(rec.slots, rec.senderStored, family) }
                 ActionOutcome(doc, rec.slots, reading?.items.orEmpty())
             },
         )
     }
+
+    /** The gate's content-free baseline by family id (and "" for none), as the recordings scored it over an empty letter. */
+    fun gateBaseline(recordings: List<ActionRecording>): Map<String, Double> {
+        val baseline = recordings.first { it.baseline.isNotEmpty() }.baseline
+        return (ExtractionSchema.DEFAULT.families.filter { it.scored }.map { it.id to it })
+            .mapNotNull { (id, f) -> baseline[ActionQuestions.anything(f.description)]?.let { id to it } }.toMap() +
+            listOfNotNull(baseline[ActionQuestions.anything()]?.let { "" to it })
+    }
+
+    fun doneBaseline(recordings: List<ActionRecording>): Double = recordings.first { it.baseline.isNotEmpty() }.baseline.getValue(ActionQuestions.done())
 }

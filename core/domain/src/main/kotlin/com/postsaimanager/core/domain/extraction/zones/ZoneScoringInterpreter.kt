@@ -21,6 +21,7 @@ import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.Enrichment
 import com.postsaimanager.core.domain.extraction.v2.EnrichmentOutcome
 import com.postsaimanager.core.domain.extraction.v2.EnrichmentRequest
+import com.postsaimanager.core.domain.extraction.v2.DocFamily
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.InterpretationOutcome
 import com.postsaimanager.core.domain.extraction.v2.InterpretationRequest
@@ -327,7 +328,7 @@ class ZoneScoringInterpreter(
             // A profile that keeps the topics out of the first stage scores them here, still in the body session.
             val lateTopics = if (topicsInFirstStage || request.topics.isNotEmpty()) null else classifier().topics(tail)
             // What the reader has to do is scored too, in the same body session: a kind is chosen from the catalogue, nothing is written.
-            val actions = readActions(request)
+            val actions = readActions(open.setup, request)
             // The letter as plain text: no zone hints and no summary of the header, which a small model copies instead of the letter.
             val writing = switchToWriting(open.setup, ZonePrompt.bodyUser("", open.setup.zoned.render(open.zonesInPrefix, open.budget)))
             if (!writing) {
@@ -365,9 +366,24 @@ class ZoneScoringInterpreter(
      * What the reader has to do, chosen by score from the catalogue of action kinds ([ActionKindReader]) with the reading's own scorer, in
      * the open body session. Null when the kinds could not be scored, so the stored actions stay.
      */
-    private suspend fun readActions(request: EnrichmentRequest): List<ActionItem>? =
-        ActionKindReader({ name, questions -> scoreBatch(name, "", questions) }, profile.actions, schema = schema, trace = { traceLines += it })
-            .read(request.slots, senderKnown = !request.facts[SummaryFacts.SENDER].isNullOrBlank())?.items
+    private suspend fun readActions(setup: ZoneSetup, request: EnrichmentRequest): List<ActionItem>? {
+        // What the reading decided the document is goes into the gate question as context: the model's own conclusion, nothing written here.
+        val family = request.documentTypeId?.let(schema::family)
+        val reading = ActionKindReader({ name, questions -> scoreBatch(name, "", questions) }, profile.actions, schema = schema, trace = { traceLines += it })
+            .read(request.slots, senderKnown = !request.facts[SummaryFacts.SENDER].isNullOrBlank(), family = family)
+        // A recording run also scores the gate questions over an empty letter, for every family: the content-free baseline the gate is
+        // measured from. It runs last in the body session, which the writing session replaces right after.
+        if (profile.actions.scoreEveryBinding) scoreBaseline(setup)
+        return reading?.items
+    }
+
+    /** The gate questions over an empty letter, one per family and the plain one, recorded as `score:action:baseline` (for fitting only). */
+    private suspend fun scoreBaseline(setup: ZoneSetup) {
+        val (head, closing) = setup.frame(ZonePrompt.scoringSystem(setup.template), ZonePrompt.bodyUser("", "(the letter has no text)"))
+        if (!tryOpen(head, closing, "baseline")) return
+        val questions = (listOf<DocFamily?>(null) + schema.families.filter { it.scored }).flatMap { ActionKindReader.gateQuestions(it) }.distinct()
+        scoreBatch(ActionKindReader.BASELINE_BATCH, "", questions)
+    }
 
     private fun traceSetup(setup: ZoneSetup) {
         val m = setup.match

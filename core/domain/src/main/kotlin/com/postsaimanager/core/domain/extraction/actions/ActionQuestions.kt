@@ -14,13 +14,23 @@ object ActionQuestions {
     const val ASK_MARKER = "ask the reader to"
     const val BOUND_MARKER = "the reader is asked to"
 
-    /** Whether [question] is one of this file's. */
-    fun isActionQuestion(question: String): Boolean = ASK_MARKER in question || BOUND_MARKER in question
+    const val DONE_MARKER = "already been completed"
 
-    /** Whether the letter asks the reader to do anything at all (or gives a deadline or an option to use). */
-    fun anything(): String =
-        "Does this letter $ASK_MARKER do something, such as pay, reply, object, attend, send, sign or confirm, " +
+    /** Whether [question] is one of this file's. */
+    fun isActionQuestion(question: String): Boolean = ASK_MARKER in question || BOUND_MARKER in question || DONE_MARKER in question
+
+    /**
+     * The gate: whether the letter asks the reader to do anything at all (or gives a deadline or an option to use). [description] is what
+     * the reading itself decided the document is (the chosen family's description): the model judges the question knowing what it
+     * concluded, and code writes nothing of its own about any kind of document. Null or blank: no context.
+     */
+    fun anything(description: String? = null): String =
+        (description?.trim()?.takeIf { it.isNotEmpty() }?.let { "This document is: $it. " } ?: "") +
+            "Does this letter $ASK_MARKER do something, such as pay, reply, object, attend, send, sign or confirm, " +
             "or give the reader a deadline or an option to use? Answer:"
+
+    /** The second gate: whether what the document is about is finished already (paid, done), so nothing is left to do. */
+    fun done(): String = "Has whatever this document is about $DONE_MARKER, for example already paid or already done by the reader? Answer:"
 
     /** Whether the letter asks the reader to do what [kind] says. */
     fun kind(kind: ActionKind): String = "Does this letter $ASK_MARKER ${kind.task}? Answer:"

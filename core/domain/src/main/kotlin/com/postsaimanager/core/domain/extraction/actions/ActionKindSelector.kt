@@ -12,8 +12,9 @@ object ActionKindSelector {
     /** A kind with its raw score and the adjusted one the choice was made on. */
     class Scored(val kind: ActionKind, val raw: Double, val adjusted: Double)
 
-    fun choose(anyScore: Double, scores: List<Pair<ActionKind, Double>>, profile: ActionKindProfile): List<Scored> {
-        if (anyScore < profile.anyThreshold) return emptyList()
+    /** @param anyScore the gate's margin over its baseline; @param doneMargin the "completed already?" margin over its baseline (negative infinity: not asked) */
+    fun choose(anyScore: Double, scores: List<Pair<ActionKind, Double>>, profile: ActionKindProfile, doneMargin: Double = Double.NEGATIVE_INFINITY): List<Scored> {
+        if (anyScore < profile.anyThreshold || doneMargin > profile.doneThreshold) return emptyList()
         val adjusted = scores.map { (kind, raw) -> Scored(kind, raw, profile.adjusted(kind.id, raw)) }.sortedByDescending { it.adjusted }
         val best = adjusted.firstOrNull() ?: return emptyList()
         return adjusted.filter { it.adjusted >= profile.minScore && it.adjusted >= best.adjusted - profile.margin }.take(profile.maxActions)

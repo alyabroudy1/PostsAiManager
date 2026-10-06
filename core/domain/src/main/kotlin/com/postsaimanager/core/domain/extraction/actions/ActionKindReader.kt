@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.actions
 
 import com.postsaimanager.core.domain.extraction.v2.Canonical
+import com.postsaimanager.core.domain.extraction.v2.DocFamily
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.SlotKind
 import com.postsaimanager.core.domain.extraction.v2.Slots
@@ -47,12 +48,14 @@ class ActionKindReader(
      * @param senderKnown whether a sender is stored, so a kind may name it
      * @return the actions (empty when the letter asks nothing), or null when the kinds could not be scored: a stored list then stays
      */
-    suspend fun read(slots: List<TicketSlot>, senderKnown: Boolean): Reading? {
-        val first = scorer.score(KINDS_BATCH, listOf(ActionQuestions.anything()) + kinds.map(ActionQuestions::kind))
-            ?.takeIf { it.size == kinds.size + 1 } ?: return null
-        val any = first.first()
-        val kindScores = kinds.zip(first.drop(1))
-        val chosen = ActionKindSelector.choose(any, kindScores, profile)
+    suspend fun read(slots: List<TicketSlot>, senderKnown: Boolean, family: DocFamily? = null): Reading? {
+        val first = scorer.score(KINDS_BATCH, gateQuestions(family) + kinds.map(ActionQuestions::kind))
+            ?.takeIf { it.size == kinds.size + GATE_QUESTIONS } ?: return null
+        // The gate is measured as a margin over what the model says to the same question over an empty letter.
+        val any = profile.gateMargin(first[0], family?.id)
+        val done = first[1] - profile.doneBaseline
+        val kindScores = kinds.zip(first.drop(GATE_QUESTIONS))
+        val chosen = ActionKindSelector.choose(any, kindScores, profile, done)
         trace(
             String.format(Locale.ROOT, "actions any=%+.2f kinds=[%s] chosen=%s", any, kindScores.joinToString(" ") { (k, s) -> k.id + String.format(Locale.ROOT, "=%+.2f", s) }, chosen.joinToString(",") { it.kind.id }),
         )
@@ -96,6 +99,15 @@ class ActionKindReader(
     private fun isDocumentDate(slot: TicketSlot): Boolean = schema.allSlots.firstOrNull { it.json == slot.key }?.canonical == Canonical.DOCUMENT_DATE
 
     companion object {
+        /** The questions that open the kinds batch: the gate and "completed already?". */
+        private const val GATE_QUESTIONS = 2
+
+        /** The gate questions of a reading of a document the reading decided is [family]; also what a recording scores over an empty letter. */
+        fun gateQuestions(family: DocFamily?): List<String> =
+            // The abstain family says nothing about the document (it is what is left when no family scored), so it gives no context.
+            listOf(ActionQuestions.anything(family?.takeIf { it.scored }?.description), ActionQuestions.done())
+
+        const val BASELINE_BATCH = "action:baseline"
         const val KINDS_BATCH = "action:kinds"
         const val BINDINGS_BATCH = "action:bindings"
 

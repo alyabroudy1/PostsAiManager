@@ -122,12 +122,26 @@ object ModelProfiles {
             // - what works is the best kind above a floor, with the kinds within a small margin of it: from 0.4 to 0.5 the floor and from 0.1 to
             //   0.4 the margin give the same 13 of 16 letters exactly right, and 0.5 and 0.25 are the middle of that plateau. Higher
             //   floors lose the payments the model scores only +0.6 (N6, the Arabic-named letter) for one wrong action less;
-            // - "does it ask anything at all" adds nothing once the floor is there (it stays at the model's indifference, 0.0);
+            // - the gate "does it ask anything at all", asked knowing what the reading decided the document is, and measured over its
+            //   content-free baseline (the same question over an empty letter, per family: gateBaseline), separates nothing: the receipt
+            //   scores +2.69 over its baseline, above every letter that asks something (2.49 at most), and the whole range from -1.0 to 1.0
+            //   gives the same result. It stays at 0.0 over the baseline;
+            // - the second gate, "has whatever the document is about already been completed (paid, done)?", does: over its baseline
+            //   (0.55) the receipt scores +0.27 and no letter that asks something scores above -0.09. From 0.0 to 0.25 the result is
+            //   the same, the middle is 0.1 (a margin of 0.17 on one side and 0.19 on the other, on ONE receipt: thin evidence). It makes the
+            //   three no-action letters show no action and loses no correct action;
             // - a date or an amount is bound when it is the best of the stored ones above the threshold; below -0.25 (dates) a wrong date
             //   is bound for the car insurance letter, which a shorter line avoids. The amount is the stored one the model scores highest as
             //   the amount to pay, down to -0.5; where the reading stored no right amount nothing here can find one.
             actions = ActionKindProfile(
-                anyThreshold = 0.0, minScore = 0.5, margin = 0.25, maxActions = ActionKindProfile.MAX_ACTIONS,
+                anyThreshold = 0.0,
+                gateBaseline = mapOf(
+                    "" to -0.60, "official_letter" to -0.71, "invoice_bill" to -0.51, "receipt" to -0.77, "form_application" to -0.82,
+                    "statement" to -0.93, "contract_policy" to -1.16, "certificate_id" to -1.07, "medical" to -0.55,
+                    "ticket_booking" to -0.86, "outgoing_letter" to -0.94, "payment_proof" to -0.24,
+                ),
+                doneBaseline = 0.55, doneThreshold = 0.1,
+                minScore = 0.5, margin = 0.25, maxActions = ActionKindProfile.MAX_ACTIONS,
                 dateThreshold = -0.25, amountThreshold = -0.5,
             ),
         ),

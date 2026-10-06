@@ -31,25 +31,33 @@ class ActionKindReplayTest {
     @Test
     fun `the shipped thresholds choose the kinds the letters ask, with a low wrong-action rate`() {
         val r = ActionKindEval.run(recordings, shipped)
-        // 13 of the 16 letters show exactly what they ask (the acceptable extras aside), the first kind is right in 10 of the 13 that ask.
-        assertThat(r.outcomes.count { it.shownCore == it.expectedKinds }).isEqualTo(13)
+        // 14 of the 16 letters show exactly what they ask (the acceptable extras aside), the first kind is right in 10 of the 13 that ask.
+        assertThat(r.outcomes.count { it.shownCore == it.expectedKinds }).isEqualTo(14)
         assertThat(r.outcomes.filter { it.expected.isNotEmpty() }.count { it.shownKinds.firstOrNull() in it.expectedKinds }).isEqualTo(10)
-        // 16 actions shown, 2 of them wrong: a confirmation for the car insurance letter (it offers a cancellation) and a payment for the receipt.
-        assertThat(r.shown).isEqualTo(16)
-        assertThat(r.wrong).isEqualTo(2)
-        assertThat(r.outcomes.filter { it.wrongKinds.isNotEmpty() }.map { it.doc.key })
-            .containsExactly("N2-kfz-verlaengerung-2p", "receipt-noise-1p")
+        // 15 actions shown, 1 of them wrong: a confirmation for the car insurance letter (it offers a cancellation).
+        assertThat(r.shown).isEqualTo(15)
+        assertThat(r.wrong).isEqualTo(1)
+        assertThat(r.outcomes.filter { it.wrongKinds.isNotEmpty() }.map { it.doc.key }).containsExactly("N2-kfz-verlaengerung-2p")
     }
 
     @Test
-    fun `of the three letters that ask nothing two show no action, and the one that does is the receipt`() {
+    fun `the three letters that ask nothing show no action, the receipt because the model says what it is about is completed already`() {
         val r = ActionKindEval.run(recordings, shipped)
         assertThat(r.noActionLetters).isEqualTo(3)
         assertThat(r.outcomes.filter { it.expected.isEmpty() && it.items.isEmpty() }.map { it.doc.key })
-            .containsExactly("N8-info-bank-noaction-1p", "degraded-3p")
-        // Everything shown as "nothing to do" is right: no letter that asks something is shown as asking nothing.
+            .containsExactly("N8-info-bank-noaction-1p", "degraded-3p", "receipt-noise-1p")
         assertThat(r.noActionPrecision).isEqualTo(1.0)
-        assertThat(r.noActionRecall).isWithin(1e-9).of(2.0 / 3)
+        assertThat(r.noActionRecall).isEqualTo(1.0)
+        // The first gate does not tell them apart: over its baseline the receipt scores higher than any letter that asks something.
+        val gate = recordings.associate { rec ->
+            rec.key to shipped.gateMargin(rec.scores.getValue(com.postsaimanager.core.domain.extraction.actions.ActionQuestions.anything(
+                rec.family?.let(com.postsaimanager.core.domain.extraction.v2.ExtractionSchema.DEFAULT::family)?.description)), rec.family)
+        }
+        assertThat(gate.getValue("receipt-noise-1p")).isGreaterThan(gate.filterKeys { it != "receipt-noise-1p" && it != "N8-info-bank-noaction-1p" }.values.max())
+        // The second gate does, and it costs no correct action: every payment and every other expected kind that was shown stays shown.
+        val without = ActionKindEval.run(recordings, shipped.copy(doneThreshold = Double.POSITIVE_INFINITY))
+        assertThat(r.kept()).isEqualTo(without.kept())
+        assertThat(r.paymentsKept()).isEqualTo("8/8")
     }
 
     @Test
@@ -83,6 +91,7 @@ class ActionKindReplayTest {
         assertThat(raw.shown).isEqualTo(33)
         assertThat(raw.wrong).isEqualTo(15)
         assertThat(raw.noActionRecall).isWithin(1e-9).of(1.0 / 3)
+        // (the gate's baselines are not in this profile: it measures nothing over a baseline)
     }
 
     @Test

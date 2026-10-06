@@ -6,7 +6,12 @@ package com.postsaimanager.core.domain.extraction.actions
  * what the model says of the same kind on every letter ([kindBias], fitted on the benchmark recordings) and above the best kind's
  * adjusted score by no more than [margin]. All numbers are log-odds of Yes against No.
  *
- * @property anyThreshold the letter asks nothing at all when "does it ask the reader to do anything?" scores below this
+ * @property anyThreshold the letter asks nothing at all when the gate ("does it ask the reader to do anything?", asked knowing what the
+ *   reading decided the document is) scores less than this above its baseline
+ * @property gateBaseline what the model says to the gate question over an empty letter, by family id (key "" for no family): the content-free
+ *   baseline the gate's score is measured from, fitted on the recordings; a family without an entry is measured from the "" entry, else 0.0
+ * @property doneBaseline the same for the "has it been completed already?" question
+ * @property doneThreshold the letter asks nothing when "completed already?" scores more than this above its baseline; infinity: not used
  * @property kindBias subtracted from a kind's score before kinds are compared: the model's habitual lean for that kind; absent is 0.0
  * @property minScore a kind's adjusted score must reach this to be chosen at all
  * @property margin a kind is chosen with the best one when its adjusted score is within this of the best's
@@ -18,6 +23,9 @@ package com.postsaimanager.core.domain.extraction.actions
  */
 data class ActionKindProfile(
     val anyThreshold: Double = 0.0,
+    val gateBaseline: Map<String, Double> = emptyMap(),
+    val doneBaseline: Double = 0.0,
+    val doneThreshold: Double = Double.POSITIVE_INFINITY,
     val kindBias: Map<String, Double> = emptyMap(),
     val minScore: Double = 0.0,
     val margin: Double = 1.0,
@@ -26,6 +34,9 @@ data class ActionKindProfile(
     val amountThreshold: Double = 0.0,
     val scoreEveryBinding: Boolean = false,
 ) {
+    /** The gate's score as a margin over the content-free baseline of [familyId]. */
+    fun gateMargin(raw: Double, familyId: String?): Double = raw - (gateBaseline[familyId.orEmpty()] ?: gateBaseline[""] ?: 0.0)
+
     fun adjusted(kindId: String, score: Double): Double = score - (kindBias[kindId] ?: 0.0)
 
     companion object {
