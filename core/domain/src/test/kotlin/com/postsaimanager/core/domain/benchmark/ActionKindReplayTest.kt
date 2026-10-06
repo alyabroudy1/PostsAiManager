@@ -2,8 +2,6 @@ package com.postsaimanager.core.domain.benchmark
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.actions.ActionKindProfile
-import com.postsaimanager.core.domain.extraction.actions.ActionKinds
-import com.postsaimanager.core.domain.extraction.actions.ActionPart
 import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
 import org.junit.jupiter.api.Test
 
@@ -81,28 +79,10 @@ class ActionKindReplayTest {
     fun `choosing every kind above zero, the raw sign, shows far more wrong actions`() {
         val raw = ActionKindEval.run(
             recordings, ActionKindProfile(anyThreshold = Double.NEGATIVE_INFINITY, minScore = 0.0, margin = Double.MAX_VALUE, maxActions = 8),
-            ActionKinds.ALL.map { it.copy(requiresAny = emptySet()) },
         )
         assertThat(raw.shown).isEqualTo(33)
         assertThat(raw.wrong).isEqualTo(15)
         assertThat(raw.noActionRecall).isWithin(1e-9).of(1.0 / 3)
-    }
-
-    @Test
-    fun `the evidence rule of the payment loses no correct payment and leaves the shipped numbers as they were`() {
-        val without = ActionKindEval.run(recordings, shipped, ActionKinds.ALL.map { it.copy(requiresAny = emptySet()) })
-        val with = ActionKindEval.run(recordings, shipped)
-        assertThat(with.shown).isEqualTo(without.shown)
-        assertThat(with.wrong).isEqualTo(without.wrong)
-        assertThat(with.outcomes.filter { "pay" in it.expectedKinds && "pay" !in it.shownKinds }).isEmpty()
-    }
-
-    @Test
-    fun `a stored account alone as evidence would drop the receipt but also the one correct payment that prints no account`() {
-        val ibanOnly = ActionKindEval.run(recordings, shipped, ActionKinds.ALL.map { if (it.id == "pay") it.copy(requiresAny = setOf(ActionPart.IBAN)) else it })
-        assertThat(ibanOnly.outcomes.filter { "pay" in it.expectedKinds && "pay" !in it.shownKinds }.map { it.doc.key }).containsExactly("arabic-rtl-1p")
-        assertThat(ibanOnly.outcomes.first { it.doc.key == "receipt-noise-1p" }.shownKinds).isEmpty()
-        assertThat(ibanOnly.wrong).isEqualTo(1)
     }
 
     @Test

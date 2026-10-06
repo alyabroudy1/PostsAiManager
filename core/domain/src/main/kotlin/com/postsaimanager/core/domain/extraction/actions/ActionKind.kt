@@ -29,8 +29,6 @@ enum class ActionPart(val key: String) {
  * @property party whether the kind names the sender (the party the reader pays, answers, sends to ...; never the addressee)
  * @property referenceSlots the stored slots a reference to quote is taken from, first present wins; empty when the kind has none
  * @property iban whether the kind shows the sender's account (where to pay)
- * @property requiresAny structural evidence the kind needs: when not empty, the kind is shown only if at least one of these parts is bound
- *   to a stored field. A score alone is not enough to tell a payer to pay; a stored deadline or account is (data, never a word list)
  */
 data class ActionKind(
     val id: String,
@@ -40,7 +38,6 @@ data class ActionKind(
     val party: Boolean = true,
     val referenceSlots: List<String> = emptyList(),
     val iban: Boolean = false,
-    val requiresAny: Set<ActionPart> = emptySet(),
 ) {
     /** The parts this kind may state, in the order a line lists them. */
     val parts: Set<ActionPart>
@@ -73,8 +70,6 @@ object ActionKinds {
         amountMeaning = "the amount the reader is asked to pay",
         referenceSlots = listOf("invoice_no", "reference", "customer_no"),
         iban = true,
-        // A payment is shown only with a stored deadline or a stored account behind it: a score alone does not tell a reader to pay.
-        requiresAny = setOf(ActionPart.DATE, ActionPart.IBAN),
     )
 
     val REPLY = ActionKind(

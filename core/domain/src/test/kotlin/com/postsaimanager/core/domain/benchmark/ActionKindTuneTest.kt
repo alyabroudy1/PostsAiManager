@@ -1,7 +1,6 @@
 package com.postsaimanager.core.domain.benchmark
 
 import com.postsaimanager.core.domain.extraction.actions.ActionKindProfile
-import com.postsaimanager.core.domain.extraction.actions.ActionPart
 import com.postsaimanager.core.domain.extraction.actions.ActionKindReader
 import com.postsaimanager.core.domain.extraction.actions.ActionKinds
 import com.postsaimanager.core.domain.extraction.actions.ActionQuestions
@@ -85,20 +84,6 @@ class ActionKindTuneTest {
         line("shipped : " + report(com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring.actions).table())
         for (o in report(com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring.actions).outcomes) {
             line(String.format(Locale.ROOT, "  %-30s shown=%s expected=%s also=%s bindings=%s", o.doc.key, o.shownKinds, o.expectedKinds, o.doc.actionsAlsoOk, o.items.map { it.bindings.filterKeys { k -> k == "date" || k == "amount" } }))
-        }
-        line()
-
-        line("## required evidence of a kind (requiresAny), shipped profile")
-        val p = com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring.actions
-        val evidences = mapOf(
-            "none" to emptySet(), "date|iban" to setOf(ActionPart.DATE, ActionPart.IBAN), "iban" to setOf(ActionPart.IBAN),
-            "date" to setOf(ActionPart.DATE), "iban|reference" to setOf(ActionPart.IBAN, ActionPart.REFERENCE),
-        )
-        for ((name, req) in evidences) for (kindId in listOf("pay")) {
-            val kinds = ActionKinds.ALL.map { if (it.id == kindId) it.copy(requiresAny = req) else it }
-            val r = ActionKindEval.run(recordings, p, kinds)
-            line(String.format(Locale.ROOT, "%-14s: ", "$kindId $name") + r.table() + " | lettersWithWrong=" + r.outcomes.filter { it.wrongKinds.isNotEmpty() }.map { it.doc.key })
-            line("      pays lost: " + r.outcomes.filter { "pay" in it.expectedKinds && "pay" !in it.shownKinds }.map { it.doc.key })
         }
         line()
 

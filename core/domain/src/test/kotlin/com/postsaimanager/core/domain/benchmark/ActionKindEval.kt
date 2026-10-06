@@ -158,12 +158,12 @@ object ActionKindEval {
 
     fun docs(): Map<String, ManifestDoc> = BenchmarkFixtures.load().docs.map { it.first }.filter { it.actions != null }.associateBy { it.key }
 
-    fun run(recordings: List<ActionRecording>, profile: ActionKindProfile, kinds: List<com.postsaimanager.core.domain.extraction.actions.ActionKind> = com.postsaimanager.core.domain.extraction.actions.ActionKinds.ALL): ActionReport {
+    fun run(recordings: List<ActionRecording>, profile: ActionKindProfile): ActionReport {
         val docs = docs()
         return ActionReport(
             recordings.mapNotNull { rec ->
                 val doc = docs[rec.key] ?: return@mapNotNull null
-                val reading = runBlocking { ActionKindReader(rec.scorer, profile, kinds).read(rec.slots, rec.senderStored) }
+                val reading = runBlocking { ActionKindReader(rec.scorer, profile).read(rec.slots, rec.senderStored) }
                 ActionOutcome(doc, rec.slots, reading?.items.orEmpty())
             },
         )
