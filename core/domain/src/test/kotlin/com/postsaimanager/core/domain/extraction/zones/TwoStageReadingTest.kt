@@ -45,8 +45,7 @@ class TwoStageReadingTest {
                 // The action kinds: the letter asks something, and what it asks is to pay; the amount is the one to pay.
                 c.contains(ActionQuestions.anything()) -> 3.0
                 c.contains(ActionQuestions.kind(ActionKinds.PAY)) -> 4.0
-                c.contains("«Amount: 1.284,50 €» the amount the reader is asked to pay") -> 3.0
-                else -> -5.0
+                c.contains("«Amount: 1.284,50 €» the amount the reader is asked to pay") -> 3.0                else -> -5.0
             }
         }
         responder = { q, _ ->
@@ -132,7 +131,9 @@ class TwoStageReadingTest {
     fun `the second stage scores the extras under the family's hint and chooses the actions by score, writing no line`() {
         val first = run(ExtractionV2Pipeline.Stages.FIRST, session())
         val later = session()
-        val second = run(ExtractionV2Pipeline.Stages.SECOND, later, first.enrichment)
+        // The payment needs a stored deadline or account behind it: the account is stored for this letter.
+        val ticket = first.enrichment!!.let { it.copy(slots = it.slots + TicketSlot("iban", "IBAN", "DE89 3704 0044 0532 0130 00")) }
+        val second = run(ExtractionV2Pipeline.Stages.SECOND, later, ticket)
         // The hint of the invoice family is part of the statement every extra is scored under: the key information is what it says matters.
         val hint = com.postsaimanager.core.domain.extraction.v2.ExtractionSchema.INVOICE_BILL.hint
         assertThat(hint).isNotEmpty()

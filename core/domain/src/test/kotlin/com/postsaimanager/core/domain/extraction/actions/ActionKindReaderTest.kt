@@ -109,6 +109,18 @@ class ActionKindReaderTest {
     }
 
     @Test
+    fun `a payment with neither a bound deadline nor a stored account is not shown, a kind without a rule is`() {
+        val scorer = Scripted(rules = listOf(ActionQuestions.anything() to 3.0, ActionQuestions.kind(ActionKinds.PAY) to 4.0))
+        val bare = listOf(TicketSlot("total", "Amount", "6,99"))
+        assertThat(read(scorer, list = bare)!!.items).isEmpty()
+        // With a stored account the payment stands, with or without a bound date.
+        assertThat(read(scorer, list = bare + TicketSlot("iban", "IBAN", "DE89 3704 0044 0532 0130 00"))!!.items.single().kind).isEqualTo("pay")
+        // The same scores for a kind that declares no evidence still show it.
+        val reply = Scripted(rules = listOf(ActionQuestions.anything() to 3.0, ActionQuestions.kind(ActionKinds.REPLY) to 4.0))
+        assertThat(read(reply, list = bare)!!.items.single().kind).isEqualTo("reply")
+    }
+
+    @Test
     fun `at most two actions are chosen`() {
         val scorer = Scripted(
             rules = listOf(

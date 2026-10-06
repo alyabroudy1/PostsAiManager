@@ -74,6 +74,10 @@ class ActionKindReader(
             c.kind.referenceSlots.firstOrNull { key -> slots.any { it.key == key && it.value.isNotBlank() } }?.let { bindings[ActionPart.REFERENCE.key] = it }
             if (c.kind.iban && slots.any { it.key == IBAN_KEY && it.value.isNotBlank() }) bindings[ActionPart.IBAN.key] = IBAN_KEY
             ActionItem(c.kind.id, bindings)
+        }.filter { item ->
+            // A kind that declares required evidence is shown only when one of those parts is bound to a stored field.
+            val required = kinds.firstOrNull { it.id == item.kind }?.requiresAny.orEmpty()
+            required.isEmpty() || required.any { it.key in item.bindings }
         }
         trace("actions bound=[" + items.joinToString(" ") { i -> i.kind + i.bindings.entries.joinToString(",", "(", ")") { "${it.key}:${it.value}" } } + "]")
         return Reading(items, any, kindScores.associate { it.first.id to it.second }, chosen.map { it.kind.id })
