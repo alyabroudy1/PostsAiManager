@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.zones
 
 import com.postsaimanager.core.domain.agent.AgentProfile
+import com.postsaimanager.core.domain.extraction.actions.ActionKindProfile
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.address.LineAsk
@@ -113,6 +114,36 @@ object ModelProfiles {
             // question is never widened to the whole letter.
             optionalUnlessOwn = setOf("invoice_no", "contract_no", "policy_no", "case_no", "tax_no").map { QuestionNames.slot(it) }.toSet(),
             optionalThreshold = 0.0,
+            // The action kinds, fitted on the device recordings of the 16 letters (ActionKindTuneTest, ActionKindReplayTest):
+            // - the raw sign of a score decides nothing: the model leans Yes on most kinds (every kind but attend and sign-and-return scores
+            //   above 0 on some letter that does not ask it), so choosing every kind above 0 shows 15 wrong actions in 33;
+            // - a per-kind bias (the kind's mean score over the letters) did worse held out: most benchmark letters ask for a payment, so
+            //   the mean lean of "pay" is its signal, and taking it off lost the payments (so no bias is set);
+            // - what works is the best kind above a floor, with the kinds within a small margin of it: from 0.4 to 0.5 the floor and from 0.1 to
+            //   0.4 the margin give the same 13 of 16 letters exactly right, and 0.5 and 0.25 are the middle of that plateau. Higher
+            //   floors lose the payments the model scores only +0.6 (N6, the Arabic-named letter) for one wrong action less;
+            // - the gate "does it ask anything at all", asked knowing what the reading decided the document is, and measured over its
+            //   content-free baseline (the same question over an empty letter, per family: gateBaseline), separates nothing: the receipt
+            //   scores +2.69 over its baseline, above every letter that asks something (2.49 at most), and the whole range from -1.0 to 1.0
+            //   gives the same result. It stays at 0.0 over the baseline;
+            // - the second gate, "has whatever the document is about already been completed (paid, done)?", does: over its baseline
+            //   (0.55) the receipt scores +0.27 and no letter that asks something scores above -0.09. From 0.0 to 0.25 the result is
+            //   the same, the middle is 0.1 (a margin of 0.17 on one side and 0.19 on the other, on ONE receipt: thin evidence). It makes the
+            //   three no-action letters show no action and loses no correct action;
+            // - a date or an amount is bound when it is the best of the stored ones above the threshold; below -0.25 (dates) a wrong date
+            //   is bound for the car insurance letter, which a shorter line avoids. The amount is the stored one the model scores highest as
+            //   the amount to pay, down to -0.5; where the reading stored no right amount nothing here can find one.
+            actions = ActionKindProfile(
+                anyThreshold = 0.0,
+                gateBaseline = mapOf(
+                    "" to -0.60, "official_letter" to -0.71, "invoice_bill" to -0.51, "receipt" to -0.77, "form_application" to -0.82,
+                    "statement" to -0.93, "contract_policy" to -1.16, "certificate_id" to -1.07, "medical" to -0.55,
+                    "ticket_booking" to -0.86, "outgoing_letter" to -0.94, "payment_proof" to -0.24,
+                ),
+                doneBaseline = 0.55, doneThreshold = 0.1,
+                minScore = 0.5, margin = 0.25, maxActions = ActionKindProfile.MAX_ACTIONS,
+                dateThreshold = -0.25, amountThreshold = -0.5,
+            ),
         ),
     )
 
@@ -125,6 +156,8 @@ object ModelProfiles {
      */
     fun recordingProfile(shipped: ScoringProfile): ScoringProfile = shipped.copy(
         thresholds = shipped.thresholds.filterKeys { it in PARTY_THRESHOLDS },
+        // Every stored date and amount is scored under every action kind, so the bindings can be fitted offline too.
+        actions = shipped.actions.copy(scoreEveryBinding = true),
     )
 
     private val PARTY_THRESHOLDS = setOf(QuestionNames.CONTACT, QuestionNames.CARE_OF, QuestionNames.SUBJECT_PERSON)

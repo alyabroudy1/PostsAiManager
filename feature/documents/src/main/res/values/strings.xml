@@ -20,6 +20,36 @@
 
     <!-- The essentials at the top of the Extracted tab -->
     <string name="essentials_actions_title">What you need to do</string>
+    <!-- The action lines, by action kind. Arguments, in this order and only the ones the line states: amount, party, date. -->
+    <string name="action_date_time">%1$s, %2$s</string>
+    <string name="action_pay">Pay the amount due</string>
+    <string name="action_pay_a">Pay %1$s</string>
+    <string name="action_pay_p">Pay the amount due to %1$s</string>
+    <string name="action_pay_d">Pay the amount due by %1$s</string>
+    <string name="action_pay_ap">Pay %1$s to %2$s</string>
+    <string name="action_pay_ad">Pay %1$s by %2$s</string>
+    <string name="action_pay_pd">Pay the amount due to %1$s by %2$s</string>
+    <string name="action_pay_apd">Pay %1$s to %2$s by %3$s</string>
+    <string name="action_reply">Reply to the letter</string>
+    <string name="action_reply_p">Reply to %1$s</string>
+    <string name="action_reply_d">Reply by %1$s</string>
+    <string name="action_reply_pd">Reply to %1$s by %2$s</string>
+    <string name="action_object_cancel">Object or cancel if you disagree</string>
+    <string name="action_object_cancel_d">Object or cancel by %1$s</string>
+    <string name="action_attend">Attend your appointment</string>
+    <string name="action_attend_d">Attend your appointment on %1$s</string>
+    <string name="action_send_documents">Send the requested documents</string>
+    <string name="action_send_documents_p">Send the requested documents to %1$s</string>
+    <string name="action_send_documents_d">Send the requested documents by %1$s</string>
+    <string name="action_send_documents_pd">Send the requested documents to %1$s by %2$s</string>
+    <string name="action_sign_return">Sign the form and send it back</string>
+    <string name="action_sign_return_d">Sign the form and send it back by %1$s</string>
+    <string name="action_confirm_renew">Confirm or renew</string>
+    <string name="action_confirm_renew_d">Confirm or renew by %1$s</string>
+    <string name="action_contact">Get in touch with the sender</string>
+    <string name="action_contact_p">Get in touch with %1$s</string>
+    <string name="action_contact_d">Get in touch with the sender by %1$s</string>
+    <string name="action_contact_pd">Get in touch with %1$s by %2$s</string>
     <string name="essentials_parties_title">Who it is from and for</string>
     <string name="essentials_key_title">Key information</string>
     <string name="essentials_from">From</string>

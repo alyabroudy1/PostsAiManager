@@ -240,10 +240,10 @@ data class DocumentUnderstanding(
     val summaryArgs: List<String> = emptyList(),
 
     /**
-     * The action lines a second stage wrote (what the reader must do, by when), already checked; empty when it found none. Null when
-     * no stage wrote them (a first stage, a failed ask), so a stored list is kept.
+     * The actions a second stage chose (what the reader must do), each a kind and the stored fields it rests on; empty when it found
+     * none. Null when no stage chose them (a first stage, a failed scoring), so a stored list is kept.
      */
-    val actionItems: List<String>? = null,
+    val actionItems: List<ActionItem>? = null,
     /**
      * The stored slots a second stage picked as key information, best first; empty when it picked none, null when it did not score
      * them (a first stage, a failed scoring), so the picks already stored are kept.

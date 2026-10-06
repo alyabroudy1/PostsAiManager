@@ -2,8 +2,9 @@ package com.postsaimanager.feature.documents
 
 import com.postsaimanager.core.domain.document.list.PartyFields
 import com.postsaimanager.core.domain.extraction.address.AddressRows
+import com.postsaimanager.core.domain.extraction.actions.ActionLine
+import com.postsaimanager.core.domain.extraction.actions.ActionLines
 import com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions
-import com.postsaimanager.core.domain.extraction.text.ActionLinks
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner
@@ -125,9 +126,6 @@ data class ReviewSummary(val uncertain: Int, val confidentIds: List<String>, val
         }
 }
 
-/** One action line (what the reader must do) with the live fields it quotes, for their inline Confirm and Edit. */
-data class ActionLine(val text: String, val rows: List<ExtractedData>)
-
 /**
  * One party of the "From / For / About" block.
  *
@@ -146,7 +144,7 @@ data class PartiesView(val from: PartyEntry?, val forWhom: PartyEntry?, val abou
  * What the Extracted tab shows first, top to bottom: what to do, who it is from and for, and the key information. Everything the AI
  * judged essential; the rest is in "All details". A document read before the key information existed has only the parties and the subject.
  *
- * @property actions the action lines the second stage wrote, each with the fields it quotes; empty when there are none
+ * @property actions the actions the second stage chose, each with the live fields it states; empty when there are none
  * @property parties From / For / About
  * @property subject the subject line, the first of the "Key information"
  * @property keyInfo the facts the AI picked as important for this kind of document (label and value as printed), best first
@@ -255,7 +253,8 @@ object ExtractedPresenter {
         // that picks them by the family's hint) and the fields behind the action lines. A document read earlier has only the parties
         // and the subject: its extras were not picked for what the reader needs.
         val (visibleExtras, hiddenExtras) = extraRows.partition { showAllExtras || !isHidden(it) }
-        val actions = ActionLinks.link(document.actionItems, live).map { ActionLine(it.text, it.rows) }
+        // Rendered from the live fields now: a value a person corrected is the value the line states.
+        val actions = ActionLines.resolve(document.actionItems, live)
         val actionRowIds = actions.flatMap { a -> a.rows.map { it.id } }.toSet()
         // The slot rows the AI picked as key information (an invoice number, an IBAN ...) come first, best score first, then the extras. A
         // value an action line already states stays in that line's sub-lines and is not drawn twice.

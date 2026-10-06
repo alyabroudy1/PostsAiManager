@@ -10,6 +10,7 @@ import com.postsaimanager.core.domain.extraction.text.SummaryFacts
 import com.postsaimanager.core.domain.extraction.text.SummaryFactsReader
 import com.postsaimanager.core.domain.extraction.text.SummaryResult
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
+import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.KeySlot
 import com.postsaimanager.core.model.OcrBlock
@@ -91,7 +92,7 @@ class ExtractionV2Pipeline(
         var textError: String? = null
         var ticket: EnrichmentTicket? = null
         var summary: SummaryResult? = null
-        var actions: List<String>? = null
+        var actions: List<ActionItem>? = null
         var keySlots: List<KeySlot>? = null
         val pageTexts = pages.map { blocks -> blocks.joinToString("\n") { OcrText.normalizeChars(it.text) } }
         fun context(rawText: String?, textError: String?) = VerificationContext(

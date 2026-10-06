@@ -2,6 +2,7 @@ package com.postsaimanager.core.data.mapper
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.data.database.entity.DocumentEntity
+import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
@@ -99,10 +100,13 @@ class DocumentMapperTest {
     }
 
     @Test
-    fun `a document keeps its action lines through storage, and one stored before v18 has none`() {
+    fun `a document keeps its actions through storage, and one stored before v18 has none`() {
         val document = Document(
             id = "d1", title = "T", sourceType = SourceType.CAMERA, createdAt = 1, modifiedAt = 2, titleSource = TitleSource.MODEL,
-            actionItems = listOf("Zahle 64,98 € bis zum 15.10.2026.", "Einspruch bis zum 02.09.2026 möglich."),
+            actionItems = listOf(
+                ActionItem("pay", mapOf("date" to "due_date", "amount" to "total", "party" to "sender")),
+                ActionItem("object_cancel", mapOf("date" to "objection_deadline")),
+            ),
         )
         assertThat(mapper.toDomain(mapper.toEntity(document))).isEqualTo(document)
         assertThat(mapper.toEntity(document.copy(actionItems = emptyList())).actionItems).isNull()
@@ -114,6 +118,23 @@ class DocumentMapperTest {
                 ),
             ).actionItems,
         ).isEmpty()
+    }
+
+    @Test
+    fun `actions stored as plain sentences by the earlier writer decode as none and never fail the row`() {
+        fun read(json: String?) = mapper.toDomain(
+            DocumentEntity(
+                id = "d", title = "T", status = "EXTRACTED", documentType = null, language = null, sourceType = "CAMERA",
+                thumbnailPath = null, pageCount = 1, createdAt = 1, modifiedAt = 1, actionItems = json,
+            ),
+        ).actionItems
+        assertThat(read("""["Zahle 64,98 € bis zum 15.10.2026.","Einspruch bis zum 02.09.2026 möglich."]""")).isEmpty()
+        assertThat(read("not json at all")).isEmpty()
+        assertThat(read("""{"kind":"pay"}""")).isEmpty()
+        // A mixed list keeps the entries it can read; an unknown field is ignored.
+        assertThat(read("""["old",{"kind":"reply","bindings":{"party":"sender"},"future":1},{"bindings":{}}]"""))
+            .containsExactly(ActionItem("reply", mapOf("party" to "sender")))
+        assertThat(read("""[{"kind":"pay"}]""")).containsExactly(ActionItem("pay"))
     }
 
     @Test

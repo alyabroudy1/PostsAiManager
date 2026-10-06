@@ -19,9 +19,10 @@ class ExtractorVersionTest {
     }
 
     @Test
-    @DisplayName("the shortened-action-lines extractor is extraction-v2-10, and a document the previous one read is outdated")
+    @DisplayName("the scored-action-kinds extractor is extraction-v2-11, and a document the previous one read is outdated")
     fun keyInfoVersion() {
-        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-10")
+        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-11")
+        assertThat(ExtractorVersion.isOutdated("extraction-v2-10")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-9")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-8")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-7")).isTrue()

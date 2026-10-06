@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.benchmark
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
+import com.postsaimanager.core.domain.extraction.actions.ActionQuestions
 import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.extraction.zones.QuestionNames
@@ -279,9 +280,10 @@ internal class ReplayPromptSession(private val recording: Recording, private val
 
     /** A recorded scored batch (`score:*`): its questions in order, its answer the comma-separated scores. */
     override suspend fun score(continuations: List<String>, yes: String, no: String, shared: String): PamResult<List<Double>> {
-        // The stored-slot questions (key information) are newer than any recording: they are scripted as "not scored" (no threshold accepts
-        // that), and the rest of the batch is replayed as recorded.
-        val keySlot = continuations.indices.filter { continuations[it].contains(KEY_SLOT_QUESTION) }.toSet()
+        // The stored-slot questions (key information) and the action questions are newer than the recordings of the reading: they are scripted
+        // as "not scored" (no threshold accepts that), and the rest of the batch is replayed as recorded. The action scores are replayed
+        // from their own recordings (ActionKindReplayTest).
+        val keySlot = continuations.indices.filter { continuations[it].contains(KEY_SLOT_QUESTION) || ActionQuestions.isActionQuestion(continuations[it]) }.toSet()
         if (keySlot.isNotEmpty()) {
             val rest = continuations.filterIndexed { i, _ -> i !in keySlot }
             val replayed = if (rest.isEmpty()) PamResult.Success(emptyList()) else score(rest, yes, no, shared)

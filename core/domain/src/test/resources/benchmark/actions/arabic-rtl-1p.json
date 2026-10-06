@@ -1,0 +1,50 @@
+{
+ "key": "arabic-rtl-1p",
+ "family": "invoice_bill",
+ "senderStored": false,
+ "slots": [
+  {
+   "key": "total",
+   "label": "Amount",
+   "value": "450,00 €"
+  },
+  {
+   "key": "due_date",
+   "label": "Deadline",
+   "value": "20.10.2026"
+  },
+  {
+   "key": "reference",
+   "label": "Reference",
+   "value": "2026-041"
+  },
+  {
+   "key": "invoice_no",
+   "label": "Invoice Number",
+   "value": "2026-041"
+  }
+ ],
+ "stageActions": [
+  "pay"
+ ],
+ "asks": [
+  {
+   "name": "score:action:kinds",
+   "question": "This document is: an invoice, a bill or a payment reminder that asks the reader to pay. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nHas whatever this document is about already been completed, for example already paid or already done by the reader? Answer:\n@@\nDoes this letter ask the reader to pay an amount of money? Answer:\n@@\nDoes this letter ask the reader to reply to the sender or respond in writing? Answer:\n@@\nDoes this letter ask the reader to object, appeal or cancel before a deadline? Answer:\n@@\nDoes this letter ask the reader to attend an appointment at a given date and time? Answer:\n@@\nDoes this letter ask the reader to send documents or information to the sender? Answer:\n@@\nDoes this letter ask the reader to sign a document or form and return it? Answer:\n@@\nDoes this letter ask the reader to confirm, accept or renew something, such as a contract, a membership or an offer? Answer:\n@@\nDoes this letter ask the reader to contact the sender, by phone, e-mail or in person? Answer:",
+   "answer": "0.6483135223388672,-0.5602989196777344,0.5954151153564453,-1.698333740234375,-0.7382602691650391,-2.059703826904297,-1.7203845977783203,-1.9846725463867188,-1.2108287811279297,-1.8561573028564453",
+   "ms": 2682
+  },
+  {
+   "name": "score:action:bindings",
+   "question": "Is «Deadline: 20.10.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Amount: 450,00 €» the amount the reader is asked to pay? Answer:\n@@\nIs «Deadline: 20.10.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Deadline: 20.10.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Deadline: 20.10.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Deadline: 20.10.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Deadline: 20.10.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Deadline: 20.10.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Deadline: 20.10.2026» the date by which the reader is asked to get in touch? Answer:",
+   "answer": "-0.028232574462890625,0.18719100952148438,0.12280464172363281,-0.29866600036621094,0.07774543762207031,0.03838539123535156,-0.03614234924316406,0.37945556640625,-0.1350688934326172",
+   "ms": 2939
+  },
+  {
+   "name": "score:action:baseline",
+   "question": "Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nHas whatever this document is about already been completed, for example already paid or already done by the reader? Answer:\n@@\nThis document is: a letter or decision from an authority, employer, school or other organisation that informs the reader or decides something. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nThis document is: an invoice, a bill or a payment reminder that asks the reader to pay. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nThis document is: a receipt or proof of a purchase. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nThis document is: a form or an application that is filled in and returned. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nThis document is: a statement of account, a bank statement or a summary of transactions or consumption. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nThis document is: a contract, an insurance policy, or a change to its price or terms. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nThis document is: a certificate, an identity document, a licence or a card. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nThis document is: a letter from a doctor, clinic or hospital, such as an appointment, a referral or a result. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nThis document is: a ticket, a booking confirmation or a travel itinerary. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nThis document is: a letter the reader wrote and sent to someone else. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nThis document is: a confirmation that a payment was made. Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:",
+   "answer": "-0.851348876953125,0.202911376953125,-0.42340087890625,0.5568981170654297,0.06295585632324219,-0.44309425354003906,-0.9916343688964844,-1.0896244049072266,-0.2481536865234375,0.039684295654296875,-0.6417865753173828,-0.7744884490966797,0.057796478271484375",
+   "ms": 6654
+  }
+ ]
+}

@@ -14,8 +14,6 @@ import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
 import com.postsaimanager.core.domain.extraction.zones.ZoneInterpreter
 import com.postsaimanager.core.domain.extraction.zones.ZoneScoringInterpreter
 import com.postsaimanager.core.model.InferenceConfig
-import com.postsaimanager.core.model.OcrBlock
-import com.postsaimanager.core.model.TextBounds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -56,29 +54,7 @@ class ZoneBenchmarkTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private val args get() = InstrumentationRegistry.getArguments()
 
-    private fun parseFixture(file: File): Pair<List<List<OcrBlock>>, Float?> {
-        val pages = JSONObject(file.readText()).getJSONArray("pages")
-        val sorted = (0 until pages.length()).map { pages.getJSONObject(it) }.sortedBy { it.getInt("pageNumber") }
-        val blocks = sorted.map { p ->
-            val bs = p.getJSONArray("blocks")
-            (0 until bs.length()).map { i ->
-                val b = bs.getJSONObject(i)
-                val r = b.getJSONObject("bounds")
-                OcrBlock(
-                    text = b.getString("text"),
-                    bounds = TextBounds(
-                        r.getDouble("left").toFloat(), r.getDouble("top").toFloat(),
-                        r.getDouble("right").toFloat(), r.getDouble("bottom").toFloat(),
-                    ),
-                    confidence = b.optDouble("confidence", 1.0).toFloat(),
-                    language = b.optString("language").takeIf { it.isNotEmpty() && it != "null" },
-                )
-            }
-        }
-        val first = sorted.firstOrNull()
-        val aspect = first?.let { p -> p.optDouble("width", 0.0) / p.optDouble("height", 1.0) }?.takeIf { it > 0.0 }?.toFloat()
-        return blocks to aspect
-    }
+    private fun parseFixture(file: File) = BenchmarkFixtureFiles.parse(file)
 
     /** Keeps what the recording needs: the candidate table and the times of both calls. */
     private class Capture(private val inner: DocumentInterpreter) : DocumentInterpreter by inner {

@@ -19,6 +19,7 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
+import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
@@ -210,7 +211,7 @@ class ExtractedTabUiTest {
         compose.onNodeWithText("Your summary").assertIsDisplayed()
     }
 
-    private fun document(extractionType: String? = null, actionItems: List<String> = emptyList(), version: String? = null) = Document(
+    private fun document(extractionType: String? = null, actionItems: List<ActionItem> = emptyList(), version: String? = null) = Document(
         id = "d", title = "T", sourceType = SourceType.CAMERA, createdAt = 0, modifiedAt = 0,
         extractionType = extractionType, actionItems = actionItems, extractorVersion = version,
     )
@@ -313,7 +314,14 @@ class ExtractedTabUiTest {
             row("m", "x:mandatsreferenz", "M-77", name = "Mandatsreferenz"),
         )
     }
-    private val invoice = { document("invoice_bill", listOf("Zahle 64,98 € bis zum 15.10.2026."), ExtractorVersion.CURRENT) }
+    private val payAction = ActionItem("pay", mapOf("amount" to "total", "party" to "sender", "date" to "due_date"))
+    private val payWithAccount = payAction.copy(bindings = payAction.bindings + ("iban" to "iban"))
+    private val invoice = { document("invoice_bill", listOf(payAction), ExtractorVersion.CURRENT) }
+
+    /** The pay line as the app writes it, with the date in the short form of the test's locale. */
+    private fun payLine(amount: String = "64,98 €") =
+        "Pay $amount to Nordlicht Mobilfunk GmbH by ${actionDateText(java.time.LocalDate.of(2026, 10, 15), java.util.Locale.getDefault())}"
+    private val payLine = payLine()
 
     @Test
     fun `All details is collapsed by default, shows its count and opens on a tap`() {
@@ -355,38 +363,45 @@ class ExtractedTabUiTest {
     }
 
     @Test
-    fun `the action line shows the AI's text and the values it states, and confirming it confirms the fields behind it`() {
-        showTab(invoice(), invoiceRows())
+    fun `the action is rendered from the live fields in the app's language, its account is a value to copy, and confirming it confirms the fields behind it`() {
+        showTab(document("invoice_bill", listOf(payWithAccount), ExtractorVersion.CURRENT), invoiceRows())
 
         scrollTo("What you need to do")
         compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading) and hasText("What you need to do")).assertIsDisplayed()
-        scrollTo("Zahle 64,98 € bis zum 15.10.2026.")
-        compose.onNodeWithText("Zahle 64,98 € bis zum 15.10.2026.").assertIsDisplayed()
-        scrollTo("Deadline: 15.10.2026")
-        compose.onNodeWithText("Amount: 64,98 €").assertIsDisplayed()
-        compose.onNodeWithText("Deadline: 15.10.2026").assertIsDisplayed()
+        scrollTo(payLine)
+        compose.onNodeWithText(payLine).assertIsDisplayed()
+        scrollTo("IBAN: DE89 3704 0044 0532 0130 00")
+        compose.onNodeWithText("IBAN: DE89 3704 0044 0532 0130 00").assertIsDisplayed()
 
-        compose.onNodeWithContentDescription("Confirm Zahle 64,98 € bis zum 15.10.2026.").performClick()
-        assertThat(confirmed.single()).containsExactly("t", "d")
+        compose.onNodeWithContentDescription("Confirm $payLine").performClick()
+        assertThat(confirmed.single()).containsExactly("d", "t", "i")
     }
 
     @Test
-    fun `the action line's fields are ignored one by one, or edited in the sheet, from its overflow menu`() {
+    fun `a corrected amount is in the line at once`() {
+        val corrected = invoiceRows().map { if (it.slotKey == "total") it.copy(fieldValue = "70,00 €", source = ValueSource.USER) else it }
+        showTab(invoice(), corrected)
+        scrollTo(payLine("70,00 €"))
+        compose.onNodeWithText(payLine("70,00 €")).assertIsDisplayed()
+    }
+
+    @Test
+    fun `the action's fields are ignored one by one, or edited in the sheet, from its overflow menu`() {
         showTab(invoice(), invoiceRows())
 
-        scrollTo("Zahle 64,98 € bis zum 15.10.2026.")
-        openMenuOf("Zahle 64,98 € bis zum 15.10.2026.")
+        scrollTo(payLine)
+        openMenuOf(payLine)
         compose.onNodeWithContentDescription("Ignore Amount").performClick()
         assertThat(ignored).containsExactly(listOf("t"))
 
         // The tab itself opens the Edit sheet for the field it is asked to edit.
-        openMenuOf("Zahle 64,98 € bis zum 15.10.2026.")
+        openMenuOf(payLine)
         compose.onNodeWithContentDescription("Edit Deadline").performClick()
         compose.onNodeWithText("Edit Deadline").assertIsDisplayed()
     }
 
     @Test
-    fun `a document with no action lines has no What you need to do section`() {
+    fun `a document with no actions has no What you need to do section`() {
         showTab(document("invoice_bill", emptyList(), ExtractorVersion.CURRENT), invoiceRows())
 
         compose.onNodeWithText("What you need to do").assertDoesNotExist()

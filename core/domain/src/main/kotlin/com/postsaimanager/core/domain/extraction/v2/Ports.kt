@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.extraction.v2
 import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.text.SummaryResult
+import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.KeySlot
 import com.postsaimanager.core.model.TicketSlot
@@ -155,8 +156,8 @@ class EnrichmentRequest(
  * @property summary the summary the writer settled on (the model's sentences, or the template that renders from the verified
  *   fields); null when the second stage could not write at all, so the summary stays pending.
  * @property topics the topics, when this stage scored them (a profile that keeps them out of the first stage); null otherwise.
- * @property actions the action lines the writer kept (what the reader must do, already checked); empty when the letter asks nothing;
- *   null when none could be asked, so a stored list stays.
+ * @property actions the actions chosen by score (what the reader must do: a kind and the stored fields it rests on); empty when the letter
+ *   asks nothing; null when none could be scored, so a stored list stays.
  */
 class Enrichment(
     val language: String?,
@@ -166,7 +167,7 @@ class Enrichment(
     val rawText: String? = null,
     val summary: SummaryResult? = null,
     val topics: List<String>? = null,
-    val actions: List<String>? = null,
+    val actions: List<ActionItem>? = null,
     val keySlots: List<KeySlot>? = null,
 )
 

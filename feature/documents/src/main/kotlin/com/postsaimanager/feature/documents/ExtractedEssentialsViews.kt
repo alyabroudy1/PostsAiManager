@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.domain.extraction.actions.ActionLine
 import com.postsaimanager.core.model.ExtractedData
 
 // The top of the Extracted tab: what to do, who it is from and for, the key information. Each part is a card with a heading; every
@@ -75,33 +76,37 @@ private fun EssentialCard(title: String, containerColor: Color, content: @Compos
 // What you need to do
 // ═══════════════════════════════════════════════════════════
 
-/** "What you need to do": the action lines the AI wrote, each with the values it states as copyable sub-lines. */
+/**
+ * "What you need to do": the actions the AI chose, each as one sentence in the app's language rendered from the live fields (so a
+ * corrected value is the value stated), with the account or reference it names as copyable sub-lines.
+ */
 @Composable
 internal fun ActionsCard(lines: List<ActionLine>, actions: FieldActions) {
     EssentialCard(stringResource(R.string.essentials_actions_title), MaterialTheme.colorScheme.primaryContainer) {
         lines.forEachIndexed { index, line ->
+            val text = actionLineText(line) ?: return@forEachIndexed
             if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(end = 12.dp))
-            ActionLineView(line, actions)
+            ActionLineView(line, text, actions)
         }
     }
 }
 
 @Composable
-private fun ActionLineView(line: ActionLine, actions: FieldActions) {
+private fun ActionLineView(line: ActionLine, text: String, actions: FieldActions) {
     val open = line.rows.filter { !it.isSettled }
     val uncertain = line.rows.any { it.isUncertain }
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                line.text,
+                text,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.weight(1f).padding(vertical = 6.dp).semantics(mergeDescendants = true) {},
             )
             if (line.rows.isNotEmpty()) {
-                if (open.isNotEmpty()) ConfirmButton(line.text) { actions.confirm(open.map { it.id }) } else ConfirmedMark(line.text)
-                OverflowMenu(line.text) { close ->
+                if (open.isNotEmpty()) ConfirmButton(text) { actions.confirm(open.map { it.id }) } else ConfirmedMark(text)
+                OverflowMenu(text) { close ->
                     line.rows.forEach { row ->
                         val label = fieldLabelText(row)
                         MenuItem(R.string.action_menu_edit, R.string.action_edit_field, label) { close(); actions.edit(row) }
@@ -113,7 +118,7 @@ private fun ActionLineView(line: ActionLine, actions: FieldActions) {
                 }
             }
         }
-        line.rows.forEach { row -> ValueSubLine(row) }
+        line.valueRows.forEach { row -> ValueSubLine(row) }
         line.rows.filter { it.hasUnreviewedMachineChange && it.machineValue != null }.forEach { MachineChangeNotice(it, actions) }
         if (uncertain) WorthChecking()
     }

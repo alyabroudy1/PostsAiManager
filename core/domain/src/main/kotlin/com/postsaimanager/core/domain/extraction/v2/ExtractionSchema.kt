@@ -243,8 +243,8 @@ enum class DocDirection { INCOMING, OUTGOING, PROOF }
  * @property scored whether the classifier asks about this family. False for the abstain outcome ([ExtractionSchema.FREE_FORM]):
  *   a scored "anything else" gets a middling Yes on every letter and wins, so it is what is chosen when no family scores above the threshold.
  * @property hint a few English words of guidance for the model on what matters in this kind of document (what the reader needs to know
- *   and to do). Prompt text, never a rule: it steers which facts the second stage keeps as the key information and what the action lines
- *   say, and the model still decides for each letter. A new family adds its hint here, as data.
+ *   and to do). Prompt text, never a rule: it steers which facts the second stage keeps as the key information, and the model still
+ *   decides for each letter. A new family adds its hint here, as data.
  */
 data class DocFamily(
     val id: String,

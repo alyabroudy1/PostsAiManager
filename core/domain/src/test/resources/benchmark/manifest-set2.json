@@ -4,6 +4,7 @@
   "documents": [
     {
       "id": "N1-mahnung-telco-qr-1p",
+      "actions": [{ "kind": "pay", "date": null, "amount": "64,98 €" }],
       "topics": ["telecom"],
       "folder": "N1-mahnung-telco-qr-1p",
       "subject": "Zahlungserinnerung / 1. Mahnung – Rechnung 2026-08-771204",
@@ -122,6 +123,7 @@
     },
     {
       "id": "N2-kfz-verlaengerung-2p",
+      "actions": [{ "kind": "object_cancel", "date": "2026-11-30", "amount": null }],
       "topics": ["insurance", "vehicle"],
       "folder": "N2-kfz-verlaengerung-2p",
       "subject": "Ihre Kfz-Versicherung – Beitrag ab 01.01.2027",
@@ -218,6 +220,8 @@
     },
     {
       "id": "N3-schule-familie-2p",
+      "actions": [{ "kind": "sign_return", "date": "2026-10-16", "amount": null }],
+      "actions_also_ok": ["pay", "send_documents"],
       "topics": ["school_education"],
       "folder": "N3-schule-familie-2p",
       "subject": "Klassenausflug der Klasse 3b am 24.11.2026",
@@ -309,6 +313,8 @@
     },
     {
       "id": "N4-zhd-firma-1p",
+      "actions": [{ "kind": "confirm_renew", "date": "2026-10-15", "amount": null }],
+      "actions_also_ok": ["sign_return", "reply"],
       "topics": [],
       "folder": "N4-zhd-firma-1p",
       "subject": "Wartungsvertrag WV-2291 – Verlängerung ab 01.01.2027",
@@ -389,6 +395,7 @@
     },
     {
       "id": "N5-co-familie-1p",
+      "actions": [{ "kind": "pay", "date": "2026-10-12", "amount": "187,50 €" }],
       "topics": ["school_education"],
       "folder": "N5-co-familie-1p",
       "subject": "Rückmeldung zum Wintersemester 2026/27",
@@ -471,6 +478,7 @@
     },
     {
       "id": "N6-nebenkosten-3p",
+      "actions": [{ "kind": "pay", "date": "2026-10-31", "amount": "186,32 €" }],
       "topics": ["housing_utilities"],
       "folder": "N6-nebenkosten-3p",
       "subject": "Betriebskostenabrechnung 01.01.2025 – 31.12.2025",
@@ -577,6 +585,7 @@
     },
     {
       "id": "N7-beitragsservice-1p",
+      "actions": [{ "kind": "pay", "date": "2026-10-15", "amount": "55,08 €" }],
       "topics": ["government"],
       "folder": "N7-beitragsservice-1p",
       "subject": "Zahlungserinnerung – Beitragsnummer 987 654 321",
@@ -659,6 +668,7 @@
     },
     {
       "id": "N8-info-bank-noaction-1p",
+      "actions": [],
       "topics": ["bank_finance"],
       "folder": "N8-info-bank-noaction-1p",
       "subject": "Informationen zu unserem neuen Kundenportal",
@@ -726,6 +736,7 @@
     },
     {
       "id": "N9-fuzzy-name-1p",
+      "actions": [{ "kind": "pay", "date": "2026-10-12", "amount": "78,00 €" }],
       "topics": ["housing_utilities"],
       "folder": "N9-fuzzy-name-1p",
       "subject": "Abschlagsrechnung Oktober 2026",
@@ -810,6 +821,7 @@
     },
     {
       "id": "N10-kinderarzt-termin-1p",
+      "actions": [{ "kind": "attend", "date": "2026-11-12", "amount": null }],
       "topics": ["health"],
       "folder": "N10-kinderarzt-termin-1p",
       "subject": "Terminerinnerung für Adam Mustermann",
