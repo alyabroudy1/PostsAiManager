@@ -9,13 +9,6 @@ slot total A11 39.00 EUR TOTAL_DUE 0.7 0.6 [no currency next to the amount, scor
 party SENDER M1 Musterfirma GmbH COMPANY NONE 0.9 [score margin +0.86 (winner +0.86 of 1)]
 party ADDRESSEE M2 Erika Mustermann PERSON NONE 0.9 [score margin +0.50 (winner +0.50 of 1)]
 party CARE_OF M2 Erika Mustermann PERSON NONE 0.9 [score margin +0.62 (winner +0.62 of 1)]
-party SUBJECT_PERSON M3 Pos. Beschreibung COMPANY NONE 0.9 [score margin +0.33 (winner +0.16 of 4)]
-extra 66.00 EUR
-extra 29.00 EUR
-extra 1079.41 EUR
-extra 285.00 EUR
-extra 37.00 EUR
-extra 93.51 EUR
 == tax-long-7p
 type other language de
 slot customer_no N1 123/456/78901 null 0.9 0.9 [score margin +0.52 (winner +0.51 of 2)]
@@ -28,11 +21,8 @@ party SENDER M1 Finanzamt Beispielstadt COMPANY NONE 0.7 [score margin +0.03 (wi
 party ADDRESSEE M2 Erika Mustermann PERSON NONE 0.9 [score margin +0.47 (winner +0.47 of 1)]
 party CARE_OF M2 Erika Mustermann PERSON NONE 0.9 [score margin +0.77 (winner +0.77 of 1)]
 party SUBJECT_PERSON M3 Festsetzung der Einkommensteuer und Nachzahlung AUTHORITY NONE 0.9 [score margin +0.39 (winner +0.39 of 1)]
-extra 46020.00 EUR
-extra 260.00 EUR
 extra 10117.00 EUR
 extra 44610.00 EUR
-extra 4720.00 EUR
 == english-ambiguous-3p
 type reminder_dunning language en
 slot customer_no N1 NU-77120934 null 0.9 0.9 [score margin +0.42 (winner +0.63 of 2)]
@@ -59,8 +49,6 @@ extra ecdsa-plain-SHA256
 extra 0.79 EUR
 extra 3.29 EUR
 extra 2.50 EUR
-extra cec255404e4
-extra 19.15 EUR
 == degraded-3p
 type other language de
 slot customer_no N2 1EMH0000123456 null 0.9 0.6 [read with an OCR character repair (1EMHO000123456 -> 1EMH0000123456), score margin +0.28 (winner +0.15 of 2)]
@@ -91,8 +79,6 @@ party SENDER M3 Nordlicht Mobilfunk GmbH COMPANY NONE 0.9 [score margin +1.24 (w
 party ADDRESSEE M1 Erika Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.84 (winner +0.84 of 1)]
 party CARE_OF M1 Erika Mustermann PERSON NONE 0.9 [score margin +0.92 (winner +0.92 of 1)]
 party ROUTING M7 Team Forderungen COMPANY NONE 0.9 [score margin +1.03 (winner +1.03 of 1)]
-extra 5.00 EUR
-extra 59.98 EUR
 extra 2026-08-19
 extra 2026-08-771204
 extra COBADEFFXXX
@@ -136,8 +122,6 @@ extra vertrieb@buero-partner.example
 extra 2026-12-31
 extra 01234 888 44
 extra EM/2026 wV-2291
-extra 1428.00 EUR
-extra 2027-12-31
 == N5-co-familie-1p
 type bill language de
 slot customer_no N3 1234567 null 0.9 0.9 [score margin +0.74 (winner +0.23 of 4)]
@@ -151,7 +135,7 @@ party SENDER M1 Universität Beispielstadt AUTHORITY NONE 0.9 [score margin +0.2
 party ADDRESSEE M3 Jonas Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.33 (winner +0.40 of 2)]
 party CARE_OF M3 Jonas Mustermann PERSON NONE 0.9 [score margin +0.74 (winner +0.17 of 2)]
 party ROUTING M8 Frau L. Test PERSON NONE 0.9 [score margin +0.25 (winner +0.25 of 1)]
-extra O1234
+extra o1234
 == N6-nebenkosten-3p
 type bill language de
 slot customer_no N2 BK-2025-0318 null 0.4 0.4 [score margin -0.58 (winner -0.58 of 1)]
@@ -166,7 +150,6 @@ party ADDRESSEE M1 Mohammad Mustermann PERSON NONE 0.9 [score margin +0.50 (winn
 party CARE_OF M1 Mohammad Mustermann PERSON NONE 0.7 [score margin +0.12 (winner +0.12 of 1)]
 party ROUTING M7 Frau H. Muster PERSON NONE 0.7 [score margin +0.15 (winner +0.15 of 1)]
 extra 186.32 EUR
-extra 301.77 EUR
 == N7-beitragsservice-1p
 type reminder_dunning language de
 slot customer_no N1 987 654 321 null 0.9 0.9 [score margin +0.29 (winner +0.29 of 1)]
@@ -182,7 +165,6 @@ party SENDER M3 Beitragsservice Beispiel COMPANY NONE 0.9 [score margin +0.35 (w
 party ADDRESSEE M1 Erika Mustermann PERSON HOUSEHOLD 0.9 [score margin +0.84 (winner +0.84 of 1)]
 party CARE_OF M1 Erika Mustermann PERSON NONE 0.9 [score margin +0.92 (winner +0.92 of 1)]
 extra BELADEBEXXX
-extra 2026-12-31
 == N8-info-bank-noaction-1p
 type authority_tax language de
 slot case_no N1 7788123 null 0.4 0.4 [score margin -0.68 (winner -0.68 of 1)]

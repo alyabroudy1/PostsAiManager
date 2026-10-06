@@ -2,6 +2,7 @@ package com.postsaimanager.feature.documents
 
 import com.postsaimanager.core.domain.document.list.PartyFields
 import com.postsaimanager.core.domain.extraction.address.AddressRows
+import com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions
 import com.postsaimanager.core.domain.extraction.text.ActionLinks
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
@@ -260,7 +261,8 @@ object ExtractedPresenter {
         // value an action line already states stays in that line's sub-lines and is not drawn twice.
         val readsKeyInfo = ExtractorVersion.readsKeyInfo(document.extractorVersion)
         val keySlotRows = if (readsKeyInfo) fixedRows.filter { it.isKeySlot }.sortedByDescending { it.importance } else emptyList()
-        val keyInfo = if (readsKeyInfo) (keySlotRows + visibleExtras).filter { it.id !in actionRowIds } else emptyList()
+        // The section is short whatever is stored: at most MAX_KEY_INFO rows, the rest stay under "All details".
+        val keyInfo = if (readsKeyInfo) (keySlotRows + visibleExtras).filter { it.id !in actionRowIds }.take(ScoringDescriptions.MAX_KEY_INFO) else emptyList()
         val essentials = Essentials(
             actions = actions,
             parties = parties(fixedRows, fullBlocks, selfName),

@@ -340,12 +340,12 @@ class ZoneScoringInterpreter(
             val text = ZoneFreeText.write(includeSummary = false) { q -> ask(q) }
             val written = (text as? TextOutcome.Written)?.text
             // The summary rests on verified facts only: the subject line counts as one when it is printed in the letter.
-            val subject = written?.subject?.takeIf { QuoteVerifier.verify(it, request.ocrText) != null }
+            val subject = written?.subject?.takeIf { QuoteVerifier.verifyCopiedLine(it, request.ocrText) != null }
             val facts = SummaryFacts.of(request.documentTypeId ?: schema.abstain?.id.orEmpty(), request.facts, subject)
             val summary = SummaryWriter(FramedSession()).write(facts, request.ocrText, language)
             // What the reader must do: written from the same verified facts plus the key information picked, checked line by line.
             val keyInfo = extras.mapNotNull { x -> picked.firstOrNull { it.candidate.id == x.id }?.let { x.label to it.candidate.raw.replace('\n', ' ') } }
-            val actions = ActionWriter(FramedSession("text:actions")).write(facts.entries() + keyInfo, hint, request.ocrText, language)
+            val actions = ActionWriter(FramedSession("text:actions"), trace = { traceLines += it }).write(facts.entries() + keyInfo, hint, request.ocrText, language)
             return EnrichmentOutcome.Done(
                 Enrichment(
                     language = language, extras = extras, text = written,
@@ -405,7 +405,12 @@ class ZoneScoringInterpreter(
     private suspend fun pickExtras(setup: ZoneSetup, taken: Set<String>, hint: String?, slots: List<TicketSlot>): Picks {
         val zoned = setup.zoned
         val zones = setup.plan.zones(QuestionNames.EXTRAS_SCORED).filter { zoned.hasText(it) }
-        val cands = if (zones.isEmpty()) emptyList() else zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.id !in taken && it.kind != CandidateKind.NAME }
+        // Never key information: a value of a table's row (a position, a price: the table is read as a whole, its totals are slots), and a
+        // value found by shape alone with nothing printed beside it that names it (a signature fragment, a serial): the model's lean Yes
+        // cannot give such a value a meaning, however it is worded.
+        val cands = if (zones.isEmpty()) emptyList() else zoned.candidatesIn(zones).rows.map { it.candidate }.filter {
+            it.id !in taken && it.kind != CandidateKind.NAME && !zoned.isTableCell(it) && !(it.attrs["shape"] != null && zoned.printedLabel(it) == null)
+        }
         // The stored slot values ride in the same batch (one decode of the shared block): does the reader need this one, given the hint.
         val asked = slots.take(ScoringDescriptions.MAX_KEY_SLOT_SCORES)
         if (cands.isEmpty() && asked.isEmpty()) return Picks(emptyList(), null)
@@ -416,13 +421,19 @@ class ZoneScoringInterpreter(
                 asked.map { ZonePrompt.keySlotQuestion(it.label, it.value, hint) },
         ) ?: return Picks(emptyList(), null)
         val threshold = profile.threshold(ScoringDescriptions.EXTRAS_ASK)
-        val extras = cands.indices.filter { scores[it] > threshold }.sortedByDescending { scores[it] }
-            .take(StructuredGrammar.MAX_EXTRAS).map { Picked(cands[it], scores[it]) }
         val slotThreshold = profile.threshold(ScoringDescriptions.KEY_SLOTS_ASK)
-        val keySlots = asked.indices.filter { scores[cands.size + it] > slotThreshold }.sortedByDescending { scores[cands.size + it] }
-            .map { KeySlot(asked[it].key, scores[cands.size + it].toFloat()) }
+        // The key information is ONE short list: the extras and the stored slot values that scored Yes compete by score, and only the
+        // best MAX_KEY_INFO of them are kept, so the section stays short whatever a small model leaned. The rest stay under "All details".
+        val pool = cands.indices.filter { scores[it] > threshold }.map { Choice(extra = it, slot = null, score = scores[it]) } +
+            asked.indices.filter { scores[cands.size + it] > slotThreshold }.map { Choice(extra = null, slot = it, score = scores[cands.size + it]) }
+        val kept = pool.sortedByDescending { it.score }.take(ScoringDescriptions.MAX_KEY_INFO)
+        val extras = kept.filter { it.extra != null }.map { Picked(cands[it.extra!!], it.score) }
+        val keySlots = kept.filter { it.slot != null }.map { KeySlot(asked[it.slot!!].key, it.score.toFloat()) }
         return Picks(extras, if (asked.isEmpty()) null else keySlots)
     }
+
+    /** One candidate for the key information: an extra (index into the offered candidates) or a stored slot (index into the asked slots), and its score. */
+    private class Choice(val extra: Int?, val slot: Int?, val score: Double)
 
     /** What the extras batch decided: the extras picked, and the stored slots picked as key information (null when none were scored). */
     private class Picks(val extras: List<Picked>, val keySlots: List<KeySlot>?)
@@ -586,11 +597,16 @@ class ZoneScoringInterpreter(
         // Every name of the zone is scored, whatever was decided before: what is scored then does not depend on the
         // thresholds, which is what lets a recording be re-decided offline. The one exclusion code makes (the sender is
         // not also the addressee, the routing person or the mailbox) is applied to the choice.
-        var cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME }
+        // A name that is a cell of a table (a column header such as "Einzelpreis € Gesamt €", a position) is never a party or a person:
+        // by where it is printed, not by any word.
+        fun names(z: List<LetterZone>) = zoned.candidatesIn(z).rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME }
+        var cands = names(zones)
         if (cands.isEmpty() && widen) {
             zones = SlotPlacements.partyFallback(name).map { zoned.mapped(it) }.distinct().filter { zoned.hasText(it) }
-            cands = zoned.candidatesIn(zones).rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME }
+            cands = names(zones)
         }
+        // Where the names are looked for is decided as before; the cells of a table are left out of what is scored.
+        cands = cands.filter { !zoned.isTableCell(it) }
         if (zones.isEmpty() || cands.isEmpty()) return null
         return Ask(name, zones, cands, ScoringDescriptions.ofRole(name))
     }

@@ -41,6 +41,14 @@ object QuoteVerifier {
     private val TOKEN = Regex("[\\p{L}\\p{Nd}]+")
     private val MARKS = Regex("\\p{Mn}+")
 
+    /**
+     * [verify] for a line the model was asked to copy as it is printed (the subject line): a single word that matched only fuzzily is not
+     * accepted. A one-word quote two edits from some word of a whole letter proves nothing (a model answering with the kind of document,
+     * "LETTER", matched a six-letter word of the German text); an OCR slip is forgiven in a phrase, where several words agree.
+     */
+    fun verifyCopiedLine(quote: String, ocrText: String): Verified? =
+        verify(quote, ocrText)?.takeUnless { it.match == QuoteMatch.FUZZY && tokens(quote).size < 2 }
+
     fun verify(quote: String, ocrText: String): Verified? {
         val q = OcrText.normalizeChars(quote).trim()
         val text = OcrText.normalizeChars(ocrText)

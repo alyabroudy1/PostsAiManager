@@ -117,6 +117,19 @@ class ZonedLetter(
     }
 
     /**
+     * Whether [c] is printed in a row of a table (by geometry, see [RowBands]: a header row of a table counts too). A value of a table's row
+     * belongs to the table, not to a letter's parties or its key information.
+     */
+    fun isTableCell(c: Candidate): Boolean {
+        val key = squash(c.raw)
+        if (key.isEmpty()) return false
+        // Only when every row that prints the value is a table row: a name that also stands in a header block (a sender in the letterhead and
+        // again in the footer's columns) is not a table's.
+        val printing = rowsByPage[c.page].orEmpty().filter { row -> row.lines.any { squash(it.text).contains(key) } }
+        return printing.isNotEmpty() && printing.all { it.table != null }
+    }
+
+    /**
      * The row [c] is printed on: among the rows that print it, one where it stands as a cell of its own beside other cells (a value
      * with its label, the evidence a sentence that merely repeats it lacks) before the others; then the one nearest the candidate's block.
      */

@@ -355,6 +355,17 @@ class ExtractedPresenterTest {
         }
 
         @Test
+        fun `however many rows are stored as picked, the key information is at most four, the rest are in the lists below`() {
+            val many = pickedFields() + (1..6).map { extra("Extra $it") }
+            val p = present(many, type = "invoice_bill")
+
+            assertThat(p.essentials.keyInfo).hasSize(com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions.MAX_KEY_INFO)
+            // The best slots come first; what did not fit is still shown, under "All details", never lost.
+            assertThat(p.essentials.keyInfo.map { it.fieldName }.take(2)).containsExactly("IBAN", "Invoice Number").inOrder()
+            assertThat(p.extras.map { it.fieldName }).isNotEmpty()
+        }
+
+        @Test
         fun `a picked slot row an action line already states stays in that line, not drawn twice`() {
             val p = present(pickedFields(), type = "invoice_bill", actions = listOf("Überweise auf DE89 3704 0044 0532 0130 00."))
 
