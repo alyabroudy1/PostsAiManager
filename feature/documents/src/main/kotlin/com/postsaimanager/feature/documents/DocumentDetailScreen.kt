@@ -664,16 +664,6 @@ private fun PagesTab(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit,
                     )
-                    Row(
-                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(PamIcons.ZoomIn, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.pages_zoom_hint), style = MaterialTheme.typography.labelSmall)
-                    }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 // Action buttons
@@ -681,6 +671,13 @@ private fun PagesTab(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                 ) {
+                    // Zoom: the same full-screen preview a tap on the page opens (the discoverable way in)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        FilledTonalIconButton(onClick = { onZoomPage(page.pageNumber) }) {
+                            Icon(PamIcons.ZoomIn, contentDescription = stringResource(R.string.pages_zoom_page, page.pageNumber), modifier = Modifier.size(20.dp))
+                        }
+                        Text(stringResource(R.string.pages_zoom_hint), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     // Share as PDF
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FilledTonalIconButton(onClick = { sharePdf(context, onSharePdf, externalLaunch) }) {

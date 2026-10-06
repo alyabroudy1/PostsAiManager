@@ -1,6 +1,10 @@
 package com.postsaimanager.core.designsystem.component
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
@@ -163,15 +168,33 @@ private fun ColumnScope.PreviewPager(
             }
         }
     }
+    // The dialog window is edge to edge and, on some devices (a 3-button bar), is not handed the navigation bar's insets: the bottom of a
+    // tall page then sat under the bar. The bar's real height comes from the activity's window; whatever the dialog's own insets
+    // already cleared is not added twice.
+    val density = LocalDensity.current
+    val clearedPx = WindowInsets.navigationBars.getBottom(density)
+    val barPx = activityNavigationBarPx(LocalContext.current)
+    val extra = with(density) { (barPx - clearedPx).coerceAtLeast(0).toDp() }
     HorizontalPager(
         state = pagerState,
-        modifier = Modifier.weight(1f).fillMaxWidth().navigationBarsPadding(),
+        modifier = Modifier.weight(1f).fillMaxWidth().navigationBarsPadding().padding(bottom = extra),
     ) { index ->
         ZoomablePage(
             page = pages[index],
             description = stringResource(R.string.page_preview_page_description, index + 1, pages.size, preview.title),
         )
     }
+}
+
+/** The height in pixels of the navigation bar as the hosting activity's window sees it (0 when there is no activity or no bar). */
+@Suppress("DEPRECATION")
+private fun activityNavigationBarPx(context: Context): Int {
+    var c: Context? = context
+    while (c is ContextWrapper) {
+        if (c is Activity) return c.window?.decorView?.rootWindowInsets?.stableInsetBottom ?: 0
+        c = c.baseContext
+    }
+    return 0
 }
 
 @Composable
