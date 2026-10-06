@@ -1,0 +1,65 @@
+{
+ "key": "N2-kfz-verlaengerung-2p",
+ "family": "official_letter",
+ "senderStored": true,
+ "slots": [
+  {
+   "key": "letter_date",
+   "label": "Document Date",
+   "value": "14.09.2026"
+  },
+  {
+   "key": "total",
+   "label": "Amount",
+   "value": "612,40 €"
+  },
+  {
+   "key": "due_date",
+   "label": "Deadline",
+   "value": "31.12.2026"
+  },
+  {
+   "key": "iban",
+   "label": "IBAN",
+   "value": "DE89 3704 0044 0532 0130 00"
+  },
+  {
+   "key": "reference",
+   "label": "Reference",
+   "value": "KFZ-4471-882-19"
+  },
+  {
+   "key": "case_no",
+   "label": "Case Number",
+   "value": "KFZ-4471-882-19"
+  },
+  {
+   "key": "appointment",
+   "label": "Appointment",
+   "value": "01.01.2027"
+  },
+  {
+   "key": "effective_date",
+   "label": "Effective Date",
+   "value": "30.11.2026"
+  }
+ ],
+ "stageActions": [
+  "confirm_renew",
+  "pay"
+ ],
+ "asks": [
+  {
+   "name": "score:action:kinds",
+   "question": "Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nDoes this letter ask the reader to pay an amount of money? Answer:\n@@\nDoes this letter ask the reader to reply to the sender or respond in writing? Answer:\n@@\nDoes this letter ask the reader to object, appeal or cancel before a deadline? Answer:\n@@\nDoes this letter ask the reader to attend an appointment at a given date and time? Answer:\n@@\nDoes this letter ask the reader to send documents or information to the sender? Answer:\n@@\nDoes this letter ask the reader to sign a document or form and return it? Answer:\n@@\nDoes this letter ask the reader to confirm, accept or renew something, such as a contract, a membership or an offer? Answer:\n@@\nDoes this letter ask the reader to contact the sender, by phone, e-mail or in person? Answer:",
+   "answer": "1.4011783599853516,0.9071063995361328,-0.5210170745849609,-0.030124664306640625,-2.624746322631836,-1.9667472839355469,-1.6179618835449219,1.3121414184570312,-0.5420570373535156",
+   "ms": 2224
+  },
+  {
+   "name": "score:action:bindings",
+   "question": "Is «Deadline: 31.12.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Appointment: 01.01.2027» the date by which the reader is asked to pay? Answer:\n@@\nIs «Effective Date: 30.11.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Amount: 612,40 €» the amount the reader is asked to pay? Answer:\n@@\nIs «Deadline: 31.12.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Appointment: 01.01.2027» the date by which the reader is asked to reply? Answer:\n@@\nIs «Effective Date: 30.11.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Deadline: 31.12.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Appointment: 01.01.2027» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Effective Date: 30.11.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Deadline: 31.12.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Appointment: 01.01.2027» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Effective Date: 30.11.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Deadline: 31.12.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Appointment: 01.01.2027» the date by which the reader is asked to send them? Answer:\n@@\nIs «Effective Date: 30.11.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Deadline: 31.12.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Appointment: 01.01.2027» the date by which the reader is asked to return it? Answer:\n@@\nIs «Effective Date: 30.11.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Deadline: 31.12.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Appointment: 01.01.2027» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Effective Date: 30.11.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Deadline: 31.12.2026» the date by which the reader is asked to get in touch? Answer:\n@@\nIs «Appointment: 01.01.2027» the date by which the reader is asked to get in touch? Answer:\n@@\nIs «Effective Date: 30.11.2026» the date by which the reader is asked to get in touch? Answer:",
+   "answer": "-0.17755699157714844,0.008724212646484375,-0.9302215576171875,0.5411739349365234,0.5239830017089844,0.21937942504882812,0.26685523986816406,-0.4942340850830078,-0.6740322113037109,-0.6666717529296875,0.11783981323242188,-0.1869678497314453,-1.0050945281982422,0.1532764434814453,-0.20921897888183594,-0.7628726959228516,0.1724872589111328,0.14739608764648438,-0.46273231506347656,0.6221694946289062,0.205230712890625,-0.18395614624023438,0.19262313842773438,-0.0599517822265625,-0.20135879516601562",
+   "ms": 7750
+  }
+ ]
+}

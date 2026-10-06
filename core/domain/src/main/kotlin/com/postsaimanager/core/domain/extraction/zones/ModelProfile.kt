@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.zones
 
 import com.postsaimanager.core.domain.agent.AgentProfile
+import com.postsaimanager.core.domain.extraction.actions.ActionKindProfile
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.address.LineAsk
@@ -113,6 +114,22 @@ object ModelProfiles {
             // question is never widened to the whole letter.
             optionalUnlessOwn = setOf("invoice_no", "contract_no", "policy_no", "case_no", "tax_no").map { QuestionNames.slot(it) }.toSet(),
             optionalThreshold = 0.0,
+            // The action kinds, fitted on the device recordings of the 16 letters (ActionKindTuneTest, ActionKindReplayTest):
+            // - the raw sign of a score decides nothing: the model leans Yes on most kinds (every kind but attend and sign-and-return scores
+            //   above 0 on some letter that does not ask it), so choosing every kind above 0 shows 15 wrong actions in 33;
+            // - a per-kind bias (the kind's mean score over the letters) did worse held out: most benchmark letters ask for a payment, so
+            //   the mean lean of "pay" is its signal, and taking it off lost the payments (so no bias is set);
+            // - what works is the best kind above a floor, with the kinds within a small margin of it: from 0.4 to 0.5 the floor and from 0.1 to
+            //   0.4 the margin give the same 13 of 16 letters exactly right, and 0.5 and 0.25 are the middle of that plateau. Higher
+            //   floors lose the payments the model scores only +0.6 (N6, the Arabic-named letter) for one wrong action less;
+            // - "does it ask anything at all" adds nothing once the floor is there (it stays at the model's indifference, 0.0);
+            // - a date or an amount is bound when it is the best of the stored ones above the threshold; below -0.25 (dates) a wrong date
+            //   is bound for the car insurance letter, which a shorter line avoids. The amount is the stored one the model scores highest as
+            //   the amount to pay, down to -0.5; where the reading stored no right amount nothing here can find one.
+            actions = ActionKindProfile(
+                anyThreshold = 0.0, minScore = 0.5, margin = 0.25, maxActions = ActionKindProfile.MAX_ACTIONS,
+                dateThreshold = -0.25, amountThreshold = -0.5,
+            ),
         ),
     )
 

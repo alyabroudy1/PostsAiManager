@@ -1,0 +1,40 @@
+{
+ "key": "N10-kinderarzt-termin-1p",
+ "family": "medical",
+ "senderStored": true,
+ "slots": [
+  {
+   "key": "letter_date",
+   "label": "Document Date",
+   "value": "25.09.2026"
+  },
+  {
+   "key": "reference",
+   "label": "Reference",
+   "value": "512345"
+  },
+  {
+   "key": "appointment",
+   "label": "Appointment",
+   "value": "12.11.2026 um 09:30"
+  }
+ ],
+ "stageActions": [
+  "attend",
+  "send_documents"
+ ],
+ "asks": [
+  {
+   "name": "score:action:kinds",
+   "question": "Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nDoes this letter ask the reader to pay an amount of money? Answer:\n@@\nDoes this letter ask the reader to reply to the sender or respond in writing? Answer:\n@@\nDoes this letter ask the reader to object, appeal or cancel before a deadline? Answer:\n@@\nDoes this letter ask the reader to attend an appointment at a given date and time? Answer:\n@@\nDoes this letter ask the reader to send documents or information to the sender? Answer:\n@@\nDoes this letter ask the reader to sign a document or form and return it? Answer:\n@@\nDoes this letter ask the reader to confirm, accept or renew something, such as a contract, a membership or an offer? Answer:\n@@\nDoes this letter ask the reader to contact the sender, by phone, e-mail or in person? Answer:",
+   "answer": "1.6912155151367188,-0.6143913269042969,-0.5146007537841797,0.2102947235107422,1.8543739318847656,0.9678897857666016,-0.6799488067626953,-0.31252479553222656,0.14637184143066406",
+   "ms": 2308
+  },
+  {
+   "name": "score:action:bindings",
+   "question": "Is «Appointment: 12.11.2026 um 09:30» the date by which the reader is asked to pay? Answer:\n@@\nIs «Appointment: 12.11.2026 um 09:30» the date by which the reader is asked to reply? Answer:\n@@\nIs «Appointment: 12.11.2026 um 09:30» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Appointment: 12.11.2026 um 09:30» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Appointment: 12.11.2026 um 09:30» the date by which the reader is asked to send them? Answer:\n@@\nIs «Appointment: 12.11.2026 um 09:30» the date by which the reader is asked to return it? Answer:\n@@\nIs «Appointment: 12.11.2026 um 09:30» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Appointment: 12.11.2026 um 09:30» the date by which the reader is asked to get in touch? Answer:",
+   "answer": "0.037200927734375,1.0265159606933594,-0.08234405517578125,1.0080890655517578,0.5978851318359375,0.9953365325927734,1.0544242858886719,0.6148433685302734",
+   "ms": 3141
+  }
+ ]
+}

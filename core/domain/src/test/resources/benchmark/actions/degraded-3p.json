@@ -1,0 +1,65 @@
+{
+ "key": "degraded-3p",
+ "family": "official_letter",
+ "senderStored": true,
+ "slots": [
+  {
+   "key": "letter_date",
+   "label": "Document Date",
+   "value": "25.09.2026"
+  },
+  {
+   "key": "total",
+   "label": "Amount",
+   "value": "74,00 €"
+  },
+  {
+   "key": "iban",
+   "label": "IBAN",
+   "value": "DE89 3704 0044 0532 0130 00"
+  },
+  {
+   "key": "reference",
+   "label": "Reference",
+   "value": "1EMHO000123456"
+  },
+  {
+   "key": "customer_no",
+   "label": "Customer Number",
+   "value": "3300 5521 08"
+  },
+  {
+   "key": "case_no",
+   "label": "Case Number",
+   "value": "1EMHO000123456"
+  },
+  {
+   "key": "appointment",
+   "label": "Appointment",
+   "value": "01.12.2026"
+  },
+  {
+   "key": "effective_date",
+   "label": "Effective Date",
+   "value": "30.09.2026"
+  }
+ ],
+ "stageActions": [
+  "pay",
+  "confirm_renew"
+ ],
+ "asks": [
+  {
+   "name": "score:action:kinds",
+   "question": "Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nDoes this letter ask the reader to pay an amount of money? Answer:\n@@\nDoes this letter ask the reader to reply to the sender or respond in writing? Answer:\n@@\nDoes this letter ask the reader to object, appeal or cancel before a deadline? Answer:\n@@\nDoes this letter ask the reader to attend an appointment at a given date and time? Answer:\n@@\nDoes this letter ask the reader to send documents or information to the sender? Answer:\n@@\nDoes this letter ask the reader to sign a document or form and return it? Answer:\n@@\nDoes this letter ask the reader to confirm, accept or renew something, such as a contract, a membership or an offer? Answer:\n@@\nDoes this letter ask the reader to contact the sender, by phone, e-mail or in person? Answer:",
+   "answer": "1.2086143493652344,0.32932472229003906,-0.9713001251220703,-0.1725177764892578,-1.8839340209960938,-1.19708251953125,-0.9441871643066406,0.07547569274902344,-0.3501319885253906",
+   "ms": 2535
+  },
+  {
+   "name": "score:action:bindings",
+   "question": "Is «Appointment: 01.12.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Effective Date: 30.09.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Amount: 74,00 €» the amount the reader is asked to pay? Answer:\n@@\nIs «Appointment: 01.12.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Effective Date: 30.09.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Appointment: 01.12.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Effective Date: 30.09.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Appointment: 01.12.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Effective Date: 30.09.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Appointment: 01.12.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Effective Date: 30.09.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Appointment: 01.12.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Effective Date: 30.09.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Appointment: 01.12.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Effective Date: 30.09.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Appointment: 01.12.2026» the date by which the reader is asked to get in touch? Answer:\n@@\nIs «Effective Date: 30.09.2026» the date by which the reader is asked to get in touch? Answer:",
+   "answer": "-0.049755096435546875,-0.6102275848388672,0.28704071044921875,0.056659698486328125,-0.5271625518798828,-0.8931255340576172,-0.7986335754394531,-0.09315681457519531,-1.17535400390625,0.1576251983642578,-0.8218269348144531,0.27576446533203125,-0.6904125213623047,0.3304786682128906,-0.43880653381347656,-0.34189605712890625,-0.9659862518310547",
+   "ms": 6156
+  }
+ ]
+}

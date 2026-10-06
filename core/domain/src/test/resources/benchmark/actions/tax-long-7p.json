@@ -1,0 +1,60 @@
+{
+ "key": "tax-long-7p",
+ "family": "official_letter",
+ "senderStored": true,
+ "slots": [
+  {
+   "key": "total",
+   "label": "Amount",
+   "value": "1.875,00 €"
+  },
+  {
+   "key": "due_date",
+   "label": "Deadline",
+   "value": "03.11.2026"
+  },
+  {
+   "key": "iban",
+   "label": "IBAN",
+   "value": "DE89 3704 0044 0532 0130 00"
+  },
+  {
+   "key": "reference",
+   "label": "Reference",
+   "value": "123\/456\/78901"
+  },
+  {
+   "key": "customer_no",
+   "label": "Customer Number",
+   "value": "EST-2025-0047118"
+  },
+  {
+   "key": "case_no",
+   "label": "Case Number",
+   "value": "123\/456\/78901"
+  },
+  {
+   "key": "effective_date",
+   "label": "Effective Date",
+   "value": "24.09.2026"
+  }
+ ],
+ "stageActions": [
+  "object_cancel",
+  "pay"
+ ],
+ "asks": [
+  {
+   "name": "score:action:kinds",
+   "question": "Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nDoes this letter ask the reader to pay an amount of money? Answer:\n@@\nDoes this letter ask the reader to reply to the sender or respond in writing? Answer:\n@@\nDoes this letter ask the reader to object, appeal or cancel before a deadline? Answer:\n@@\nDoes this letter ask the reader to attend an appointment at a given date and time? Answer:\n@@\nDoes this letter ask the reader to send documents or information to the sender? Answer:\n@@\nDoes this letter ask the reader to sign a document or form and return it? Answer:\n@@\nDoes this letter ask the reader to confirm, accept or renew something, such as a contract, a membership or an offer? Answer:\n@@\nDoes this letter ask the reader to contact the sender, by phone, e-mail or in person? Answer:",
+   "answer": "2.8117218017578125,1.3392524719238281,-0.8638381958007812,1.3405189514160156,-1.8577461242675781,-0.07063484191894531,-1.0810489654541016,-1.594156265258789,-2.1781253814697266",
+   "ms": 2388
+  },
+  {
+   "name": "score:action:bindings",
+   "question": "Is «Deadline: 03.11.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Effective Date: 24.09.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Amount: 1.875,00 €» the amount the reader is asked to pay? Answer:\n@@\nIs «Deadline: 03.11.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Effective Date: 24.09.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Deadline: 03.11.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Effective Date: 24.09.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Deadline: 03.11.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Effective Date: 24.09.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Deadline: 03.11.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Effective Date: 24.09.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Deadline: 03.11.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Effective Date: 24.09.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Deadline: 03.11.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Effective Date: 24.09.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Deadline: 03.11.2026» the date by which the reader is asked to get in touch? Answer:\n@@\nIs «Effective Date: 24.09.2026» the date by which the reader is asked to get in touch? Answer:",
+   "answer": "1.0907878875732422,0.5675926208496094,0.6926975250244141,0.8204135894775391,0.30805397033691406,-0.05140876770019531,-0.7908897399902344,0.33560752868652344,-0.24507522583007812,0.5983047485351562,0.2787609100341797,0.8629894256591797,0.4626274108886719,1.2597618103027344,0.5284786224365234,0.3572235107421875,-0.6583747863769531",
+   "ms": 5558
+  }
+ ]
+}

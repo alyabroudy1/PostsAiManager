@@ -1,0 +1,69 @@
+{
+ "key": "N1-mahnung-telco-qr-1p",
+ "family": "invoice_bill",
+ "senderStored": true,
+ "slots": [
+  {
+   "key": "letter_date",
+   "label": "Document Date",
+   "value": "25.09.2026"
+  },
+  {
+   "key": "total",
+   "label": "Amount",
+   "value": "64,98€"
+  },
+  {
+   "key": "iban",
+   "label": "IBAN",
+   "value": "DE02 1203 0000 0000 2020 51"
+  },
+  {
+   "key": "reference",
+   "label": "Reference",
+   "value": "2026-08-771204"
+  },
+  {
+   "key": "customer_no",
+   "label": "Customer Number",
+   "value": "FIB-Mahn 4402917 4402917"
+  },
+  {
+   "key": "invoice_no",
+   "label": "Invoice Number",
+   "value": "2026-08-771204"
+  },
+  {
+   "key": "case_no",
+   "label": "Case Number",
+   "value": "4402917"
+  },
+  {
+   "key": "fee",
+   "label": "Fee",
+   "value": "59,98"
+  },
+  {
+   "key": "original_due_date",
+   "label": "Original Due Date",
+   "value": "19.08.2026"
+  }
+ ],
+ "stageActions": [
+  "pay"
+ ],
+ "asks": [
+  {
+   "name": "score:action:kinds",
+   "question": "Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nDoes this letter ask the reader to pay an amount of money? Answer:\n@@\nDoes this letter ask the reader to reply to the sender or respond in writing? Answer:\n@@\nDoes this letter ask the reader to object, appeal or cancel before a deadline? Answer:\n@@\nDoes this letter ask the reader to attend an appointment at a given date and time? Answer:\n@@\nDoes this letter ask the reader to send documents or information to the sender? Answer:\n@@\nDoes this letter ask the reader to sign a document or form and return it? Answer:\n@@\nDoes this letter ask the reader to confirm, accept or renew something, such as a contract, a membership or an offer? Answer:\n@@\nDoes this letter ask the reader to contact the sender, by phone, e-mail or in person? Answer:",
+   "answer": "1.8212566375732422,1.3383560180664062,-0.7247581481933594,-0.11644172668457031,-2.1561851501464844,-0.9055309295654297,-1.7192955017089844,-0.7857608795166016,-1.7404232025146484",
+   "ms": 2339
+  },
+  {
+   "name": "score:action:bindings",
+   "question": "Is «Original Due Date: 19.08.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Amount: 64,98€» the amount the reader is asked to pay? Answer:\n@@\nIs «Fee: 59,98» the amount the reader is asked to pay? Answer:\n@@\nIs «Original Due Date: 19.08.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Original Due Date: 19.08.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Original Due Date: 19.08.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Original Due Date: 19.08.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Original Due Date: 19.08.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Original Due Date: 19.08.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Original Due Date: 19.08.2026» the date by which the reader is asked to get in touch? Answer:",
+   "answer": "-0.7799263000488281,0.2291584014892578,0.5102748870849609,0.05742645263671875,-0.6682491302490234,-0.7117366790771484,-0.5917224884033203,-0.21416091918945312,-0.012090682983398438,-0.20850563049316406",
+   "ms": 3332
+  }
+ ]
+}

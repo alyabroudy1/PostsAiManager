@@ -1,0 +1,54 @@
+{
+ "key": "receipt-noise-1p",
+ "family": "receipt",
+ "senderStored": true,
+ "slots": [
+  {
+   "key": "letter_date",
+   "label": "Document Date",
+   "value": "27.09.2026"
+  },
+  {
+   "key": "total",
+   "label": "Amount",
+   "value": "6,99"
+  },
+  {
+   "key": "due_date",
+   "label": "Deadline",
+   "value": "27.09.2026 18:42"
+  },
+  {
+   "key": "reference",
+   "label": "Reference",
+   "value": "3c6f5da2"
+  },
+  {
+   "key": "customer_no",
+   "label": "Customer Number",
+   "value": "ecdsa-plain-SHA256"
+  },
+  {
+   "key": "receipt_no",
+   "label": "Receipt Number",
+   "value": "52847196"
+  }
+ ],
+ "stageActions": [
+  "pay"
+ ],
+ "asks": [
+  {
+   "name": "score:action:kinds",
+   "question": "Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nDoes this letter ask the reader to pay an amount of money? Answer:\n@@\nDoes this letter ask the reader to reply to the sender or respond in writing? Answer:\n@@\nDoes this letter ask the reader to object, appeal or cancel before a deadline? Answer:\n@@\nDoes this letter ask the reader to attend an appointment at a given date and time? Answer:\n@@\nDoes this letter ask the reader to send documents or information to the sender? Answer:\n@@\nDoes this letter ask the reader to sign a document or form and return it? Answer:\n@@\nDoes this letter ask the reader to confirm, accept or renew something, such as a contract, a membership or an offer? Answer:\n@@\nDoes this letter ask the reader to contact the sender, by phone, e-mail or in person? Answer:",
+   "answer": "1.2564277648925781,0.710235595703125,-0.30040550231933594,-1.529449462890625,-1.2840003967285156,-0.9822483062744141,-0.628448486328125,-1.0954246520996094,-1.339468002319336",
+   "ms": 2088
+  },
+  {
+   "name": "score:action:bindings",
+   "question": "Is «Deadline: 27.09.2026 18:42» the date by which the reader is asked to pay? Answer:\n@@\nIs «Amount: 6,99» the amount the reader is asked to pay? Answer:\n@@\nIs «Deadline: 27.09.2026 18:42» the date by which the reader is asked to reply? Answer:\n@@\nIs «Deadline: 27.09.2026 18:42» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Deadline: 27.09.2026 18:42» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Deadline: 27.09.2026 18:42» the date by which the reader is asked to send them? Answer:\n@@\nIs «Deadline: 27.09.2026 18:42» the date by which the reader is asked to return it? Answer:\n@@\nIs «Deadline: 27.09.2026 18:42» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Deadline: 27.09.2026 18:42» the date by which the reader is asked to get in touch? Answer:",
+   "answer": "0.20335960388183594,0.5307521820068359,0.09808731079101562,-0.4794139862060547,0.047637939453125,-0.06682968139648438,0.0528564453125,0.4848442077636719,-0.138671875",
+   "ms": 3005
+  }
+ ]
+}

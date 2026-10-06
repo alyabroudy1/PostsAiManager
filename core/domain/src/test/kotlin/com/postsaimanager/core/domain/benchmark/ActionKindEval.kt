@@ -71,23 +71,55 @@ class ActionOutcome(val doc: ManifestDoc, val slots: List<TicketSlot>, val items
 
     private fun slotValue(key: String?) = slots.firstOrNull { it.key == key }?.value
 
-    /** (right, asked) of the date bindings of the shown actions the letter asks for: a bound date must be the expected one, and none bound is right when none is expected. */
-    fun dateBindings(): Pair<Int, Int> = bindings { e, item ->
-        val bound = slotValue(item.bindings["date"])?.let { ActionDates.read(it)?.date?.toString() }
-        bound == e.date
-    }
+    /** The date bindings of the shown actions the letter asks for. */
+    fun dateBindings(): Tally = tally(
+        bound = { item -> slotValue(item.bindings["date"])?.let { ActionDates.read(it)?.date?.toString() } },
+        want = { it.date },
+        stored = { e -> e.date == null || slots.any { ActionDates.read(it.value)?.date?.toString() == e.date } },
+    )
 
-    fun amountBindings(): Pair<Int, Int> = bindings { e, item ->
-        val bound = slotValue(item.bindings["amount"])?.let(::digits)
-        bound == e.amount?.let(::digits)
-    }
+    /** The amount bindings of the shown actions the letter asks for (the amounts that matter are the ones of an action that states one). */
+    fun amountBindings(): Tally = tally(
+        bound = { item -> slotValue(item.bindings["amount"])?.let(::digits) },
+        want = { it.amount?.let(::digits) },
+        stored = { e -> e.amount == null || slots.any { digits(it.value) == digits(e.amount) } },
+    )
 
-    private fun bindings(right: (ExpectedAction, ActionItem) -> Boolean): Pair<Int, Int> {
+    private fun tally(bound: (ActionItem) -> String?, want: (ExpectedAction) -> String?, stored: (ExpectedAction) -> Boolean): Tally {
         val matched = items.mapNotNull { item -> expected.firstOrNull { it.kind == item.kind }?.let { it to item } }
-        return matched.count { (e, item) -> right(e, item) } to matched.size
+        var right = 0
+        var wrong = 0
+        var missing = 0
+        var reachable = 0
+        for ((e, item) in matched) {
+            val got = bound(item)
+            val wanted = want(e)
+            if (stored(e)) reachable++
+            when {
+                got == wanted -> right++
+                got == null -> missing++
+                else -> wrong++
+            }
+        }
+        return Tally(right, wrong, missing, matched.size, reachable)
     }
 
     private fun digits(text: String) = text.filter { it.isDigit() }
+}
+
+/**
+ * How the bindings of one kind of part came out over the shown actions that the letter asks for: [right] is the expected value (or none when
+ * none is expected), [wrong] another value was bound (worse than none), [missing] nothing was bound though a value was expected. [reachable]
+ * counts those whose expected value is among the stored ones at all: a binding cannot be better than the stored fields.
+ */
+class Tally(val right: Int, val wrong: Int, val missing: Int, val total: Int, val reachable: Int) {
+    operator fun plus(o: Tally) = Tally(right + o.right, wrong + o.wrong, missing + o.missing, total + o.total, reachable + o.reachable)
+
+    override fun toString() = "right=$right wrong=$wrong missing=$missing of $total (expected value stored in $reachable)"
+
+    companion object {
+        val NONE = Tally(0, 0, 0, 0, 0)
+    }
 }
 
 /** The numbers of a replay over the letters that have a recording and an annotated manifest. */
@@ -109,16 +141,15 @@ class ActionReport(val outcomes: List<ActionOutcome>) {
     val wrongRate: Double get() = ratio(wrong, shown)
     val lettersWithWrong: Int get() = outcomes.count { it.wrongKinds.isNotEmpty() }
 
-    val dateAccuracy: Double get() = outcomes.map { it.dateBindings() }.let { ratio(it.sumOf { p -> p.first }, it.sumOf { p -> p.second }) }
-    val amountAccuracy: Double get() = outcomes.map { it.amountBindings() }.let { ratio(it.sumOf { p -> p.first }, it.sumOf { p -> p.second }) }
-    val bindingsAsked: Int get() = outcomes.sumOf { it.dateBindings().second }
+    val dates: Tally get() = outcomes.fold(Tally.NONE) { acc, o -> acc + o.dateBindings() }
+    val amounts: Tally get() = outcomes.fold(Tally.NONE) { acc, o -> acc + o.amountBindings() }
 
     private fun ratio(a: Int, b: Int) = if (b == 0) 1.0 else a.toDouble() / b
 
     fun table(): String = String.format(
         Locale.ROOT,
-        "letters=%d noAction(n=%d) precision=%.2f recall=%.2f | top1=%.2f setMatch=%.2f | shown=%d wrong=%d (%.2f) lettersWithWrong=%d | date=%.2f amount=%.2f (n=%d)",
-        letters, noActionLetters, noActionPrecision, noActionRecall, top1, setMatch, shown, wrong, wrongRate, lettersWithWrong, dateAccuracy, amountAccuracy, bindingsAsked,
+        "letters=%d noAction(n=%d) precision=%.2f recall=%.2f | top1=%.2f setMatch=%.2f | shown=%d wrong=%d (%.2f) lettersWithWrong=%d | date %s | amount %s",
+        letters, noActionLetters, noActionPrecision, noActionRecall, top1, setMatch, shown, wrong, wrongRate, lettersWithWrong, dates, amounts,
     )
 }
 

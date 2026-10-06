@@ -1,0 +1,64 @@
+{
+ "key": "invoice-2p",
+ "family": "invoice_bill",
+ "senderStored": true,
+ "slots": [
+  {
+   "key": "letter_date",
+   "label": "Document Date",
+   "value": "28.09.2026"
+  },
+  {
+   "key": "total",
+   "label": "Amount",
+   "value": "93,51"
+  },
+  {
+   "key": "due_date",
+   "label": "Deadline",
+   "value": "15.10.2026"
+  },
+  {
+   "key": "iban",
+   "label": "IBAN",
+   "value": "DE89 3704 0044 0532 0130 00"
+  },
+  {
+   "key": "reference",
+   "label": "Reference",
+   "value": "RE-2026-0815"
+  },
+  {
+   "key": "customer_no",
+   "label": "Customer Number",
+   "value": "KD-40417"
+  },
+  {
+   "key": "invoice_no",
+   "label": "Invoice Number",
+   "value": "RE-2026-0815"
+  },
+  {
+   "key": "fee",
+   "label": "Fee",
+   "value": "66,00"
+  }
+ ],
+ "stageActions": [
+  "pay"
+ ],
+ "asks": [
+  {
+   "name": "score:action:kinds",
+   "question": "Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nDoes this letter ask the reader to pay an amount of money? Answer:\n@@\nDoes this letter ask the reader to reply to the sender or respond in writing? Answer:\n@@\nDoes this letter ask the reader to object, appeal or cancel before a deadline? Answer:\n@@\nDoes this letter ask the reader to attend an appointment at a given date and time? Answer:\n@@\nDoes this letter ask the reader to send documents or information to the sender? Answer:\n@@\nDoes this letter ask the reader to sign a document or form and return it? Answer:\n@@\nDoes this letter ask the reader to confirm, accept or renew something, such as a contract, a membership or an offer? Answer:\n@@\nDoes this letter ask the reader to contact the sender, by phone, e-mail or in person? Answer:",
+   "answer": "1.1297683715820312,1.2070388793945312,-1.0060157775878906,-1.4015121459960938,-2.442232131958008,-1.2621822357177734,-1.6534996032714844,-0.4575843811035156,-1.815073013305664",
+   "ms": 4077
+  },
+  {
+   "name": "score:action:bindings",
+   "question": "Is «Deadline: 15.10.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Amount: 93,51» the amount the reader is asked to pay? Answer:\n@@\nIs «Fee: 66,00» the amount the reader is asked to pay? Answer:\n@@\nIs «Deadline: 15.10.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Deadline: 15.10.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Deadline: 15.10.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Deadline: 15.10.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Deadline: 15.10.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Deadline: 15.10.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Deadline: 15.10.2026» the date by which the reader is asked to get in touch? Answer:",
+   "answer": "0.4118309020996094,0.5106468200683594,0.7714138031005859,0.12272071838378906,-0.7152786254882812,-0.39888763427734375,0.128448486328125,0.04016876220703125,0.31152915954589844,-0.1886138916015625",
+   "ms": 4312
+  }
+ ]
+}

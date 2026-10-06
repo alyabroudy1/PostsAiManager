@@ -1,0 +1,42 @@
+{
+ "key": "N8-info-bank-noaction-1p",
+ "family": "official_letter",
+ "senderStored": true,
+ "slots": [
+  {
+   "key": "letter_date",
+   "label": "Document Date",
+   "value": "21.09.2026"
+  },
+  {
+   "key": "reference",
+   "label": "Reference",
+   "value": "7788123"
+  },
+  {
+   "key": "case_no",
+   "label": "Case Number",
+   "value": "7788123"
+  },
+  {
+   "key": "appointment",
+   "label": "Appointment",
+   "value": "01.11.2026"
+  }
+ ],
+ "stageActions": [],
+ "asks": [
+  {
+   "name": "score:action:kinds",
+   "question": "Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nDoes this letter ask the reader to pay an amount of money? Answer:\n@@\nDoes this letter ask the reader to reply to the sender or respond in writing? Answer:\n@@\nDoes this letter ask the reader to object, appeal or cancel before a deadline? Answer:\n@@\nDoes this letter ask the reader to attend an appointment at a given date and time? Answer:\n@@\nDoes this letter ask the reader to send documents or information to the sender? Answer:\n@@\nDoes this letter ask the reader to sign a document or form and return it? Answer:\n@@\nDoes this letter ask the reader to confirm, accept or renew something, such as a contract, a membership or an offer? Answer:\n@@\nDoes this letter ask the reader to contact the sender, by phone, e-mail or in person? Answer:",
+   "answer": "0.12965965270996094,-1.750833511352539,-1.3780364990234375,-1.2983169555664062,-2.826375961303711,-0.36640167236328125,-2.3913421630859375,-1.1735115051269531,-1.1786041259765625",
+   "ms": 2408
+  },
+  {
+   "name": "score:action:bindings",
+   "question": "Is «Appointment: 01.11.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Appointment: 01.11.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Appointment: 01.11.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Appointment: 01.11.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Appointment: 01.11.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Appointment: 01.11.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Appointment: 01.11.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Appointment: 01.11.2026» the date by which the reader is asked to get in touch? Answer:",
+   "answer": "-0.5081806182861328,0.2689704895019531,-0.6187667846679688,0.0402374267578125,-0.09798812866210938,0.18012237548828125,0.4304065704345703,-0.03926658630371094",
+   "ms": 2872
+  }
+ ]
+}

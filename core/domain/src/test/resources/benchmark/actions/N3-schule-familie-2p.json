@@ -1,0 +1,50 @@
+{
+ "key": "N3-schule-familie-2p",
+ "family": "official_letter",
+ "senderStored": true,
+ "slots": [
+  {
+   "key": "letter_date",
+   "label": "Document Date",
+   "value": "28.09.2026"
+  },
+  {
+   "key": "total",
+   "label": "Amount",
+   "value": "35,00 €"
+  },
+  {
+   "key": "due_date",
+   "label": "Deadline",
+   "value": "16.10.2026"
+  },
+  {
+   "key": "iban",
+   "label": "IBAN",
+   "value": "DE89 3704 0044 0532 0130 00"
+  },
+  {
+   "key": "appointment",
+   "label": "Appointment",
+   "value": "24.11.2026"
+  }
+ ],
+ "stageActions": [
+  "pay",
+  "send_documents"
+ ],
+ "asks": [
+  {
+   "name": "score:action:kinds",
+   "question": "Does this letter ask the reader to do something, such as pay, reply, object, attend, send, sign or confirm, or give the reader a deadline or an option to use? Answer:\n@@\nDoes this letter ask the reader to pay an amount of money? Answer:\n@@\nDoes this letter ask the reader to reply to the sender or respond in writing? Answer:\n@@\nDoes this letter ask the reader to object, appeal or cancel before a deadline? Answer:\n@@\nDoes this letter ask the reader to attend an appointment at a given date and time? Answer:\n@@\nDoes this letter ask the reader to send documents or information to the sender? Answer:\n@@\nDoes this letter ask the reader to sign a document or form and return it? Answer:\n@@\nDoes this letter ask the reader to confirm, accept or renew something, such as a contract, a membership or an offer? Answer:\n@@\nDoes this letter ask the reader to contact the sender, by phone, e-mail or in person? Answer:",
+   "answer": "1.1756572723388672,0.8035221099853516,0.5561370849609375,0.2969932556152344,0.07306289672851562,0.5673770904541016,0.3576469421386719,-0.9807395935058594,-0.8409805297851562",
+   "ms": 2428
+  },
+  {
+   "name": "score:action:bindings",
+   "question": "Is «Deadline: 16.10.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Appointment: 24.11.2026» the date by which the reader is asked to pay? Answer:\n@@\nIs «Amount: 35,00 €» the amount the reader is asked to pay? Answer:\n@@\nIs «Deadline: 16.10.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Appointment: 24.11.2026» the date by which the reader is asked to reply? Answer:\n@@\nIs «Deadline: 16.10.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Appointment: 24.11.2026» the last date on which the reader is asked to object or cancel? Answer:\n@@\nIs «Deadline: 16.10.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Appointment: 24.11.2026» the date of the appointment the reader is asked to attend? Answer:\n@@\nIs «Deadline: 16.10.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Appointment: 24.11.2026» the date by which the reader is asked to send them? Answer:\n@@\nIs «Deadline: 16.10.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Appointment: 24.11.2026» the date by which the reader is asked to return it? Answer:\n@@\nIs «Deadline: 16.10.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Appointment: 24.11.2026» the date by which the reader is asked to confirm? Answer:\n@@\nIs «Deadline: 16.10.2026» the date by which the reader is asked to get in touch? Answer:\n@@\nIs «Appointment: 24.11.2026» the date by which the reader is asked to get in touch? Answer:",
+   "answer": "-0.3593864440917969,-0.7792625427246094,0.28493499755859375,-0.2005176544189453,-0.15864181518554688,-0.20646095275878906,-1.0075912475585938,0.041500091552734375,-0.4980182647705078,0.06451797485351562,-0.19887351989746094,0.12555313110351562,-0.329376220703125,0.3188629150390625,-0.06370353698730469,0.1539783477783203,-0.7944717407226562",
+   "ms": 5694
+  }
+ ]
+}

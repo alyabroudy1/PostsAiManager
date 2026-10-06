@@ -69,21 +69,44 @@ class ActionKindTuneTest {
         line()
 
         line("## argmax plus kinds within a margin, at most 2; the any-threshold, the minimum, no bias")
-        for (any in listOf(NEG, -1.0, 0.0, 0.5, 1.0, 1.5)) for (min in listOf(NEG, 0.0, 0.5, 1.0)) for (m in listOf(0.25, 0.5, 1.0, 2.0)) {
+        for (any in listOf(NEG, 0.0, 0.5)) for (min in listOf(0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0)) for (m in listOf(0.1, 0.25, 0.4, 0.6)) {
             line(String.format(Locale.ROOT, "any>=%5.2f min>=%5.2f margin=%.2f : ", any, min, m) + report(ActionKindProfile(anyThreshold = any, minScore = min, margin = m)).table())
         }
         line()
 
-        line("## the same with the per-kind mean taken off, bias fitted on the other letters (leave-one-out)")
-        for (any in listOf(NEG, -1.0, 0.0, 0.5, 1.0, 1.5)) for (min in listOf(NEG, 0.0, 0.5, 1.0)) for (m in listOf(0.25, 0.5, 1.0, 2.0)) {
+        line("## the per-kind mean taken off, bias fitted on the other letters (leave-one-out)")
+        for (any in listOf(NEG, 0.0)) for (min in listOf(0.0, 0.5, 1.0)) for (m in listOf(0.25, 0.6)) {
             line(String.format(Locale.ROOT, "any>=%5.2f min>=%5.2f margin=%.2f : ", any, min, m) + leaveOneOut(ActionKindProfile(anyThreshold = any, minScore = min, margin = m)).table())
         }
         line()
 
-        line("## binding thresholds, with argmax within margin 0.5, any>=0")
-        for (d in listOf(NEG, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0)) for (a in listOf(NEG, -1.0, 0.0, 1.0)) {
-            val r = report(ActionKindProfile(anyThreshold = 0.0, minScore = NEG, margin = 0.5, dateThreshold = d, amountThreshold = a))
-            line(String.format(Locale.ROOT, "date>%5.2f amount>%5.2f : date=%.2f amount=%.2f (n=%d)", d, a, r.dateAccuracy, r.amountAccuracy, r.bindingsAsked))
+        line("## the shipped profile")
+        line("shipped : " + report(com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring.actions).table())
+        for (o in report(com.postsaimanager.core.domain.extraction.zones.ModelProfiles.QWEN35_08B.scoring.actions).outcomes) {
+            line(String.format(Locale.ROOT, "  %-30s shown=%s expected=%s also=%s bindings=%s", o.doc.key, o.shownKinds, o.expectedKinds, o.doc.actionsAlsoOk, o.items.map { it.bindings.filterKeys { k -> k == "date" || k == "amount" } }))
+        }
+        line()
+
+        line("## binding thresholds, with the kinds chosen by any>=0, min>=0.5, margin 0.25")
+        for (d in listOf(NEG, -1.0, -0.5, -0.25, 0.0, 0.25, 0.5, 1.0)) for (a in listOf(NEG, -0.5, 0.0, 0.25, 0.5)) {
+            val r = report(ActionKindProfile(anyThreshold = 0.0, minScore = 0.5, margin = 0.25, dateThreshold = d, amountThreshold = a))
+            line(String.format(Locale.ROOT, "date>%5.2f amount>%5.2f : date %s | amount %s", d, a, r.dates, r.amounts))
+        }
+
+        line()
+        line("## the stored dates and amounts as scored under the expected kinds (what binding has to choose among)")
+        for (rec in recordings) {
+            val doc = docs[rec.key] ?: continue
+            for (e in doc.actions.orEmpty()) {
+                val kind = ActionKinds.of(e.kind) ?: continue
+                val cands = rec.slots.filter { s -> rec.scores.containsKey(ActionQuestions.date(kind, s)) || (kind.amountMeaning != null && rec.scores.containsKey(ActionQuestions.amount(kind, s))) }
+                line(
+                    String.format(Locale.ROOT, "%-30s %-13s want date=%s amount=%s | %s", rec.key, kind.id, e.date, e.amount, cands.joinToString("; ") { s ->
+                        val sc = rec.scores[ActionQuestions.date(kind, s)] ?: rec.scores[ActionQuestions.amount(kind, s)]
+                        "${s.key}=${s.value} ${String.format(Locale.ROOT, "%+.2f", sc)}"
+                    }),
+                )
+            }
         }
 
         val out = File("build/reports/action-kinds-tune.txt")
