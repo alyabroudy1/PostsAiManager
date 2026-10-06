@@ -6,6 +6,7 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.SectionKind
+import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
@@ -53,7 +54,7 @@ class ExtractedPresenterTest {
         topics: List<String> = emptyList(),
         typeConfidence: Float? = null,
         familySource: FamilySource = FamilySource.MODEL,
-        actionItems: List<String> = emptyList(),
+        actionItems: List<ActionItem> = emptyList(),
         extractorVersion: String? = ExtractorVersion.CURRENT,
     ) = Document(
         id = "d", title = "T", sourceType = SourceType.CAMERA, createdAt = 0, modifiedAt = 0,
@@ -68,7 +69,7 @@ class ExtractedPresenterTest {
         summary: String? = null,
         showAll: Boolean = false,
         selfName: String? = null,
-        actions: List<String> = emptyList(),
+        actions: List<ActionItem> = emptyList(),
         version: String? = ExtractorVersion.CURRENT,
     ) = ExtractedPresenter.present(doc(type, summary, actionItems = actions, extractorVersion = version), fields, showAll, selfName = selfName)
 
@@ -324,15 +325,20 @@ class ExtractedPresenterTest {
         }
 
         @Test
-        fun `the action lines are the AI's text, each with the fields it states, and nothing is composed from fields`() {
-            val lines = listOf("Zahle 64,98 € bis zum 15.10.2026.", "Überweise auf DE89 3704 0044 0532 0130 00.")
-            val p = present(invoiceFields(), type = "invoice_bill", actions = lines)
+        fun `the actions are the kinds the AI chose, each with the live fields it states`() {
+            val actions = listOf(
+                ActionItem("pay", mapOf("amount" to "total", "date" to "due_date", "party" to "sender")),
+                ActionItem("reply", mapOf("party" to "sender", "reference" to "invoice_no")),
+            )
+            val p = present(invoiceFields(), type = "invoice_bill", actions = actions)
 
-            assertThat(p.essentials.actions.map { it.text }).containsExactlyElementsIn(lines).inOrder()
-            assertThat(p.essentials.actions[0].rows.map { it.slotKey }).containsExactly("total", "due_date")
-            assertThat(p.essentials.actions[1].rows.map { it.slotKey }).containsExactly("iban")
+            assertThat(p.essentials.actions.map { it.kind.id }).containsExactly("pay", "reply").inOrder()
+            assertThat(p.essentials.actions[0].amount).isEqualTo("64,98 €")
+            assertThat(p.essentials.actions[0].party).isEqualTo("Nordlicht Mobilfunk GmbH")
+            assertThat(p.essentials.actions[0].rows.map { it.slotKey }).containsExactly("due_date", "total").inOrder()
+            assertThat(p.essentials.actions[1].rows.map { it.slotKey }).containsExactly("invoice_no")
             // The fields behind an action are not listed again below it.
-            assertThat(p.detailSlots()).containsExactly("invoice_no")
+            assertThat(p.detailSlots()).containsExactly("iban")
         }
 
         /** The invoice fields with the invoice number and the IBAN picked as key information (the IBAN the better). */
@@ -367,7 +373,7 @@ class ExtractedPresenterTest {
 
         @Test
         fun `a picked slot row an action line already states stays in that line, not drawn twice`() {
-            val p = present(pickedFields(), type = "invoice_bill", actions = listOf("Überweise auf DE89 3704 0044 0532 0130 00."))
+            val p = present(pickedFields(), type = "invoice_bill", actions = listOf(ActionItem("pay", mapOf("iban" to "iban"))))
 
             assertThat(p.essentials.actions.single().rows.map { it.slotKey }).containsExactly("iban")
             assertThat(p.essentials.keyInfo.map { it.fieldName }).containsExactly("Invoice Number", "Mandatsreferenz", "Tarif").inOrder()
@@ -399,31 +405,31 @@ class ExtractedPresenterTest {
         }
 
         @Test
-        fun `an action line a person's edit made stale is not shown, its field returns to the details`() {
+        fun `a value a person corrected is the value the action states at once, there is no stale line`() {
             val edited = field("Amount", "70,00 €", "total", source = ValueSource.USER, confirmed = true).copy(machineValue = "64,98 €")
             val rows = invoiceFields().filter { it.slotKey != "total" } + edited
-            val p = present(rows, type = "invoice_bill", actions = listOf("Zahle 64,98 € bis zum 15.10.2026.", "Antworte dem Absender."))
+            val p = present(rows, type = "invoice_bill", actions = listOf(ActionItem("pay", mapOf("amount" to "total", "date" to "due_date"))))
 
-            assertThat(p.essentials.actions.map { it.text }).containsExactly("Antworte dem Absender.")
-            assertThat(p.detailSlots()).contains("total")
+            assertThat(p.essentials.actions.single().amount).isEqualTo("70,00 €")
+            assertThat(p.essentials.actions.single().rows.map { it.slotKey }).contains("total")
         }
 
         @Test
-        fun `an ignored field is not behind a line`() {
+        fun `an ignored field is not behind an action, which is then shorter`() {
             val rows = invoiceFields().map { if (it.slotKey == "iban") it.copy(deletedByUser = true) else it }
-            val p = present(rows, type = "invoice_bill", actions = listOf("Überweise auf DE89 3704 0044 0532 0130 00."))
+            val p = present(rows, type = "invoice_bill", actions = listOf(ActionItem("pay", mapOf("iban" to "iban"))))
             assertThat(p.essentials.actions.single().rows).isEmpty()
             assertThat(p.ignored.map { it.slotKey }).containsExactly("iban")
         }
 
         @Test
         fun `every family presents the same essentials, they are the AI's data and not a list per family`() {
-            val lines = listOf("Zahle 64,98 € bis zum 15.10.2026.")
+            val lines = listOf(ActionItem("pay", mapOf("amount" to "total")))
             val reference = present(invoiceFields(), type = "invoice_bill", actions = lines).essentials
             for (family in ExtractionSchema.DEFAULT.families.map { it.id } + listOf("reminder_dunning", "mystery", null)) {
                 val e = present(invoiceFields(), type = family, actions = lines).essentials
                 assertThat(e.parties.from!!.row.fieldValue).isEqualTo(reference.parties.from!!.row.fieldValue)
-                assertThat(e.actions.map { it.text }).isEqualTo(reference.actions.map { it.text })
+                assertThat(e.actions.map { it.amount }).isEqualTo(reference.actions.map { it.amount })
                 assertThat(e.keyInfo.map { it.fieldName }).isEqualTo(reference.keyInfo.map { it.fieldName })
                 assertThat(e.subject!!.fieldValue).isEqualTo("Zahlungserinnerung")
             }
@@ -728,7 +734,7 @@ class ExtractedPresenterTest {
                     extra("Zaehler", 0.9f),
                 ),
                 type = "invoice_bill",
-                actions = listOf("Zahle 64,98 € bis zum 15.10.2026."),
+                actions = listOf(ActionItem("pay", mapOf("amount" to "total", "date" to "due_date"))),
             )
 
             // sender, subject, the amount behind the action, the uncertain extra. The invoice number is not essential: it stays in

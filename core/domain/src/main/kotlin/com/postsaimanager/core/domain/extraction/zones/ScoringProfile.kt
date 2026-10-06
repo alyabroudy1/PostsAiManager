@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.extraction.zones
 
+import com.postsaimanager.core.domain.extraction.actions.ActionKindProfile
 import com.postsaimanager.core.domain.extraction.v2.SlotKey
 
 /**
@@ -40,6 +41,8 @@ data class ScoringProfile(
     val optionalUnlessOwn: Set<String> = emptySet(),
     /** The abstain level of an [optionalUnlessOwn] question the family does not own: 0.0 is the model's own indifference between Yes and No. */
     val optionalThreshold: Double = 0.0,
+    /** How the scores of the action questions become the actions a letter asks of its reader (see [ActionKindProfile]). */
+    val actions: ActionKindProfile = ActionKindProfile(),
 ) {
     fun threshold(ask: String): Double = thresholds[ask] ?: defaultThreshold
 

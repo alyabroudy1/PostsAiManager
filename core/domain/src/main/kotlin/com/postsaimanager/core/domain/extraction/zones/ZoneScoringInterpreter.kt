@@ -10,7 +10,7 @@ import com.postsaimanager.core.domain.extraction.address.StructuredAddressReader
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
-import com.postsaimanager.core.domain.extraction.text.ActionWriter
+import com.postsaimanager.core.domain.extraction.actions.ActionKindReader
 import com.postsaimanager.core.domain.extraction.text.SummaryFacts
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.domain.extraction.v2.AnswerReader
@@ -48,6 +48,7 @@ import com.postsaimanager.core.domain.extraction.v2.StructuredGrammar
 import com.postsaimanager.core.domain.extraction.v2.TextOutcome
 import com.postsaimanager.core.domain.extraction.v2.TextRequest
 import com.postsaimanager.core.domain.extraction.v2.UnreadText
+import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.KeySlot
 import com.postsaimanager.core.model.TicketSlot
 import java.util.Locale
@@ -319,19 +320,21 @@ class ZoneScoringInterpreter(
                 LetterSession(setup, zones, budget).also { letter = it }
             }
             // The family's hint says what matters in this kind of document: it steers which facts are kept as the key information
-            // (the extras) and what the action lines say; the model still decides, code only verifies.
+            // (the extras); the model still decides, code only verifies.
             val hint = (request.documentTypeId?.let { schema.family(it) } ?: schema.abstain)?.hint
             val picks = pickExtras(open.setup, request.takenIds, hint, request.slots)
             val picked = picks.extras
             // A profile that keeps the topics out of the first stage scores them here, still in the body session.
             val lateTopics = if (topicsInFirstStage || request.topics.isNotEmpty()) null else classifier().topics(tail)
+            // What the reader has to do is scored too, in the same body session: a kind is chosen from the catalogue, nothing is written.
+            val actions = readActions(request)
             // The letter as plain text: no zone hints and no summary of the header, which a small model copies instead of the letter.
             val writing = switchToWriting(open.setup, ZonePrompt.bodyUser("", open.setup.zoned.render(open.zonesInPrefix, open.budget)))
             if (!writing) {
                 return EnrichmentOutcome.Done(
                     Enrichment(
                         language = null, extras = emptyList(), text = null, textError = "the model could not read the letter again", topics = lateTopics,
-                        keySlots = picks.keySlots,
+                        actions = actions, keySlots = picks.keySlots,
                     ),
                 )
             }
@@ -343,9 +346,6 @@ class ZoneScoringInterpreter(
             val subject = written?.subject?.takeIf { QuoteVerifier.verifyCopiedLine(it, request.ocrText) != null }
             val facts = SummaryFacts.of(request.documentTypeId ?: schema.abstain?.id.orEmpty(), request.facts, subject)
             val summary = SummaryWriter(FramedSession()).write(facts, request.ocrText, language)
-            // What the reader must do: written from the same verified facts plus the key information picked, checked line by line.
-            val keyInfo = extras.mapNotNull { x -> picked.firstOrNull { it.candidate.id == x.id }?.let { x.label to it.candidate.raw.replace('\n', ' ') } }
-            val actions = ActionWriter(FramedSession("text:actions"), trace = { traceLines += it }).write(facts.entries() + keyInfo, hint, request.ocrText, language)
             return EnrichmentOutcome.Done(
                 Enrichment(
                     language = language, extras = extras, text = written,
@@ -360,6 +360,14 @@ class ZoneScoringInterpreter(
             session.close()
         }
     }
+
+    /**
+     * What the reader has to do, chosen by score from the catalogue of action kinds ([ActionKindReader]) with the reading's own scorer, in
+     * the open body session. Null when the kinds could not be scored, so the stored actions stay.
+     */
+    private suspend fun readActions(request: EnrichmentRequest): List<ActionItem>? =
+        ActionKindReader({ name, questions -> scoreBatch(name, "", questions) }, profile.actions, schema = schema, trace = { traceLines += it })
+            .read(request.slots, senderKnown = !request.facts[SummaryFacts.SENDER].isNullOrBlank())?.items
 
     private fun traceSetup(setup: ZoneSetup) {
         val m = setup.match
@@ -547,7 +555,7 @@ class ZoneScoringInterpreter(
     }
 
     /**
-     * The letter's session as a writer (the summary's, the action lines') sees it: its questions are framed like every other ask (the
+     * The letter's session as the summary's writer sees it: its questions are framed like every other ask (the
      * turn's opening and closing) and recorded under [name].
      */
     private inner class FramedSession(private val name: String = "text:summary") : PromptSession by session {

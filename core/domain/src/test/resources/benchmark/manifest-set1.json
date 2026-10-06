@@ -3,6 +3,7 @@
   "documents": [
     {
       "id": "invoice-2p",
+      "actions": [{ "kind": "pay", "date": "2026-10-15", "amount": "1.284,50 €" }],
       "topics": [],
       "folder": "invoice-2p",
       "subject": "Rechnung RE-2026-0815",
@@ -85,6 +86,8 @@
     },
     {
       "id": "tax-long-7p",
+      "actions": [{ "kind": "pay", "date": "2026-11-03", "amount": "2.317,00 €" }],
+      "actions_also_ok": ["object_cancel"],
       "topics": ["tax", "government"],
       "folder": "tax-long-7p",
       "subject": "Einkommensteuerbescheid 2025 – Festsetzung und Nachzahlung",
@@ -168,6 +171,8 @@
     },
     {
       "id": "english-ambiguous-3p",
+      "actions": [{ "kind": "reply", "date": "2026-10-10", "amount": null }],
+      "actions_also_ok": ["pay", "confirm_renew", "contact"],
       "topics": ["housing_utilities"],
       "folder": "english-ambiguous-3p",
       "subject": "Your account NU-77120934 – overdue balance and payment plan",
@@ -241,6 +246,7 @@
     },
     {
       "id": "receipt-noise-1p",
+      "actions": [],
       "topics": ["shopping"],
       "folder": "receipt-noise-1p",
       "subject": "Kassenbon Beispielmarkt",
@@ -300,6 +306,8 @@
     },
     {
       "id": "degraded-3p",
+      "actions": [],
+      "actions_also_ok": ["contact", "send_documents", "reply"],
       "topics": ["housing_utilities"],
       "folder": "degraded-3p",
       "subject": "Änderung Ihres Abschlags ab 01.12.2026",
@@ -377,6 +385,7 @@
     },
     {
       "id": "arabic-rtl-1p",
+      "actions": [{ "kind": "pay", "date": "2026-10-20", "amount": "450,00 €" }],
       "topics": [],
       "folder": "arabic-rtl-1p",
       "subject": "تذكير بسداد الفاتورة رقم ٠٤١٧ لسنة ٢٠٢٦ (Zahlungserinnerung Rechnung 2026-0417)",

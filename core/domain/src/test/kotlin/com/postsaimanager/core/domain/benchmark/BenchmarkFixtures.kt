@@ -22,6 +22,9 @@ data class Fixture(val key: String, val pages: List<FixturePage>)
 
 data class ExpectedField(val field: String, val value: String, val page: Int, val note: String?)
 
+/** One thing a letter asks of its reader: the action kind's id, the ISO date it is due by (null when none is stated as a date) and the amount as printed (null when none). */
+data class ExpectedAction(val kind: String, val date: String?, val amount: String?)
+
 /** Ground truth roles of a letter (manifest set 2 and web). */
 data class Roles(val sender: String?, val addressees: List<String>)
 
@@ -34,6 +37,10 @@ data class ManifestDoc(
     val notFacts: String?,
     /** The topic ids a reader would say the letter is about (`topics` in the manifest, judged from the letter's content); empty when none. */
     val topics: List<String> = emptyList(),
+    /** What the letter asks of its reader (`actions` in the manifest); null when the manifest does not say (the web samples), empty for a letter that asks nothing. */
+    val actions: List<ExpectedAction>? = null,
+    /** Kinds that are not wrong to show for this letter though they are not what it chiefly asks (`actions_also_ok`). */
+    val actionsAlsoOk: Set<String> = emptySet(),
 ) {
     /** The manifest names the sender either in `roles` or as an `expected` field. */
     val senderName: String? get() = roles.sender ?: expected.firstOrNull { it.field == "sender" }?.value
@@ -128,6 +135,11 @@ object BenchmarkFixtures {
                 ),
                 notFacts = o["not_facts"]?.str(),
                 topics = (o["topics"] as? JsonArray)?.mapNotNull { it.str() }.orEmpty(),
+                actions = (o["actions"] as? JsonArray)?.map { a ->
+                    val ao = a.jsonObject
+                    ExpectedAction(ao.getValue("kind").jsonPrimitive.content, ao["date"]?.str(), ao["amount"]?.str())
+                },
+                actionsAlsoOk = (o["actions_also_ok"] as? JsonArray)?.mapNotNull { it.str() }.orEmpty().toSet(),
             )
         }
 

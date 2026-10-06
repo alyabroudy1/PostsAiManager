@@ -1,6 +1,11 @@
 package com.postsaimanager.core.domain.extraction.zones
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.common.result.PamError
+import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.ai.PromptSession
+import com.postsaimanager.core.domain.extraction.actions.ActionKinds
+import com.postsaimanager.core.domain.extraction.actions.ActionQuestions
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
@@ -37,6 +42,10 @@ class TwoStageReadingTest {
                 // The stored slot values: the amount matters most to this reader, the date of the letter a little, the rest nothing.
                 c.contains(KEY_SLOT_ASK) && c.contains("«Amount: 1.284,50 €»") -> 4.0
                 c.contains(KEY_SLOT_ASK) && c.contains("«Document Date:") -> 1.0
+                // The action kinds: the letter asks something, and what it asks is to pay; the amount is the one to pay.
+                c.contains(ActionQuestions.anything()) -> 3.0
+                c.contains(ActionQuestions.kind(ActionKinds.PAY)) -> 4.0
+                c.contains("«Amount: 1.284,50 €» the amount the reader is asked to pay") -> 3.0
                 else -> -5.0
             }
         }
@@ -44,8 +53,6 @@ class TwoStageReadingTest {
             when {
                 q.contains("BCP-47") -> "de"
                 q.contains("What does the letter call this value?") -> "\"Gegenstand\""
-                // The action writer: one line the gate accepts (every number, date and name is in the letter).
-                q.contains("What must or may the reader do") -> "\"Bitte überweise 1.284,50 € bis zum 15.10.2026 an die Musterfirma GmbH.\""
                 // The summary writer is given the verified facts; a model that keeps to them writes a sentence the gate accepts.
                 q.contains("FACTS (verified") -> "\"Musterfirma GmbH verlangt 1.284,50 € von Erika Mustermann.\""
                 else -> "\"text\""
@@ -53,7 +60,7 @@ class TwoStageReadingTest {
         }
     }
 
-    private fun run(stages: ExtractionV2Pipeline.Stages, session: FakePromptSession, ticket: EnrichmentTicket? = null): ExtractionV2Result =
+    private fun run(stages: ExtractionV2Pipeline.Stages, session: PromptSession, ticket: EnrichmentTicket? = null): ExtractionV2Result =
         runBlocking {
             ExtractionV2Pipeline().run(
                 letter.pages, ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096), 4096, stages = stages, ticket = ticket,
@@ -108,7 +115,7 @@ class TwoStageReadingTest {
         // Only the extras were scored (no type, no party, no slot), in the body session the first stage left (what it established is in
         // its prefix), and the text was written in the writing session that follows.
         // (and the stored slot values, in the same batch: see the key-slot tests).
-        assertThat(later.scored.flatten().all { it.contains(ScoringDescriptions.EXTRA) || it.contains(KEY_SLOT_ASK) }).isTrue()
+        assertThat(later.scored.flatten().all { it.contains(ScoringDescriptions.EXTRA) || it.contains(KEY_SLOT_ASK) || ActionQuestions.isActionQuestion(it) }).isTrue()
         assertThat(later.opens).hasSize(2)
         assertThat(later.opens.first()).contains("ESTABLISHED FROM THE HEADER OF THE LETTER")
         assertThat(later.opens.first()).contains(ticket.established)
@@ -122,21 +129,25 @@ class TwoStageReadingTest {
     }
 
     @Test
-    fun `the second stage scores the extras under the family's hint and writes the action lines in the writing session`() {
+    fun `the second stage scores the extras under the family's hint and chooses the actions by score, writing no line`() {
         val first = run(ExtractionV2Pipeline.Stages.FIRST, session())
         val later = session()
         val second = run(ExtractionV2Pipeline.Stages.SECOND, later, first.enrichment)
         // The hint of the invoice family is part of the statement every extra is scored under: the key information is what it says matters.
         val hint = com.postsaimanager.core.domain.extraction.v2.ExtractionSchema.INVOICE_BILL.hint
         assertThat(hint).isNotEmpty()
-        assertThat(later.scored.flatten()).isNotEmpty()
-        assertThat(later.scored.flatten().all { it.contains(hint) }).isTrue()
-        // The actions: one ask with its own grammar, the hint in its prompt, and the line the gate accepted is the result.
-        val ask = later.asks.single { it.question.contains("What must or may the reader do") }
-        assertThat(ask.question).contains(hint)
-        assertThat(ask.question).contains("- amount: 1.284,50 €")
-        assertThat(ask.question).contains("\"de\"")
-        assertThat(second.actions).containsExactly("Bitte überweise 1.284,50 € bis zum 15.10.2026 an die Musterfirma GmbH.")
+        val scored = later.scored.flatten()
+        assertThat(scored).isNotEmpty()
+        assertThat(scored.filterNot { ActionQuestions.isActionQuestion(it) }.all { it.contains(hint) }).isTrue()
+        // The actions are scored, never asked for: no ask mentions what the reader must do, and the chosen kind is a catalogue entry.
+        assertThat(later.asks.none { it.question.contains("reader do") }).isTrue()
+        assertThat(scored.count { it.contains(ActionQuestions.anything()) }).isEqualTo(1)
+        ActionKinds.ALL.forEach { kind -> assertThat(scored.count { it.contains(ActionQuestions.kind(kind)) }).isEqualTo(1) }
+        val action = second.actions!!.single()
+        assertThat(action.kind).isEqualTo("pay")
+        // The amount is the stored one the reading scored as the amount to pay; the payee is the stored sender.
+        assertThat(action.bindings).containsAtLeast("amount", "total", "party", "sender")
+        assertThat(scored.any { it.contains("Is «Amount: 1.284,50 €» the amount the reader is asked to pay") }).isTrue()
         // The adapter hands them to what the data layer stores.
         assertThat(ExtractionV2Adapter().adapt(second).actionItems).isEqualTo(second.actions)
     }
@@ -208,16 +219,18 @@ class TwoStageReadingTest {
     }
 
     @Test
-    fun `a model that finds nothing to do leaves an empty list, a failed ask leaves none so the stored lines stay`() {
+    fun `a letter that asks nothing leaves an empty list, a failed scoring leaves none so the stored actions stay`() {
         val first = run(ExtractionV2Pipeline.Stages.FIRST, session())
         val nothing = session().apply {
-            val base = responder
-            responder = { q, g -> if (q.contains("What must or may the reader do")) "NONE" else base(q, g) }
+            val base = scorer
+            scorer = { c -> if (c.contains(ActionQuestions.anything())) -3.0 else base(c) }
         }
         assertThat(run(ExtractionV2Pipeline.Stages.SECOND, nothing, first.enrichment).actions).isEmpty()
-        val failing = session().apply {
-            val base = responder
-            responder = { q, g -> if (q.contains("What must or may the reader do")) null else base(q, g) }
+        val inner = session()
+        val failing = object : PromptSession by inner {
+            override suspend fun score(continuations: List<String>, yes: String, no: String, shared: String): PamResult<List<Double>> =
+                if (continuations.any { ActionQuestions.isActionQuestion(it) }) PamResult.Error(PamError.InferenceError("scoring failed"))
+                else inner.score(continuations, yes, no, shared)
         }
         val failed = run(ExtractionV2Pipeline.Stages.SECOND, failing, first.enrichment)
         assertThat(failed.actions).isNull()

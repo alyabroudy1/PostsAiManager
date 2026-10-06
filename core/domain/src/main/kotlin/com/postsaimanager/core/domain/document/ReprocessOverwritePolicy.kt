@@ -112,8 +112,8 @@ object ReprocessOverwritePolicy {
     }
 
     /**
-     * The action lines a second stage wrote, replacing the stored ones (nobody edits them: a person's own say is their confirmed or edited
-     * fields, which the lines are linked to when they are shown). A reading that asked none (a first stage, a failed ask) leaves them.
+     * The actions a second stage chose, replacing the stored ones (nobody edits them: a person's own say is their confirmed or edited
+     * fields, which the actions are rendered from when they are shown). A reading that chose none (a first stage, a failed scoring) leaves them.
      */
     fun applyActions(document: Document, read: DocumentUnderstanding): Document {
         val items = read.actionItems ?: return document

@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.document
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.usecase.ObserveChatVisibleDocumentsUseCase
+import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.FamilySource
@@ -189,16 +190,16 @@ class ReprocessOverwritePolicyTest {
     }
 
     @Test
-    fun `the action lines a second stage wrote replace the stored ones, an empty list clears them`() {
-        val before = doc().copy(actionItems = listOf("Alt"))
-        assertThat(ReprocessOverwritePolicy.applyActions(before, DocumentUnderstanding(actionItems = listOf("Zahle bis Freitag."))).actionItems)
-            .containsExactly("Zahle bis Freitag.")
+    fun `the actions a second stage chose replace the stored ones, an empty list clears them`() {
+        val before = doc().copy(actionItems = listOf(ActionItem("reply")))
+        assertThat(ReprocessOverwritePolicy.applyActions(before, DocumentUnderstanding(actionItems = listOf(ActionItem("pay", mapOf("date" to "due_date"))))).actionItems)
+            .containsExactly(ActionItem("pay", mapOf("date" to "due_date")))
         assertThat(ReprocessOverwritePolicy.applyActions(before, DocumentUnderstanding(actionItems = emptyList())).actionItems).isEmpty()
     }
 
     @Test
-    fun `a reading that asked no action lines leaves the stored ones`() {
-        val before = doc().copy(actionItems = listOf("Alt"))
+    fun `a reading that scored no actions leaves the stored ones`() {
+        val before = doc().copy(actionItems = listOf(ActionItem("reply")))
         assertThat(ReprocessOverwritePolicy.applyActions(before, DocumentUnderstanding())).isEqualTo(before)
     }
 }

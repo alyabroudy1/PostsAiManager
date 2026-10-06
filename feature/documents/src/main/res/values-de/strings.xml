@@ -20,6 +20,36 @@
     <string name="card_summary_yours">Ihre Zusammenfassung</string>
     <!-- The essentials at the top of the Extracted tab -->
     <string name="essentials_actions_title">Was Sie tun müssen</string>
+    <!-- Die Zeilen der Handlungen, nach Art. Argumente in dieser Reihenfolge, nur die genannten: Betrag, Partei, Datum. -->
+    <string name="action_date_time">%1$s, %2$s</string>
+    <string name="action_pay">Den fälligen Betrag zahlen</string>
+    <string name="action_pay_a">%1$s zahlen</string>
+    <string name="action_pay_p">Den fälligen Betrag an %1$s zahlen</string>
+    <string name="action_pay_d">Den fälligen Betrag bis %1$s zahlen</string>
+    <string name="action_pay_ap">%1$s an %2$s zahlen</string>
+    <string name="action_pay_ad">%1$s bis %2$s zahlen</string>
+    <string name="action_pay_pd">Den fälligen Betrag bis %2$s an %1$s zahlen</string>
+    <string name="action_pay_apd">%1$s bis %3$s an %2$s zahlen</string>
+    <string name="action_reply">Auf das Schreiben antworten</string>
+    <string name="action_reply_p">%1$s antworten</string>
+    <string name="action_reply_d">Bis %1$s antworten</string>
+    <string name="action_reply_pd">Bis %2$s %1$s antworten</string>
+    <string name="action_object_cancel">Widersprechen oder kündigen, falls Sie nicht einverstanden sind</string>
+    <string name="action_object_cancel_d">Bis %1$s widersprechen oder kündigen</string>
+    <string name="action_attend">Den Termin wahrnehmen</string>
+    <string name="action_attend_d">Den Termin am %1$s wahrnehmen</string>
+    <string name="action_send_documents">Die angeforderten Unterlagen senden</string>
+    <string name="action_send_documents_p">Die angeforderten Unterlagen an %1$s senden</string>
+    <string name="action_send_documents_d">Die angeforderten Unterlagen bis %1$s senden</string>
+    <string name="action_send_documents_pd">Die angeforderten Unterlagen bis %2$s an %1$s senden</string>
+    <string name="action_sign_return">Das Formular unterschreiben und zurücksenden</string>
+    <string name="action_sign_return_d">Das Formular bis %1$s unterschreiben und zurücksenden</string>
+    <string name="action_confirm_renew">Bestätigen oder verlängern</string>
+    <string name="action_confirm_renew_d">Bis %1$s bestätigen oder verlängern</string>
+    <string name="action_contact">Den Absender kontaktieren</string>
+    <string name="action_contact_p">%1$s kontaktieren</string>
+    <string name="action_contact_d">Den Absender bis %1$s kontaktieren</string>
+    <string name="action_contact_pd">%1$s bis %2$s kontaktieren</string>
     <string name="essentials_parties_title">Von wem und für wen</string>
     <string name="essentials_key_title">Wichtige Angaben</string>
     <string name="essentials_from">Von</string>

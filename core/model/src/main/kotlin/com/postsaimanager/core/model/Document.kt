@@ -66,11 +66,11 @@ data class Document(
     val summaryCode: String? = null,
     val summaryArgs: List<String> = emptyList(),
     /**
-     * What the reader has to do, as short lines the model wrote in the letter's language in the second stage (at most three), each
-     * checked against the letter's text and the verified fields before it was kept. Empty when the letter asks nothing or nothing
-     * was written (no model, a failed stage); the Extracted tab then has no "What you need to do" section.
+     * What the reader has to do, as the action kinds the second stage chose (at most two) with the stored fields each rests on; the
+     * line is rendered from them when it is shown. Empty when the letter asks nothing or nothing was chosen (no model, a failed stage);
+     * the Extracted tab then has no "What you need to do" section.
      */
-    val actionItems: List<String> = emptyList(),
+    val actionItems: List<ActionItem> = emptyList(),
     /** The id of the layout template the letter matched, for display and debugging; null when none. */
     val layoutTemplate: String? = null,
     /** How many times the reading's second stage ran without settling a summary; at the limit the template summary is stored. */

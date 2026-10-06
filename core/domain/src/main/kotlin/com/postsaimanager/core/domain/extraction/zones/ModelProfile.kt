@@ -125,6 +125,8 @@ object ModelProfiles {
      */
     fun recordingProfile(shipped: ScoringProfile): ScoringProfile = shipped.copy(
         thresholds = shipped.thresholds.filterKeys { it in PARTY_THRESHOLDS },
+        // Every stored date and amount is scored under every action kind, so the bindings can be fitted offline too.
+        actions = shipped.actions.copy(scoreEveryBinding = true),
     )
 
     private val PARTY_THRESHOLDS = setOf(QuestionNames.CONTACT, QuestionNames.CARE_OF, QuestionNames.SUBJECT_PERSON)

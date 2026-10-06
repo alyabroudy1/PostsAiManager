@@ -20,6 +20,36 @@
     <string name="card_summary_yours">ملخصك</string>
     <!-- The essentials at the top of the Extracted tab -->
     <string name="essentials_actions_title">ما عليك فعله</string>
+    <!-- أسطر الإجراءات حسب النوع. المعاملات بهذا الترتيب وما يذكره السطر فقط: المبلغ، الجهة، التاريخ. -->
+    <string name="action_date_time">%1$s، %2$s</string>
+    <string name="action_pay">ادفع المبلغ المستحق</string>
+    <string name="action_pay_a">ادفع %1$s</string>
+    <string name="action_pay_p">ادفع المبلغ المستحق إلى %1$s</string>
+    <string name="action_pay_d">ادفع المبلغ المستحق قبل %1$s</string>
+    <string name="action_pay_ap">ادفع %1$s إلى %2$s</string>
+    <string name="action_pay_ad">ادفع %1$s قبل %2$s</string>
+    <string name="action_pay_pd">ادفع المبلغ المستحق إلى %1$s قبل %2$s</string>
+    <string name="action_pay_apd">ادفع %1$s إلى %2$s قبل %3$s</string>
+    <string name="action_reply">رد على الرسالة</string>
+    <string name="action_reply_p">رد على %1$s</string>
+    <string name="action_reply_d">رد قبل %1$s</string>
+    <string name="action_reply_pd">رد على %1$s قبل %2$s</string>
+    <string name="action_object_cancel">اعترض أو ألغِ إن لم توافق</string>
+    <string name="action_object_cancel_d">اعترض أو ألغِ قبل %1$s</string>
+    <string name="action_attend">احضر موعدك</string>
+    <string name="action_attend_d">احضر موعدك في %1$s</string>
+    <string name="action_send_documents">أرسل المستندات المطلوبة</string>
+    <string name="action_send_documents_p">أرسل المستندات المطلوبة إلى %1$s</string>
+    <string name="action_send_documents_d">أرسل المستندات المطلوبة قبل %1$s</string>
+    <string name="action_send_documents_pd">أرسل المستندات المطلوبة إلى %1$s قبل %2$s</string>
+    <string name="action_sign_return">وقّع النموذج وأعده</string>
+    <string name="action_sign_return_d">وقّع النموذج وأعده قبل %1$s</string>
+    <string name="action_confirm_renew">أكّد أو جدّد</string>
+    <string name="action_confirm_renew_d">أكّد أو جدّد قبل %1$s</string>
+    <string name="action_contact">تواصل مع المرسل</string>
+    <string name="action_contact_p">تواصل مع %1$s</string>
+    <string name="action_contact_d">تواصل مع المرسل قبل %1$s</string>
+    <string name="action_contact_pd">تواصل مع %1$s قبل %2$s</string>
     <string name="essentials_parties_title">من المرسل ولمن</string>
     <string name="essentials_key_title">معلومات أساسية</string>
     <string name="essentials_from">من</string>

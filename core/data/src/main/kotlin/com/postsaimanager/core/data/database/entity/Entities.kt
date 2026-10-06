@@ -56,7 +56,10 @@ data class DocumentEntity(
     val enrichmentAttempts: Int = 0,
     /** See [com.postsaimanager.core.model.Document.enrichmentPending]. */
     val enrichmentPending: Boolean = false,
-    /** JSON list of strings; see [com.postsaimanager.core.model.Document.actionItems]. */
+    /**
+     * JSON list of objects (`{"kind":"pay","bindings":{"date":"due_date"}}`); see [com.postsaimanager.core.model.Document.actionItems].
+     * A value an earlier build stored (a list of plain strings) reads as no actions.
+     */
     val actionItems: String? = null,
 )
 
