@@ -2,13 +2,12 @@ package com.postsaimanager.core.domain.document.people
 
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
-import com.postsaimanager.core.domain.extraction.v2.AnswerReader
-import com.postsaimanager.core.domain.extraction.v2.QuestionGrammars
 import com.postsaimanager.core.domain.form.FormScorer
 import com.postsaimanager.core.domain.form.FormScoringException
 import com.postsaimanager.core.domain.form.PromptFraming
 import com.postsaimanager.core.domain.form.SubjectCandidate
 import com.postsaimanager.core.domain.form.SuggestSubject
+import com.postsaimanager.core.model.Relationship
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -27,29 +26,36 @@ interface ConcernedPeople {
 }
 
 /**
- * How the question is asked, as data.
+ * How the question is decided, as data.
  *
- * @property reversedCheck ask a second time with the members in the opposite order and keep only the ones named both times: a small
- *   model favours a position in a list. On: on the five recorded letters (`benchmark/concerned/`) the forward list alone named 4 people
- *   who were not expected, the intersection with the reversed list 2, with the same people found (see `ConcernedPeopleReplayTest`).
+ * Each member is scored on its own (log-odds of Yes against No) and so is a neutral made-up name that is not in the letter; a small
+ * model leans Yes on everything, so a member counts only when it beats that baseline by at least [margin]. On the five recorded
+ * letters (`benchmark/concerned/`) every margin from just above 0.52 to 0.85 finds 7 of the 8 expected people with 1 wrong; below that
+ * an unexpected family member comes in, above it a real one drops out. The middle of that range is the default.
+ *
+ * @property baselineName the made-up name scored beside the members (it must not be a name that could be in a letter).
  */
 data class ConcernedPeopleProfile(
     val maxMembers: Int = 6,
     val maxLetterChars: Int = 6000,
-    val maxAnswerTokens: Int = 24,
-    val reversedCheck: Boolean = true,
+    val margin: Double = 0.7,
+    val baselineName: String = "Zoltan Quillfeather",
 ) {
-    /** The people kept from the forward and the reversed answers under this profile. */
-    fun keep(forward: Set<String>, reversed: Set<String>): Set<String> = if (reversedCheck) forward intersect reversed else forward
+    /** The indexes of [scores] that beat [baseline] by at least [margin]. */
+    fun select(scores: List<Double>, baseline: Double): List<Int> = scores.indices.filter { scores[it] - baseline >= margin }
 }
 
-/** The answers one letter got in the evaluation, with the per-member scores of the other question form beside them. */
-data class ConcernedComparison(val forward: Set<String>, val reversed: Set<String>, val scores: List<Double>)
+/** The log-odds of "for or about this member?" per listed member (in the listed order), and of the same question for the made-up name. */
+data class ConcernedScores(val members: List<Double>, val baseline: Double)
 
 /**
- * [ConcernedPeople] over the standing [PromptSession]: the letter is the prefix, decoded once; the question lists the members as
- * `P1`, `P2`, ... and the answer is grammar-constrained to those ids joined by `; `, or NONE ([QuestionGrammars.members],
- * [AnswerReader.members]), so the model cannot name anyone who was not listed. Each question is rolled back to the prefix.
+ * [ConcernedPeople] over the standing [PromptSession]: the letter is the prefix, decoded once. The members are listed as context
+ * ("Is this letter for or about any one of the following members? P1: ..."), and then each member, and a made-up name, is scored
+ * separately by `logit(Yes) - logit(No)` ([FormScorer]), each rolled back to the prefix. A member is kept when its score beats the
+ * made-up name's by the profile's margin, so the model can never name anyone who was not listed.
+ *
+ * Follow-up: this is a session of its own, so the letter is read once more (about 10 s in the background on the phone); asked inside the
+ * reading's own session it would cost only the scores.
  */
 class ModelConcernedPeople @Inject constructor(
     private val session: PromptSession,
@@ -60,70 +66,38 @@ class ModelConcernedPeople @Inject constructor(
     override suspend fun decide(letter: String, members: List<SubjectCandidate>): PamResult<Set<String>> {
         val listed = members.take(profile.maxMembers)
         if (listed.isEmpty()) return PamResult.Success(emptySet())
-        return inSession(letter) { tail ->
-            val forward = answer(listed, tail)
-            when {
-                forward is PamResult.Error -> forward
-                !profile.reversedCheck -> forward
-                else -> when (val back = answer(listed.reversed(), tail)) {
-                    is PamResult.Error -> back
-                    is PamResult.Success -> PamResult.Success((forward as PamResult.Success).data intersect back.data)
-                }
-            }
+        return when (val scored = scores(letter, listed)) {
+            is PamResult.Error -> scored
+            is PamResult.Success -> PamResult.Success(profile.select(scored.data.members, scored.data.baseline).map { listed[it].profileId }.toSet())
         }
     }
 
-    /**
-     * For the evaluation only: in one session over [letter], the list answer in both orders and the per-member log-odds of
-     * "Is this letter for or about <member>?" (the other question form), so the two can be compared on the same letters.
-     */
-    suspend fun compare(letter: String, members: List<SubjectCandidate>, alsoScored: List<SubjectCandidate> = emptyList()): PamResult<ConcernedComparison> {
+    /** The scores [decide] decides from, and what the evaluation records. */
+    suspend fun scores(letter: String, members: List<SubjectCandidate>): PamResult<ConcernedScores> {
         val listed = members.take(profile.maxMembers)
-        return inSession(letter) { tail ->
-            val forward = answer(listed, tail)
-            val back = answer(listed.reversed(), tail)
-            val scores = try {
-                // [alsoScored] (names the letter does not mention: the baseline a margin would be taken over) are scored, never listed.
-                FormScorer(session, tail).yesNo((listed + alsoScored).map { "Is this letter for or about ${SuggestSubject.relation(it)} ${it.name}? Answer:" })
-            } catch (e: FormScoringException) {
-                return@inSession PamResult.Error(e.error)
-            }
-            when {
-                forward is PamResult.Error -> forward
-                back is PamResult.Error -> back
-                else -> PamResult.Success(ConcernedComparison((forward as PamResult.Success).data, (back as PamResult.Success).data, scores))
-            }
-        }
-    }
-
-    private suspend fun <T> inSession(letter: String, block: suspend (tail: String) -> PamResult<T>): PamResult<T> {
         val (head, tail) = framing.frame(SYSTEM, "LETTER\n" + letter.take(profile.maxLetterChars))
         when (val opened = session.open(head)) {
             is PamResult.Error -> return opened
             is PamResult.Success -> Unit
         }
         return try {
-            block(tail)
+            val baseline = SubjectCandidate("baseline", profile.baselineName, Relationship.RELATIVE)
+            val all = FormScorer(session, tail).yesNo((listed + baseline).map(::statement), shared(listed))
+            PamResult.Success(ConcernedScores(all.dropLast(1), all.last()))
+        } catch (e: FormScoringException) {
+            PamResult.Error(e.error)
         } finally {
             withContext(NonCancellable) { session.close() }
         }
     }
 
-    private suspend fun answer(order: List<SubjectCandidate>, tail: String): PamResult<Set<String>> {
-        val ids = order.indices.map { "P${it + 1}" }
-        val question = buildString {
-            append("Is this letter for or about any one of the following people? ")
-            append("Answer with the ids of those it is for or about, joined by \"; \", or NONE if it is about none of them.")
-            order.forEachIndexed { i, member -> append("\n${ids[i]}: ${member.name} (${SuggestSubject.relation(member)})") }
-        }
-        return when (val r = session.ask("\n\n$question$tail", QuestionGrammars.members(ids), profile.maxAnswerTokens)) {
-            is PamResult.Error -> r
-            is PamResult.Success -> {
-                val byId = ids.zip(order).toMap()
-                PamResult.Success(AnswerReader.members(r.data).mapNotNull { byId[it]?.profileId }.toSet())
-            }
-        }
+    /** The members as context, decoded once after the letter and shared by every score. */
+    private fun shared(listed: List<SubjectCandidate>): String = buildString {
+        append("\n\nIs this letter for or about any one of the following members?")
+        listed.forEachIndexed { i, m -> append("\nP${i + 1}: ${m.name} (${SuggestSubject.relation(m)})") }
     }
+
+    private fun statement(member: SubjectCandidate) = "Is it for or about «${member.name}» (${SuggestSubject.relation(member)})? Answer:"
 
     private companion object {
         const val SYSTEM = "You read a letter and answer questions about it. Say who it is for or about only when the letter itself says so."

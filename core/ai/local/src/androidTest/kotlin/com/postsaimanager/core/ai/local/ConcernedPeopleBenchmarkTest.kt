@@ -21,11 +21,10 @@ import org.junit.runner.RunWith
 import java.io.File
 
 /**
- * "Who is this letter for or about?" on the phone: records, for each benchmark letter of `concerned-people-spec.json`, what the
- * list question ("Is this letter for or about any one of the following people? P1: ... P2: ...", answered as ids or NONE) says in the
- * listed order and in the reversed order, and, from the same session, the per-member log-odds of "Is this letter for or about <member>?"
- * as the comparison. Nothing is decided here; the record holds the answers, the scores, the expected people (and the tolerated ones)
- * and the milliseconds, so the position bias (does it always name the first member? the distractor?) can be read offline.
+ * "Who is this letter for or about?" on the phone: records, for each benchmark letter of `concerned-people-spec.json`, the per-member
+ * log-odds of "Is it for or about <member>?" (the members listed as context) and the same for the made-up baseline name, exactly what
+ * `ModelConcernedPeople.decide` scores. Nothing is decided here; the record holds the scores, the expected people (and the tolerated
+ * ones) and the milliseconds, so the margin can be fitted offline.
  *
  * NOT run by the agent that wrote it: it needs the phone and a model.
  *
@@ -91,8 +90,7 @@ class ConcernedPeopleBenchmarkTest {
             // What the app would ask: only the people whose name token is in the letter. The distractor is recorded as not asked.
             val asked = members.filter { PartyNames.mentions(tokens, it.name) }
             val t0 = System.nanoTime()
-            val notAsked = members.filter { it !in asked }
-            val result = people.compare(text, asked, alsoScored = notAsked)
+            val result = people.scores(text, asked)
             val ms = (System.nanoTime() - t0) / 1_000_000
             val rec = JSONObject().put("key", key).put("asked", JSONArray(asked.map { it.profileId }))
                 .put("notAsked", JSONArray(members.filter { it !in asked }.map { it.profileId }))
@@ -100,13 +98,12 @@ class ConcernedPeopleBenchmarkTest {
                 .put("ms", ms)
             when (result) {
                 is PamResult.Success -> rec
-                    .put("forward", JSONArray(result.data.forward.toList()))
-                    .put("reversed", JSONArray(result.data.reversed.toList()))
-                    .put("scores", JSONObject().also { o -> (asked + notAsked).forEachIndexed { i, m -> o.put(m.profileId, result.data.scores[i]) } })
+                    .put("scores", JSONObject().also { o -> asked.forEachIndexed { i, m -> o.put(m.profileId, result.data.members[i]) } })
+                    .put("baseline", result.data.baseline)
                 is PamResult.Error -> rec.put("error", result.error.userMessage)
             }
             File(outDir, "$key.concerned.json").writeText(rec.toString(2))
-            Log.i(tag, "CONCERNED $key asked=${asked.size} ms=$ms ${if (result is PamResult.Success) "forward=${result.data.forward} reversed=${result.data.reversed}" else "error"}")
+            Log.i(tag, "CONCERNED $key asked=${asked.size} ms=$ms ${if (result is PamResult.Success) "scores=${result.data}" else "error"}")
         }
         engine.unload()
     }

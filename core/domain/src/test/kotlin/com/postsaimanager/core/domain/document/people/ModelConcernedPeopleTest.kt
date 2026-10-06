@@ -17,31 +17,31 @@ class ModelConcernedPeopleTest {
     private val me = SubjectCandidate("me", "Erika Mustermann", isSelf = true)
     private val maria = SubjectCandidate("maria", "Maria Mustermann", Relationship.CHILD)
     private val amir = SubjectCandidate("amir", "Amir Mustermann", Relationship.CHILD)
+    private val profile = ConcernedPeopleProfile()
 
-    private fun people(profile: ConcernedPeopleProfile = ConcernedPeopleProfile(reversedCheck = false)) = ModelConcernedPeople(session, framing, profile)
+    private fun people() = ModelConcernedPeople(session, framing, profile)
 
-    @Test
-    fun `the letter is the prefix, the members are listed once and the answer maps back to profiles`() = runTest {
-        session.responder = { _, _ -> "P2; P3" }
-        val result = people().decide("Dear Maria", listOf(me, maria, amir))
-        assertThat((result as PamResult.Success).data).containsExactly("maria", "amir")
-        assertThat(session.opens).hasSize(1)
-        assertThat(session.opens.single()).contains("Dear Maria")
-        assertThat(session.asks).hasSize(1)
-        val ask = session.asks.single()
-        assertThat(ask.question).contains("P1: Erika Mustermann")
-        assertThat(ask.question).contains("P2: Maria Mustermann")
-        assertThat(ask.grammar).contains("P3")
-        assertThat(ask.grammar).contains("NONE")
-        assertThat(session.closes).isEqualTo(1)
+    /** Scores by the name a statement is about; the made-up name is the baseline. */
+    private fun scoring(vararg byName: Pair<String, Double>, baseline: Double = 0.0) {
+        session.scorer = { text ->
+            val about = text.substringAfterLast("«").substringBefore("»")
+            if (about == profile.baselineName) baseline else byName.toMap().entries.firstOrNull { about.startsWith(it.key) }?.value ?: -9.0
+        }
     }
 
     @Test
-    fun `NONE and an id nobody was listed under name no one`() = runTest {
-        session.responder = { _, _ -> "NONE" }
-        assertThat((people().decide("x", listOf(me, maria)) as PamResult.Success).data).isEmpty()
-        session.responder = { _, _ -> "P9; P1" }
-        assertThat((people().decide("x", listOf(me, maria)) as PamResult.Success).data).containsExactly("me")
+    fun `the letter is the prefix, the members are the shared context, each member and the made-up name is scored once`() = runTest {
+        scoring("Erika" to 0.0, "Maria" to 3.0, "Amir" to 0.0)
+        val result = people().decide("Dear Maria", listOf(me, maria, amir))
+        assertThat((result as PamResult.Success).data).containsExactly("maria")
+        assertThat(session.opens).hasSize(1)
+        assertThat(session.opens.single()).contains("Dear Maria")
+        assertThat(session.scored.flatten()).hasSize(4) // three members and the made-up name
+        val shared = session.sharedLevels.single()
+        assertThat(shared).contains("any one of the following members")
+        assertThat(shared).contains("P2: Maria Mustermann")
+        assertThat(session.scored.flatten().last()).contains(profile.baselineName)
+        assertThat(session.closes).isEqualTo(1)
     }
 
     @Test
@@ -51,17 +51,9 @@ class ModelConcernedPeopleTest {
     }
 
     @Test
-    fun `the reversed check asks again with the order reversed and keeps only those named both times`() = runTest {
-        // A model that always names the first listed member.
-        session.responder = { _, _ -> "P1" }
-        val once = (people().decide("x", listOf(me, maria, amir)) as PamResult.Success).data
-        assertThat(once).containsExactly("me")
-
-        session.asks.clear()
-        val twice = (people(ConcernedPeopleProfile(reversedCheck = true)).decide("x", listOf(me, maria, amir)) as PamResult.Success).data
-        assertThat(session.asks).hasSize(2)
-        assertThat(session.asks[1].question).contains("P1: Amir Mustermann")
-        assertThat(twice).isEmpty() // P1 was Erika, then Amir: a position bias, named once each, never both times
+    fun `nobody beats the made-up name by the margin means nobody`() = runTest {
+        scoring("Erika" to 0.5, "Maria" to 0.6, baseline = 0.0)
+        assertThat((people().decide("x", listOf(me, maria)) as PamResult.Success).data).isEmpty()
     }
 
     @Test
@@ -69,19 +61,18 @@ class ModelConcernedPeopleTest {
         session.openFailsWith = PamError.InferenceError("no model")
         assertThat(people().decide("x", listOf(me))).isInstanceOf(PamResult.Error::class.java)
         session.openFailsWith = null
-        session.responder = { _, _ -> null }
-        assertThat(people().decide("x", listOf(me))).isInstanceOf(PamResult.Error::class.java)
+        assertThat(people().decide("x", listOf(me))).isInstanceOf(PamResult.Success::class.java)
         assertThat(session.closes).isEqualTo(1)
     }
 
     @Test
-    fun `the comparison records both orders and the per member scores from one session`() = runTest {
-        session.responder = { _, _ -> "P1" }
-        session.scorer = { if (it.contains("Maria")) 3.0 else -2.0 }
-        val comparison = (people().compare("x", listOf(me, maria)) as PamResult.Success).data
-        assertThat(comparison.forward).containsExactly("me")
-        assertThat(comparison.reversed).containsExactly("maria")
-        assertThat(comparison.scores).containsExactly(-2.0, 3.0).inOrder()
-        assertThat(session.opens).hasSize(1)
+    fun `the margin selection keeps what beats the baseline by at least the margin`() {
+        val p = ConcernedPeopleProfile(margin = 0.7)
+        assertThat(p.select(emptyList(), 0.0)).isEmpty()
+        assertThat(p.select(listOf(0.2, 0.69, -1.0), 0.0)).isEmpty() // none
+        assertThat(p.select(listOf(0.2, 3.0, 0.5), 0.0)).containsExactly(1) // one
+        assertThat(p.select(listOf(2.0, 0.7, 0.1), 0.0)).containsExactly(0, 1).inOrder() // two (the margin itself counts)
+        assertThat(p.select(listOf(1.0, 2.0), 3.0)).isEmpty() // the baseline beats everyone
+        assertThat(p.select(listOf(-0.5, -0.1), -2.0)).containsExactly(0, 1) // the margin is over the baseline, not over zero
     }
 }
