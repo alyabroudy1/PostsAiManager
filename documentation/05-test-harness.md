@@ -217,11 +217,12 @@ document through the same use case as the scanner (`CreateDocumentFromPagesUseCa
 ```bash
 ./scripts/dev-adb.sh push page-1.jpg /sdcard/Android/data/com.postsaimanager.debug/files/debug-import/page-1.jpg
 ./scripts/dev-adb.sh push page-2.jpg /sdcard/Android/data/com.postsaimanager.debug/files/debug-import/page-2.jpg
-./scripts/dev-adb.sh shell am start -n com.postsaimanager.debug/com.postsaimanager.debug.DebugImportActivity --esa files page-1.jpg,page-2.jpg
+./scripts/dev-adb.sh shell am start --activity-multiple-task -n com.postsaimanager.debug/com.postsaimanager.debug.DebugImportActivity --esa files page-1.jpg,page-2.jpg
 ./scripts/dev-adb.sh logcat -d -s DebugImport     # "imported document=<id> pages=2", or "rejected: <reason>"
 ```
 
-Pages are in the order named. A name with a path separator or `..` is rejected. The files are copied into the app's own storage and
+`--activity-multiple-task` is needed once the app is already running (a second plain `am start` is otherwise swallowed with "delivered to
+currently running top-most instance"). Pages are in the order named. A name with a path separator or `..` is rejected. The files are copied into the app's own storage and
 deleted from the inbox after a successful import; the app then opens and reads the document in the background.
 
 ---
