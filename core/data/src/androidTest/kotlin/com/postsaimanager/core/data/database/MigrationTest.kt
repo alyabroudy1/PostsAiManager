@@ -1064,6 +1064,66 @@ class MigrationTest {
         }
     }
 
+    /** v19 (the installed shape) documents keep every row and gain a NULL `concernedProfileIds` ("not asked yet"). Needs a device. */
+    @Test
+    fun migrate19To20_addsTheConcernedProfileIdsColumnToDocuments() {
+        helper.createDatabase(TEST_DB, 19).apply {
+            seedDocumentAndField(this)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 20, true, PamMigrations.MIGRATION_19_20)
+
+        db.query("SELECT title, concernedProfileIds FROM documents WHERE id = 'doc-1'").use { c ->
+            assertTrue("the document survived", c.moveToFirst())
+            assertEquals("Rechnung", c.getString(0))
+            assertTrue("not asked yet", c.isNull(1))
+        }
+        db.query("SELECT fieldValue FROM extracted_data WHERE id = 'f-1'").use { c ->
+            assertTrue("the field survived", c.moveToFirst())
+            assertEquals("RE-2026-1", c.getString(0))
+        }
+    }
+
+    /** A v19 database that already has the column (an earlier build) migrates without a duplicate-column failure and keeps its value. */
+    @Test
+    fun migrate19To20_isIdempotentWhenTheColumnAlreadyExists() {
+        helper.createDatabase(TEST_DB, 19).apply {
+            seedDocumentAndField(this)
+            execSQL("ALTER TABLE `documents` ADD COLUMN `concernedProfileIds` TEXT")
+            execSQL("UPDATE documents SET concernedProfileIds = '[\"maria\"]' WHERE id = 'doc-1'")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 20, true, PamMigrations.MIGRATION_19_20)
+
+        db.query("SELECT concernedProfileIds FROM documents WHERE id = 'doc-1'").use { c ->
+            assertTrue("the document survived", c.moveToFirst())
+            assertEquals("[\"maria\"]", c.getString(0))
+        }
+    }
+
+    /** The whole chain from v17 to v20 keeps the document and the field, and leaves the decision unasked. */
+    @Test
+    fun migrate17To20_fullChainKeepsData() {
+        helper.createDatabase(TEST_DB, 17).apply {
+            seedDocumentAndField(this)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 20, true,
+            PamMigrations.MIGRATION_17_18, PamMigrations.MIGRATION_18_19, PamMigrations.MIGRATION_19_20,
+        )
+
+        db.query("SELECT d.title, d.concernedProfileIds, e.importance FROM documents d JOIN extracted_data e ON e.documentId = d.id").use { c ->
+            assertTrue("the rows survived", c.moveToFirst())
+            assertEquals("Rechnung", c.getString(0))
+            assertTrue(c.isNull(1))
+            assertTrue(c.isNull(2))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

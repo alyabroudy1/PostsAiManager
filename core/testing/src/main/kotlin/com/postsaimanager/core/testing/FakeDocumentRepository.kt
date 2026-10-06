@@ -285,6 +285,24 @@ class FakeDocumentRepository : DocumentRepository {
                 .mapNotNull { (id, list) -> list.minByOrNull { it.pageNumber }?.let { id to it.imagePath } }
                 .toMap()
         }
+
+    override suspend fun getOcrTexts(): Map<String, String> {
+        val live = documents.value.filterNot { it.isTrashed }.map { it.id }.toSet()
+        return pages.value.filterKeys { it in live }
+            .mapValues { (_, list) -> list.sortedBy { it.pageNumber }.mapNotNull { it.ocrText }.joinToString("\n") }
+            .filterValues { it.isNotEmpty() }
+    }
+
+    override suspend fun setConcernedProfiles(documentId: String, profileIds: List<String>) {
+        documents.value = documents.value.map { if (it.id == documentId) it.copy(concernedProfileIds = profileIds) else it }
+    }
+
+    override suspend fun resetConcernedProfiles(documentIds: Collection<String>) {
+        documents.value = documents.value.map { if (it.id in documentIds) it.copy(concernedProfileIds = null) else it }
+    }
+
+    override suspend fun getDocumentIdsAwaitingPeopleCheck(): List<String> =
+        documents.value.filter { !it.isTrashed && it.concernedProfileIds == null && it.extractorVersion != null }.map { it.id }
 }
 
 /** Convenience builder for test documents. */

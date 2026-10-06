@@ -2,8 +2,12 @@ package com.postsaimanager.core.domain.document.list
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentDateChip
+import com.postsaimanager.core.model.PersonTag
+import com.postsaimanager.core.model.Profile
+import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.DocumentListStatus
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
@@ -13,6 +17,8 @@ import com.postsaimanager.core.model.ValueSource
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -73,7 +79,55 @@ class ObserveDocumentListItemsUseCaseTest {
         firstPage: String? = null,
         hint: ActionHint = DueFieldsActionHint(),
         names: PartyNameResolver = IdentityPartyNameResolver(),
-    ) = ObserveDocumentListItemsUseCase(repository(document, fields, firstPage), names, hint, clock)().first().single()
+    ) = useCase(repository(document, fields, firstPage), names, hint)().first().single()
+
+    private fun profiles(profiles: Flow<List<Profile>> = flowOf(emptyList())): ProfileRepository = mockk {
+        every { getProfiles() } returns profiles
+    }
+
+    private fun useCase(
+        repo: DocumentRepository,
+        names: PartyNameResolver = IdentityPartyNameResolver(),
+        hint: ActionHint = DueFieldsActionHint(),
+        profileRepository: ProfileRepository = profiles(),
+    ) = ObserveDocumentListItemsUseCase(repo, names, hint, clock, profileRepository, ConcernedPeopleTagsUseCase())
+
+    private fun profile(id: String, name: String, type: ProfileType = ProfileType.FAMILY_MEMBER) =
+        Profile(id = id, type = type, name = name, createdAt = 0L, modifiedAt = 0L)
+
+    // ── people ──
+
+    @Test
+    fun `the row shows the people the model decided, Me first`() = runTest {
+        val row = useCase(
+            repository(doc().copy(concernedProfileIds = listOf("maria", "me")), listOf(field("addressee", "Erika Mustermann"))),
+            profileRepository = profiles(
+                flowOf(listOf(profile("maria", "Maria Mustermann"), profile("me", "Erika Mustermann", ProfileType.USER_SELF))),
+            ),
+        )().first().single()
+        assertThat(row.people).containsExactly(PersonTag("me", "Erika", isMe = true), PersonTag("maria", "Maria", isMe = false)).inOrder()
+    }
+
+    @Test
+    fun `a printed name shows no chip without a stored decision, not asked and asked-nobody alike`() = runTest {
+        val fields = listOf(field("addressee", "Maria Mustermann"))
+        val all = profiles(flowOf(listOf(profile("maria", "Maria Mustermann"))))
+        assertThat(useCase(repository(doc(), fields), profileRepository = all)().first().single().people).isEmpty()
+        assertThat(useCase(repository(doc().copy(concernedProfileIds = emptyList()), fields), profileRepository = all)().first().single().people).isEmpty()
+    }
+
+    @Test
+    fun `the people update when a profile is added, renamed or removed`() = runTest {
+        val all = MutableStateFlow(emptyList<Profile>())
+        val flow = useCase(repository(doc().copy(concernedProfileIds = listOf("maria"))), profileRepository = profiles(all))()
+        assertThat(flow.first().single().people).isEmpty()
+        all.value = listOf(profile("maria", "Maria Mustermann"))
+        assertThat(flow.first().single().people).containsExactly(PersonTag("maria", "Maria", isMe = false))
+        all.value = listOf(profile("maria", "Mia Mustermann"))
+        assertThat(flow.first().single().people).containsExactly(PersonTag("maria", "Mia", isMe = false))
+        all.value = emptyList()
+        assertThat(flow.first().single().people).isEmpty()
+    }
 
     // ── status ──
 
@@ -288,7 +342,7 @@ class ObserveDocumentListItemsUseCaseTest {
     @Test
     fun `a search query lists the matches and the fields are read in one batch`() = runTest {
         val repo = repository(doc())
-        ObserveDocumentListItemsUseCase(repo, IdentityPartyNameResolver(), DueFieldsActionHint(), clock)("rent").first()
+        useCase(repo)("rent").first()
         verify(exactly = 1) { repo.searchDocuments("rent") }
         verify(exactly = 1) { repo.observeListFields() }
         verify(exactly = 1) { repo.observeFirstPagePaths() }

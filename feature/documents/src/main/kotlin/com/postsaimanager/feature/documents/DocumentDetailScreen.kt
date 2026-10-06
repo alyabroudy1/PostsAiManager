@@ -81,6 +81,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.postsaimanager.core.common.extensions.toRelativeTime
+import com.postsaimanager.core.designsystem.component.FriendlyDate
 import com.postsaimanager.core.designsystem.component.PagePreviewDialog
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState
@@ -98,6 +99,10 @@ import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.TimelineEvent
 import com.postsaimanager.core.model.TimelineEventType
 import java.io.File
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -934,6 +939,11 @@ private fun TimelineTab(events: List<TimelineEvent>) {
         }
         return
     }
+    val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
+    val friendlyDate: (Long) -> String = { millis ->
+        val date = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+        FriendlyDate.format(date, date.year != LocalDate.now().year, locale)
+    }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         items(events, key = { it.id }) { event ->
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -943,7 +953,7 @@ private fun TimelineTab(events: List<TimelineEvent>) {
                     val (title, description) = timelineLines(event.toText())
                     Text(title, style = MaterialTheme.typography.titleSmall)
                     description?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    Text(event.createdAt.toRelativeTime(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    Text(event.createdAt.toRelativeTime(older = friendlyDate), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                 }
             }
         }

@@ -58,6 +58,8 @@ data class DocumentEntity(
     val enrichmentPending: Boolean = false,
     /** JSON list of strings; see [com.postsaimanager.core.model.Document.actionItems]. */
     val actionItems: String? = null,
+    /** JSON list of profile ids; null: not checked yet. See [com.postsaimanager.core.model.Document.concernedProfileIds]. */
+    val concernedProfileIds: String? = null,
 )
 
 @Entity(

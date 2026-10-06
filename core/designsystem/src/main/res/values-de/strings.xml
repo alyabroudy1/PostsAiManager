@@ -8,6 +8,20 @@
     <string name="page_preview_select_share">Teilen</string>
     <string name="page_preview_select_copied">Kopiert</string>
 
+    <!-- Eine Zeile der Dokumentliste: Personen-Chips und Fälligkeitsdatum. -->
+    <string name="doc_row_due">Fällig %1$s</string>
+    <string name="doc_row_due_today">Heute fällig</string>
+    <string name="doc_row_due_tomorrow">Morgen fällig</string>
+    <string name="doc_row_overdue_since">Überfällig seit %1$s</string>
+    <string name="doc_row_concerns_you_chip">Sie</string>
+    <string name="doc_row_concerns_you">Betrifft Sie</string>
+    <string name="doc_row_concerns_person">Betrifft %1$s</string>
+    <string name="doc_row_people_more">+%1$d</string>
+    <plurals name="doc_row_people_more_description">
+        <item quantity="one">%d weitere Person</item>
+        <item quantity="other">%d weitere Personen</item>
+    </plurals>
+
     <!-- „Antwort melden“ bei einer KI-Antwort: öffnet einen E-Mail-Entwurf, den die Nutzerin oder der Nutzer selbst sendet. -->
     <string name="report_answer_action">Diese Antwort melden</string>
     <string name="report_answer_title">Diese Antwort melden</string>

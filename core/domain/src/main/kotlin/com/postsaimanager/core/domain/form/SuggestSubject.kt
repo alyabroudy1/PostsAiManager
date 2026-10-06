@@ -67,17 +67,16 @@ class SuggestSubject(
     }
 
     private fun describe(c: SubjectCandidate, today: LocalDate): String {
-        val relation = when {
-            c.isSelf -> "the user"
-            else -> PHRASES[c.relationship] ?: "a person"
-        }
         val age = c.birthDate?.let { ", aged ${Period.between(it, today).years}" }.orEmpty()
-        return "$relation ${c.name}$age"
+        return "${relation(c)} ${c.name}$age"
     }
 
-    private companion object {
+    companion object {
+        /** How the model is told who [c] is to the user; the one wording every question about a managed person uses. */
+        fun relation(c: SubjectCandidate): String = if (c.isSelf) "the user" else PHRASES[c.relationship] ?: "a person"
+
         /** How the model is told the relationship (English content descriptions, never shown to users). */
-        val PHRASES: Map<Relationship?, String> = mapOf(
+        private val PHRASES: Map<Relationship?, String> = mapOf(
             Relationship.CHILD to "the user's child",
             Relationship.PARTNER to "the user's partner",
             Relationship.PARENT to "the user's parent",

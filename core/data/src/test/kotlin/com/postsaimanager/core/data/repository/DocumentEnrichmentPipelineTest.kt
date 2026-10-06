@@ -74,6 +74,7 @@ class DocumentEnrichmentPipelineTest {
         mergeExtraction = MergeExtractionUseCase(),
         aiExtraction = aiExtraction,
         entityProfileLinker = mockk<EntityProfileLinker>(relaxed = true),
+        concernedPeopleDecision = mockk(relaxed = true),
         fieldRevisionDao = mockk<FieldRevisionDao>(relaxed = true),
         documentMapper = mapper,
         documentDao = documentDao,
@@ -446,6 +447,7 @@ class DocumentEnrichmentPipelineTest {
         mergeExtraction = MergeExtractionUseCase(),
         aiExtraction = aiExtraction,
         entityProfileLinker = mockk<EntityProfileLinker>(relaxed = true),
+        concernedPeopleDecision = mockk(relaxed = true),
         fieldRevisionDao = mockk<FieldRevisionDao>(relaxed = true),
         documentMapper = mapper,
         documentDao = documentDao,
@@ -513,7 +515,9 @@ class DocumentEnrichmentPipelineTest {
             answer(firstStage().copy(enrichment = null))
             scanOf("doc-1")
             scanPipeline.processDocument("doc-1")
-            verify(exactly = 0) { workManager.enqueueUniqueWork(any<String>(), any<ExistingWorkPolicy>(), any<OneTimeWorkRequest>()) }
+            // No second stage; the one work queued is the quiet "who is this letter for or about?" check.
+            verify(exactly = 0) { workManager.enqueueUniqueWork(DocumentEnrichmentWorker.workName("doc-1"), any<ExistingWorkPolicy>(), any<OneTimeWorkRequest>()) }
+            verify(exactly = 1) { workManager.enqueueUniqueWork(DocumentEnrichmentWorker.peopleWorkName("doc-1"), ExistingWorkPolicy.KEEP, any<OneTimeWorkRequest>()) }
             assertThat(scanPipeline.enrichingDocuments.first()).isEmpty()
         } finally {
             io.mockk.unmockkObject(WorkManager.Companion)

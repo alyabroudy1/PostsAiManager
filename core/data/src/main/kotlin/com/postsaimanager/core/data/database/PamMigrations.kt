@@ -511,6 +511,21 @@ object PamMigrations {
         }
     }
 
+    /**
+     * v20: `documents.concernedProfileIds`, a JSON list of the profile ids the model decided the document is for or about. Null means
+     * "not asked yet" (a background check fills it); `[]` means "asked, nobody". Additive and idempotent: a build that already added the
+     * column is left alone. 1..19 are untouched (19 is installed on phones).
+     */
+    val MIGRATION_19_20 = object : Migration(19, 20) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            val hasColumn = db.query("PRAGMA table_info(`documents`)").use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                generateSequence { if (cursor.moveToNext()) cursor.getString(nameIndex) else null }.any { it == "concernedProfileIds" }
+            }
+            if (!hasColumn) db.execSQL("ALTER TABLE `documents` ADD COLUMN `concernedProfileIds` TEXT")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -530,5 +545,6 @@ object PamMigrations {
         MIGRATION_16_17,
         MIGRATION_17_18,
         MIGRATION_18_19,
+        MIGRATION_19_20,
     )
 }

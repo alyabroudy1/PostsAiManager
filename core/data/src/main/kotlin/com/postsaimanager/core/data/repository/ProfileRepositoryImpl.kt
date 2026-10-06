@@ -5,6 +5,7 @@ import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.data.database.dao.DismissedEntityDao
+import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
 import com.postsaimanager.core.data.database.entity.DismissedEntityEntity
 import com.postsaimanager.core.data.database.entity.DocumentProfileLinkEntity
@@ -24,6 +25,7 @@ import javax.inject.Inject
 class ProfileRepositoryImpl @Inject constructor(
     private val profileDao: ProfileDao,
     private val dismissedEntityDao: DismissedEntityDao,
+    private val documentDao: DocumentDao,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : ProfileRepository {
 
@@ -96,6 +98,9 @@ class ProfileRepositoryImpl @Inject constructor(
                 )
             }
             profileDao.deleteById(id)
+            // The links cascade with the row; the documents' decision of who they concern is a JSON list, so the id leaves it here,
+            // in one transaction, whichever screen or use case deleted the profile.
+            documentDao.removeConcernedProfile(id)
             PamResult.Success(Unit)
         } catch (e: Exception) { PamResult.Error(PamError.DatabaseError(cause = e)) }
     }

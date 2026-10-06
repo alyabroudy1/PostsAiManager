@@ -1,0 +1,32 @@
+{
+  "key": "N2-kfz-verlaengerung-2p",
+  "asked": [
+    "me",
+    "max",
+    "lea"
+  ],
+  "notAsked": [
+    "far"
+  ],
+  "expected": [
+    "me",
+    "max"
+  ],
+  "tolerated": [],
+  "ms": 8784,
+  "forward": [
+    "me",
+    "max",
+    "lea"
+  ],
+  "reversed": [
+    "max",
+    "me"
+  ],
+  "scores": {
+    "me": 2.845712661743164,
+    "max": 3.0440473556518555,
+    "lea": -0.5081281661987305,
+    "far": -0.251373291015625
+  }
+}

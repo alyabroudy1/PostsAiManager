@@ -14,6 +14,7 @@ import com.postsaimanager.core.data.worker.DocumentProcessingRecovery
 import com.postsaimanager.core.domain.document.PurgeExpiredDocumentsUseCase
 import com.postsaimanager.core.domain.document.ReadDocumentsAwaitingModelUseCase
 import com.postsaimanager.core.domain.document.ReprocessOutdatedDocumentsUseCase
+import com.postsaimanager.core.domain.document.people.ConcernedPeopleWatcher
 import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CancellationException
@@ -88,6 +89,10 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
     @Inject
     lateinit var readDocumentsAwaitingModel: Lazy<ReadDocumentsAwaitingModelUseCase>
 
+    // Same reason: it reaches DocumentProcessor. Asks who each letter is for or about (the backfill, and a profile added or renamed).
+    @Inject
+    lateinit var concernedPeopleWatcher: Lazy<ConcernedPeopleWatcher>
+
     // Lazy for the same reason as above: only the main process has a UI to lock.
     @Inject
     lateinit var appLockCoordinator: Lazy<AppLockCoordinator>
@@ -128,6 +133,12 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
         // Whenever a model becomes installed (and at start when one is), the letters waiting for it are scheduled to be read.
         applicationScope.launch {
             runCatching { readDocumentsAwaitingModel.get().watch() }
+                .onFailure { if (it is CancellationException) throw it }
+        }
+        // Who each letter is for or about: queued once per letter not asked yet (when a model is there), and again for the letters that
+        // mention a profile added or renamed. Quiet background work; see ConcernedPeopleWatcher.
+        applicationScope.launch {
+            runCatching { concernedPeopleWatcher.get().watch() }
                 .onFailure { if (it is CancellationException) throw it }
         }
     }

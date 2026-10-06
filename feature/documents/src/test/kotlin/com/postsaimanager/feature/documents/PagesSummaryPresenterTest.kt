@@ -46,13 +46,14 @@ class PagesSummaryPresenterTest {
     }
 
     @Test
-    fun `the recipient is You only on an exact folded match with the Me profile`() {
+    fun `the recipient is You on a folded match or the full Me name inside the line, never on a part of it`() {
         fun to(name: String, self: String? = "Mo Ali") =
             PagesSummaryPresenter.present(doc(), listOf(addressee(name)), PagesContext(true, self)).to
 
         assertThat(to("  mo   ALI ")).isEqualTo(PagesRecipient.You)
         assertThat(to("Mö Alí")).isEqualTo(PagesRecipient.You)
-        assertThat(to("Mo Ali Khan")).isEqualTo(PagesRecipient.Named("Mo Ali Khan"))
+        assertThat(to("Mo Ali Khan")).isEqualTo(PagesRecipient.You)
+        assertThat(to("Ali Khan")).isEqualTo(PagesRecipient.Named("Ali Khan"))
         assertThat(to("Mo")).isEqualTo(PagesRecipient.Named("Mo"))
         assertThat(to("Mo Ali", self = null)).isEqualTo(PagesRecipient.Named("Mo Ali"))
         assertThat(to("Mo Ali", self = " ")).isEqualTo(PagesRecipient.Named("Mo Ali"))

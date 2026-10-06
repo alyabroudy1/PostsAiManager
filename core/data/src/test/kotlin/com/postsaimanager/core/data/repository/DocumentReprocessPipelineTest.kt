@@ -73,6 +73,7 @@ class DocumentReprocessPipelineTest {
         mergeExtraction = MergeExtractionUseCase(),
         aiExtraction = aiExtraction,
         entityProfileLinker = entityProfileLinker,
+        concernedPeopleDecision = mockk(relaxed = true),
         fieldRevisionDao = mockk<FieldRevisionDao>(relaxed = true),
         documentMapper = mapper,
         documentDao = documentDao,

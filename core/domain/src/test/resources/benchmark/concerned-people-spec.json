@@ -1,0 +1,63 @@
+{
+    "note": "Who is each benchmark letter for or about? Per letter: the managed profiles offered (self = the Me profile; distractor = a name that is NOT in the letter and must never be named) and the profile ids a reader would say the letter concerns. Every non-distractor profile has a name token in the letter's text (so the pre-filter lets it through); expected is a subset. Names are the invented ones of the fixtures.",
+    "letters": [
+        {
+            "key": "N3-schule-familie-2p",
+            "why": "A school letter to the parents about the class trip of their daughter Lea. Me (Erika Mustermann) is addressed with the family; Lea is named in the body; the partner Max Mustermann shares the surname only.",
+            "profiles": [
+                {"id": "me", "name": "Erika Mustermann", "self": true},
+                {"id": "lea", "name": "Lea Mustermann", "relationship": "CHILD"},
+                {"id": "max", "name": "Max Mustermann", "relationship": "PARTNER"},
+                {"id": "far", "name": "Zoltan Quillfeather", "relationship": "RELATIVE", "distractor": true}
+            ],
+            "expected": ["me", "lea"],
+            "tolerated": ["max"]
+        },
+        {
+            "key": "N5-co-familie-1p",
+            "why": "A university letter to Jonas Mustermann, c/o Familie Beispiel. Me (Erika Beispiel) only shares the c/o surname: the letter is not about her.",
+            "profiles": [
+                {"id": "me", "name": "Erika Beispiel", "self": true},
+                {"id": "jonas", "name": "Jonas Mustermann", "relationship": "CHILD"},
+                {"id": "far", "name": "Zoltan Quillfeather", "relationship": "RELATIVE", "distractor": true}
+            ],
+            "expected": ["jonas"],
+            "tolerated": []
+        },
+        {
+            "key": "N10-kinderarzt-termin-1p",
+            "why": "An appointment reminder to the parents for their child Adam Mustermann.",
+            "profiles": [
+                {"id": "me", "name": "Erika Mustermann", "self": true},
+                {"id": "adam", "name": "Adam Mustermann", "relationship": "CHILD"},
+                {"id": "lea", "name": "Lea Mustermann", "relationship": "CHILD"},
+                {"id": "far", "name": "Zoltan Quillfeather", "relationship": "RELATIVE", "distractor": true}
+            ],
+            "expected": ["me", "adam"],
+            "tolerated": []
+        },
+        {
+            "key": "N9-fuzzy-name-1p",
+            "why": "An electricity invoice to Mohamad Mustermann (Me). A family member who shares only the surname is not concerned.",
+            "profiles": [
+                {"id": "me", "name": "Mohamad Mustermann", "self": true},
+                {"id": "lea", "name": "Lea Mustermann", "relationship": "CHILD"},
+                {"id": "far", "name": "Zoltan Quillfeather", "relationship": "RELATIVE", "distractor": true}
+            ],
+            "expected": ["me"],
+            "tolerated": []
+        },
+        {
+            "key": "N2-kfz-verlaengerung-2p",
+            "why": "An insurance letter to Max und Erika Mustermann: both are concerned; the child sharing the surname is not.",
+            "profiles": [
+                {"id": "me", "name": "Erika Mustermann", "self": true},
+                {"id": "max", "name": "Max Mustermann", "relationship": "PARTNER"},
+                {"id": "lea", "name": "Lea Mustermann", "relationship": "CHILD"},
+                {"id": "far", "name": "Zoltan Quillfeather", "relationship": "RELATIVE", "distractor": true}
+            ],
+            "expected": ["me", "max"],
+            "tolerated": []
+        }
+    ]
+}

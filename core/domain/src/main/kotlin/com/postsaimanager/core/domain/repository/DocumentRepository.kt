@@ -97,6 +97,21 @@ interface DocumentRepository {
     /** The image path of page 1 of every non-trashed document that has a page, by document id. */
     fun observeFirstPagePaths(): Flow<Map<String, String>>
 
+    /** The stored OCR text of every non-trashed document that has some (pages joined in order), by document id; one batch. */
+    suspend fun getOcrTexts(): Map<String, String>
+
+    /**
+     * Stores who [documentId] is for or about (profile ids; empty: nobody). Writes only that column, so a stale copy of the document
+     * cannot undo it and a re-read does not lose it.
+     */
+    suspend fun setConcernedProfiles(documentId: String, profileIds: List<String>)
+
+    /** Sets the decision of [documentIds] back to "not asked yet" (null), so the next check asks again. */
+    suspend fun resetConcernedProfiles(documentIds: Collection<String>)
+
+    /** The live documents a model has read whose decision is still "not asked yet", newest first: the backfill's work list. */
+    suspend fun getDocumentIdsAwaitingPeopleCheck(): List<String>
+
     // ── Trash — see documentation/07-document-pipeline.md, "Deleting documents" ──
 
     /** Trashed documents, most recently deleted first. Powers the "Recently deleted" screen. */

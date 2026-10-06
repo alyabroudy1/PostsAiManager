@@ -9,6 +9,7 @@ import androidx.room.Update
 import com.postsaimanager.core.data.database.entity.DocumentEntity
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
+import com.postsaimanager.core.data.mapper.JsonColumns
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -171,7 +172,62 @@ interface DocumentDao {
             "AND p.pageNumber = (SELECT MIN(q.pageNumber) FROM document_pages q WHERE q.documentId = p.documentId)",
     )
     fun observeFirstPages(): Flow<List<FirstPageRow>>
+
+    /** The stored OCR text of every page of every live document, in reading order; see [OcrTextRow]. */
+    @Query(
+        "SELECT documentId, ocrText FROM document_pages " +
+            "WHERE ocrText IS NOT NULL AND documentId IN (SELECT id FROM documents WHERE deletedAt IS NULL) " +
+            "ORDER BY documentId, pageNumber",
+    )
+    suspend fun getAllOcrTexts(): List<OcrTextRow>
+
+    // ── Who a document is for or about (documents.concernedProfileIds: null = not asked yet, [] = asked, nobody) ──
+
+    /** Writes the model's decision for one document, touching nothing else of the row (a stale copy of the document cannot clobber it). */
+    @Query("UPDATE documents SET concernedProfileIds = :json WHERE id = :id")
+    suspend fun setConcernedProfileIds(id: String, json: String?)
+
+    /** Sets the decision back to "not asked yet" for [ids]. */
+    @Query("UPDATE documents SET concernedProfileIds = NULL WHERE id IN (:ids)")
+    suspend fun resetConcernedProfileIds(ids: List<String>)
+
+    /**
+     * The live documents a model has read (a family stamped by an extractor version, not found values) whose decision is still
+     * "not asked yet": the backfill's work list.
+     */
+    @Query(
+        "SELECT id FROM documents WHERE concernedProfileIds IS NULL AND deletedAt IS NULL " +
+            "AND status IN ('EXTRACTED', 'REVIEWED', 'ARCHIVED') AND extractorVersion LIKE 'extraction-v2-%' ORDER BY createdAt DESC",
+    )
+    suspend fun getIdsAwaitingPeopleCheck(): List<String>
+
+    @Query("SELECT id, concernedProfileIds FROM documents WHERE concernedProfileIds LIKE '%' || :quotedId || '%'")
+    suspend fun getConcernedContaining(quotedId: String): List<ConcernedRow>
+
+    /**
+     * A profile was deleted: its id leaves every document's list, in one transaction (one place, however many documents name it).
+     * An emptied list stays `[]` (asked, nobody).
+     */
+    @Transaction
+    suspend fun removeConcernedProfile(profileId: String) {
+        getConcernedContaining("\"$profileId\"").forEach { row ->
+            val remaining = JsonColumns.decodeNullableStrings(row.concernedProfileIds)?.filterNot { it == profileId } ?: return@forEach
+            setConcernedProfileIds(row.id, JsonColumns.encodeNullableStrings(remaining))
+        }
+    }
 }
+
+/** A document's stored decision; see [DocumentDao.getConcernedContaining]. */
+data class ConcernedRow(
+    val id: String,
+    val concernedProfileIds: String?,
+)
+
+/** One page's OCR text; see [DocumentDao.getAllOcrTexts]. */
+data class OcrTextRow(
+    val documentId: String,
+    val ocrText: String,
+)
 
 /** A field as a list row reads it; see [DocumentDao.observeListFields]. */
 data class ListFieldRow(

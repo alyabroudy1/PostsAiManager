@@ -10,7 +10,17 @@
     <string name="doc_row_from">From %1$s</string>
     <string name="doc_row_for">For %1$s</string>
     <string name="doc_row_due">Due %1$s</string>
-    <string name="doc_row_overdue">Overdue</string>
+    <string name="doc_row_due_today">Due today</string>
+    <string name="doc_row_due_tomorrow">Due tomorrow</string>
+    <string name="doc_row_overdue_since">Overdue since %1$s</string>
+    <string name="doc_row_concerns_you_chip">You</string>
+    <string name="doc_row_concerns_you">Concerns you</string>
+    <string name="doc_row_concerns_person">Concerns %1$s</string>
+    <string name="doc_row_people_more">+%1$d</string>
+    <plurals name="doc_row_people_more_description">
+        <item quantity="one">%d more person</item>
+        <item quantity="other">%d more people</item>
+    </plurals>
     <string name="doc_row_action_needed">Action needed</string>
     <plurals name="doc_row_to_check">
         <item quantity="one">%d to check</item>

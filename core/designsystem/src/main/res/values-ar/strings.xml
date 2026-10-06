@@ -8,6 +8,24 @@
     <string name="page_preview_select_share">مشاركة</string>
     <string name="page_preview_select_copied">تم النسخ</string>
 
+    <!-- صف في قائمة المستندات: شارات الأشخاص وتاريخ الاستحقاق. -->
+    <string name="doc_row_due">الاستحقاق %1$s</string>
+    <string name="doc_row_due_today">مستحق اليوم</string>
+    <string name="doc_row_due_tomorrow">مستحق غدًا</string>
+    <string name="doc_row_overdue_since">متأخر منذ %1$s</string>
+    <string name="doc_row_concerns_you_chip">أنت</string>
+    <string name="doc_row_concerns_you">تخصّك</string>
+    <string name="doc_row_concerns_person">تخصّ %1$s</string>
+    <string name="doc_row_people_more">+%1$d</string>
+    <plurals name="doc_row_people_more_description">
+        <item quantity="zero">%d شخص آخر</item>
+        <item quantity="one">شخص آخر</item>
+        <item quantity="two">شخصان آخران</item>
+        <item quantity="few">%d أشخاص آخرين</item>
+        <item quantity="many">%d شخصًا آخر</item>
+        <item quantity="other">%d شخص آخر</item>
+    </plurals>
+
     <!-- «الإبلاغ عن الإجابة» في إجابة الذكاء الاصطناعي: يفتح مسودة بريد إلكتروني يرسلها المستخدم بنفسه. -->
     <string name="report_answer_action">الإبلاغ عن هذه الإجابة</string>
     <string name="report_answer_title">الإبلاغ عن هذه الإجابة</string>
