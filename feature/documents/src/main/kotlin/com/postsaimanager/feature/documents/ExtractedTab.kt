@@ -570,10 +570,11 @@ private fun summaryPieceRes(piece: SummaryPiece): Int = when (piece) {
 private fun ReviewButton(review: ReviewSummary, onConfirmConfident: (List<String>) -> Unit, onConfirmAll: (List<String>) -> Unit) {
     when (review.mode) {
         ConfirmMode.NONE -> Unit
-        ConfirmMode.CONFIDENT -> Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        // At the start of the row, not the end: the screen's floating add button sits at the end and would cover the label at the top of the list.
+        ConfirmMode.CONFIDENT -> Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
             Button(onClick = { onConfirmConfident(review.confidentIds) }) { Text(stringResource(R.string.review_confirm_confident, review.confidentOpen)) }
         }
-        ConfirmMode.ALL -> Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        ConfirmMode.ALL -> Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
             Button(onClick = { onConfirmAll(review.openIds) }) { Text(stringResource(R.string.review_confirm_all)) }
         }
     }

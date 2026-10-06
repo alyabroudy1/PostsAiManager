@@ -602,7 +602,12 @@ class ZoneScoringInterpreter(
         val name = QuestionNames.slot(slot.json)
         val zones = setup.plan.zones(name, slot).filter { zoned.hasText(it) }
         val isReference = slot.kind == SlotKind.REFERENCE || slot.kind == SlotKind.REFERENCE_LIST
-        fun offered(rows: List<Candidate>) = rows.filter { it.kind in slot.kind.candidates && !(isReference && isFooterShape(zoned, it)) }
+        // A number the document may not have is taken only from a value that prints a label of its own: a digit-and-letter run found by
+        // shape alone (a signature fragment, a serial) has nothing printed beside it that says what it is, so a small model's lean Yes on
+        // an optional slot is never enough to give it a name such as "Case number".
+        fun offered(rows: List<Candidate>) = rows.filter {
+            it.kind in slot.kind.candidates && !(isReference && (isFooterShape(zoned, it) || (optional(slot) && it.attrs["shape"] != null)))
+        }
         var cands = offered(zoned.candidatesIn(zones).rows.map { it.candidate })
         var asked = zones
         // A number the document may not have is never widened to the whole letter: that its zones hold none is an answer.

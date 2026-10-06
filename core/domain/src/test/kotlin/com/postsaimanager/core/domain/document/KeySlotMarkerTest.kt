@@ -26,6 +26,31 @@ class KeySlotMarkerTest {
     }
 
     @Test
+    fun `a model that leans Yes on every slot of a noisy receipt still marks at most four, the sure rows first, then the best score`() {
+        val keys = listOf("total", "case_no", "tax_no", "contract_no", "policy_no", "reference", "invoice_no", "customer_no", "receipt_no")
+        // The receipt case: nine slot rows, every one scored Yes; the reference-like ones are the extractor's own low-confidence readings.
+        val unsure = setOf("case_no", "tax_no", "contract_no", "policy_no", "reference")
+        val stored = keys.map { k -> row(k, k).copy(confidence = if (k in unsure) 0.3f else 0.9f) }
+        val picked = keys.mapIndexed { i, k -> KeySlot(k, 5f - i * 0.1f) }
+
+        val marked = KeySlotMarker.mark(stored, picked).filter { it.isKeySlot }
+
+        assertThat(marked).hasSize(KeySlotMarker.MAX_KEY_SLOTS)
+        assertThat(marked.map { it.slotKey }).containsExactly("total", "invoice_no", "customer_no", "receipt_no")
+    }
+
+    @Test
+    fun `fewer sure rows than the cap leave room for the best-scored unsure ones, never more than the cap`() {
+        val stored = listOf(
+            row("a", "total").copy(confidence = 0.9f), row("b", "case_no").copy(confidence = 0.2f),
+            row("c", "tax_no").copy(confidence = 0.2f), row("d", "policy_no").copy(confidence = 0.2f), row("e", "contract_no").copy(confidence = 0.2f),
+        )
+        val picked = listOf(KeySlot("total", 1f), KeySlot("case_no", 4f), KeySlot("tax_no", 3f), KeySlot("policy_no", 2f), KeySlot("contract_no", 0.5f))
+        val marked = KeySlotMarker.mark(stored, picked).filter { it.isKeySlot }
+        assertThat(marked.map { it.slotKey }).containsExactly("total", "case_no", "tax_no", "policy_no")
+    }
+
+    @Test
     fun `the newest reading decides, so a pick an earlier reading gave is taken back`() {
         val changed = KeySlotMarker.mark(listOf(row("a", "invoice_no", importance = 1f), row("b", "total", importance = 3f)), listOf(KeySlot("total", 3f)))
         assertThat(changed.map { it.slotKey }).containsExactly("invoice_no")
