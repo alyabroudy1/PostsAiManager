@@ -6,6 +6,7 @@ import com.postsaimanager.core.domain.document.MoveDocumentToTrashUseCase
 import com.postsaimanager.core.domain.document.RestoreDocumentUseCase
 import com.postsaimanager.core.domain.document.list.DueFieldsActionHint
 import com.postsaimanager.core.domain.document.list.IdentityPartyNameResolver
+import com.postsaimanager.core.domain.document.list.MatchDocumentPeopleUseCase
 import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
 import com.postsaimanager.core.model.DocumentDateChip
 import com.postsaimanager.core.model.DocumentListStatus
@@ -15,6 +16,7 @@ import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.testing.FakeDocumentProcessor
 import com.postsaimanager.core.testing.FakeDocumentRepository
+import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
 import com.postsaimanager.core.testing.testDocument
 import kotlinx.coroutines.test.runTest
@@ -36,7 +38,7 @@ class DocumentsViewModelTest {
         moveToTrashUseCase = MoveDocumentToTrashUseCase(repository),
         restoreDocumentUseCase = RestoreDocumentUseCase(repository),
         observeDocumentListItems = ObserveDocumentListItemsUseCase(
-            repository, IdentityPartyNameResolver(), DueFieldsActionHint(), clock,
+            repository, IdentityPartyNameResolver(), DueFieldsActionHint(), clock, FakeProfileRepository(), MatchDocumentPeopleUseCase(),
         ),
         documentProcessor = FakeDocumentProcessor(),
     )

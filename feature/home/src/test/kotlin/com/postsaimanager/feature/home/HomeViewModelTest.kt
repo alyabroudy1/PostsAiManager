@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.document.list.DueFieldsActionHint
 import com.postsaimanager.core.domain.document.list.IdentityPartyNameResolver
+import com.postsaimanager.core.domain.document.list.MatchDocumentPeopleUseCase
 import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
 import com.postsaimanager.core.domain.repository.InstalledModelsRepository
 import com.postsaimanager.core.domain.setup.DownloadActivity
@@ -16,6 +17,7 @@ import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.InstalledModelSummary
 import com.postsaimanager.core.testing.FakeDocumentProcessor
 import com.postsaimanager.core.testing.FakeDocumentRepository
+import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.FakeUserPreferencesRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
 import com.postsaimanager.core.testing.testDocument
@@ -45,7 +47,7 @@ class HomeViewModelTest {
 
     private fun viewModel() = HomeViewModel(
         observeDocumentListItems = ObserveDocumentListItemsUseCase(
-            repository, IdentityPartyNameResolver(), DueFieldsActionHint(), clock,
+            repository, IdentityPartyNameResolver(), DueFieldsActionHint(), clock, FakeProfileRepository(), MatchDocumentPeopleUseCase(),
         ),
         documentProcessor = FakeDocumentProcessor(),
         observeModelBanner = ObserveModelBannerUseCase(ObserveSetupNeedUseCase(installedRepository, preferences), downloads),

@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.repository
 
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.model.DocumentProfileLink
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.model.ProfileType
@@ -13,6 +14,8 @@ interface ProfileRepository {
     fun getProfiles(): Flow<List<Profile>>
     fun getProfilesByType(type: ProfileType): Flow<List<Profile>>
     fun getProfilesForDocument(documentId: String): Flow<List<Pair<Profile, ProfileRole>>>
+    /** Every stored document-profile link in one batch, so a list can name people without a query per row. */
+    fun observeDocumentLinks(): Flow<List<DocumentProfileLink>>
     fun searchProfiles(query: String): Flow<List<Profile>>
     suspend fun getProfileById(id: String): PamResult<Profile>
     suspend fun createProfile(profile: Profile): PamResult<Profile>

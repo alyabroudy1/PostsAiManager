@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.document.list
 import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner
 import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentDateChip
@@ -10,6 +11,7 @@ import com.postsaimanager.core.model.DocumentListItem
 import com.postsaimanager.core.model.DocumentListStatus
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.PersonTag
 import com.postsaimanager.core.model.ValueSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -36,22 +38,41 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
     private val partyNames: PartyNameResolver,
     private val actionHint: ActionHint,
     private val clock: Clock,
+    private val profileRepository: ProfileRepository,
+    private val matchPeople: MatchDocumentPeopleUseCase,
 ) {
 
-    /** The rows for every document, or for the ones matching [query] when it is not blank. */
+    /**
+     * The rows for every document, or for the ones matching [query] when it is not blank. The profiles
+     * and the stored links are two more batched flows, so a renamed or added profile updates every row.
+     */
     operator fun invoke(query: String = ""): Flow<List<DocumentListItem>> {
         val documents = if (query.isBlank()) documentRepository.getDocuments() else documentRepository.searchDocuments(query)
         return combine(
             documents,
             documentRepository.observeListFields(),
             documentRepository.observeFirstPagePaths(),
-        ) { docs, fields, pages ->
+            profileRepository.getProfiles(),
+            profileRepository.observeDocumentLinks(),
+        ) { docs, fields, pages, profiles, links ->
             val today = LocalDate.now(clock)
-            docs.map { document -> item(document, fields[document.id].orEmpty(), pages[document.id], today) }
+            val linksByDocument = links.groupBy { it.documentId }
+            docs.map { document ->
+                item(
+                    document, fields[document.id].orEmpty(), pages[document.id], today,
+                    people = { parties -> matchPeople(parties, profiles, linksByDocument[document.id].orEmpty()) },
+                )
+            }
         }
     }
 
-    private fun item(document: Document, allFields: List<ExtractedData>, firstPage: String?, today: LocalDate): DocumentListItem {
+    private fun item(
+        document: Document,
+        allFields: List<ExtractedData>,
+        firstPage: String?,
+        today: LocalDate,
+        people: (DocumentParties) -> List<PersonTag>,
+    ): DocumentListItem {
         val fields = allFields.filterNot { it.deletedByUser }
         val due = firstReadableDate(fields, DUE_SLOTS, UnderstandingToFields.DEADLINE)
         val letterDate = firstReadableDate(fields, listOf(Slots.LETTER_DATE.json), UnderstandingToFields.DOCUMENT_DATE)
@@ -69,6 +90,12 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
             status = statusOf(document.status, fields),
             dateChip = dateChip(document, due, letterDate, today),
             openActionCount = openActions.coerceAtLeast(0),
+            people = people(
+                DocumentParties(
+                    addressee = PartyFields.addressee(fields)?.fieldValue,
+                    subjectPerson = PartyFields.subjectPerson(fields)?.fieldValue,
+                ),
+            ),
         )
     }
 

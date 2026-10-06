@@ -21,6 +21,11 @@ object PartyFields {
         fields.firstOrNull { it.slotKey == UnderstandingToFields.SLOT_ADDRESSEE }
             ?: fields.firstOrNull { it.slotKey == null && it.fieldName == UnderstandingToFields.RECEIVER_NAME }
 
+    /** The person the letter is about (other than the addressee), or null when none was read. */
+    fun subjectPerson(fields: List<ExtractedData>): ExtractedData? =
+        fields.firstOrNull { it.slotKey == UnderstandingToFields.SLOT_SUBJECT_PERSON }
+            ?: fields.firstOrNull { it.slotKey == null && it.fieldName == UnderstandingToFields.SUBJECT_PERSON }
+
     fun of(party: DocumentParty, fields: List<ExtractedData>): ExtractedData? = when (party) {
         DocumentParty.SENDER -> sender(fields)
         DocumentParty.ADDRESSEE -> addressee(fields)

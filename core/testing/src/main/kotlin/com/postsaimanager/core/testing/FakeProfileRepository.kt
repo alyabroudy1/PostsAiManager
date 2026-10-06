@@ -3,6 +3,7 @@ package com.postsaimanager.core.testing
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.repository.ProfileRepository
+import com.postsaimanager.core.model.DocumentProfileLink
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.model.ProfileType
@@ -51,6 +52,9 @@ class FakeProfileRepository : ProfileRepository {
                     list.firstOrNull { it.id == pid }?.let { it to role }
                 }
         }
+
+    override fun observeDocumentLinks(): Flow<List<DocumentProfileLink>> =
+        profiles.map { links.map { (pid, docId, role) -> DocumentProfileLink(docId, pid, role) } }
 
     override fun searchProfiles(query: String): Flow<List<Profile>> =
         profiles.map { list ->

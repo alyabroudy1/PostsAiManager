@@ -20,6 +20,8 @@ data class DocumentListItem(
     val dateChip: DocumentDateChip,
     /** Open things to do for this document; 0 shows no badge. Today a hint from the extracted fields, later real tasks. */
     val openActionCount: Int,
+    /** The managed people the document is for or about, "for" first; empty when no profile matches. */
+    val people: List<PersonTag> = emptyList(),
 ) {
     val id: String get() = document.id
 }

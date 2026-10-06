@@ -48,6 +48,9 @@ interface ProfileDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLink(link: DocumentProfileLinkEntity)
 
+    @Query("SELECT * FROM document_profile_links")
+    fun observeAllLinks(): Flow<List<DocumentProfileLinkEntity>>
+
     @Query("DELETE FROM document_profile_links WHERE documentId = :docId AND profileId = :profileId")
     suspend fun deleteLink(docId: String, profileId: String)
 

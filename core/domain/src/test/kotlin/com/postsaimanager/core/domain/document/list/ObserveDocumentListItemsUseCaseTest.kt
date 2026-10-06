@@ -2,8 +2,15 @@ package com.postsaimanager.core.domain.document.list
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentDateChip
+import com.postsaimanager.core.model.DocumentProfileLink
+import com.postsaimanager.core.model.PersonRole
+import com.postsaimanager.core.model.PersonTag
+import com.postsaimanager.core.model.Profile
+import com.postsaimanager.core.model.ProfileRole
+import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.DocumentListStatus
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
@@ -13,6 +20,8 @@ import com.postsaimanager.core.model.ValueSource
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -73,7 +82,65 @@ class ObserveDocumentListItemsUseCaseTest {
         firstPage: String? = null,
         hint: ActionHint = DueFieldsActionHint(),
         names: PartyNameResolver = IdentityPartyNameResolver(),
-    ) = ObserveDocumentListItemsUseCase(repository(document, fields, firstPage), names, hint, clock)().first().single()
+    ) = useCase(repository(document, fields, firstPage), names, hint)().first().single()
+
+    private fun profiles(
+        profiles: Flow<List<Profile>> = flowOf(emptyList()),
+        links: Flow<List<DocumentProfileLink>> = flowOf(emptyList()),
+    ): ProfileRepository = mockk {
+        every { getProfiles() } returns profiles
+        every { observeDocumentLinks() } returns links
+    }
+
+    private fun useCase(
+        repo: DocumentRepository,
+        names: PartyNameResolver = IdentityPartyNameResolver(),
+        hint: ActionHint = DueFieldsActionHint(),
+        profileRepository: ProfileRepository = profiles(),
+    ) = ObserveDocumentListItemsUseCase(repo, names, hint, clock, profileRepository, MatchDocumentPeopleUseCase())
+
+    private fun profile(id: String, name: String, type: ProfileType = ProfileType.FAMILY_MEMBER) =
+        Profile(id = id, type = type, name = name, createdAt = 0L, modifiedAt = 0L)
+
+    // ── people ──
+
+    @Test
+    fun `the row names the managed people from the addressee and the subject person`() = runTest {
+        val repo = repository(doc(), listOf(field("addressee", "Erika Mustermann"), field("subject_person", "Maria Mustermann")))
+        val row = useCase(
+            repo,
+            profileRepository = profiles(
+                flowOf(listOf(profile("me", "Erika Mustermann", ProfileType.USER_SELF), profile("maria", "Maria Mustermann"))),
+            ),
+        )().first().single()
+        assertThat(row.people).containsExactly(
+            PersonTag("me", "Erika", PersonRole.FOR, isMe = true),
+            PersonTag("maria", "Maria", PersonRole.ABOUT, isMe = false),
+        ).inOrder()
+    }
+
+    @Test
+    fun `a stored link names the person without any printed name`() = runTest {
+        val row = useCase(
+            repository(doc(), listOf(field("addressee", "Familie B."))),
+            profileRepository = profiles(
+                flowOf(listOf(profile("maria", "Maria Mustermann"))),
+                flowOf(listOf(DocumentProfileLink("d1", "maria", ProfileRole.RECEIVER), DocumentProfileLink("other", "maria", ProfileRole.SUBJECT))),
+            ),
+        )().first().single()
+        assertThat(row.people).containsExactly(PersonTag("maria", "Maria", PersonRole.FOR, isMe = false))
+    }
+
+    @Test
+    fun `the people update when a profile is added or renamed`() = runTest {
+        val all = MutableStateFlow(emptyList<Profile>())
+        val flow = useCase(repository(doc(), listOf(field("addressee", "Maria Mustermann"))), profileRepository = profiles(all))()
+        assertThat(flow.first().single().people).isEmpty()
+        all.value = listOf(profile("maria", "Maria Mustermann"))
+        assertThat(flow.first().single().people).containsExactly(PersonTag("maria", "Maria", PersonRole.FOR, isMe = false))
+        all.value = listOf(profile("maria", "Mia Mustermann"))
+        assertThat(flow.first().single().people).isEmpty()
+    }
 
     // ── status ──
 
@@ -288,7 +355,7 @@ class ObserveDocumentListItemsUseCaseTest {
     @Test
     fun `a search query lists the matches and the fields are read in one batch`() = runTest {
         val repo = repository(doc())
-        ObserveDocumentListItemsUseCase(repo, IdentityPartyNameResolver(), DueFieldsActionHint(), clock)("rent").first()
+        useCase(repo)("rent").first()
         verify(exactly = 1) { repo.searchDocuments("rent") }
         verify(exactly = 1) { repo.observeListFields() }
         verify(exactly = 1) { repo.observeFirstPagePaths() }

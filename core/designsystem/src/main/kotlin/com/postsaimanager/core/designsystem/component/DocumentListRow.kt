@@ -1,6 +1,5 @@
 package com.postsaimanager.core.designsystem.component
 
-import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,8 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
@@ -57,13 +56,13 @@ import com.postsaimanager.core.model.DocumentDateChip
 import com.postsaimanager.core.model.DocumentListItem
 import com.postsaimanager.core.model.DocumentListStatus
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.PersonRole
+import com.postsaimanager.core.model.PersonTag
 import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.ProcessingStage
 import com.postsaimanager.core.model.SourceType
 import java.io.File
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 private val ThumbnailWidth = 56.dp
 private val ThumbnailHeight = 72.dp
@@ -211,7 +210,10 @@ private fun StatusIndicator(status: DocumentListStatus, runningState: Processing
     }
 }
 
-/** The one date chip, the "n to check" count and the action badge, wrapping rather than overflowing a narrow row. */
+/**
+ * The person chips, the "n to check" count, the action badge and the one date chip, in that order,
+ * wrapping rather than overflowing a narrow row.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MetaChips(item: DocumentListItem) {
@@ -219,6 +221,7 @@ private fun MetaChips(item: DocumentListItem) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        PersonChips(item.people)
         (item.status as? DocumentListStatus.NeedsReview)?.let { review ->
             Text(
                 text = pluralStringResource(R.plurals.doc_row_to_check, review.count, review.count),
@@ -227,19 +230,71 @@ private fun MetaChips(item: DocumentListItem) {
                 modifier = Modifier.padding(vertical = 2.dp),
             )
         }
-        DateChip(item.dateChip)
         if (item.openActionCount > 0) ActionBadge()
+        DateChip(item.dateChip)
+    }
+}
+
+/** Up to two person chips, then "+n" for the rest. */
+@Composable
+private fun PersonChips(people: List<PersonTag>) {
+    val split = PersonChipSplit.of(people)
+    split.shown.forEach { PersonChip(it) }
+    if (split.hidden > 0) {
+        val description = pluralStringResource(R.plurals.doc_row_people_more_description, split.hidden, split.hidden)
+        ChipSurface(
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = description },
+        ) {
+            Text(
+                text = stringResource(R.string.doc_row_people_more, split.hidden),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
+    }
+}
+
+/** "For you", "For Maria" or "About Maria": the same shape and size as [ActionBadge], in the secondary colour so it never reads as "action needed". */
+@Composable
+private fun PersonChip(person: PersonTag) {
+    val text = when {
+        person.role == PersonRole.FOR && person.isMe -> stringResource(R.string.doc_row_for_you)
+        person.role == PersonRole.FOR -> stringResource(R.string.doc_row_for_person, person.displayName)
+        else -> stringResource(R.string.doc_row_about_person, person.displayName)
+    }
+    ChipSurface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = text },
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+    }
+}
+
+/** The shape, size and padding every badge of the meta line shares. */
+@Composable
+private fun ChipSurface(color: Color, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Surface(shape = RoundedCornerShape(6.dp), color = color, modifier = modifier) {
+        Box(modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)) { content() }
     }
 }
 
 @Composable
 private fun DateChip(chip: DocumentDateChip) {
     val urgent = chip.kind == DocumentDateChip.Kind.DUE && chip.urgency != DocumentDateChip.Urgency.NORMAL
+    val today = LocalDate.now()
+    val friendly = FriendlyDate.of(chip.date, today)
+    val dated = FriendlyDate.text(chip.date, today)
     val text = when {
-        chip.kind == DocumentDateChip.Kind.DUE && chip.urgency == DocumentDateChip.Urgency.OVERDUE ->
-            stringResource(R.string.doc_row_overdue)
-        chip.kind == DocumentDateChip.Kind.DUE -> stringResource(R.string.doc_row_due, formatChipDate(chip.date))
-        else -> formatChipDate(chip.date)
+        chip.kind != DocumentDateChip.Kind.DUE -> dated
+        chip.urgency == DocumentDateChip.Urgency.OVERDUE -> stringResource(R.string.doc_row_overdue_since, dated)
+        friendly.day == FriendlyDate.Day.TODAY -> stringResource(R.string.doc_row_due_today)
+        friendly.day == FriendlyDate.Day.TOMORROW -> stringResource(R.string.doc_row_due_tomorrow)
+        else -> stringResource(R.string.doc_row_due, dated)
     }
     Surface(
         shape = RoundedCornerShape(6.dp),
@@ -276,15 +331,6 @@ private fun partiesText(sender: String?, addressee: String?): String? = when {
     else -> null
 }
 
-/** Day and month in the user's own order ("15.10." or "10/15"), with the year only when it is not this year. */
-@Composable
-private fun formatChipDate(date: LocalDate): String {
-    val locale: Locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
-    val skeleton = if (date.year == LocalDate.now().year) "dMM" else "dMMy"
-    val pattern = DateFormat.getBestDateTimePattern(locale, skeleton)
-    return DateTimeFormatter.ofPattern(pattern, locale).format(date)
-}
-
 // ── Previews: one per status, plus the date and badge variants ──
 
 private fun previewItem(
@@ -295,6 +341,7 @@ private fun previewItem(
     chip: DocumentDateChip = DocumentDateChip(DocumentDateChip.Kind.LETTER, LocalDate.of(2026, 9, 10)),
     actions: Int = 0,
     title: String = "Jahresabrechnung Strom 2025",
+    people: List<PersonTag> = emptyList(),
 ) = DocumentListItem(
     document = Document(
         id = "preview", title = title, status = documentStatus, sourceType = SourceType.CAMERA,
@@ -306,6 +353,7 @@ private fun previewItem(
     status = status,
     dateChip = chip,
     openActionCount = actions,
+    people = people,
 )
 
 @Composable
@@ -377,6 +425,41 @@ private fun PreviewUrgentAndOverdue() = PreviewColumn {
             chip = DocumentDateChip(DocumentDateChip.Kind.DUE, LocalDate.of(2026, 9, 20), DocumentDateChip.Urgency.OVERDUE),
             actions = 1,
         ),
+        onClick = {},
+    )
+}
+
+@Preview(showBackground = true, widthDp = 380)
+@Composable
+private fun PreviewPeople() = PreviewColumn {
+    val me = PersonTag("me", "Erika", PersonRole.FOR, isMe = true)
+    val maria = PersonTag("maria", "Maria", PersonRole.ABOUT, isMe = false)
+    DocumentListRow(previewItem(DocumentListStatus.Ready, people = listOf(me), actions = 1), onClick = {})
+    DocumentListRow(previewItem(DocumentListStatus.Ready, people = listOf(maria)), onClick = {})
+    DocumentListRow(
+        previewItem(
+            DocumentListStatus.Ready,
+            people = listOf(me, maria, PersonTag("jonas", "Jonas", PersonRole.ABOUT, isMe = false)),
+            actions = 1,
+        ),
+        onClick = {},
+    )
+}
+
+@Preview(showBackground = true, widthDp = 380)
+@Composable
+private fun PreviewFriendlyDates() = PreviewColumn {
+    val today = LocalDate.now()
+    DocumentListRow(
+        previewItem(
+            DocumentListStatus.Ready,
+            chip = DocumentDateChip(DocumentDateChip.Kind.DUE, today.plusDays(1), DocumentDateChip.Urgency.SOON),
+            actions = 1,
+        ),
+        onClick = {},
+    )
+    DocumentListRow(
+        previewItem(DocumentListStatus.Ready, chip = DocumentDateChip(DocumentDateChip.Kind.LETTER, today.minusYears(1))),
         onClick = {},
     )
 }

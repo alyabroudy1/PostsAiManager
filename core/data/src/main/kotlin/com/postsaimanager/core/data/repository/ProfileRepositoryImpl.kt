@@ -11,6 +11,7 @@ import com.postsaimanager.core.data.database.entity.DocumentProfileLinkEntity
 import com.postsaimanager.core.data.database.entity.ProfileEntity
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Profile
+import com.postsaimanager.core.model.DocumentProfileLink
 import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.Relationship
@@ -50,6 +51,14 @@ class ProfileRepositoryImpl @Inject constructor(
                     ),
                     ProfileRole.valueOf(pwr.role),
                 )
+            }
+        }.flowOn(ioDispatcher)
+
+    override fun observeDocumentLinks(): Flow<List<DocumentProfileLink>> =
+        profileDao.observeAllLinks().map { links ->
+            links.mapNotNull { link ->
+                val role = runCatching { ProfileRole.valueOf(link.role) }.getOrNull() ?: return@mapNotNull null
+                DocumentProfileLink(link.documentId, link.profileId, role)
             }
         }.flowOn(ioDispatcher)
 

@@ -1,5 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- صف في قائمة المستندات: شارات الأشخاص وتاريخ الاستحقاق. -->
+    <string name="doc_row_due">الاستحقاق %1$s</string>
+    <string name="doc_row_due_today">مستحق اليوم</string>
+    <string name="doc_row_due_tomorrow">مستحق غدًا</string>
+    <string name="doc_row_overdue_since">متأخر منذ %1$s</string>
+    <string name="doc_row_for_you">لك</string>
+    <string name="doc_row_for_person">إلى %1$s</string>
+    <string name="doc_row_about_person">عن %1$s</string>
+    <string name="doc_row_people_more">+%1$d</string>
+    <plurals name="doc_row_people_more_description">
+        <item quantity="zero">%d شخص آخر</item>
+        <item quantity="one">شخص آخر</item>
+        <item quantity="two">شخصان آخران</item>
+        <item quantity="few">%d أشخاص آخرين</item>
+        <item quantity="many">%d شخصًا آخر</item>
+        <item quantity="other">%d شخص آخر</item>
+    </plurals>
+
     <!-- «الإبلاغ عن الإجابة» في إجابة الذكاء الاصطناعي: يفتح مسودة بريد إلكتروني يرسلها المستخدم بنفسه. -->
     <string name="report_answer_action">الإبلاغ عن هذه الإجابة</string>
     <string name="report_answer_title">الإبلاغ عن هذه الإجابة</string>
