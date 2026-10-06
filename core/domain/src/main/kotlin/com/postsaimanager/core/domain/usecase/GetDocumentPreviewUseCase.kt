@@ -53,7 +53,7 @@ class GetDocumentPreviewUseCase @Inject constructor(
         return DocumentPreview(
             documentId = documentId,
             title = document.title,
-            pages = pages.map { PreviewPage(it.pageNumber, it.imagePath, highlightsOf(it)) },
+            pages = pages.map { PreviewPage(it.pageNumber, it.imagePath, highlightsOf(it), PageTextRegions.of(it.ocrBlocks)) },
         )
     }
 }

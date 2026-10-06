@@ -822,8 +822,7 @@ private fun openPageImage(context: Context, page: DocumentPage, external: Extern
 }
 
 private fun copyOcrText(context: Context, page: DocumentPage) {
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("OCR Text", page.ocrText))
+    com.postsaimanager.core.designsystem.component.copyScannedText(context, "OCR Text", page.ocrText.orEmpty())
     Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
 }
 

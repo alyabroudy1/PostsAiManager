@@ -3,6 +3,18 @@ package com.postsaimanager.core.designsystem.component
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.os.Build
+import android.widget.Toast
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.unit.Density
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -109,8 +121,10 @@ fun PagePreviewDialog(
     onOpenDocument: ((pageNumber: Int) -> Unit)?,
     onPageShown: ((pageNumber: Int) -> Unit)? = null,
 ) {
+    // Transient: lives and dies with the dialog. Back first leaves select mode, then closes.
+    var selecting by remember { mutableStateOf(false) }
     Dialog(
-        onDismissRequest = onClose,
+        onDismissRequest = { if (selecting) selecting = false else onClose() },
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
@@ -132,7 +146,7 @@ fun PagePreviewDialog(
                         }
                     }
                 } else {
-                    PreviewPager(preview, initialPageIndex, onClose, onOpenDocument, onPageShown)
+                    PreviewPager(preview, initialPageIndex, onClose, onOpenDocument, onPageShown, selecting, { selecting = it })
                 }
             }
         }
@@ -146,6 +160,8 @@ private fun ColumnScope.PreviewPager(
     onClose: () -> Unit,
     onOpenDocument: ((pageNumber: Int) -> Unit)?,
     onPageShown: ((pageNumber: Int) -> Unit)?,
+    selecting: Boolean,
+    onSelectingChange: (Boolean) -> Unit,
 ) {
     val pages = preview.pages
     val pagerState = rememberPagerState(
@@ -159,10 +175,27 @@ private fun ColumnScope.PreviewPager(
         }
     }
 
+    var selection by remember { mutableStateOf(PageTextSelection()) }
+    val canSelect = current.regions.isNotEmpty()
+    // The page can't change while selecting (paging is off), but a page that loses its text leaves the mode.
+    LaunchedEffect(canSelect) { if (!canSelect) onSelectingChange(false) }
+    LaunchedEffect(selecting) { if (!selecting) selection = PageTextSelection() }
+
     PreviewHeader(
         title = stringResource(R.string.page_preview_title_page, preview.title, pagerState.currentPage + 1, pages.size),
         onClose = onClose,
+        selectTextEnabled = canSelect,
+        selecting = selecting,
+        onToggleSelect = { onSelectingChange(!selecting) },
     )
+    if (!canSelect) {
+        Text(
+            stringResource(R.string.page_preview_select_text_unavailable),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+    }
     // Above the pager, not below it: a Dialog window does not always get navigation-bar
     // insets, and a bottom button would sit under the 3-button bar.
     if (onOpenDocument != null) {
@@ -176,15 +209,61 @@ private fun ColumnScope.PreviewPager(
         }
     }
     val density = LocalDensity.current
-    val bottomPx = dialogBottomInsetPx(LocalContext.current)
+    val context = LocalContext.current
+    val bottomPx = dialogBottomInsetPx(context)
     HorizontalPager(
         state = pagerState,
-        modifier = Modifier.weight(1f).fillMaxWidth().padding(bottom = with(density) { bottomPx.toDp() }),
+        // Paging is off while selecting, so taps and drags on the regions never fight the pager.
+        userScrollEnabled = !selecting,
+        modifier = Modifier.weight(1f).fillMaxWidth(),
     ) { index ->
         ZoomablePage(
             page = pages[index],
             description = stringResource(R.string.page_preview_page_description, index + 1, pages.size, preview.title),
+            selecting = selecting && index == pagerState.currentPage,
+            selection = selection,
+            onSelectionChange = { selection = it },
+            onLongPressText = { regionId ->
+                selection = if (regionId != null) PageTextSelection(setOf(regionId)) else PageTextSelection()
+                onSelectingChange(true)
+            },
         )
+    }
+    if (selecting) {
+        SelectionBar(
+            selectedCount = selection.count,
+            onSelectAll = { selection = PageTextSelection.all(current.regions.size) },
+            onCopy = {
+                copyScannedText(context, "OCR Text", selection.text(current.regions))
+                // Android 13+ shows its own clipboard confirmation.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    Toast.makeText(context, R.string.page_preview_select_copied, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDone = { onSelectingChange(false) },
+        )
+    }
+    Spacer(Modifier.height(with(density) { bottomPx.toDp() }))
+}
+
+/** "n selected" with Select all, Copy and Done: the accessible path, since the regions themselves are not focusable. */
+@Composable
+private fun SelectionBar(selectedCount: Int, onSelectAll: () -> Unit, onCopy: () -> Unit, onDone: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                pluralStringResource(R.plurals.page_preview_selected_count, selectedCount, selectedCount),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+            )
+            TextButton(onClick = onSelectAll) { Text(stringResource(R.string.page_preview_select_all)) }
+            TextButton(onClick = onCopy, enabled = selectedCount > 0) { Text(stringResource(R.string.page_preview_select_copy)) }
+            TextButton(onClick = onDone) { Text(stringResource(R.string.page_preview_select_done)) }
+        }
     }
 }
 
@@ -219,7 +298,13 @@ private fun activityNavigationBarPx(context: Context): Int {
 }
 
 @Composable
-private fun PreviewHeader(title: String, onClose: () -> Unit) {
+private fun PreviewHeader(
+    title: String,
+    onClose: () -> Unit,
+    selectTextEnabled: Boolean? = null,
+    selecting: Boolean = false,
+    onToggleSelect: () -> Unit = {},
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -231,6 +316,12 @@ private fun PreviewHeader(title: String, onClose: () -> Unit) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
+        // Null while there are no pages to select on (loading, unavailable): no action at all.
+        if (selectTextEnabled != null) {
+            TextButton(onClick = onToggleSelect, enabled = selectTextEnabled || selecting) {
+                Text(stringResource(if (selecting) R.string.page_preview_select_done else R.string.page_preview_select_text))
+            }
+        }
         IconButton(onClick = onClose) {
             Icon(PamIcons.Close, contentDescription = stringResource(R.string.page_preview_close))
         }
@@ -245,11 +336,37 @@ private fun PreviewHeader(title: String, onClose: () -> Unit) {
  * single finger on an unzoomed page falls through to the pager, so swiping still turns pages.
  */
 @Composable
-private fun ZoomablePage(page: PreviewPage, description: String) {
+private fun ZoomablePage(
+    page: PreviewPage,
+    description: String,
+    selecting: Boolean,
+    selection: PageTextSelection,
+    onSelectionChange: (PageTextSelection) -> Unit,
+    onLongPressText: (regionId: Int?) -> Unit,
+) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     var box by remember { mutableStateOf(IntSize.Zero) }
     var imageSize by remember { mutableStateOf(Size.Zero) }
+    // True from the long press of a drag-select until the finger lifts: the page must not pan underneath it.
+    var dragSelecting by remember { mutableStateOf(false) }
+    val currentSelection by rememberUpdatedState(selection)
+    val currentOnSelectionChange by rememberUpdatedState(onSelectionChange)
+    val regionTint = MaterialTheme.colorScheme.primary
+
+    /** The page layer's fit inside the box, or null until the image's size is known. */
+    fun fitted(): FittedPage? =
+        if (imageSize.width > 0f && imageSize.height > 0f && box.width > 0) {
+            FittedPage(box.width.toFloat(), box.height.toFloat(), imageSize.width, imageSize.height)
+        } else null
+
+    /** The region under a touch point given in box pixels, undoing the current zoom and pan first; a fingertip's slop is 8dp. */
+    fun Density.regionAt(point: Offset): Int? {
+        val fit = fitted() ?: return null
+        val x = fit.normalisedX(unzoom(point.x, box.width.toFloat(), scale, offset.x))
+        val y = fit.normalisedY(unzoom(point.y, box.height.toFloat(), scale, offset.y))
+        return RegionHitTest.regionAt(page.regions, x, y, slop = 8.dp.toPx() / (fit.shownWidth * scale))
+    }
 
     fun clamp(o: Offset, s: Float): Offset {
         val maxX = box.width * (s - 1f) / 2f
@@ -267,8 +384,13 @@ private fun ZoomablePage(page: PreviewPage, description: String) {
             .fillMaxSize()
             .clipToBounds()
             .onSizeChanged { box = it }
-            .pointerInput(Unit) {
+            .pointerInput(selecting, page.regions) {
                 detectTapGestures(
+                    // A tap toggles a region only in select mode; a long press anywhere on a page with text enters it.
+                    onTap = if (selecting) { tap ->
+                        regionAt(tap)?.let { currentOnSelectionChange(currentSelection.toggle(it)) }
+                    } else null,
+                    onLongPress = { press -> if (!selecting && page.regions.isNotEmpty()) onLongPressText(regionAt(press)) },
                     onDoubleTap = { tap ->
                         if (scale > 1.01f) {
                             scale = 1f
@@ -281,6 +403,28 @@ private fun ZoomablePage(page: PreviewPage, description: String) {
                     },
                 )
             }
+            .pointerInput(selecting, page.regions) {
+                if (!selecting) return@pointerInput
+                // A long press then drag selects every region from where it started to where it is, in reading order.
+                var anchor: Int? = null
+                var base = PageTextSelection()
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { start ->
+                        anchor = regionAt(start)
+                        base = currentSelection
+                        dragSelecting = true
+                        anchor?.let { currentOnSelectionChange(base.withRange(it, it)) }
+                    },
+                    onDrag = { change, _ ->
+                        val from = anchor
+                        val to = regionAt(change.position)
+                        if (from != null && to != null) currentOnSelectionChange(base.withRange(from, to))
+                        change.consume()
+                    },
+                    onDragEnd = { dragSelecting = false },
+                    onDragCancel = { dragSelecting = false },
+                )
+            }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -290,7 +434,7 @@ private fun ZoomablePage(page: PreviewPage, description: String) {
                         // The last event of a gesture has no finger down: its centroid is Unspecified (NaN), which
                         // would send the page's offset to NaN and blank it. Nothing to apply then.
                         val centroid = event.calculateCentroid(useCurrent = true)
-                        if (centroid.isSpecified && (fingers > 1 || scale > 1.01f)) {
+                        if (centroid.isSpecified && (fingers > 1 || (scale > 1.01f && !dragSelecting))) {
                             val zoom = event.calculateZoom()
                             val pan = event.calculatePan()
                             val focus = centroid - Offset(box.width / 2f, box.height / 2f)
@@ -321,22 +465,32 @@ private fun ZoomablePage(page: PreviewPage, description: String) {
                 onSuccess = { imageSize = it.painter.intrinsicSize },
                 modifier = Modifier.fillMaxSize().semantics { contentDescription = description },
             )
-            if (page.highlights.isNotEmpty() && imageSize.width > 0f && imageSize.height > 0f) {
+            if ((page.highlights.isNotEmpty() || selecting) && imageSize.width > 0f && imageSize.height > 0f) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    val fit = minOf(size.width / imageSize.width, size.height / imageSize.height)
-                    val shownW = imageSize.width * fit
-                    val shownH = imageSize.height * fit
-                    val originX = (size.width - shownW) / 2f
-                    val originY = (size.height - shownH) / 2f
+                    val fit = FittedPage(size.width, size.height, imageSize.width, imageSize.height)
                     val pad = 2.dp.toPx()
                     val radius = CornerRadius(4.dp.toPx())
+                    // The marker underneath, so a selection never hides the passage it sits on.
                     page.highlights.forEach { b ->
                         drawRoundRect(
                             color = HighlightColor.copy(alpha = 0.38f),
-                            topLeft = Offset(originX + b.left * shownW - pad, originY + b.top * shownH - pad),
-                            size = Size(b.width * shownW + 2 * pad, b.height * shownH + 2 * pad),
+                            topLeft = Offset(fit.left(b) - pad, fit.top(b) - pad),
+                            size = Size(b.width * fit.shownWidth + 2 * pad, b.height * fit.shownHeight + 2 * pad),
                             cornerRadius = radius,
                         )
+                    }
+                    if (selecting) {
+                        // Hairline stays one dp on screen whatever the zoom, since this layer is scaled.
+                        val stroke = Stroke(width = 1.dp.toPx() / scale)
+                        page.regions.forEachIndexed { i, region ->
+                            val b = region.bounds
+                            val topLeft = Offset(fit.left(b), fit.top(b))
+                            val regionSize = Size(b.width * fit.shownWidth, b.height * fit.shownHeight)
+                            if (i in selection.ids) {
+                                drawRoundRect(regionTint.copy(alpha = 0.32f), topLeft, regionSize, radius)
+                            }
+                            drawRoundRect(regionTint.copy(alpha = 0.55f), topLeft, regionSize, radius, style = stroke)
+                        }
                     }
                 }
             }
