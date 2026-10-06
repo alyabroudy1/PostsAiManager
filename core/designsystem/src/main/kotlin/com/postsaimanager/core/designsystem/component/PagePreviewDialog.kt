@@ -72,6 +72,10 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalView
+import android.view.View
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -210,12 +214,15 @@ private fun ColumnScope.PreviewPager(
     }
     val density = LocalDensity.current
     val context = LocalContext.current
-    val bottomPx = dialogBottomInsetPx(context)
+    // What is under the system's bar is measured on the screen: how far this window reaches below where an app window may draw.
+    val view = LocalView.current
+    var measuredPx by remember { mutableIntStateOf(0) }
+    val bottomPx = maxOf(dialogBottomInsetPx(context), measuredPx)
     HorizontalPager(
         state = pagerState,
         // Paging is off while selecting, so taps and drags on the regions never fight the pager.
         userScrollEnabled = !selecting,
-        modifier = Modifier.weight(1f).fillMaxWidth(),
+        modifier = Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { measuredPx = windowOverlapUnderBarPx(view, context) },
     ) { index ->
         ZoomablePage(
             page = pages[index],
@@ -284,13 +291,38 @@ private fun dialogBottomInsetPx(context: Context): Int {
     return maxOf(handed, activityNavigationBarPx(context))
 }
 
+/**
+ * How many pixels of this dialog's window lie below the bottom of the area an app window can use (so under the navigation bar), by the
+ * windows' real positions on the screen: the one number that holds whatever the insets say.
+ */
+private fun windowOverlapUnderBarPx(view: View, context: Context): Int {
+    var c: Context? = context
+    while (c is ContextWrapper) {
+        if (c is Activity) {
+            val visible = android.graphics.Rect().also { c.window.decorView.getWindowVisibleDisplayFrame(it) }
+            val at = IntArray(2).also { view.rootView.getLocationOnScreen(it) }
+            return (at[1] + view.rootView.height - visible.bottom).coerceAtLeast(0)
+        }
+        c = c.baseContext
+    }
+    return 0
+}
+
 /** The navigation bar's height in pixels as the hosting activity's window reports it (0 when there is no activity or no bar). */
 private fun activityNavigationBarPx(context: Context): Int {
     var c: Context? = context
     while (c is ContextWrapper) {
         if (c is Activity) {
-            val root = c.window?.decorView?.let { ViewCompat.getRootWindowInsets(it) } ?: return 0
-            return root.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars() or WindowInsetsCompat.Type.tappableElement()).bottom
+            val decor = c.window?.decorView ?: return 0
+            val fromInsets = ViewCompat.getRootWindowInsets(decor)
+                ?.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars() or WindowInsetsCompat.Type.tappableElement())?.bottom ?: 0
+            // Where the system's bar actually starts: the display's full height less the bottom of the area an app window can use. This
+            // knows the bar even where the insets API reports a smaller number (the 3-button bar of some devices).
+            val visible = android.graphics.Rect().also { decor.getWindowVisibleDisplayFrame(it) }
+            val full = if (android.os.Build.VERSION.SDK_INT >= 30) c.windowManager.maximumWindowMetrics.bounds.height() else c.resources.displayMetrics.heightPixels
+            val fromFrame = (full - visible.bottom).coerceAtLeast(0)
+            android.util.Log.d("PreviewInsets", "navigation bar px: insets=$fromInsets frame=$fromFrame (display $full, visible bottom ${visible.bottom})")
+            return maxOf(fromInsets, fromFrame)
         }
         c = c.baseContext
     }
