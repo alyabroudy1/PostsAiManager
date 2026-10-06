@@ -7,16 +7,13 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import java.time.Clock
 
-/** Today's bindings for the list row's seams; a later phase swaps the two implementations here and nowhere else. */
+/** Today's binding for the list row's seam; a later phase swaps the implementation here and nowhere else. */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DocumentListModule {
 
     @Binds
     abstract fun bindPartyNameResolver(impl: IdentityPartyNameResolver): PartyNameResolver
-
-    @Binds
-    abstract fun bindActionHint(impl: DueFieldsActionHint): ActionHint
 
     companion object {
         @Provides

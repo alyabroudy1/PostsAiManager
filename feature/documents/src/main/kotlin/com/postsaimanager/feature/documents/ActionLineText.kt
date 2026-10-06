@@ -4,6 +4,7 @@ import android.text.format.DateFormat
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
+import com.postsaimanager.core.designsystem.component.FriendlyDate
 import com.postsaimanager.core.domain.extraction.actions.ActionLine
 import java.time.LocalDate
 import java.time.LocalTime
@@ -68,15 +69,14 @@ internal fun actionLineText(line: ActionLine): String? {
 }
 
 /**
- * The short form a date is stated in ("5 Nov", "5. Nov."): the locale's best pattern for the skeleton `dMMM`. The one place a date is
- * written in an action line, so it can be swapped for the app's shared friendly date formatter without touching the templates.
+ * The date of an action line ("5 Nov", "5. Nov. 2027"): the app's shared [FriendlyDate] formatter, so a date reads the same in the
+ * list, the timeline and here. No formatting of its own.
  */
 internal fun actionDateText(date: LocalDate, locale: Locale): String? =
-    runCatching { DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, DATE_SKELETON), locale).format(date) }.getOrNull()
+    runCatching { FriendlyDate.format(date, date.year != LocalDate.now().year, locale) }.getOrNull()
 
 /** The time of day as the locale writes it (24-hour or 12-hour as the device is set). */
 internal fun actionTimeText(time: LocalTime, locale: Locale): String? =
     runCatching { DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, TIME_SKELETON), locale).format(time) }.getOrNull()
 
-private const val DATE_SKELETON = "dMMM"
 private const val TIME_SKELETON = "jm"

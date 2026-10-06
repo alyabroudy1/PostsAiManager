@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.document.list
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
+import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentDateChip
 import com.postsaimanager.core.model.PersonTag
@@ -77,9 +78,8 @@ class ObserveDocumentListItemsUseCaseTest {
         document: Document,
         fields: List<ExtractedData> = emptyList(),
         firstPage: String? = null,
-        hint: ActionHint = DueFieldsActionHint(),
         names: PartyNameResolver = IdentityPartyNameResolver(),
-    ) = useCase(repository(document, fields, firstPage), names, hint)().first().single()
+    ) = useCase(repository(document, fields, firstPage), names)().first().single()
 
     private fun profiles(profiles: Flow<List<Profile>> = flowOf(emptyList())): ProfileRepository = mockk {
         every { getProfiles() } returns profiles
@@ -88,9 +88,8 @@ class ObserveDocumentListItemsUseCaseTest {
     private fun useCase(
         repo: DocumentRepository,
         names: PartyNameResolver = IdentityPartyNameResolver(),
-        hint: ActionHint = DueFieldsActionHint(),
         profileRepository: ProfileRepository = profiles(),
-    ) = ObserveDocumentListItemsUseCase(repo, names, hint, clock, profileRepository, ConcernedPeopleTagsUseCase())
+    ) = ObserveDocumentListItemsUseCase(repo, names, clock, profileRepository, ConcernedPeopleTagsUseCase())
 
     private fun profile(id: String, name: String, type: ProfileType = ProfileType.FAMILY_MEMBER) =
         Profile(id = id, type = type, name = name, createdAt = 0L, modifiedAt = 0L)
@@ -276,50 +275,18 @@ class ObserveDocumentListItemsUseCaseTest {
         assertThat(row.addressee).isEqualTo("Mia")
     }
 
-    // ── action hint ──
+    // ── action badge: the model's stored decision ──
 
     @Test
-    fun `a deadline that is ahead or recent needs action`() = runTest {
-        assertThat(rowOf(doc(), listOf(field("due_date", "15.10.2026"))).openActionCount).isEqualTo(1)
-        assertThat(rowOf(doc(), listOf(field("due_date", "20.09.2026"))).openActionCount).isEqualTo(1)
+    fun `the badge counts the stored action items, the model's decision`() = runTest {
+        val actions = listOf(ActionItem("pay"), ActionItem("reply"))
+        assertThat(rowOf(doc().copy(actionItems = actions)).openActionCount).isEqualTo(2)
     }
 
     @Test
-    fun `a deadline long past needs no action`() = runTest {
-        assertThat(rowOf(doc(), listOf(field("due_date", "01.06.2026"))).openActionCount).isEqualTo(0)
-    }
-
-    @Test
-    fun `an amount to pay needs action, an amount that is only a total does not`() = runTest {
-        assertThat(rowOf(doc(), listOf(field("total", "49,90 EUR", role = "TOTAL_DUE"))).openActionCount).isEqualTo(1)
-        assertThat(rowOf(doc(), listOf(field("total", "49,90 EUR", role = "GROSS"))).openActionCount).isEqualTo(0)
-    }
-
-    @Test
-    fun `an amount to pay with a deadline long past needs no action`() = runTest {
-        val fields = listOf(field("total", "49,90 EUR", role = "TOTAL_DUE"), field("due_date", "01.06.2026"))
-        assertThat(rowOf(doc(), fields).openActionCount).isEqualTo(0)
-    }
-
-    @Test
-    fun `a statement, which asks nothing of its reader, never needs action`() = runTest {
-        val fields = listOf(field("due_date", "15.10.2026"), field("total", "1 EUR", role = "TOTAL_DUE"))
-        assertThat(rowOf(doc(type = "statement"), fields).openActionCount).isEqualTo(0)
-    }
-
-    @Test
-    fun `a letter the model could not place in a family is judged by its fields`() = runTest {
-        val fields = listOf(field("due_date", "15.10.2026"))
-        assertThat(rowOf(doc(type = "free_form"), fields).openActionCount).isEqualTo(1)
-    }
-
-    @Test
-    fun `the row asks the hint with the verified facts and shows its count`() = runTest {
-        var seen: ActionFacts? = null
-        val hint = ActionHint { facts -> seen = facts; 3 }
-        val row = rowOf(doc(type = "bill"), listOf(field("due_date", "15.10.2026"), field("total", "9 EUR", role = "TOTAL_DUE")), hint = hint)
-        assertThat(row.openActionCount).isEqualTo(3)
-        assertThat(seen).isEqualTo(ActionFacts("d1", "bill", LocalDate.of(2026, 10, 15), true, today))
+    fun `a document the model gave no action shows no badge, whatever its due date and amount fields say`() = runTest {
+        val fields = listOf(field("due_date", "15.10.2026"), field("total", "49,90 EUR", role = "TOTAL_DUE"))
+        assertThat(rowOf(doc(type = "receipt"), fields).openActionCount).isEqualTo(0)
     }
 
     // ── title, thumbnail, batching ──

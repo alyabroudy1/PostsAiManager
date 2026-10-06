@@ -30,13 +30,12 @@ import javax.inject.Inject
  * the model chose and the code verified (by slot key); no text is searched for keywords. The screens
  * render the result and decide nothing.
  *
- * Seams for later phases: [PartyNameResolver] (an addressee becomes a profile's name) and [ActionHint]
- * (the badge becomes the real open-task count).
+ * Seam for later phases: [PartyNameResolver] (an addressee becomes a profile's name). The "Action needed" badge is the
+ * count of the document's stored action items, which is the model's own decision (see `Document.actionItems`).
  */
 class ObserveDocumentListItemsUseCase @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val partyNames: PartyNameResolver,
-    private val actionHint: ActionHint,
     private val clock: Clock,
     private val profileRepository: ProfileRepository,
     private val peopleTags: ConcernedPeopleTagsUseCase,
@@ -74,12 +73,6 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
         val fields = allFields.filterNot { it.deletedByUser }
         val due = firstReadableDate(fields, DUE_SLOTS, UnderstandingToFields.DEADLINE)
         val letterDate = firstReadableDate(fields, listOf(Slots.LETTER_DATE.json), UnderstandingToFields.DOCUMENT_DATE)
-        val hasAmountDue = fields.any {
-            it.slotKey == Slots.TOTAL.json && it.role.equals(ROLE_TOTAL_DUE, ignoreCase = true)
-        }
-        val openActions = actionHint.openActions(
-            ActionFacts(document.id, document.extractionType, due, hasAmountDue, today),
-        )
         return DocumentListItem(
             document = document,
             firstPagePath = firstPage,
@@ -87,7 +80,7 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
             addressee = party(fields, DocumentParty.ADDRESSEE),
             status = statusOf(document.status, fields),
             dateChip = dateChip(document, due, letterDate, today),
-            openActionCount = openActions.coerceAtLeast(0),
+            openActionCount = document.actionItems.size,
             people = people,
         )
     }
@@ -143,9 +136,6 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
     private companion object {
         /** A deadline this many days away or fewer is urgent. */
         const val SOON_DAYS = 3L
-
-        /** The role the model gives the amount that is to be paid (see `Slots.TOTAL`). */
-        const val ROLE_TOTAL_DUE = "TOTAL_DUE"
 
         val DUE_SLOTS = listOf(Slots.DUE_DATE.json, Slots.OBJECTION_DEADLINE.json)
     }

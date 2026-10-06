@@ -4,10 +4,10 @@ import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.document.MoveDocumentToTrashUseCase
 import com.postsaimanager.core.domain.document.RestoreDocumentUseCase
-import com.postsaimanager.core.domain.document.list.DueFieldsActionHint
 import com.postsaimanager.core.domain.document.list.IdentityPartyNameResolver
 import com.postsaimanager.core.domain.document.list.ConcernedPeopleTagsUseCase
 import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
+import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.DocumentDateChip
 import com.postsaimanager.core.model.DocumentListStatus
 import com.postsaimanager.core.model.DocumentPage
@@ -38,7 +38,7 @@ class DocumentsViewModelTest {
         moveToTrashUseCase = MoveDocumentToTrashUseCase(repository),
         restoreDocumentUseCase = RestoreDocumentUseCase(repository),
         observeDocumentListItems = ObserveDocumentListItemsUseCase(
-            repository, IdentityPartyNameResolver(), DueFieldsActionHint(), clock, FakeProfileRepository(), ConcernedPeopleTagsUseCase(),
+            repository, IdentityPartyNameResolver(), clock, FakeProfileRepository(), ConcernedPeopleTagsUseCase(),
         ),
         documentProcessor = FakeDocumentProcessor(),
     )
@@ -57,7 +57,7 @@ class DocumentsViewModelTest {
 
     @Test
     fun `documents arrive as rows with the parties, status, date chip and thumbnail the use case built`() = runTest {
-        repository.seed(testDocument(id = "d1", title = "Strom", status = DocumentStatus.EXTRACTED))
+        repository.seed(testDocument(id = "d1", title = "Strom", status = DocumentStatus.EXTRACTED).copy(actionItems = listOf(ActionItem("pay"))))
         repository.seedExtracted(
             "d1",
             field("f1", "d1", "sender", "Stadtwerke"),
