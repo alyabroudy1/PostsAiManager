@@ -13,6 +13,7 @@ import com.postsaimanager.core.domain.usecase.DocumentLayout
 import com.postsaimanager.core.model.TextBounds
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.OcrLine
+import com.postsaimanager.core.model.OcrWord
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -84,7 +85,17 @@ class OcrService @Inject constructor(
                                 // Lines without a box are skipped (no honest place to draw them); the block still has its text.
                                 val lines = block.lines.mapNotNull { line ->
                                     line.boundingBox?.let {
-                                        OcrLine(line.text, OcrGeometry.normalise(it.left, it.top, it.right, it.bottom, pageWidth, pageHeight))
+                                        // Words (ML Kit elements) give the selection its horizontal anchors; one without a box is left out.
+                                        val words = line.elements.mapNotNull { word ->
+                                            word.boundingBox?.let { wb ->
+                                                OcrWord(word.text, OcrGeometry.normalise(wb.left, wb.top, wb.right, wb.bottom, pageWidth, pageHeight))
+                                            }
+                                        }
+                                        OcrLine(
+                                            line.text,
+                                            OcrGeometry.normalise(it.left, it.top, it.right, it.bottom, pageWidth, pageHeight),
+                                            words,
+                                        )
                                     }
                                 }
 
