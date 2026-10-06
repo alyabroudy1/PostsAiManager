@@ -467,6 +467,24 @@ class DocumentDetailViewModelTest {
         }
 
         @Test
+        fun `tapping a page opens the preview on that page with nothing marked, and closes`() = runTest {
+            documentRepository.seed(testDocument(id = "d1", status = DocumentStatus.EXTRACTED))
+            documentRepository.seedPages("d1", page(1), page(2), page(3))
+            val vm = viewModel("d1")
+            vm.open()
+
+            vm.openPage(3)
+
+            val state = vm.fieldPreview.value!!
+            assertThat(state.loading).isFalse()
+            assertThat(state.initialPageIndex).isEqualTo(2)
+            assertThat(state.preview!!.pages.map { it.highlights }).containsExactly(emptyList<TextBounds>(), emptyList<TextBounds>(), emptyList<TextBounds>())
+
+            vm.closeFieldPreview()
+            assertThat(vm.fieldPreview.value).isNull()
+        }
+
+        @Test
         fun `a document with no pages ends in an unavailable preview, not a stuck spinner`() = runTest {
             documentRepository.seed(testDocument(id = "d1", status = DocumentStatus.EXTRACTED))
             val vm = viewModel("d1")

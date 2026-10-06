@@ -37,4 +37,6 @@
     <string name="action_menu_ignore">تجاهل</string>
     <string name="copied_to_clipboard">تم النسخ</string>
     <string name="section_all_details">كل التفاصيل (%1$d)</string>
+    <string name="pages_zoom_page">فتح الصفحة %1$d بملء الشاشة</string>
+    <string name="pages_zoom_hint">اضغط للتكبير</string>
 </resources>

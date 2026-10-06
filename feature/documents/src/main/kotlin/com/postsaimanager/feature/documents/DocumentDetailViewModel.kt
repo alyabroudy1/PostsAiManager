@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
-/** The page preview opened by "Show on page": loading, then the pages with the field's box marked. */
+/** The page preview, from "Show on page" (a field's box marked) or a tap on a page (nothing marked): loading, then the pages. */
 data class FieldPreviewState(
     val loading: Boolean = true,
     val preview: DocumentPreview? = null,
@@ -282,6 +282,9 @@ class DocumentDetailViewModel @Inject constructor(
             )
         }
     }
+
+    /** Opens the pages full screen on [page] (1-based) with nothing marked: tapping a page in the Pages tab. */
+    fun openPage(page: Int) = showOnPage(page, bbox = null)
 
     fun closeFieldPreview() {
         previewJob?.cancel()

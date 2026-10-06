@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Tag
@@ -58,6 +59,7 @@ object PamIcons {
     val Restore = Icons.Filled.RestoreFromTrash
     val Edit = Icons.Filled.Edit
     val Search = Icons.Filled.Search
+    val ZoomIn = Icons.Filled.ZoomIn
     val Filter = Icons.Filled.FilterList
     val More = Icons.Filled.MoreVert
     val Copy = Icons.Filled.ContentCopy

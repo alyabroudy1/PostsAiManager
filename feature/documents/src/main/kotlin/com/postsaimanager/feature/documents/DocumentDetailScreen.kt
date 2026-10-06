@@ -14,6 +14,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -126,6 +132,7 @@ fun DocumentDetailScreen(
     val summaryComing by viewModel.summaryComing.collectAsStateWithLifecycle()
     val pendingConfirmAllUndo by viewModel.pendingConfirmAllUndo.collectAsStateWithLifecycle()
     val fieldPreview by viewModel.fieldPreview.collectAsStateWithLifecycle()
+    var lastViewedPage by remember { mutableStateOf<Int?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val resources = LocalContext.current.resources
     val undoLabel = stringResource(R.string.action_undo)
@@ -255,6 +262,8 @@ fun DocumentDetailScreen(
                     state = state,
                     selectedTab = selectedTab,
                     initialPage = initialPage,
+                    onZoomPage = viewModel::openPage,
+                    jumpToPage = lastViewedPage,
                     pagesContext = pagesContext,
                     onInstallModel = onInstallModel,
                     processingState = processingState,
@@ -308,6 +317,7 @@ fun DocumentDetailScreen(
             initialPageIndex = preview.initialPageIndex,
             onClose = viewModel::closeFieldPreview,
             onOpenDocument = null,
+            onPageShown = { lastViewedPage = it },
         )
     }
 }
@@ -327,6 +337,8 @@ private fun DocumentDetailContent(
     state: DocumentDetailUiState.Success,
     selectedTab: DetailTab,
     initialPage: Int?,
+    onZoomPage: (pageNumber: Int) -> Unit,
+    jumpToPage: Int?,
     pagesContext: PagesContext,
     onInstallModel: () -> Unit,
     processingState: ProcessingState,
@@ -436,6 +448,8 @@ private fun DocumentDetailContent(
                 onSharePdf = onSharePdf,
                 externalLaunch = externalLaunch,
                 initialPage = initialPage,
+                onZoomPage = onZoomPage,
+                jumpToPage = jumpToPage,
             )
             DetailTab.EXTRACTED -> ExtractedTab(
                 document = state.document,
@@ -609,6 +623,9 @@ private fun PagesTab(
     onSharePdf: () -> File?,
     externalLaunch: ExternalLaunch,
     initialPage: Int? = null,
+    onZoomPage: (pageNumber: Int) -> Unit,
+    /** The page last viewed in the full-screen preview (1-based): the pager lands on it when the preview closes. */
+    jumpToPage: Int? = null,
 ) {
     if (pages.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -622,6 +639,9 @@ private fun PagesTab(
     val startPage = initialPage?.minus(1)?.coerceIn(0, pages.size - 1) ?: 0
     val pagerState = rememberPagerState(initialPage = startPage, pageCount = { pages.size })
     val context = LocalContext.current
+    LaunchedEffect(jumpToPage) {
+        jumpToPage?.let { pagerState.scrollToPage((it - 1).coerceIn(0, pages.size - 1)) }
+    }
 
     // The pages keep a fixed share of the screen; the card and the recognized text scroll below them.
     val pagerHeight = (LocalConfiguration.current.screenHeightDp * 0.55f).dp.coerceAtLeast(360.dp)
@@ -629,12 +649,32 @@ private fun PagesTab(
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth().height(pagerHeight)) { pageIndex ->
             val page = pages[pageIndex]
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                AsyncImage(
-                    model = page.imagePath,
-                    contentDescription = "Page ${page.pageNumber}",
-                    modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Fit,
-                )
+                // A tap, or a pinch-out, opens the page full screen, where zoom and pan live. The pinch is only
+                // observed (never consumed) in the Initial pass, so the pager swipe and the tap are untouched.
+                Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(8.dp))
+                        .pinchOutToOpen { onZoomPage(page.pageNumber) }
+                        .clickable(onClickLabel = stringResource(R.string.pages_zoom_page, page.pageNumber)) {
+                            onZoomPage(page.pageNumber)
+                        },
+                ) {
+                    AsyncImage(
+                        model = page.imagePath,
+                        contentDescription = "Page ${page.pageNumber}",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit,
+                    )
+                    Row(
+                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(PamIcons.ZoomIn, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.pages_zoom_hint), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 // Action buttons
                 Row(
@@ -695,6 +735,30 @@ private fun PagesTab(
         }
     }
 }
+
+/**
+ * Calls [onPinchOut] when two fingers spread apart on this element. It only watches (Initial pass, nothing consumed),
+ * so a one-finger swipe, a tap and the pager's own drag behave exactly as before.
+ */
+private fun Modifier.pinchOutToOpen(onPinchOut: () -> Unit): Modifier = pointerInput(onPinchOut) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        var zoom = 1f
+        var opened = false
+        do {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            if (!opened && event.changes.size >= 2) {
+                zoom *= event.calculateZoom()
+                if (zoom > PINCH_OPEN_THRESHOLD) {
+                    opened = true
+                    onPinchOut()
+                }
+            }
+        } while (event.changes.any { it.pressed })
+    }
+}
+
+private const val PINCH_OPEN_THRESHOLD = 1.25f
 
 private fun getFileUri(context: Context, path: String): Uri? {
     return try {

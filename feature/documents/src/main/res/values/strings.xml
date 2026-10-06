@@ -43,6 +43,8 @@
     <string name="card_summary_coming">Summary coming…</string>
     <!-- The Pages tab: the card under the page images, and the collapsed recognized text -->
     <string name="pages_about_heading">About this document</string>
+    <string name="pages_zoom_page">Open page %1$d full screen</string>
+    <string name="pages_zoom_hint">Tap to zoom</string>
     <string name="pages_from">From: %1$s</string>
     <string name="pages_to">To: %1$s</string>
     <string name="pages_to_you">You</string>

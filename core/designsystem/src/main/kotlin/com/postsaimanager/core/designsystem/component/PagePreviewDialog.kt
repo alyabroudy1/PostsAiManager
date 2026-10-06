@@ -31,6 +31,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +87,7 @@ private val HighlightColor = Color(0xFFFFC107)
  * @param preview the pages, or null while [loading] or when the document can't be previewed
  * @param initialPageIndex index into [DocumentPreview.pages] to open on
  * @param onOpenDocument called with the page number being viewed when "Open document" is tapped; null hides the button
+ * @param onPageShown called with the page number now in view (also on open), so the caller can land on it when the preview closes
  */
 @Composable
 fun PagePreviewDialog(
@@ -94,6 +97,7 @@ fun PagePreviewDialog(
     initialPageIndex: Int,
     onClose: () -> Unit,
     onOpenDocument: ((pageNumber: Int) -> Unit)?,
+    onPageShown: ((pageNumber: Int) -> Unit)? = null,
 ) {
     Dialog(
         onDismissRequest = onClose,
@@ -115,7 +119,7 @@ fun PagePreviewDialog(
                         }
                     }
                 } else {
-                    PreviewPager(preview, initialPageIndex, onClose, onOpenDocument)
+                    PreviewPager(preview, initialPageIndex, onClose, onOpenDocument, onPageShown)
                 }
             }
         }
@@ -128,6 +132,7 @@ private fun ColumnScope.PreviewPager(
     initialPageIndex: Int,
     onClose: () -> Unit,
     onOpenDocument: ((pageNumber: Int) -> Unit)?,
+    onPageShown: ((pageNumber: Int) -> Unit)?,
 ) {
     val pages = preview.pages
     val pagerState = rememberPagerState(
@@ -135,6 +140,11 @@ private fun ColumnScope.PreviewPager(
         pageCount = { pages.size },
     )
     val current = pages[pagerState.currentPage.coerceIn(0, pages.lastIndex)]
+    LaunchedEffect(pagerState, onPageShown) {
+        snapshotFlow { pagerState.currentPage }.collect { index ->
+            onPageShown?.invoke(pages[index.coerceIn(0, pages.lastIndex)].pageNumber)
+        }
+    }
 
     PreviewHeader(
         title = stringResource(R.string.page_preview_title_page, preview.title, pagerState.currentPage + 1, pages.size),

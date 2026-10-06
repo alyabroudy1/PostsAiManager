@@ -37,4 +37,6 @@
     <string name="action_menu_ignore">Ignorieren</string>
     <string name="copied_to_clipboard">Kopiert</string>
     <string name="section_all_details">Alle Details (%1$d)</string>
+    <string name="pages_zoom_page">Seite %1$d im Vollbild öffnen</string>
+    <string name="pages_zoom_hint">Zum Zoomen tippen</string>
 </resources>
