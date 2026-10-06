@@ -57,6 +57,18 @@ class ActionWriterTest {
     }
 
     @Test
+    fun `a grounded line a few words over the asked length is kept, a runaway line is not`() {
+        // 30 words: over the asked 25, grounded in the letter.
+        val longer = "Bitte überweise den Rechnungsbetrag von 1.284,50 € an die Musterfirma GmbH bis zum 19.08.2026 und lege falls nötig bis zum " +
+            "02.09.2026 schriftlich Einspruch gegen den Bescheid ein, damit alles rechtzeitig geklärt wird."
+        assertThat(longer.split(' ').size).isGreaterThan(ActionWriter.MAX_WORDS)
+        assertThat(longer.split(' ').size).isAtMost(ActionWriter.ACCEPT_WORDS)
+        assertThat(write("\"$longer\"").first).containsExactly(longer)
+        val runaway = List(ActionWriter.ACCEPT_WORDS + 5) { "Betrag" }.joinToString(" ")
+        assertThat(write("\"$runaway\"", "NONE").first).isEmpty()
+    }
+
+    @Test
     fun `a line with an invented name is dropped`() {
         val (lines, _) = write("$inventedName $pay")
         assertThat(lines).containsExactly(payText)
