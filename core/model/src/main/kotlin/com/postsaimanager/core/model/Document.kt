@@ -81,6 +81,11 @@ data class Document(
      * a missing summary.
      */
     val enrichmentPending: Boolean = false,
+    /**
+     * The managed profiles (Me and family members) the model decided this document is for or about, over the whole letter; the
+     * list's person chips. null: not asked yet (a backfill or the next check asks); empty: asked, nobody. Never set by name matching.
+     */
+    val concernedProfileIds: List<String>? = null,
 ) {
     val isTrashed: Boolean get() = deletedAt != null
 

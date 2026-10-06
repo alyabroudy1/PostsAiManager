@@ -20,7 +20,14 @@ internal object JsonColumns {
     fun decodeStrings(text: String?): List<String> =
         if (text.isNullOrBlank()) emptyList() else runCatching { json.decodeFromString(strings, text) }.getOrDefault(emptyList())
 
-    private val alternativeList = ListSerializer(FieldAlternative.serializer())
+    /** A list that may be unknown: null stays null (not checked yet), and an empty list is stored as `[]` (checked, nothing). */
+    fun encodeNullableStrings(values: List<String>?): String? =
+        values?.let { runCatching { json.encodeToString(strings, it) }.getOrNull() }
+
+    fun decodeNullableStrings(text: String?): List<String>? =
+        if (text.isNullOrBlank()) null else runCatching { json.decodeFromString(strings, text) }.getOrNull()
+
+    private val alternativeList =ListSerializer(FieldAlternative.serializer())
 
     fun encodeAlternatives(values: List<FieldAlternative>): String? =
         values.takeIf { it.isNotEmpty() }?.let { runCatching { json.encodeToString(alternativeList, it) }.getOrNull() }

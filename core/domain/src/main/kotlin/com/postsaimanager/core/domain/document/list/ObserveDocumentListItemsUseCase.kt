@@ -43,8 +43,8 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
 ) {
 
     /**
-     * The rows for every document, or for the ones matching [query] when it is not blank. The profiles
-     * and the stored links are two more batched flows, so a renamed or added profile updates every row.
+     * The rows for every document, or for the ones matching [query] when it is not blank. The profiles are one more batched flow
+     * (the stored decision of who a document concerns is a column of the document), so a renamed or added profile updates every row.
      */
     operator fun invoke(query: String = ""): Flow<List<DocumentListItem>> {
         val documents = if (query.isBlank()) documentRepository.getDocuments() else documentRepository.searchDocuments(query)
@@ -53,14 +53,12 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
             documentRepository.observeListFields(),
             documentRepository.observeFirstPagePaths(),
             profileRepository.getProfiles(),
-            profileRepository.observeDocumentLinks(),
-        ) { docs, fields, pages, profiles, links ->
+        ) { docs, fields, pages, profiles ->
             val today = LocalDate.now(clock)
-            val linksByDocument = links.groupBy { it.documentId }
             docs.map { document ->
                 item(
                     document, fields[document.id].orEmpty(), pages[document.id], today,
-                    people = peopleTags(profiles, linksByDocument[document.id].orEmpty()),
+                    people = peopleTags(profiles, document.concernedProfileIds),
                 )
             }
         }

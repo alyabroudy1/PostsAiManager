@@ -442,4 +442,17 @@ class DocumentRepositoryImpl @Inject constructor(
     override suspend fun getOcrTexts(): Map<String, String> = withContext(ioDispatcher) {
         documentDao.getAllOcrTexts().groupBy({ it.documentId }, { it.ocrText }).mapValues { (_, pages) -> pages.joinToString("\n") }
     }
+
+    override suspend fun setConcernedProfiles(documentId: String, profileIds: List<String>) = withContext(ioDispatcher) {
+        documentDao.setConcernedProfileIds(documentId, com.postsaimanager.core.data.mapper.JsonColumns.encodeNullableStrings(profileIds))
+    }
+
+    override suspend fun resetConcernedProfiles(documentIds: Collection<String>) = withContext(ioDispatcher) {
+        // Chunked below SQLite's variable limit.
+        documentIds.chunked(500).forEach { documentDao.resetConcernedProfileIds(it) }
+    }
+
+    override suspend fun getDocumentIdsAwaitingPeopleCheck(): List<String> = withContext(ioDispatcher) {
+        documentDao.getIdsAwaitingPeopleCheck()
+    }
 }

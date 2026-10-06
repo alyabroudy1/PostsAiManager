@@ -4,6 +4,9 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.data.database.dao.DismissedEntityDao
+import com.postsaimanager.core.data.database.dao.DocumentDao
+import io.mockk.coVerify
+import io.mockk.mockk
 import com.postsaimanager.core.data.database.dao.ProfileDao
 import com.postsaimanager.core.data.database.dao.ProfileWithRole
 import com.postsaimanager.core.data.database.entity.DismissedEntityEntity
@@ -22,14 +25,26 @@ import org.junit.jupiter.api.Test
 class ProfileRepositoryImplTest {
 
     private val dao = InMemoryProfileDao()
+    private val documents = mockk<DocumentDao>(relaxed = true)
     private val repository = ProfileRepositoryImpl(
         dao,
         object : DismissedEntityDao {
             override suspend fun dismiss(entity: DismissedEntityEntity) = Unit
             override suspend fun isDismissed(documentId: String, entityName: String) = false
         },
+        documents,
         UnconfinedTestDispatcher(),
     )
+
+    @Test
+    fun `deleting a profile removes it from the documents' decisions in the one place`() = runTest {
+        repository.createProfile(profile("maria", ProfileType.FAMILY_MEMBER))
+
+        repository.deleteProfile("maria")
+
+        assertThat(dao.rows).isEmpty()
+        coVerify(exactly = 1) { documents.removeConcernedProfile("maria") }
+    }
 
     private fun profile(id: String, type: ProfileType, relationship: Relationship? = null) = Profile(
         id = id, type = type, name = id, relationship = relationship, birthDate = "2019-03-12", sensitive = true,
@@ -103,8 +118,6 @@ private class InMemoryProfileDao : ProfileDao {
     }
 
     override suspend fun insertLink(link: DocumentProfileLinkEntity) = Unit
-    override fun observeAllLinks(): Flow<List<DocumentProfileLinkEntity>> = emptyFlow()
     override suspend fun deleteLink(docId: String, profileId: String) = Unit
-    override suspend fun deleteConcernedLink(docId: String, profileId: String) = Unit
     override fun observeProfilesForDocument(documentId: String): Flow<List<ProfileWithRole>> = emptyFlow()
 }

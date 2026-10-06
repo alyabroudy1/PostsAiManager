@@ -5,10 +5,8 @@ import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentDateChip
-import com.postsaimanager.core.model.DocumentProfileLink
 import com.postsaimanager.core.model.PersonTag
 import com.postsaimanager.core.model.Profile
-import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.DocumentListStatus
 import com.postsaimanager.core.model.DocumentStatus
@@ -83,12 +81,8 @@ class ObserveDocumentListItemsUseCaseTest {
         names: PartyNameResolver = IdentityPartyNameResolver(),
     ) = useCase(repository(document, fields, firstPage), names, hint)().first().single()
 
-    private fun profiles(
-        profiles: Flow<List<Profile>> = flowOf(emptyList()),
-        links: Flow<List<DocumentProfileLink>> = flowOf(emptyList()),
-    ): ProfileRepository = mockk {
+    private fun profiles(profiles: Flow<List<Profile>> = flowOf(emptyList())): ProfileRepository = mockk {
         every { getProfiles() } returns profiles
-        every { observeDocumentLinks() } returns links
     }
 
     private fun useCase(
@@ -106,32 +100,26 @@ class ObserveDocumentListItemsUseCaseTest {
     @Test
     fun `the row shows the people the model decided, Me first`() = runTest {
         val row = useCase(
-            repository(doc(), listOf(field("addressee", "Erika Mustermann"))),
+            repository(doc().copy(concernedProfileIds = listOf("maria", "me")), listOf(field("addressee", "Erika Mustermann"))),
             profileRepository = profiles(
                 flowOf(listOf(profile("maria", "Maria Mustermann"), profile("me", "Erika Mustermann", ProfileType.USER_SELF))),
-                flowOf(listOf(DocumentProfileLink("d1", "maria", ProfileRole.CONCERNS), DocumentProfileLink("d1", "me", ProfileRole.CONCERNS))),
             ),
         )().first().single()
         assertThat(row.people).containsExactly(PersonTag("me", "Erika", isMe = true), PersonTag("maria", "Maria", isMe = false)).inOrder()
     }
 
     @Test
-    fun `a printed name or another kind of link shows no chip without a stored decision`() = runTest {
-        val row = useCase(
-            repository(doc(), listOf(field("addressee", "Maria Mustermann"))),
-            profileRepository = profiles(
-                flowOf(listOf(profile("maria", "Maria Mustermann"))),
-                flowOf(listOf(DocumentProfileLink("d1", "maria", ProfileRole.RECEIVER), DocumentProfileLink("other", "maria", ProfileRole.CONCERNS))),
-            ),
-        )().first().single()
-        assertThat(row.people).isEmpty()
+    fun `a printed name shows no chip without a stored decision, not asked and asked-nobody alike`() = runTest {
+        val fields = listOf(field("addressee", "Maria Mustermann"))
+        val all = profiles(flowOf(listOf(profile("maria", "Maria Mustermann"))))
+        assertThat(useCase(repository(doc(), fields), profileRepository = all)().first().single().people).isEmpty()
+        assertThat(useCase(repository(doc().copy(concernedProfileIds = emptyList()), fields), profileRepository = all)().first().single().people).isEmpty()
     }
 
     @Test
     fun `the people update when a profile is added, renamed or removed`() = runTest {
         val all = MutableStateFlow(emptyList<Profile>())
-        val links = flowOf(listOf(DocumentProfileLink("d1", "maria", ProfileRole.CONCERNS)))
-        val flow = useCase(repository(doc()), profileRepository = profiles(all, links))()
+        val flow = useCase(repository(doc().copy(concernedProfileIds = listOf("maria"))), profileRepository = profiles(all))()
         assertThat(flow.first().single().people).isEmpty()
         all.value = listOf(profile("maria", "Maria Mustermann"))
         assertThat(flow.first().single().people).containsExactly(PersonTag("maria", "Maria", isMe = false))

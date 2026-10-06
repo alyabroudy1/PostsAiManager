@@ -48,13 +48,6 @@ interface ProfileDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLink(link: DocumentProfileLinkEntity)
 
-    /** Removes the link only when it is a CONCERNS one; a link of another kind for the same pair is not the decision's to drop. */
-    @Query("DELETE FROM document_profile_links WHERE documentId = :docId AND profileId = :profileId AND role = 'CONCERNS'")
-    suspend fun deleteConcernedLink(docId: String, profileId: String)
-
-    @Query("SELECT * FROM document_profile_links")
-    fun observeAllLinks(): Flow<List<DocumentProfileLinkEntity>>
-
     @Query("DELETE FROM document_profile_links WHERE documentId = :docId AND profileId = :profileId")
     suspend fun deleteLink(docId: String, profileId: String)
 

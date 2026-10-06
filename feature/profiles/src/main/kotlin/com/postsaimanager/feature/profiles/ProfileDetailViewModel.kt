@@ -9,7 +9,6 @@ import com.postsaimanager.core.domain.form.ForgetDetailUseCase
 import com.postsaimanager.core.domain.form.FormDataKeys
 import com.postsaimanager.core.domain.form.ObserveSavedDetailsUseCase
 import com.postsaimanager.core.domain.form.ProfileColumns
-import com.postsaimanager.core.domain.document.people.QueueConcernedPeopleCheckUseCase
 import com.postsaimanager.core.domain.form.RememberDetailUseCase
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.FactSource
@@ -43,7 +42,6 @@ class ProfileDetailViewModel @Inject constructor(
     private val observeDetails: ObserveSavedDetailsUseCase,
     private val rememberDetail: RememberDetailUseCase,
     private val forgetDetail: ForgetDetailUseCase,
-    private val queuePeopleCheck: QueueConcernedPeopleCheckUseCase,
 ) : ViewModel() {
 
     private val requestedId: String = savedState.get<String>(ARG_PROFILE_ID) ?: NEW
@@ -124,11 +122,7 @@ class ProfileDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val result = if (isNew) profiles.createProfile(clean).map { } else profiles.updateProfile(clean)
             when (result) {
-                is PamResult.Success -> {
-                    // Documents already read are asked about a person added or renamed (only those whose text mentions the name).
-                    runCatching { queuePeopleCheck(clean) }
-                    finished.value = true
-                }
+                is PamResult.Success -> finished.value = true
                 is PamResult.Error -> _message.value = result.error.userMessage
             }
         }

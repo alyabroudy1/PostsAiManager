@@ -81,7 +81,8 @@ class DocumentProcessingPipeline @Inject constructor(
     private val mergeExtraction: MergeExtractionUseCase,
     private val aiExtraction: AiExtractionUseCase,
     private val entityProfileLinker: EntityProfileLinker,
-    private val concernedPeopleDecision: DecideConcernedPeopleUseCase,
+    // Lazy: the decision writes through DocumentRepository, which itself needs this processor (a cycle otherwise).
+    private val concernedPeopleDecision: dagger.Lazy<DecideConcernedPeopleUseCase>,
     private val fieldRevisionDao: FieldRevisionDao,
     private val documentMapper: DocumentMapper,
     private val documentDao: DocumentDao,
@@ -664,7 +665,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 val letter = documentDao.getPages(documentId).mapNotNull { it.ocrText }.joinToString("\n")
                 if (letter.isBlank()) return@withContext PamResult.Error(PamError.OcrFailed(detail = "No stored text to read"))
                 val started = System.nanoTime()
-                when (val decided = concernedPeopleDecision(documentId, letter)) {
+                when (val decided = concernedPeopleDecision.get()(documentId, letter)) {
                     is PamResult.Error -> PamResult.Error(decided.error)
                     is PamResult.Success -> {
                         Log.i(TIMING_TAG, "$documentId concerned people ms=${msSince(started)} n=${decided.data.size}")

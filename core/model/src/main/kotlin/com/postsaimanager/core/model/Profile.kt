@@ -69,11 +69,4 @@ enum class ProfileRole {
     SUBJECT,
     CASE_WORKER,
     RELATED,
-
-    /**
-     * The model read the whole letter and decided it is for or about this managed person ("Me" or a family member).
-     * The only link kind the document list's person chips read; written by `DecideConcernedPeopleUseCase`.
-     * (A document and a profile have one link row, so this replaces an entity linker's row for the same pair.)
-     */
-    CONCERNS,
 }
