@@ -285,6 +285,13 @@ class FakeDocumentRepository : DocumentRepository {
                 .mapNotNull { (id, list) -> list.minByOrNull { it.pageNumber }?.let { id to it.imagePath } }
                 .toMap()
         }
+
+    override suspend fun getOcrTexts(): Map<String, String> {
+        val live = documents.value.filterNot { it.isTrashed }.map { it.id }.toSet()
+        return pages.value.filterKeys { it in live }
+            .mapValues { (_, list) -> list.sortedBy { it.pageNumber }.mapNotNull { it.ocrText }.joinToString("\n") }
+            .filterValues { it.isNotEmpty() }
+    }
 }
 
 /** Convenience builder for test documents. */

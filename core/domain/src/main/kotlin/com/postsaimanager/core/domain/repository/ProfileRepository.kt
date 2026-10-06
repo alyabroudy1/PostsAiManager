@@ -16,6 +16,11 @@ interface ProfileRepository {
     fun getProfilesForDocument(documentId: String): Flow<List<Pair<Profile, ProfileRole>>>
     /** Every stored document-profile link in one batch, so a list can name people without a query per row. */
     fun observeDocumentLinks(): Flow<List<DocumentProfileLink>>
+    /**
+     * Stores the model's decision of who [documentId] is for or about: for every profile in [evaluated] a CONCERNS link when it is in
+     * [concerned], and none when it is not (a CONCERNS link left by an earlier decision is removed; any other kind of link is kept).
+     */
+    suspend fun replaceConcernedLinks(documentId: String, evaluated: Set<String>, concerned: Set<String>): PamResult<Unit>
     fun searchProfiles(query: String): Flow<List<Profile>>
     suspend fun getProfileById(id: String): PamResult<Profile>
     suspend fun createProfile(profile: Profile): PamResult<Profile>

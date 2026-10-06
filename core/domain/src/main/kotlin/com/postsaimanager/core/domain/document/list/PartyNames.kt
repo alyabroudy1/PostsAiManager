@@ -34,6 +34,22 @@ object PartyNames {
         return first.isNotEmpty() && first == tokens(b)
     }
 
+    /** The folded tokens of [text], for [mentions] to be asked many times of one letter. */
+    fun tokenSet(text: String): Set<String> = tokens(text).toSet()
+
+    /**
+     * Whether a letter whose tokens are [letter] mentions the person called [profileName]: at least one of the name's tokens (of two
+     * letters or more) is a whole token of the letter. The structural check that lets the model name only people the letter mentions.
+     * It decides nothing by itself: who a letter is for is the model's reading.
+     */
+    fun mentions(letter: Set<String>, profileName: String): Boolean =
+        tokens(profileName).any { it.length >= MIN_TOKEN && it in letter }
+
+    /** [mentions] for a letter given as text. */
+    fun mentions(letterText: String, profileName: String): Boolean = mentions(tokenSet(letterText), profileName)
+
+    private const val MIN_TOKEN = 2
+
     private fun tokens(text: String): List<String> =
         FormRefs.flat(text).split(' ').filter { it.isNotEmpty() }
 

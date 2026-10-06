@@ -6,7 +6,6 @@ import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentDateChip
 import com.postsaimanager.core.model.DocumentProfileLink
-import com.postsaimanager.core.model.PersonRole
 import com.postsaimanager.core.model.PersonTag
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileRole
@@ -97,7 +96,7 @@ class ObserveDocumentListItemsUseCaseTest {
         names: PartyNameResolver = IdentityPartyNameResolver(),
         hint: ActionHint = DueFieldsActionHint(),
         profileRepository: ProfileRepository = profiles(),
-    ) = ObserveDocumentListItemsUseCase(repo, names, hint, clock, profileRepository, MatchDocumentPeopleUseCase())
+    ) = ObserveDocumentListItemsUseCase(repo, names, hint, clock, profileRepository, ConcernedPeopleTagsUseCase())
 
     private fun profile(id: String, name: String, type: ProfileType = ProfileType.FAMILY_MEMBER) =
         Profile(id = id, type = type, name = name, createdAt = 0L, modifiedAt = 0L)
@@ -105,40 +104,40 @@ class ObserveDocumentListItemsUseCaseTest {
     // ── people ──
 
     @Test
-    fun `the row names the managed people from the addressee and the subject person`() = runTest {
-        val repo = repository(doc(), listOf(field("addressee", "Erika Mustermann"), field("subject_person", "Maria Mustermann")))
+    fun `the row shows the people the model decided, Me first`() = runTest {
         val row = useCase(
-            repo,
+            repository(doc(), listOf(field("addressee", "Erika Mustermann"))),
             profileRepository = profiles(
-                flowOf(listOf(profile("me", "Erika Mustermann", ProfileType.USER_SELF), profile("maria", "Maria Mustermann"))),
+                flowOf(listOf(profile("maria", "Maria Mustermann"), profile("me", "Erika Mustermann", ProfileType.USER_SELF))),
+                flowOf(listOf(DocumentProfileLink("d1", "maria", ProfileRole.CONCERNS), DocumentProfileLink("d1", "me", ProfileRole.CONCERNS))),
             ),
         )().first().single()
-        assertThat(row.people).containsExactly(
-            PersonTag("me", "Erika", PersonRole.FOR, isMe = true),
-            PersonTag("maria", "Maria", PersonRole.ABOUT, isMe = false),
-        ).inOrder()
+        assertThat(row.people).containsExactly(PersonTag("me", "Erika", isMe = true), PersonTag("maria", "Maria", isMe = false)).inOrder()
     }
 
     @Test
-    fun `a stored link names the person without any printed name`() = runTest {
+    fun `a printed name or another kind of link shows no chip without a stored decision`() = runTest {
         val row = useCase(
-            repository(doc(), listOf(field("addressee", "Familie B."))),
+            repository(doc(), listOf(field("addressee", "Maria Mustermann"))),
             profileRepository = profiles(
                 flowOf(listOf(profile("maria", "Maria Mustermann"))),
-                flowOf(listOf(DocumentProfileLink("d1", "maria", ProfileRole.RECEIVER), DocumentProfileLink("other", "maria", ProfileRole.SUBJECT))),
+                flowOf(listOf(DocumentProfileLink("d1", "maria", ProfileRole.RECEIVER), DocumentProfileLink("other", "maria", ProfileRole.CONCERNS))),
             ),
         )().first().single()
-        assertThat(row.people).containsExactly(PersonTag("maria", "Maria", PersonRole.FOR, isMe = false))
+        assertThat(row.people).isEmpty()
     }
 
     @Test
-    fun `the people update when a profile is added or renamed`() = runTest {
+    fun `the people update when a profile is added, renamed or removed`() = runTest {
         val all = MutableStateFlow(emptyList<Profile>())
-        val flow = useCase(repository(doc(), listOf(field("addressee", "Maria Mustermann"))), profileRepository = profiles(all))()
+        val links = flowOf(listOf(DocumentProfileLink("d1", "maria", ProfileRole.CONCERNS)))
+        val flow = useCase(repository(doc()), profileRepository = profiles(all, links))()
         assertThat(flow.first().single().people).isEmpty()
         all.value = listOf(profile("maria", "Maria Mustermann"))
-        assertThat(flow.first().single().people).containsExactly(PersonTag("maria", "Maria", PersonRole.FOR, isMe = false))
+        assertThat(flow.first().single().people).containsExactly(PersonTag("maria", "Maria", isMe = false))
         all.value = listOf(profile("maria", "Mia Mustermann"))
+        assertThat(flow.first().single().people).containsExactly(PersonTag("maria", "Mia", isMe = false))
+        all.value = emptyList()
         assertThat(flow.first().single().people).isEmpty()
     }
 

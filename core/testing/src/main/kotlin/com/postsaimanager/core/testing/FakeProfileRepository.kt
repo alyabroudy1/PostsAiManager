@@ -24,6 +24,8 @@ class FakeProfileRepository : ProfileRepository {
 
     private val profiles = MutableStateFlow<List<Profile>>(emptyList())
 
+    private val linkVersion = MutableStateFlow(0)
+
     /** Links recorded as (profileId, documentId, role). */
     val links = mutableListOf<Triple<String, String, ProfileRole>>()
 
@@ -54,7 +56,7 @@ class FakeProfileRepository : ProfileRepository {
         }
 
     override fun observeDocumentLinks(): Flow<List<DocumentProfileLink>> =
-        profiles.map { links.map { (pid, docId, role) -> DocumentProfileLink(docId, pid, role) } }
+        kotlinx.coroutines.flow.combine(profiles, linkVersion) { _, _ -> links.map { (pid, docId, role) -> DocumentProfileLink(docId, pid, role) } }
 
     override fun searchProfiles(query: String): Flow<List<Profile>> =
         profiles.map { list ->
@@ -99,6 +101,22 @@ class FakeProfileRepository : ProfileRepository {
     override suspend fun deleteProfile(id: String): PamResult<Unit> {
         failWith?.let { return PamResult.Error(it) }
         profiles.value = profiles.value.filterNot { it.id == id }
+        // The real table cascades: a deleted profile's links go with it.
+        links.removeAll { it.first == id }
+        linkVersion.value++
+        return PamResult.Success(Unit)
+    }
+
+    override suspend fun replaceConcernedLinks(documentId: String, evaluated: Set<String>, concerned: Set<String>): PamResult<Unit> {
+        failWith?.let { return PamResult.Error(it) }
+        evaluated.forEach { profileId ->
+            links.removeAll { it.first == profileId && it.second == documentId && it.third == ProfileRole.CONCERNS }
+            if (profileId in concerned) {
+                links.removeAll { it.first == profileId && it.second == documentId }
+                links += Triple(profileId, documentId, ProfileRole.CONCERNS)
+            }
+        }
+        linkVersion.value++
         return PamResult.Success(Unit)
     }
 
@@ -109,6 +127,7 @@ class FakeProfileRepository : ProfileRepository {
     ): PamResult<Unit> {
         failWith?.let { return PamResult.Error(it) }
         links += Triple(profileId, documentId, role)
+        linkVersion.value++
         return PamResult.Success(Unit)
     }
 

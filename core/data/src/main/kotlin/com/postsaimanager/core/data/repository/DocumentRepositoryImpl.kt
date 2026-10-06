@@ -438,4 +438,8 @@ class DocumentRepositoryImpl @Inject constructor(
         documentDao.observeFirstPages()
             .map { rows -> rows.associate { it.documentId to it.imagePath } }
             .flowOn(ioDispatcher)
+
+    override suspend fun getOcrTexts(): Map<String, String> = withContext(ioDispatcher) {
+        documentDao.getAllOcrTexts().groupBy({ it.documentId }, { it.ocrText }).mapValues { (_, pages) -> pages.joinToString("\n") }
+    }
 }

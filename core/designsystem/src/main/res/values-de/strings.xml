@@ -5,9 +5,9 @@
     <string name="doc_row_due_today">Heute fällig</string>
     <string name="doc_row_due_tomorrow">Morgen fällig</string>
     <string name="doc_row_overdue_since">Überfällig seit %1$s</string>
-    <string name="doc_row_for_you">Für Sie</string>
-    <string name="doc_row_for_person">Für %1$s</string>
-    <string name="doc_row_about_person">Über %1$s</string>
+    <string name="doc_row_concerns_you_chip">Sie</string>
+    <string name="doc_row_concerns_you">Betrifft Sie</string>
+    <string name="doc_row_concerns_person">Betrifft %1$s</string>
     <string name="doc_row_people_more">+%1$d</string>
     <plurals name="doc_row_people_more_description">
         <item quantity="one">%d weitere Person</item>

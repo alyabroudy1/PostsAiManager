@@ -13,9 +13,9 @@
     <string name="doc_row_due_today">Due today</string>
     <string name="doc_row_due_tomorrow">Due tomorrow</string>
     <string name="doc_row_overdue_since">Overdue since %1$s</string>
-    <string name="doc_row_for_you">For you</string>
-    <string name="doc_row_for_person">For %1$s</string>
-    <string name="doc_row_about_person">About %1$s</string>
+    <string name="doc_row_concerns_you_chip">You</string>
+    <string name="doc_row_concerns_you">Concerns you</string>
+    <string name="doc_row_concerns_person">Concerns %1$s</string>
     <string name="doc_row_people_more">+%1$d</string>
     <plurals name="doc_row_people_more_description">
         <item quantity="one">%d more person</item>

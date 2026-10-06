@@ -105,5 +105,6 @@ private class InMemoryProfileDao : ProfileDao {
     override suspend fun insertLink(link: DocumentProfileLinkEntity) = Unit
     override fun observeAllLinks(): Flow<List<DocumentProfileLinkEntity>> = emptyFlow()
     override suspend fun deleteLink(docId: String, profileId: String) = Unit
+    override suspend fun deleteConcernedLink(docId: String, profileId: String) = Unit
     override fun observeProfilesForDocument(documentId: String): Flow<List<ProfileWithRole>> = emptyFlow()
 }

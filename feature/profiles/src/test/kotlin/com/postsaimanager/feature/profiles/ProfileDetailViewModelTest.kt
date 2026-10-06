@@ -11,6 +11,9 @@ import com.postsaimanager.core.model.FactSource
 import com.postsaimanager.core.model.ProfileFact
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.Relationship
+import com.postsaimanager.core.domain.document.people.QueueConcernedPeopleCheckUseCase
+import com.postsaimanager.core.testing.FakeDocumentProcessor
+import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeProfileFactRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
@@ -32,6 +35,7 @@ class ProfileDetailViewModelTest {
         ObserveSavedDetailsUseCase(facts),
         RememberDetailUseCase(profiles, facts),
         ForgetDetailUseCase(facts),
+        QueueConcernedPeopleCheckUseCase(FakeDocumentRepository(), FakeDocumentProcessor()),
     )
 
     private fun ahmad() = testProfile(id = "ahmad", name = "Ahmad", type = ProfileType.FAMILY_MEMBER, relationship = Relationship.CHILD)

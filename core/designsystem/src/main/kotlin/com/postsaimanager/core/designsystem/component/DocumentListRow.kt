@@ -56,7 +56,6 @@ import com.postsaimanager.core.model.DocumentDateChip
 import com.postsaimanager.core.model.DocumentListItem
 import com.postsaimanager.core.model.DocumentListStatus
 import com.postsaimanager.core.model.DocumentStatus
-import com.postsaimanager.core.model.PersonRole
 import com.postsaimanager.core.model.PersonTag
 import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.ProcessingStage
@@ -255,23 +254,36 @@ private fun PersonChips(people: List<PersonTag>) {
     }
 }
 
-/** "For you", "For Maria" or "About Maria": the same shape and size as [ActionBadge], in the secondary colour so it never reads as "action needed". */
+/**
+ * A person icon and "You" or the person's short name: the model decided the document is for or about them. The same shape and size as
+ * [ActionBadge], in the secondary colour so it never reads as "action needed".
+ */
 @Composable
 private fun PersonChip(person: PersonTag) {
-    val text = when {
-        person.role == PersonRole.FOR && person.isMe -> stringResource(R.string.doc_row_for_you)
-        person.role == PersonRole.FOR -> stringResource(R.string.doc_row_for_person, person.displayName)
-        else -> stringResource(R.string.doc_row_about_person, person.displayName)
+    val text = if (person.isMe) stringResource(R.string.doc_row_concerns_you_chip) else person.displayName
+    val description = if (person.isMe) {
+        stringResource(R.string.doc_row_concerns_you)
+    } else {
+        stringResource(R.string.doc_row_concerns_person, person.displayName)
     }
     ChipSurface(
         color = MaterialTheme.colorScheme.secondaryContainer,
-        modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = text },
+        modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = description },
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = PamIcons.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(12.dp),
+            )
+            Spacer(Modifier.width(3.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
     }
 }
 
@@ -432,14 +444,14 @@ private fun PreviewUrgentAndOverdue() = PreviewColumn {
 @Preview(showBackground = true, widthDp = 380)
 @Composable
 private fun PreviewPeople() = PreviewColumn {
-    val me = PersonTag("me", "Erika", PersonRole.FOR, isMe = true)
-    val maria = PersonTag("maria", "Maria", PersonRole.ABOUT, isMe = false)
+    val me = PersonTag("me", "Erika", isMe = true)
+    val maria = PersonTag("maria", "Maria", isMe = false)
     DocumentListRow(previewItem(DocumentListStatus.Ready, people = listOf(me), actions = 1), onClick = {})
     DocumentListRow(previewItem(DocumentListStatus.Ready, people = listOf(maria)), onClick = {})
     DocumentListRow(
         previewItem(
             DocumentListStatus.Ready,
-            people = listOf(me, maria, PersonTag("jonas", "Jonas", PersonRole.ABOUT, isMe = false)),
+            people = listOf(me, maria, PersonTag("amir", "Amir", isMe = false)),
             actions = 1,
         ),
         onClick = {},

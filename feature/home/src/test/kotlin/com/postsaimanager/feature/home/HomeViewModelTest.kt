@@ -4,7 +4,7 @@ import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.document.list.DueFieldsActionHint
 import com.postsaimanager.core.domain.document.list.IdentityPartyNameResolver
-import com.postsaimanager.core.domain.document.list.MatchDocumentPeopleUseCase
+import com.postsaimanager.core.domain.document.list.ConcernedPeopleTagsUseCase
 import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
 import com.postsaimanager.core.domain.repository.InstalledModelsRepository
 import com.postsaimanager.core.domain.setup.DownloadActivity
@@ -47,7 +47,7 @@ class HomeViewModelTest {
 
     private fun viewModel() = HomeViewModel(
         observeDocumentListItems = ObserveDocumentListItemsUseCase(
-            repository, IdentityPartyNameResolver(), DueFieldsActionHint(), clock, FakeProfileRepository(), MatchDocumentPeopleUseCase(),
+            repository, IdentityPartyNameResolver(), DueFieldsActionHint(), clock, FakeProfileRepository(), ConcernedPeopleTagsUseCase(),
         ),
         documentProcessor = FakeDocumentProcessor(),
         observeModelBanner = ObserveModelBannerUseCase(ObserveSetupNeedUseCase(installedRepository, preferences), downloads),

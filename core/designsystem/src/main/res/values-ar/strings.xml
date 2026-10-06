@@ -5,9 +5,9 @@
     <string name="doc_row_due_today">مستحق اليوم</string>
     <string name="doc_row_due_tomorrow">مستحق غدًا</string>
     <string name="doc_row_overdue_since">متأخر منذ %1$s</string>
-    <string name="doc_row_for_you">لك</string>
-    <string name="doc_row_for_person">إلى %1$s</string>
-    <string name="doc_row_about_person">عن %1$s</string>
+    <string name="doc_row_concerns_you_chip">أنت</string>
+    <string name="doc_row_concerns_you">تخصّك</string>
+    <string name="doc_row_concerns_person">تخصّ %1$s</string>
     <string name="doc_row_people_more">+%1$d</string>
     <plurals name="doc_row_people_more_description">
         <item quantity="zero">%d شخص آخر</item>

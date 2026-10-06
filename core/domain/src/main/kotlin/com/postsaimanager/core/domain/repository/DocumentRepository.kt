@@ -97,6 +97,9 @@ interface DocumentRepository {
     /** The image path of page 1 of every non-trashed document that has a page, by document id. */
     fun observeFirstPagePaths(): Flow<Map<String, String>>
 
+    /** The stored OCR text of every non-trashed document that has some (pages joined in order), by document id; one batch. */
+    suspend fun getOcrTexts(): Map<String, String>
+
     // ── Trash — see documentation/07-document-pipeline.md, "Deleting documents" ──
 
     /** Trashed documents, most recently deleted first. Powers the "Recently deleted" screen. */

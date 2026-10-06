@@ -47,6 +47,17 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
             documentDao.getByStatus(DocumentStatus.PROCESSING.name).isNotEmpty()
         if (scansInFlight) return Result.retry()
 
+        // The same quiet background queue also carries "who is this letter for or about?" (see [peopleRequest]).
+        if (inputData.getBoolean(KEY_PEOPLE_CHECK, false)) {
+            return when (val result = documentProcessor.decideConcernedPeople(documentId)) {
+                is PamResult.Success -> Result.success()
+                is PamResult.Error -> {
+                    Log.w(TAG_LOG, "people check failed for $documentId: ${result.error.userMessage}")
+                    Result.failure()
+                }
+            }
+        }
+
         return when (val result = documentProcessor.enrichDocument(documentId, ticket)) {
             is PamResult.Success -> Result.success()
             is PamResult.Error -> {
@@ -75,6 +86,21 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
 
         /** Never collides with `process-document-<id>` or the reprocess names. */
         fun workName(documentId: String) = "enrich-document-$documentId"
+
+        /** Marks the work that decides who a document is for or about instead of writing its second stage. */
+        const val KEY_PEOPLE_CHECK = "peopleCheck"
+
+        /** Not [TAG]: a new scan pushes the second stages aside, but the people check is cheap and waits for the scan by itself. */
+        const val PEOPLE_TAG = "people-documents"
+
+        fun peopleWorkName(documentId: String) = "people-document-$documentId"
+
+        /** The work that decides who [documentId] is for or about, over its stored text. */
+        fun peopleRequest(documentId: String): OneTimeWorkRequest =
+            OneTimeWorkRequestBuilder<DocumentEnrichmentWorker>()
+                .setInputData(workDataOf(KEY_DOCUMENT_ID to documentId, KEY_PEOPLE_CHECK to true))
+                .addTag(PEOPLE_TAG)
+                .build()
 
         /** The ticket [data] carries, or null when it has none (the pipeline then rebuilds it) or it cannot be read. */
         internal fun ticketOf(data: Data): EnrichmentTicket? {

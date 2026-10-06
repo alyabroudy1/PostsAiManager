@@ -92,4 +92,18 @@ interface DocumentProcessor {
      * left alone. Called on app start (`DocumentProcessingRecovery`).
      */
     suspend fun enqueueEnrichment(documentId: String) = Unit
+
+    /**
+     * Schedules, in the background, the question "which of the managed people is [documentId] for or about?" (a scan was read, or a
+     * profile was added or renamed). Quiet work like the second stage: never while a scan is read, one unique work per document,
+     * `KEEP`: the work reads the profiles when it runs, so one that is already queued sees every profile added meanwhile.
+     */
+    suspend fun enqueuePeopleCheck(documentId: String) = Unit
+
+    /**
+     * Asks the model who [documentId] is for or about (`DecideConcernedPeopleUseCase`) over the document's stored text, for every
+     * managed profile, and stores the answer. Called by the background worker that [enqueuePeopleCheck] schedules. An error (no model,
+     * no stored text) leaves what is stored as it is.
+     */
+    suspend fun decideConcernedPeople(documentId: String): PamResult<Unit> = PamResult.Success(Unit)
 }

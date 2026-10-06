@@ -120,6 +120,21 @@ class ProfileRepositoryImpl @Inject constructor(
         } catch (e: Exception) { PamResult.Error(PamError.DatabaseError(cause = e)) }
     }
 
+    override suspend fun replaceConcernedLinks(documentId: String, evaluated: Set<String>, concerned: Set<String>): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                val now = System.currentTimeMillis()
+                evaluated.forEach { profileId ->
+                    if (profileId in concerned) {
+                        profileDao.insertLink(DocumentProfileLinkEntity(documentId, profileId, ProfileRole.CONCERNS.name, now))
+                    } else {
+                        profileDao.deleteConcernedLink(documentId, profileId)
+                    }
+                }
+                PamResult.Success(Unit)
+            } catch (e: Exception) { PamResult.Error(PamError.DatabaseError(cause = e)) }
+        }
+
     override suspend fun unlinkProfileFromDocument(profileId: String, documentId: String): PamResult<Unit> =
         withContext(ioDispatcher) {
             try {

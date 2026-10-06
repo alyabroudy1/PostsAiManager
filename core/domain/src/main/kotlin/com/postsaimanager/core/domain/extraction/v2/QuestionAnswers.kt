@@ -124,6 +124,13 @@ internal object AnswerReader {
         }
     }
 
+    /** The member ids of a [QuestionGrammars.members] answer, each once, in the order written; empty for NONE. */
+    fun members(answer: String): List<String> {
+        val toks = tokens(answer)
+        if (isNone(toks)) return emptyList()
+        return toks.mapNotNull { (it as? Tok.Word)?.text }.filter { it != QuestionGrammars.NONE }.distinct()
+    }
+
     /** Every complete extra of the extras answer. */
     fun extras(answer: String): List<RawExtra> {
         val toks = tokens(answer)

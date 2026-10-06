@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.Schedule
@@ -71,6 +72,7 @@ object PamIcons {
     val AiChat = Icons.AutoMirrored.Filled.Chat
     val AiModel = Icons.Filled.SmartToy
     val Tag = Icons.Filled.Tag
+    val Person = Icons.Filled.Person
     val Favorite = Icons.Filled.Favorite
     val FavoriteOutlined = Icons.Filled.FavoriteBorder
 

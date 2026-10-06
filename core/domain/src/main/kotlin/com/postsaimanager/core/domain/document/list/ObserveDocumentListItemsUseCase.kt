@@ -39,7 +39,7 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
     private val actionHint: ActionHint,
     private val clock: Clock,
     private val profileRepository: ProfileRepository,
-    private val matchPeople: MatchDocumentPeopleUseCase,
+    private val peopleTags: ConcernedPeopleTagsUseCase,
 ) {
 
     /**
@@ -60,7 +60,7 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
             docs.map { document ->
                 item(
                     document, fields[document.id].orEmpty(), pages[document.id], today,
-                    people = { parties -> matchPeople(parties, profiles, linksByDocument[document.id].orEmpty()) },
+                    people = peopleTags(profiles, linksByDocument[document.id].orEmpty()),
                 )
             }
         }
@@ -71,7 +71,7 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
         allFields: List<ExtractedData>,
         firstPage: String?,
         today: LocalDate,
-        people: (DocumentParties) -> List<PersonTag>,
+        people: List<PersonTag>,
     ): DocumentListItem {
         val fields = allFields.filterNot { it.deletedByUser }
         val due = firstReadableDate(fields, DUE_SLOTS, UnderstandingToFields.DEADLINE)
@@ -90,12 +90,7 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
             status = statusOf(document.status, fields),
             dateChip = dateChip(document, due, letterDate, today),
             openActionCount = openActions.coerceAtLeast(0),
-            people = people(
-                DocumentParties(
-                    addressee = PartyFields.addressee(fields)?.fieldValue,
-                    subjectPerson = PartyFields.subjectPerson(fields)?.fieldValue,
-                ),
-            ),
+            people = people,
         )
     }
 

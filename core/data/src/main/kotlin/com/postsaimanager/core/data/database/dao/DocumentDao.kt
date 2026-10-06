@@ -171,7 +171,21 @@ interface DocumentDao {
             "AND p.pageNumber = (SELECT MIN(q.pageNumber) FROM document_pages q WHERE q.documentId = p.documentId)",
     )
     fun observeFirstPages(): Flow<List<FirstPageRow>>
+
+    /** The stored OCR text of every page of every live document, in reading order; see [OcrTextRow]. */
+    @Query(
+        "SELECT documentId, ocrText FROM document_pages " +
+            "WHERE ocrText IS NOT NULL AND documentId IN (SELECT id FROM documents WHERE deletedAt IS NULL) " +
+            "ORDER BY documentId, pageNumber",
+    )
+    suspend fun getAllOcrTexts(): List<OcrTextRow>
 }
+
+/** One page's OCR text; see [DocumentDao.getAllOcrTexts]. */
+data class OcrTextRow(
+    val documentId: String,
+    val ocrText: String,
+)
 
 /** A field as a list row reads it; see [DocumentDao.observeListFields]. */
 data class ListFieldRow(

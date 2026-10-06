@@ -1,7 +1,6 @@
 package com.postsaimanager.core.designsystem.component
 
 import com.google.common.truth.Truth.assertThat
-import com.postsaimanager.core.model.PersonRole
 import com.postsaimanager.core.model.PersonTag
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
@@ -36,7 +35,7 @@ class FriendlyDateTest {
 
     @Test
     fun `at most two person chips are shown and the rest is counted`() {
-        fun person(n: Int) = PersonTag("p$n", "P$n", PersonRole.FOR, isMe = false)
+        fun person(n: Int) = PersonTag("p$n", "P$n", isMe = false)
         assertThat(PersonChipSplit.of(emptyList())).isEqualTo(PersonChipSplit(emptyList(), 0))
         assertThat(PersonChipSplit.of(listOf(person(1), person(2)))).isEqualTo(PersonChipSplit(listOf(person(1), person(2)), 0))
         assertThat(PersonChipSplit.of((1..5).map(::person))).isEqualTo(PersonChipSplit(listOf(person(1), person(2)), 3))

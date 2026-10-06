@@ -26,6 +26,7 @@ import com.postsaimanager.core.domain.document.EnrichmentRetryPolicy
 import com.postsaimanager.core.domain.document.EnrichmentTicketRebuilder
 import com.postsaimanager.core.domain.document.KeySlotMarker
 import com.postsaimanager.core.domain.document.ReprocessOverwritePolicy
+import com.postsaimanager.core.domain.document.people.DecideConcernedPeopleUseCase
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
@@ -80,6 +81,7 @@ class DocumentProcessingPipeline @Inject constructor(
     private val mergeExtraction: MergeExtractionUseCase,
     private val aiExtraction: AiExtractionUseCase,
     private val entityProfileLinker: EntityProfileLinker,
+    private val concernedPeopleDecision: DecideConcernedPeopleUseCase,
     private val fieldRevisionDao: FieldRevisionDao,
     private val documentMapper: DocumentMapper,
     private val documentDao: DocumentDao,
@@ -465,6 +467,15 @@ class DocumentProcessingPipeline @Inject constructor(
                     }
                 }
 
+                // 5c: Who the letter is for or about (the managed people) is the model's reading of the whole letter, asked in the background
+                // once this reading is stored (see [decideConcernedPeople]); on a re-read too, so the decision follows the new text.
+                if (understanding is PamResult.Success && usedModel) {
+                    runCatching { enqueuePeopleCheck(documentId) }.onFailure { e ->
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        Log.w(TAG, "people check not queued for $documentId: ${e.message}")
+                    }
+                }
+
                 // 5.4: whether this run had to cut the document's layout to fit the
                 // extraction budget — only meaningful when the model actually ran; the
                 // pattern fallback never truncates an input, it just reads flat text.
@@ -636,6 +647,36 @@ class DocumentProcessingPipeline @Inject constructor(
             DocumentEnrichmentWorker.workName(documentId), ExistingWorkPolicy.KEEP, DocumentEnrichmentWorker.request(documentId, null),
         )
         Unit
+    }
+
+    override suspend fun enqueuePeopleCheck(documentId: String) = withContext(ioDispatcher) {
+        workManager.enqueueUniqueWork(
+            DocumentEnrichmentWorker.peopleWorkName(documentId), ExistingWorkPolicy.KEEP, DocumentEnrichmentWorker.peopleRequest(documentId),
+        )
+        Unit
+    }
+
+    override suspend fun decideConcernedPeople(documentId: String): PamResult<Unit> = processingMutex.withLock {
+        withContext(ioDispatcher) {
+            try {
+                val doc = documentDao.getById(documentId)
+                if (doc == null || doc.deletedAt != null) return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
+                val letter = documentDao.getPages(documentId).mapNotNull { it.ocrText }.joinToString("\n")
+                if (letter.isBlank()) return@withContext PamResult.Error(PamError.OcrFailed(detail = "No stored text to read"))
+                val started = System.nanoTime()
+                when (val decided = concernedPeopleDecision(documentId, letter)) {
+                    is PamResult.Error -> PamResult.Error(decided.error)
+                    is PamResult.Success -> {
+                        Log.i(TIMING_TAG, "$documentId concerned people ms=${msSince(started)} n=${decided.data.size}")
+                        PamResult.Success(Unit)
+                    }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PamResult.Error(PamError.ExtractionFailed(detail = "Concerned people: ${e.message}", cause = e))
+            }
+        }
     }
 
     private fun publishEnriching() {
