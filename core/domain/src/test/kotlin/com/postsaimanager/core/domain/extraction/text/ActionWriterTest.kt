@@ -57,15 +57,27 @@ class ActionWriterTest {
     }
 
     @Test
-    fun `a grounded line a few words over the asked length is kept, a runaway line is not`() {
+    fun `a grounded line over the asked length is asked again, shorter, and only the short one is kept`() {
         // 30 words: over the asked 25, grounded in the letter.
         val longer = "Bitte überweise den Rechnungsbetrag von 1.284,50 € an die Musterfirma GmbH bis zum 19.08.2026 und lege falls nötig bis zum " +
             "02.09.2026 schriftlich Einspruch gegen den Bescheid ein, damit alles rechtzeitig geklärt wird."
         assertThat(longer.split(' ').size).isGreaterThan(ActionWriter.MAX_WORDS)
-        assertThat(longer.split(' ').size).isAtMost(ActionWriter.ACCEPT_WORDS)
-        assertThat(write("\"$longer\"").first).containsExactly(longer)
-        val runaway = List(ActionWriter.ACCEPT_WORDS + 5) { "Betrag" }.joinToString(" ")
-        assertThat(write("\"$runaway\"", "NONE").first).isEmpty()
+        val (lines, s) = write("\"$longer\"", pay)
+        assertThat(lines).containsExactly(payText)
+        assertThat(s.asks).hasSize(2)
+        assertThat(s.asks[1].question).contains("Shorten each to at most ${ActionWriter.MAX_WORDS} words")
+        assertThat(s.asks[1].question).contains(longer)
+        // A long line is never kept as it is: when the second ask is long again, nothing is kept.
+        assertThat(write("\"$longer\"", "\"$longer\"").first).isEmpty()
+    }
+
+    @Test
+    fun `the gate's refused token is traced with the line, for a debug log`() {
+        val traced = ArrayList<String>()
+        val session = FakePromptSession()
+        session.responder = { _, _ -> wrongDate }
+        runBlocking { session.open(ocr); ActionWriter(session, trace = { traced += it }).write(facts, hint, ocr, "de") }
+        assertThat(traced.any { it.contains("UNVERIFIED_NUMBER(") && it.contains("20.08.2026") }).isTrue()
     }
 
     @Test
