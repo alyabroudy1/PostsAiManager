@@ -6,14 +6,8 @@ data class PreviewPage(
     val imagePath: String,
     /** Normalised regions holding the cited passage or field; empty on every page but the cited one. */
     val highlights: List<TextBounds> = emptyList(),
-    /** The page's selectable text regions in reading order; empty when the page has no recognised text. */
-    val regions: List<TextRegion> = emptyList(),
-)
-
-/** One piece of a page's text that can be selected and copied: a line, or a whole block when no line boxes were stored. */
-data class TextRegion(
-    val text: String,
-    val bounds: TextBounds,
+    /** The page's recognised text blocks already in reading order, for selecting text; empty when the page has none. */
+    val textBlocks: List<OcrBlock> = emptyList(),
 )
 
 /**

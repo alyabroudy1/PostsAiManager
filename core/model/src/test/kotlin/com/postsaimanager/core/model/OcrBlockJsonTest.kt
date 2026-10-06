@@ -42,6 +42,33 @@ class OcrBlockJsonTest {
     }
 
     @Test
+    fun `json with lines but no words decodes, and a line with words round-trips`() {
+        val lineOnly = """[{"text":"a","bounds":{"left":0.1,"top":0.2,"right":0.9,"bottom":0.3},"confidence":0.9,""" +
+            """"lines":[{"text":"a","bounds":{"left":0.1,"top":0.2,"right":0.9,"bottom":0.3}}]}]"""
+        assertThat(json.decodeFromString(serializer, lineOnly)[0].lines[0].words).isEmpty()
+
+        val withWords = OcrBlock(
+            text = "Hallo Welt",
+            bounds = TextBounds(0.1f, 0.2f, 0.9f, 0.3f),
+            confidence = 0.8f,
+            lines = listOf(
+                OcrLine(
+                    "Hallo Welt",
+                    TextBounds(0.1f, 0.2f, 0.9f, 0.3f),
+                    words = listOf(
+                        OcrWord("Hallo", TextBounds(0.1f, 0.2f, 0.4f, 0.3f)),
+                        OcrWord("Welt", TextBounds(0.5f, 0.2f, 0.9f, 0.3f)),
+                    ),
+                ),
+            ),
+        )
+        assertThat(json.decodeFromString(serializer, json.encodeToString(serializer, listOf(withWords)))).containsExactly(withWords)
+        assertThat(json.encodeToString(serializer, listOf(withWords.copy(lines = lineOnlyOf(withWords))))).doesNotContain("words")
+    }
+
+    private fun lineOnlyOf(block: OcrBlock) = block.lines.map { it.copy(words = emptyList()) }
+
+    @Test
     fun `a block without lines is written exactly as before`() {
         val block = OcrBlock("x", TextBounds(0f, 0f, 1f, 1f), 0.5f)
 

@@ -45,7 +45,7 @@ data class OcrBlock(
     val language: String? = null,
     /**
      * The block's own lines with their boxes, in the order ML Kit returned them. Empty for pages read before lines
-     * were kept: only the page preview's text selection uses them, and it falls back to the whole block.
+     * were kept: only the page preview's text selection uses them, and it falls back to splitting the block's own text.
      */
     val lines: List<OcrLine> = emptyList(),
 )
@@ -53,6 +53,15 @@ data class OcrBlock(
 /** One recognised line of an [OcrBlock] and where it sat, normalised like [TextBounds] everywhere. */
 @Serializable
 data class OcrLine(
+    val text: String,
+    val bounds: TextBounds,
+    /** The line's words with their own boxes; empty for lines read before words were kept (the preview then spreads the line's box over its text). */
+    val words: List<OcrWord> = emptyList(),
+)
+
+/** One recognised word (ML Kit element) of an [OcrLine] and where it sat. */
+@Serializable
+data class OcrWord(
     val text: String,
     val bounds: TextBounds,
 )
