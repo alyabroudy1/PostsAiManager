@@ -1,0 +1,27 @@
+{
+  "key": "N9-fuzzy-name-1p",
+  "asked": [
+    "me",
+    "lea"
+  ],
+  "notAsked": [
+    "far"
+  ],
+  "expected": [
+    "me"
+  ],
+  "tolerated": [],
+  "ms": 5636,
+  "forward": [
+    "me",
+    "lea"
+  ],
+  "reversed": [
+    "me"
+  ],
+  "scores": {
+    "me": 3.152400016784668,
+    "lea": -0.6405057907104492,
+    "far": -0.8710346221923828
+  }
+}

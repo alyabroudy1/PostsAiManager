@@ -1,0 +1,32 @@
+{
+  "key": "N3-schule-familie-2p",
+  "asked": [
+    "me",
+    "lea",
+    "max"
+  ],
+  "notAsked": [
+    "far"
+  ],
+  "expected": [
+    "me",
+    "lea"
+  ],
+  "tolerated": [
+    "max"
+  ],
+  "ms": 8074,
+  "forward": [
+    "lea"
+  ],
+  "reversed": [
+    "lea",
+    "me"
+  ],
+  "scores": {
+    "me": 0.9510049819946289,
+    "lea": 3.6783571243286133,
+    "max": 0.26935863494873047,
+    "far": -0.25423336029052734
+  }
+}

@@ -18,7 +18,7 @@ class ModelConcernedPeopleTest {
     private val maria = SubjectCandidate("maria", "Maria Mustermann", Relationship.CHILD)
     private val amir = SubjectCandidate("amir", "Amir Mustermann", Relationship.CHILD)
 
-    private fun people(profile: ConcernedPeopleProfile = ConcernedPeopleProfile()) = ModelConcernedPeople(session, framing, profile)
+    private fun people(profile: ConcernedPeopleProfile = ConcernedPeopleProfile(reversedCheck = false)) = ModelConcernedPeople(session, framing, profile)
 
     @Test
     fun `the letter is the prefix, the members are listed once and the answer maps back to profiles`() = runTest {

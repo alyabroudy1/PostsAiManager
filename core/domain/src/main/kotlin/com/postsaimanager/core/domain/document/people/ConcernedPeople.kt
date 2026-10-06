@@ -30,14 +30,18 @@ interface ConcernedPeople {
  * How the question is asked, as data.
  *
  * @property reversedCheck ask a second time with the members in the opposite order and keep only the ones named both times: a small
- *   model favours a position in a list. Off until the evaluation says it pays.
+ *   model favours a position in a list. On: on the five recorded letters (`benchmark/concerned/`) the forward list alone named 4 people
+ *   who were not expected, the intersection with the reversed list 2, with the same people found (see `ConcernedPeopleReplayTest`).
  */
 data class ConcernedPeopleProfile(
     val maxMembers: Int = 6,
     val maxLetterChars: Int = 6000,
     val maxAnswerTokens: Int = 24,
-    val reversedCheck: Boolean = false,
-)
+    val reversedCheck: Boolean = true,
+) {
+    /** The people kept from the forward and the reversed answers under this profile. */
+    fun keep(forward: Set<String>, reversed: Set<String>): Set<String> = if (reversedCheck) forward intersect reversed else forward
+}
 
 /** The answers one letter got in the evaluation, with the per-member scores of the other question form beside them. */
 data class ConcernedComparison(val forward: Set<String>, val reversed: Set<String>, val scores: List<Double>)
@@ -73,13 +77,14 @@ class ModelConcernedPeople @Inject constructor(
      * For the evaluation only: in one session over [letter], the list answer in both orders and the per-member log-odds of
      * "Is this letter for or about <member>?" (the other question form), so the two can be compared on the same letters.
      */
-    suspend fun compare(letter: String, members: List<SubjectCandidate>): PamResult<ConcernedComparison> {
+    suspend fun compare(letter: String, members: List<SubjectCandidate>, alsoScored: List<SubjectCandidate> = emptyList()): PamResult<ConcernedComparison> {
         val listed = members.take(profile.maxMembers)
         return inSession(letter) { tail ->
             val forward = answer(listed, tail)
             val back = answer(listed.reversed(), tail)
             val scores = try {
-                FormScorer(session, tail).yesNo(listed.map { "Is this letter for or about ${SuggestSubject.relation(it)} ${it.name}? Answer:" })
+                // [alsoScored] (names the letter does not mention: the baseline a margin would be taken over) are scored, never listed.
+                FormScorer(session, tail).yesNo((listed + alsoScored).map { "Is this letter for or about ${SuggestSubject.relation(it)} ${it.name}? Answer:" })
             } catch (e: FormScoringException) {
                 return@inSession PamResult.Error(e.error)
             }

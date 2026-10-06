@@ -91,7 +91,8 @@ class ConcernedPeopleBenchmarkTest {
             // What the app would ask: only the people whose name token is in the letter. The distractor is recorded as not asked.
             val asked = members.filter { PartyNames.mentions(tokens, it.name) }
             val t0 = System.nanoTime()
-            val result = people.compare(text, asked)
+            val notAsked = members.filter { it !in asked }
+            val result = people.compare(text, asked, alsoScored = notAsked)
             val ms = (System.nanoTime() - t0) / 1_000_000
             val rec = JSONObject().put("key", key).put("asked", JSONArray(asked.map { it.profileId }))
                 .put("notAsked", JSONArray(members.filter { it !in asked }.map { it.profileId }))
@@ -101,7 +102,7 @@ class ConcernedPeopleBenchmarkTest {
                 is PamResult.Success -> rec
                     .put("forward", JSONArray(result.data.forward.toList()))
                     .put("reversed", JSONArray(result.data.reversed.toList()))
-                    .put("scores", JSONObject().also { o -> asked.forEachIndexed { i, m -> o.put(m.profileId, result.data.scores[i]) } })
+                    .put("scores", JSONObject().also { o -> (asked + notAsked).forEachIndexed { i, m -> o.put(m.profileId, result.data.scores[i]) } })
                 is PamResult.Error -> rec.put("error", result.error.userMessage)
             }
             File(outDir, "$key.concerned.json").writeText(rec.toString(2))

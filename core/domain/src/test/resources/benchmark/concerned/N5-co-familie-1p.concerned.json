@@ -1,0 +1,27 @@
+{
+  "key": "N5-co-familie-1p",
+  "asked": [
+    "me",
+    "jonas"
+  ],
+  "notAsked": [
+    "far"
+  ],
+  "expected": [
+    "jonas"
+  ],
+  "tolerated": [],
+  "ms": 5695,
+  "forward": [
+    "me"
+  ],
+  "reversed": [
+    "jonas",
+    "me"
+  ],
+  "scores": {
+    "me": 0.9260473251342773,
+    "jonas": 0.6084957122802734,
+    "far": -0.24172210693359375
+  }
+}

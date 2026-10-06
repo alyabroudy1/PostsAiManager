@@ -1,0 +1,31 @@
+{
+  "key": "N10-kinderarzt-termin-1p",
+  "asked": [
+    "me",
+    "adam",
+    "lea"
+  ],
+  "notAsked": [
+    "far"
+  ],
+  "expected": [
+    "me",
+    "adam"
+  ],
+  "tolerated": [],
+  "ms": 5420,
+  "forward": [
+    "adam",
+    "lea"
+  ],
+  "reversed": [
+    "lea",
+    "adam"
+  ],
+  "scores": {
+    "me": -0.007077217102050781,
+    "adam": 3.206801414489746,
+    "lea": 0.4102745056152344,
+    "far": 0.45668697357177734
+  }
+}
