@@ -1,8 +1,21 @@
 package com.postsaimanager.feature.chat
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import java.time.LocalDate
+import java.time.LocalDateTime
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -96,12 +109,29 @@ internal fun ActionCard(
     onDoAgain: () -> Unit = {},
 ) {
     val pending = state.status == ActionCardStatus.PENDING
+    // A finished card is one line; tapping it shows the details (read-only), and its status change (Restore) starts it over.
+    var expanded by rememberSaveable(state.id, state.status) { mutableStateOf(false) }
+    if (!pending && !expanded) {
+        CompactActionLine(state, onExpand = { expanded = true }, onRestore = onRestore, onDoAgain = onDoAgain, modifier = modifier)
+        return
+    }
     Card(
         modifier = modifier.fillMaxWidth().testTag("actionCard"),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(ActionCardTexts.title(state.action)), style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(ActionCardTexts.title(state.action)),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                if (!pending) {
+                    IconButton(onClick = { expanded = false }, modifier = Modifier.testTag("actionCollapse")) {
+                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.action_hide_details))
+                    }
+                }
+            }
 
             ActionForm.entries(state.action).forEach { (field, _) ->
                 val value = state.values[field].orEmpty()
@@ -154,6 +184,75 @@ internal fun ActionCard(
                 }
             }
         }
+    }
+}
+
+/**
+ * A finished card in one line: "✓ Reminder set · Tomorrow 09:00 · Do again" or "Cancelled · Restore". The line expands to the
+ * details; Do again and Restore work from the line itself.
+ */
+@Composable
+internal fun CompactActionLine(
+    state: ActionCardState,
+    onExpand: () -> Unit,
+    onRestore: () -> Unit,
+    onDoAgain: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val opened = state.status == ActionCardStatus.OPENED
+    val summary = if (opened) actionSummary(state) else null
+    val statusText = stringResource(if (opened) ActionCardTexts.openedStatus(state.action) else R.string.action_status_cancelled)
+    val line = when {
+        !opened -> statusText
+        summary != null -> stringResource(R.string.action_compact_opened, statusText, summary)
+        else -> stringResource(R.string.action_compact_opened_plain, statusText)
+    }
+    Card(
+        modifier = modifier.fillMaxWidth().testTag("actionCompact"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable(onClickLabel = stringResource(R.string.action_show_details), onClick = onExpand)
+                .padding(start = 12.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                line,
+                style = MaterialTheme.typography.labelLarge.byContentDirection(),
+                color = if (opened) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).testTag("actionStatus"),
+            )
+            if (opened) {
+                TextButton(onClick = onDoAgain, modifier = Modifier.testTag("actionDoAgain")) { Text(stringResource(R.string.action_do_again)) }
+            } else {
+                TextButton(onClick = onRestore, modifier = Modifier.testTag("actionRestore")) { Text(stringResource(R.string.action_restore)) }
+            }
+        }
+    }
+}
+
+/** What an opened card was about, in a few words: the subject of an email, the time of a reminder or an event; null when it has none. */
+@Composable
+private fun actionSummary(state: ActionCardState): String? = when (state.action) {
+    is AgentAction.SendEmail -> state.values[ActionField.SUBJECT]?.takeIf { it.isNotBlank() }
+    is AgentAction.ScheduleReminder -> whenText(state.values[ActionField.AT])
+    is AgentAction.CreateCalendarEvent -> whenText(state.values[ActionField.START])
+    AgentAction.GetDateTime -> null
+}
+
+/** "Today 09:00", "Tomorrow 09:00", or the short date and time of [text] (the card's own date and time field); null when unreadable. */
+@Composable
+private fun whenText(text: String?): String? {
+    val at = text?.let(ActionDateTime::parse) ?: return null
+    val today = remember { LocalDate.now() }
+    val time = remember(at) { at.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)) }
+    return when (at.toLocalDate()) {
+        today -> stringResource(R.string.action_when_today, time)
+        today.plusDays(1) -> stringResource(R.string.action_when_tomorrow, time)
+        else -> remember(at) { at.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)) }
     }
 }
 

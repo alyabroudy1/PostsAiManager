@@ -124,10 +124,13 @@ class BundledSkillsTest {
             assertThat(skill.instructions).contains("get_current_date_and_time")
             assertThat(skill.instructions).contains("Never guess today's date")
         }
-        // The merged reminder skill covers both ways of naming a time, and asks for one short line, not the letter's words.
+        // The merged reminder skill covers both ways of naming a time, and asks for a self-contained line that names the sender or subject, not pronouns.
         val reminder = parse(File(root, "schedule-reminder")).instructions
         assertThat(reminder).contains("before the deadline")
-        assertThat(reminder).contains("one short line")
+        assertThat(reminder).contains("one self-contained line")
+        assertThat(reminder).contains("naming the sender or the subject of the letter")
+        assertThat(reminder).contains("Never use pronouns")
+        assertThat(parse(File(root, "create-calendar-event")).instructions).contains("without pronouns")
     }
 
     @Test

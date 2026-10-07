@@ -199,7 +199,8 @@ fun ChatScreen(
     // to the last item's *top* used to.
     LaunchedEffect(listState) {
         snapshotFlow {
-            Triple(uiState.messages.size, uiState.streamingText.length, uiState.thinkingText.length)
+            // A card arriving with the reply grows the transcript like a message does, so it follows the bottom the same way.
+            listOf(uiState.messages.size, uiState.streamingText.length, uiState.thinkingText.length, actionCards.size)
         }.collectLatest {
             if (!followBottom) return@collectLatest
             delay(SCROLL_THROTTLE_MS)
@@ -210,11 +211,6 @@ fun ChatScreen(
     // The cards the model proposes are checked against the user's own words too: a value they wrote is theirs.
     LaunchedEffect(uiState.messages) {
         actionCardsViewModel.updateUserMessages(uiState.messages.filter { it.isUser }.map { it.text })
-    }
-
-    // A card that just arrived is brought into view, unless the user is reading further up.
-    LaunchedEffect(actionCards.size) {
-        if (actionCards.isNotEmpty() && followBottom) listState.scrollToItem(0)
     }
 
     // Defect 2: sending a message must ALWAYS snap the transcript to the bottom, even if the
@@ -408,45 +404,67 @@ fun ChatScreen(
                 }
             }
         } else {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                LazyColumn(
-                    state = listState,
-                    reverseLayout = true,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    // With `reverseLayout = true`, index 0 renders at the BOTTOM and
-                    // increasing indices move upward — so the most recent content
-                    // (error, then the live streaming bubble/status, then the thinking
-                    // trace) is declared first, and persisted messages follow newest-first.
-                    // This is what makes `scrollToItem(0)` land exactly at the true bottom
-                    // regardless of how tall the last bubble is.
-                    uiState.error?.let { error ->
-                        item {
-                            ChatErrorCard(
-                                error = error,
-                                onDismiss = viewModel::dismissError,
-                                onRetry = viewModel::retry,
-                                onManageModelsClick = onManageModelsClick,
-                            )
+            // The live reply: its text as it streams, or (before the first token) the status line / typing indicator — a
+            // spinner alongside flowing text would just read as "still stuck".
+            val live = uiState.streamingText.isNotEmpty() || (uiState.isProcessing && !uiState.isThinkingActive)
+            // The live reasoning trace is shown the moment thinking starts, and kept (collapsed) once the answer streams.
+            val thinking = uiState.thinkingText.isNotEmpty() || uiState.isThinkingActive
+            // One list for everything, newest first (the list is reversed: index 0 is the bottom). Each action card sits right under
+            // the reply that proposed it and scrolls with it; a card whose reply is not stored yet sits under the live reply.
+            val entries = remember(uiState.messages, actionCards, uiState.error != null, live, thinking) {
+                ChatTimeline.build(uiState.messages, actionCards, error = uiState.error != null, live = live, thinking = thinking)
+            }
+            // 5.1: regenerate is offered only on the LATEST assistant reply — a finished one, not the live streaming bubble
+            // (a separate row, never part of `uiState.messages` until it is persisted and reloaded).
+            val latestAssistantId = uiState.messages.lastOrNull { !it.isUser && it.form == null }?.id
+            // The form conversation: only the newest card is shown in full, and only the open question's chips are live.
+            val latestCardId = uiState.messages.lastOrNull { it.form?.kind == FormMessageKind.CARD }?.id
+            // The one pending question: the newest of what waits for an answer (a question, a status line with chips) or was an
+            // answer (the user's message). A question or Continue / Start over that something came after is stale: disabled.
+            val pendingChipsId = uiState.messages.lastOrNull { isPendingChipsMessage(it) }?.id
+            ChatTranscript(
+                entries = entries,
+                listState = listState,
+                modifier = Modifier.padding(innerPadding),
+                // Leaving the bottom by tapping the "actions waiting" pill: the stream must not drag the list back down.
+                onJumpToCard = { followBottom = false },
+                // Never fights the user's own scroll — only appears once they've scrolled
+                // away from live content, and both tapping it and scrolling back down
+                // resume following (see `followBottom` above).
+                bottomOverlay = {
+                    AnimatedVisibility(
+                        visible = !followBottom,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        FloatingActionButton(
+                            onClick = {
+                                // Flip the flag first so the FAB fades out immediately, rather
+                                // than lingering for the duration of the scroll animation.
+                                followBottom = true
+                                coroutineScope.launch { listState.animateScrollToItem(0) }
+                            },
+                            modifier = Modifier.size(40.dp),
+                        ) {
+                            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Jump to latest")
                         }
                     }
+                },
+            ) { entry ->
+                when (entry) {
+                    TimelineEntry.Error -> uiState.error?.let { error ->
+                        ChatErrorCard(
+                            error = error,
+                            onDismiss = viewModel::dismissError,
+                            onRetry = viewModel::retry,
+                            onManageModelsClick = onManageModelsClick,
+                        )
+                    }
 
-                    // Stream the reply into a live bubble. Only fall back to the typing
-                    // indicator before the first token arrives — once text is flowing, a
-                    // spinner alongside it just reads as "still stuck".
-                    if (uiState.streamingText.isNotEmpty()) {
-                        item {
-                            ChatBubble(
-                                message = ChatMessage(
-                                    text = uiState.streamingText,
-                                    isUser = false,
-                                ),
-                            )
-                        }
-                    } else if (uiState.isProcessing && !uiState.isThinkingActive) {
-                        item {
+                    TimelineEntry.Live ->
+                        if (uiState.streamingText.isNotEmpty()) {
+                            ChatBubble(message = ChatMessage(text = uiState.streamingText, isUser = false))
+                        } else {
                             uiState.statusText?.let { status ->
                                 Text(
                                     text = status,
@@ -456,23 +474,17 @@ fun ChatScreen(
                                 )
                             } ?: TypingIndicator()
                         }
-                    }
 
-                    // The live reasoning trace gets its own bounded, auto-following card —
-                    // shown the moment thinking starts, and kept around (collapsed) once the
-                    // answer starts streaming, so it never just vanishes mid-turn.
-                    if (uiState.thinkingText.isNotEmpty() || uiState.isThinkingActive) {
-                        item {
-                            MessageBodyThinking(
-                                thinkingText = uiState.thinkingText,
-                                inProgress = uiState.isThinkingActive,
-                                durationMs = uiState.thinkingDurationMs,
-                            )
-                        }
-                    }
+                    TimelineEntry.Thinking ->
+                        MessageBodyThinking(
+                            thinkingText = uiState.thinkingText,
+                            inProgress = uiState.isThinkingActive,
+                            durationMs = uiState.thinkingDurationMs,
+                        )
 
-                    // The actions a skill proposed, newest first like everything here: nothing runs until the user taps Open.
-                    items(actionCards.asReversed(), key = { "action-${it.id}" }) { card ->
+                    // The action a skill proposed, under the reply that proposed it: nothing runs until the user taps Open.
+                    is TimelineEntry.Card -> {
+                        val card = entry.card
                         ActionCard(
                             state = card,
                             onOpen = { actionCardsViewModel.open(card.id) },
@@ -484,21 +496,8 @@ fun ChatScreen(
                         )
                     }
 
-                    // 5.1: regenerate is offered only on the LATEST assistant reply — a
-                    // finished one, not the live streaming bubble (a separate item above,
-                    // never part of `uiState.messages` until it is persisted and reloaded).
-                    val latestAssistantId = uiState.messages.lastOrNull { !it.isUser && it.form == null }?.id
-                    // The form conversation: only the newest card is shown in full, and only the open question's chips are live.
-                    val latestCardId = uiState.messages.lastOrNull { it.form?.kind == FormMessageKind.CARD }?.id
-                    // The one pending question: the newest of what waits for an answer (a question, a status line with chips) or was an
-                    // answer (the user's message). A question or Continue / Start over that something came after is stale: disabled.
-                    val pendingChipsId = uiState.messages.lastOrNull { isPendingChipsMessage(it) }?.id
-
-                    items(
-                        // An action-only reply has no words to show, but its steps (the skill it used) are still shown.
-                        uiState.messages.filterNot { it.isEmptyReply && it.toolSteps.isEmpty() }.asReversed(),
-                        key ={ it.id.ifEmpty { it.timestamp.toString() } },
-                    ) { message ->
+                    is TimelineEntry.Message -> {
+                        val message = entry.message
                         val form = message.form
                         if (form != null) {
                             FormMessageItem(
@@ -512,45 +511,21 @@ fun ChatScreen(
                                 onCopy = ::copyToClipboard,
                                 onOpenModels = onManageModelsClick,
                             )
-                            return@items
+                        } else {
+                            ChatBubble(
+                                message = message,
+                                documentChat = documentId != null,
+                                onRetry = { viewModel.retryMessage(message) },
+                                onSourceClick = viewModel::openPreview,
+                                onCopy = { copyToClipboard(message.text) },
+                                onRegenerate = { viewModel.regenerate() },
+                                onImageClick = { path -> viewedImage = path },
+                                isLatestAssistantReply = !message.isUser &&
+                                    message.id.isNotEmpty() &&
+                                    message.id == latestAssistantId &&
+                                    !uiState.isProcessing,
+                            )
                         }
-                        ChatBubble(
-                            message = message,
-                            documentChat = documentId != null,
-                            onRetry = { viewModel.retryMessage(message) },
-                            onSourceClick = viewModel::openPreview,
-                            onCopy = { copyToClipboard(message.text) },
-                            onRegenerate = { viewModel.regenerate() },
-                            onImageClick = { path -> viewedImage = path },
-                            isLatestAssistantReply =!message.isUser &&
-                                message.id.isNotEmpty() &&
-                                message.id == latestAssistantId &&
-                                !uiState.isProcessing,
-                        )
-                    }
-                }
-
-                // Never fights the user's own scroll — only appears once they've scrolled
-                // away from live content, and both tapping it and scrolling back down
-                // resume following (see `followBottom` above).
-                AnimatedVisibility(
-                    visible = !followBottom,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 12.dp),
-                ) {
-                    FloatingActionButton(
-                        onClick = {
-                            // Flip the flag first so the FAB fades out immediately, rather
-                            // than lingering for the duration of the scroll animation.
-                            followBottom = true
-                            coroutineScope.launch { listState.animateScrollToItem(0) }
-                        },
-                        modifier = Modifier.size(40.dp),
-                    ) {
-                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Jump to latest")
                     }
                 }
             }
