@@ -27,16 +27,4 @@ internal class FittedPage(boxWidth: Float, boxHeight: Float, imageWidth: Float, 
 
     fun left(b: TextBounds): Float = x(b.left)
     fun top(b: TextBounds): Float = y(b.top)
-
-    /** The point (in box pixels, before any zoom) as page fractions; outside 0..1 when it is off the image. */
-    fun normalisedX(x: Float): Float = (x - originX) / shownWidth
-    fun normalisedY(y: Float): Float = (y - originY) / shownHeight
 }
-
-/** Undoes the preview's zoom: the page layer is scaled by [scale] about the box centre, then shifted by the offset. */
-internal fun unzoom(point: Float, boxSize: Float, scale: Float, offset: Float): Float =
-    (point - boxSize / 2f - offset) / scale + boxSize / 2f
-
-/** The inverse of [unzoom]: where a point of the unzoomed page layer ends up on screen. */
-internal fun zoomPoint(point: Float, boxSize: Float, scale: Float, offset: Float): Float =
-    (point - boxSize / 2f) * scale + boxSize / 2f + offset

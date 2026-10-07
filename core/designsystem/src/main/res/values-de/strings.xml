@@ -3,10 +3,6 @@
     <!-- Text einer gescannten Seite in der Vorschau auswählen und kopieren. -->
     <string name="page_preview_select_text">Text auswählen</string>
     <string name="page_preview_select_text_unavailable">Auf dieser Seite gibt es keinen auswählbaren Text</string>
-    <string name="page_preview_select_all">Alles auswählen</string>
-    <string name="page_preview_select_copy">Kopieren</string>
-    <string name="page_preview_select_share">Teilen</string>
-    <string name="page_preview_select_copied">Kopiert</string>
 
     <!-- Eine Zeile der Dokumentliste: Personen-Chips und Fälligkeitsdatum. -->
     <string name="doc_row_due">Fällig %1$s</string>

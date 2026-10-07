@@ -3,10 +3,6 @@
     <!-- تحديد نص صفحة ممسوحة ضوئيًا ونسخه في المعاينة. -->
     <string name="page_preview_select_text">تحديد النص</string>
     <string name="page_preview_select_text_unavailable">لا يوجد نص قابل للتحديد في هذه الصفحة</string>
-    <string name="page_preview_select_all">تحديد الكل</string>
-    <string name="page_preview_select_copy">نسخ</string>
-    <string name="page_preview_select_share">مشاركة</string>
-    <string name="page_preview_select_copied">تم النسخ</string>
 
     <!-- صف في قائمة المستندات: شارات الأشخاص وتاريخ الاستحقاق. -->
     <string name="doc_row_due">الاستحقاق %1$s</string>

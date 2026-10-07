@@ -70,8 +70,8 @@ private const val HINT_MILLIS = 1500L
  * — the deciding reason — a sheet's own vertical drag would fight panning a zoomed page.
  * It sits on top of the screen rather than replacing it, so what is underneath keeps its scroll position untouched.
  *
- * The recognised text of a page can be selected like text in an editor (long-press a word, drag the handles, copy or share); see
- * [ZoomablePage] and [PageTextLayout]. While a selection exists paging is off; back clears it before it closes the preview.
+ * The recognised text of a page is selected with the platform's own text selection (long-press a word, drag the native handles, copy
+ * or share from the system toolbar); see [ZoomablePage] and [OcrTextLayer].
  *
  * @param title shown while [preview] is not there (loading, or unavailable); the loaded document's own title replaces it
  * @param preview the pages, or null while [loading] or when the document can't be previewed
@@ -89,10 +89,8 @@ fun PagePreviewDialog(
     onOpenDocument: ((pageNumber: Int) -> Unit)?,
     onPageShown: ((pageNumber: Int) -> Unit)? = null,
 ) {
-    // Transient: lives and dies with the dialog.
-    var selection by remember { mutableStateOf<TextSelection?>(null) }
     Dialog(
-        onDismissRequest = { if (selection != null) selection = null else onClose() },
+        onDismissRequest = onClose,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
@@ -114,7 +112,7 @@ fun PagePreviewDialog(
                         }
                     }
                 } else {
-                    PreviewPager(preview, initialPageIndex, onClose, onOpenDocument, onPageShown, selection) { selection = it }
+                    PreviewPager(preview, initialPageIndex, onClose, onOpenDocument, onPageShown)
                 }
             }
         }
@@ -128,8 +126,6 @@ private fun ColumnScope.PreviewPager(
     onClose: () -> Unit,
     onOpenDocument: ((pageNumber: Int) -> Unit)?,
     onPageShown: ((pageNumber: Int) -> Unit)?,
-    selection: TextSelection?,
-    onSelectionChange: (TextSelection?) -> Unit,
 ) {
     val pages = preview.pages
     val pagerState = rememberPagerState(
@@ -154,9 +150,6 @@ private fun ColumnScope.PreviewPager(
             showAllText = false
         }
     }
-    // A selection belongs to its page; paging is off while one exists, so this only matters if the pages change under it.
-    LaunchedEffect(pagerState.currentPage) { onSelectionChange(null) }
-
     PreviewHeader(
         title = stringResource(R.string.page_preview_title_page, preview.title, pagerState.currentPage + 1, pages.size),
         onClose = onClose,
@@ -191,15 +184,11 @@ private fun ColumnScope.PreviewPager(
     val bottomPx = maxOf(dialogBottomInsetPx(context), measuredPx)
     HorizontalPager(
         state = pagerState,
-        // Paging is off while text is selected, so dragging a handle never fights the pager.
-        userScrollEnabled = selection == null,
         modifier = Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { measuredPx = windowOverlapUnderBarPx(view, context) },
     ) { index ->
         ZoomablePage(
             page = pages[index],
             description = stringResource(R.string.page_preview_page_description, index + 1, pages.size, preview.title),
-            selection = if (index == pagerState.currentPage) selection else null,
-            onSelectionChange = onSelectionChange,
             showAllText = showAllText && index == pagerState.currentPage,
         )
     }

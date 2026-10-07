@@ -44,10 +44,6 @@
     <!-- Selecting and copying the text of a scanned page in the preview. -->
     <string name="page_preview_select_text">Select text</string>
     <string name="page_preview_select_text_unavailable">No selectable text on this page</string>
-    <string name="page_preview_select_all">Select all</string>
-    <string name="page_preview_select_copy">Copy</string>
-    <string name="page_preview_select_share">Share</string>
-    <string name="page_preview_select_copied">Copied</string>
 
     <!-- "Report this answer" on an AI answer: opens an e-mail draft the user sends themselves. -->
     <string name="report_answer_action">Report this answer</string>
