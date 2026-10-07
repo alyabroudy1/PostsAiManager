@@ -9,8 +9,14 @@ import com.postsaimanager.core.domain.form.ObserveSavedDetailsUseCase
 import com.postsaimanager.core.domain.form.RememberDetailUseCase
 import com.postsaimanager.core.model.FactSource
 import com.postsaimanager.core.model.ProfileFact
+import com.postsaimanager.core.domain.contacts.ObserveOrganisationContactsUseCase
+import com.postsaimanager.core.domain.contacts.SetHouseholdRoleUseCase
+import com.postsaimanager.core.model.ContactPerson
+import com.postsaimanager.core.model.HouseholdRole
+import com.postsaimanager.core.model.ProfileKind
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.Relationship
+import com.postsaimanager.core.testing.FakeContactRepository
 import com.postsaimanager.core.testing.FakeProfileFactRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
@@ -25,10 +31,13 @@ class ProfileDetailViewModelTest {
 
     private val profiles = FakeProfileRepository()
     private val facts = FakeProfileFactRepository()
+    private val contacts = FakeContactRepository()
 
     private fun viewModel(id: String) = ProfileDetailViewModel(
         SavedStateHandle(mapOf(ProfileDetailViewModel.ARG_PROFILE_ID to id)),
         profiles,
+        SetHouseholdRoleUseCase(profiles),
+        ObserveOrganisationContactsUseCase(contacts),
         ObserveSavedDetailsUseCase(facts),
         RememberDetailUseCase(profiles, facts),
         ForgetDetailUseCase(facts),
@@ -102,15 +111,68 @@ class ProfileDetailViewModelTest {
     }
 
     @Test
-    fun `changing the type drops a relationship that no longer applies`() = runTest {
+    fun `changing the kind to organisation drops the role, relationship and birth date`() = runTest {
         profiles.seed(ahmad().copy(birthDate = "2019-03-12"))
         val vm = viewModel("ahmad")
         vm.uiState.test {
-            vm.setType(ProfileType.AUTHORITY)
+            vm.setKind(ProfileKind.ORGANISATION)
 
             val draft = expectMostRecentItem().draft!!
+            assertThat(draft.householdRole).isNull()
             assertThat(draft.relationship).isNull()
             assertThat(draft.birthDate).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a changed household role is applied on save through the use case, not before`() = runTest {
+        profiles.seed(ahmad())
+        val vm = viewModel("ahmad")
+        vm.uiState.test {
+            vm.setRole(null)
+            assertThat(profiles.getProfileById("ahmad").let { (it as com.postsaimanager.core.common.result.PamResult.Success).data.householdRole })
+                .isEqualTo(HouseholdRole.MEMBER)
+
+            vm.save()
+
+            val stored = (profiles.getProfileById("ahmad") as com.postsaimanager.core.common.result.PamResult.Success).data
+            assertThat(stored.householdRole).isNull()
+            assertThat(stored.relationship).isNull()
+            assertThat(expectMostRecentItem().finished).isTrue()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `Me cannot be cleared from the editor, the save reports it`() = runTest {
+        profiles.seed(testProfile(id = "me", name = "Mo", type = ProfileType.USER_SELF))
+        val vm = viewModel("me")
+        vm.uiState.test {
+            assertThat(expectMostRecentItem().selfLocked).isTrue()
+            vm.setRole(null)
+            vm.save()
+
+            assertThat(vm.message.value).isNotNull()
+            assertThat(expectMostRecentItem().finished).isFalse()
+            val stored = (profiles.getProfileById("me") as com.postsaimanager.core.common.result.PamResult.Success).data
+            assertThat(stored.isSelf).isTrue()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `an organisation shows its contacts, current first`() = runTest {
+        profiles.seed(testProfile(id = "jc", name = "Jobcenter", type = ProfileType.AUTHORITY))
+        contacts.seed(
+            ContactPerson("c1", "jc", "Nadine Beispiel", firstSeen = 1, lastSeen = 10),
+            ContactPerson("c2", "jc", "Frau Müller", firstSeen = 20, lastSeen = 30),
+        )
+
+        viewModel("jc").uiState.test {
+            val found = expectMostRecentItem().contacts
+            assertThat(found.current?.name).isEqualTo("Frau Müller")
+            assertThat(found.earlier.map { it.name }).containsExactly("Nadine Beispiel")
             cancelAndIgnoreRemainingEvents()
         }
     }

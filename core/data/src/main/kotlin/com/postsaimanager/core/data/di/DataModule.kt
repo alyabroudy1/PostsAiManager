@@ -1,5 +1,7 @@
 package com.postsaimanager.core.data.di
 
+import com.postsaimanager.core.data.repository.ContactRepositoryImpl
+import com.postsaimanager.core.domain.repository.ContactRepository
 import com.postsaimanager.core.data.repository.ConversationRepositoryImpl
 import com.postsaimanager.core.data.repository.DocumentChunkRepositoryImpl
 import com.postsaimanager.core.data.repository.DocumentProcessingPipeline
@@ -43,6 +45,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindProfileRepository(impl: ProfileRepositoryImpl): ProfileRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindContactRepository(impl: ContactRepositoryImpl): ContactRepository
 
     @Binds
     @Singleton

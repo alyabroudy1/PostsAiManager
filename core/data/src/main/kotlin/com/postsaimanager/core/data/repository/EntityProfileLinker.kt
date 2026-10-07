@@ -11,7 +11,7 @@ import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EntityKind
 import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.Profile
-import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.model.ProfileKind
 import com.postsaimanager.core.model.RecognisedEntity
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -110,7 +110,8 @@ class EntityProfileLinker @Inject constructor(
         val now = System.currentTimeMillis()
         val profile = Profile(
             id = UuidGenerator.generate(),
-            type = action.profileType,
+            kind = action.profileType.kind,
+            householdRole = action.profileType.householdRole,
             name = action.name,
             organization = action.organization,
             sourceDocumentId = documentId,
@@ -148,7 +149,7 @@ class EntityProfileLinker @Inject constructor(
         // profile that merely shares its `organization` string (see findBestMatch's doc).
         val (profile, confidence) = profileMatcher.findBestMatch(
             name, organization,
-            profileType = { type -> isOrg == (type == ProfileType.AUTHORITY) },
+            profileKind = { kind -> isOrg == (kind == ProfileKind.ORGANISATION) },
         )
         profile ?: return null
 

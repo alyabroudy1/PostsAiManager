@@ -92,7 +92,7 @@ class ObserveDocumentListItemsUseCaseTest {
     ) = ObserveDocumentListItemsUseCase(repo, names, clock, profileRepository, ConcernedPeopleTagsUseCase())
 
     private fun profile(id: String, name: String, type: ProfileType = ProfileType.FAMILY_MEMBER) =
-        Profile(id = id, type = type, name = name, createdAt = 0L, modifiedAt = 0L)
+        Profile(id = id, kind = type.kind, householdRole = type.householdRole, name = name, createdAt = 0L, modifiedAt = 0L)
 
     // ── people ──
 

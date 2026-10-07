@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- أنواع الملفات -->
+    <string name="profile_type_self">أنا</string>
+    <string name="profile_type_family">فرد من العائلة</string>
+    <string name="profile_type_person">شخص آخر</string>
+    <string name="profile_type_organisation">جهة</string>
+
+    <!-- صلة القرابة (بي) -->
+    <string name="relationship_partner">الشريك</string>
+    <string name="relationship_child">الابن أو الابنة</string>
+    <string name="relationship_parent">أحد الوالدين</string>
+    <string name="relationship_relative">قريب</string>
+    <string name="relationship_friend">صديق</string>
+    <string name="relationship_other">آخر</string>
+
+    <!-- القائمة -->
+    <string name="profiles_add_person">إضافة شخص</string>
+    <string name="profiles_section_household">أسرتي</string>
+    <string name="profiles_section_organisations">الجهات</string>
+    <string name="profiles_section_people">أشخاص آخرون</string>
+    <plurals name="profile_contacts_count">
+        <item quantity="zero">%d جهة اتصال</item>
+        <item quantity="one">جهة اتصال واحدة</item>
+        <item quantity="two">جهتا اتصال</item>
+        <item quantity="few">%d جهات اتصال</item>
+        <item quantity="many">%d جهة اتصال</item>
+        <item quantity="other">%d جهة اتصال</item>
+    </plurals>
+
+    <!-- جهات اتصال الجهة -->
+    <string name="contacts_title">جهات الاتصال</string>
+    <string name="contacts_empty">لا توجد جهات اتصال بعد.</string>
+    <string name="contacts_current">جهة الاتصال الحالية</string>
+    <string name="contacts_earlier">سابقًا</string>
+    <string name="contacts_last_seen">آخر رسالة %1$s</string>
+    <string name="contacts_inactive">لم يعد مسؤولًا</string>
+
+    <!-- النوع والأسرة -->
+    <string name="profile_kind_person">شخص</string>
+    <string name="profile_field_household">الأسرة</string>
+    <string name="profile_household_none">ليس من أسرتي</string>
+
+    <!-- صفحة التفاصيل -->
+    <string name="profile_detail_title_new">شخص جديد</string>
+    <string name="profile_detail_save">حفظ</string>
+    <string name="profile_detail_not_found">هذا الملف لم يعد موجودًا.</string>
+    <string name="profile_field_name">الاسم</string>
+    <string name="profile_field_type">النوع</string>
+    <string name="profile_field_relationship">صلتي به</string>
+    <string name="profile_field_birth_date">تاريخ الميلاد</string>
+    <string name="profile_field_birth_date_none">غير محدد</string>
+    <string name="profile_field_birth_date_clear">مسح تاريخ الميلاد</string>
+    <string name="profile_field_street">الشارع ورقم المبنى</string>
+    <string name="profile_field_postal_code">الرمز البريدي</string>
+    <string name="profile_field_city">المدينة</string>
+    <string name="profile_field_phone">الهاتف</string>
+    <string name="profile_field_email">البريد الإلكتروني</string>
+    <string name="profile_section_contact">العنوان والاتصال</string>
+    <string name="profile_sensitive_title">حساس</string>
+    <string name="profile_sensitive_explanation">تبقى مستندات الشخص الحساس خارج محادثة كل المستندات.</string>
+    <string name="profile_me_taken">ملف آخر هو «أنا» بالفعل.</string>
+    <string name="date_picker_ok">موافق</string>
+    <string name="date_picker_cancel">إلغاء</string>
+
+    <!-- التفاصيل المحفوظة -->
+    <string name="saved_details_title">التفاصيل المحفوظة</string>
+    <string name="saved_details_empty">لم يُحفظ شيء بعد. يمكن تذكّر التفاصيل التي تؤكدها أثناء تعبئة نموذج هنا.</string>
+    <string name="saved_details_save_first">احفظ هذا الشخص أولًا لإضافة التفاصيل.</string>
+    <string name="saved_details_add">إضافة تفصيل</string>
+    <string name="saved_details_hidden">مخفي. اضغط للإظهار.</string>
+    <string name="saved_details_edit">تعديل التفصيل</string>
+    <string name="saved_details_delete">حذف التفصيل</string>
+    <string name="saved_details_deleted">تمت إزالة التفصيل</string>
+    <string name="saved_details_undo">تراجع</string>
+    <string name="saved_details_source_user">أضفتَه أنت · %1$s</string>
+    <string name="saved_details_source_form">من نموذج · %1$s</string>
+    <string name="saved_details_source_document">من رسالة · %1$s</string>
+    <string name="saved_details_dialog_add">إضافة تفصيل</string>
+    <string name="saved_details_dialog_edit">تعديل التفصيل</string>
+    <string name="saved_details_dialog_key">أي نوع من التفاصيل؟</string>
+    <string name="saved_details_dialog_value">القيمة</string>
+    <string name="saved_details_dialog_save">حفظ</string>
+    <string name="saved_details_dialog_cancel">إلغاء</string>
+</resources>

@@ -51,7 +51,8 @@ import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.FormDataKey
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileFact
-import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.model.HouseholdRole
+import com.postsaimanager.core.model.ProfileKind
 import com.postsaimanager.core.model.Relationship
 import java.time.Instant
 import java.time.LocalDate
@@ -93,7 +94,8 @@ fun ProfileDetailScreen(
         snackbarHostState = snackbarHostState,
         onNavigateBack = onNavigateBack,
         onUpdate = viewModel::update,
-        onType = viewModel::setType,
+        onKind = viewModel::setKind,
+        onRole = viewModel::setRole,
         onRelationship = viewModel::setRelationship,
         onSave = viewModel::save,
         detailActions = SavedDetailActions(save = viewModel::saveDetail, delete = viewModel::deleteDetail),
@@ -110,7 +112,8 @@ fun ProfileDetailContent(
     snackbarHostState: SnackbarHostState,
     onNavigateBack: () -> Unit,
     onUpdate: ((Profile) -> Profile) -> Unit,
-    onType: (ProfileType) -> Unit,
+    onKind: (ProfileKind) -> Unit,
+    onRole: (HouseholdRole?) -> Unit,
     onRelationship: (Relationship?) -> Unit,
     onSave: () -> Unit,
     detailActions: SavedDetailActions,
@@ -159,20 +162,32 @@ fun ProfileDetailContent(
 
                 Text(stringResource(R.string.profile_field_type), style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TypeChip(ProfileType.USER_SELF, R.string.profile_type_self, draft.type, enabled = !state.selfTaken || draft.type == ProfileType.USER_SELF, onType)
-                    TypeChip(ProfileType.FAMILY_MEMBER, R.string.profile_type_family, draft.type, true, onType)
-                    TypeChip(ProfileType.PERSON, R.string.profile_type_person, draft.type, true, onType)
-                    TypeChip(ProfileType.AUTHORITY, R.string.profile_type_organisation, draft.type, true, onType)
-                }
-                if (state.selfTaken && draft.type != ProfileType.USER_SELF) {
-                    Text(
-                        stringResource(R.string.profile_me_taken),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    KindChip(ProfileKind.PERSON, R.string.profile_kind_person, draft.kind, !state.selfLocked, onKind)
+                    KindChip(ProfileKind.ORGANISATION, R.string.profile_type_organisation, draft.kind, !state.selfLocked, onKind)
                 }
 
-                if (draft.type == ProfileType.FAMILY_MEMBER) {
+                if (draft.kind == ProfileKind.PERSON) {
+                    Text(stringResource(R.string.profile_field_household), style = MaterialTheme.typography.labelLarge)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        RoleChip("NONE", R.string.profile_household_none, draft.householdRole == null, !state.selfLocked) { onRole(null) }
+                        RoleChip(
+                            HouseholdRole.SELF.name, R.string.profile_type_self, draft.householdRole == HouseholdRole.SELF,
+                            enabled = !state.selfTaken && !state.selfLocked || draft.householdRole == HouseholdRole.SELF,
+                        ) { onRole(HouseholdRole.SELF) }
+                        RoleChip(HouseholdRole.MEMBER.name, R.string.profile_type_family, draft.householdRole == HouseholdRole.MEMBER, !state.selfLocked) {
+                            onRole(HouseholdRole.MEMBER)
+                        }
+                    }
+                    if (state.selfTaken && draft.householdRole != HouseholdRole.SELF) {
+                        Text(
+                            stringResource(R.string.profile_me_taken),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                if (draft.householdRole == HouseholdRole.MEMBER) {
                     Text(stringResource(R.string.profile_field_relationship), style = MaterialTheme.typography.labelLarge)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Relationship.entries.forEach { relationship ->
@@ -186,7 +201,7 @@ fun ProfileDetailContent(
                     }
                 }
 
-                if (draft.type != ProfileType.AUTHORITY) {
+                if (draft.kind != ProfileKind.ORGANISATION) {
                     BirthDateField(draft.birthDate) { iso -> onUpdate { it.copy(birthDate = iso) } }
                 }
 
@@ -215,6 +230,11 @@ fun ProfileDetailContent(
                     )
                 }
 
+                if (draft.kind == ProfileKind.ORGANISATION && !state.isNew) {
+                    HorizontalDivider()
+                    ContactsSection(state.contacts)
+                }
+
                 HorizontalDivider()
                 SavedDetailsSection(
                     facts = state.facts,
@@ -228,19 +248,30 @@ fun ProfileDetailContent(
 }
 
 @Composable
-private fun TypeChip(
-    type: ProfileType,
+private fun KindChip(
+    kind: ProfileKind,
     label: Int,
-    selected: ProfileType,
+    selected: ProfileKind,
     enabled: Boolean,
-    onType: (ProfileType) -> Unit,
+    onKind: (ProfileKind) -> Unit,
 ) {
     FilterChip(
-        selected = selected == type,
-        onClick = { onType(type) },
+        selected = selected == kind,
+        onClick = { onKind(kind) },
         enabled = enabled,
         label = { Text(stringResource(label)) },
-        modifier = Modifier.testTag("type_${type.name}"),
+        modifier = Modifier.testTag("kind_${kind.name}"),
+    )
+}
+
+@Composable
+private fun RoleChip(name: String, label: Int, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        label = { Text(stringResource(label)) },
+        modifier = Modifier.testTag("role_$name"),
     )
 }
 
@@ -322,9 +353,10 @@ internal fun relationshipLabel(relationship: Relationship): Int = when (relation
     Relationship.OTHER -> R.string.relationship_other
 }
 
-internal fun typeLabel(type: ProfileType): Int = when (type) {
-    ProfileType.USER_SELF -> R.string.profile_type_self
-    ProfileType.FAMILY_MEMBER -> R.string.profile_type_family
-    ProfileType.PERSON -> R.string.profile_type_person
-    ProfileType.AUTHORITY -> R.string.profile_type_organisation
+/** The short label of what a profile is, for lists: "Me", "Family member", "Other person" or "Organisation". */
+internal fun profileLabel(profile: Profile): Int = when {
+    profile.kind == ProfileKind.ORGANISATION -> R.string.profile_type_organisation
+    profile.householdRole == HouseholdRole.SELF -> R.string.profile_type_self
+    profile.householdRole == HouseholdRole.MEMBER -> R.string.profile_type_family
+    else -> R.string.profile_type_person
 }

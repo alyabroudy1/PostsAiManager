@@ -3,7 +3,7 @@ package com.postsaimanager.core.data.repository
 import com.postsaimanager.core.common.result.getOrNull
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Profile
-import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.model.ProfileKind
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,18 +25,18 @@ class ProfileMatcher @Inject constructor(
         organization: String?,
         email: String? = null,
         /**
-         * Restricts which [ProfileType]s are eligible, applied *before* scoring rather than
+         * Restricts which [ProfileKind]s are eligible, applied *before* scoring rather than
          * to the winner after. `findSimilarProfiles` matches on the `organization` column
          * alone with no notion of type, so an organisation's own profile and a caseworker's
          * profile at that organisation can tie on an organisation-only search — filtering
          * only the winner would risk keeping the wrong one of the two on that tie; filtering
          * the pool first means the runner-up is still found instead of nothing at all.
          */
-        profileType: ((ProfileType) -> Boolean)? = null,
+        profileKind: ((ProfileKind) -> Boolean)? = null,
     ): Pair<Profile?, Float> {
         val searchName = organization ?: name ?: return null to 0f
         val similar = profileRepository.findSimilarProfiles(searchName, organization).getOrNull() ?: emptyList()
-        val candidates = if (profileType != null) similar.filter { profileType(it.type) } else similar
+        val candidates = if (profileKind != null) similar.filter { profileKind(it.kind) } else similar
 
         // Score EVERY candidate and take the highest. Taking `similar.first()` before any
         // scoring meant the "best match" was whatever order Room happened to return — a

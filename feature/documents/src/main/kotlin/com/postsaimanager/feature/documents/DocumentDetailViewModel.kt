@@ -15,7 +15,7 @@ import com.postsaimanager.core.domain.document.ReadAgainAsFamilyUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.InstalledModelsRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
-import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.model.HouseholdRole
 import kotlinx.coroutines.flow.combine
 import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
 import com.postsaimanager.core.model.DocumentPreview
@@ -110,7 +110,7 @@ class DocumentDetailViewModel @Inject constructor(
     /** What the Pages card needs beyond the document: whether an AI model is installed, and the "Me" profile's name. */
     val pagesContext: StateFlow<PagesContext> = combine(
         installedModels.installed.map { it.isNotEmpty() }.catch { emit(true) },
-        profileRepository.getProfilesByType(ProfileType.USER_SELF).map { it.firstOrNull()?.name }.catch { emit(null) },
+        profileRepository.getProfilesByRole(HouseholdRole.SELF).map { it.firstOrNull()?.name }.catch { emit(null) },
     ) { aiInstalled, selfName -> PagesContext(aiInstalled, selfName) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PagesContext())
 

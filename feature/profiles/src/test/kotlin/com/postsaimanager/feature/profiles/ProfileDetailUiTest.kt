@@ -17,7 +17,10 @@ import com.postsaimanager.core.domain.form.FormDataKeys
 import com.postsaimanager.core.model.FactSource
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileFact
-import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.domain.contacts.OrganisationContacts
+import com.postsaimanager.core.model.ContactPerson
+import com.postsaimanager.core.model.HouseholdRole
+import com.postsaimanager.core.model.ProfileKind
 import com.postsaimanager.core.model.Relationship
 import org.junit.Rule
 import org.junit.Test
@@ -35,11 +38,13 @@ class ProfileDetailUiTest {
 
     private val saved = mutableListOf<Pair<String, String>>()
     private val deleted = mutableListOf<String>()
-    private val types = mutableListOf<ProfileType>()
+    private val kinds = mutableListOf<ProfileKind>()
+    private val roles = mutableListOf<HouseholdRole?>()
     private var draft = profile()
 
-    private fun profile(type: ProfileType = ProfileType.FAMILY_MEMBER) = Profile(
-        id = "ahmad", type = type, name = "Ahmad", relationship = Relationship.CHILD, createdAt = 0, modifiedAt = 0,
+    private fun profile(kind: ProfileKind = ProfileKind.PERSON, role: HouseholdRole? = HouseholdRole.MEMBER) = Profile(
+        id = "ahmad", kind = kind, householdRole = role, name = "Ahmad", relationship = Relationship.CHILD.takeIf { role == HouseholdRole.MEMBER },
+        createdAt = 0, modifiedAt = 0,
     )
 
     private fun fact(key: String, value: String, sensitive: Boolean, source: FactSource = FactSource.FORM_ANSWER) =
@@ -49,18 +54,24 @@ class ProfileDetailUiTest {
         facts: List<ProfileFact> = emptyList(),
         isNew: Boolean = false,
         selfTaken: Boolean = false,
+        selfLocked: Boolean = false,
+        contacts: OrganisationContacts = OrganisationContacts(null, emptyList()),
         name: String = "Ahmad",
     ) {
         draft = draft.copy(name = name)
         compose.setContent {
             MaterialTheme {
                 ProfileDetailContent(
-                    state = ProfileDetailUiState(draft = draft, loaded = true, facts = facts, isNew = isNew, selfTaken = selfTaken),
+                    state = ProfileDetailUiState(
+                        draft = draft, loaded = true, facts = facts, isNew = isNew, selfTaken = selfTaken, selfLocked = selfLocked,
+                        contacts = contacts,
+                    ),
                     availableKeys = FormDataKeys.ALL.filter { it.profileColumn == null && it.id !in facts.map { f -> f.key } },
                     snackbarHostState = SnackbarHostState(),
                     onNavigateBack = {},
                     onUpdate = {},
-                    onType = { types += it },
+                    onKind = { kinds += it },
+                    onRole = { roles += it },
                     onRelationship = {},
                     onSave = {},
                     detailActions = SavedDetailActions(save = { k, v -> saved += k to v }, delete = { deleted += it.key }),
@@ -127,15 +138,60 @@ class ProfileDetailUiTest {
     }
 
     @Test
-    fun `relationship chips show for a family member only, and Me is disabled when taken`() {
+    fun `relationship chips show for a household member only, and Me is disabled when taken`() {
         show(selfTaken = true)
 
         compose.onNodeWithTag("relationship_CHILD").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithTag("type_USER_SELF").assertIsNotEnabled()
+        compose.onNodeWithTag("role_SELF").assertIsNotEnabled()
         compose.onNodeWithText("Another profile is already Me.").assertIsDisplayed()
-        compose.onNodeWithTag("type_PERSON").performClick()
+        compose.onNodeWithTag("role_NONE").performClick()
+        compose.onNodeWithTag("kind_ORGANISATION").performClick()
 
-        assertThat(types).containsExactly(ProfileType.PERSON)
+        assertThat(roles).containsExactly(null)
+        assertThat(kinds).containsExactly(ProfileKind.ORGANISATION)
+    }
+
+    @Test
+    fun `Me cannot be left from the editor`() {
+        draft = profile(role = HouseholdRole.SELF)
+        show(selfLocked = true)
+
+        compose.onNodeWithTag("role_NONE").assertIsNotEnabled()
+        compose.onNodeWithTag("role_MEMBER").assertIsNotEnabled()
+        compose.onNodeWithTag("kind_ORGANISATION").assertIsNotEnabled()
+        compose.onNodeWithTag("relationship_CHILD").assertDoesNotExist()
+    }
+
+    @Test
+    fun `an organisation has no household choice but lists its contacts, current then earlier`() {
+        draft = profile(kind = ProfileKind.ORGANISATION, role = null)
+        show(
+            contacts = OrganisationContacts(
+                current = ContactPerson("c2", "ahmad", "Frau Müller", title = "Sachbearbeiterin", phone = "030 123", firstSeen = 1, lastSeen = 2),
+                earlier = listOf(ContactPerson("c1", "ahmad", "Nadine Beispiel", firstSeen = 1, lastSeen = 1, active = false)),
+            ),
+        )
+
+        compose.onNodeWithTag("role_SELF").assertDoesNotExist()
+        compose.onNodeWithTag("contacts_section").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Current contact").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Frau Müller").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Earlier").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Nadine Beispiel").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("No longer responsible").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `an organisation without contacts says so, a person has no contacts section`() {
+        draft = profile(kind = ProfileKind.ORGANISATION, role = null)
+        show()
+        compose.onNodeWithTag("contacts_empty").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `a person has no contacts section`() {
+        show()
+        compose.onNodeWithTag("contacts_section").assertDoesNotExist()
     }
 
     @Test

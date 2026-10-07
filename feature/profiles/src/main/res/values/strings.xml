@@ -16,6 +16,26 @@
 
     <!-- List -->
     <string name="profiles_add_person">Add person</string>
+    <string name="profiles_section_household">My household</string>
+    <string name="profiles_section_organisations">Organisations</string>
+    <string name="profiles_section_people">Other people</string>
+    <plurals name="profile_contacts_count">
+        <item quantity="one">%d contact</item>
+        <item quantity="other">%d contacts</item>
+    </plurals>
+
+    <!-- Organisation contacts -->
+    <string name="contacts_title">Contacts</string>
+    <string name="contacts_empty">No contacts yet.</string>
+    <string name="contacts_current">Current contact</string>
+    <string name="contacts_earlier">Earlier</string>
+    <string name="contacts_last_seen">Last letter %1$s</string>
+    <string name="contacts_inactive">No longer responsible</string>
+
+    <!-- Kind and household -->
+    <string name="profile_kind_person">Person</string>
+    <string name="profile_field_household">Household</string>
+    <string name="profile_household_none">Not in my household</string>
 
     <!-- Detail screen -->
     <string name="profile_detail_title_new">New person</string>

@@ -13,7 +13,8 @@ import com.postsaimanager.core.data.database.entity.ProfileEntity
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileRole
-import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.model.HouseholdRole
+import com.postsaimanager.core.model.ProfileKind
 import com.postsaimanager.core.model.Relationship
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -32,15 +33,18 @@ class ProfileRepositoryImpl @Inject constructor(
     override fun getProfiles(): Flow<List<Profile>> =
         profileDao.observeAll().map { it.map(::toDomain) }.flowOn(ioDispatcher)
 
-    override fun getProfilesByType(type: ProfileType): Flow<List<Profile>> =
-        profileDao.observeByType(type.name).map { it.map(::toDomain) }.flowOn(ioDispatcher)
+    override fun getProfilesByKind(kind: ProfileKind): Flow<List<Profile>> =
+        profileDao.observeByKind(kind.name).map { it.map(::toDomain) }.flowOn(ioDispatcher)
+
+    override fun getProfilesByRole(role: HouseholdRole): Flow<List<Profile>> =
+        profileDao.observeByRole(role.name).map { it.map(::toDomain) }.flowOn(ioDispatcher)
 
     override fun getProfilesForDocument(documentId: String): Flow<List<Pair<Profile, ProfileRole>>> =
         profileDao.observeProfilesForDocument(documentId).map { list ->
             list.map { pwr ->
                 Pair(
                     Profile(
-                        id = pwr.id, type = ProfileType.valueOf(pwr.type), name = pwr.name,
+                        id = pwr.id, kind = kindOf(pwr.kind), householdRole = roleOf(pwr.householdRole), name = pwr.name,
                         organization = pwr.organization, department = pwr.department,
                         street = pwr.street, city = pwr.city, postalCode = pwr.postalCode,
                         country = pwr.country, phone = pwr.phone, email = pwr.email,
@@ -131,10 +135,10 @@ class ProfileRepositoryImpl @Inject constructor(
             } catch (e: Exception) { PamResult.Error(PamError.DatabaseError(cause = e)) }
         }
 
-    /** "Me" ([ProfileType.USER_SELF]) is unique: a second one is refused rather than silently demoting the first. */
+    /** "Me" ([HouseholdRole.SELF]) is unique: a second one is refused rather than silently demoting the first. */
     private suspend fun secondSelfError(profile: Profile): PamError? =
-        if (profile.type == ProfileType.USER_SELF && profileDao.findOtherSelfId(profile.id) != null) {
-            PamError.ValidationError("type", "there is already a \"Me\" profile")
+        if (profile.isSelf && profileDao.findOtherSelfId(profile.id) != null) {
+            PamError.ValidationError("householdRole", "there is already a \"Me\" profile")
         } else {
             null
         }
@@ -142,8 +146,12 @@ class ProfileRepositoryImpl @Inject constructor(
     private fun relationshipOf(name: String?): Relationship? =
         Relationship.entries.firstOrNull { it.name == name }
 
+    private fun kindOf(name: String): ProfileKind = ProfileKind.entries.firstOrNull { it.name == name } ?: ProfileKind.PERSON
+
+    private fun roleOf(name: String?): HouseholdRole? = HouseholdRole.entries.firstOrNull { it.name == name }
+
     private fun toDomain(entity: ProfileEntity) = Profile(
-        id = entity.id, type = ProfileType.valueOf(entity.type), name = entity.name,
+        id = entity.id, kind = kindOf(entity.kind), householdRole = roleOf(entity.householdRole), name = entity.name,
         organization = entity.organization, department = entity.department,
         street = entity.street, city = entity.city, postalCode = entity.postalCode,
         country = entity.country, phone = entity.phone, email = entity.email,
@@ -156,7 +164,9 @@ class ProfileRepositoryImpl @Inject constructor(
     )
 
     private fun toEntity(profile: Profile) = ProfileEntity(
-        id = profile.id, type = profile.type.name, name = profile.name,
+        // `type` is still written (derived 1:1) for one version, so a build that reads it keeps working.
+        id = profile.id, type = profile.type.name, kind = profile.kind.name, householdRole = profile.householdRole?.name,
+        name = profile.name,
         organization = profile.organization, department = profile.department,
         street = profile.street, city = profile.city, postalCode = profile.postalCode,
         country = profile.country, phone = profile.phone, email = profile.email,

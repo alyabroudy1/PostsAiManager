@@ -2,6 +2,7 @@ package com.postsaimanager.core.data.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import com.postsaimanager.core.data.database.dao.ContactDao
 import com.postsaimanager.core.data.database.dao.ConversationDao
 import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
@@ -35,8 +36,11 @@ import com.postsaimanager.core.data.database.entity.*
         ProfileFactEntity::class,
         FormFillEntity::class,
         FormFieldEntity::class,
+        ContactPersonEntity::class,
+        DocumentContactEntity::class,
+        OrganisationReferenceEntity::class,
     ],
-    version = 21,
+    version = 22,
     exportSchema = true,
 )
 abstract class PamDatabase : RoomDatabase() {
@@ -50,6 +54,7 @@ abstract class PamDatabase : RoomDatabase() {
     abstract fun dismissedEntityDao(): DismissedEntityDao
     abstract fun profileFactDao(): ProfileFactDao
     abstract fun formFillDao(): FormFillDao
+    abstract fun contactDao(): ContactDao
 
     companion object {
         const val DATABASE_NAME = "pam_database"

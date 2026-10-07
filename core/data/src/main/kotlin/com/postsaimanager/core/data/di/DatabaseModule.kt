@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.postsaimanager.core.data.database.PamDatabase
 import com.postsaimanager.core.data.database.PamMigrations
+import com.postsaimanager.core.data.database.dao.ContactDao
 import com.postsaimanager.core.data.database.dao.ConversationDao
 import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
@@ -72,4 +73,7 @@ object DatabaseModule {
 
     @Provides
     fun provideFormFillDao(database: PamDatabase): FormFillDao = database.formFillDao()
+
+    @Provides
+    fun provideContactDao(database: PamDatabase): ContactDao = database.contactDao()
 }

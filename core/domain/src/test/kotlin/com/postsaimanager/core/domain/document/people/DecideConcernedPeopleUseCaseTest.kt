@@ -42,7 +42,7 @@ class DecideConcernedPeopleUseCaseTest {
     private val decide = DecideConcernedPeopleUseCase(profiles, documents, concerned)
 
     private fun profile(id: String, name: String, type: ProfileType = ProfileType.FAMILY_MEMBER) =
-        Profile(id = id, type = type, name = name, createdAt = 0L, modifiedAt = 0L)
+        Profile(id = id, kind = type.kind, householdRole = type.householdRole, name = name, createdAt = 0L, modifiedAt = 0L)
 
     private fun seedDocument(id: String, text: String, concernedIds: List<String>? = null) {
         documents.seed(testDocument(id = id, extractorVersion = "extraction-v2-10").copy(concernedProfileIds = concernedIds))

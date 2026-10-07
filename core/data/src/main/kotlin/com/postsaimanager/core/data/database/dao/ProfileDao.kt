@@ -15,8 +15,11 @@ interface ProfileDao {
     @Query("SELECT * FROM profiles ORDER BY name ASC")
     fun observeAll(): Flow<List<ProfileEntity>>
 
-    @Query("SELECT * FROM profiles WHERE type = :type ORDER BY name ASC")
-    fun observeByType(type: String): Flow<List<ProfileEntity>>
+    @Query("SELECT * FROM profiles WHERE kind = :kind ORDER BY name ASC")
+    fun observeByKind(kind: String): Flow<List<ProfileEntity>>
+
+    @Query("SELECT * FROM profiles WHERE householdRole = :role ORDER BY name ASC")
+    fun observeByRole(role: String): Flow<List<ProfileEntity>>
 
     @Query("SELECT * FROM profiles WHERE name LIKE '%' || :query || '%' OR organization LIKE '%' || :query || '%'")
     fun search(query: String): Flow<List<ProfileEntity>>
@@ -32,7 +35,7 @@ interface ProfileDao {
     suspend fun findSimilar(name: String, organization: String?): List<ProfileEntity>
 
     /** The id of another "Me" profile than [exceptId], or null. */
-    @Query("SELECT id FROM profiles WHERE type = 'USER_SELF' AND id != :exceptId LIMIT 1")
+    @Query("SELECT id FROM profiles WHERE householdRole = 'SELF' AND id != :exceptId LIMIT 1")
     suspend fun findOtherSelfId(exceptId: String): String?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -61,7 +64,8 @@ interface ProfileDao {
 
 data class ProfileWithRole(
     val id: String,
-    val type: String,
+    val kind: String,
+    val householdRole: String?,
     val name: String,
     val organization: String?,
     val department: String?,
