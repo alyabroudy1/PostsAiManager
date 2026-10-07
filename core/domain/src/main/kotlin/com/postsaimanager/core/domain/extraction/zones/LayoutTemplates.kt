@@ -204,7 +204,12 @@ object LayoutTemplates {
     /** The zones of a letter with no return line and no reference column: the date block is just the date (and a reference). */
     private val SINGLE_COLUMN_ZONES = dinZones(returnLine = false).map {
         if (it.zone == LetterZone.INFO_BLOCK) {
-            it.copy(hint = "This block is usually the date of the letter, sometimes with a reference.", asks = listOf(LETTER_DATE, REFERENCE, CUSTOMER_NO, EXTRAS_SCORED))
+            it.copy(
+                hint = "This block is usually the date of the letter, sometimes with a reference or the contact person.",
+                // The contact person is asked here as in every other template: a German letter read as a single-column one (its
+                // information block is one line wide) still prints "Ansprechpartner/in" there, and an unasked question finds nobody.
+                asks = listOf(LETTER_DATE, REFERENCE, CUSTOMER_NO, CONTACT, EXTRAS_SCORED),
+            )
         } else {
             it
         }
