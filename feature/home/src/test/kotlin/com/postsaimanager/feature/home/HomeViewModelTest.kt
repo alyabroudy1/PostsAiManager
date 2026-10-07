@@ -50,7 +50,28 @@ class HomeViewModelTest {
         ),
         documentProcessor = FakeDocumentProcessor(),
         observeModelBanner = ObserveModelBannerUseCase(ObserveSetupNeedUseCase(installedRepository, preferences), downloads),
+        importQueue = importQueue,
+        externalFlowGuard = com.postsaimanager.core.domain.applock.AppLockState(com.postsaimanager.core.testing.FakeMonotonicClock()),
     )
+
+    private val importQueue = com.postsaimanager.core.testing.FakeImportQueue()
+
+    @Test
+    fun `the import status follows the queue`() = runTest {
+        viewModel().importStatus.test {
+            assertThat(expectMostRecentItem()).isEqualTo(com.postsaimanager.core.domain.importing.ImportStatus())
+            importQueue.statusFlow.value = com.postsaimanager.core.domain.importing.ImportStatus(running = 1)
+            assertThat(awaitItem().running).isEqualTo(1)
+            importQueue.statusFlow.value = com.postsaimanager.core.domain.importing.ImportStatus(failed = 1)
+            assertThat(awaitItem().failed).isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `dismissing a failed import tells the queue`() {
+        viewModel().dismissImportFailures()
+        assertThat(importQueue.failuresDismissed).isEqualTo(1)
+    }
 
     private val downloadSummary = MutableStateFlow<DownloadSummary?>(null)
     private val downloads = object : DownloadActivity {

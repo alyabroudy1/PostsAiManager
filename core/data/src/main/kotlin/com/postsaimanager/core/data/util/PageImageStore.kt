@@ -62,6 +62,21 @@ class PageImageStore @Inject constructor(
             }
         }
 
+    /**
+     * Copies an imported PDF (a `file://` URI of the import's temporary copy) to `filesDir/documents/<documentId>/original.pdf` and
+     * returns its `file://` URI. It sits in the document's own folder, so [deleteDocumentImages] removes it with the pages. Throws
+     * when the copy fails, which `createDocument` treats like a failed page copy.
+     */
+    fun storeOriginal(documentId: String, sourceUri: String): String {
+        val docDir = File(documentsRoot, documentId).also { it.mkdirs() }
+        val target = File(docDir, ORIGINAL_NAME)
+        val source = Uri.parse(sourceUri)
+        context.contentResolver.openInputStream(source)?.use { input ->
+            target.outputStream().use { output -> input.copyTo(output) }
+        } ?: throw IllegalStateException("Could not open the original file")
+        return Uri.fromFile(target).toString()
+    }
+
     /** Removes a document's whole image directory. Safe to call on a document with none. */
     suspend fun deleteDocumentImages(documentId: String) {
         withContext(ioDispatcher) {
@@ -90,5 +105,6 @@ class PageImageStore @Inject constructor(
 
     private companion object {
         const val TAG = "PageImageStore"
+        const val ORIGINAL_NAME = "original.pdf"
     }
 }

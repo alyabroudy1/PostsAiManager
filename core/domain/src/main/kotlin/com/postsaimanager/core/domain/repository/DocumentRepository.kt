@@ -112,6 +112,9 @@ interface DocumentRepository {
     /** The live documents a model has read whose decision is still "not asked yet", newest first: the backfill's work list. */
     suspend fun getDocumentIdsAwaitingPeopleCheck(): List<String>
 
+    /** The earliest live (not trashed) document imported from the file or group with this SHA-256, or null. */
+    suspend fun findBySourceHash(hash: String): Document?
+
     // ── Trash — see documentation/07-document-pipeline.md, "Deleting documents" ──
 
     /** Trashed documents, most recently deleted first. Powers the "Recently deleted" screen. */

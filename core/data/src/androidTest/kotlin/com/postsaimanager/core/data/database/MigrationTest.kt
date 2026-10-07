@@ -1124,6 +1124,43 @@ class MigrationTest {
         }
     }
 
+    /** v20 (the installed shape) documents keep every row and gain NULL `sourceHash` and `originalFilePath`. Needs a device. */
+    @Test
+    fun migrate20To21_addsTheImportColumnsToDocuments() {
+        helper.createDatabase(TEST_DB, 20).apply {
+            seedDocumentAndField(this)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 21, true, PamMigrations.MIGRATION_20_21)
+
+        db.query("SELECT title, sourceHash, originalFilePath FROM documents WHERE id = 'doc-1'").use { c ->
+            assertTrue("the document survived", c.moveToFirst())
+            assertEquals("Rechnung", c.getString(0))
+            assertTrue(c.isNull(1))
+            assertTrue(c.isNull(2))
+        }
+    }
+
+    /** A v20 database that already has one of the columns migrates without a duplicate-column failure and keeps its value. */
+    @Test
+    fun migrate20To21_isIdempotentWhenAColumnAlreadyExists() {
+        helper.createDatabase(TEST_DB, 20).apply {
+            seedDocumentAndField(this)
+            execSQL("ALTER TABLE `documents` ADD COLUMN `sourceHash` TEXT")
+            execSQL("UPDATE documents SET sourceHash = 'abc' WHERE id = 'doc-1'")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 21, true, PamMigrations.MIGRATION_20_21)
+
+        db.query("SELECT sourceHash, originalFilePath FROM documents WHERE id = 'doc-1'").use { c ->
+            assertTrue("the document survived", c.moveToFirst())
+            assertEquals("abc", c.getString(0))
+            assertTrue(c.isNull(1))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

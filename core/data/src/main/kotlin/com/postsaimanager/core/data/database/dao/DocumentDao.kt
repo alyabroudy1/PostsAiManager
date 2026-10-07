@@ -47,6 +47,10 @@ interface DocumentDao {
     @Query("SELECT * FROM documents WHERE id = :id")
     suspend fun getById(id: String): DocumentEntity?
 
+    /** The earliest live (not trashed) document imported from the file or group with [hash], for "you added this file on ...". */
+    @Query("SELECT * FROM documents WHERE sourceHash = :hash AND deletedAt IS NULL ORDER BY createdAt ASC LIMIT 1")
+    suspend fun findBySourceHash(hash: String): DocumentEntity?
+
     @Query("""
         SELECT d.* FROM documents d
         INNER JOIN document_pages dp ON d.id = dp.documentId

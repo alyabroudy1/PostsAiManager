@@ -86,6 +86,17 @@ data class Document(
      * list's person chips. null: not asked yet (a backfill or the next check asks); empty: asked, nobody. Never set by name matching.
      */
     val concernedProfileIds: List<String>? = null,
+    /**
+     * SHA-256 (lower-case hex) of the file this document was imported from, so adding the same file again can be noticed. Null for a
+     * scan and for a document imported before this existed. For several images imported together it is the hash of their hashes.
+     */
+    val sourceHash: String? = null,
+    /**
+     * The original PDF kept privately (a `file://` URI inside the app's own storage), so "Open original" and "Share original" exist and
+     * a digital PDF's quality is not lost to the page images. Null when there is none. Deleted together with the document.
+     * At creation the use case passes where the file is now (a temporary copy); the repository moves it and stores the final location.
+     */
+    val originalFilePath: String? = null,
 ) {
     val isTrashed: Boolean get() = deletedAt != null
 

@@ -85,6 +85,16 @@ abstract class DataModule {
     @Singleton
     abstract fun bindDocumentExporter(impl: PdfGenerator): DocumentExporter
 
+    // ── Importing PDFs and images as documents ──
+
+    @Binds
+    @Singleton
+    abstract fun bindPageImageSource(impl: com.postsaimanager.core.data.importing.AndroidPageImageSource): com.postsaimanager.core.domain.importing.PageImageSource
+
+    @Binds
+    @Singleton
+    abstract fun bindImportQueue(impl: com.postsaimanager.core.data.importing.WorkManagerImportQueue): com.postsaimanager.core.domain.importing.ImportQueue
+
     // ── Agent skills: the bundled skills, and the app's one reminder scheduler ──
 
     @Binds

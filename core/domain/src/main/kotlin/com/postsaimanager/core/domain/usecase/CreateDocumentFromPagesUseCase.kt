@@ -23,9 +23,17 @@ class CreateDocumentFromPagesUseCase @Inject constructor(
 
     /**
      * @param pageImages where each page's image is (a `file://` or `content://` URI string), page 1 first; must not be empty
+     * @param sourceHash SHA-256 of the imported file (or group of files), so adding it again can be noticed; null for a scan
+     * @param originalFile where the imported PDF is now (a `file://` URI of a temporary copy); the repository keeps it with the
+     *   document. Null when there is no original to keep.
      * @return the new document's id, or the repository's error. Nothing is queued when storing failed.
      */
-    suspend operator fun invoke(pageImages: List<String>, sourceType: SourceType = SourceType.CAMERA): PamResult<String> {
+    suspend operator fun invoke(
+        pageImages: List<String>,
+        sourceType: SourceType = SourceType.CAMERA,
+        sourceHash: String? = null,
+        originalFile: String? = null,
+    ): PamResult<String> {
         require(pageImages.isNotEmpty()) { "a document needs at least one page" }
         val now = System.currentTimeMillis()
         val documentId = UuidGenerator.generate()
@@ -51,6 +59,8 @@ class CreateDocumentFromPagesUseCase @Inject constructor(
             pageCount = pageImages.size,
             createdAt = now,
             modifiedAt = now,
+            sourceHash = sourceHash,
+            originalFilePath = originalFile,
         )
         return when (val result = documentRepository.createDocument(document, pages)) {
             is PamResult.Success -> {

@@ -4,4 +4,8 @@
     <string name="reminder_channel_description">تذكيرات تضعها لرسائلك، مثل التذكير قبل موعد نهائي.</string>
     <string name="reminder_notification_title">تذكير</string>
     <string name="reminder_notification_discreet">لديك تذكير</string>
+
+    <!-- إضافة الملفات كمستندات: الإشعار الجاري الوحيد أثناء تجهيز الصفحات (لا يذكر أي ملف) -->
+    <string name="import_notification_title">جارٍ إضافة ملفاتك…</string>
+    <string name="import_notification_text">يتم تجهيز الصفحات في الخلفية</string>
 </resources>

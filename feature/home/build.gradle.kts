@@ -47,6 +47,9 @@ dependencies {
     // Navigation
     implementation(libs.navigation.compose)
 
+    // The system file picker for "Import PDF or images"
+    implementation(libs.activity.compose)
+
     // Coroutines
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)

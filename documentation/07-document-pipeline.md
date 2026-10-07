@@ -734,3 +734,26 @@ pipeline code changes. Shipped: Qwen3.5-0.8B on `ZONES_SCORING` with the joint d
 The strategy is evaluated offline first: benchmark recordings hold the model's raw scores per letter, so thresholds,
 decoders and family sets are re-decided in the JVM in seconds, and the device is only needed when new scores are required.
 See [08-extraction-optimization-roadmap.md](08-extraction-optimization-roadmap.md).
+
+## 12. Importing PDFs and images
+
+A PDF or an image becomes a document through the scan path: `ImportFilesUseCase` turns the files into page images and hands them to
+`CreateDocumentFromPagesUseCase` (`SourceType.PDF_IMPORT` for a PDF, `UPLOAD` for images), so OCR, extraction, people, actions,
+reminders and search run unchanged.
+
+- **`PageImageSource`** (port in `:core:domain`, `AndroidPageImageSource` in `:core:data`, UI-free so the chat can reuse it): copies a
+  `content://` file at once into the import batch's private folder (`filesDir/import/<batchId>/`), checks the real type from the first
+  bytes (`FileTypeSniffer`), 50 MB per file, 50 pages per PDF, then renders. A PDF page goes through the platform's `PdfRenderer` on a
+  white background, longest side 2480 px, as JPEG; an image goes through `ImageDecoder` (EXIF rotation applied, EXIF dropped by the
+  re-encode, same size cap). A password PDF asks for its password on Android 15+ (`LoadParams`); below that it is refused with a clear
+  message. Everything of a batch is removed by `discard`.
+- **Entry points** all end in `ImportActivity` behind the app lock (`AppLockGate` composes its content only after unlock, and the
+  files are staged from that content): Home "+" (`OpenMultipleDocuments`), the share sheet (`ACTION_SEND`, `ACTION_SEND_MULTIPLE`) and
+  "Open with" (`ACTION_VIEW`, PDF). Only `content://` URIs are read.
+- **Grouping** (`ImportGrouping`, decided from the files' kinds and one switch): one PDF is one document; images shared together are one
+  document in the shared order, or one each with the switch "Each image is its own document"; in a mix each PDF is its own document.
+- **Background:** the confirmed request is stored in the batch folder and an expedited WorkManager job (`ImportFilesWorker`) runs the
+  use case, so a 50-page PDF survives leaving the app. Home shows "Importing…" (`ImportQueue.status`) until the documents exist.
+- **DB v21:** `documents.sourceHash` (SHA-256 of the file; for several images the hash of their hashes) powers "You added this file on
+  <date>" with an add-again switch; `documents.originalFilePath` keeps the original PDF as `documents/<id>/original.pdf`, offered as
+  "Open original" and "Share original" through the FileProvider and deleted with the document's folder.

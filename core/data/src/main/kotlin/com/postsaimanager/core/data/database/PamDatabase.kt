@@ -36,7 +36,7 @@ import com.postsaimanager.core.data.database.entity.*
         FormFillEntity::class,
         FormFieldEntity::class,
     ],
-    version = 20,
+    version = 21,
     exportSchema = true,
 )
 abstract class PamDatabase : RoomDatabase() {

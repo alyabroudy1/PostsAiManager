@@ -4,4 +4,8 @@
     <string name="reminder_channel_description">Erinnerungen, die du für deine Briefe setzt, zum Beispiel vor einer Frist.</string>
     <string name="reminder_notification_title">Erinnerung</string>
     <string name="reminder_notification_discreet">Du hast eine Erinnerung</string>
+
+    <!-- Dateien als Dokumente hinzufügen: die eine laufende Benachrichtigung, solange die Seiten entstehen (nennt keine Datei) -->
+    <string name="import_notification_title">Deine Dateien werden hinzugefügt…</string>
+    <string name="import_notification_text">Seiten werden im Hintergrund vorbereitet</string>
 </resources>

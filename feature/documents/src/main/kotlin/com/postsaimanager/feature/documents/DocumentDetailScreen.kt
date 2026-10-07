@@ -139,7 +139,8 @@ fun DocumentDetailScreen(
     val fieldPreview by viewModel.fieldPreview.collectAsStateWithLifecycle()
     var lastViewedPage by remember { mutableStateOf<Int?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val resources = LocalContext.current.resources
+    val context = LocalContext.current
+    val resources = context.resources
     val undoLabel = stringResource(R.string.action_undo)
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -210,6 +211,24 @@ fun DocumentDetailScreen(
                                         onFillForm(document.id)
                                     },
                                 )
+                                // An imported PDF keeps its original, so the digital file's quality is not lost to the page images.
+                                document.originalFilePath?.let { original ->
+                                    val external = ExternalLaunch(viewModel::onExternalLaunching, viewModel::onExternalLaunchFinished)
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.action_open_original)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            openOriginal(context, original, external)
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.action_share_original)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            shareOriginal(context, original, external)
+                                        },
+                                    )
+                                }
                             }
                             DropdownMenuItem(
                                 text = { Text("Delete") },
@@ -803,6 +822,47 @@ private fun sharePdf(context: Context, generatePdf: () -> File?, external: Exter
         }
     } else {
         Toast.makeText(context, "Failed to generate PDF", Toast.LENGTH_SHORT).show()
+    }
+}
+
+/** "Open original": the kept PDF in whichever app opens PDFs, through the app's FileProvider (read grant only). */
+private fun openOriginal(context: Context, path: String, external: ExternalLaunch) {
+    val uri = getFileUri(context, path)
+    if (uri == null) {
+        Toast.makeText(context, context.getString(R.string.original_unavailable), Toast.LENGTH_SHORT).show()
+        return
+    }
+    val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, "application/pdf")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    external.expect("open-original")
+    try {
+        context.startActivity(viewIntent)
+    } catch (_: Exception) {
+        external.finish()
+        Toast.makeText(context, context.getString(R.string.no_app_for_pdf), Toast.LENGTH_SHORT).show()
+    }
+}
+
+/** "Share original": the kept PDF through the share sheet. */
+private fun shareOriginal(context: Context, path: String, external: ExternalLaunch) {
+    val uri = getFileUri(context, path)
+    if (uri == null) {
+        Toast.makeText(context, context.getString(R.string.original_unavailable), Toast.LENGTH_SHORT).show()
+        return
+    }
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/pdf"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    external.expect("share-original")
+    try {
+        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.action_share_original)))
+    } catch (_: Exception) {
+        external.finish()
+        Toast.makeText(context, context.getString(R.string.share_sheet_unavailable), Toast.LENGTH_SHORT).show()
     }
 }
 
