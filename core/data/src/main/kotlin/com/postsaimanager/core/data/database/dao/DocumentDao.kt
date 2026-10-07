@@ -47,8 +47,15 @@ interface DocumentDao {
     @Query("SELECT * FROM documents WHERE id = :id")
     suspend fun getById(id: String): DocumentEntity?
 
-    /** The earliest live (not trashed) document imported from the file or group with [hash], for "you added this file on ...". */
-    @Query("SELECT * FROM documents WHERE sourceHash = :hash AND deletedAt IS NULL ORDER BY createdAt ASC LIMIT 1")
+    /**
+     * The document imported from the file or group with [hash], for "you added this file on ...": the earliest live (not trashed)
+     * one, and only when there is none, the earliest one in the trash (its `deletedAt` tells the caller it is trashed). Like
+     * `getById`, this one sees the trash on purpose: a person who deleted a file and shares it again is offered the restore.
+     */
+    @Query(
+        "SELECT * FROM documents WHERE sourceHash = :hash " +
+            "ORDER BY (deletedAt IS NOT NULL) ASC, createdAt ASC LIMIT 1",
+    )
     suspend fun findBySourceHash(hash: String): DocumentEntity?
 
     @Query("""

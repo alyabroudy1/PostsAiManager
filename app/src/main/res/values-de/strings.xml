@@ -31,6 +31,11 @@
     <string name="import_duplicate">Du hast diese Datei am %1$s hinzugefügt</string>
     <string name="import_duplicate_group">Du hast diese Dateien am %1$s hinzugefügt</string>
     <string name="import_add_again">Trotzdem noch einmal hinzufügen</string>
+    <string name="import_open_existing">Öffnen</string>
+    <string name="import_duplicate_deleted">Du hast diese Datei am %1$s gelöscht. Wiederherstellen?</string>
+    <string name="import_duplicate_deleted_group">Du hast diese Dateien am %1$s gelöscht. Wiederherstellen?</string>
+    <string name="import_restore_open">Wiederherstellen</string>
+    <string name="import_add_as_new">Als neu hinzufügen</string>
     <string name="import_password_title">%1$s ist passwortgeschützt</string>
     <string name="import_password_label">Passwort</string>
     <string name="import_unlock">Entsperren</string>

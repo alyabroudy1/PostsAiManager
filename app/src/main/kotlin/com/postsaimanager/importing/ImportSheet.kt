@@ -63,6 +63,7 @@ fun ImportSheet(
     onConfirm: () -> Unit,
     onSeparateChange: (Boolean) -> Unit,
     onAddAgainChange: (ImportRow, Boolean) -> Unit,
+    onOpenExisting: (ImportRow) -> Unit,
     onUnlock: (fileId: String, password: String) -> Unit,
     onHide: () -> Unit,
     onClose: () -> Unit,
@@ -80,7 +81,7 @@ fun ImportSheet(
                 stringResource(R.string.import_adding),
                 if (state.submitted) onHide else null,
             )
-            else -> Review(state, onCancel, onConfirm, onSeparateChange, onAddAgainChange, onUnlock)
+            else -> Review(state, onCancel, onConfirm, onSeparateChange, onAddAgainChange, onOpenExisting, onUnlock)
         }
     }
 }
@@ -116,6 +117,7 @@ private fun Review(
     onConfirm: () -> Unit,
     onSeparateChange: (Boolean) -> Unit,
     onAddAgainChange: (ImportRow, Boolean) -> Unit,
+    onOpenExisting: (ImportRow) -> Unit,
     onUnlock: (String, String) -> Unit,
 ) {
     LazyColumn(
@@ -131,7 +133,7 @@ private fun Review(
         }
         // No key: the same file shared twice makes two rows with one hash.
         items(state.rows) { row ->
-            RowCard(row, onAddAgainChange = { onAddAgainChange(row, it) })
+            RowCard(row, onAddAgainChange = { onAddAgainChange(row, it) }, onOpenExisting = { onOpenExisting(row) })
         }
         if (state.showSeparateSwitch) {
             item {
@@ -159,7 +161,7 @@ private fun Review(
 }
 
 @Composable
-private fun RowCard(row: ImportRow, onAddAgainChange: (Boolean) -> Unit) {
+private fun RowCard(row: ImportRow, onAddAgainChange: (Boolean) -> Unit, onOpenExisting: () -> Unit) {
     OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -180,16 +182,30 @@ private fun RowCard(row: ImportRow, onAddAgainChange: (Boolean) -> Unit) {
                 )
             }
             row.duplicate?.let { duplicate ->
+                val single = files.size == 1
+                val deletedOn = duplicate.deletedOn
                 Text(
-                    stringResource(
-                        if (files.size == 1) R.string.import_duplicate else R.string.import_duplicate_group,
-                        friendlyDate(duplicate.addedOn),
-                    ),
+                    if (deletedOn != null) {
+                        stringResource(
+                            if (single) R.string.import_duplicate_deleted else R.string.import_duplicate_deleted_group,
+                            friendlyDate(deletedOn),
+                        )
+                    } else {
+                        stringResource(if (single) R.string.import_duplicate else R.string.import_duplicate_group, friendlyDate(duplicate.addedOn))
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
+                // The person can go and look at the document the warning is about (a deleted one is restored first).
+                TextButton(onClick = onOpenExisting) {
+                    Text(stringResource(if (duplicate.isTrashed) R.string.import_restore_open else R.string.import_open_existing))
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.import_add_again), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(
+                        stringResource(if (duplicate.isTrashed) R.string.import_add_as_new else R.string.import_add_again),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
                     Switch(checked = row.included, onCheckedChange = onAddAgainChange)
                 }
             }

@@ -66,6 +66,7 @@ class ImportActivity : FragmentActivity() {
                             onConfirm = viewModel::confirm,
                             onSeparateChange = viewModel::setEachImageSeparate,
                             onAddAgainChange = { row, add -> viewModel.setAddAgain(row.group, add) },
+                            onOpenExisting = viewModel::openExisting,
                             onUnlock = viewModel::unlock,
                             onHide = viewModel::hide,
                             onClose = ::finish,

@@ -40,6 +40,11 @@
     <string name="import_duplicate">You added this file on %1$s</string>
     <string name="import_duplicate_group">You added these files on %1$s</string>
     <string name="import_add_again">Add it again anyway</string>
+    <string name="import_open_existing">Open it</string>
+    <string name="import_duplicate_deleted">You deleted this file on %1$s. Restore it?</string>
+    <string name="import_duplicate_deleted_group">You deleted these files on %1$s. Restore them?</string>
+    <string name="import_restore_open">Restore</string>
+    <string name="import_add_as_new">Add as new</string>
     <string name="import_password_title">%1$s is password-protected</string>
     <string name="import_password_label">Password</string>
     <string name="import_unlock">Unlock</string>
