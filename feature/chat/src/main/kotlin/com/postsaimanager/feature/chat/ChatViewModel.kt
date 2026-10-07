@@ -149,7 +149,7 @@ class ChatViewModel @Inject constructor(
      * list to pick from, say) are ever wanted, that needs an actual UI to choose one and is
      * out of scope here.
      */
-    private val conversationId: String = documentId?.let { "conv-$it" } ?: STANDALONE_CONVERSATION_ID
+    private val conversationId: String = conversationIdFor(documentId)
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
@@ -752,6 +752,9 @@ class ChatViewModel @Inject constructor(
     companion object {
         /** The one standing conversation for a document-less chat — see [conversationId]. */
         private const val STANDALONE_CONVERSATION_ID = "conv-standalone"
+
+        /** The conversation of a chat: the one of the document it is about, or the standing one. The one owner of this id. */
+        internal fun conversationIdFor(documentId: String?): String = documentId?.let { "conv-$it" } ?: STANDALONE_CONVERSATION_ID
 
         /** The navigation argument of "Help me fill it": open the document chat with the form fill started. */
         const val ARG_FILL = "fill"

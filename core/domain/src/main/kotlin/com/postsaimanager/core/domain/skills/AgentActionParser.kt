@@ -41,6 +41,14 @@ enum class AgentIntent(val wire: String) {
 
     companion object {
         fun of(wire: String): AgentIntent? = entries.firstOrNull { it.wire == wire.trim() }
+
+        /** The intent whose call proposes [action]. */
+        fun of(action: AgentAction): AgentIntent = when (action) {
+            is AgentAction.SendEmail -> SEND_EMAIL
+            is AgentAction.CreateCalendarEvent -> CREATE_CALENDAR_EVENT
+            is AgentAction.ScheduleReminder -> SCHEDULE_NOTIFICATION
+            AgentAction.GetDateTime -> GET_CURRENT_DATE_AND_TIME
+        }
     }
 }
 
