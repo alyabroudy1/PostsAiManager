@@ -200,9 +200,6 @@ class ZoneScoringInterpreter(
         )
         fun isHeader(name: String, slot: SlotKey? = null) = plan.isHeader(plan.zones(name, slot))
 
-        val deferred = ArrayList<SlotKey>()
-        val deferredParties = ArrayList<Pair<String, PartyRole>>()
-
         // ── header session: the header zones are the prefix ──
         val headerParties = partyNames.filter { isHeader(it.first) }
         val headerSlots = Slots.CORE.filter { isHeader(QuestionNames.slot(it.json), it) }
@@ -216,12 +213,11 @@ class ZoneScoringInterpreter(
             // Questions that bring the same zone block and ask about the same values are scored ahead as a grid (see [prescore]).
             prescore(
                 setup,
-                headerParties.mapNotNull { partyAsk(setup, it.first, widen = false) } + headerSlots.mapNotNull { slotAsk(setup, it, widen = false) },
+                headerParties.mapNotNull { partyAsk(setup, it.first) } + headerSlots.mapNotNull { slotAsk(setup, it) },
             )
-            // A party whose header zones offered no name is asked again with the body, on the zones the registry names
-            // as its fallback (the sender's name is sometimes only in the footer).
-            headerParties.forEach { if (!party(setup, s, it.first, it.second, widen = false)) deferredParties += it }
-            headerSlots.forEach { if (!slot(setup, s, it, widen = false)) deferred += it }
+            // The layout only orders what a question scores: it is asked over every candidate of the page, the zones it prefers first.
+            headerParties.forEach { party(setup, s, it.first, it.second) }
+            headerSlots.forEach { slot(setup, s, it) }
         }
 
         // ── body session: body, footer and the header's summary are the prefix ──
@@ -248,15 +244,15 @@ class ZoneScoringInterpreter(
             s.parties.removeAll { it.role != PartyRole.SENDER.name }
             scored.removeAll { it.role != null && it.role != PartyRole.SENDER }
         }
-        val bodyParties = (partyNames.filter { !isHeader(it.first) } + deferredParties)
+        val bodyParties = partyNames.filter { !isHeader(it.first) }
             .filter { family.asksFields && (family.hasAddressee || it.second == PartyRole.SENDER) }
         val bodySlots = if (!family.asksFields) emptyList() else {
-            (Slots.CORE + schema.slotsFor(family, topics)).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) } + deferred
+            (Slots.CORE + schema.slotsFor(family, topics)).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) }
         }
         prescored.clear()
-        prescore(setup, bodyParties.mapNotNull { partyAsk(setup, it.first, widen = true) } + bodySlots.mapNotNull { slotAsk(setup, it, widen = true) })
-        bodyParties.forEach { (name, role) -> party(setup, s, name, role, widen = true) }
-        bodySlots.forEach { slot(setup, s, it, widen = true) }
+        prescore(setup, bodyParties.mapNotNull { partyAsk(setup, it.first) } + bodySlots.mapNotNull { slotAsk(setup, it) })
+        bodyParties.forEach { (name, role) -> party(setup, s, name, role) }
+        bodySlots.forEach { slot(setup, s, it) }
         val decoding = System.nanoTime()
         redecide(setup, s)
         timing("decode ms=${(System.nanoTime() - decoding) / NANOS_PER_MS} (includes the kind and household scoring of a changed answer)")
@@ -632,33 +628,49 @@ class ZoneScoringInterpreter(
     /** Scores computed ahead by [prescore], by question name; a question takes its scores from here (once) before it would score on its own. */
     private val prescored = HashMap<String, List<Double>>()
 
-    /** The party question [name]: every name of its zones (or of its fallback zones when [widen] and none is there), or null when nothing is offered. */
-    private fun partyAsk(setup: ZoneSetup, name: String, widen: Boolean): Ask? {
+    /**
+     * The zones whose text a question's prompt shows: the zones it prefers, when one of its candidates is printed there; else its fallback
+     * zones (the sender's name is sometimes only in the small print at the foot); else the zones of its candidates that the session's
+     * prefix already holds (a candidate carries its own row and the rows around it, so a prompt never needs more text than that).
+     */
+    private fun askedZones(setup: ZoneSetup, preferred: List<LetterZone>, fallback: List<LetterZone>, cands: List<Candidate>): List<LetterZone> {
         val zoned = setup.zoned
-        var zones = setup.plan.zones(name).filter { zoned.hasText(it) }
-        // Every name of the zone is scored, whatever was decided before: what is scored then does not depend on the
+        fun holdsOne(zones: List<LetterZone>) = cands.any { c -> zoned.zonesOfCandidate(c.id).any { it in zones } }
+        return when {
+            holdsOne(preferred) -> preferred
+            holdsOne(fallback) -> fallback
+            else -> cands.flatMap { zoned.zonesOfCandidate(it.id) }.distinct().filter { it in inPrefix && zoned.hasText(it) }
+        }
+    }
+
+    /**
+     * The party question [name]: every name of the page, those in the zones the template prefers first, then those in its fallback zones
+     * ([SlotPlacements.partyFallback]), then the rest ([ZonePlan.offer]); null only when the page holds no name.
+     */
+    private fun partyAsk(setup: ZoneSetup, name: String): Ask? {
+        val zoned = setup.zoned
+        val preferred = setup.plan.zones(name).filter { zoned.hasText(it) }
+        val fallback = SlotPlacements.partyFallback(name).map { zoned.mapped(it) }.distinct().filter { zoned.hasText(it) && it !in preferred }
+        // Every name is scored, whatever was decided before: what is scored then does not depend on the
         // thresholds, which is what lets a recording be re-decided offline. The one exclusion code makes (the sender is
         // not also the addressee, the routing person or the mailbox) is applied to the choice.
         // A name that is a cell of a table (a column header such as "Einzelpreis € Gesamt €", a position) is never a party or a person:
         // by where it is printed, not by any word.
-        fun names(z: List<LetterZone>) = zoned.candidatesIn(z).rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME }
-        var cands = names(zones)
-        if (cands.isEmpty() && widen) {
-            zones = SlotPlacements.partyFallback(name).map { zoned.mapped(it) }.distinct().filter { zoned.hasText(it) }
-            cands = names(zones)
-        }
-        // Where the names are looked for is decided as before; the cells of a table are left out of what is scored.
-        cands = cands.filter { !zoned.isTableCell(it) }
-        if (zones.isEmpty() || cands.isEmpty()) return null
-        return Ask(name, zones, cands, ScoringDescriptions.ofRole(name))
+        val names = zoned.offered.rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME && !zoned.isTableCell(it) }
+        val cands = setup.plan.offer(names, preferred, fallback)
+        if (cands.isEmpty()) return null
+        return Ask(name, askedZones(setup, preferred, fallback, cands), cands, ScoringDescriptions.ofRole(name))
     }
 
-    /** The slot question of [slot]: every candidate of its kind in the zones the template places it on (anywhere when [widen] and none is there). */
-    private fun slotAsk(setup: ZoneSetup, slot: SlotKey, widen: Boolean): Ask? {
+    /**
+     * The slot question of [slot]: every candidate of its kind on the page, those in the zones the template places it on first
+     * ([ZonePlan.offer]). A number the document may not have is still only taken from a value with a printed label of its own.
+     */
+    private fun slotAsk(setup: ZoneSetup, slot: SlotKey): Ask? {
         if (slot.kind == SlotKind.ACTION) return null
         val zoned = setup.zoned
         val name = QuestionNames.slot(slot.json)
-        val zones = setup.plan.zones(name, slot).filter { zoned.hasText(it) }
+        val preferred = setup.plan.zones(name, slot).filter { zoned.hasText(it) }
         val isReference = slot.kind == SlotKind.REFERENCE || slot.kind == SlotKind.REFERENCE_LIST
         // A number the document may not have is taken only from a value that prints a label of its own: a digit-and-letter run found by
         // shape alone (a signature fragment, a serial) has nothing printed beside it that says what it is, so a small model's lean Yes on
@@ -666,15 +678,9 @@ class ZoneScoringInterpreter(
         fun offered(rows: List<Candidate>) = rows.filter {
             it.kind in slot.kind.candidates && !(isReference && (isFooterShape(zoned, it) || (optional(slot) && it.attrs["shape"] != null)))
         }
-        var cands = offered(zoned.candidatesIn(zones).rows.map { it.candidate })
-        var asked = zones
-        // A number the document may not have is never widened to the whole letter: that its zones hold none is an answer.
-        if (cands.isEmpty() && widen && !optional(slot)) {
-            cands = offered(zoned.offered.rows.map { it.candidate })
-            asked = cands.flatMap { zoned.zonesOfCandidate(it.id) }.distinct().filter { zoned.hasText(it) }
-        }
+        val cands = setup.plan.offer(offered(zoned.offered.rows.map { it.candidate }), preferred)
         if (cands.isEmpty()) return null
-        return Ask(name, asked, cands, ScoringDescriptions.ofSlot(slot), labelled = isReference && optional(slot))
+        return Ask(name, askedZones(setup, preferred, emptyList(), cands), cands, ScoringDescriptions.ofSlot(slot), labelled = isReference && optional(slot))
     }
 
     /** The scores of [ask]'s candidates: the ones [prescore] computed, else scored now as a batch under [block]. */
@@ -733,13 +739,12 @@ class ZoneScoringInterpreter(
     // ── parties ──
 
     /**
-     * Scores the names of the zones [name] is asked on; with [widen] (body session only) and no name there, the zones the
-     * registry gives as the party's fallback ([SlotPlacements.partyFallback]).
+     * Scores the names of the page for [name], the zones the template prefers first (see [partyAsk]).
      *
-     * @return whether any name was scored (false: nothing was offered, so the caller may ask again where the fallback is).
+     * @return whether any name was scored (false: the page holds no name).
      */
-    private suspend fun party(setup: ZoneSetup, s: State, name: String, role: PartyRole, widen: Boolean): Boolean {
-        val ask = partyAsk(setup, name, widen) ?: return false
+    private suspend fun party(setup: ZoneSetup, s: State, name: String, role: PartyRole): Boolean {
+        val ask = partyAsk(setup, name) ?: return false
         val zones = ask.zones
         val cands = ask.cands
         val block = block(setup, zones)
@@ -813,14 +818,14 @@ class ZoneScoringInterpreter(
     // ── slots ──
 
     /**
-     * Scores every candidate of [slot]'s kind in the zones the template places it on. The placement is a
-     * prior: with [widen] (body session only) and no candidate there, the candidates anywhere are scored.
+     * Scores every candidate of [slot]'s kind on the page. The placement is a prior: the candidates in the zones the template places
+     * the slot on come first, the others follow (see [slotAsk]).
      *
      * @return whether anything was scored.
      */
-    private suspend fun slot(setup: ZoneSetup, s: State, slot: SlotKey, widen: Boolean): Boolean {
+    private suspend fun slot(setup: ZoneSetup, s: State, slot: SlotKey): Boolean {
         if (slot.kind == SlotKind.ACTION) return true
-        val ask = slotAsk(setup, slot, widen) ?: return false
+        val ask = slotAsk(setup, slot) ?: return false
         val name = ask.name
         val asked = ask.zones
         val cands = ask.cands

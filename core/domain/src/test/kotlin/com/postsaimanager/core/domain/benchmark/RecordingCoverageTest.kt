@@ -43,7 +43,8 @@ class RecordingCoverageTest {
                 val kind = if (isCurrent(rec)) "CURRENT" else "LEGACY (family and topics SCRIPTED from the legacy type scores)"
                 val hard = if (misses.hard.isEmpty()) "no question to record again" else "${misses.hard.size} NOT RECORDED: ${misses.hard.joinToString("; ")}"
                 val scripted = if (misses.scripted.isEmpty()) "" else "; ${misses.scripted.size} summary ask(s) SCRIPTED as the template (the facts differ from the recorded run's)"
-                sb.appendLine("${m.key}.${rec.variant}: $kind: $hard$scripted")
+                val unrecorded = if (misses.unrecorded.isEmpty()) "" else "; ${misses.unrecorded.size} party/slot batch(es) over candidates the layout used to leave out replayed as NOT RECORDED"
+                sb.appendLine("${m.key}.${rec.variant}: $kind: $hard$scripted$unrecorded")
             }
         }
         File(out).writeText(sb.toString())

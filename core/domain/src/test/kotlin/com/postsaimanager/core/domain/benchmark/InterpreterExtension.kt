@@ -254,6 +254,15 @@ internal class ReplayPromptSession(private val recording: Recording, private val
      */
     val misses = ArrayList<String>()
 
+    /**
+     * The party and slot questions (a batch of values under one role or slot statement) the recording never held: the layout only orders
+     * the candidates now, so a question is asked over every candidate of the page, and a question a template used to skip (the contact person
+     * under a template with no information block) or a block it used to show differently was never recorded. Replayed as "not recorded"
+     * (no threshold accepts that score, so such a candidate takes nothing, and the recorded candidates keep their recorded scores); one line
+     * each. Recording them is a device run, which is not planned: they are judged on the device, by use.
+     */
+    val unrecorded = ArrayList<String>()
+
     /** The legacy view of the recording's `score:type` batch, when it has one and no real `score:family` batch. */
     private val legacy: LegacyFamilyBridge.View? =
         if (recording.asks.any { it.name == "score:family" }) null else LegacyFamilyBridge.viewOf(recording)
@@ -326,6 +335,11 @@ internal class ReplayPromptSession(private val recording: Recording, private val
             // The reference slots every family asks since extraction-v2-5 are newer than the recordings: a batch that holds them besides
             // recorded questions replays the recorded ones and scripts the new ones as "not scored".
             scriptedAroundNewCore(live)?.let { return it }
+            // A party or slot question over candidates the layout used to leave out: never recorded, never read as a quiet zero.
+            if (live.all { q -> LAYOUT_ORDERED_STATEMENTS.any { q.contains(it) } }) {
+                unrecorded += "score «${live.firstOrNull().orEmpty().take(MISS_CHARS)}» x${live.size}"
+                return PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED })
+            }
             // The family and the topics of a recording made before the families: scripted from its legacy type scores, nothing else is.
             legacy?.let { view -> LegacyFamilyBridge.answer(view, live)?.let { return PamResult.Success(it) } }
             misses += "score «${live.firstOrNull().orEmpty().take(MISS_CHARS)}» x${live.size}"            // A question the old recording never held (a slot the old type did not have, an address line label) is scripted as "not scored":
@@ -427,6 +441,12 @@ internal class ReplayPromptSession(private val recording: Recording, private val
                     .map { ScoringDescriptions.ofRole(it) } +
                 ScoringDescriptions.KINDS.map { it.second } + ScoringDescriptions.HOUSEHOLD + ScoringDescriptions.EXTRA
 
+        /** The statements of the party and slot questions: the ones whose candidates the layout orders (see [unrecorded]). */
+        val LAYOUT_ORDERED_STATEMENTS: List<String> =
+            (ExtractionSchema.DEFAULT.allSlots + Slots.CORE).distinct().map { ScoringDescriptions.ofSlot(it) } +
+                listOf(QuestionNames.SENDER, QuestionNames.ADDRESSEE, QuestionNames.CARE_OF, QuestionNames.CONTACT, QuestionNames.SUBJECT_PERSON)
+                    .map { ScoringDescriptions.ofRole(it) }
+
         /** The statements of the reference slots that every family asks since extraction-v2-5 (see [scriptedAroundNewCore]). */
         val NEW_CORE_STATEMENTS: List<String> = listOf(Slots.INVOICE_NO, Slots.CONTRACT_NO, Slots.POLICY_NO, Slots.CASE_NO, Slots.TAX_NO)
             .map { ScoringDescriptions.ofSlot(it) }
@@ -508,6 +528,9 @@ internal class ZoneReplay(private val recording: Recording, private val scoring:
 
     /** The summary asks the recording could not answer (see [requireComplete]): replayed as the template summary. */
     val scriptedMisses: List<String> get() = misses.filter { it.startsWith("ask «FACTS") }
+
+    /** The party and slot questions the recording never held, replayed as "not recorded" (see [ReplayPromptSession.unrecorded]). */
+    val unrecorded: List<String> get() = reading?.unrecorded.orEmpty()
 
     private fun create(offered: OfferedCandidates?): DocumentInterpreter {
         val remap = offered?.let { IdRemap.between(recording.candidates, it) } ?: emptyMap()
@@ -659,11 +682,11 @@ object InterpreterMetrics {
         val replay = ZoneReplay(rec, scoring)
         val first = f.pages.firstOrNull()?.takeIf { it.height > 0 }
         runBlocking { ExtractionV2Pipeline().run(f.pages.map { it.blocks }, replay, rec.contextTokens, first?.let { it.width.toFloat() / it.height }) }
-        return Misses(replay.misses.filterNot { it in replay.scriptedMisses }, replay.scriptedMisses)
+        return Misses(replay.misses.filterNot { it in replay.scriptedMisses }, replay.scriptedMisses, replay.unrecorded)
     }
 
     /** [hard]: questions to record again; [scripted]: the summary asks replayed as the template (see [ZoneReplay.requireComplete]). */
-    class Misses(val hard: List<String>, val scripted: List<String>)
+    class Misses(val hard: List<String>, val scripted: List<String>, val unrecorded: List<String> = emptyList())
 
     /** The variants of the zone experiment: `zones`, `zonesscoring`, and either with a model suffix (`zonesscoring2b`). */
     const val ZONES_VARIANT = "zones"
