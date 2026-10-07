@@ -108,11 +108,12 @@ class BuildChatContextUseCase @Inject constructor(
             .coerceAtLeast(MIN_CONTEXT_TOKENS)) * CHARS_PER_TOKEN
 
         val header = buildHeader(document.title, document.documentType?.name, document.language)
+        val read = LetterReadingContext.section(document.actionItems, extracted)
         val fields = buildFields(extracted)
         val parties = buildProfiles(profiles)
         val instructions = INSTRUCTIONS
 
-        val fixedCost = header.length + fields.length + parties.length + instructions.length
+        val fixedCost = header.length + read.length + fields.length + parties.length + instructions.length
         val remainingForOcr = budgetChars - fixedCost
 
         val fullOcrText = pages.mapNotNull { it.ocrText }.joinToString("\n\n")
@@ -139,7 +140,7 @@ class BuildChatContextUseCase @Inject constructor(
                     TRUNCATION_NOTE
         }
 
-        return ChatGrounding(header + fields + parties + ocrSection + instructions, retrievalMode)
+        return ChatGrounding(header + read + fields + parties + ocrSection + instructions, retrievalMode)
     }
 
     /**

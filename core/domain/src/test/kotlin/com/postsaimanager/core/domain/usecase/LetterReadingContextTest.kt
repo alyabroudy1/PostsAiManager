@@ -1,0 +1,89 @@
+package com.postsaimanager.core.domain.usecase
+
+import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.model.ActionItem
+import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.ExtractedFieldType
+import com.postsaimanager.core.testing.FakeDocumentRepository
+import com.postsaimanager.core.testing.FakeProfileRepository
+import com.postsaimanager.core.testing.testDocument
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Test
+
+class LetterReadingContextTest {
+
+    private fun field(slot: String, name: String, value: String, type: ExtractedFieldType = ExtractedFieldType.TEXT, deleted: Boolean = false) =
+        ExtractedData(
+            id = "f-$slot", documentId = "d1", fieldName = name, fieldValue = value, fieldType = type,
+            confidence = 0.9f, slotKey = slot, deletedByUser = deleted,
+        )
+
+    private val fields = listOf(
+        field("start_date", "Contract start", "01.01.2027", ExtractedFieldType.DATE),
+        field("due_date", "Due date", "15.10.2026", ExtractedFieldType.DATE),
+        field("total_amount", "Amount", "563,00 EUR"),
+        field("sender", "Sender", "Stadtwerke Beispielstadt"),
+        field("invoice_no", "Invoice number", "R-2026-0815"),
+    )
+
+    private val pay = ActionItem(
+        "pay",
+        mapOf("date" to "due_date", "amount" to "total_amount", "party" to "sender", "reference" to "invoice_no"),
+    )
+
+    @Test
+    fun `an action states its deadline with what the date means, and the amount, sender and reference`() {
+        val text = LetterReadingContext.section(listOf(pay), fields)
+
+        assertThat(text).contains("## What was read from this letter")
+        assertThat(text).contains("pay an amount of money")
+        assertThat(text).contains("date 15.10.2026 (the date by which the reader is asked to pay)")
+        assertThat(text).contains("amount 563,00 EUR")
+        assertThat(text).contains("sender Stadtwerke Beispielstadt")
+        assertThat(text).contains("reference R-2026-0815")
+        // The contract start is not an answer of the reading, so it is not here.
+        assertThat(text).doesNotContain("01.01.2027")
+    }
+
+    @Test
+    fun `a deadline field no action covers is listed on its own`() {
+        val text = LetterReadingContext.section(emptyList(), listOf(field("deadline", "Deadline", "31.01.2026", ExtractedFieldType.DEADLINE)))
+
+        assertThat(text).contains("- Deadline: 31.01.2026")
+    }
+
+    @Test
+    fun `nothing is written for a letter with no action and no deadline`() {
+        assertThat(LetterReadingContext.section(emptyList(), fields)).isEmpty()
+    }
+
+    @Test
+    fun `a value the person removed is not stated`() {
+        val removed = fields.map { if (it.slotKey == "due_date") it.copy(deletedByUser = true) else it }
+
+        assertThat(LetterReadingContext.section(listOf(pay), removed)).doesNotContain("15.10.2026")
+    }
+
+    @Test
+    fun `the chat grounding carries the read answers before the extracted details`() = runTest {
+        val documents = FakeDocumentRepository()
+        documents.seed(testDocument(id = "d1").copy(actionItems = listOf(pay)))
+        documents.seedExtracted("d1", *fields.toTypedArray())
+
+        val prompt = BuildChatContextUseCase(documents, FakeProfileRepository()).invoke("d1", contextTokens = 4096).text
+
+        assertThat(prompt).contains("date 15.10.2026 (the date by which the reader is asked to pay)")
+        assertThat(prompt.indexOf("What was read from this letter")).isLessThan(prompt.indexOf("## Extracted details"))
+    }
+
+    @Test
+    fun `the chat grounding has no such section for a document without a deadline`() = runTest {
+        val documents = FakeDocumentRepository()
+        documents.seed(testDocument(id = "d1"))
+        documents.seedExtracted("d1", field("sender", "Sender", "Stadtwerke Beispielstadt"))
+
+        val prompt = BuildChatContextUseCase(documents, FakeProfileRepository()).invoke("d1", contextTokens = 4096).text
+
+        assertThat(prompt).doesNotContain("What was read from this letter")
+    }
+}

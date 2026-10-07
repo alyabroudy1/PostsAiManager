@@ -63,6 +63,38 @@ class AgentActionParserTest {
         assertThat(action).isEqualTo(AgentAction.ScheduleReminder(LocalDateTime.of(2026, 11, 2, 9, 30), "Pay", "d7"))
     }
 
+    private val clock = LocalDateTime.of(2026, 10, 7, 14, 30, 45)
+
+    private fun reminderAt(parameters: String): LocalDateTime =
+        ((AgentActionParser.parse("schedule_notification", parameters, now = clock) as ActionParse.Parsed).action as AgentAction.ScheduleReminder).at
+
+    @Test
+    fun `a relative offset is added to the clock at proposal time`() {
+        assertThat(reminderAt("""{"message":"Pay","in_minutes":2}""")).isEqualTo(LocalDateTime.of(2026, 10, 7, 14, 32))
+        assertThat(reminderAt("""{"message":"Pay","in_hours":"3"}""")).isEqualTo(LocalDateTime.of(2026, 10, 7, 17, 30))
+        assertThat(reminderAt("""{"message":"Pay","in_days":30}""")).isEqualTo(LocalDateTime.of(2026, 11, 6, 14, 30))
+        assertThat(reminderAt("""{"message":"Pay","in_hours":1,"in_minutes":30}""")).isEqualTo(LocalDateTime.of(2026, 10, 7, 16, 0))
+    }
+
+    @Test
+    fun `an offset wins over an absolute time when both are given`() {
+        val params = """{"message":"Pay","year":2027,"month":1,"day":1,"hour":0,"minute":0,"in_minutes":2}"""
+
+        assertThat(reminderAt(params)).isEqualTo(LocalDateTime.of(2026, 10, 7, 14, 32))
+    }
+
+    @Test
+    fun `an absolute time is unchanged by the clock`() {
+        assertThat(reminderAt("""{"message":"Pay","year":2026,"month":11,"day":2,"hour":9,"minute":30}""")).isEqualTo(LocalDateTime.of(2026, 11, 2, 9, 30))
+    }
+
+    @Test
+    fun `an offset of zero or less is refused`() {
+        assertThat((AgentActionParser.parse("schedule_notification", """{"message":"Pay","in_minutes":0}""", now = clock) as ActionParse.Rejected).reason)
+            .contains("more than zero")
+        assertThat(AgentActionParser.parse("schedule_notification", """{"message":"Pay","in_hours":-1}""", now = clock)).isInstanceOf(ActionParse.Rejected::class.java)
+    }
+
     @Test
     fun `a reminder falls back to the document of the chat`() {
         val action = parsed("schedule_notification", """{"message":"Pay","year":2026,"month":11,"day":2,"hour":9,"minute":0}""", doc = "chat-doc")
