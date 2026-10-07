@@ -44,6 +44,7 @@ dependencies {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-reflect")
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-android")
     }
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlin.reflect)
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)

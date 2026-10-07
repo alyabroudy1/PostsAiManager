@@ -81,6 +81,8 @@ class RoutingChatEngine(
 
     override suspend fun lastReplyHitLimit(): Boolean = active().lastReplyHitLimit()
 
+    override suspend fun lastReplyToolExchanges() = active().lastReplyToolExchanges()
+
     override suspend fun commitChatReply(answer: String) = active().commitChatReply(answer)
 
     override suspend fun discardPendingReply() = active().discardPendingReply()

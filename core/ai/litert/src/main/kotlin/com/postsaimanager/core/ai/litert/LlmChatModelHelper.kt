@@ -164,6 +164,13 @@ internal object LlmChatModelHelper : LlmModelHelper {
         instance.conversation = newConversation(instance.engine, config, systemInstruction, initialMessages, tools)
     }
 
+    override fun tokenCount(instance: LlmModelInstance): Int =
+        try {
+            instance.conversation.getTokenCount()
+        } catch (e: Exception) {
+            0
+        }
+
     override fun cleanUp(instance: LlmModelInstance, onDone: () -> Unit) {
         try {
             instance.conversation.close()

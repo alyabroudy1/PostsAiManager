@@ -16,6 +16,8 @@ import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.model.ModelRuntime
+import com.postsaimanager.core.model.ToolExchange
+import com.postsaimanager.core.model.ToolTrace
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -115,6 +117,9 @@ class RemoteLiteRtChatEngine @Inject constructor(
 
     override val toolActions: Flow<ToolActionCall> = actions.asSharedFlow()
 
+    /** The tool calls (with results) of the reply in flight or the last one: what [lastReplyToolExchanges] hands to the chat. */
+    private val replyExchanges = mutableListOf<ToolExchange>()
+
     // When the `:inference` process dies while it holds a LiteRT-LM model, the crash (the model and config that were running) goes to
     // the shared `connection.crashes`, so `InferenceCrashObserver` blocks the GPU for that model and the next load uses the CPU.
     init {
@@ -180,6 +185,7 @@ class RemoteLiteRtChatEngine @Inject constructor(
                         systemPrompt,
                         history.map { it.role.wireName }.toTypedArray(),
                         history.map { it.content }.toTypedArray(),
+                        history.map { ToolTrace.encode(it.toolTrace) }.toTypedArray(),
                     )
                 }.getOrDefault(false)
                 if (opened) Log.i(TAG, "ensureChatSession: opened a session with ${history.size} prior turns")
@@ -201,6 +207,7 @@ class RemoteLiteRtChatEngine @Inject constructor(
         }
 
         val startedNanos = System.nanoTime()
+        synchronized(replyExchanges) { replyExchanges.clear() }
         var chunks = 0
         val callback = object : ILiteRtReplyCallback.Stub() {
             override fun onToken(token: String?) {
@@ -223,6 +230,11 @@ class RemoteLiteRtChatEngine @Inject constructor(
                 // Only a proposal: it becomes a card in the app, and runs nothing until the user opens it.
                 Log.i(TAG, "action received: $intent")
                 ToolActionWire.fromWire(intent, parametersJson, documentId)?.let { actions.tryEmit(it) }
+            }
+
+            override fun onToolExchange(name: String?, argumentsJson: String?, resultJson: String?) {
+                if (name == null) return
+                synchronized(replyExchanges) { replyExchanges += ToolExchange(name, argumentsJson.orEmpty(), resultJson.orEmpty()) }
             }
 
             override fun onComplete() {
@@ -269,6 +281,8 @@ class RemoteLiteRtChatEngine @Inject constructor(
             runCatching { remote.cancelLiteRt() }
         }
     }
+
+    override suspend fun lastReplyToolExchanges(): List<ToolExchange> = synchronized(replyExchanges) { replyExchanges.toList() }
 
     override suspend fun lastReplyHitLimit(): Boolean = withContext(ioDispatcher) {
         val remote = connection.service ?: return@withContext false

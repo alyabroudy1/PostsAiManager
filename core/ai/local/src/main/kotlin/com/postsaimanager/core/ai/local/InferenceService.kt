@@ -15,6 +15,7 @@ import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.ModelLoadState
+import com.postsaimanager.core.model.ToolTrace
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -340,9 +341,12 @@ class InferenceService : Service() {
             systemPrompt: String?,
             roles: Array<out String>?,
             contents: Array<out String>?,
+            toolTraces: Array<out String>?,
         ): Boolean {
             if (conversationId == null || roles == null || contents == null || !isLiteRtReady()) return false
-            val history = roles.indices.map { AiChatMessage(roleOf(roles[it]), contents[it]) }
+            val history = roles.indices.map {
+                AiChatMessage(roleOf(roles[it]), contents[it], ToolTrace.decode(toolTraces?.getOrNull(it)))
+            }
             return submit {
                 runBlocking {
                     liteRt.ensureChatSession(conversationId, systemPrompt.orEmpty(), history)
@@ -388,6 +392,9 @@ class InferenceService : Service() {
                                 runCatching {
                                     callback.onAction(call.intent, call.parametersJson, ToolActionWire.documentIdToWire(call.documentId))
                                 }
+                            },
+                            onToolExchange = { exchange ->
+                                runCatching { callback.onToolExchange(exchange.name, exchange.argumentsJson, exchange.resultJson) }
                             },
                             onFallback = { runCatching { callback.onBackendFallback() } },
                         ).collect { callback.onToken(it) }

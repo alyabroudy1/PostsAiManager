@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.ai
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
+import com.postsaimanager.core.model.ToolExchange
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -90,6 +91,13 @@ interface ChatEngine {
      * token — the reply is cut off mid-thought. Read once, right after the stream completes.
      */
     suspend fun lastReplyHitLimit(): Boolean = false
+
+    /**
+     * The tool calls the most recent [sendChatMessage] made, with their results, oldest first (empty for an engine without tools or a
+     * reply that called none). Read once, right after the stream completes, and stored with the reply so a rebuilt conversation can
+     * replay it ([AiChatMessage.toolTrace]).
+     */
+    suspend fun lastReplyToolExchanges(): List<ToolExchange> = emptyList()
 
     /** Appends [answer] (thinking-stripped) to the open session's history. */
     suspend fun commitChatReply(answer: String)

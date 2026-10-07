@@ -144,8 +144,11 @@ interface IInferenceService {
     /** True when a LiteRT-LM model is resident. */
     boolean isLiteRtReady();
 
-    /** Opens (or re-primes) the chat session of [conversationId] — see `LiteRtChatEngine.ensureChatSession`. */
-    boolean openLiteRtSession(String conversationId, String systemPrompt, in String[] roles, in String[] contents);
+    /**
+     * Opens (or re-primes) the chat session of [conversationId] — see `LiteRtChatEngine.ensureChatSession`. [toolTraces] has one
+     * entry per turn: the JSON of the tool calls that turn made (`ToolTrace`), empty for none.
+     */
+    boolean openLiteRtSession(String conversationId, String systemPrompt, in String[] roles, in String[] contents, in String[] toolTraces);
 
     /** True when the session of [conversationId] is open and valid. */
     boolean isLiteRtSessionPrimed(String conversationId);

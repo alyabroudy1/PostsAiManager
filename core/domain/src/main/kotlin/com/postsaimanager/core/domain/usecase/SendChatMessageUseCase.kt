@@ -22,6 +22,7 @@ import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.model.MessageSource
 import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.model.ThinkingEffort
+import com.postsaimanager.core.model.ToolExchange
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -524,6 +525,8 @@ class SendChatMessageUseCase @Inject constructor(
             thinkingBuilder.toString(),
             thinkingDurationMs,
             sources = sources.toMessageSources(),
+            // What the model called during this reply: stored with it so a rebuilt conversation replays the calls too.
+            toolTrace = engine.lastReplyToolExchanges(),
         )
         // Records the (thinking-stripped) reply in the session's own history so the next
         // turn's diff renders correctly — see AiEngine.commitChatReply's KDoc. Uses
@@ -722,7 +725,9 @@ class SendChatMessageUseCase @Inject constructor(
             ) * BuildChatContextUseCase.CHARS_PER_TOKEN
         val historyBudgetChars = (totalBudgetChars - grounding.length).coerceAtLeast(0)
 
-        var totalChars = eligible.sumOf { it.content.length }
+        // A replayed tool trace is prompt too: the skill text a load_skill call returned is a thousand characters or more.
+        fun promptChars(message: AiMessage) = message.content.length + message.toolTrace.sumOf { it.promptChars }
+        var totalChars = eligible.sumOf(::promptChars)
         val trimmed = if (totalChars <= historyBudgetChars) {
             eligible
         } else {
@@ -732,7 +737,7 @@ class SendChatMessageUseCase @Inject constructor(
             val targetChars = (historyBudgetChars * HISTORY_TRIM_TARGET_RATIO).toInt()
             val kept = eligible.toMutableList()
             while (kept.size > 1 && totalChars > targetChars) {
-                totalChars -= kept.removeAt(0).content.length
+                totalChars -= promptChars(kept.removeAt(0))
             }
             kept
         }
@@ -741,6 +746,7 @@ class SendChatMessageUseCase @Inject constructor(
             AiChatMessage(
                 role = if (message.role == MessageRole.USER) AiChatRole.USER else AiChatRole.ASSISTANT,
                 content = message.content,
+                toolTrace = message.toolTrace,
             )
         }
     }
@@ -808,6 +814,7 @@ class SendChatMessageUseCase @Inject constructor(
         incomplete: Boolean = false,
         cutOff: Boolean = false,
         sources: List<MessageSource> = emptyList(),
+        toolTrace: List<ToolExchange> = emptyList(),
     ): AiMessage {
         val message = AiMessage(
             id = UuidGenerator.generate(),
@@ -820,6 +827,7 @@ class SendChatMessageUseCase @Inject constructor(
             incomplete = incomplete,
             cutOff = cutOff,
             sources = sources,
+            toolTrace = toolTrace,
         )
         conversationRepository.addMessage(message)
         return message

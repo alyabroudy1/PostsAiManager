@@ -19,6 +19,13 @@ oneway interface ILiteRtReplyCallback {
     void onAction(String intent, String parametersJson, String documentId);
 
     /**
+     * A tool call the model made during the reply (`load_skill` or `run_intent`) with the result it got back, as JSON objects. The
+     * app stores these with the reply so a rebuilt conversation replays the calls ([ToolExchange]). Arrives before [onComplete],
+     * in the order the calls were made.
+     */
+    void onToolExchange(String name, String argumentsJson, String resultJson);
+
+    /**
      * The GPU engine failed this reply before saying anything, so the service reloaded on the CPU and is answering from there.
      * The app records that the GPU cannot run this model, so the next load goes straight to the CPU.
      */

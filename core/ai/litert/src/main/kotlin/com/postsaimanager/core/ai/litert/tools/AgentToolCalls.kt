@@ -29,7 +29,10 @@ import com.postsaimanager.core.domain.skills.AgentAction
 import com.postsaimanager.core.domain.skills.AgentActionParser
 import com.postsaimanager.core.domain.skills.AgentIntent
 import com.postsaimanager.core.domain.skills.SkillCatalog
+import com.postsaimanager.core.model.ToolExchange
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.time.LocalDateTime
 
 /** What `load_skill` and `run_intent` do, and nothing LiteRT-LM: the tool classes delegate here. */
@@ -46,10 +49,21 @@ internal class AgentToolCalls(
         val skill = skills.load(skillName)
         log("load_skill \"$skillName\": ${if (skill != null) "found" else "not found"}")
         mapOf("skill_name" to skillName, "skill_instructions" to (skill?.content() ?: "Skill not found"))
-    }
+    }.also { record(LOAD_SKILL, mapOf("skill_name" to skillName), it) }
 
     /** `run_intent`: proposes the action (or answers the clock); never runs it. */
-    fun runIntent(intent: String, parameters: String): Map<String, String> {
+    fun runIntent(intent: String, parameters: String): Map<String, String> =
+        propose(intent, parameters).also { record(RUN_INTENT, mapOf("intent" to intent, "parameters" to parameters), it) }
+
+    /** Notes the call with its result, so the conversation can replay it as a tool-call turn (the model's own parameter names). */
+    private fun record(tool: String, arguments: Map<String, String>, result: Map<String, String>) {
+        context.record(ToolExchange(tool, jsonObject(arguments), jsonObject(result)))
+    }
+
+    private fun jsonObject(values: Map<String, String>): String =
+        JsonObject(values.mapValues { JsonPrimitive(it.value) }).toString()
+
+    private fun propose(intent: String, parameters: String): Map<String, String> {
         val name = intent.trim()
         return when (val parsed = AgentActionParser.parse(name, parameters, context.chatDocumentId())) {
             is ActionParse.Rejected -> {
@@ -80,6 +94,10 @@ internal class AgentToolCalls(
     }
 
     internal companion object {
+        /** The tools' names as the model calls them (LiteRT-LM turns the Kotlin method names into snake case). */
+        const val LOAD_SKILL = "load_skill"
+        const val RUN_INTENT = "run_intent"
+
         /** What the model is told after a proposal: the user decides, so it must not claim the action is done. */
         const val PROPOSED = "proposed to the user, waiting for their confirmation on the card"
     }

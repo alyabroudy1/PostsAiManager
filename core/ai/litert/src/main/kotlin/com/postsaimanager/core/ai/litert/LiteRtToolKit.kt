@@ -30,6 +30,7 @@ import com.postsaimanager.core.domain.ai.ToolActionCall
 import com.postsaimanager.core.domain.skills.ActionDateTime
 import com.postsaimanager.core.domain.skills.ChatToolsPrompt
 import com.postsaimanager.core.domain.skills.SkillCatalog
+import com.postsaimanager.core.model.ToolExchange
 import java.time.LocalDateTime
 
 /**
@@ -58,7 +59,11 @@ internal class LiteRtToolKit(private val skills: SkillCatalog) {
     }
 
     /** Starts a reply about [documentId]; every proposed action goes to [onAction]. */
-    fun bind(documentId: String?, onAction: (ToolActionCall) -> Unit) = context.bind(documentId, onAction)
+    fun bind(documentId: String?, onAction: (ToolActionCall) -> Unit, onExchange: (ToolExchange) -> Unit = {}) =
+        context.bind(documentId, onAction, onExchange)
+
+    /** The calls the reply made (the last reply's, after [release]) with the results the model got. */
+    fun exchanges(): List<ToolExchange> = context.exchanges()
 
     /** Ends the reply. */
     fun release() = context.release()

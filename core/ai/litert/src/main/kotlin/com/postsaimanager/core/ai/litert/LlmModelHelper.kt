@@ -80,6 +80,12 @@ internal interface LlmModelHelper {
         tools: List<ToolProvider> = listOf(),
     )
 
+    /**
+     * How many tokens the instance's conversation holds now (history, system instruction and tool results included), or 0 when
+     * unknown. The Gallery's context compaction reads the same number (`LlmConversationInstance.getTokenCount`).
+     */
+    fun tokenCount(instance: LlmModelInstance): Int
+
     /** Closes the conversation and the engine and frees the model. */
     fun cleanUp(instance: LlmModelInstance, onDone: () -> Unit = {})
 

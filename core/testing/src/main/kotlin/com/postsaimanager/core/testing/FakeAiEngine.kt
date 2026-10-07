@@ -179,6 +179,11 @@ class FakeAiEngine(
 
     override suspend fun lastReplyHitLimit(): Boolean = hitLimit
 
+    /** What [lastReplyToolExchanges] reports — set to simulate a reply that called tools. */
+    var toolExchanges: List<com.postsaimanager.core.model.ToolExchange> = emptyList()
+
+    override suspend fun lastReplyToolExchanges(): List<com.postsaimanager.core.model.ToolExchange> = toolExchanges
+
     override suspend fun commitChatReply(answer: String) {
         committedReplies += answer
     }

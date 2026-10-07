@@ -84,6 +84,13 @@ data class AiMessage(
      * would be meaningless against a cut-off sentence).
      */
     val sources: List<MessageSource> = emptyList(),
+    /**
+     * The tool calls (and the results the model got) that this reply made before it wrote its text, oldest first; empty for a
+     * reply without tools and for every message stored before this existed. Replayed with the turn when a conversation is
+     * rebuilt, so the model never sees an assistant turn claiming an action without the call. Stored, for an assistant message,
+     * in the `toolArgs` column as a JSON array ([ToolTrace]); no schema change.
+     */
+    val toolTrace: List<ToolExchange> = emptyList(),
 )
 
 /**

@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.ai.ToolActionCall
 import com.postsaimanager.core.domain.skills.Skill
 import com.postsaimanager.core.domain.skills.SkillCatalog
+import com.postsaimanager.core.model.ToolExchange
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.time.LocalDateTime
@@ -26,7 +27,7 @@ class AgentToolsTest {
 
     private val emailJson = """{"extra_email":"a@b.de","extra_subject":"Re: Az. 1","extra_text":"Hello"}"""
 
-    private fun startReply(documentId: String? = "doc-1") = context.bind(documentId) { emitted += it }
+    private fun startReply(documentId: String? = "doc-1") = context.bind(documentId, { emitted += it })
 
     @Test
     fun `load_skill returns the skill's instructions`() {
@@ -153,6 +154,47 @@ class AgentToolsTest {
         runIntent.runIntent("send_email", emailJson)
 
         assertThat(emitted).hasSize(2)
+    }
+
+    @Test
+    @DisplayName("every call is recorded with the model's own parameter names and the result it got, for the replay")
+    fun `calls are recorded as exchanges`() {
+        val told = mutableListOf<ToolExchange>()
+        context.bind("doc-1", { emitted += it }, { told += it })
+
+        loadSkill.loadSkill("send-email")
+        runIntent.runIntent("send_email", emailJson)
+
+        val recorded = context.exchanges()
+        assertThat(recorded.map { it.name }).containsExactly("load_skill", "run_intent").inOrder()
+        assertThat(recorded[0].argumentsJson).isEqualTo("""{"skill_name":"send-email"}""")
+        assertThat(recorded[0].resultJson).contains("skill_instructions")
+        assertThat(recorded[1].argumentsJson).contains("\"intent\":\"send_email\"")
+        assertThat(recorded[1].resultJson).contains("waiting for their confirmation")
+        // The app is told as they happen, in the same order.
+        assertThat(told).isEqualTo(recorded)
+    }
+
+    @Test
+    fun `a rejected call is recorded too, with the reason the model heard`() {
+        startReply()
+
+        runIntent.runIntent("send_email", """{"extra_subject":"no address"}""")
+
+        assertThat(context.exchanges().single().resultJson).contains("failed")
+    }
+
+    @Test
+    @DisplayName("the recorded calls survive the end of the reply and are cleared by the next one")
+    fun `exchanges outlive the reply`() {
+        startReply()
+        runIntent.runIntent("send_email", emailJson)
+        context.release()
+
+        assertThat(context.exchanges()).hasSize(1)
+
+        startReply()
+        assertThat(context.exchanges()).isEmpty()
     }
 
     @Test

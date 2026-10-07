@@ -1,7 +1,7 @@
 package com.postsaimanager.core.ai.litert
 
+import android.util.Log
 import com.google.ai.edge.litertlm.Contents
-import com.google.ai.edge.litertlm.Message
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.AiCapabilities
@@ -13,6 +13,7 @@ import com.postsaimanager.core.domain.skills.SkillCatalog
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
+import com.postsaimanager.core.model.ToolExchange
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -28,6 +29,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -46,6 +48,12 @@ import java.util.concurrent.atomic.AtomicLong
  * send's request. A conversation is rebuilt from the same three when the sampling changes, after a conversation switch, and after
  * a discarded reply (a stopped reply may have left a half-formed turn inside the `Conversation`, and the app's contract is that
  * an abandoned reply never becomes something the model said).
+ *
+ * As in the Gallery, the live `Conversation` is what keeps the real history, tool-call turns included, from one reply to the
+ * next. A rebuild must not lose them: the committed turns carry each reply's tool calls and results ([LiteRtTurn.tools], stored
+ * with the message by the app), and [LiteRtMessages] replays them as tool-call turns. A history that shows "I created the reminder"
+ * with no call in front of it teaches the model to claim actions without making them. Like the Gallery's compactor, a conversation
+ * past 75% of its window is restarted, here from the newest turns that fit rather than from a model-written summary.
  *
  * The text is handed over as plain messages: the model file carries its chat template and LiteRT-LM applies it, so nothing here
  * adds turn markers.
@@ -104,6 +112,10 @@ class LiteRtChatEngine internal constructor(
 
     @Volatile
     private var hitLimit = false
+
+    /** True when the reply in flight (or the last) ran with the tools, so [lastReplyToolExchanges] has a meaning. */
+    @Volatile
+    private var replyUsedTools = false
 
     /** The accelerator the engine started on, for the log and the diagnostics. Null with no model loaded. */
     val accelerator: Accelerator? get() = instance?.accelerator
@@ -192,13 +204,15 @@ class LiteRtChatEngine internal constructor(
         request: AiRequest,
         onToolAction: (ToolActionCall) -> Unit,
         onFallback: () -> Unit = {},
-    ): Flow<String> = serialised(replyFlow(userText, request, onToolAction, onFallback))
+        onToolExchange: (ToolExchange) -> Unit = {},
+    ): Flow<String> = serialised(replyFlow(userText, request, onToolAction, onFallback, onToolExchange))
 
     private fun replyFlow(
         userText: String,
         request: AiRequest,
         onToolAction: (ToolActionCall) -> Unit,
         onFallback: () -> Unit,
+        onToolExchange: (ToolExchange) -> Unit,
     ): Flow<String> = callbackFlow {
         val live = instance
         if (live == null) {
@@ -223,7 +237,8 @@ class LiteRtChatEngine internal constructor(
             return@callbackFlow
         }
         pendingUser = userText
-        activeKit?.bind(request.tools?.documentId, onToolAction)
+        replyUsedTools = activeKit != null
+        activeKit?.bind(request.tools?.documentId, onToolAction, onToolExchange)
 
         val filter = ReplyTextFilter()
         var chunks = 0
@@ -333,28 +348,58 @@ class LiteRtChatEngine internal constructor(
      * conversation is given the tools.
      */
     private suspend fun ensureConversation(live: LlmModelInstance, sampling: Sampling, kit: LiteRtToolKit?, toolPrompt: String?) {
-        val key = ConversationKey(sampling, withTools = kit != null)
-        if (conversationSampling == key) return
+        // The day is part of the key: the phone's date is in the system instruction, and a conversation kept past midnight would
+        // keep saying yesterday. The rebuild is faithful (tool calls included), so a new day costs one prefill and nothing else.
+        val key = ConversationKey(sampling, withTools = kit != null, day = if (kit != null) LocalDate.now() else null)
         val config = loaded?.second
+        val window = config?.contextTokens ?: 0
+        if (conversationSampling == key) {
+            // The Gallery's context compaction: past 75% of the window the conversation is restarted, from less history. A live
+            // conversation otherwise grows until the engine refuses it ("Prefill input length exceeds available state entries").
+            val used = helper.tokenCount(live)
+            if (window <= 0 || used <= window * COMPACT_AT_SHARE) return
+            Log.i(TAG, "context at $used of $window tokens: restarting the conversation from the newest turns")
+            val kept = LiteRtTurns.compact(committed, LiteRtTurns.rebuildBudgetChars(window))
+            committed.clear()
+            committed += kept
+        }
         val instruction = listOfNotNull(system.takeIf { it.isNotBlank() }, toolPrompt.takeIf { kit != null }).joinToString("\n\n")
-        helper.resetConversation(
-            instance = live,
-            config = LlmModelConfig(
-                modelPath = loaded?.first.orEmpty(),
-                accelerator = live.accelerator,
-                maxTokens = config?.contextTokens ?: 0,
-                topK = sampling.topK,
-                topP = sampling.topP,
-                temperature = sampling.temperature,
-            ),
-            systemInstruction = instruction.takeIf { it.isNotBlank() }?.let { Contents.of(it) },
-            initialMessages = committed.map { if (it.fromUser) Message.user(it.text) else Message.model(it.text) },
-            tools = kit?.providers.orEmpty(),
+        val modelConfig = LlmModelConfig(
+            modelPath = loaded?.first.orEmpty(),
+            accelerator = live.accelerator,
+            maxTokens = window,
+            topK = sampling.topK,
+            topP = sampling.topP,
+            temperature = sampling.temperature,
         )
+        val systemInstruction = instruction.takeIf { it.isNotBlank() }?.let { Contents.of(it) }
+        try {
+            helper.resetConversation(
+                instance = live,
+                config = modelConfig,
+                systemInstruction = systemInstruction,
+                initialMessages = LiteRtMessages.of(committed, withTools = kit != null),
+                tools = kit?.providers.orEmpty(),
+            )
+        } catch (e: Exception) {
+            // The history with its tool calls was refused (a template that cannot render it): continue from its text, which at
+            // least is a conversation, rather than failing the reply.
+            if (committed.none { it.tools.isNotEmpty() }) throw e
+            Log.w(TAG, "the history with tool calls was refused (${e.message}); replaying its text only")
+            helper.resetConversation(
+                instance = live,
+                config = modelConfig,
+                systemInstruction = systemInstruction,
+                initialMessages = LiteRtMessages.of(committed, withTools = false),
+                tools = kit?.providers.orEmpty(),
+            )
+        }
         conversationSampling = key
     }
 
     override suspend fun lastReplyHitLimit(): Boolean = hitLimit
+
+    override suspend fun lastReplyToolExchanges(): List<ToolExchange> = if (replyUsedTools) toolKit?.exchanges().orEmpty() else emptyList()
 
     override suspend fun commitChatReply(answer: String): Unit = mutex.withLock {
         // The model may have been replaced since the reply began (a document was read in between): nothing to record into.
@@ -365,7 +410,8 @@ class LiteRtChatEngine internal constructor(
             return@withLock
         }
         pendingUser?.let { committed += LiteRtTurn(fromUser = true, text = it) }
-        committed += LiteRtTurn(fromUser = false, text = answer)
+        // The calls the reply made stay with it, so a rebuilt conversation shows the model its own calls and not just its words.
+        committed += LiteRtTurn(fromUser = false, text = answer, tools = lastReplyToolExchanges())
         pendingUser = null
     }
 
@@ -408,10 +454,15 @@ class LiteRtChatEngine internal constructor(
         /** How often the idle watchdog looks, and how long a reply may stay silent (a tool call or a slow CPU prefill included). */
         const val WATCHDOG_STEP_MS = 5_000L
         const val REPLY_IDLE_TIMEOUT_MS = 180_000L
+
+        /** The Gallery's `TOKEN_LIMIT_THRESHOLD_RATIO`: a conversation past this share of its window is restarted from less history. */
+        const val COMPACT_AT_SHARE = 0.75
+
+        const val TAG = "PamLiteRt"
     }
 
     private data class Sampling(val topK: Int, val topP: Float, val temperature: Float)
 
     /** What a live conversation was built with; any difference from the next reply's means a new conversation. */
-    private data class ConversationKey(val sampling: Sampling, val withTools: Boolean)
+    private data class ConversationKey(val sampling: Sampling, val withTools: Boolean, val day: LocalDate? = null)
 }

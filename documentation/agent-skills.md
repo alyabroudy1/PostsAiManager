@@ -110,6 +110,15 @@ it must use `ReminderScheduler` too. No DB change was made.
    app process turns it into a `ToolProposal` (`ObserveToolActionsUseCase`, the pure parser again) and `ActionCardsViewModel`
    runs `ProposeActionUseCase` (grounding) and shows the card: Open / Edit / Cancel. Only Open reaches `ConfirmActionUseCase`.
 5. The reply text is the model's own words; `ReplyTextFilter` drops control tokens and any tool-call or tool-result markup.
+6. **History keeps the calls.** Like the Gallery, the engine keeps one live LiteRT-LM `Conversation` per chat across turns, so the
+   model sees its own earlier tool calls. Whenever the conversation is rebuilt (chat switch, the model unloaded, a stopped reply,
+   process restart) the history must not shrink to plain text: "assistant: I prepared the reminder" with no call in front of it
+   teaches the model to claim actions without making them. So every call and its result (`ToolExchange`, recorded by `ToolContext`
+   in `:inference`, sent to the app by `ILiteRtReplyCallback.onToolExchange`) is stored with the reply (`AiMessage.toolTrace`, in the
+   existing `toolArgs` column of the assistant row, no schema change) and replayed as tool-call turns (`LiteRtMessages`). A message
+   stored before this has no trace and replays as text. A conversation past 75% of its window is restarted from the newest turns
+   that fit (`LiteRtTurns.compact`), the Gallery's compaction trigger with trimming instead of a model-written summary. The card's
+   outcome (opened, edited, cancelled) is not replayed: the model never heard it live either, only "waiting for the user".
 
 ## Not built (listed for later)
 

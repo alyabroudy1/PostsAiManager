@@ -182,6 +182,11 @@ data class AiCapabilities(
 data class AiChatMessage(
     val role: AiChatRole,
     val content: String,
+    /**
+     * For an assistant turn: the tool calls it made before [content] and what they returned. A tool-capable engine replays them as
+     * tool-call turns so the history never shows an action claimed without its call; the others ignore it.
+     */
+    val toolTrace: List<com.postsaimanager.core.model.ToolExchange> = emptyList(),
 )
 
 enum class AiChatRole {

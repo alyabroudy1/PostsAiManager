@@ -21,6 +21,7 @@
 package com.postsaimanager.core.ai.litert.tools
 
 import com.postsaimanager.core.domain.ai.ToolActionCall
+import com.postsaimanager.core.model.ToolExchange
 
 /**
  * What the tools know about the reply in flight, and where they publish: bound by the engine before each reply, shared by the
@@ -36,23 +37,46 @@ internal class ToolContext {
     @Volatile
     private var sink: (ToolActionCall) -> Unit = {}
 
+    @Volatile
+    private var exchangeSink: (ToolExchange) -> Unit = {}
+
     private val proposed = mutableSetOf<Pair<String, String>>()
 
-    /** Starts a reply: [documentId] is the letter it is about, [sink] receives every proposed action. */
+    /** Every call of the reply in flight (or the last one) with its result, oldest first: what the conversation replays next time. */
+    private val exchanges = mutableListOf<ToolExchange>()
+
+    /**
+     * Starts a reply: [documentId] is the letter it is about, [sink] receives every proposed action, [onExchange] every call made
+     * with the result it got (for the app to store with the reply).
+     */
     @Synchronized
-    fun bind(documentId: String?, sink: (ToolActionCall) -> Unit) {
+    fun bind(documentId: String?, sink: (ToolActionCall) -> Unit, onExchange: (ToolExchange) -> Unit = {}) {
         this.documentId = documentId
         this.sink = sink
+        this.exchangeSink = onExchange
         proposed.clear()
+        exchanges.clear()
     }
 
-    /** Ends the reply: a late tool call finds nobody to tell. */
+    /** Ends the reply: a late tool call finds nobody to tell. The recorded [exchanges] stay until the next reply. */
     @Synchronized
     fun release() {
         documentId = null
         sink = {}
+        exchangeSink = {}
         proposed.clear()
     }
+
+    /** Notes one call and its result. */
+    @Synchronized
+    fun record(exchange: ToolExchange) {
+        exchanges += exchange
+        exchangeSink(exchange)
+    }
+
+    /** The calls of the reply in flight or the last one. */
+    @Synchronized
+    fun exchanges(): List<ToolExchange> = exchanges.toList()
 
     /** The letter the reply in flight is about, or null. */
     fun chatDocumentId(): String? = documentId

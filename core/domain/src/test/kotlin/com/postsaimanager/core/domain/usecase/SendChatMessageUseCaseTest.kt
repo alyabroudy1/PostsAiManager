@@ -6,6 +6,7 @@ import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.model.ThinkingEffort
+import com.postsaimanager.core.model.ToolExchange
 import com.postsaimanager.core.testing.FakeActiveModelProvider
 import com.postsaimanager.core.testing.FakeAiEngine
 import com.postsaimanager.core.testing.FakeConversationRepository
@@ -340,6 +341,45 @@ class SendChatMessageUseCaseTest {
             .isTrue()
         assertThat(engine.committedReplies)
             .containsExactly("First answer.", "Second answer, no thinking this time.")
+    }
+
+    @Test
+    @DisplayName("the tool calls a reply made are stored with it and replayed with it, so the history never shows an action without its call")
+    fun `tool calls travel with the reply into the replayed history`() = runTest {
+        val loadSkill = ToolExchange("load_skill", """{"skill_name":"schedule-reminder"}""", """{"skill_instructions":"1. Do it."}""")
+        val runIntent = ToolExchange("run_intent", """{"intent":"schedule_notification","parameters":"{}"}""", """{"status":"proposed"}""")
+        engine.response = "I prepared the reminder, check the card."
+        engine.toolExchanges = listOf(loadSkill, runIntent)
+
+        val stored = sendChatMessage("conv-1", documentId = null, text = "remind me").toList()
+            .filterIsInstance<ChatTurn.Complete>().single().message
+        assertThat(stored.toolTrace).containsExactly(loadSkill, runIntent).inOrder()
+
+        engine.toolExchanges = emptyList()
+        engine.response = "Anything else?"
+        sendChatMessage("conv-1", documentId = null, text = "thanks").toList()
+
+        val replayed = engine.lastSessionHistory.single { it.role == com.postsaimanager.core.domain.ai.AiChatRole.ASSISTANT }
+        assertThat(replayed.content).isEqualTo("I prepared the reminder, check the card.")
+        assertThat(replayed.toolTrace).containsExactly(loadSkill, runIntent).inOrder()
+    }
+
+    @Test
+    @DisplayName("a replayed tool trace counts against the history budget like any other prompt text")
+    fun `tool trace counts against the history budget`() = runTest {
+        val skillText = ToolExchange("load_skill", "{}", "x".repeat(20_000))
+        engine.response = "Prepared."
+        engine.toolExchanges = listOf(skillText)
+        sendChatMessage("conv-1", documentId = null, text = "first").toList()
+        engine.toolExchanges = emptyList()
+        engine.response = "Second."
+        sendChatMessage("conv-1", documentId = null, text = "second").toList()
+        engine.response = "Third."
+        sendChatMessage("conv-1", documentId = null, text = "third").toList()
+
+        // The 20 000-character skill text alone is over the whole history budget, so the oldest turn (the one that carries it) is
+        // the one that goes.
+        assertThat(engine.lastSessionHistory.flatMap { it.toolTrace }).isEmpty()
     }
 
     @Test

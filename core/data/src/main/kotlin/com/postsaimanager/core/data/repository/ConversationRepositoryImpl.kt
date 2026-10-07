@@ -17,6 +17,7 @@ import com.postsaimanager.core.model.AiModelType
 import com.postsaimanager.core.model.MediaType
 import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.model.MessageSource
+import com.postsaimanager.core.model.ToolTrace
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -159,6 +160,8 @@ class ConversationRepositoryImpl @Inject constructor(
         incomplete = row.message.incomplete,
         cutOff = row.message.cutOff,
         sources = row.sources.map(::toDomain),
+        // An assistant message keeps its tool trace in the `toolArgs` column (see AiMessage.toolTrace); other roles' toolArgs is theirs.
+        toolTrace = if (row.message.role == MessageRole.ASSISTANT.name) ToolTrace.decode(row.message.toolArgs) else emptyList(),
     )
 
     private fun toEntity(model: AiMessage) = MessageEntity(
@@ -170,7 +173,7 @@ class ConversationRepositoryImpl @Inject constructor(
         mediaPath = model.mediaPath,
         toolCallId = model.toolCallId,
         toolName = model.toolName,
-        toolArgs = model.toolArgs,
+        toolArgs = model.toolTrace.takeIf { it.isNotEmpty() }?.let(ToolTrace::encode) ?: model.toolArgs,
         toolResult = model.toolResult,
         isStreaming = model.isStreaming,
         createdAt = model.createdAt,
