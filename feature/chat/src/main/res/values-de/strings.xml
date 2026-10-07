@@ -81,6 +81,9 @@
     <string name="action_status_opened_event">In deinem Kalender geöffnet</string>
     <string name="action_status_reminder_set">Erinnerung gesetzt</string>
     <string name="action_status_cancelled">Abgebrochen</string>
+    <string name="action_restore">Wiederherstellen</string>
+    <string name="action_do_again">Nochmal</string>
+    <string name="action_done_at">Erledigt, %1$s</string>
     <string name="action_failed">Das hat nicht geklappt. Prüfe die Felder oder versuche es noch einmal.</string>
 
     <!-- Nur Debug-Builds: ein Menü, um die Aktionskarten auszuprobieren, bevor das Modell welche vorschlägt -->

@@ -478,6 +478,8 @@ fun ChatScreen(
                             onOpen = { actionCardsViewModel.open(card.id) },
                             onEdit = { actionCardsViewModel.startEditing(card.id) },
                             onCancel = { actionCardsViewModel.cancel(card.id) },
+                            onRestore = { actionCardsViewModel.restore(card.id) },
+                            onDoAgain = { actionCardsViewModel.doAgain(card.id) },
                             onChange = { field, text -> actionCardsViewModel.changeField(card.id, field, text) },
                         )
                     }

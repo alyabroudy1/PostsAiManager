@@ -34,9 +34,10 @@ object ActionForm {
 
     /**
      * The action [template] with the fields in [values] replacing its own (a field not in [values] keeps the template's text).
-     * [now] decides whether a reminder is still in the future.
+     * [now] decides whether a reminder is still in the future; with [requireFuture] false a time in the past is accepted (a card
+     * being rebuilt is checked, and flagged, rather than refused).
      */
-    fun build(template: AgentAction, values: Map<ActionField, String>, now: LocalDateTime): FormResult {
+    fun build(template: AgentAction, values: Map<ActionField, String>, now: LocalDateTime, requireFuture: Boolean = true): FormResult {
         val text = entries(template).toMap() + values
         fun get(field: ActionField): String = text[field].orEmpty().trim()
         val errors = LinkedHashMap<ActionField, InvalidReason>()
@@ -65,7 +66,7 @@ object ActionForm {
             is AgentAction.ScheduleReminder -> {
                 val at = time(ActionField.AT)
                 val message = required(ActionField.TEXT)
-                if (at != null && !at.isAfter(now)) errors[ActionField.AT] = InvalidReason.IN_THE_PAST
+                if (requireFuture && at != null && !at.isAfter(now)) errors[ActionField.AT] = InvalidReason.IN_THE_PAST
                 at?.let { AgentAction.ScheduleReminder(at = it, text = message, documentId = template.documentId) }
             }
             AgentAction.GetDateTime -> AgentAction.GetDateTime

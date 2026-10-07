@@ -81,6 +81,9 @@
     <string name="action_status_opened_event">فُتح في التقويم</string>
     <string name="action_status_reminder_set">تم ضبط التذكير</string>
     <string name="action_status_cancelled">أُلغي</string>
+    <string name="action_restore">استعادة</string>
+    <string name="action_do_again">مرة أخرى</string>
+    <string name="action_done_at">تم، %1$s</string>
     <string name="action_failed">لم ينجح ذلك. تحقق من الحقول أو حاول مرة أخرى.</string>
 
     <!-- نسخ التصحيح فقط: قائمة لتجربة بطاقات الإجراءات قبل أن يقترح النموذج أي إجراء -->
