@@ -12,6 +12,7 @@ import com.postsaimanager.core.domain.ai.ChatEngine
 import com.postsaimanager.core.domain.ai.ToolActionCall
 import com.postsaimanager.core.domain.ai.ToolActionWire
 import com.postsaimanager.core.domain.ai.InferenceCrash
+import com.postsaimanager.core.domain.skills.JsSkillRequest
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
@@ -109,8 +110,19 @@ class RemoteLiteRtChatEngine @Inject constructor(
 
     override val isBusy: Boolean get() = connection.engineMutex.isLocked
 
-    // Phase 1: the engine runs with thinking off.
-    override val supportsThinking: Boolean get() = false
+    // The engine streams the thought channel between think tags when the reply asks for thinking (Off by default in the chat).
+    override val supportsThinking: Boolean get() = true
+
+    /** The `run_js` calls the service delivers while a reply streams: the app runs the script and answers by [deliverJsResult]. */
+    private val scripts = MutableSharedFlow<JsSkillRequest>(extraBufferCapacity = ACTION_BUFFER)
+
+    override val jsRequests: Flow<JsSkillRequest> = scripts.asSharedFlow()
+
+    override suspend fun deliverJsResult(requestId: String, result: String) {
+        withContext(ioDispatcher) {
+            runCatching { connection.service?.deliverJsResult(requestId, result) }
+        }
+    }
 
     /** The `run_intent` calls the service delivers while a reply streams. Hot, no replay; a collector (the chat) attaches once. */
     private val actions = MutableSharedFlow<ToolActionCall>(extraBufferCapacity = ACTION_BUFFER)
@@ -232,9 +244,17 @@ class RemoteLiteRtChatEngine @Inject constructor(
                 ToolActionWire.fromWire(intent, parametersJson, documentId)?.let { actions.tryEmit(it) }
             }
 
-            override fun onToolExchange(name: String?, argumentsJson: String?, resultJson: String?) {
+            override fun onToolExchange(name: String?, argumentsJson: String?, resultJson: String?, shownJson: String?) {
                 if (name == null) return
-                synchronized(replyExchanges) { replyExchanges += ToolExchange(name, argumentsJson.orEmpty(), resultJson.orEmpty()) }
+                synchronized(replyExchanges) {
+                    replyExchanges += ToolExchange(name, argumentsJson.orEmpty(), resultJson.orEmpty(), shownJson.orEmpty())
+                }
+            }
+
+            override fun onRunJs(requestId: String?, skillFolder: String?, scriptName: String?, data: String?) {
+                if (requestId == null || skillFolder == null || scriptName == null) return
+                Log.i(TAG, "script requested: $skillFolder/$scriptName")
+                scripts.tryEmit(JsSkillRequest(requestId, skillFolder, scriptName, data.orEmpty()))
             }
 
             override fun onComplete() {
@@ -259,6 +279,8 @@ class RemoteLiteRtChatEngine @Inject constructor(
                     request.topP,
                     request.tools != null,
                     ToolActionWire.documentIdToWire(request.tools?.documentId),
+                    request.thinkingEnabled,
+                    request.imagePaths.toTypedArray(),
                     callback,
                 )
             }.getOrDefault(false)

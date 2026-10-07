@@ -9,6 +9,7 @@ import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
 import com.postsaimanager.core.domain.ai.ToolActionCall
+import com.postsaimanager.core.domain.skills.JsSkillRequest
 import com.postsaimanager.core.domain.skills.SkillCatalog
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
@@ -66,9 +67,18 @@ import java.util.concurrent.atomic.AtomicLong
  * calling), so one send is one stream of the model's final text. `run_intent` only proposes: its action goes to the callback
  * of [sendChatMessage], never to the system. [ReplyTextFilter] keeps tool protocol out of the stream.
  *
- * ### Not yet
+ * ### Thinking
  *
- * Thinking is off ([supportsThinking] is false, `enable_thinking=false`), and the thought channel is ignored.
+ * A reply whose [AiRequest.thinkingEnabled] is set runs with `enable_thinking=true`, and the thought channel is written into the
+ * stream between think tags ([ThoughtStream]) for the app's existing parser. Off (the default of the chat) nothing changes:
+ * `enable_thinking=false` and the channel is ignored.
+ *
+ * ### Pictures
+ *
+ * A reply with [AiRequest.imagePaths] sends the files, as the Gallery does (`Content.ImageBytes` in front of the text). The
+ * engine starts its vision encoder only then: a model loaded for plain chat is restarted once with it ([withVision]), so a chat
+ * that never carries a picture is exactly what it was. Only the current turn sends the pixels; a rebuilt conversation replays
+ * the text (the app puts a marker in it).
  *
  * ### Reply cap
  *
@@ -93,7 +103,11 @@ class LiteRtChatEngine internal constructor(
 
     override val isBusy: Boolean get() = mutex.isLocked
 
-    override val supportsThinking: Boolean get() = false
+    override val supportsThinking: Boolean get() = true
+
+    override suspend fun deliverJsResult(requestId: String, result: String) {
+        toolKit?.deliverJsResult(requestId, result)
+    }
 
     private var instance: LlmModelInstance? = null
     private var loaded: Pair<String, InferenceConfig>? = null
@@ -209,7 +223,8 @@ class LiteRtChatEngine internal constructor(
         onToolAction: (ToolActionCall) -> Unit,
         onFallback: () -> Unit = {},
         onToolExchange: (ToolExchange) -> Unit = {},
-    ): Flow<String> = serialised(replyFlow(userText, request, onToolAction, onFallback, onToolExchange))
+        onRunJs: (JsSkillRequest) -> Unit = {},
+    ): Flow<String> = serialised(replyFlow(userText, request, onToolAction, onFallback, onToolExchange, onRunJs))
 
     private fun replyFlow(
         userText: String,
@@ -217,13 +232,25 @@ class LiteRtChatEngine internal constructor(
         onToolAction: (ToolActionCall) -> Unit,
         onFallback: () -> Unit,
         onToolExchange: (ToolExchange) -> Unit,
+        onRunJs: (JsSkillRequest) -> Unit,
     ): Flow<String> = callbackFlow {
-        val live = instance
+        var live = instance
         if (live == null) {
             close(IllegalStateException("No model is loaded."))
             return@callbackFlow
         }
         hitLimit = false
+        // The pictures of this reply, read from the files the app stored; one that cannot be read is left out.
+        val images = request.imagePaths.mapNotNull { path -> runCatching { File(path).readBytes() }.getOrNull() }
+        if (images.isNotEmpty()) {
+            try {
+                live = withContext(Dispatchers.IO) { withVision(live!!) }
+            } catch (e: Exception) {
+                close(e)
+                return@callbackFlow
+            }
+        }
+        val current = live!!
         val kit = toolKit?.takeIf { request.tools != null }
         val toolPrompt = try {
             kit?.systemPrompt()
@@ -234,7 +261,7 @@ class LiteRtChatEngine internal constructor(
         val activeKit = kit?.takeIf { toolPrompt != null }
         try {
             withContext(Dispatchers.IO) {
-                ensureConversation(live, Sampling(request.topK, request.topP, request.temperature), activeKit, toolPrompt)
+                ensureConversation(current, Sampling(request.topK, request.topP, request.temperature), activeKit, toolPrompt)
             }
         } catch (e: Exception) {
             close(e)
@@ -242,11 +269,12 @@ class LiteRtChatEngine internal constructor(
         }
         pendingUser = userText
         replyUsedTools = activeKit != null
-        activeKit?.bind(request.tools?.documentId, onToolAction, onToolExchange)
+        activeKit?.bind(request.tools?.documentId, onToolAction, onToolExchange, onRunJs)
 
         val filter = ReplyTextFilter()
+        val thoughts = ThoughtStream(enabled = request.thinkingEnabled)
         var chunks = 0
-        var running = live
+        var running = current
         var fellBack = false
         val finished = AtomicBoolean(false)
         val lastActivityNanos = AtomicLong(System.nanoTime())
@@ -257,17 +285,25 @@ class LiteRtChatEngine internal constructor(
             helper.runInference(
                 instance = inst,
                 input = userText,
-                resultListener = { text, done, _ ->
+                resultListener = { text, done, thinking ->
                     if (done) {
                         finished.set(true)
                         // Whatever the filter held back as a maybe-marker was ordinary text.
-                        filter.finish().takeIf { it.isNotEmpty() }?.let { trySend(it) }
+                        filter.finish().takeIf { it.isNotEmpty() }?.let { held ->
+                            thoughts.closeBefore(held).takeIf { it.isNotEmpty() }?.let { trySend(it) }
+                            trySend(held)
+                        }
                         close()
                     } else if (!finished.get()) {
                         lastActivityNanos.set(System.nanoTime())
                         chunks++
+                        // The reasoning goes first, as think-tagged text, when this reply asked for it.
+                        thoughts.thought(thinking).takeIf { it.isNotEmpty() }?.let { trySend(it) }
                         // Control tokens and tool-call text are the model's protocol, not part of the answer.
-                        filter.accept(text).takeIf { it.isNotEmpty() }?.let { trySend(it) }
+                        filter.accept(text).takeIf { it.isNotEmpty() }?.let { answer ->
+                            thoughts.closeBefore(answer).takeIf { it.isNotEmpty() }?.let { trySend(it) }
+                            trySend(answer)
+                        }
                         if (chunks >= request.maxTokens) {
                             hitLimit = true
                             finished.set(true)
@@ -297,11 +333,11 @@ class LiteRtChatEngine internal constructor(
                         close(IllegalStateException(message))
                     }
                 },
-                // Phase 1: no reasoning trace. Phase 3 brings the Gallery's thinking UI.
-                extraContext = mapOf("enable_thinking" to "false"),
+                extraContext = mapOf("enable_thinking" to request.thinkingEnabled.toString()),
+                images = images,
             )
         }
-        runOn(live)
+        runOn(current)
         // A reply that stops producing anything (a hung GPU driver) would hold this engine, and the service's one inference thread,
         // forever, and every later load would spin behind it. Idle for too long: stop it and say so.
         launch {
@@ -336,6 +372,7 @@ class LiteRtChatEngine internal constructor(
                 topK = config.sampling.topK,
                 topP = config.sampling.topP,
                 temperature = config.sampling.temperature,
+                supportImage = failed.supportsImage,
             ),
         )
         instance = cpu
@@ -344,6 +381,41 @@ class LiteRtChatEngine internal constructor(
         loaded = path to cpuConfig
         _state.value = ModelLoadState.Ready(path, cpuConfig, 0L)
         return cpu
+    }
+
+    /**
+     * The instance with its vision encoder started: [live] itself when it has one, otherwise the same model restarted with it (on
+     * the accelerator it runs on). The next [ensureConversation] rebuilds the conversation from the committed turns, as after any
+     * restart. Runs on a worker thread: starting an engine reads gigabytes.
+     */
+    private fun withVision(live: LlmModelInstance): LlmModelInstance {
+        if (live.supportsImage) return live
+        val (path, config) = loaded ?: throw IllegalStateException("No model is loaded.")
+        Log.i(TAG, "a picture is attached: restarting the engine with its vision encoder")
+        helper.cleanUp(live)
+        instance = null
+        val withImages = try {
+            helper.initialize(
+                LlmModelConfig(
+                    modelPath = path,
+                    accelerator = live.accelerator,
+                    maxTokens = config.contextTokens,
+                    topK = config.sampling.topK,
+                    topP = config.sampling.topP,
+                    temperature = config.sampling.temperature,
+                    supportImage = true,
+                ),
+            )
+        } catch (e: Throwable) {
+            // The old engine is gone: the next message loads the model again.
+            loaded = null
+            sessionId = null
+            _state.value = ModelLoadState.Failed(path, "Could not start the image input: ${e.message}")
+            throw IllegalStateException("The model could not start with image input: ${e.message}")
+        }
+        instance = withImages
+        conversationSampling = null
+        return withImages
     }
 
     /**

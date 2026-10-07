@@ -35,6 +35,12 @@ data class InferenceConfig(
      * tools only when this is set and [runtime] is LiteRT-LM. It changes nothing in how the model is loaded.
      */
     val supportsTools: Boolean = false,
+    /**
+     * Whether the model's catalogue entry declares image input ([AiModelDescriptor.supportsImages]). Chat offers "attach an
+     * image" only when this is set and [runtime] is LiteRT-LM. It changes nothing in how the model is loaded: the vision encoder
+     * is started by the engine on the first reply that carries an image.
+     */
+    val supportsImages: Boolean = false,
     /** The catalogue's recommended chat sampling for this model ([AiModelDescriptor.sampling]); null when it declares none. */
     val modelSampling: SamplingConfig? = null,
 ) {

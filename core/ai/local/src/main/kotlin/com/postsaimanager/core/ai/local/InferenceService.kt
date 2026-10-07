@@ -368,6 +368,8 @@ class InferenceService : Service() {
             topP: Float,
             toolsEnabled: Boolean,
             toolsDocumentId: String?,
+            thinking: Boolean,
+            imagePaths: Array<out String>?,
             callback: ILiteRtReplyCallback?,
         ): Boolean {
             if (userText == null || callback == null || !isLiteRtReady()) return false
@@ -377,7 +379,9 @@ class InferenceService : Service() {
                 temperature = temperature,
                 topK = topK,
                 topP = topP,
+                thinkingEnabled = thinking,
                 tools = if (toolsEnabled) ChatToolsRequest(documentId = toolsDocumentId?.takeIf { it.isNotBlank() }) else null,
+                imagePaths = imagePaths?.toList().orEmpty(),
             )
             // Queued behind whatever the thread is doing, then holds the thread until the reply is over: tokens arrive through the
             // oneway callback, and a llama.cpp call (background reading) queued behind this reply waits for it.
@@ -394,7 +398,13 @@ class InferenceService : Service() {
                                 }
                             },
                             onToolExchange = { exchange ->
-                                runCatching { callback.onToolExchange(exchange.name, exchange.argumentsJson, exchange.resultJson) }
+                                runCatching {
+                                    callback.onToolExchange(exchange.name, exchange.argumentsJson, exchange.resultJson, exchange.shownJson)
+                                }
+                            },
+                            // A script runs in the app process, in its offline WebView; the answer comes back by deliverJsResult.
+                            onRunJs = { js ->
+                                runCatching { callback.onRunJs(js.id, js.skillFolder, js.scriptName, js.data) }
                             },
                             onFallback = { runCatching { callback.onBackendFallback() } },
                         ).collect { callback.onToken(it) }
@@ -413,6 +423,12 @@ class InferenceService : Service() {
                 runBlocking { reply.join() }
             }
             return true
+        }
+
+        override fun deliverJsResult(requestId: String?, result: String?) {
+            if (requestId == null) return
+            // Not on the inference thread: it is busy streaming the reply that waits for this answer.
+            runBlocking { liteRt.deliverJsResult(requestId, result.orEmpty()) }
         }
 
         override fun cancelLiteRt() {

@@ -15,9 +15,10 @@
  */
 
 // Modified by PostsAiManager: adapted from the Google AI Edge Gallery's ui/llmchat/LlmChatModelHelper.kt (v1.0.20). Removed:
-// Firebase and the metrics tracker, benchmarking, speculative decoding, image and audio inputs, the vision/audio backends, NPU
+// Firebase and the metrics tracker, benchmarking, speculative decoding, audio input, the audio backend, NPU
 // and TPU, the Model/Task/Context types and the model manager's initialisation states. Added: the GPU-to-CPU fallback
-// when the GPU engine cannot start, and the instance handle (a Gallery Model carried it).
+// when the GPU engine cannot start, and the instance handle (a Gallery Model carried it). Image input is the Gallery's again
+// (EngineConfig.visionBackend, Content.ImageBytes in front of the text); audio is still not taken.
 
 package com.postsaimanager.core.ai.litert
 
@@ -53,6 +54,8 @@ internal data class LlmModelInstance(
     val engine: Engine,
     var conversation: Conversation,
     val accelerator: Accelerator,
+    /** True when the engine was started with its vision encoder, so a message may carry pictures. */
+    val supportsImage: Boolean = false,
 )
 
 internal object LlmChatModelHelper : LlmModelHelper {
@@ -66,7 +69,12 @@ internal object LlmChatModelHelper : LlmModelHelper {
         Log.i(TAG, "initialize: requested accelerator=${config.accelerator}, context=${config.maxTokens}")
         val (engine, accelerator) = startEngine(config)
         return try {
-            LlmModelInstance(engine, newConversation(engine, config, systemInstruction, initialMessages, tools), accelerator)
+            LlmModelInstance(
+                engine,
+                newConversation(engine, config, systemInstruction, initialMessages, tools),
+                accelerator,
+                supportsImage = config.supportImage,
+            )
         } catch (e: Exception) {
             runCatching { engine.close() }
             throw e
@@ -86,7 +94,7 @@ internal object LlmChatModelHelper : LlmModelHelper {
 
     @OptIn(ExperimentalApi::class) // opt-in experimental flags
     private fun startEngineOn(config: LlmModelConfig, accelerator: Accelerator): Engine {
-        val backend =
+        fun backendOf() =
             when (accelerator) {
                 Accelerator.CPU -> Backend.CPU()
                 Accelerator.GPU -> Backend.GPU()
@@ -94,7 +102,9 @@ internal object LlmChatModelHelper : LlmModelHelper {
         val engineConfig =
             EngineConfig(
                 modelPath = config.modelPath,
-                backend = backend,
+                backend = backendOf(),
+                // As the Gallery: the vision encoder is part of the engine, started only for a model that is to look at pictures.
+                visionBackend = if (config.supportImage) backendOf() else null,
                 maxNumTokens = config.maxTokens,
             )
         val engine = Engine(engineConfig)
@@ -211,12 +221,17 @@ internal object LlmChatModelHelper : LlmModelHelper {
         cleanUpListener: CleanUpListener,
         onError: (message: String) -> Unit,
         extraContext: Map<String, String>,
+        images: List<ByteArray>,
     ) {
         val conversation = instance.conversation
 
         // Step 1: Assemble the prompt. The text goes in as it is: the model file carries its own chat template and LiteRT-LM
-        // applies it, so nothing here wraps it in turn markers.
+        // applies it, so nothing here wraps it in turn markers. As in the Gallery, the pictures come first and the text after
+        // them, "to ensure proper autoregressive token sequencing".
         val contents = mutableListOf<Content>()
+        for (image in images) {
+            contents.add(Content.ImageBytes(image))
+        }
         if (input.trim().isNotEmpty()) {
             contents.add(Content.Text(input))
         }

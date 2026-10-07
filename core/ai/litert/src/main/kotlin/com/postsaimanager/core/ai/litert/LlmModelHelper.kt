@@ -36,6 +36,8 @@ typealias CleanUpListener = () -> Unit
  *
  * @param accelerator where the engine runs; GPU falls back to CPU when the GPU engine cannot start.
  * @param maxTokens the context window (`EngineConfig.maxNumTokens`).
+ * @param supportImage start the vision encoder too (the Gallery's `supportImage`, `EngineConfig.visionBackend`), so the model can
+ *   look at a picture. Off for a plain chat: the engine is restarted with it on only when a reply carries a picture.
  */
 data class LlmModelConfig(
     val modelPath: String,
@@ -44,6 +46,7 @@ data class LlmModelConfig(
     val topK: Int,
     val topP: Float,
     val temperature: Float,
+    val supportImage: Boolean = false,
 )
 
 /**
@@ -102,6 +105,8 @@ internal interface LlmModelHelper {
      * @param resultListener called with each partial result; `done = true` once, at the end (also after a cancellation).
      * @param onError called when the engine fails (a cancellation is not a failure).
      * @param extraContext e.g. `enable_thinking`.
+     * @param images the pictures of this message, encoded (PNG or JPEG), put in front of the text as the Gallery does; the
+     *   instance must have been started with [LlmModelConfig.supportImage].
      */
     fun runInference(
         instance: LlmModelInstance,
@@ -110,6 +115,7 @@ internal interface LlmModelHelper {
         cleanUpListener: CleanUpListener = {},
         onError: (message: String) -> Unit = {},
         extraContext: Map<String, String> = emptyMap(),
+        images: List<ByteArray> = emptyList(),
     )
 
     /** Stops the ongoing response generation. */
