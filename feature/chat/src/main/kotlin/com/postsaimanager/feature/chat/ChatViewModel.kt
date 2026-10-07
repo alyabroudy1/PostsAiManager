@@ -560,6 +560,8 @@ class ChatViewModel @Inject constructor(
                     it.copy(isProcessing = false, error = ChatError("", null, R.string.chat_error_new_chat_failed))
                 }
             }
+            // The cleared chat has no prepared conversation any more: prepare the new one now, as when the chat opened.
+            if (cleared) startWarmUp()
         }
     }
 

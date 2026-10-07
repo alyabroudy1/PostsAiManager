@@ -4,6 +4,7 @@ import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.ToolCall
+import com.postsaimanager.core.ai.litert.tools.AgentToolCalls
 import com.postsaimanager.core.model.ToolExchange
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -34,12 +35,27 @@ internal object LiteRtMessages {
             if (withTools) {
                 for (exchange in turn.tools) {
                     add(Message.model(Contents.of(emptyList<Content>()), listOf(toolCall(exchange)), emptyMap()))
-                    add(Message.tool(Contents.of(Content.ToolResponse(exchange.name, fields(exchange.resultJson)))))
+                    add(Message.tool(Contents.of(Content.ToolResponse(exchange.name, replayedResult(exchange)))))
                 }
             }
             add(Message.model(turn.text))
         }
     }
+
+    /**
+     * What a replayed tool response says. A `load_skill` response carries the whole text of the skill, and every rebuild of the
+     * conversation (the warm-up when a chat opens, a new day, compaction, a restart) would prefill one copy of it per earlier request.
+     * Replayed, it is a one-line stub: the call and its response keep their shape, so the model still sees the pattern, and the skill
+     * can be loaded again. What is stored with the message is untouched. `run_intent` and `run_js` results are short and stay as stored.
+     */
+    internal fun replayedResult(exchange: ToolExchange): Map<String, String> {
+        val result = fields(exchange.resultJson)
+        if (exchange.name != AgentToolCalls.LOAD_SKILL || INSTRUCTIONS !in result) return result
+        val skill = result["skill_name"].orEmpty()
+        return result + (INSTRUCTIONS to "(instructions of $skill were loaded earlier; call load_skill again to read them)")
+    }
+
+    private const val INSTRUCTIONS = "skill_instructions"
 
     private fun toolCall(exchange: ToolExchange) = ToolCall(exchange.name, fields(exchange.argumentsJson))
 

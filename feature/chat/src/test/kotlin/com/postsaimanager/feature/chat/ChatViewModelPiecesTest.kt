@@ -174,7 +174,9 @@ class ChatViewModelPiecesTest {
         assertThat(vm.uiState.value.messages).isEmpty()
         assertThat(vm.uiState.value.attachments).isEmpty()
         assertThat(store.stored["conv-standalone"]).isNull()
-        assertThat(chatEngine.isChatSessionPrimed("conv-standalone")).isFalse()
+        // The old session is gone and the new chat is prepared at once (the warm-up), from an empty history.
+        assertThat(chatEngine.sessions.last()).isEmpty()
+        assertThat(chatEngine.warmUps).isNotEmpty()
         // It stays deleted: nothing comes back from the repository.
         assertThat(conversations.getConversationById("conv-standalone")).isInstanceOf(com.postsaimanager.core.common.result.PamResult.Error::class.java)
 
