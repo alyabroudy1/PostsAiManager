@@ -71,6 +71,10 @@ object SkillNames {
 /** What the system prompt says about the skills. */
 object SkillPrompt {
 
-    /** `- name: description` per skill, newline separated: the Gallery's `getSelectedSkillsNamesAndDescriptions`. */
-    fun namesAndDescriptions(skills: List<Skill>): String = skills.joinToString("\n") { "- ${it.name}: ${it.description}" }
+    /**
+     * The skills as the Gallery's agent-chat prompt lists them (`formatSelectedSkills`, Apache 2.0): a name line and a description line
+     * per skill, a blank line between skills.
+     */
+    fun namesAndDescriptions(skills: List<Skill>): String =
+        skills.joinToString("\n\n") { "- Skill name: \"${it.name}\"\n- Description: ${it.description}" }
 }

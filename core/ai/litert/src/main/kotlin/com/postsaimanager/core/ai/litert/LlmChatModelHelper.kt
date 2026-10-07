@@ -118,10 +118,10 @@ internal object LlmChatModelHelper : LlmModelHelper {
         initialMessages: List<Message>,
         tools: List<ToolProvider>,
     ): Conversation {
-        // The Gallery's agent chat turns constrained decoding on when it has tools. On the phone it made no difference to the
-        // garbled digits in tool calls (that was the GPU engine, see the catalogue), and with it off Gemma 4 E2B on the CPU wrote
-        // valid tool calls, so it stays off, as in plain chat. Turn it on here if a model stops producing parseable calls.
-        ExperimentalFlags.enableConversationConstrainedDecoding = false
+        // As in the Gallery's agent chat (`enableConversationConstrainedDecoding = true` in AgentChatTaskModule.kt): constrained
+        // decoding is on when the conversation has tools, so a tool call comes out in the format the engine can parse; plain chat
+        // stays off. (4ce2d88 had it off: it made no difference to the garbled digits, which were the GPU engine's.)
+        ExperimentalFlags.enableConversationConstrainedDecoding = tools.isNotEmpty()
         Log.i(
             TAG,
             "conversation: topK=${config.topK} topP=${config.topP} temperature=${config.temperature} context=${config.maxTokens} " +

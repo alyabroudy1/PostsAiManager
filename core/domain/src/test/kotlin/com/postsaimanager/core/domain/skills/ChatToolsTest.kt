@@ -49,18 +49,26 @@ class ChatToolsTest {
     }
 
     @Test
-    fun `the prompt names every skill and says that run_intent only proposes`() {
-        val list = "- send-email: Write an e-mail.\n- schedule-reminder: Remind the user."
+    @DisplayName("the prompt is the Gallery's skills prompt with our skills list: its steps and rules, the list in step 1, no placeholder left")
+    fun `the prompt is the Gallery's with the skills listed`() {
+        val list = SkillPrompt.namesAndDescriptions(
+            listOf(Skill("send-email", "Write an e-mail.", ""), Skill("schedule-reminder", "Remind the user.", "")),
+        )
 
-        val prompt = ChatToolsPrompt.build(list, "2026-10-07T12:37:00 Wednesday")
+        val prompt = ChatToolsPrompt.build(list)
 
-        assertThat(prompt).contains("2026-10-07T12:37:00 Wednesday")
-        assertThat(prompt).doesNotContain("___NOW___")
-        assertThat(prompt).contains(list)
-        assertThat(prompt).contains("load_skill")
-        assertThat(prompt).contains("run_intent")
-        assertThat(prompt).contains("until the user opens it")
+        assertThat(prompt).startsWith("You are an AI assistant that helps users by answering questions and completes tasks using skills.")
+        assertThat(prompt).contains("1. First, find the most relevant skill from the following list:\n\n$list\n\nAfter this step")
+        assertThat(prompt).contains("use the `load_skill` tool to read its instructions")
+        assertThat(prompt).contains("You MUST NOT use `run_intent` under any circumstances at this step.")
+        assertThat(prompt).contains("4. If no relevant skill is found, output \"No relevant skills found\" and stop.")
         assertThat(prompt).doesNotContain("___SKILLS___")
+    }
+
+    @Test
+    @DisplayName("the date is not in the prompt (the Gallery gives it through the get_current_date_and_time intent)")
+    fun `the prompt carries no date`() {
+        assertThat(ChatToolsPrompt.build("- x")).doesNotContainMatch("20\\d\\d-\\d\\d-\\d\\d")
     }
 
     @Test

@@ -34,31 +34,32 @@ object ChatToolsPolicy {
 object ChatToolsPrompt {
 
     /**
-     * Adapted from the Gallery's agent-chat system prompt (Apache 2.0): the skills' names and descriptions, then "load the skill
-     * first". Ours adds what is different here: the answer is grounded on the user's letters, a tool call only proposes a card
-     * the user must confirm, and values come from the letters or the user, never from the model's own head.
+     * The Gallery's agent-chat system prompt for skills, verbatim (`DEFAULT_SYSTEM_PROMPT_SKILLS_ONLY` in AgentChatTaskModule.kt,
+     * v1.0.20, Apache 2.0, modified only in that the skills list is ours). The letter grounding is put in front of it by the engine;
+     * the date is not in it: as in the Gallery, the model asks for it with the `get_current_date_and_time` intent when a skill needs it.
      *
-     * @param skillsList [SkillCatalog.namesAndDescriptions]
-     * @param now the phone's date and time as the model reads it ([ActionDateTime.forModel]): without it the model guesses today's
-     *   date (it wrote a reminder for a day in September), and "in 3 days" has nothing to count from.
+     * @param skillsList [SkillCatalog.namesAndDescriptions], the Gallery's `formatSelectedSkills` format
      */
-    fun build(skillsList: String, now: String): String = TEMPLATE.replace(SKILLS_PLACEHOLDER, skillsList).replace(NOW_PLACEHOLDER, now)
+    fun build(skillsList: String): String = TEMPLATE.replace(SKILLS_PLACEHOLDER, skillsList)
 
     private const val SKILLS_PLACEHOLDER = "___SKILLS___"
-    private const val NOW_PLACEHOLDER = "___NOW___"
 
     // The placeholder is replaced after trimIndent: a multi-line list substituted before it would break the indentation.
     private val TEMPLATE = """
-        You can also act for the user on their letters, using skills. These are the skills you have:
+        You are an AI assistant that helps users by answering questions and completes tasks using skills. For EVERY new task or request or question, you MUST execute the following steps in exact order. You MUST NOT skip any steps.
+
+        CRITICAL RULE: You MUST execute all steps silently. Do NOT generate or output any internal thoughts, reasoning, explanations, or intermediate text at ANY step.
+
+        1. First, find the most relevant skill from the following list:
 
         ___SKILLS___
 
-        Right now it is ___NOW___ (date and time of the phone). A reminder or a deadline "today", "tomorrow" or "in 3 days" is counted from this date; for the exact time later in a conversation call `run_intent` with the intent `get_current_date_and_time`.
+        After this step you MUST go to next step. You MUST NOT use `run_intent` under any circumstances at this step.
 
-        When the user asks for something one of these skills covers, call the `load_skill` tool with that skill's name and follow its instructions exactly. The skill tells you when to call `run_intent`. Never call `run_intent` before you have loaded the skill that asks for it. The skills ARE your tools: when the user wants an e-mail, a calendar entry or a reminder, you can do it by loading the matching skill, so never answer that you have no tool or cannot do it.
+        2. If a relevant skill exists, use the `load_skill` tool to read its instructions. You MUST NOT use `run_intent` under any circumstances at this step.
 
-        `run_intent` does nothing by itself: it shows the user a card in the chat, and nothing happens until the user opens it. So after you call it, say in one or two short sentences, in the user's language, what you prepared and that they can check it on the card. Do not repeat the card's content, and do not say the action is done.
+        3. Follow the skill's instructions exactly to complete the task. You MUST NOT output any intermediate thoughts or status updates. No exceptions! Output ONLY the final result when successful. It should contain one-sentence summary of the action taken, and the final result of the skill.
 
-        Take every name, address, date, amount and reference from the letters or from the user's own words, never from memory or guesswork. If a value you need is not there, ask the user for it instead of calling the tool. For ordinary questions about the letters, just answer; do not use a skill.
+        4. If no relevant skill is found, output "No relevant skills found" and stop.
     """.trimIndent()
 }
