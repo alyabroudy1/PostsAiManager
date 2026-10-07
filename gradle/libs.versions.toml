@@ -1,12 +1,13 @@
 [versions]
 onnxruntime = "1.24.3"
-# LiteRT-LM (Google AI Edge's on-device LLM runtime, the one the AI Edge Gallery ships). Built with Kotlin 2.4 metadata, which this
-# project's Kotlin 2.1 reads only with -Xskip-metadata-version-check, set in :core:ai:litert alone (see its build file).
+# LiteRT-LM (Google AI Edge's on-device LLM runtime, the one the AI Edge Gallery ships). Built with Kotlin 2.4 metadata,
+# which the project's Kotlin 2.4 compiler reads natively.
 litertlm = "0.18.0"
 # Core
 agp = "8.7.3"
-kotlin = "2.1.0"
-ksp = "2.1.0-1.0.29"
+kotlin = "2.4.20"
+# KSP2 versions independently of Kotlin since 2.3.
+ksp = "2.3.3"
 jvmTarget = "17"
 compileSdk = "36"
 minSdk = "26"
@@ -14,23 +15,24 @@ targetSdk = "36"
 
 # Compose
 composeBom = "2024.12.01"
-composeCompiler = "2.1.0"
+composeCompiler = "2.4.20"
 activityCompose = "1.9.3"
 navigationCompose = "2.8.5"
 lifecycleCompose = "2.8.7"
 
 # Architecture
-hilt = "2.53.1"
+# 2.58 is the last Hilt whose Gradle plugin still runs on AGP 8 (2.59+ requires AGP 9).
+hilt = "2.58"
 hiltNavigationCompose = "1.2.0"
 
 # Coroutines
 coroutines = "1.9.0"
 
 # Serialization
-kotlinxSerialization = "1.7.3"
+kotlinxSerialization = "1.9.0"
 
 # Data
-room = "2.6.1"
+room = "2.8.4"
 datastore = "1.1.1"
 protobuf = "4.29.2"
 protobufPlugin = "0.9.4"
