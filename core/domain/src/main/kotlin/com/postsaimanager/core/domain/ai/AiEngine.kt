@@ -160,6 +160,11 @@ data class AiRequest(
      * false, and by the one-shot [AiEngine.generate] path, same as [thinkingEnabled] itself.
      */
     val thinkingBudgetTokens: Int = 0,
+    /**
+     * Non-null when this chat reply may call the Agent Skills tools (`load_skill`, `run_intent`): only a tool-capable engine
+     * (LiteRT-LM) acts on it, the llama.cpp engines ignore it. See [ChatToolsRequest] and `ChatToolsPolicy`.
+     */
+    val tools: ChatToolsRequest? = null,
 )
 
 data class AiCapabilities(

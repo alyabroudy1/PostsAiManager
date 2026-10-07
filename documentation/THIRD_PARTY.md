@@ -54,6 +54,12 @@ This file records data (not libraries) the app ships under a licence that asks f
   - `core/domain/.../skills/AgentActionParser.kt` and `AgentIntentSpecs.kt`, and `app/.../agent/AndroidAgentActionExecutor.kt`, from
     `intents/IntentHandler.kt` (`send_email`, `create_calendar_event`, `schedule_notification`, `get_current_date_and_time`);
   - `core/data/.../skills/AssetSkillCatalog.kt`, from `SkillManager.loadBuiltInSkills`;
+  - `core/ai/litert/.../tools/LoadSkillTool.kt`, `RunIntentTool.kt` and `AgentToolCalls.kt`, from `tools/LoadSkillTool.kt` and
+    `tools/RunIntentTool.kt` (the tools' names, descriptions and parameters are the Gallery's; `run_intent` proposes instead of
+    running); `ToolContext.kt`, from the role of `agent/ToolExecutionContext` and its `actionChannel`; `LiteRtToolKit.kt`, from
+    `tools/ToolsProvider.kt` (`getLiteRtToolProviders`) and the skills part of the system prompt of
+    `customtasks/agentchat/AgentChatTaskModule.kt`; the `ConversationConfig(tools = ...)` and constrained-decoding setting in
+    `LlmChatModelHelper.kt`, from `ui/llmchat/LlmChatModelHelper.kt` and `agent/DefaultAgentRuntimeExecutor.kt`;
   - `app/src/main/assets/skills/send-email/SKILL.md`, from `skills/built-in/send-email/SKILL.md`; the `create-calendar-event` and
     `schedule-reminder` skills follow the Gallery's SKILL.md style and intent contracts.
 - **Changes:** pure Kotlin instead of protos, Hilt and Moshi; bundled skills only (no URLs, no remote lists, no JavaScript skills);

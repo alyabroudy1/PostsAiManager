@@ -193,6 +193,11 @@ fun ChatScreen(
         }
     }
 
+    // The cards the model proposes are checked against the user's own words too: a value they wrote is theirs.
+    LaunchedEffect(uiState.messages) {
+        actionCardsViewModel.updateUserMessages(uiState.messages.filter { it.isUser }.map { it.text })
+    }
+
     // A card that just arrived is brought into view, unless the user is reading further up.
     LaunchedEffect(actionCards.size) {
         if (actionCards.isNotEmpty() && followBottom) listState.scrollToItem(0)

@@ -2,6 +2,7 @@ package com.postsaimanager.core.ai.local;
 
 import com.postsaimanager.core.ai.local.InferenceConfigParcel;
 import com.postsaimanager.core.ai.local.ITokenCallback;
+import com.postsaimanager.core.ai.local.ILiteRtReplyCallback;
 
 /**
  * Inference running in a separate process.
@@ -152,6 +153,9 @@ interface IInferenceService {
     /**
      * Begins one chat reply and streams it to [callback]. Holds the inference thread until the reply is over, so a
      * llama.cpp call queued behind it (background reading) waits.
+     *
+     * With [toolsEnabled] the reply may call the Agent Skills tools; each `run_intent` call comes back through
+     * [callback]'s `onAction`, carrying [toolsDocumentId] (the letter the reply is about, empty for none).
      */
     boolean sendLiteRtMessage(
         String userText,
@@ -159,7 +163,9 @@ interface IInferenceService {
         float temperature,
         int topK,
         float topP,
-        ITokenCallback callback);
+        boolean toolsEnabled,
+        String toolsDocumentId,
+        ILiteRtReplyCallback callback);
 
     /** Stops the LiteRT-LM reply in flight, if any. Not queued: it must reach a running reply. */
     void cancelLiteRt();

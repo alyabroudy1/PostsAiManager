@@ -9,6 +9,8 @@ import com.postsaimanager.core.domain.ai.AiCapabilities
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.ToolActionCall
+import com.postsaimanager.core.domain.ai.ToolActionWire
 import com.postsaimanager.core.domain.ai.InferenceCrash
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
@@ -17,6 +19,8 @@ import com.postsaimanager.core.model.ModelRuntime
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
@@ -101,6 +105,11 @@ class RemoteLiteRtChatEngine @Inject constructor(
 
     // Phase 1: the engine runs with thinking off.
     override val supportsThinking: Boolean get() = false
+
+    /** The `run_intent` calls the service delivers while a reply streams. Hot, no replay; a collector (the chat) attaches once. */
+    private val actions = MutableSharedFlow<ToolActionCall>(extraBufferCapacity = ACTION_BUFFER)
+
+    override val toolActions: Flow<ToolActionCall> = actions.asSharedFlow()
 
     // When the `:inference` process dies while it holds a LiteRT-LM model, the crash (the model and config that were running) goes to
     // the shared `connection.crashes`, so `InferenceCrashObserver` blocks the GPU for that model and the next load uses the CPU.
@@ -189,12 +198,17 @@ class RemoteLiteRtChatEngine @Inject constructor(
 
         val startedNanos = System.nanoTime()
         var chunks = 0
-        val callback = object : ITokenCallback.Stub() {
+        val callback = object : ILiteRtReplyCallback.Stub() {
             override fun onToken(token: String?) {
                 token?.let {
                     chunks++
                     trySend(it)
                 }
+            }
+
+            override fun onAction(intent: String?, parametersJson: String?, documentId: String?) {
+                // Only a proposal: it becomes a card in the app, and runs nothing until the user opens it.
+                ToolActionWire.fromWire(intent, parametersJson, documentId)?.let { actions.tryEmit(it) }
             }
 
             override fun onComplete() {
@@ -210,7 +224,16 @@ class RemoteLiteRtChatEngine @Inject constructor(
 
         val started = withContext(ioDispatcher) {
             runCatching {
-                remote.sendLiteRtMessage(userText, request.maxTokens, request.temperature, request.topK, request.topP, callback)
+                remote.sendLiteRtMessage(
+                    userText,
+                    request.maxTokens,
+                    request.temperature,
+                    request.topK,
+                    request.topP,
+                    request.tools != null,
+                    ToolActionWire.documentIdToWire(request.tools?.documentId),
+                    callback,
+                )
             }.getOrDefault(false)
         }
         if (!started) {
@@ -270,5 +293,8 @@ class RemoteLiteRtChatEngine @Inject constructor(
 
     private companion object {
         const val TAG = "RemoteLiteRtChatEngine"
+
+        /** Calls waiting for the chat to collect them: a reply makes a handful at most. */
+        const val ACTION_BUFFER = 16
     }
 }

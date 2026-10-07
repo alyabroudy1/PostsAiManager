@@ -99,8 +99,13 @@ class CatalogActiveModelProvider @Inject constructor(
         val overrides = inferenceSettingsRepository.overrides.first()
         val defaults = InferenceConfig.defaults(device, model.contextTokens, cpuTopology.coreMaxFreqsKHz())
             .copy(contextTokens = model.contextTokens)
-        return defaults.applying(overrides, device, backendSpec(model)).copy(runtime = ModelRuntime.LITERT_LM)
+        return defaults.applying(overrides, device, backendSpec(model))
+            .copy(runtime = ModelRuntime.LITERT_LM, supportsTools = declaresTools(model))
     }
+
+    /** Whether the catalogue entry [model] came from declares tool calling; an import with no entry declares none. */
+    private fun declaresTools(model: InstalledModel): Boolean =
+        model.descriptorId?.let { id -> BundledCatalog.models.firstOrNull { it.id == id }?.supportsTools } == true
 
     /**
      * The device as a LiteRT-LM model sees it: it brings its own GPU backend (not llama.cpp's Vulkan one, which a default build

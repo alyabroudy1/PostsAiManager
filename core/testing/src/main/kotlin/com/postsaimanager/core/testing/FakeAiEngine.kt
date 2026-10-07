@@ -10,6 +10,7 @@ import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.DeviceCapability
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
+import com.postsaimanager.core.model.ModelRuntime
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -231,6 +232,9 @@ class FakeActiveModelProvider(
     var extractionPath: String? = null,
     /** Lets a test change the accelerator between sends — see `SendChatMessageUseCaseTest`. */
     var accelerator: Accelerator = Accelerator.CPU,
+    /** The runtime of the chat model, and whether its catalogue entry declares tools: what `ChatToolsPolicy` decides on. */
+    var runtime: ModelRuntime = ModelRuntime.LLAMA_CPP,
+    var supportsTools: Boolean = false,
 ) : com.postsaimanager.core.domain.ai.ActiveModelProvider {
     /** Generous enough that [InferenceConfig.defaults]'s heuristic never clamps [contextTokens]. */
     private val device = DeviceCapability(
@@ -245,6 +249,8 @@ class FakeActiveModelProvider(
         InferenceConfig.defaults(device, contextTokens).copy(
             accelerator = accelerator,
             gpuLayers = if (accelerator == Accelerator.GPU) -1 else 0,
+            runtime = runtime,
+            supportsTools = supportsTools,
         )
 
     override suspend fun extractionModelPath(): String? = extractionPath ?: path

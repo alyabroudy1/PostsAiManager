@@ -30,6 +30,11 @@ data class InferenceConfig(
     val sampling: SamplingConfig = SamplingConfig(),
     /** The runtime that loads the model; the chat engine router picks the engine from it. */
     val runtime: ModelRuntime = ModelRuntime.LLAMA_CPP,
+    /**
+     * Whether the model's catalogue entry declares tool calling ([AiModelDescriptor.supportsTools]). Chat offers the Agent Skills
+     * tools only when this is set and [runtime] is LiteRT-LM. It changes nothing in how the model is loaded.
+     */
+    val supportsTools: Boolean = false,
 ) {
 
     /**

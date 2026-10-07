@@ -48,6 +48,17 @@
 -keep class com.google.ai.edge.litertlm.** { *; }
 -dontwarn com.google.ai.edge.litertlm.**
 -keep class com.postsaimanager.core.ai.litert.** { *; }
+# Agent Skills tools (LoadSkillTool, RunIntentTool in core.ai.litert.tools): LiteRT-LM's `tool(...)` finds the @Tool methods and
+# their @ToolParam parameters with kotlin-reflect, which reads the class's kotlin.Metadata (function and parameter names) and the
+# runtime-visible annotations. The names the model sees (load_skill, run_intent) come from the method names, so R8 may neither
+# rename the methods nor drop the metadata or the annotations. (The keep above already covers the tool classes and their members.)
+-keep class kotlin.Metadata { *; }
+-keepclassmembers class * implements com.google.ai.edge.litertlm.ToolSet {
+    @com.google.ai.edge.litertlm.Tool <methods>;
+}
+-keepattributes *Annotation*, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, InnerClasses, EnclosingMethod
+-keep class kotlin.reflect.** { *; }
+-dontwarn kotlin.reflect.**
 # Gson (a LiteRT-LM dependency) builds its JSON model of Message/Tool types by reflection.
 -keepattributes Signature
 -dontwarn com.google.gson.**

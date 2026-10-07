@@ -58,6 +58,10 @@ class RoutingChatEngine(
 
     override val supportsThinking: Boolean get() = active().supportsThinking
 
+    /** The tool calls of whichever engine is current (a runtime switch moves the collection with it). */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override val toolActions: Flow<ToolActionCall> = current.flatMapLatest { runtime -> engines.getValue(runtime).toolActions }
+
     override suspend fun load(modelPath: String, config: InferenceConfig): PamResult<AiCapabilities> {
         val target = engines[config.runtime]
             ?: return PamResult.Error(PamError.ModelNotLoaded("No engine can run ${config.runtime} models."))

@@ -7,6 +7,9 @@ import android.os.IBinder
 import android.os.RemoteException
 import android.util.Log
 import com.postsaimanager.core.ai.litert.LiteRtChatEngine
+import com.postsaimanager.core.data.skills.AssetSkillCatalog
+import com.postsaimanager.core.domain.ai.ChatToolsRequest
+import com.postsaimanager.core.domain.ai.ToolActionWire
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.domain.ai.AiRequest
@@ -51,8 +54,13 @@ class InferenceService : Service() {
     private var handle: Long = 0L
     private val cancelled = AtomicBoolean(false)
 
-    /** The LiteRT-LM chat engine; created with the service, holds no model until a `.litertlm` file is loaded. */
-    private val liteRt = LiteRtChatEngine()
+    /**
+     * The LiteRT-LM chat engine; holds no model until a `.litertlm` file is loaded. Its Agent Skills read the bundled skills
+     * through [AssetSkillCatalog], the app's one owner of the skills (assets are readable from any process of the app), so the
+     * catalogue is made here, not injected: this process is deliberately not Hilt-injected (see the class KDoc). Lazy because
+     * the service has no Context before it is attached.
+     */
+    private val liteRt by lazy { LiteRtChatEngine(AssetSkillCatalog(applicationContext)) }
     private val liteRtScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Volatile
@@ -354,7 +362,9 @@ class InferenceService : Service() {
             temperature: Float,
             topK: Int,
             topP: Float,
-            callback: ITokenCallback?,
+            toolsEnabled: Boolean,
+            toolsDocumentId: String?,
+            callback: ILiteRtReplyCallback?,
         ): Boolean {
             if (userText == null || callback == null || !isLiteRtReady()) return false
             val request = AiRequest(
@@ -363,13 +373,19 @@ class InferenceService : Service() {
                 temperature = temperature,
                 topK = topK,
                 topP = topP,
+                tools = if (toolsEnabled) ChatToolsRequest(documentId = toolsDocumentId?.takeIf { it.isNotBlank() }) else null,
             )
             // Queued behind whatever the thread is doing, then holds the thread until the reply is over: tokens arrive through the
             // oneway callback, and a llama.cpp call (background reading) queued behind this reply waits for it.
             executor.execute {
                 val reply = liteRtScope.launch {
                     try {
-                        liteRt.sendChatMessage(userText, request).collect { callback.onToken(it) }
+                        // A proposed action goes to the app process as the model wrote it; it is never run in this process.
+                        liteRt.sendChatMessage(userText, request) { call ->
+                            runCatching {
+                                callback.onAction(call.intent, call.parametersJson, ToolActionWire.documentIdToWire(call.documentId))
+                            }
+                        }.collect { callback.onToken(it) }
                         callback.onComplete()
                     } catch (e: CancellationException) {
                         // Stopped by cancelLiteRt: the client that asked for it is not waiting for a completion.

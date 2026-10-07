@@ -14,6 +14,7 @@ import com.postsaimanager.core.domain.ai.StreamSegment
 import com.postsaimanager.core.domain.ai.ThinkingStreamParser
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.repository.StoredChunk
+import com.postsaimanager.core.domain.skills.ChatToolsPolicy
 import com.postsaimanager.core.model.AiConversation
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.AiModelType
@@ -412,7 +413,10 @@ class SendChatMessageUseCase @Inject constructor(
             // session's own history plus `sentText`; only the sampling/thinking fields
             // matter. `sentText` is `text` with any retrieved passages prefixed (4.1/4.2) —
             // see the class KDoc's "Retrieval-augmented grounding".
-            engine.sendChatMessage(sentText, ChatReplyBudget.request(effort, contextTokens))
+            // Agent Skills tools: only for a LiteRT-LM model whose catalogue entry declares them (ChatToolsPolicy). The letter the
+            // actions are grounded on is the chat's, or the one the reply's passages all come from; null leaves the card flagged.
+            val tools = ChatToolsPolicy.requestFor(config, documentId, sources.map { it.chunk.documentId })
+            engine.sendChatMessage(sentText, ChatReplyBudget.request(effort, contextTokens).copy(tools = tools))
                 .collect { token -> apply(parser.consume(token)).forEach { emit(it) } }
             apply(parser.finish()).forEach { emit(it) }
         } catch (e: kotlinx.coroutines.CancellationException) {

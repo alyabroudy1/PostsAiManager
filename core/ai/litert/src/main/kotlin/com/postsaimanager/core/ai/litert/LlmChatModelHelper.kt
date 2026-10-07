@@ -16,7 +16,7 @@
 
 // Modified by PostsAiManager: adapted from the Google AI Edge Gallery's ui/llmchat/LlmChatModelHelper.kt (v1.0.20). Removed:
 // Firebase and the metrics tracker, benchmarking, speculative decoding, image and audio inputs, the vision/audio backends, NPU
-// and TPU, tools, the Model/Task/Context types and the model manager's initialisation states. Added: the GPU-to-CPU fallback
+// and TPU, the Model/Task/Context types and the model manager's initialisation states. Added: the GPU-to-CPU fallback
 // when the GPU engine cannot start, and the instance handle (a Gallery Model carried it).
 
 package com.postsaimanager.core.ai.litert
@@ -34,6 +34,7 @@ import com.google.ai.edge.litertlm.ExperimentalFlags
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.SamplerConfig
+import com.google.ai.edge.litertlm.ToolProvider
 import com.postsaimanager.core.model.Accelerator
 import java.util.concurrent.CancellationException
 
@@ -61,11 +62,12 @@ internal object LlmChatModelHelper : LlmModelHelper {
         config: LlmModelConfig,
         systemInstruction: Contents?,
         initialMessages: List<Message>,
+        tools: List<ToolProvider>,
     ): LlmModelInstance {
         Log.i(TAG, "initialize: requested accelerator=${config.accelerator}, context=${config.maxTokens}")
         val (engine, accelerator) = startEngine(config)
         return try {
-            LlmModelInstance(engine, newConversation(engine, config, systemInstruction, initialMessages), accelerator)
+            LlmModelInstance(engine, newConversation(engine, config, systemInstruction, initialMessages, tools), accelerator)
         } catch (e: Exception) {
             runCatching { engine.close() }
             throw e
@@ -115,20 +117,30 @@ internal object LlmChatModelHelper : LlmModelHelper {
         config: LlmModelConfig,
         systemInstruction: Contents?,
         initialMessages: List<Message>,
+        tools: List<ToolProvider>,
     ): Conversation {
-        ExperimentalFlags.enableConversationConstrainedDecoding = false
-        return engine.createConversation(
-            ConversationConfig(
-                samplerConfig =
-                    SamplerConfig(
-                        topK = config.topK,
-                        topP = config.topP.toDouble(),
-                        temperature = config.temperature.toDouble(),
-                    ),
-                systemInstruction = systemInstruction,
-                initialMessages = initialMessages,
+        // As the Gallery's agent chat does (enableConversationConstrainedDecoding = true): with tools, decoding is constrained so a
+        // tool call the model starts is well-formed. Plain chat, with no tools, is not constrained.
+        ExperimentalFlags.enableConversationConstrainedDecoding = tools.isNotEmpty()
+        try {
+            return engine.createConversation(
+                ConversationConfig(
+                    samplerConfig =
+                        SamplerConfig(
+                            topK = config.topK,
+                            topP = config.topP.toDouble(),
+                            temperature = config.temperature.toDouble(),
+                        ),
+                    systemInstruction = systemInstruction,
+                    initialMessages = initialMessages,
+                    // Automatic tool calling stays at its default (true), as in the Gallery: LiteRT-LM calls the tool, appends its
+                    // result to the conversation and lets the model continue, all inside one sendMessageAsync.
+                    tools = tools,
+                )
             )
-        )
+        } finally {
+            ExperimentalFlags.enableConversationConstrainedDecoding = false
+        }
     }
 
     override fun resetConversation(
@@ -136,6 +148,7 @@ internal object LlmChatModelHelper : LlmModelHelper {
         config: LlmModelConfig,
         systemInstruction: Contents?,
         initialMessages: List<Message>,
+        tools: List<ToolProvider>,
     ) {
         Log.d(TAG, "Resetting conversation")
         try {
@@ -143,7 +156,7 @@ internal object LlmChatModelHelper : LlmModelHelper {
         } catch (e: Exception) {
             Log.w(TAG, "Failed to close previous conversation: ${e.message}", e)
         }
-        instance.conversation = newConversation(instance.engine, config, systemInstruction, initialMessages)
+        instance.conversation = newConversation(instance.engine, config, systemInstruction, initialMessages, tools)
     }
 
     override fun cleanUp(instance: LlmModelInstance, onDone: () -> Unit) {

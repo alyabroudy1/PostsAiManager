@@ -22,6 +22,7 @@ package com.postsaimanager.core.ai.litert
 
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Message
+import com.google.ai.edge.litertlm.ToolProvider
 import com.postsaimanager.core.model.Accelerator
 
 typealias ResultListener =
@@ -61,17 +62,22 @@ internal interface LlmModelHelper {
         config: LlmModelConfig,
         systemInstruction: Contents? = null,
         initialMessages: List<Message> = listOf(),
+        tools: List<ToolProvider> = listOf(),
     ): LlmModelInstance
 
     /**
      * Replaces the instance's conversation: a new system instruction, a new history to continue from, the sampling of [config].
      * The engine (the weights) stays loaded.
+     *
+     * @param tools the tools the model may call; LiteRT-LM runs them itself and feeds their results back to the model (automatic
+     *   tool calling, on by default), so the stream of [runInference] carries the model's text and no tool protocol.
      */
     fun resetConversation(
         instance: LlmModelInstance,
         config: LlmModelConfig,
         systemInstruction: Contents? = null,
         initialMessages: List<Message> = listOf(),
+        tools: List<ToolProvider> = listOf(),
     )
 
     /** Closes the conversation and the engine and frees the model. */

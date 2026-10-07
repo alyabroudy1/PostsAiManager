@@ -96,6 +96,28 @@ class CatalogLiteRtConfigTest {
     }
 
     @Test
+    @DisplayName("a Gemma 4 LiteRT-LM entry declares tool support, and its config carries it (the Agent Skills run on it)")
+    fun `catalogue entry tool support reaches the config`() = runTest {
+        val liteRtEntries = BundledCatalog.models.filter { it.runtime == ModelRuntime.LITERT_LM }
+        assertThat(liteRtEntries).isNotEmpty()
+        assertThat(liteRtEntries.map { it.supportsTools }).doesNotContain(false)
+        assertThat(provider(liteRtModel()).activeModelConfig().supportsTools).isTrue()
+    }
+
+    @Test
+    @DisplayName("an imported LiteRT-LM file declares no tool support: nothing vouches for it")
+    fun `imported litert model has no tools`() = runTest {
+        assertThat(provider(liteRtModel(descriptorId = null)).activeModelConfig().supportsTools).isFalse()
+    }
+
+    @Test
+    @DisplayName("a llama.cpp model never carries tool support in its config, whatever its descriptor says")
+    fun `gguf model has no tools`() = runTest {
+        val gguf = liteRtModel().copy(runtime = ModelRuntime.LLAMA_CPP, filePath = "/models/qwen.gguf", descriptorId = "qwen3.5-0.8b-q4_k_m")
+        assertThat(provider(gguf).activeModelConfig().supportsTools).isFalse()
+    }
+
+    @Test
     @DisplayName("a llama.cpp model is untouched: its config says llama.cpp")
     fun `gguf model keeps the llama runtime`() = runTest {
         val gguf = liteRtModel().copy(runtime = ModelRuntime.LLAMA_CPP, filePath = "/models/qwen.gguf", descriptorId = null)

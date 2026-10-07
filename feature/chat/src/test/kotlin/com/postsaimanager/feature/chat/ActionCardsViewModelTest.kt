@@ -2,7 +2,10 @@ package com.postsaimanager.feature.chat
 
 import androidx.lifecycle.SavedStateHandle
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.ToolActionCall
 import com.postsaimanager.core.domain.skills.ActionField
+import com.postsaimanager.core.domain.skills.ObserveToolActionsUseCase
 import com.postsaimanager.core.domain.skills.ActionResult
 import com.postsaimanager.core.domain.skills.AgentAction
 import com.postsaimanager.core.domain.skills.ConfirmActionUseCase
@@ -14,7 +17,9 @@ import com.postsaimanager.core.domain.skills.ProposedAction
 import com.postsaimanager.core.testing.MainDispatcherExtension
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.time.LocalDateTime
@@ -34,7 +39,58 @@ class ActionCardsViewModelTest {
         coEvery { confirm(any(), any(), any()) } returns ConfirmOutcome.Executed(ActionResult.Succeeded())
     }
 
-    private fun viewModel() = ActionCardsViewModel(SavedStateHandle(mapOf("documentId" to "d1")), propose, confirm)
+    /** What the `:inference` process delivers over AIDL: the model's `run_intent` calls. */
+    private val toolCalls = MutableSharedFlow<ToolActionCall>(extraBufferCapacity = 8)
+    private val engine = mockk<ChatEngine> { every { toolActions } returns toolCalls }
+
+    private fun viewModel(documentId: String? = "d1") = ActionCardsViewModel(
+        SavedStateHandle(if (documentId == null) emptyMap() else mapOf("documentId" to documentId)),
+        propose,
+        confirm,
+        ObserveToolActionsUseCase(engine),
+    )
+
+    private val emailCall = ToolActionCall(
+        intent = "send_email",
+        parametersJson = """{"extra_email":"a@b.de","extra_subject":"Subject","extra_text":"Body"}""",
+        documentId = null,
+    )
+
+    @Test
+    fun `a tool call from the model is rebuilt, checked against the chat's letter and shown as a card, running nothing`() {
+        val vm = viewModel()
+        vm.updateUserMessages(listOf("write to them"))
+
+        toolCalls.tryEmit(emailCall)
+
+        assertThat(vm.only().action).isEqualTo(email)
+        assertThat(vm.only().status).isEqualTo(ActionCardStatus.PENDING)
+        coVerify { propose(email, "d1", listOf("write to them"), any()) }
+        coVerify(exactly = 0) { confirm(any(), any(), any()) }
+    }
+
+    @Test
+    fun `in a chat over all letters the card is checked against the letter the reply was about, or none`() {
+        val vm = viewModel(documentId = null)
+
+        toolCalls.tryEmit(emailCall.copy(documentId = "cited"))
+        toolCalls.tryEmit(emailCall.copy(parametersJson = emailCall.parametersJson.replace("Body", "Other")))
+
+        coVerify { propose(email, "cited", any(), any()) }
+        coVerify { propose(AgentAction.SendEmail("a@b.de", "Subject", "Other"), null, any(), any()) }
+        assertThat(vm.cards.value).hasSize(2)
+    }
+
+    @Test
+    fun `a tool call that does not parse, or only reads the clock, makes no card`() {
+        val vm = viewModel()
+
+        toolCalls.tryEmit(ToolActionCall("send_email", """{"extra_subject":"no address"}""", null))
+        toolCalls.tryEmit(ToolActionCall("get_current_date_and_time", "{}", null))
+        toolCalls.tryEmit(ToolActionCall("no_such_intent", "{}", null))
+
+        assertThat(vm.cards.value).isEmpty()
+    }
 
     private fun ActionCardsViewModel.only(): ActionCardState = cards.value.single()
 

@@ -12,6 +12,7 @@ import com.postsaimanager.core.domain.skills.ConfirmOutcome
 import com.postsaimanager.core.domain.skills.FieldCheck
 import com.postsaimanager.core.domain.skills.FieldStatus
 import com.postsaimanager.core.domain.skills.InvalidReason
+import com.postsaimanager.core.domain.skills.ObserveToolActionsUseCase
 import com.postsaimanager.core.domain.skills.ProposeActionUseCase
 import com.postsaimanager.core.domain.skills.ProposedAction
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -58,12 +59,16 @@ internal data class ActionCardState(
  * The action cards of a chat. A skill's `run_intent` call becomes a [ProposedAction] (checked against the letter by
  * [ProposeActionUseCase]) and a card here; the user's Open runs it through [ConfirmActionUseCase], Cancel drops it. Nothing runs
  * without Open. The cards are kept while the chat screen lives; they are not stored.
+ *
+ * The model's `run_intent` calls reach it through [ObserveToolActionsUseCase] (the action channel from the `:inference` process,
+ * rebuilt into an [AgentAction] by the pure parser) and become cards the same way the debug menu's samples do.
  */
 @HiltViewModel
 class ActionCardsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val proposeAction: ProposeActionUseCase,
     private val confirmAction: ConfirmActionUseCase,
+    observeToolActions: ObserveToolActionsUseCase,
 ) : ViewModel() {
 
     private val documentId: String? = savedStateHandle["documentId"]
@@ -71,11 +76,33 @@ class ActionCardsViewModel @Inject constructor(
     private val _cards = MutableStateFlow<List<ActionCardState>>(emptyList())
     internal val cards: StateFlow<List<ActionCardState>> = _cards.asStateFlow()
 
+    /** The user's own words in this chat, kept current by the screen: a value they wrote is theirs, not the model's guess. */
+    private var userMessages: List<String> = emptyList()
+
+    init {
+        viewModelScope.launch {
+            observeToolActions().collect { proposal ->
+                // The chat's own letter, or (a chat over all letters) the one the model's reply was about.
+                propose(proposal.action, userMessages, documentId = proposal.documentId ?: documentId)
+            }
+        }
+    }
+
+    fun updateUserMessages(messages: List<String>) {
+        userMessages = messages
+    }
+
     /**
      * An action the model proposed: checks its values and shows the card. [userMessages] are the user's own words in this chat
-     * (a value they wrote is theirs). The entry point phase 2b's action channel calls, and the debug menu.
+     * (a value they wrote is theirs). [documentId] is the letter the values are checked against; null checks none, and the card
+     * flags what it cannot find. The entry point of the action channel, and of the debug menu.
      */
-    fun propose(action: AgentAction, userMessages: List<String>, now: LocalDateTime = LocalDateTime.now()) {
+    fun propose(
+        action: AgentAction,
+        userMessages: List<String>,
+        now: LocalDateTime = LocalDateTime.now(),
+        documentId: String? = this.documentId,
+    ) {
         if (!action.requiresConfirmation) return
         viewModelScope.launch {
             val proposed = proposeAction(action, documentId, userMessages, now)

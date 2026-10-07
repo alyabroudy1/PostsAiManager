@@ -8,6 +8,8 @@ import com.postsaimanager.core.domain.ai.AiCapabilities
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.ToolActionCall
+import com.postsaimanager.core.domain.skills.SkillCatalog
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
@@ -45,9 +47,16 @@ import java.util.concurrent.atomic.AtomicBoolean
  * The text is handed over as plain messages: the model file carries its chat template and LiteRT-LM applies it, so nothing here
  * adds turn markers.
  *
- * ### Not in phase 1
+ * ### Tools (Agent Skills)
  *
- * Thinking is off ([supportsThinking] is false, `enable_thinking=false`), and the thought channel is ignored; tools are not set.
+ * A reply whose [AiRequest.tools] is set runs in a conversation that has the `load_skill` and `run_intent` tools and the skills
+ * in its system instruction ([LiteRtToolKit]). LiteRT-LM calls the tools itself and feeds their results back (automatic tool
+ * calling), so one send is one stream of the model's final text. `run_intent` only proposes: its action goes to the callback
+ * of [sendChatMessage], never to the system. [ReplyTextFilter] keeps tool protocol out of the stream.
+ *
+ * ### Not yet
+ *
+ * Thinking is off ([supportsThinking] is false, `enable_thinking=false`), and the thought channel is ignored.
  *
  * ### Reply cap
  *
@@ -57,9 +66,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class LiteRtChatEngine internal constructor(
     private val helper: LlmModelHelper,
+    /** The Agent Skills tools; null for an engine that only chats. */
+    private val toolKit: LiteRtToolKit?,
 ) : ChatEngine {
 
-    constructor() : this(LlmChatModelHelper)
+    /** The engine with the Agent Skills tools over [skills], the one owner of the skills. */
+    constructor(skills: SkillCatalog) : this(LlmChatModelHelper, LiteRtToolKit(skills))
 
     /** Serialises every call that touches the model, the whole token stream included (the [ChatEngine] contract's point 5). */
     private val mutex = Mutex()
@@ -85,7 +97,7 @@ class LiteRtChatEngine internal constructor(
     private var pendingUser: String? = null
 
     /** The sampling the live conversation was made with; null when there is none to reuse (the next send builds one). */
-    private var conversationSampling: Sampling? = null
+    private var conversationSampling: ConversationKey? = null
 
     @Volatile
     private var hitLimit = false
@@ -117,7 +129,10 @@ class LiteRtChatEngine internal constructor(
             )
             // Engine initialisation reads gigabytes and compiles GPU kernels: never on the caller's thread.
             instance = withContext(Dispatchers.IO) { helper.initialize(modelConfig) }
-            conversationSampling = Sampling(config.sampling.topK, config.sampling.topP, config.sampling.temperature)
+            conversationSampling = ConversationKey(
+                Sampling(config.sampling.topK, config.sampling.topP, config.sampling.temperature),
+                withTools = false,
+            )
             loaded = modelPath to config
             _state.value = ModelLoadState.Ready(modelPath, config, (System.nanoTime() - startedAt) / 1_000_000)
             PamResult.Success(capabilities(modelPath, config))
@@ -161,23 +176,43 @@ class LiteRtChatEngine internal constructor(
     override suspend fun isChatSessionPrimed(conversationId: String): Boolean =
         sessionId == conversationId && instance != null
 
-    override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> = serialised(replyFlow(userText, request))
+    override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> = sendChatMessage(userText, request) {}
 
-    private fun replyFlow(userText: String, request: AiRequest): Flow<String> = callbackFlow {
+    /**
+     * [sendChatMessage] with the action channel: every `run_intent` call the model makes during the reply (only when
+     * [AiRequest.tools] is set and the skills are available) is handed to [onToolAction], before the stream ends. The service
+     * forwards it over AIDL; this engine never executes it.
+     */
+    fun sendChatMessage(userText: String, request: AiRequest, onToolAction: (ToolActionCall) -> Unit): Flow<String> =
+        serialised(replyFlow(userText, request, onToolAction))
+
+    private fun replyFlow(userText: String, request: AiRequest, onToolAction: (ToolActionCall) -> Unit): Flow<String> = callbackFlow {
         val live = instance
         if (live == null) {
             close(IllegalStateException("No model is loaded."))
             return@callbackFlow
         }
         hitLimit = false
+        val kit = toolKit?.takeIf { request.tools != null }
+        val toolPrompt = try {
+            kit?.systemPrompt()
+        } catch (e: Exception) {
+            null
+        }
+        // Without a skill to name, the model gets no tools.
+        val activeKit = kit?.takeIf { toolPrompt != null }
         try {
-            withContext(Dispatchers.IO) { ensureConversation(live, Sampling(request.topK, request.topP, request.temperature)) }
+            withContext(Dispatchers.IO) {
+                ensureConversation(live, Sampling(request.topK, request.topP, request.temperature), activeKit, toolPrompt)
+            }
         } catch (e: Exception) {
             close(e)
             return@callbackFlow
         }
         pendingUser = userText
+        activeKit?.bind(request.tools?.documentId, onToolAction)
 
+        val filter = ReplyTextFilter()
         var chunks = 0
         val finished = AtomicBoolean(false)
         helper.runInference(
@@ -186,11 +221,13 @@ class LiteRtChatEngine internal constructor(
             resultListener = { text, done, _ ->
                 if (done) {
                     finished.set(true)
+                    // Whatever the filter held back as a maybe-marker was ordinary text.
+                    filter.finish().takeIf { it.isNotEmpty() }?.let { trySend(it) }
                     close()
                 } else if (!finished.get()) {
                     chunks++
-                    // The model's control tokens are not part of the answer.
-                    if (text.isNotEmpty() && !text.startsWith(CONTROL_TOKEN_PREFIX)) trySend(text)
+                    // Control tokens and tool-call text are the model's protocol, not part of the answer.
+                    filter.accept(text).takeIf { it.isNotEmpty() }?.let { trySend(it) }
                     if (chunks >= request.maxTokens) {
                         hitLimit = true
                         finished.set(true)
@@ -209,13 +246,20 @@ class LiteRtChatEngine internal constructor(
         awaitClose {
             // A collector that stops early (the user's Stop) stops the native generation too.
             if (!finished.get()) helper.stopResponse(live)
+            activeKit?.release()
         }
     }
 
-    /** Makes the conversation of this reply: reuses the live one when its sampling is the same, rebuilds it otherwise. */
-    private fun ensureConversation(live: LlmModelInstance, sampling: Sampling) {
-        if (conversationSampling == sampling) return
+    /**
+     * Makes the conversation of this reply: reuses the live one when its sampling and its tools are the same, rebuilds it
+     * otherwise. With [kit] the system instruction is the letter grounding followed by [toolPrompt] (the skills), and the
+     * conversation is given the tools.
+     */
+    private suspend fun ensureConversation(live: LlmModelInstance, sampling: Sampling, kit: LiteRtToolKit?, toolPrompt: String?) {
+        val key = ConversationKey(sampling, withTools = kit != null)
+        if (conversationSampling == key) return
         val config = loaded?.second
+        val instruction = listOfNotNull(system.takeIf { it.isNotBlank() }, toolPrompt.takeIf { kit != null }).joinToString("\n\n")
         helper.resetConversation(
             instance = live,
             config = LlmModelConfig(
@@ -226,10 +270,11 @@ class LiteRtChatEngine internal constructor(
                 topP = sampling.topP,
                 temperature = sampling.temperature,
             ),
-            systemInstruction = system.takeIf { it.isNotBlank() }?.let { Contents.of(it) },
+            systemInstruction = instruction.takeIf { it.isNotBlank() }?.let { Contents.of(it) },
             initialMessages = committed.map { if (it.fromUser) Message.user(it.text) else Message.model(it.text) },
+            tools = kit?.providers.orEmpty(),
         )
-        conversationSampling = sampling
+        conversationSampling = key
     }
 
     override suspend fun lastReplyHitLimit(): Boolean = hitLimit
@@ -279,7 +324,6 @@ class LiteRtChatEngine internal constructor(
 
     private data class Sampling(val topK: Int, val topP: Float, val temperature: Float)
 
-    private companion object {
-        const val CONTROL_TOKEN_PREFIX = "<ctrl"
-    }
+    /** What a live conversation was built with; any difference from the next reply's means a new conversation. */
+    private data class ConversationKey(val sampling: Sampling, val withTools: Boolean)
 }

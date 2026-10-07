@@ -207,7 +207,8 @@ object BundledCatalog {
             downloadUrl = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/" +
                 "resolve/$GEMMA4_E2B_LITERT_REV/gemma-4-E2B-it.litertlm",
             sha256 = "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
-            supportsTools = false,
+            // Gemma 4 on LiteRT-LM calls tools natively (the Gallery's Agent Skills run on it): chat offers the skills.
+            supportsTools = true,
             description = "Google's own LiteRT-LM build of Gemma 4, the one in the AI Edge Gallery. Chats on the phone's GPU " +
                 "when it has one. It only chats: your letters are still read by the reader model.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
@@ -231,7 +232,7 @@ object BundledCatalog {
             downloadUrl = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/" +
                 "resolve/$GEMMA4_E4B_LITERT_REV/gemma-4-E4B-it.litertlm",
             sha256 = "0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0",
-            supportsTools = false,
+            supportsTools = true,
             description = "The larger LiteRT-LM build of Gemma 4, from the AI Edge Gallery. Better answers, on a high-end " +
                 "phone. It only chats: your letters are still read by the reader model.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),

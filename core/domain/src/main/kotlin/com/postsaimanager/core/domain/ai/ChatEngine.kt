@@ -4,6 +4,7 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -43,6 +44,13 @@ interface ChatEngine {
      * use case then asks for no thinking, whatever effort the user set. Read after [load], which picks the engine.
      */
     val supportsThinking: Boolean get() = true
+
+    /**
+     * The `run_intent` calls the model makes while it replies, when [AiRequest.tools] was set: hot, no replay, one item per call,
+     * emitted before the reply's stream ends. An engine without tools never emits. A tool never executes anything: this is only the
+     * proposal, which the app checks and shows on a card (`ObserveToolActionsUseCase`).
+     */
+    val toolActions: Flow<ToolActionCall> get() = emptyFlow()
 
     /**
      * Loads a model, replacing any currently loaded one.

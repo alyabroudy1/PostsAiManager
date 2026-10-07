@@ -1,4 +1,4 @@
-# Agent Skills (phase 2a built, phase 2b to connect)
+# Agent Skills (phase 2a built, phase 2b connected: see "How a tool call flows" at the end)
 
 Plan: `plans/11-gemma4-litertlm.md` (work folder). The design is adopted from Google AI Edge Gallery (Apache 2.0, see
 [THIRD_PARTY.md](THIRD_PARTY.md)): a skill is DATA (a folder with a `SKILL.md`); the model sees only the names and descriptions,
@@ -92,6 +92,24 @@ it must use `ReminderScheduler` too. No DB change was made.
    user's messages of the conversation. Cards are not stored (no DB change); if they should survive process death, that is a storage
    decision for 2b (preferences or a file; the DB is frozen at v20).
 4. Stream the skill-progress lines ("Loading skill ...") into the chat if wanted (Gallery's `SkillProgressToolAction`); not built.
+
+## How a tool call flows (phase 2b)
+
+1. `SendChatMessageUseCase` asks for tools only when `ChatToolsPolicy.enabledFor(config)`: the chat model's runtime is LiteRT-LM
+   and its catalogue entry says `supportsTools` (the Gemma 4 `.litertlm` entries). It sets `AiRequest.tools` with the letter the
+   reply is about (the chat's own, or the one every retrieved passage came from; otherwise none, and the card flags values).
+2. `RemoteLiteRtChatEngine` passes `toolsEnabled` and the document id over AIDL (`sendLiteRtMessage`). In `:inference`,
+   `LiteRtChatEngine` builds the conversation with the skills in the system instruction (`ChatToolsPrompt` over
+   `SkillCatalog.namesAndDescriptions()`, the catalogue being `AssetSkillCatalog` over the app's assets) and the two tools
+   (`LoadSkillTool`, `RunIntentTool`, `@Tool` classes inside `:core:ai:litert`). LiteRT-LM's `automaticToolCalling` is on (its
+   default): the library runs the tool and feeds the result back to the model inside one `sendMessageAsync`.
+3. `load_skill` returns the skill's text. `run_intent` parses the call with `AgentActionParser`: a rejection goes back to the model;
+   a parsed action is published on the action channel and the model is told "proposed to the user, waiting for their confirmation
+   on the card". Nothing runs in `:inference`.
+4. The channel is `ILiteRtReplyCallback.onAction(intent, parametersJson, documentId)` (the wire form is `ToolActionWire`). The
+   app process turns it into a `ToolProposal` (`ObserveToolActionsUseCase`, the pure parser again) and `ActionCardsViewModel`
+   runs `ProposeActionUseCase` (grounding) and shows the card: Open / Edit / Cancel. Only Open reaches `ConfirmActionUseCase`.
+5. The reply text is the model's own words; `ReplyTextFilter` drops control tokens and any tool-call or tool-result markup.
 
 ## Not built (listed for later)
 
