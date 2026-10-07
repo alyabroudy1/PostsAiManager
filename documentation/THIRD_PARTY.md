@@ -3,6 +3,14 @@
 This file records data (not libraries) the app ships under a licence that asks for attribution. Libraries are declared in
 `gradle/libs.versions.toml`.
 
+## Model licences (downloaded by the user, not shipped in the APK)
+
+- **Qwen 3.5** (`BundledCatalog`): Apache License 2.0.
+- **Gemma 4 E2B / E4B** (`BundledCatalog`, Google's QAT Q4_0 GGUF builds): Apache License 2.0, <https://ai.google.dev/gemma/docs/gemma_4_license>
+  (the Hugging Face cards of `google/gemma-4-E2B-it-qat-q4_0-gguf` and `google/gemma-4-E4B-it-qat-q4_0-gguf` say `license: apache-2.0`).
+  Shown as "Apache-2.0" in Settings > Models (`AiModelDescriptor.license`). Earlier Gemma generations (the Gemma 3 entries in
+  `CuratedRepos`) remain under the Gemma Terms of Use.
+
 ## Google libaddressinput address metadata (CC BY 4.0)
 
 - **What:** `core/domain/src/main/resources/address/formats.json`, the per-country address formats (postcode pattern, the order of

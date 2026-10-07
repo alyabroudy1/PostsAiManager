@@ -26,6 +26,14 @@ class BundledCatalogTest {
     }
 
     @Test
+    @DisplayName("Gemma 4 is listed under its real licence, Apache 2.0, not the older Gemma terms of use")
+    fun `gemma 4 entries are apache licensed`() {
+        val gemma4 = BundledCatalog.models.filter { it.family == "Gemma" }
+        assertThat(gemma4).isNotEmpty()
+        gemma4.forEach { assertThat(it.license).isEqualTo("Apache-2.0") }
+    }
+
+    @Test
     @DisplayName("every model can actually be installed")
     fun `all entries carry a url and a hash`() {
         // The state this replaced: every entry was NotInstallable, so the model manager

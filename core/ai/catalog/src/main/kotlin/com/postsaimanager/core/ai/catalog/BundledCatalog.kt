@@ -48,6 +48,9 @@ object BundledCatalog {
     private const val MB = 1024L * 1024L
     private const val GB = 1024L * MB
 
+    /** Gemma 4 is Apache 2.0 (https://ai.google.dev/gemma/docs/gemma_4_license), unlike Gemma 1-3's own terms of use. */
+    private const val GEMMA4_LICENSE = "Apache-2.0"
+
     private const val QWEN35_08B_REV = "6ab461498e2023f6e3c1baea90a8f0fe38ab64d0"
     private const val QWEN35_2B_REV = "f6d5376be1edb4d416d56da11e5397a961aca8ae"
     private const val QWEN35_4B_REV = "e87f176479d0855a907a41277aca2f8ee7a09523"
@@ -139,7 +142,7 @@ object BundledCatalog {
             // "effective" parameter count suggests, and the whole of it is loaded.
             minAvailableRamBytes = 5 * GB,
             contextTokens = 32768,
-            license = "Gemma Terms of Use",
+            license = GEMMA4_LICENSE,
             downloadUrl = "https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/" +
                 "resolve/$GEMMA4_E2B_REV/gemma-4-E2B_q4_0-it.gguf",
             sha256 = "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
@@ -165,7 +168,7 @@ object BundledCatalog {
             sizeBytes = 5_154_941_280L,
             minAvailableRamBytes = 7 * GB,
             contextTokens = 32768,
-            license = "Gemma Terms of Use",
+            license = GEMMA4_LICENSE,
             downloadUrl = "https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/" +
                 "resolve/$GEMMA4_E4B_REV/gemma-4-E4B_q4_0-it.gguf",
             sha256 = "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
