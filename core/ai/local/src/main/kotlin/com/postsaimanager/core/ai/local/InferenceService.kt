@@ -381,11 +381,16 @@ class InferenceService : Service() {
                 val reply = liteRtScope.launch {
                     try {
                         // A proposed action goes to the app process as the model wrote it; it is never run in this process.
-                        liteRt.sendChatMessage(userText, request) { call ->
-                            runCatching {
-                                callback.onAction(call.intent, call.parametersJson, ToolActionWire.documentIdToWire(call.documentId))
-                            }
-                        }.collect { callback.onToken(it) }
+                        liteRt.sendChatMessage(
+                            userText,
+                            request,
+                            onToolAction = { call ->
+                                runCatching {
+                                    callback.onAction(call.intent, call.parametersJson, ToolActionWire.documentIdToWire(call.documentId))
+                                }
+                            },
+                            onFallback = { runCatching { callback.onBackendFallback() } },
+                        ).collect { callback.onToken(it) }
                         callback.onComplete()
                     } catch (e: CancellationException) {
                         // Stopped by cancelLiteRt: the client that asked for it is not waiting for a completion.

@@ -17,4 +17,10 @@ oneway interface ILiteRtReplyCallback {
      * `AgentActionParser`, checks it against the letter and shows a card. Arrives before [onComplete].
      */
     void onAction(String intent, String parametersJson, String documentId);
+
+    /**
+     * The GPU engine failed this reply before saying anything, so the service reloaded on the CPU and is answering from there.
+     * The app records that the GPU cannot run this model, so the next load goes straight to the CPU.
+     */
+    void onBackendFallback();
 }

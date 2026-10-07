@@ -120,11 +120,18 @@ class CatalogActiveModelProvider @Inject constructor(
     override suspend fun activeModelSchema(): List<ConfigSpec> {
         val model = installedStore.activeModel()
         val device = if (model?.runtime == ModelRuntime.LITERT_LM) liteRtDevice(model) else deviceCapability.current()
-        val defaults = InferenceConfig.defaults(
+        val baseDefaults = InferenceConfig.defaults(
             device,
             model?.contextTokens ?: DEFAULT_CONTEXT_TOKENS,
             cpuTopology.coreMaxFreqsKHz(),
         )
+        // A LiteRT-LM model runs on the backend its config resolves to (GPU unless blocked), which llama.cpp's own defaults know
+        // nothing about: the accelerator control must show what the engine really uses, not llama.cpp's CPU default.
+        val defaults = if (model?.runtime == ModelRuntime.LITERT_LM) {
+            baseDefaults.copy(accelerator = configFor(model).accelerator)
+        } else {
+            baseDefaults
+        }
         val schema = inferenceConfigSchema(device, backendSpec(model), defaults)
         return if (model?.filePath != null && isGpuBlocked(model.filePath)) {
             schema.map { it.withGpuBlocked() }

@@ -96,6 +96,17 @@ class CatalogLiteRtConfigTest {
     }
 
     @Test
+    @DisplayName("the accelerator control of a LiteRT-LM model shows the backend it really runs on, GPU, and CPU once the GPU is blocked")
+    fun `schema shows the real backend`() = runTest {
+        suspend fun shown(p: CatalogActiveModelProvider) =
+            p.activeModelSchema().filterIsInstance<com.postsaimanager.core.model.ConfigSpec.Choice>().first { it.key == "accelerator" }.default
+        assertThat(shown(provider(liteRtModel()))).isEqualTo("GPU")
+        val settings = FakeInferenceSettingsRepository()
+        settings.blockGpu("/models/gemma.litertlm")
+        assertThat(shown(provider(liteRtModel(), settings))).isEqualTo("CPU")
+    }
+
+    @Test
     @DisplayName("a Gemma 4 LiteRT-LM entry declares tool support, and its config carries it (the Agent Skills run on it)")
     fun `catalogue entry tool support reaches the config`() = runTest {
         val liteRtEntries = BundledCatalog.models.filter { it.runtime == ModelRuntime.LITERT_LM }

@@ -69,6 +69,10 @@ class RemoteLiteRtChatEngine @Inject constructor(
                     )
                 }
                 Log.i(TAG, "LiteRT-LM model loaded on $startedOn (asked for ${config.accelerator})")
+                // The GPU engine could not start and the service fell back to the CPU: remember that, so the next load asks the CPU.
+                if (config.accelerator == Accelerator.GPU && startedOn == Accelerator.CPU.name) {
+                    connection.reportCrash(InferenceCrash(modelId, config))
+                }
                 PamResult.Success(
                     AiCapabilities(
                         supportsGrammar = false,
@@ -203,6 +207,15 @@ class RemoteLiteRtChatEngine @Inject constructor(
                 token?.let {
                     chunks++
                     trySend(it)
+                }
+            }
+
+            override fun onBackendFallback() {
+                // The GPU engine failed this reply and the service answered from the CPU: block the GPU for this model, as a
+                // crash does, so the next load goes straight to the CPU.
+                Log.w(TAG, "the GPU engine failed the reply; answered on the CPU")
+                coordinator.lastRequestedSnapshot()?.let { (modelId, config) ->
+                    connection.reportCrash(InferenceCrash(modelId, config))
                 }
             }
 

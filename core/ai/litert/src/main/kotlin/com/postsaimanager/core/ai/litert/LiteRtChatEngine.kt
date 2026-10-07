@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -176,17 +177,27 @@ class LiteRtChatEngine internal constructor(
     override suspend fun isChatSessionPrimed(conversationId: String): Boolean =
         sessionId == conversationId && instance != null
 
-    override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> = sendChatMessage(userText, request) {}
+    override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> =
+        sendChatMessage(userText, request, onToolAction = {})
 
     /**
      * [sendChatMessage] with the action channel: every `run_intent` call the model makes during the reply (only when
      * [AiRequest.tools] is set and the skills are available) is handed to [onToolAction], before the stream ends. The service
      * forwards it over AIDL; this engine never executes it.
      */
-    fun sendChatMessage(userText: String, request: AiRequest, onToolAction: (ToolActionCall) -> Unit): Flow<String> =
-        serialised(replyFlow(userText, request, onToolAction))
+    fun sendChatMessage(
+        userText: String,
+        request: AiRequest,
+        onToolAction: (ToolActionCall) -> Unit,
+        onFallback: () -> Unit = {},
+    ): Flow<String> = serialised(replyFlow(userText, request, onToolAction, onFallback))
 
-    private fun replyFlow(userText: String, request: AiRequest, onToolAction: (ToolActionCall) -> Unit): Flow<String> = callbackFlow {
+    private fun replyFlow(
+        userText: String,
+        request: AiRequest,
+        onToolAction: (ToolActionCall) -> Unit,
+        onFallback: () -> Unit,
+    ): Flow<String> = callbackFlow {
         val live = instance
         if (live == null) {
             close(IllegalStateException("No model is loaded."))
@@ -214,40 +225,89 @@ class LiteRtChatEngine internal constructor(
 
         val filter = ReplyTextFilter()
         var chunks = 0
+        var running = live
+        var fellBack = false
         val finished = AtomicBoolean(false)
-        helper.runInference(
-            instance = live,
-            input = userText,
-            resultListener = { text, done, _ ->
-                if (done) {
-                    finished.set(true)
-                    // Whatever the filter held back as a maybe-marker was ordinary text.
-                    filter.finish().takeIf { it.isNotEmpty() }?.let { trySend(it) }
-                    close()
-                } else if (!finished.get()) {
-                    chunks++
-                    // Control tokens and tool-call text are the model's protocol, not part of the answer.
-                    filter.accept(text).takeIf { it.isNotEmpty() }?.let { trySend(it) }
-                    if (chunks >= request.maxTokens) {
-                        hitLimit = true
+
+        fun runOn(inst: LlmModelInstance) {
+            running = inst
+            helper.runInference(
+                instance = inst,
+                input = userText,
+                resultListener = { text, done, _ ->
+                    if (done) {
                         finished.set(true)
-                        helper.stopResponse(live)
+                        // Whatever the filter held back as a maybe-marker was ordinary text.
+                        filter.finish().takeIf { it.isNotEmpty() }?.let { trySend(it) }
                         close()
+                    } else if (!finished.get()) {
+                        chunks++
+                        // Control tokens and tool-call text are the model's protocol, not part of the answer.
+                        filter.accept(text).takeIf { it.isNotEmpty() }?.let { trySend(it) }
+                        if (chunks >= request.maxTokens) {
+                            hitLimit = true
+                            finished.set(true)
+                            helper.stopResponse(inst)
+                            close()
+                        }
                     }
-                }
-            },
-            onError = { message ->
-                finished.set(true)
-                close(IllegalStateException(message))
-            },
-            // Phase 1: no reasoning trace. Phase 3 brings the Gallery's thinking UI.
-            extraContext = mapOf("enable_thinking" to "false"),
-        )
+                },
+                onError = { message ->
+                    // The GPU engine can start and still fail its first reply (a missing OpenCL driver, a kernel that does not
+                    // compile): once, before anything was said, reload on the CPU and answer from there.
+                    if (!fellBack && chunks == 0 && inst.accelerator == Accelerator.GPU && GpuFailure.matches(message)) {
+                        fellBack = true
+                        launch(Dispatchers.IO) {
+                            try {
+                                val cpu = reloadOnCpu(inst)
+                                onFallback()
+                                ensureConversation(cpu, Sampling(request.topK, request.topP, request.temperature), activeKit, toolPrompt)
+                                runOn(cpu)
+                            } catch (e: Throwable) {
+                                finished.set(true)
+                                close(IllegalStateException(message))
+                            }
+                        }
+                    } else {
+                        finished.set(true)
+                        close(IllegalStateException(message))
+                    }
+                },
+                // Phase 1: no reasoning trace. Phase 3 brings the Gallery's thinking UI.
+                extraContext = mapOf("enable_thinking" to "false"),
+            )
+        }
+        runOn(live)
         awaitClose {
             // A collector that stops early (the user's Stop) stops the native generation too.
-            if (!finished.get()) helper.stopResponse(live)
+            if (!finished.get()) helper.stopResponse(running)
             activeKit?.release()
         }
+    }
+
+    /**
+     * Replaces a GPU engine that failed with a CPU one, in place: the instance, the recorded config (so the next [load] of the
+     * CPU config is a no-op) and the state now say CPU. The conversation is rebuilt by the next [ensureConversation].
+     */
+    private fun reloadOnCpu(failed: LlmModelInstance): LlmModelInstance {
+        val (path, config) = loaded ?: throw IllegalStateException("No model is loaded.")
+        helper.cleanUp(failed)
+        val cpu = helper.initialize(
+            LlmModelConfig(
+                modelPath = path,
+                accelerator = Accelerator.CPU,
+                maxTokens = config.contextTokens,
+                topK = config.sampling.topK,
+                topP = config.sampling.topP,
+                temperature = config.sampling.temperature,
+            ),
+        )
+        instance = cpu
+        conversationSampling = null
+        val cpuConfig = config.copy(accelerator = Accelerator.CPU)
+        loaded = path to cpuConfig
+        _state.value = ModelLoadState.Ready(path, cpuConfig, 0L)
+        return cpu
     }
 
     /**
