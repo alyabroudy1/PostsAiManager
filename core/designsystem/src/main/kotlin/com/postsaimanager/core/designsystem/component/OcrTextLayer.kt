@@ -11,7 +11,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,12 +45,16 @@ private const val GLYPH_SHARE = 0.8f
  * @param fit the page's fit inside this layer's box (unzoomed pixels)
  */
 @Composable
-internal fun OcrTextLayer(lines: List<PageTextLine>, fit: FittedPage) {
+internal fun OcrTextLayer(lines: List<PageTextLine>, fit: FittedPage, selection: PageSelection) {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val primary = MaterialTheme.colorScheme.primary
     val colors = remember(primary) { TextSelectionColors(handleColor = primary, backgroundColor = primary.copy(alpha = 0.35f)) }
-    CompositionLocalProvider(LocalTextSelectionColors provides colors) {
+    val platformToolbar = LocalTextToolbar.current
+    val toolbar = remember(platformToolbar, selection) { TrackingTextToolbar(platformToolbar, selection) }
+    CompositionLocalProvider(LocalTextSelectionColors provides colors, LocalTextToolbar provides toolbar) {
+        // A new key replaces the container, which is how a selection is cleared.
+        key(selection.generation) {
         SelectionContainer {
             Box(Modifier.fillMaxSize()) {
                 lines.forEach { line ->
@@ -82,6 +88,7 @@ internal fun OcrTextLayer(lines: List<PageTextLine>, fit: FittedPage) {
                     )
                 }
             }
+        }
         }
     }
 }

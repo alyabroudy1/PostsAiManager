@@ -1,6 +1,9 @@
 package com.postsaimanager.core.designsystem.component
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -9,7 +12,6 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -44,6 +46,12 @@ private const val DOUBLE_TAP_ZOOM = 2.5f
 
 /** Longest side a page is decoded at: sharp enough to read when zoomed, without holding a full camera frame. */
 private const val PAGE_DECODE_PX = 2400
+
+/** Test tag of a page's box. */
+internal const val PAGE_TEST_TAG = "preview_page"
+
+/** Seeds a page's image size where no image is decoded (JVM tests); unspecified in the app, where the loaded image reports it. */
+internal val LocalAssumedPageImageSize = staticCompositionLocalOf { Size.Zero }
 
 /** The marker colour: amber reads on white paper whatever the app theme is. */
 private val HighlightColor = Color(0xFFFFC107)
@@ -82,22 +90,68 @@ internal class PageViewport {
 }
 
 /**
+ * Double-tap zoom, and pan and pinch of [viewport]. Pan and pinch are only consumed while zoomed or with two fingers down, so a single
+ * finger on an unzoomed page falls through to the pager, and a drag a child already consumed (a text selection's long-press drag)
+ * never also pans.
+ *
+ * A single finger only pans once it has moved past the touch slop, as the platform's own scrolling and transforming do. Consuming from
+ * the first pixel of movement cancelled the text layer's long-press (a finger always drifts a little while it is held), which is why
+ * selecting text worked only on the unzoomed page, where nothing was panning.
+ */
+internal fun Modifier.pageGestures(viewport: PageViewport, onTap: () -> Unit = {}): Modifier = this
+    .pointerInput(viewport) { detectTapGestures(onDoubleTap = viewport::toggleZoom, onTap = { onTap() }) }
+    .pointerInput(viewport) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false)
+            var slopPassed = false
+            var drift = Offset.Zero
+            do {
+                val event = awaitPointerEvent(PointerEventPass.Main)
+                val fingers = event.changes.count { it.pressed }
+                // The last event of a gesture has no finger down: its centroid is Unspecified (NaN), which
+                // would send the page's offset to NaN and blank it. Nothing to apply then.
+                val centroid = event.calculateCentroid(useCurrent = true)
+                val consumedByChild = event.changes.any { it.isConsumed }
+                if (centroid.isSpecified && (fingers > 1 || (viewport.scale > 1.01f && !consumedByChild))) {
+                    val zoom = event.calculateZoom()
+                    val pan = event.calculatePan()
+                    if (fingers > 1) slopPassed = true
+                    if (!slopPassed) {
+                        drift += pan
+                        if (drift.getDistance() > viewConfiguration.touchSlop) slopPassed = true
+                    }
+                    if (slopPassed) {
+                        val focus = centroid - Offset(viewport.box.width / 2f, viewport.box.height / 2f)
+                        val newScale = (viewport.scale * zoom).coerceIn(1f, MAX_ZOOM)
+                        val moved = focus + pan - (focus - viewport.offset) * (newScale / viewport.scale)
+                        viewport.scale = newScale
+                        viewport.offset = if (newScale <= 1f) Offset.Zero else viewport.clamp(moved, newScale)
+                        event.changes.forEach { if (it.positionChanged()) it.consume() }
+                    }
+                }
+            } while (event.changes.any { it.pressed })
+        }
+    }
+
+/**
  * One page image with pinch-zoom, pan and double-tap zoom, the cited passage marked, and its text selectable by the platform's own
  * text selection through an invisible [OcrTextLayer].
  *
- * The image, its marker and the text layer share one `graphicsLayer`, so they stay glued together at any zoom. Pan and pinch are only
- * consumed while zoomed or with two fingers down, so a single finger on an unzoomed page falls through to the pager; and a drag the
- * text selection already consumed (a long-press drag) never also pans.
+ * The image, its marker and the text layer share one `graphicsLayer`, so they stay glued together at any zoom; the gestures are
+ * [pageGestures]. Back, or a tap on the page, clears a selection first.
  */
 @Composable
 internal fun ZoomablePage(
     page: PreviewPage,
     description: String,
-    showAllText: Boolean,
+    viewport: PageViewport = remember { PageViewport() },
+    selection: PageSelection = remember { PageSelection() },
 ) {
-    val viewport = remember { PageViewport() }
+    // Back first clears a selection; only with none does it fall through to closing the preview.
+    BackHandler(enabled = selection.active) { selection.clear() }
+    val assumedImageSize = LocalAssumedPageImageSize.current
+    if (assumedImageSize.width > 0f && viewport.imageSize.width <= 0f) viewport.imageSize = assumedImageSize
     val lines = remember(page.textBlocks) { pageTextLines(page.textBlocks) }
-    val tint = MaterialTheme.colorScheme.primary
 
     val context = LocalContext.current
     val request = remember(page.imagePath) {
@@ -109,30 +163,8 @@ internal fun ZoomablePage(
             .fillMaxSize()
             .clipToBounds()
             .onSizeChanged { viewport.box = it }
-            .pointerInput(Unit) { detectTapGestures(onDoubleTap = viewport::toggleZoom) }
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    do {
-                        val event = awaitPointerEvent(PointerEventPass.Main)
-                        val fingers = event.changes.count { it.pressed }
-                        // The last event of a gesture has no finger down: its centroid is Unspecified (NaN), which
-                        // would send the page's offset to NaN and blank it. Nothing to apply then.
-                        val centroid = event.calculateCentroid(useCurrent = true)
-                        val consumedByChild = event.changes.any { it.isConsumed }
-                        if (centroid.isSpecified && (fingers > 1 || (viewport.scale > 1.01f && !consumedByChild))) {
-                            val zoom = event.calculateZoom()
-                            val pan = event.calculatePan()
-                            val focus = centroid - Offset(viewport.box.width / 2f, viewport.box.height / 2f)
-                            val newScale = (viewport.scale * zoom).coerceIn(1f, MAX_ZOOM)
-                            val moved = focus + pan - (focus - viewport.offset) * (newScale / viewport.scale)
-                            viewport.scale = newScale
-                            viewport.offset = if (newScale <= 1f) Offset.Zero else viewport.clamp(moved, newScale)
-                            event.changes.forEach { if (it.positionChanged()) it.consume() }
-                        }
-                    } while (event.changes.any { it.pressed })
-                }
-            },
+            .testTag(PAGE_TEST_TAG)
+            .pageGestures(viewport, onTap = { if (selection.active) selection.clear() }),
     ) {
         Box(
             modifier = Modifier
@@ -152,7 +184,7 @@ internal fun ZoomablePage(
                 modifier = Modifier.fillMaxSize().semantics { contentDescription = description },
             )
             val imageSize = viewport.imageSize
-            if ((page.highlights.isNotEmpty() || showAllText) && imageSize.width > 0f && imageSize.height > 0f) {
+            if (page.highlights.isNotEmpty() && imageSize.width > 0f && imageSize.height > 0f) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val fit = FittedPage(size.width, size.height, imageSize.width, imageSize.height)
                     val pad = 2.dp.toPx()
@@ -166,16 +198,10 @@ internal fun ZoomablePage(
                             cornerRadius = radius,
                         )
                     }
-                    if (showAllText) {
-                        lines.forEach { l ->
-                            val b = l.bounds
-                            drawRect(tint.copy(alpha = 0.2f), Offset(fit.left(b), fit.top(b)), Size(b.width * fit.shownWidth, b.height * fit.shownHeight))
-                        }
-                    }
                 }
             }
             val fit = viewport.fitted()
-            if (fit != null && lines.isNotEmpty()) OcrTextLayer(lines, fit)
+            if (fit != null && lines.isNotEmpty()) OcrTextLayer(lines, fit, selection)
         }
     }
 }

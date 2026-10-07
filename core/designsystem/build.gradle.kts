@@ -27,6 +27,11 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        // The Compose UI tests run on the JVM under Robolectric and need the real string resources.
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -44,6 +49,8 @@ dependencies {
     api(libs.compose.foundation)
     api(libs.compose.runtime)
     api(libs.compose.animation)
+    // BackHandler: Back clears a text selection before it closes the preview.
+    implementation(libs.activity.compose)
     api(libs.compose.ui.tooling.preview)
 
     // Coil
@@ -56,8 +63,10 @@ dependencies {
     api(libs.compose.markdown)
 
     // Robolectric hosts the Intent test (JUnit 4 runner on the JUnit 5 platform via the Vintage engine).
+    testImplementation(libs.compose.ui.test.junit4)
     testImplementation(libs.robolectric)
     testRuntimeOnly(libs.junit.vintage.engine)
+    debugImplementation(libs.compose.ui.test.manifest)
 
     // Debug
     debugApi(libs.compose.ui.tooling)

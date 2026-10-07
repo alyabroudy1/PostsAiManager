@@ -32,12 +32,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -57,10 +55,6 @@ import androidx.core.view.WindowInsetsCompat
 import com.postsaimanager.core.designsystem.R
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.DocumentPreview
-import kotlinx.coroutines.delay
-
-/** How long the header's "Select text" hint keeps the recognised text tinted. */
-private const val HINT_MILLIS = 1500L
 
 /**
  * A full-screen, in-place preview of a document's pages, opened on one of them with the passage or field marked.
@@ -71,7 +65,7 @@ private const val HINT_MILLIS = 1500L
  * It sits on top of the screen rather than replacing it, so what is underneath keeps its scroll position untouched.
  *
  * The recognised text of a page is selected with the platform's own text selection (long-press a word, drag the native handles, copy
- * or share from the system toolbar); see [ZoomablePage] and [OcrTextLayer].
+ * or share from the system toolbar); see [ZoomablePage] and [OcrTextLayer]. Back, or a tap elsewhere, first clears a selection.
  *
  * @param title shown while [preview] is not there (loading, or unavailable); the loaded document's own title replaces it
  * @param preview the pages, or null while [loading] or when the document can't be previewed
@@ -140,21 +134,9 @@ private fun ColumnScope.PreviewPager(
     }
 
     val canSelect = current.textBlocks.isNotEmpty()
-    // The hint: a tap on "Select text" briefly tints all recognised text. Selecting itself never depends on it.
-    var hintCount by remember { mutableIntStateOf(0) }
-    var showAllText by remember { mutableStateOf(false) }
-    LaunchedEffect(hintCount) {
-        if (hintCount > 0) {
-            showAllText = true
-            delay(HINT_MILLIS)
-            showAllText = false
-        }
-    }
     PreviewHeader(
         title = stringResource(R.string.page_preview_title_page, preview.title, pagerState.currentPage + 1, pages.size),
         onClose = onClose,
-        selectTextEnabled = canSelect,
-        onSelectTextHint = { hintCount++ },
     )
     if (!canSelect) {
         Text(
@@ -189,7 +171,6 @@ private fun ColumnScope.PreviewPager(
         ZoomablePage(
             page = pages[index],
             description = stringResource(R.string.page_preview_page_description, index + 1, pages.size, preview.title),
-            showAllText = showAllText && index == pagerState.currentPage,
         )
     }
     Spacer(Modifier.height(with(density) { bottomPx.toDp() }))
@@ -254,8 +235,6 @@ private fun activityNavigationBarPx(context: Context): Int {
 private fun PreviewHeader(
     title: String,
     onClose: () -> Unit,
-    selectTextEnabled: Boolean? = null,
-    onSelectTextHint: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp),
@@ -268,12 +247,6 @@ private fun PreviewHeader(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        // Null while there are no pages to select on (loading, unavailable): no action at all.
-        if (selectTextEnabled != null) {
-            TextButton(onClick = onSelectTextHint, enabled = selectTextEnabled) {
-                Text(stringResource(R.string.page_preview_select_text))
-            }
-        }
         IconButton(onClick = onClose) {
             Icon(PamIcons.Close, contentDescription = stringResource(R.string.page_preview_close))
         }

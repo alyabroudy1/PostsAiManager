@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- تحديد نص صفحة ممسوحة ضوئيًا ونسخه في المعاينة. -->
-    <string name="page_preview_select_text">تحديد النص</string>
     <string name="page_preview_select_text_unavailable">لا يوجد نص قابل للتحديد في هذه الصفحة</string>
 
     <!-- صف في قائمة المستندات: شارات الأشخاص وتاريخ الاستحقاق. -->
