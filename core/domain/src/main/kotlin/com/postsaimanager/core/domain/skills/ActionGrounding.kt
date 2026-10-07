@@ -140,6 +140,8 @@ object ActionGrounding {
         val unsaid = unsaidOffset(action.offset, userTurn)
         return when {
             unsaid.isNotEmpty() -> FieldCheck(FieldStatus.NOT_FOUND, unsaid = unsaid)
+            // A time computed from an offset that the user's words confirmed is grounded by those words, not by the letter.
+            action.offset != null && userTurn.isNotBlank() -> FieldCheck.GROUNDED
             known -> FieldCheck.GROUNDED
             else -> FieldCheck.NOT_FOUND
         }

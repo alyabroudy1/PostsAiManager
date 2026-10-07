@@ -253,6 +253,25 @@ class ActionGroundingTest {
     }
 
     @Test
+    fun `tomorrow at 9 from an offset is grounded by the user's words even when the letter has only earlier dates`() {
+        val clock = LocalDateTime.of(2026, 10, 7, 12, 0)
+        val parsed = AgentActionParser.parse(
+            "schedule_notification",
+            """{"message": "Send the documents for the Bürgergeld application", "in_days": 1, "hour": 9, "minute": 0, "document_id": "BG-12345BG0001234"}""",
+            now = clock,
+        ) as ActionParse.Parsed
+        val s = GroundingSources(
+            letterText = "Jobcenter\nBescheid vom 01.09.2026\nBG-12345BG0001234",
+            userMessages = listOf("Remind me tomorrow at 9 to send the documents"),
+        )
+
+        val checks = ActionGrounding.check(parsed.action, s, clock)
+
+        assertThat(checks[ActionField.AT]).isEqualTo(FieldCheck.GROUNDED)
+        assertThat(checks[ActionField.TEXT]!!.status).isEqualTo(FieldStatus.FREE)
+    }
+
+    @Test
     fun `only the user's message of this turn counts`() {
         val action = offsetReminder(now.plusMinutes(5), ReminderOffset(0, 0, 5, atTime = false))
         val s = GroundingSources(userMessages = listOf("I have 5 minutes", "Remind me later"))

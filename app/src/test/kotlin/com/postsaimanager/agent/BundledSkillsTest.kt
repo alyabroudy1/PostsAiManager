@@ -91,7 +91,7 @@ class BundledSkillsTest {
         val sample = mapOf(
             "send_email" to """{"extra_email":"a@b.de","extra_subject":"s","extra_text":"t"}""",
             "create_calendar_event" to """{"title":"t","description":"d","begin_time":"2026-11-05T09:00:00","end_time":"2026-11-05T10:00:00"}""",
-            "schedule_notification" to """{"message":"m","year":2026,"month":11,"day":2,"hour":9,"minute":0,"document_id":"d"}""",
+            "schedule_notification" to """{"message":"m","year":2026,"month":11,"day":2,"hour":9,"minute":0}""",
         )
         folders.map { parse(it) }.forEach { skill ->
             val intent = Regex("intent:\\s*(\\w+)").find(skill.instructions)!!.groupValues[1]
@@ -99,8 +99,10 @@ class BundledSkillsTest {
             val params = Regex("(?m)^\\s+- (\\w+(?:, \\w+)*):").findAll(skill.instructions).flatMap { it.groupValues[1].split(", ") }.toList()
             val known = setOf(
                 "extra_email", "extra_subject", "extra_text", "title", "description", "begin_time", "end_time",
-                "message", "year", "month", "day", "hour", "minute", "document_id", "in_minutes", "in_hours", "in_days",
+                "message", "year", "month", "day", "hour", "minute", "in_minutes", "in_hours", "in_days",
             )
+            // The app always uses the chat's document; a model-filled id would only be a wrong letter reference.
+            assertThat(skill.instructions).doesNotContain("document_id")
             assertThat(known).containsAtLeastElementsIn(params.filter { it != "intent" && it != "parameters" }.toSet())
         }
     }

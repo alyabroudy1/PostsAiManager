@@ -18,5 +18,4 @@ time-aware: true
      - in_days: from today, with hour and minute. Number.
      - year, month, day: the date. Numbers.
      - hour, minute: time of day. Numbers.
-     - document_id: the letter's id, if given. String.
 5. Nothing is set until the user taps Open on the card. Say the reminder is ready for their check.
