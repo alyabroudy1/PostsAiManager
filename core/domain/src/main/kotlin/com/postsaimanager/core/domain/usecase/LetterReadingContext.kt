@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.extraction.actions.ActionPart
 import com.postsaimanager.core.domain.contacts.LetterContacts
 import com.postsaimanager.core.domain.extraction.v2.ValueMeaning
 import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
+import com.postsaimanager.core.domain.timeline.CaseHistory
 import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.model.ExtractedData
@@ -24,17 +25,33 @@ import com.postsaimanager.core.model.ReviewState
  */
 object LetterReadingContext {
 
-    /** The section, starting with a blank line, or an empty string when the reading found nothing to state. */
-    fun section(actionItems: List<ActionItem>, fields: List<ExtractedData>, contacts: LetterContacts = LetterContacts()): String {
-        val lines = read(actionItems, fields).take(MAX_LINES)
+    /**
+     * The section, starting with a blank line, or an empty string when the reading found nothing to state.
+     *
+     * @param earlierInCase the lines of the matter's earlier events ([com.postsaimanager.core.domain.timeline.CaseHistory]), oldest
+     *   first, up to [CaseHistory.MAX_EVENTS]. They count against the section's [MAX_LINES]: the reading's own answers give way, so the
+     *   card does not grow.
+     */
+    fun section(
+        actionItems: List<ActionItem>,
+        fields: List<ExtractedData>,
+        contacts: LetterContacts = LetterContacts(),
+        earlierInCase: List<String> = emptyList(),
+    ): String {
+        val history = earlierInCase.take(CaseHistory.MAX_EVENTS)
+        val lines = read(actionItems, fields).take(MAX_LINES - history.size)
         val contactLines = contactLines(contacts)
-        if (lines.isEmpty() && contactLines.isEmpty()) return ""
+        if (lines.isEmpty() && contactLines.isEmpty() && history.isEmpty()) return ""
         return buildString {
             appendLine()
             appendLine("## What was read from this letter")
             appendLine("The app already read this letter; these are its answers.")
             lines.forEach { appendLine(it.text) }
             contactLines.forEach { appendLine(it) }
+            if (history.isNotEmpty()) {
+                appendLine("Earlier in this case:")
+                history.forEach { appendLine(it) }
+            }
         }
     }
 
@@ -43,8 +60,8 @@ object LetterReadingContext {
      * leave them out: the same date, amount, sender or reference would otherwise be in the prompt twice, and every character of the
      * prompt is read by the model before the first message.
      */
-    fun statedSlots(actionItems: List<ActionItem>, fields: List<ExtractedData>): Set<String> =
-        read(actionItems, fields).take(MAX_LINES).flatMap { it.slots }.toSet()
+    fun statedSlots(actionItems: List<ActionItem>, fields: List<ExtractedData>, earlierInCase: List<String> = emptyList()): Set<String> =
+        read(actionItems, fields).take(MAX_LINES - earlierInCase.take(CaseHistory.MAX_EVENTS).size).flatMap { it.slots }.toSet()
 
     /** One stated line and the slot keys of the fields whose values it carries. */
     private class Line(val text: String, val slots: Set<String>)

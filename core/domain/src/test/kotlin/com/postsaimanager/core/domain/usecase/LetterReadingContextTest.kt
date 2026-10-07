@@ -153,6 +153,62 @@ class LetterReadingContextTest {
         assertThat(prompt.indexOf("What was read from this letter")).isLessThan(prompt.indexOf("## Extracted details"))
     }
 
+    private val earlier = listOf(
+        "- 2026-08-20 Application filed: Bürgergeld application received",
+        "- 2026-09-10 Approval: Bürgergeld approved from 1 Sep",
+    )
+
+    @Test
+    fun `the earlier events of the case follow the answers under their own heading`() {
+        val text = LetterReadingContext.section(listOf(pay), fields, earlierInCase = earlier)
+
+        val lines = text.lines()
+        assertThat(lines.indexOf("Earlier in this case:")).isGreaterThan(lines.indexOfFirst { it.contains("pay an amount") })
+        assertThat(lines.dropWhile { it != "Earlier in this case:" }.drop(1).filter { it.isNotBlank() }).containsExactlyElementsIn(earlier).inOrder()
+    }
+
+    @Test
+    fun `a letter with only a case history still gets the section`() {
+        val text = LetterReadingContext.section(emptyList(), emptyList(), earlierInCase = earlier)
+
+        assertThat(text).contains("## What was read from this letter")
+        assertThat(text).contains("Earlier in this case:")
+        assertThat(LetterReadingContext.section(emptyList(), emptyList(), earlierInCase = emptyList())).isEmpty()
+    }
+
+    @Test
+    fun `the case history counts against the section's cap of eight lines, the reading's answers give way`() {
+        val facts = (1..12).map { field("x:fact_$it", "Fact $it", "value $it") }
+        val history = (1..4).map { "- 2026-0$it-01 Information: event $it" }
+
+        val text = LetterReadingContext.section(emptyList(), facts, earlierInCase = history)
+
+        assertThat(text.lines().count { it.startsWith("- ") }).isEqualTo(8)
+        assertThat(text.lines().count { it.startsWith("- Fact") }).isEqualTo(4)
+        // More than four history lines are never shown, and the slots the grounding leaves out are only those that are shown.
+        assertThat(LetterReadingContext.section(emptyList(), emptyList(), earlierInCase = history + history).lines().count { it.startsWith("- ") }).isEqualTo(4)
+        assertThat(LetterReadingContext.statedSlots(emptyList(), facts, history)).hasSize(4)
+        assertThat(LetterReadingContext.statedSlots(emptyList(), facts)).hasSize(8)
+    }
+
+    @Test
+    fun `the chat grounding of a letter in a case carries its earlier events`() = runTest {
+        val documents = FakeDocumentRepository()
+        documents.seed(testDocument(id = "d1").copy(actionItems = listOf(pay)))
+        documents.seedExtracted("d1", *fields.toTypedArray())
+        val profiles = FakeProfileRepository()
+        val build = BuildChatContextUseCase(documents, profiles, letterContactsFor(profiles)) { id -> if (id == "d1") earlier else emptyList() }
+
+        val prompt = build("d1", contextTokens = 4096).text
+
+        assertThat(prompt).contains("Earlier in this case:\n- 2026-08-20 Application filed")
+        assertThat(prompt.indexOf("Earlier in this case:")).isLessThan(prompt.indexOf("## Extracted details"))
+        // A letter in no case, and the builder without a history, say nothing of one.
+        assertThat(build("d2", contextTokens = 4096).text).doesNotContain("Earlier in this case")
+        assertThat(BuildChatContextUseCase(documents, profiles, letterContactsFor(profiles)).invoke("d1", contextTokens = 4096).text)
+            .doesNotContain("Earlier in this case")
+    }
+
     private val nadine = ContactPerson("nadine", "jc", "Frau Nadine Beispiel", phone = "030 111", firstSeen = 1, lastSeen = 10)
     private val mueller = ContactPerson(
         "mueller", "jc", "Frau Müller", title = "Sachbearbeiterin", phone = "030 222", email = "mueller@jc.example", firstSeen = 20, lastSeen = 30,
