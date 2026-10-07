@@ -88,6 +88,16 @@
     <string name="action_understood_in">In %1$s · %2$s</string>
     <string name="action_understood_today">Heute · %1$s</string>
     <string name="action_understood_tomorrow">Morgen · %1$s</string>
+    <string name="action_compact_opened">✓ %1$s · %2$s</string>
+    <string name="action_compact_opened_plain">✓ %1$s</string>
+    <string name="action_when_today">Heute %1$s</string>
+    <string name="action_when_tomorrow">Morgen %1$s</string>
+    <string name="action_show_details">Details anzeigen</string>
+    <string name="action_hide_details">Details ausblenden</string>
+    <plurals name="action_waiting_pill">
+        <item quantity="one">%1$d Aktion wartet</item>
+        <item quantity="other">%1$d Aktionen warten</item>
+    </plurals>
     <plurals name="action_understood_days">
         <item quantity="one">%1$d Tag</item>
         <item quantity="other">%1$d Tagen</item>

@@ -85,6 +85,18 @@
     <string name="action_do_again">Do again</string>
     <string name="action_done_at">Done, %1$s</string>
     <string name="action_failed">That did not work. Check the fields, or try again.</string>
+    <!-- A finished card collapses to one line: "✓ Reminder set · Tomorrow 09:00", "Cancelled"; tapping it shows the details -->
+    <string name="action_compact_opened">✓ %1$s · %2$s</string>
+    <string name="action_compact_opened_plain">✓ %1$s</string>
+    <string name="action_when_today">Today %1$s</string>
+    <string name="action_when_tomorrow">Tomorrow %1$s</string>
+    <string name="action_show_details">Show details</string>
+    <string name="action_hide_details">Hide details</string>
+    <!-- The pill above the composer while a card waiting for the user's decision is scrolled out of view -->
+    <plurals name="action_waiting_pill">
+        <item quantity="one">%1$d action waiting</item>
+        <item quantity="other">%1$d actions waiting</item>
+    </plurals>
     <!-- What a reminder's relative time was understood as, next to the time: "In 2 hours · 18:01", "Tomorrow · 09:00" -->
     <string name="action_understood_in">In %1$s · %2$s</string>
     <string name="action_understood_today">Today · %1$s</string>

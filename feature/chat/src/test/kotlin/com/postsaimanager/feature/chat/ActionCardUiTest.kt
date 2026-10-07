@@ -1,7 +1,11 @@
 package com.postsaimanager.feature.chat
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -39,9 +43,14 @@ class ActionCardUiTest {
         ActionField.BODY to FieldCheck(FieldStatus.NOT_FOUND, unfound = listOf("99,00")),
     )
 
+    /** The status text of a one-line card: the clickable line merges its children, so it is read from the unmerged tree. */
+    private fun status() = compose.onNode(androidx.compose.ui.test.hasTestTag("actionStatus"), useUnmergedTree = true)
+
     private var opened = 0
     private var edited = 0
     private var cancelled = 0
+    private var restored = 0
+    private var repeated = 0
     private val changes = mutableListOf<Pair<ActionField, String>>()
 
     private fun card(
@@ -72,6 +81,8 @@ class ActionCardUiTest {
                     onEdit = { edited++ },
                     onCancel = { cancelled++ },
                     onChange = { field, text -> changes += field to text },
+                    onRestore = { restored++ },
+                    onDoAgain = { repeated++ },
                 )
             }
         }
@@ -147,21 +158,76 @@ class ActionCardUiTest {
     }
 
     @Test
-    fun `an opened card shows its final state and no buttons`() {
+    fun `an opened card is one line with Do again, and no fields or buttons`() {
         show(card(status = ActionCardStatus.OPENED))
 
-        compose.onNodeWithText("Opened in your mail app").assertIsDisplayed()
+        status().assertTextEquals("✓ Opened in your mail app · Re: AZ-1/2026")
+        compose.onNodeWithTag("actionDoAgain").assertIsDisplayed()
         compose.onNodeWithTag("actionOpen").assertDoesNotExist()
         compose.onNodeWithTag("actionCancel").assertDoesNotExist()
-        compose.onNodeWithText("info@amt.de").assertIsDisplayed()
+        compose.onNodeWithText("info@amt.de").assertDoesNotExist()
     }
 
     @Test
-    fun `a cancelled card shows its final state and no buttons`() {
+    fun `tapping the line of an opened card shows its details read-only, and the arrow folds it again`() {
+        show(card(status = ActionCardStatus.OPENED))
+
+        compose.onNodeWithTag("actionCompact").performClick()
+
+        compose.onNodeWithText("info@amt.de").assertIsDisplayed()
+        compose.onNodeWithText("Opened in your mail app").assertIsDisplayed()
+        compose.onNodeWithTag("actionOpen").assertDoesNotExist()
+        compose.onNodeWithTag("actionEdit").assertDoesNotExist()
+
+        compose.onNodeWithTag("actionCollapse").performClick()
+
+        compose.onNodeWithText("info@amt.de").assertDoesNotExist()
+        compose.onNodeWithTag("actionCompact").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a cancelled card is one line with Restore, and Restore calls back`() {
         show(card(status = ActionCardStatus.CANCELLED))
 
-        compose.onNodeWithText("Cancelled").assertIsDisplayed()
+        status().assertTextEquals("Cancelled")
         compose.onNodeWithTag("actionOpen").assertDoesNotExist()
+        compose.onNodeWithTag("actionRestore").performClick()
+        assertThat(restored).isEqualTo(1)
+    }
+
+    @Test
+    fun `Do again calls back from the line of an opened card`() {
+        show(card(status = ActionCardStatus.OPENED))
+
+        compose.onNodeWithTag("actionDoAgain").performClick()
+
+        assertThat(repeated).isEqualTo(1)
+        assertThat(opened).isEqualTo(0)
+    }
+
+    @Test
+    fun `restoring returns the full card with Open, Edit and Cancel`() {
+        var state by mutableStateOf(card(status = ActionCardStatus.CANCELLED))
+        compose.setContent {
+            MaterialTheme {
+                ActionCard(
+                    state = state,
+                    onOpen = {},
+                    onEdit = {},
+                    onCancel = {},
+                    onChange = { _, _ -> },
+                    onRestore = { state = state.copy(status = ActionCardStatus.PENDING) },
+                )
+            }
+        }
+        compose.onNodeWithTag("actionOpen").assertDoesNotExist()
+
+        compose.onNodeWithTag("actionRestore").performClick()
+
+        compose.onNodeWithTag("actionOpen").assertIsDisplayed()
+        compose.onNodeWithTag("actionEdit").assertIsDisplayed()
+        compose.onNodeWithTag("actionCancel").assertIsDisplayed()
+        compose.onNodeWithText("info@amt.de").assertIsDisplayed()
     }
 
     @Test
@@ -189,10 +255,23 @@ class ActionCardUiTest {
         val reminder = AgentAction.ScheduleReminder(LocalDateTime.of(2026, 11, 2, 9, 0), "Pay 123,45 EUR", "d1")
         show(card(action = reminder, checks = emptyMap(), status = ActionCardStatus.OPENED))
 
+        // One line: the status and when the reminder is for; the fields are behind a tap.
+        status().assertTextContains("✓ Reminder set · ", substring = true)
+        compose.onNodeWithText("Pay 123,45 EUR").assertDoesNotExist()
+        compose.onNodeWithTag("actionCompact").performClick()
+
         compose.onNodeWithText("2026-11-02 09:00").assertIsDisplayed()
         compose.onNodeWithText("Pay 123,45 EUR").assertIsDisplayed()
         compose.onNodeWithText("Reminder set").assertIsDisplayed()
         compose.onNodeWithTag("actionUnderstood").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a reminder for tomorrow says Tomorrow and the time in its line`() {
+        val tomorrow = LocalDateTime.now().plusDays(1).withHour(9).withMinute(0)
+        show(card(action = AgentAction.ScheduleReminder(tomorrow, "Pay", "d1"), checks = emptyMap(), status = ActionCardStatus.OPENED))
+
+        status().assertTextContains("✓ Reminder set · Tomorrow ", substring = true)
     }
 
     @Test
