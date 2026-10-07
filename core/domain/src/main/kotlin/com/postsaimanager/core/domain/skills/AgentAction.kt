@@ -26,14 +26,29 @@ sealed interface AgentAction {
         val description: String,
     ) : AgentAction
 
-    /** A reminder notification at [at], through the app's own reminder scheduler; [documentId] is the letter it opens when tapped. */
-    data class ScheduleReminder(val at: LocalDateTime, val text: String, val documentId: String?) : AgentAction
+    /**
+     * A reminder notification at [at], through the app's own reminder scheduler; [documentId] is the letter it opens when tapped.
+     * [offset] is what the model said when it gave an offset instead of a date ("in 2 hours"), so the card can show how the
+     * request was understood; null for an absolute time.
+     */
+    data class ScheduleReminder(
+        val at: LocalDateTime,
+        val text: String,
+        val documentId: String?,
+        val offset: ReminderOffset? = null,
+    ) : AgentAction
 
     /** The current date and time; answered at once, no card. */
     data object GetDateTime : AgentAction {
         override val requiresConfirmation: Boolean get() = false
     }
 }
+
+/**
+ * The relative time a reminder's model stated, as it stated it: [days], [hours] and [minutes] from now, or, when [atTime] is true,
+ * [days] from today at the stated time of day ("tomorrow at 9": days 1, at 09:00).
+ */
+data class ReminderOffset(val days: Int, val hours: Int, val minutes: Int, val atTime: Boolean)
 
 /** The fields an action card shows (and the user may edit), across all action kinds. */
 enum class ActionField {

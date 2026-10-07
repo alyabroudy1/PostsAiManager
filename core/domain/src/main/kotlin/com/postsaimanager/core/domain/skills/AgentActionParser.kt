@@ -68,7 +68,10 @@ sealed interface ActionParse {
  * - `create_calendar_event`: `title`, `description`, `begin_time`, `end_time` (optional), as `yyyy-MM-ddTHH:mm:ss`;
  * - `schedule_notification`: `message` (and an ignored `title`), `year`, `month`, `day`, `hour`, `minute`, and optionally
  *   `document_id` (otherwise the document the chat is about). Instead of the date and time, a relative offset: `in_minutes`,
- *   `in_hours`, `in_days` (numbers, added together); the app adds it to the phone's clock, and it wins over an absolute time.
+ *   `in_hours`, `in_days` (numbers, added together); the app adds it to the phone's clock. An offset of minutes or hours counts
+ *   from now. An offset of only `in_days` together with `hour` and `minute` means that many days from today, at that time of day
+ *   ("tomorrow at 9": `in_days` 1, `hour` 9, `minute` 0). When a full absolute date (`year`, `month`, `day`) is given as well and
+ *   disagrees with the offset, the offset wins and the disagreement is logged.
  *
  * It reads shape only; whether the values are really in the letter is [ActionGrounding]'s job.
  */
@@ -77,7 +80,14 @@ object AgentActionParser {
     private val json = Json { isLenient = true }
 
     /** [now] is the phone's clock at proposal time; only a reminder's relative offset reads it. */
-    fun parse(intent: String, parameters: String, chatDocumentId: String? = null, now: LocalDateTime = LocalDateTime.now()): ActionParse {
+    fun parse(
+        intent: String,
+        parameters: String,
+        chatDocumentId: String? = null,
+        now: LocalDateTime = LocalDateTime.now(),
+        /** Where a reminder's disagreeing offset and date are noted. */
+        log: (String) -> Unit = {},
+    ): ActionParse {
         val kind = AgentIntent.of(intent) ?: return ActionParse.Rejected("Intent not found: \"${intent.trim()}\"")
         if (kind == AgentIntent.GET_CURRENT_DATE_AND_TIME) return ActionParse.Parsed(AgentAction.GetDateTime)
         val params = runCatching { json.parseToJsonElement(parameters.ifBlank { "{}" }).jsonObject }.getOrNull()
@@ -85,7 +95,7 @@ object AgentActionParser {
         return when (kind) {
             AgentIntent.SEND_EMAIL -> email(params)
             AgentIntent.CREATE_CALENDAR_EVENT -> event(params)
-            AgentIntent.SCHEDULE_NOTIFICATION -> reminder(params, chatDocumentId, now)
+            AgentIntent.SCHEDULE_NOTIFICATION -> reminder(params, chatDocumentId, now, log)
             AgentIntent.GET_CURRENT_DATE_AND_TIME -> ActionParse.Parsed(AgentAction.GetDateTime)
         }
     }
@@ -102,13 +112,29 @@ object AgentActionParser {
         return ActionParse.Parsed(AgentAction.CreateCalendarEvent(title = title, start = start, end = end, description = p.text("description").orEmpty()))
     }
 
-    private fun reminder(p: JsonObject, chatDocumentId: String?, now: LocalDateTime): ActionParse {
+    private fun reminder(p: JsonObject, chatDocumentId: String?, now: LocalDateTime, log: (String) -> Unit): ActionParse {
         val message = p.text("message") ?: return missing("message")
+        val documentId = p.text("document_id") ?: chatDocumentId
         val offset = offset(p)
         if (offset != null) {
-            if (offset.isZero || offset.isNegative) return ActionParse.Rejected("in_minutes, in_hours and in_days must add up to more than zero.")
-            val at = now.truncatedTo(ChronoUnit.MINUTES).plus(offset)
-            return ActionParse.Parsed(AgentAction.ScheduleReminder(at = at, text = message, documentId = p.text("document_id") ?: chatDocumentId))
+            val hour = p.number("hour")
+            val minute = p.number("minute")
+            val daysAtTime = offset.minutes == 0 && offset.hours == 0 && hour != null && minute != null
+            if (offset.days < 0 || offset.hours < 0 || offset.minutes < 0 || (!daysAtTime && offset.isZero)) {
+                return ActionParse.Rejected("in_minutes, in_hours and in_days must add up to more than zero.")
+            }
+            val at = if (daysAtTime) {
+                try {
+                    LocalDateTime.of(now.toLocalDate().plusDays(offset.days.toLong()), java.time.LocalTime.of(hour!!, minute!!))
+                } catch (_: DateTimeException) {
+                    return ActionParse.Rejected("hour and minute are not a real time of day.")
+                }
+            } else {
+                now.truncatedTo(ChronoUnit.MINUTES).plus(offset.duration)
+            }
+            absolute(p)?.takeIf { it != at }?.let { log("reminder: the date the model gave ($it) disagrees with its offset ($at); the offset is used") }
+            val understood = ReminderOffset(offset.days, offset.hours, offset.minutes, atTime = daysAtTime)
+            return ActionParse.Parsed(AgentAction.ScheduleReminder(at = at, text = message, documentId = documentId, offset = understood))
         }
         val at = try {
             LocalDateTime.of(
@@ -121,19 +147,37 @@ object AgentActionParser {
         } catch (_: DateTimeException) {
             return ActionParse.Rejected("year, month, day, hour and minute are not a real date and time.")
         }
-        return ActionParse.Parsed(AgentAction.ScheduleReminder(at = at, text = message, documentId = p.text("document_id") ?: chatDocumentId))
+        return ActionParse.Parsed(AgentAction.ScheduleReminder(at = at, text = message, documentId = documentId))
+    }
+
+    /** The absolute date and time the model gave (a full year, month and day; hour and minute 0 when absent), or null when it gave none. */
+    private fun absolute(p: JsonObject): LocalDateTime? {
+        val year = p.number("year") ?: return null
+        val month = p.number("month") ?: return null
+        val day = p.number("day") ?: return null
+        return try {
+            LocalDateTime.of(year, month, day, p.number("hour") ?: 0, p.number("minute") ?: 0)
+        } catch (_: DateTimeException) {
+            null
+        }
+    }
+
+    /** What the model said in `in_minutes`, `in_hours` and `in_days` (a missing one is 0). */
+    private data class Stated(val days: Int, val hours: Int, val minutes: Int) {
+        val isZero: Boolean get() = days == 0 && hours == 0 && minutes == 0
+        val duration: Duration get() = Duration.ofMinutes(minutes.toLong()).plusHours(hours.toLong()).plusDays(days.toLong())
     }
 
     /**
      * The relative offset the model stated ("in 2 minutes"), or null when it gave none. The model says how long; the app adds it
      * to the phone's clock, so the model never does date arithmetic. It wins over an absolute time when both are given.
      */
-    private fun offset(p: JsonObject): Duration? {
+    private fun offset(p: JsonObject): Stated? {
         val minutes = p.number("in_minutes")
         val hours = p.number("in_hours")
         val days = p.number("in_days")
         if (minutes == null && hours == null && days == null) return null
-        return Duration.ofMinutes((minutes ?: 0).toLong()).plusHours((hours ?: 0).toLong()).plusDays((days ?: 0).toLong())
+        return Stated(days ?: 0, hours ?: 0, minutes ?: 0)
     }
 
     private fun missing(name: String) = ActionParse.Rejected("Missing parameter: $name")

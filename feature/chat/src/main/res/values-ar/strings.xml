@@ -85,6 +85,33 @@
     <string name="action_do_again">مرة أخرى</string>
     <string name="action_done_at">تم، %1$s</string>
     <string name="action_failed">لم ينجح ذلك. تحقق من الحقول أو حاول مرة أخرى.</string>
+    <string name="action_understood_in">بعد %1$s · %2$s</string>
+    <string name="action_understood_today">اليوم · %1$s</string>
+    <string name="action_understood_tomorrow">غدًا · %1$s</string>
+    <plurals name="action_understood_days">
+        <item quantity="zero">%1$d يوم</item>
+        <item quantity="one">يوم واحد</item>
+        <item quantity="two">يومان</item>
+        <item quantity="few">%1$d أيام</item>
+        <item quantity="many">%1$d يومًا</item>
+        <item quantity="other">%1$d يوم</item>
+    </plurals>
+    <plurals name="action_understood_hours">
+        <item quantity="zero">%1$d ساعة</item>
+        <item quantity="one">ساعة واحدة</item>
+        <item quantity="two">ساعتان</item>
+        <item quantity="few">%1$d ساعات</item>
+        <item quantity="many">%1$d ساعة</item>
+        <item quantity="other">%1$d ساعة</item>
+    </plurals>
+    <plurals name="action_understood_minutes">
+        <item quantity="zero">%1$d دقيقة</item>
+        <item quantity="one">دقيقة واحدة</item>
+        <item quantity="two">دقيقتان</item>
+        <item quantity="few">%1$d دقائق</item>
+        <item quantity="many">%1$d دقيقة</item>
+        <item quantity="other">%1$d دقيقة</item>
+    </plurals>
 
     <!-- نسخ التصحيح فقط: قائمة لتجربة بطاقات الإجراءات قبل أن يقترح النموذج أي إجراء -->
     <string name="debug_menu_description">قائمة التصحيح</string>

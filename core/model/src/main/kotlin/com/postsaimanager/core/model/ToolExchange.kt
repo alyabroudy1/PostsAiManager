@@ -14,7 +14,7 @@ import kotlinx.serialization.json.Json
  * @param name the tool, as the model called it (`load_skill`, `run_intent`).
  * @param argumentsJson the arguments as a JSON object, keyed by the tool's own parameter names.
  * @param resultJson what the tool answered, as a JSON object of strings (for `run_intent` the status the model read: "Shown
- *   to the user as a card to confirm; nothing has been done yet").
+ *   to the user as a card and waits for their confirmation, not done yet").
  * @param shownJson what the call put on screen besides its result, as a JSON object, or empty for nothing. A JS skill's `webview`
  *   (`{"webview":{"url":"…","aspectRatio":1.33}}`) lives here: it is for the chat to show, never part of what the model is told
  *   or what a rebuilt conversation replays.

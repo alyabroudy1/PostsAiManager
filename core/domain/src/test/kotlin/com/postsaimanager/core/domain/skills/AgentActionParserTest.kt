@@ -83,6 +83,59 @@ class AgentActionParserTest {
         assertThat(reminderAt(params)).isEqualTo(LocalDateTime.of(2026, 10, 7, 14, 32))
     }
 
+    private fun reminder(parameters: String, log: (String) -> Unit = {}): AgentAction.ScheduleReminder =
+        (AgentActionParser.parse("schedule_notification", parameters, now = clock, log = log) as ActionParse.Parsed).action as AgentAction.ScheduleReminder
+
+    @Test
+    fun `in_days with a time of day is that many days from today at that time`() {
+        val tomorrowAtNine = reminder("""{"message":"Pay","in_days":1,"hour":9,"minute":0}""")
+
+        assertThat(tomorrowAtNine.at).isEqualTo(LocalDateTime.of(2026, 10, 8, 9, 0))
+        assertThat(tomorrowAtNine.offset).isEqualTo(ReminderOffset(days = 1, hours = 0, minutes = 0, atTime = true))
+        assertThat(reminder("""{"message":"Pay","in_days":3,"hour":"18","minute":"45"}""").at).isEqualTo(LocalDateTime.of(2026, 10, 10, 18, 45))
+        // The month rolls over.
+        assertThat(reminder("""{"message":"Pay","in_days":30,"hour":9,"minute":0}""").at).isEqualTo(LocalDateTime.of(2026, 11, 6, 9, 0))
+    }
+
+    @Test
+    fun `minutes or hours count from now even when a time of day is given`() {
+        val inTwoHours = reminder("""{"message":"Pay","in_hours":2,"hour":9,"minute":0}""")
+
+        assertThat(inTwoHours.at).isEqualTo(LocalDateTime.of(2026, 10, 7, 16, 30))
+        assertThat(inTwoHours.offset).isEqualTo(ReminderOffset(days = 0, hours = 2, minutes = 0, atTime = false))
+        assertThat(reminder("""{"message":"Pay","in_days":1,"in_minutes":5,"hour":9,"minute":0}""").at).isEqualTo(LocalDateTime.of(2026, 10, 8, 14, 35))
+    }
+
+    @Test
+    fun `an offset from now keeps what the model said, and an absolute time has none`() {
+        assertThat(reminder("""{"message":"Pay","in_minutes":2}""").offset).isEqualTo(ReminderOffset(0, 0, 2, atTime = false))
+        assertThat(reminder("""{"message":"Pay","year":2026,"month":11,"day":2,"hour":9,"minute":30}""").offset).isNull()
+    }
+
+    @Test
+    fun `in_days with a time of day that is not real is refused`() {
+        assertThat(AgentActionParser.parse("schedule_notification", """{"message":"Pay","in_days":1,"hour":25,"minute":0}""", now = clock))
+            .isInstanceOf(ActionParse.Rejected::class.java)
+    }
+
+    @Test
+    fun `an offset that disagrees with a full absolute date wins and is logged`() {
+        val lines = mutableListOf<String>()
+        val params = """{"message":"Pay","year":2027,"month":1,"day":1,"hour":9,"minute":0,"in_days":1}"""
+
+        assertThat(reminder(params, lines::add).at).isEqualTo(LocalDateTime.of(2026, 10, 8, 9, 0))
+        assertThat(lines.single()).contains("disagrees")
+    }
+
+    @Test
+    fun `an offset that agrees with the absolute date is not logged`() {
+        val lines = mutableListOf<String>()
+
+        reminder("""{"message":"Pay","year":2026,"month":10,"day":8,"hour":9,"minute":0,"in_days":1}""", lines::add)
+
+        assertThat(lines).isEmpty()
+    }
+
     @Test
     fun `an absolute time is unchanged by the clock`() {
         assertThat(reminderAt("""{"message":"Pay","year":2026,"month":11,"day":2,"hour":9,"minute":30}""")).isEqualTo(LocalDateTime.of(2026, 11, 2, 9, 30))

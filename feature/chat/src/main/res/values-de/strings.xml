@@ -85,6 +85,21 @@
     <string name="action_do_again">Nochmal</string>
     <string name="action_done_at">Erledigt, %1$s</string>
     <string name="action_failed">Das hat nicht geklappt. Prüfe die Felder oder versuche es noch einmal.</string>
+    <string name="action_understood_in">In %1$s · %2$s</string>
+    <string name="action_understood_today">Heute · %1$s</string>
+    <string name="action_understood_tomorrow">Morgen · %1$s</string>
+    <plurals name="action_understood_days">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tagen</item>
+    </plurals>
+    <plurals name="action_understood_hours">
+        <item quantity="one">%1$d Stunde</item>
+        <item quantity="other">%1$d Stunden</item>
+    </plurals>
+    <plurals name="action_understood_minutes">
+        <item quantity="one">%1$d Minute</item>
+        <item quantity="other">%1$d Minuten</item>
+    </plurals>
 
     <!-- Nur Debug-Builds: ein Menü, um die Aktionskarten auszuprobieren, bevor das Modell welche vorschlägt -->
     <string name="debug_menu_description">Debug-Menü</string>
