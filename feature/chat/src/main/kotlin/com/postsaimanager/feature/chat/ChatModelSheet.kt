@@ -166,7 +166,8 @@ private fun loadStateSubtitle(loadState: ModelLoadState): String = when (loadSta
     ModelLoadState.Idle -> "Not loaded"
     is ModelLoadState.Loading -> "Loading model…"
     is ModelLoadState.Ready ->
-        "${loadState.config.accelerator.name} · ${loadState.config.contextTokens} ctx"
+        // The backend the engine reported running, not the one the settings asked for (a GPU request can fall back to the CPU).
+        "${loadState.shownAccelerator.name} · ${loadState.config.contextTokens} ctx"
     is ModelLoadState.Failed -> "Failed to load"
 }
 

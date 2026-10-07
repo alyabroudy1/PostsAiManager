@@ -84,6 +84,13 @@ class FakeChatEngine(
 
     override suspend fun isChatSessionPrimed(conversationId: String): Boolean = sessionId == conversationId
 
+    /** Every request that reached [warmUpChat], in order. */
+    val warmUps = mutableListOf<AiRequest>()
+
+    override suspend fun warmUpChat(request: AiRequest) {
+        warmUps += request
+    }
+
     /** Every request that reached [sendChatMessage], in order: the sampling, the reply cap and the thinking switch it carried. */
     val requests = mutableListOf<AiRequest>()
 

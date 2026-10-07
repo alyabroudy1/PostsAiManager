@@ -660,6 +660,8 @@ class SendChatMessageUseCase @Inject constructor(
         documentId: String?,
         /** Called once [AiEngine.load] returned — i.e. once any wait behind a document read is over. */
         onLoadFinished: () -> Unit = {},
+        /** The thinking mode the first reply will use: it decides the sampling the engine builds its conversation for. */
+        thinkingEffort: ThinkingEffort = ThinkingEffort.OFF,
     ) {
         val activeModelPath = activeModelProvider.activeModelPath() ?: return
         val config = activeModelProvider.activeModelConfig()
@@ -667,6 +669,28 @@ class SendChatMessageUseCase @Inject constructor(
         onLoadFinished()
         if (loaded is PamResult.Error) return
 
+        primeSession(conversationId, documentId, config)
+
+        // An engine that builds its conversation lazily (LiteRT-LM) builds it and reads the grounding now, with the sampling and
+        // the tools of the reply the user is about to send (the same two functions `invoke` uses), so that reply only has its own
+        // turn left to read. The tools request has no letter here: the engine only needs to know there are tools, the reply binds
+        // the letter. Engines with nothing to prepare, a busy engine and a cancelled caller all end this quietly.
+        val contextTokens = when (val state = engine.state.value) {
+            is ModelLoadState.Ready -> state.config.contextTokens
+            else -> config.contextTokens
+        }
+        val effort = if (engine.supportsThinking) thinkingEffort else ThinkingEffort.OFF
+        engine.warmUpChat(
+            ChatReplyBudget.request(effort, contextTokens, config.modelSampling)
+                .copy(tools = ChatToolsPolicy.requestFor(config, documentId, emptyList())),
+        )
+    }
+
+    private suspend fun primeSession(
+        conversationId: String,
+        documentId: String?,
+        config: com.postsaimanager.core.model.InferenceConfig,
+    ) {
         // Serialised with the send path's own ensureChatSession call and re-checked under
         // the lock, so a send that raced this prime (both waiting behind an in-flight
         // document read, say) joins it instead of priming the same conversation twice.

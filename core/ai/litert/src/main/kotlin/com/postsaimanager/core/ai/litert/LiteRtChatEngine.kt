@@ -145,7 +145,7 @@ class LiteRtChatEngine internal constructor(
             // Sampling is per reply, so nothing native changes.
             loaded = modelPath to config
             _state.value = (_state.value as? ModelLoadState.Ready)?.copy(config = config)
-                ?: ModelLoadState.Ready(modelPath, config, 0L)
+                ?: ModelLoadState.Ready(modelPath, config, 0L, instance?.accelerator)
             return@withLock PamResult.Success(capabilities(modelPath, config))
         }
 
@@ -168,7 +168,7 @@ class LiteRtChatEngine internal constructor(
                 withTools = false,
             )
             loaded = modelPath to config
-            _state.value = ModelLoadState.Ready(modelPath, config, (System.nanoTime() - startedAt) / 1_000_000)
+            _state.value = ModelLoadState.Ready(modelPath, config, (System.nanoTime() - startedAt) / 1_000_000, instance?.accelerator)
             PamResult.Success(capabilities(modelPath, config))
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
@@ -189,6 +189,7 @@ class LiteRtChatEngine internal constructor(
         contextTokens = config.contextTokens,
         modelName = File(modelPath).nameWithoutExtension,
         hasNativeChatTemplate = true,
+        runningAccelerator = instance?.accelerator,
     )
 
     override suspend fun ensureChatSession(
@@ -209,6 +210,40 @@ class LiteRtChatEngine internal constructor(
 
     override suspend fun isChatSessionPrimed(conversationId: String): Boolean =
         sessionId == conversationId && instance != null
+
+    /**
+     * Builds the conversation the next reply with [request]'s sampling and tools would build, and prefills its system instruction
+     * and history now ([LlmChatModelHelper] asks LiteRT-LM to prefill the preface on creation), so that reply only has its own
+     * turn left to prefill. Nothing is generated and nothing becomes history. A no-op when no session is open or the live
+     * conversation already is the one that reply would use. A failure only leaves the conversation to the reply, as before.
+     *
+     * Cancelling it cannot interrupt the native prefill; it takes effect when that returns, and the finished conversation stays
+     * valid for the reply.
+     */
+    override suspend fun warmUpChat(request: AiRequest): Unit = mutex.withLock {
+        val live = instance ?: return@withLock
+        if (sessionId == null) return@withLock
+        val kit = toolKit?.takeIf { request.tools != null }
+        val toolPrompt = try {
+            kit?.systemPrompt()
+        } catch (e: Exception) {
+            null
+        }
+        val activeKit = kit?.takeIf { toolPrompt != null }
+        val sampling = Sampling(request.topK, request.topP, request.temperature)
+        if (conversationSampling == keyFor(sampling, activeKit)) return@withLock
+        TimingLog.mark()
+        TimingLog.log("engine: warm-up begins, backend=${live.accelerator} tools=${activeKit != null} system=${system.length} chars committedTurns=${committed.size}")
+        try {
+            withContext(Dispatchers.IO) { ensureConversation(live, sampling, activeKit, toolPrompt) }
+            TimingLog.at("engine: warm-up done (conversation ready for the first reply)")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "warm-up failed (${e.message}); the first reply builds the conversation itself")
+            conversationSampling = null
+        }
+    }
 
     override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> =
         sendChatMessage(userText, request, onToolAction = {})
@@ -402,7 +437,7 @@ class LiteRtChatEngine internal constructor(
         conversationSampling = null
         val cpuConfig = config.copy(accelerator = Accelerator.CPU)
         loaded = path to cpuConfig
-        _state.value = ModelLoadState.Ready(path, cpuConfig, 0L)
+        _state.value = ModelLoadState.Ready(path, cpuConfig, 0L, Accelerator.CPU)
         return cpu
     }
 
@@ -449,7 +484,7 @@ class LiteRtChatEngine internal constructor(
     private suspend fun ensureConversation(live: LlmModelInstance, sampling: Sampling, kit: LiteRtToolKit?, toolPrompt: String?) {
         // The day is part of the key: the phone's date is in the system instruction, and a conversation kept past midnight would
         // keep saying yesterday. The rebuild is faithful (tool calls included), so a new day costs one prefill and nothing else.
-        val key = ConversationKey(sampling, withTools = kit != null, day = if (kit != null) LocalDate.now() else null)
+        val key = keyFor(sampling, kit)
         val config = loaded?.second
         val window = config?.contextTokens ?: 0
         if (conversationSampling == key) {
@@ -490,6 +525,8 @@ class LiteRtChatEngine internal constructor(
             temperature = sampling.temperature,
         )
         val systemInstruction = instruction.takeIf { it.isNotBlank() }?.let { Contents.of(it) }
+        // The old conversation is closed first thing in the reset: if making the new one fails, nothing live is left to reuse.
+        conversationSampling = null
         try {
             helper.resetConversation(
                 instance = live,
@@ -577,6 +614,14 @@ class LiteRtChatEngine internal constructor(
 
         const val TAG = "PamLiteRt"
     }
+
+    /**
+     * What a conversation made for [sampling] and [kit] is keyed by. The day is part of it: the phone's date is in the system
+     * instruction, and a conversation kept past midnight would keep saying yesterday. The rebuild is faithful (tool calls
+     * included), so a new day costs one prefill and nothing else.
+     */
+    private fun keyFor(sampling: Sampling, kit: LiteRtToolKit?) =
+        ConversationKey(sampling, withTools = kit != null, day = if (kit != null) LocalDate.now() else null)
 
     private data class Sampling(val topK: Int, val topP: Float, val temperature: Float)
 

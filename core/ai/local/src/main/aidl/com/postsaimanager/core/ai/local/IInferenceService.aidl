@@ -154,6 +154,16 @@ interface IInferenceService {
     boolean isLiteRtSessionPrimed(String conversationId);
 
     /**
+     * Builds and prefills the conversation of the open session for a reply with this sampling and these tools, ahead of the
+     * message (see `LiteRtChatEngine.warmUpChat`). Returns at once; [callback]'s `onComplete` (or `onError`) says it is over. Queued
+     * on the inference thread like a reply, so a reply or a read sent meanwhile waits behind it.
+     */
+    boolean warmUpLiteRt(int maxTokens, float temperature, int topK, float topP, boolean toolsEnabled, boolean thinking, ILiteRtReplyCallback callback);
+
+    /** Cancels the warm-up in flight, if any (not a reply: that is [cancelLiteRt]). Not queued. */
+    void cancelLiteRtWarmUp();
+
+    /**
      * Begins one chat reply and streams it to [callback]. Holds the inference thread until the reply is over, so a
      * llama.cpp call queued behind it (background reading) waits.
      *

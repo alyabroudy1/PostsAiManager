@@ -60,7 +60,11 @@ internal class AgentToolCalls(
         com.postsaimanager.core.common.util.TimingLog.at("tool: load_skill \"$skillName\" called")
         val skill = skills.load(skillName)
         log("load_skill \"$skillName\": ${if (skill != null) "found" else "not found"}")
-        mapOf("skill_name" to skillName, "skill_instructions" to (skill?.content() ?: "Skill not found"))
+        // A skill that declares it is time-aware gets the phone's time with its text, so the model needs no clock call of its own.
+        // It is appended here, to what the tool returns, and never put in the system prompt: that stays the same all day and keeps
+        // the prepared conversation reusable.
+        val text = skill?.let { if (it.timeAware) it.content() + "\n\nNow: ${ActionDateTime.forModel(now())}." else it.content() }
+        mapOf("skill_name" to skillName, "skill_instructions" to (text ?: "Skill not found"))
     }.also {
         record(LOAD_SKILL, mapOf("skill_name" to skillName), it)
         com.postsaimanager.core.common.util.TimingLog.at("tool: load_skill returns ${it["skill_instructions"]?.length ?: 0} chars (prefilled next)")

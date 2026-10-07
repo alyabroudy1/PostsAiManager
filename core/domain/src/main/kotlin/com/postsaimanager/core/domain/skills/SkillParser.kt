@@ -47,10 +47,12 @@ object SkillParser {
 
         var name: String? = null
         var description: String? = null
+        var timeAware = false
         for (line in parts[1].trim().lines()) {
             val trimmed = line.trim()
             if (trimmed == METADATA) break
             when {
+                trimmed.startsWith("time-aware:") -> timeAware = unquote(trimmed.substringAfter("time-aware:")).equals("true", ignoreCase = true)
                 trimmed.startsWith("name:") -> name = unquote(trimmed.substringAfter("name:"))
                 trimmed.startsWith("description:") -> description = unquote(trimmed.substringAfter("description:"))
             }
@@ -63,7 +65,7 @@ object SkillParser {
         if (errors.isNotEmpty()) return SkillParseResult.Invalid(errors)
 
         val instructions = parts.drop(2).joinToString(DELIMITER).trim()
-        return SkillParseResult.Parsed(Skill(name = name!!, description = description!!, instructions = instructions))
+        return SkillParseResult.Parsed(Skill(name = name!!, description = description!!, instructions = instructions, timeAware = timeAware))
     }
 
     /** The value without surrounding whitespace and one pair of matching quotes. */

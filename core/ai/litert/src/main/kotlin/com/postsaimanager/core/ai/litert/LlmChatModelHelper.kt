@@ -153,6 +153,11 @@ internal object LlmChatModelHelper : LlmModelHelper {
                     // Automatic tool calling stays at its default (true), as in the Gallery: LiteRT-LM calls the tool, appends its
                     // result to the conversation and lets the model continue, all inside one sendMessageAsync.
                     tools = tools,
+                    // LiteRT-LM 0.18 has no prefill-only call on a Conversation, but its config can prefill the "preface" (system
+                    // instruction, tool schemas, initial messages) when the conversation is made, instead of lazily with the first
+                    // message. So building the conversation ahead of time (LiteRtChatEngine.warmUp) leaves the first send with only
+                    // its own turn to prefill. The cost moves, it does not change: the same tokens, earlier.
+                    prefillPrefaceOnInit = systemInstruction != null || initialMessages.isNotEmpty(),
                 )
             )
         } finally {

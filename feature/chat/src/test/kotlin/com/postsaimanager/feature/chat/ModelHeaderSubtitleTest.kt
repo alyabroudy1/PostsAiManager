@@ -41,6 +41,18 @@ class ModelHeaderSubtitleTest {
     }
 
     @Test
+    @DisplayName("the header names the backend the engine reports running, not the one the settings asked for")
+    fun `running accelerator wins`() {
+        val askedGpuRunsCpu = ModelLoadState.Ready(
+            "m",
+            InferenceConfig(contextTokens = 8192, threads = 4, accelerator = com.postsaimanager.core.model.Accelerator.GPU),
+            1L,
+            runningAccelerator = com.postsaimanager.core.model.Accelerator.CPU,
+        )
+        assertThat(modelHeaderSubtitle(askedGpuRunsCpu, false)).isEqualTo("CPU · 8192 ctx")
+    }
+
+    @Test
     @DisplayName("a failed load is never masked by the priming flag")
     fun `failed while priming`() {
         assertThat(modelHeaderSubtitle(failed, true)).isEqualTo("Failed to load")

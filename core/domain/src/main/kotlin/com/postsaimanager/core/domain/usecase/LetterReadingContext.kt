@@ -24,11 +24,35 @@ object LetterReadingContext {
 
     /** The section, starting with a blank line, or an empty string when the reading found nothing to state. */
     fun section(actionItems: List<ActionItem>, fields: List<ExtractedData>, contacts: LetterContacts = LetterContacts()): String {
+        val lines = read(actionItems, fields).take(MAX_LINES)
+        val contactLines = contactLines(contacts)
+        if (lines.isEmpty() && contactLines.isEmpty()) return ""
+        return buildString {
+            appendLine()
+            appendLine("## What was read from this letter")
+            appendLine("The app already read this letter; these are its answers.")
+            lines.forEach { appendLine(it.text) }
+            contactLines.forEach { appendLine(it) }
+        }
+    }
+
+    /**
+     * The slot keys of the stored fields whose values [section] states, so that the grounding's own list of extracted details can
+     * leave them out: the same date, amount, sender or reference would otherwise be in the prompt twice, and every character of the
+     * prompt is read by the model before the first message.
+     */
+    fun statedSlots(actionItems: List<ActionItem>, fields: List<ExtractedData>): Set<String> =
+        read(actionItems, fields).take(MAX_LINES).flatMap { it.slots }.toSet()
+
+    /** One stated line and the slot keys of the fields whose values it carries. */
+    private class Line(val text: String, val slots: Set<String>)
+
+    private fun read(actionItems: List<ActionItem>, fields: List<ExtractedData>): List<Line> {
         val live = fields.filter { !it.deletedByUser && it.reviewState != ReviewState.IGNORED && it.fieldValue.isNotBlank() }
         fun bound(item: ActionItem, part: ActionPart): ExtractedData? =
             item.bindings[part.key]?.let { key -> live.firstOrNull { it.slotKey == key } }
 
-        val lines = mutableListOf<String>()
+        val lines = mutableListOf<Line>()
         val coveredDates = mutableSetOf<String>()
         actionItems.forEach { item ->
             val kind = ActionKinds.of(item.kind) ?: return@forEach
@@ -43,20 +67,14 @@ object LetterReadingContext {
                 party?.let { "sender ${it.fieldValue.trim()}" },
                 reference?.let { "reference ${it.fieldValue.trim()}" },
             )
-            lines += "- The reader is asked to ${kind.task}" + if (parts.isEmpty()) "" else ": " + parts.joinToString("; ")
+            lines += Line(
+                "- The reader is asked to ${kind.task}" + if (parts.isEmpty()) "" else ": " + parts.joinToString("; "),
+                listOfNotNull(date, amount, party, reference).mapNotNull { it.slotKey }.toSet(),
+            )
         }
         live.filter { it.fieldType == ExtractedFieldType.DEADLINE && it.slotKey !in coveredDates }
-            .forEach { lines += "- ${it.fieldName}: ${it.fieldValue.trim()}" }
-
-        val contactLines = contactLines(contacts)
-        if (lines.isEmpty() && contactLines.isEmpty()) return ""
-        return buildString {
-            appendLine()
-            appendLine("## What was read from this letter")
-            appendLine("The app already read this letter; these are its answers.")
-            lines.take(MAX_LINES).forEach { appendLine(it) }
-            contactLines.forEach { appendLine(it) }
-        }
+            .forEach { lines += Line("- ${it.fieldName}: ${it.fieldValue.trim()}", listOfNotNull(it.slotKey).toSet()) }
+        return lines
     }
 
     /**
