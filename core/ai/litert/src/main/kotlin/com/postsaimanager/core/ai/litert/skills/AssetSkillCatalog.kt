@@ -17,7 +17,7 @@
 // Modified by PostsAiManager: adapted from google-ai-edge/gallery SkillManager.loadBuiltInSkills. Reads the bundled skills only
 // (app assets, skills/<name>/SKILL.md); the Gallery's protos, DataStore selection state, URL and local-folder import are not taken.
 
-package com.postsaimanager.core.data.skills
+package com.postsaimanager.core.ai.litert.skills
 
 import android.content.Context
 import android.util.Log
@@ -25,21 +25,20 @@ import com.postsaimanager.core.domain.skills.Skill
 import com.postsaimanager.core.domain.skills.SkillCatalog
 import com.postsaimanager.core.domain.skills.SkillParseResult
 import com.postsaimanager.core.domain.skills.SkillParser
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * The skills bundled in the app: every `skills/<name>/SKILL.md` of the assets, read once and kept. A file that does not parse is
  * logged and left out; nothing is fetched from anywhere.
+ *
+ * Lives with the LiteRT-LM engine that runs the skills, not in `:core:data`: the engine's process (`:inference`) is not
+ * Hilt-injected and builds it directly, and the main process gets its one instance from the app's `SkillModule`.
  */
-@Singleton
-class AssetSkillCatalog @Inject constructor(
-    @ApplicationContext private val context: Context,
+class AssetSkillCatalog(
+    private val context: Context,
 ) : SkillCatalog {
 
     private val mutex = Mutex()

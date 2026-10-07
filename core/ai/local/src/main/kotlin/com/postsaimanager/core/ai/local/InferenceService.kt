@@ -7,7 +7,7 @@ import android.os.IBinder
 import android.os.RemoteException
 import android.util.Log
 import com.postsaimanager.core.ai.litert.LiteRtChatEngine
-import com.postsaimanager.core.data.skills.AssetSkillCatalog
+import com.postsaimanager.core.ai.litert.skills.AssetSkillCatalog
 import com.postsaimanager.core.domain.ai.ChatToolsRequest
 import com.postsaimanager.core.domain.ai.ToolActionWire
 import com.postsaimanager.core.domain.ai.AiChatMessage
