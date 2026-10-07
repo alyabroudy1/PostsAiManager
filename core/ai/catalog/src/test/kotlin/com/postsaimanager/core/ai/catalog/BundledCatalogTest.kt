@@ -106,9 +106,9 @@ class BundledCatalogTest {
             assertThat(model.isInstallable).isTrue()
             assertThat(model.downloadUrl).endsWith(".litertlm")
             assertThat(model.license).isEqualTo("Apache-2.0")
-            // The GPU first, the CPU as the fallback: the engine's own order.
+            // The CPU first (the GPU engine garbled tool-call values on the test phone), the GPU still on offer.
             assertThat(model.backendSpec.accelerators)
-                .containsExactly(com.postsaimanager.core.model.Accelerator.GPU, com.postsaimanager.core.model.Accelerator.CPU)
+                .containsExactly(com.postsaimanager.core.model.Accelerator.CPU, com.postsaimanager.core.model.Accelerator.GPU)
                 .inOrder()
             // It only chats: it is never the model that reads letters.
             assertThat(model.role).isEqualTo(com.postsaimanager.core.model.ModelRole.CHAT)

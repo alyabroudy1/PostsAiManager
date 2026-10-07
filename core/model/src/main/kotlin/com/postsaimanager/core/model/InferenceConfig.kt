@@ -35,6 +35,8 @@ data class InferenceConfig(
      * tools only when this is set and [runtime] is LiteRT-LM. It changes nothing in how the model is loaded.
      */
     val supportsTools: Boolean = false,
+    /** The catalogue's recommended chat sampling for this model ([AiModelDescriptor.sampling]); null when it declares none. */
+    val modelSampling: SamplingConfig? = null,
 ) {
 
     /**

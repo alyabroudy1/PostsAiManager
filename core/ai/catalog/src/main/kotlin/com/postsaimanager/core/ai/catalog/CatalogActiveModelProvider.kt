@@ -100,8 +100,10 @@ class CatalogActiveModelProvider @Inject constructor(
         val defaults = InferenceConfig.defaults(device, model.contextTokens, cpuTopology.coreMaxFreqsKHz())
             .copy(contextTokens = model.contextTokens)
         return defaults.applying(overrides, device, backendSpec(model))
-            .copy(runtime = ModelRuntime.LITERT_LM, supportsTools = declaresTools(model))
+            .copy(runtime = ModelRuntime.LITERT_LM, supportsTools = declaresTools(model), modelSampling = descriptorOf(model)?.sampling)
     }
+
+    private fun descriptorOf(model: InstalledModel) = model.descriptorId?.let { id -> BundledCatalog.models.firstOrNull { it.id == id } }
 
     /** Whether the catalogue entry [model] came from declares tool calling; an import with no entry declares none. */
     private fun declaresTools(model: InstalledModel): Boolean =

@@ -5,6 +5,7 @@ import com.postsaimanager.core.model.AiModelDescriptor
 import com.postsaimanager.core.model.BackendSpec
 import com.postsaimanager.core.model.ModelRole
 import com.postsaimanager.core.model.ModelRuntime
+import com.postsaimanager.core.model.SamplingConfig
 import com.postsaimanager.core.model.SpeedHint
 
 /**
@@ -51,6 +52,14 @@ object BundledCatalog {
 
     /** Gemma 4 is Apache 2.0 (https://ai.google.dev/gemma/docs/gemma_4_license), unlike Gemma 1-3's own terms of use. */
     private const val GEMMA4_LICENSE = "Apache-2.0"
+
+    /**
+     * The chat sampling of the Gemma 4 LiteRT-LM entries: the AI Edge Gallery's topK 64 and topP 0.95, with a LOW temperature. The
+     * Gallery's 1.0 suits open chat, but this chat copies figures out of letters and writes tool calls, and on the phone Gemma 4
+     * E2B at 1.0 doubled and dropped digits ("RE-22026-0815" for "RE-2026-0815", a begin_time of "20202-1114:00"), in the raw
+     * stream, so not in the app's assembly of it.
+     */
+    private val GEMMA4_GALLERY_SAMPLING = SamplingConfig(temperature = 0.3f, topK = 64, topP = 0.95f)
 
     private const val QWEN35_08B_REV = "6ab461498e2023f6e3c1baea90a8f0fe38ab64d0"
     private const val QWEN35_2B_REV = "f6d5376be1edb4d416d56da11e5397a961aca8ae"
@@ -211,13 +220,16 @@ object BundledCatalog {
             supportsTools = true,
             description = "Google's own LiteRT-LM build of Gemma 4, the one in the AI Edge Gallery. Chats on the phone's GPU " +
                 "when it has one. It only chats: your letters are still read by the reader model.",
-            backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            // CPU first: on the test phone the GPU engine garbled the figures and dates inside tool calls (dropped dots and hyphens,
+            // doubled digits) that the CPU engine wrote correctly with the same model, prompt and sampling. The GPU stays selectable.
+            backendSpec = BackendSpec(accelerators = listOf(Accelerator.CPU, Accelerator.GPU)),
             // The Gallery's own memory requirement (minDeviceMemoryInGb).
             minRamGb = 8.0,
             recommendedRamGb = 8.0,
             // The file plus the engine's working memory (an estimate; information only).
             approxRamUseGb = 3.5,
             runtime = ModelRuntime.LITERT_LM,
+            sampling = GEMMA4_GALLERY_SAMPLING,
         ),
         AiModelDescriptor(
             id = "gemma-4-e4b-it-litertlm",
@@ -235,11 +247,12 @@ object BundledCatalog {
             supportsTools = true,
             description = "The larger LiteRT-LM build of Gemma 4, from the AI Edge Gallery. Better answers, on a high-end " +
                 "phone. It only chats: your letters are still read by the reader model.",
-            backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            backendSpec = BackendSpec(accelerators = listOf(Accelerator.CPU, Accelerator.GPU)),
             minRamGb = 12.0,
             recommendedRamGb = 12.0,
             approxRamUseGb = 5.0,
             runtime = ModelRuntime.LITERT_LM,
+            sampling = GEMMA4_GALLERY_SAMPLING,
         ),
     )
 

@@ -64,6 +64,12 @@ data class AiModelDescriptor(
     val speedHint: SpeedHint = SpeedHint.NORMAL,
     /** Which runtime loads the file. Defaulted so every manifest and entry written before LiteRT-LM existed stays llama.cpp. */
     val runtime: ModelRuntime = ModelRuntime.LLAMA_CPP,
+    /**
+     * The sampling the model's makers recommend for chat, when the catalogue knows it (the Gemma 4 LiteRT-LM entries carry the AI Edge
+     * Gallery's: topK 64, topP 0.95, temperature 1.0). Chat then uses these instead of the app's per-mode recipe, which was written
+     * for Qwen. Null: the per-mode recipe applies.
+     */
+    val sampling: SamplingConfig? = null,
 ) {
     /**
      * A model may only be downloaded when both a URL **and** an integrity hash are known.

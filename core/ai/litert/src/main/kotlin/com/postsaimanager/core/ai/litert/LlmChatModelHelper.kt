@@ -39,7 +39,6 @@ import com.postsaimanager.core.model.Accelerator
 import java.util.concurrent.CancellationException
 
 private const val TAG = "PamLiteRt"
-
 /** The key of the reasoning trace in a streamed message's channels (the Gallery's `THOUGHT_CHANNEL`). */
 internal const val THOUGHT_CHANNEL = "thought"
 
@@ -119,10 +118,15 @@ internal object LlmChatModelHelper : LlmModelHelper {
         initialMessages: List<Message>,
         tools: List<ToolProvider>,
     ): Conversation {
-        // As the Gallery's agent chat does (enableConversationConstrainedDecoding = true): with tools, decoding is constrained so a
-        // tool call the model starts is well-formed. Plain chat, with no tools, is not constrained. (Tried off on the phone: Gemma 4
-        // E2B then stopped calling the tools at all and answered "I do not have the tool".)
-        ExperimentalFlags.enableConversationConstrainedDecoding = tools.isNotEmpty()
+        // The Gallery's agent chat turns constrained decoding on when it has tools. On the phone it made no difference to the
+        // garbled digits in tool calls (that was the GPU engine, see the catalogue), and with it off Gemma 4 E2B on the CPU wrote
+        // valid tool calls, so it stays off, as in plain chat. Turn it on here if a model stops producing parseable calls.
+        ExperimentalFlags.enableConversationConstrainedDecoding = false
+        Log.i(
+            TAG,
+            "conversation: topK=${config.topK} topP=${config.topP} temperature=${config.temperature} context=${config.maxTokens} " +
+                "tools=${tools.size} system=${systemInstruction?.toString()?.length ?: 0} chars initialMessages=${initialMessages.size}",
+        )
         try {
             return engine.createConversation(
                 ConversationConfig(

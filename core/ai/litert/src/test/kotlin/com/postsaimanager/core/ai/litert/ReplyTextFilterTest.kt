@@ -56,6 +56,17 @@ class ReplyTextFilterTest {
     }
 
     @Test
+    @DisplayName("the chunks recorded on the phone for a date answer (one character each) come out as the date, unchanged")
+    fun `a date streamed one character at a time is not altered`() {
+        val recorded = listOf("3", "0", ".", "1", "1", ".", "2", "0", "2", "6")
+
+        assertThat(bubble(*recorded.toTypedArray())).isEqualTo("30.11.2026")
+        // Words around it, as in "I have tried to add the deadline ... for the Nordstern letter."
+        assertThat(bubble("I", " have", " tried", "()", " to", " add", " the", " deadline", " Nord", "stern", " letter", "."))
+            .isEqualTo("I have tried() to add the deadline Nordstern letter.")
+    }
+
+    @Test
     fun `a held lookalike at the very end is flushed`() {
         assertThat(bubble("x <|tool")).isEqualTo("x <|tool")
     }

@@ -37,6 +37,21 @@ class ChatReplyBudgetTest {
     }
 
     @Test
+    fun `a model that declares its sampling uses it, at every effort, instead of the Qwen recipe`() {
+        val gallery = com.postsaimanager.core.model.SamplingConfig(temperature = 1.0f, topK = 64, topP = 0.95f)
+
+        for (effort in ThinkingEffort.entries) {
+            val request = ChatReplyBudget.request(effort, 4096, gallery)
+            assertThat(request.topK).isEqualTo(64)
+            assertThat(request.topP).isEqualTo(0.95f)
+            assertThat(request.temperature).isEqualTo(1.0f)
+            assertThat(request.presencePenalty).isEqualTo(0f)
+        }
+        // No declared sampling: the per-mode recipe, as before.
+        assertThat(ChatReplyBudget.request(ThinkingEffort.OFF, 4096).topK).isEqualTo(20)
+    }
+
+    @Test
     fun `sampling follows the Qwen3_5 card per mode`() {
         val off = ChatReplyBudget.sampling(ThinkingEffort.OFF)
         assertThat(off).isEqualTo(ChatReplyBudget.Sampling(1.0f, 1.0f, 20, 2.0f))

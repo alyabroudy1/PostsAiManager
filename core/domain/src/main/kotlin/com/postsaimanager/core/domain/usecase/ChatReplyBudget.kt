@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.postsaimanager.core.domain.ai.AiRequest
+import com.postsaimanager.core.model.SamplingConfig
 import com.postsaimanager.core.model.ThinkingEffort
 
 /**
@@ -65,9 +66,15 @@ object ChatReplyBudget {
 
     data class Sampling(val temperature: Float, val topP: Float, val topK: Int, val presencePenalty: Float)
 
-    fun request(effort: ThinkingEffort, contextTokens: Int): AiRequest {
+    /**
+     * @param modelSampling the sampling the model's catalogue entry declares ([com.postsaimanager.core.model.AiModelDescriptor
+     *   .sampling]): when there is one it replaces the per-mode recipe above (which is Qwen's), presence penalty included.
+     */
+    fun request(effort: ThinkingEffort, contextTokens: Int, modelSampling: SamplingConfig? = null): AiRequest {
         val budget = forEffort(effort, contextTokens)
-        val sampling = sampling(effort)
+        val sampling = modelSampling?.let {
+            Sampling(temperature = it.temperature, topP = it.topP, topK = it.topK, presencePenalty = it.presencePenalty)
+        } ?: sampling(effort)
         return AiRequest(
             prompt = "",
             maxTokens = budget.maxTokens,

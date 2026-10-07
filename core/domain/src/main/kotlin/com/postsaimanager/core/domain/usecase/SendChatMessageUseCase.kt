@@ -416,7 +416,7 @@ class SendChatMessageUseCase @Inject constructor(
             // Agent Skills tools: only for a LiteRT-LM model whose catalogue entry declares them (ChatToolsPolicy). The letter the
             // actions are grounded on is the chat's, or the one the reply's passages all come from; null leaves the card flagged.
             val tools = ChatToolsPolicy.requestFor(config, documentId, sources.map { it.chunk.documentId })
-            engine.sendChatMessage(sentText, ChatReplyBudget.request(effort, contextTokens).copy(tools = tools))
+            engine.sendChatMessage(sentText, ChatReplyBudget.request(effort, contextTokens, config.modelSampling).copy(tools = tools))
                 .collect { token -> apply(parser.consume(token)).forEach { emit(it) } }
             apply(parser.finish()).forEach { emit(it) }
         } catch (e: kotlinx.coroutines.CancellationException) {

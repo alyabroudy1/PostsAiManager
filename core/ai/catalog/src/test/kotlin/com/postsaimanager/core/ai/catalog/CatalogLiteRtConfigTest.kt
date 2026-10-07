@@ -67,9 +67,11 @@ class CatalogLiteRtConfigTest {
     }
 
     @Test
-    @DisplayName("it runs on the GPU even though llama.cpp's probe found none: LiteRT-LM brings its own GPU backend")
-    fun `gpu is preferred`() = runTest {
-        assertThat(provider(liteRtModel()).activeModelConfig().accelerator).isEqualTo(Accelerator.GPU)
+    @DisplayName("the Gemma 4 entry lists the CPU first (the GPU engine garbled tool-call values on the test phone) and the GPU stays on offer")
+    fun `the catalogue entry prefers the cpu and offers the gpu`() = runTest {
+        assertThat(provider(liteRtModel()).activeModelConfig().accelerator).isEqualTo(Accelerator.CPU)
+        val spec = BundledCatalog.models.first { it.id == "gemma-4-e2b-it-litertlm" }.backendSpec
+        assertThat(spec.accelerators).containsExactly(Accelerator.CPU, Accelerator.GPU).inOrder()
     }
 
     @Test
@@ -96,14 +98,25 @@ class CatalogLiteRtConfigTest {
     }
 
     @Test
-    @DisplayName("the accelerator control of a LiteRT-LM model shows the backend it really runs on, GPU, and CPU once the GPU is blocked")
+    @DisplayName("a Gemma 4 LiteRT-LM model's config carries the Gallery's sampling (topK 64, topP 0.95, temperature 1.0); an import and llama.cpp carry none")
+    fun `config carries the catalogue's sampling`() = runTest {
+        val sampling = provider(liteRtModel()).activeModelConfig().modelSampling
+        assertThat(sampling?.topK).isEqualTo(64)
+        assertThat(sampling?.topP).isEqualTo(0.95f)
+        assertThat(sampling?.temperature).isEqualTo(0.3f)
+        assertThat(provider(liteRtModel(descriptorId = null)).activeModelConfig().modelSampling).isNull()
+    }
+
+    @Test
+    @DisplayName("the accelerator control of a LiteRT-LM model shows the backend it really runs on: the catalogue's CPU, an import's GPU, CPU again once blocked")
     fun `schema shows the real backend`() = runTest {
         suspend fun shown(p: CatalogActiveModelProvider) =
             p.activeModelSchema().filterIsInstance<com.postsaimanager.core.model.ConfigSpec.Choice>().first { it.key == "accelerator" }.default
-        assertThat(shown(provider(liteRtModel()))).isEqualTo("GPU")
+        assertThat(shown(provider(liteRtModel()))).isEqualTo("CPU")
+        assertThat(shown(provider(liteRtModel(descriptorId = null)))).isEqualTo("GPU")
         val settings = FakeInferenceSettingsRepository()
         settings.blockGpu("/models/gemma.litertlm")
-        assertThat(shown(provider(liteRtModel(), settings))).isEqualTo("CPU")
+        assertThat(shown(provider(liteRtModel(descriptorId = null), settings))).isEqualTo("CPU")
     }
 
     @Test
