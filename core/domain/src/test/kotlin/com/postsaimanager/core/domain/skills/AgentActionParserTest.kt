@@ -1,0 +1,109 @@
+package com.postsaimanager.core.domain.skills
+
+import com.google.common.truth.Truth.assertThat
+import org.junit.jupiter.api.Test
+import java.time.LocalDateTime
+
+class AgentActionParserTest {
+
+    private fun parsed(intent: String, parameters: String, doc: String? = null): AgentAction =
+        (AgentActionParser.parse(intent, parameters, doc) as ActionParse.Parsed).action
+
+    private fun rejected(intent: String, parameters: String): String =
+        (AgentActionParser.parse(intent, parameters) as ActionParse.Rejected).reason
+
+    @Test
+    fun `send_email reads the Gallery's parameter names`() {
+        val action = parsed("send_email", """{"extra_email":"a@b.de","extra_subject":"Hi","extra_text":"Body text"}""")
+
+        assertThat(action).isEqualTo(AgentAction.SendEmail("a@b.de", "Hi", "Body text"))
+    }
+
+    @Test
+    fun `send_email needs an address, the rest may be empty`() {
+        assertThat(rejected("send_email", """{"extra_subject":"Hi"}""")).contains("extra_email")
+        assertThat(parsed("send_email", """{"extra_email":"a@b.de"}""")).isEqualTo(AgentAction.SendEmail("a@b.de", "", ""))
+    }
+
+    @Test
+    fun `create_calendar_event reads the times`() {
+        val action = parsed(
+            "create_calendar_event",
+            """{"title":"Frist","description":"AZ 1","begin_time":"2026-11-05T09:00:00","end_time":"2026-11-05T10:30:00"}""",
+        )
+
+        assertThat(action).isEqualTo(
+            AgentAction.CreateCalendarEvent("Frist", LocalDateTime.of(2026, 11, 5, 9, 0), LocalDateTime.of(2026, 11, 5, 10, 30), "AZ 1"),
+        )
+    }
+
+    @Test
+    fun `an event without an end time is fine and one without a start is not`() {
+        val action = parsed("create_calendar_event", """{"title":"Frist","begin_time":"2026-11-05 09:00"}""") as AgentAction.CreateCalendarEvent
+
+        assertThat(action.end).isNull()
+        assertThat(action.description).isEmpty()
+        assertThat(rejected("create_calendar_event", """{"title":"Frist"}""")).contains("begin_time")
+    }
+
+    @Test
+    fun `an impossible date is refused with a hint the model can use`() {
+        assertThat(rejected("create_calendar_event", """{"title":"x","begin_time":"2026-02-31T09:00:00"}""")).contains("begin_time")
+        assertThat(rejected("create_calendar_event", """{"title":"x","begin_time":"2026-11-05T09:00:00","end_time":"tomorrow"}""")).contains("end_time")
+        assertThat(rejected("create_calendar_event", """{"title":"x","begin_time":"2026-11-05T25:00:00"}""")).contains("begin_time")
+    }
+
+    @Test
+    fun `schedule_notification builds the time from its numbers, as numbers or as digit strings`() {
+        val action = parsed(
+            "schedule_notification",
+            """{"message":"Pay","year":2026,"month":"11","day":2,"hour":9.0,"minute":"30","document_id":"d7"}""",
+        )
+
+        assertThat(action).isEqualTo(AgentAction.ScheduleReminder(LocalDateTime.of(2026, 11, 2, 9, 30), "Pay", "d7"))
+    }
+
+    @Test
+    fun `a reminder falls back to the document of the chat`() {
+        val action = parsed("schedule_notification", """{"message":"Pay","year":2026,"month":11,"day":2,"hour":9,"minute":0}""", doc = "chat-doc")
+
+        assertThat((action as AgentAction.ScheduleReminder).documentId).isEqualTo("chat-doc")
+    }
+
+    @Test
+    fun `a reminder with a missing or impossible part is refused`() {
+        assertThat(rejected("schedule_notification", """{"message":"Pay","year":2026,"month":11,"day":2,"hour":9}""")).contains("minute")
+        assertThat(rejected("schedule_notification", """{"message":"Pay","year":2026,"month":13,"day":2,"hour":9,"minute":0}""")).contains("real date")
+        assertThat(rejected("schedule_notification", """{"year":2026,"month":11,"day":2,"hour":9,"minute":0}""")).contains("message")
+    }
+
+    @Test
+    fun `get_current_date_and_time needs no parameters`() {
+        assertThat(parsed("get_current_date_and_time", "")).isEqualTo(AgentAction.GetDateTime)
+        assertThat(parsed("get_current_date_and_time", "{}")).isEqualTo(AgentAction.GetDateTime)
+    }
+
+    @Test
+    fun `intents this app does not keep are refused`() {
+        assertThat(rejected("send_sms", """{"phone_number":"1","sms_body":"x"}""")).contains("send_sms")
+        assertThat(rejected("read_calendar_events", """{"date":"2026-11-05"}""")).contains("read_calendar_events")
+        assertThat(rejected("run_js", "{}")).contains("run_js")
+    }
+
+    @Test
+    fun `parameters that are not a JSON object are refused`() {
+        assertThat(rejected("send_email", "to a@b.de")).contains("JSON")
+        assertThat(rejected("send_email", "[1,2]")).contains("JSON")
+    }
+
+    @Test
+    fun `the date and time text round-trips and says the weekday in English for the model`() {
+        val at = LocalDateTime.of(2026, 10, 7, 14, 5)
+
+        assertThat(ActionDateTime.format(at)).isEqualTo("2026-10-07 14:05")
+        assertThat(ActionDateTime.parse(ActionDateTime.format(at))).isEqualTo(at)
+        assertThat(ActionDateTime.parse("2026-10-07T14:05:59")).isEqualTo(at)
+        assertThat(ActionDateTime.parse("7.10.2026 14:05")).isNull()
+        assertThat(ActionDateTime.forModel(at.withSecond(9))).isEqualTo("2026-10-07T14:05:09 Wednesday")
+    }
+}
