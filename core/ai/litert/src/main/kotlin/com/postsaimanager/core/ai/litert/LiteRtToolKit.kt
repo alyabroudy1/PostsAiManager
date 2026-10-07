@@ -27,8 +27,10 @@ import com.postsaimanager.core.ai.litert.tools.LoadSkillTool
 import com.postsaimanager.core.ai.litert.tools.RunIntentTool
 import com.postsaimanager.core.ai.litert.tools.ToolContext
 import com.postsaimanager.core.domain.ai.ToolActionCall
+import com.postsaimanager.core.domain.skills.ActionDateTime
 import com.postsaimanager.core.domain.skills.ChatToolsPrompt
 import com.postsaimanager.core.domain.skills.SkillCatalog
+import java.time.LocalDateTime
 
 /**
  * The Agent Skills tools of one LiteRT-LM engine: `load_skill` and `run_intent`, the system-prompt text that introduces the skills,
@@ -52,7 +54,7 @@ internal class LiteRtToolKit(private val skills: SkillCatalog) {
      */
     suspend fun systemPrompt(): String? {
         val list = skills.namesAndDescriptions()
-        return if (list.isBlank()) null else ChatToolsPrompt.build(list)
+        return if (list.isBlank()) null else ChatToolsPrompt.build(list, ActionDateTime.forModel(LocalDateTime.now()))
     }
 
     /** Starts a reply about [documentId]; every proposed action goes to [onAction]. */

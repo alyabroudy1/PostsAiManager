@@ -52,8 +52,10 @@ class ChatToolsTest {
     fun `the prompt names every skill and says that run_intent only proposes`() {
         val list = "- send-email: Write an e-mail.\n- schedule-reminder: Remind the user."
 
-        val prompt = ChatToolsPrompt.build(list)
+        val prompt = ChatToolsPrompt.build(list, "2026-10-07T12:37:00 Wednesday")
 
+        assertThat(prompt).contains("2026-10-07T12:37:00 Wednesday")
+        assertThat(prompt).doesNotContain("___NOW___")
         assertThat(prompt).contains(list)
         assertThat(prompt).contains("load_skill")
         assertThat(prompt).contains("run_intent")

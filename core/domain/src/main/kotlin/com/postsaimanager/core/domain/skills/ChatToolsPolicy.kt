@@ -39,10 +39,13 @@ object ChatToolsPrompt {
      * the user must confirm, and values come from the letters or the user, never from the model's own head.
      *
      * @param skillsList [SkillCatalog.namesAndDescriptions]
+     * @param now the phone's date and time as the model reads it ([ActionDateTime.forModel]): without it the model guesses today's
+     *   date (it wrote a reminder for a day in September), and "in 3 days" has nothing to count from.
      */
-    fun build(skillsList: String): String = TEMPLATE.replace(SKILLS_PLACEHOLDER, skillsList)
+    fun build(skillsList: String, now: String): String = TEMPLATE.replace(SKILLS_PLACEHOLDER, skillsList).replace(NOW_PLACEHOLDER, now)
 
     private const val SKILLS_PLACEHOLDER = "___SKILLS___"
+    private const val NOW_PLACEHOLDER = "___NOW___"
 
     // The placeholder is replaced after trimIndent: a multi-line list substituted before it would break the indentation.
     private val TEMPLATE = """
@@ -50,7 +53,9 @@ object ChatToolsPrompt {
 
         ___SKILLS___
 
-        When the user asks for something one of these skills covers, call the `load_skill` tool with that skill's name and follow its instructions exactly. The skill tells you when to call `run_intent`. Never call `run_intent` before you have loaded the skill that asks for it.
+        Right now it is ___NOW___ (date and time of the phone). A reminder or a deadline "today", "tomorrow" or "in 3 days" is counted from this date; for the exact time later in a conversation call `run_intent` with the intent `get_current_date_and_time`.
+
+        When the user asks for something one of these skills covers, call the `load_skill` tool with that skill's name and follow its instructions exactly. The skill tells you when to call `run_intent`. Never call `run_intent` before you have loaded the skill that asks for it. The skills ARE your tools: when the user wants an e-mail, a calendar entry or a reminder, you can do it by loading the matching skill, so never answer that you have no tool or cannot do it.
 
         `run_intent` does nothing by itself: it shows the user a card in the chat, and nothing happens until the user opens it. So after you call it, say in one or two short sentences, in the user's language, what you prepared and that they can check it on the card. Do not repeat the card's content, and do not say the action is done.
 
