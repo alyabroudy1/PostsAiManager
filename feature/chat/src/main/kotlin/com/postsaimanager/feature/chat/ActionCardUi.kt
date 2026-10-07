@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.postsaimanager.core.designsystem.component.byContentDirection
 import com.postsaimanager.core.domain.skills.ActionField
 import com.postsaimanager.core.domain.skills.ActionForm
 import com.postsaimanager.core.domain.skills.AgentAction
@@ -142,7 +143,7 @@ private fun ActionFieldRow(field: ActionField, value: String, check: FieldCheck?
         // The body can be long: a preview of it, the whole text is in Edit.
         Text(
             value,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium.byContentDirection(),
             maxLines = if (field == ActionField.BODY) BODY_PREVIEW_LINES else Int.MAX_VALUE,
             overflow = TextOverflow.Ellipsis,
         )
@@ -163,6 +164,7 @@ private fun ActionFieldEditor(
             value = value,
             onValueChange = { onChange(field, it) },
             label = { Text(stringResource(ActionCardTexts.label(field))) },
+            textStyle = MaterialTheme.typography.bodyLarge.byContentDirection(),
             isError = error != null,
             singleLine = field != ActionField.BODY && field != ActionField.DESCRIPTION && field != ActionField.TEXT,
             minLines = if (field == ActionField.BODY) BODY_EDIT_LINES else 1,

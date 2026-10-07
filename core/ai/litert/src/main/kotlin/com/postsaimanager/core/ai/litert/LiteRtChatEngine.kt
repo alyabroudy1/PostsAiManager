@@ -22,12 +22,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * The LiteRT-LM chat engine, in-process: the Gallery's [LlmChatModelHelper] behind the app's [ChatEngine] port.
@@ -228,9 +230,11 @@ class LiteRtChatEngine internal constructor(
         var running = live
         var fellBack = false
         val finished = AtomicBoolean(false)
+        val lastActivityNanos = AtomicLong(System.nanoTime())
 
         fun runOn(inst: LlmModelInstance) {
             running = inst
+            lastActivityNanos.set(System.nanoTime())
             helper.runInference(
                 instance = inst,
                 input = userText,
@@ -241,6 +245,7 @@ class LiteRtChatEngine internal constructor(
                         filter.finish().takeIf { it.isNotEmpty() }?.let { trySend(it) }
                         close()
                     } else if (!finished.get()) {
+                        lastActivityNanos.set(System.nanoTime())
                         chunks++
                         // Control tokens and tool-call text are the model's protocol, not part of the answer.
                         filter.accept(text).takeIf { it.isNotEmpty() }?.let { trySend(it) }
@@ -278,6 +283,18 @@ class LiteRtChatEngine internal constructor(
             )
         }
         runOn(live)
+        // A reply that stops producing anything (a hung GPU driver) would hold this engine, and the service's one inference thread,
+        // forever, and every later load would spin behind it. Idle for too long: stop it and say so.
+        launch {
+            while (!finished.get()) {
+                delay(WATCHDOG_STEP_MS)
+                if (!finished.get() && System.nanoTime() - lastActivityNanos.get() > REPLY_IDLE_TIMEOUT_MS * 1_000_000L) {
+                    finished.set(true)
+                    helper.stopResponse(running)
+                    close(IllegalStateException("The AI engine stopped responding. Please try again."))
+                }
+            }
+        }
         awaitClose {
             // A collector that stops early (the user's Stop) stops the native generation too.
             if (!finished.get()) helper.stopResponse(running)
@@ -342,6 +359,11 @@ class LiteRtChatEngine internal constructor(
     override suspend fun commitChatReply(answer: String): Unit = mutex.withLock {
         // The model may have been replaced since the reply began (a document was read in between): nothing to record into.
         if (sessionId == null) return@withLock
+        // A reply of only an action (no words) is no turn to replay: a blank model turn would break the alternation.
+        if (answer.isBlank()) {
+            pendingUser = null
+            return@withLock
+        }
         pendingUser?.let { committed += LiteRtTurn(fromUser = true, text = it) }
         committed += LiteRtTurn(fromUser = false, text = answer)
         pendingUser = null
@@ -381,6 +403,12 @@ class LiteRtChatEngine internal constructor(
 
     /** Holds [mutex] for the whole of [source]'s collection, as the llama.cpp engines do (see their `serialised`). */
     private fun serialised(source: Flow<String>): Flow<String> = flow { mutex.withLock { emitAll(source) } }
+
+    private companion object {
+        /** How often the idle watchdog looks, and how long a reply may stay silent (a tool call or a slow CPU prefill included). */
+        const val WATCHDOG_STEP_MS = 5_000L
+        const val REPLY_IDLE_TIMEOUT_MS = 180_000L
+    }
 
     private data class Sampling(val topK: Int, val topP: Float, val temperature: Float)
 

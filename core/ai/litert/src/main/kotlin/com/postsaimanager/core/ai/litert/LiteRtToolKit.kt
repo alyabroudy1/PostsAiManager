@@ -19,6 +19,7 @@
 
 package com.postsaimanager.core.ai.litert
 
+import android.util.Log
 import com.google.ai.edge.litertlm.ToolProvider
 import com.google.ai.edge.litertlm.tool
 import com.postsaimanager.core.ai.litert.tools.AgentToolCalls
@@ -41,7 +42,7 @@ internal class LiteRtToolKit(private val skills: SkillCatalog) {
 
     /** The tools as LiteRT-LM's conversation config takes them (the Gallery's `getLiteRtToolProviders`). */
     val providers: List<ToolProvider> by lazy {
-        val calls = AgentToolCalls(skills, context)
+        val calls = AgentToolCalls(skills, context, log = { Log.i("PamTools", it) })
         listOf(tool(LoadSkillTool(calls)), tool(RunIntentTool(calls)))
     }
 

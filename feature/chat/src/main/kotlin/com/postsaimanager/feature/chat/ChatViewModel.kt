@@ -383,9 +383,19 @@ class ChatViewModel @Inject constructor(
     /** The text of the last message sent — what [retry] resends after a failure. */
     private var lastSentText: String? = null
 
-    fun sendMessage(text: String) {
+    fun sendMessage(text: String) = send(text, alreadyStored = false)
+
+    /**
+     * @param alreadyStored the message is already the last row of the conversation (a retry after a failed attempt): it is sent
+     *   again as it is, so the chat shows one bubble, not one per attempt.
+     */
+    private fun send(text: String, alreadyStored: Boolean) {
         if (text.isBlank() || _uiState.value.isProcessing) return
         lastSentText = text
+        if (alreadyStored) {
+            startChatTurn(text, persistUserMessage = false)
+            return
+        }
         val document = documentId
         // Form filling switched off: the message is never read for a fill request (no detector, no model call).
         if (document == null || !formFillingFlag.enabled) {
@@ -403,13 +413,13 @@ class ChatViewModel @Inject constructor(
     }
 
     /** The normal chat turn, in the background of the view model (the all-documents chat). */
-    private fun startChatTurn(text: String) {
+    private fun startChatTurn(text: String, persistUserMessage: Boolean = true) {
         beginChatTurn()
-        generationJob = viewModelScope.launch { chatTurn(text) }
+        generationJob = viewModelScope.launch { chatTurn(text, persistUserMessage) }
     }
 
     /** Streams the grounded reply to [text] until it completes, fails or is stopped. */
-    private suspend fun chatTurn(text: String) {
+    private suspend fun chatTurn(text: String, persistUserMessage: Boolean = true) {
         beginChatTurn()
         sendChatMessage(
             conversationId = conversationId,
@@ -417,6 +427,7 @@ class ChatViewModel @Inject constructor(
             text = text,
             // Default OFF — see InferenceOverrides.thinkingEffort's KDoc.
             thinkingEffort = modelSheetState.value.overrides.thinkingEffort ?: ThinkingEffort.OFF,
+            persistUserMessage = persistUserMessage,
         ).collect(::applyTurn)
     }
 
@@ -523,7 +534,9 @@ class ChatViewModel @Inject constructor(
                     )
                 }
 
-            is ChatTurn.Failed ->
+            is ChatTurn.Failed -> {
+                // The reason is kept in the log (no letter content): "sometimes it fails" is only fixable with it.
+                runCatching { android.util.Log.w("ChatViewModel", "chat turn failed (${turn.action}): ${turn.message}") }
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
@@ -533,6 +546,7 @@ class ChatViewModel @Inject constructor(
                         error = ChatError(turn.message, turn.action),
                     )
                 }
+            }
         }
     }
 
@@ -557,7 +571,11 @@ class ChatViewModel @Inject constructor(
 
     /** Re-sends the message that failed — the whole point of [ChatErrorAction.RETRY]. */
     fun retry() {
-        lastSentText?.let { sendMessage(it) }
+        val text = lastSentText ?: return
+        // The failed attempt stored the user's message (a crash mid-generation must not lose what they typed): when it is the last
+        // message of the chat, retrying re-sends THAT message instead of storing a second copy of it.
+        val last = _uiState.value.messages.lastOrNull()
+        send(text, alreadyStored = last != null && last.isUser && last.text == text)
     }
 
     /**
@@ -723,7 +741,14 @@ data class ChatMessage(
     val sources: List<ChatSource> = emptyList(),
     /** The payload of a form-conversation message (a status line, a question with chips, the fill card); null for a chat message. */
     val form: FormMessage? = null,
-)
+) {
+    /**
+     * A finished reply with no words at all: the model answered with an action only (a skill's card) and said nothing around it.
+     * The card is the answer, so the screen shows no empty bubble (nor its citation chips) for it.
+     */
+    val isEmptyReply: Boolean
+        get() = !isUser && form == null && text.isBlank() && thinking.isNullOrBlank() && !incomplete
+}
 
 /**
  * A citation chip's worth of a [com.postsaimanager.core.model.MessageSource] — resolved with

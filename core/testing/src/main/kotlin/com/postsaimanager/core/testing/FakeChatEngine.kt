@@ -50,8 +50,16 @@ class FakeChatEngine(
     private var loaded: Pair<String, InferenceConfig>? = null
     private var sessionId: String? = null
 
+    /** When set, the next [load] fails with this message (once), as a model that could not start does. */
+    var failNextLoadWith: String? = null
+
     override suspend fun load(modelPath: String, config: InferenceConfig): PamResult<AiCapabilities> = mutex.withLock {
         loads += modelPath to config
+        failNextLoadWith?.let { message ->
+            failNextLoadWith = null
+            _state.value = ModelLoadState.Failed(modelPath, message)
+            return@withLock PamResult.Error(com.postsaimanager.core.common.result.PamError.ModelNotLoaded(message))
+        }
         // The same model with the same config changes nothing, and a primed session survives it; anything else drops it.
         if (loaded != modelPath to config) sessionId = null
         loaded = modelPath to config

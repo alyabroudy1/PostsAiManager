@@ -38,7 +38,8 @@ fun MarkdownText(
     val resolvedColor = if (color.isSpecified) color
     else if (style.color.isSpecified) style.color
     else MaterialTheme.colorScheme.onSurface
-    val resolvedStyle = style.copy(color = resolvedColor)
+    // Every paragraph, list item and heading is laid out by its own script (see byContentDirection): Arabic is right-to-left.
+    val resolvedStyle = style.copy(color = resolvedColor).byContentDirection()
 
     Markdown(
         content = text,

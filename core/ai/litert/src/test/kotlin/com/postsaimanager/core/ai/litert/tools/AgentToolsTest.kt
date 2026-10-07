@@ -20,7 +20,7 @@ class AgentToolsTest {
     private val context = ToolContext()
     private val emitted = mutableListOf<ToolActionCall>()
     private val now = LocalDateTime.of(2026, 10, 7, 14, 30, 5)
-    private val calls = AgentToolCalls(catalog, context) { now }
+    private val calls = AgentToolCalls(catalog, context, now = { now })
     private val loadSkill = calls
     private val runIntent = calls
 

@@ -7,6 +7,12 @@ import android.util.Log
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.model.ReloadScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +44,16 @@ import java.util.concurrent.atomic.AtomicLong
  * [reportExternalFailure] — which is a no-op if a newer generation has since started. Without
  * this, a slow callback for an old load could stomp on a state a newer load already produced.
  */
-internal class ModelLoadCoordinator(private val ops: ModelLoadOps) {
+internal class ModelLoadCoordinator(
+    private val ops: ModelLoadOps,
+    /**
+     * How long a load may take before it is reported as failed. A load is a blocking call into the `:inference` process, queued
+     * behind whatever that process is doing (a letter being read for minutes, a GPU engine compiling, a hung driver), so without a
+     * bound the chat spins forever. On timeout the state becomes [ModelLoadState.Failed] (the chat offers Retry); the abandoned
+     * call may still finish later, and the next [load] sees what is really resident ([ModelLoadOps.isActuallyLoaded]).
+     */
+    private val loadTimeoutMs: Long = DEFAULT_LOAD_TIMEOUT_MS,
+) {
 
     private val mutex = Mutex()
     private val generationCounter = AtomicLong(0)
@@ -181,9 +196,25 @@ internal class ModelLoadCoordinator(private val ops: ModelLoadOps) {
         }
         _state.value = ModelLoadState.Loading(modelId, startedAt)
 
-        val result = ops.loadModel(modelId, config)
+        val result = bounded { ops.loadModel(modelId, config) }
         applyResult(myGeneration, modelId, config, startedAt, result)
         return result
+    }
+
+    /**
+     * Runs [block] and gives up on it after [loadTimeoutMs]. The work runs detached (same dispatcher, own job) so that giving up
+     * does not wait for a blocking call that cannot be interrupted.
+     */
+    private suspend fun bounded(block: suspend () -> PamResult<AiCapabilities>): PamResult<AiCapabilities> {
+        val detached = CoroutineScope(currentCoroutineContext().minusKey(Job) + SupervisorJob())
+        val work = detached.async { block() }
+        return withTimeoutOrNull(loadTimeoutMs) { work.await() }
+            ?: PamResult.Error(
+                PamError.ModelNotLoaded(
+                    "Loading the model took longer than ${loadTimeoutMs / 60_000} minutes. The AI engine may be busy reading a " +
+                        "letter, or the phone's GPU did not respond. Try again.",
+                ),
+            )
     }
 
     /** Caller must hold [mutex]. */
@@ -192,7 +223,7 @@ internal class ModelLoadCoordinator(private val ops: ModelLoadOps) {
         val startedAt = System.nanoTime()
         _state.value = ModelLoadState.Loading(modelId, startedAt)
 
-        val result = ops.recreateContext(modelId, config)
+        val result = bounded { ops.recreateContext(modelId, config) }
         applyResult(myGeneration, modelId, config, startedAt, result)
         return result
     }
@@ -285,7 +316,10 @@ internal class ModelLoadCoordinator(private val ops: ModelLoadOps) {
         return load(modelId, config)
     }
 
-    private companion object {
+    internal companion object {
         const val TAG = "ModelLoadCoordinator"
+
+        /** Generous: a first GPU start compiles kernels for tens of seconds, and a big llama.cpp model reads gigabytes. */
+        const val DEFAULT_LOAD_TIMEOUT_MS = 240_000L
     }
 }

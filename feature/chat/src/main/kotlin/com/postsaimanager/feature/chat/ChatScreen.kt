@@ -89,6 +89,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.designsystem.component.MarkdownText
+import com.postsaimanager.core.designsystem.component.byContentDirection
 import com.postsaimanager.core.designsystem.component.PagePreviewDialog
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.component.ReportAnswerButton
@@ -444,8 +445,8 @@ fun ChatScreen(
                     val pendingChipsId = uiState.messages.lastOrNull { isPendingChipsMessage(it) }?.id
 
                     items(
-                        uiState.messages.asReversed(),
-                        key = { it.id.ifEmpty { it.timestamp.toString() } },
+                        uiState.messages.filterNot { it.isEmptyReply }.asReversed(),
+                        key ={ it.id.ifEmpty { it.timestamp.toString() } },
                     ) { message ->
                         val form = message.form
                         if (form != null) {
@@ -629,7 +630,7 @@ private fun ChatBubble(
                     Text(
                         text = message.text,
                         modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.byContentDirection(),
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                 } else {

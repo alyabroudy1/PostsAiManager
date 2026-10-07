@@ -120,7 +120,8 @@ internal object LlmChatModelHelper : LlmModelHelper {
         tools: List<ToolProvider>,
     ): Conversation {
         // As the Gallery's agent chat does (enableConversationConstrainedDecoding = true): with tools, decoding is constrained so a
-        // tool call the model starts is well-formed. Plain chat, with no tools, is not constrained.
+        // tool call the model starts is well-formed. Plain chat, with no tools, is not constrained. (Tried off on the phone: Gemma 4
+        // E2B then stopped calling the tools at all and answered "I do not have the tool".)
         ExperimentalFlags.enableConversationConstrainedDecoding = tools.isNotEmpty()
         try {
             return engine.createConversation(

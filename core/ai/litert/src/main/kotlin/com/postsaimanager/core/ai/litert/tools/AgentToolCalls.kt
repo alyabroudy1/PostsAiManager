@@ -37,11 +37,14 @@ internal class AgentToolCalls(
     private val skills: SkillCatalog,
     private val context: ToolContext,
     private val now: () -> LocalDateTime = { LocalDateTime.now() },
+    /** Where the calls are noted (names and outcomes only, never the letter's content). */
+    private val log: (String) -> Unit = {},
 ) {
 
     /** `load_skill`: the skill's instructions, or "Skill not found". */
     fun loadSkill(skillName: String): Map<String, String> = runBlocking {
         val skill = skills.load(skillName)
+        log("load_skill \"$skillName\": ${if (skill != null) "found" else "not found"}")
         mapOf("skill_name" to skillName, "skill_instructions" to (skill?.content() ?: "Skill not found"))
     }
 
@@ -49,11 +52,15 @@ internal class AgentToolCalls(
     fun runIntent(intent: String, parameters: String): Map<String, String> {
         val name = intent.trim()
         return when (val parsed = AgentActionParser.parse(name, parameters, context.chatDocumentId())) {
-            is ActionParse.Rejected -> rejected(name, parsed.reason)
+            is ActionParse.Rejected -> {
+                log("run_intent \"$name\" rejected: ${parsed.reason} (parameters were: ${parameters.take(300)})")
+                rejected(name, parsed.reason)
+            }
             is ActionParse.Parsed -> when (parsed.action) {
                 // Answered at once: it changes nothing and shares nothing, so there is no card.
                 AgentAction.GetDateTime -> mapOf("action" to name, "result" to ActionDateTime.forModel(now()))
                 else -> {
+                    log("run_intent \"$name\" proposed")
                     context.propose(name, parameters)
                     mapOf("action" to name, "status" to PROPOSED)
                 }

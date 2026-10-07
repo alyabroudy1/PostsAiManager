@@ -221,6 +221,7 @@ class RemoteLiteRtChatEngine @Inject constructor(
 
             override fun onAction(intent: String?, parametersJson: String?, documentId: String?) {
                 // Only a proposal: it becomes a card in the app, and runs nothing until the user opens it.
+                Log.i(TAG, "action received: $intent")
                 ToolActionWire.fromWire(intent, parametersJson, documentId)?.let { actions.tryEmit(it) }
             }
 
@@ -230,6 +231,7 @@ class RemoteLiteRtChatEngine @Inject constructor(
             }
 
             override fun onError(message: String?) {
+                Log.w(TAG, "reply failed after $chunks chunks: $message")
                 logTiming(startedNanos, chunks)
                 close(IllegalStateException(message ?: "Generation failed."))
             }
