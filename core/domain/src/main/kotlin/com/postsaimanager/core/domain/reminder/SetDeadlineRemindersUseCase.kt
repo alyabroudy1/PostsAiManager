@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseC
 import com.postsaimanager.core.domain.repository.UserPreferencesRepository
 import com.postsaimanager.core.domain.skills.ReminderScheduler
 import com.postsaimanager.core.model.DocumentDateChip
+import com.postsaimanager.core.model.DocumentListItem
 import kotlinx.coroutines.flow.first
 import java.time.Clock
 import java.time.LocalDate
@@ -33,13 +34,24 @@ class SetDeadlineRemindersUseCase @Inject constructor(
         scheduler.cancelDeadlines()
         if (!enabled) return stored
 
-        val now = LocalDateTime.now(clock)
-        for (item in documents().first()) {
-            val due = item.dateChip.takeIf { it.kind == DocumentDateChip.Kind.DUE }?.date ?: continue
-            val at = remindAt(due, now) ?: continue
-            scheduler.scheduleDeadline(at, item.id, item.sender)
-        }
+        for (item in documents().first()) scheduleFor(item)
         return stored
+    }
+
+    /**
+     * A letter has just finished reading: when the switch is on and it has a deadline, schedules its reminder by the same rule as the
+     * switch does. Does nothing when the switch is off, the letter is gone, or it has no upcoming deadline.
+     */
+    suspend fun onDocumentRead(documentId: String) {
+        if (!preferences.getUserPreferences().first().notificationsEnabled) return
+        val item = documents().first().firstOrNull { it.id == documentId } ?: return
+        scheduleFor(item)
+    }
+
+    private suspend fun scheduleFor(item: DocumentListItem) {
+        val due = item.dateChip.takeIf { it.kind == DocumentDateChip.Kind.DUE }?.date ?: return
+        val at = remindAt(due, LocalDateTime.now(clock)) ?: return
+        scheduler.scheduleDeadline(at, item.id, item.sender)
     }
 
     private fun remindAt(due: LocalDate, now: LocalDateTime): LocalDateTime? =

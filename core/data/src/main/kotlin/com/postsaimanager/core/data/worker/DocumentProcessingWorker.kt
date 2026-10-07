@@ -13,6 +13,7 @@ import com.postsaimanager.core.common.notification.NotificationIntents
 import com.postsaimanager.core.common.notification.NotificationRoute
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.document.DocumentProcessor
+import com.postsaimanager.core.domain.reminder.SetDeadlineRemindersUseCase
 import com.postsaimanager.core.domain.repository.UserPreferencesRepository
 import com.postsaimanager.core.model.ProcessingState
 import dagger.assisted.Assisted
@@ -47,6 +48,7 @@ class DocumentProcessingWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val documentProcessor: DocumentProcessor,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val deadlineReminders: SetDeadlineRemindersUseCase,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = coroutineScope {
@@ -71,7 +73,13 @@ class DocumentProcessingWorker @AssistedInject constructor(
         try {
             val forcedFamily = inputData.getString(KEY_FORCED_FAMILY)?.takeIf { it.isNotBlank() }
             when (val result = documentProcessor.processDocument(documentId, forcedFamily = forcedFamily)) {
-                is PamResult.Success -> Result.success()
+                is PamResult.Success -> {
+                    // The letter is read: its deadline reminder goes through the same owner as the Settings switch. A failure here must
+                    // never turn a finished reading into a failed one.
+                    runCatching { deadlineReminders.onDocumentRead(documentId) }
+                        .onFailure { Log.w(TAG, "deadline reminder not scheduled for $documentId", it) }
+                    Result.success()
+                }
                 is PamResult.Error -> {
                     // The pipeline itself already logged (and recorded on the timeline) the
                     // specific reason via `failDocument` — this line is what turns

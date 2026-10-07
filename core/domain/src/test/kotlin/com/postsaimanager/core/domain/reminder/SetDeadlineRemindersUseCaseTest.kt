@@ -12,6 +12,7 @@ import com.postsaimanager.core.model.DocumentListItem
 import com.postsaimanager.core.model.DocumentListStatus
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.SourceType
+import com.postsaimanager.core.model.UserPreferences
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -109,6 +110,45 @@ class SetDeadlineRemindersUseCaseTest {
 
         assertThat(result).isInstanceOf(PamResult.Error::class.java)
         coVerify(exactly = 0) { scheduler.cancelDeadlines() }
+        coVerify(exactly = 0) { scheduler.scheduleDeadline(any(), any(), any()) }
+    }
+
+    private fun switchIs(on: Boolean) {
+        every { preferences.getUserPreferences() } returns flowOf(UserPreferences(notificationsEnabled = on))
+    }
+
+    @Test
+    fun `a newly read letter with a deadline is scheduled when the switch is on, by the same rule`() = runTest {
+        switchIs(true)
+
+        useCase(item("a", DocumentDateChip.Kind.DUE, today.plusDays(10)), item("b", DocumentDateChip.Kind.DUE, today.plusDays(30)))
+            .onDocumentRead("a")
+
+        coVerify(exactly = 1) { scheduler.scheduleDeadline(LocalDateTime.of(2026, 10, 14, 9, 0), "a", "Finanzamt") }
+        coVerify(exactly = 0) { scheduler.scheduleDeadline(any(), "b", any()) }
+        coVerify(exactly = 0) { scheduler.cancelDeadlines() }
+    }
+
+    @Test
+    fun `a newly read letter schedules nothing when the switch is off`() = runTest {
+        switchIs(false)
+
+        useCase(item("a", DocumentDateChip.Kind.DUE, today.plusDays(10))).onDocumentRead("a")
+
+        coVerify(exactly = 0) { scheduler.scheduleDeadline(any(), any(), any()) }
+    }
+
+    @Test
+    fun `a newly read letter without an upcoming deadline, or one that is gone, schedules nothing`() = runTest {
+        switchIs(true)
+
+        useCase(item("a", DocumentDateChip.Kind.LETTER, today.plusDays(10)), item("p", DocumentDateChip.Kind.DUE, today.minusDays(1)))
+            .apply {
+                onDocumentRead("a")
+                onDocumentRead("p")
+                onDocumentRead("missing")
+            }
+
         coVerify(exactly = 0) { scheduler.scheduleDeadline(any(), any(), any()) }
     }
 }
