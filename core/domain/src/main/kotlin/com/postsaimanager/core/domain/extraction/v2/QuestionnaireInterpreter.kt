@@ -149,7 +149,7 @@ class QuestionnaireInterpreter(
             .take(QuestionGrammars.MAX_ADDRESSEES)
             .forEach { add(PartyRole.SUBJECT_PERSON, it) }
         AnswerReader.parties(ask(names(QuestionnairePrompt.contactPerson(offered), offered)).orEmpty(), withRelation = false).firstOrNull()
-            ?.let { add(PartyRole.ROUTING, it) }
+            ?.let { add(PartyRole.CONTACT, it) }
         AnswerReader.parties(ask(names(QuestionnairePrompt.careOf(offered), offered)).orEmpty(), withRelation = false).firstOrNull()
             ?.let { add(PartyRole.CARE_OF, it) }
 

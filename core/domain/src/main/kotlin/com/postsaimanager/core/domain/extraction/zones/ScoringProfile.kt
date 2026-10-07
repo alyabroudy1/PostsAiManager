@@ -22,6 +22,12 @@ data class ScoringProfile(
      */
     val familyMinMargin: Double = 0.0,
     /**
+     * The margin the best category must beat the content-free baseline by: the same scoring question about a made-up kind of document
+     * ([ScoringDescriptions.CATEGORY_BASELINE]), asked in the same batch. A category that does not beat it is not taken and the document is the
+     * neutral "Document". Null (the default) asks for no baseline, so a profile that never measured one decides as before.
+     */
+    val categoryBaselineMargin: Double? = null,
+    /**
      * The party questions (`sender`, `addressee`, `subject_person`, `contact`, ...) and the reference questions (`slot:invoice_no`, ...) whose
      * answer may be "none of these": the best candidate is taken only when its score beats, by more than this margin, the score of a made-up
      * value that is nowhere in the letter (a name, a reference), asked the same way over the same zones (the content-free baseline). A line that
@@ -73,13 +79,17 @@ data class ScoringProfile(
 
     /**
      * The family the scores decide, as an index into [scores] (one per scored family), or null for the abstain family: the best score
-     * must be above the family threshold and lead the runner-up by at least [familyMinMargin]. A lone candidate leads by its own score.
+     * must be above the family threshold and lead the runner-up by at least [familyMinMargin]. A lone candidate leads by its own score. When
+     * the content-free [baseline] (a made-up kind of document, scored in the same batch) is given and [categoryBaselineMargin] is set, the best
+     * must also beat it by that margin: a document that is no better a letter than a made-up kind of document is the neutral "Document".
      */
-    fun familyWinner(scores: List<Double>): Int? {
+    fun familyWinner(scores: List<Double>, baseline: Double? = null): Int? {
         val order = scores.indices.sortedByDescending { scores[it] }
         val best = order.firstOrNull()?.takeIf { scores[it] > threshold(FAMILY) } ?: return null
         val lead = if (order.size > 1) scores[best] - scores[order[1]] else scores[best]
-        return best.takeIf { lead >= familyMinMargin }
+        if (lead < familyMinMargin) return null
+        val floor = categoryBaselineMargin?.let { m -> baseline?.plus(m) }
+        return best.takeIf { floor == null || scores[it] > floor }
     }
 
     /** The margin over the content-free baseline the party or reference question [ask] needs, or null when it is not asked against one. */
@@ -212,6 +222,12 @@ object ScoringDescriptions {
 
     /** The made-up amount scored beside the meanings of an amount; not an amount a letter could print. */
     const val AMOUNT_BASELINE_VALUE = "77 Quillfeather coins"
+
+    /**
+     * The made-up kind of document scored beside the categories as their content-free baseline (see [ScoringProfile.categoryBaselineMargin]); it
+     * names no kind of document that exists. It is asked as "Is this document <this>?" in the same batch as the categories.
+     */
+    const val CATEGORY_BASELINE = "a quillfeather zoltember, a kind of document that exists nowhere"
 
     /** Every made-up value a content-free baseline is asked about: a question that holds one is a baseline, never a question about the letter. */
     val BASELINE_PROBES = listOf(PARTY_BASELINE_NAME, REFERENCE_BASELINE_VALUE, DATE_BASELINE_VALUE, AMOUNT_BASELINE_VALUE)

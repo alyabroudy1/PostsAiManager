@@ -11,11 +11,12 @@ import com.postsaimanager.core.domain.extraction.v2.Topic
 /**
  * What the classifier decided about a document.
  *
- * @property family the best family, or the abstain family ([ExtractionSchema.FREE_FORM]) when none scored above the threshold.
- * @property familyConfidence the confidence word ([ScoringProfile.confidence]) of the family's margin over the runner-up; `LOW`
- *   for an abstain (the model itself leaned No on every family), `HIGH` for a family the user forced.
+ * @property family the family that stands for the best category, or the abstain family ([ExtractionSchema.FREE_FORM], the neutral
+ *   "Document") when none passed.
+ * @property familyConfidence the confidence word ([ScoringProfile.confidence]) of the category's margin over the runner-up; `LOW` for an
+ *   abstain (the model itself leaned No on every category).
  * @property topics the topic ids above the topics threshold, best first; any number of them can hold.
- * @property scores every log-odds score the model gave, keyed `family:<id>` and `topic:<id>`; empty for what was not scored.
+ * @property scores every log-odds score the model gave, keyed `family:<id>`, `baseline:family` and `topic:<id>`; empty for what was not scored.
  */
 data class Classification(
     val family: DocFamily,
@@ -25,19 +26,22 @@ data class Classification(
 )
 
 /**
- * The one decision "what kind of document is this, and what is it about": a single batched scoring of "Is this document
- * `<family>`?" for every scored family and "Does this document concern `<topic>`?" for every topic, read from the letter's open
- * [PromptSession] (for a received letter, 10 + 14 = 24 scores, tree-shared).
+ * The one decision "what broad kind of document is this, and what is it about", made AFTER the reading: a single batched scoring of
+ * "Is this document `<category>`?" for the schema's categories ([ExtractionSchema.categoryFamilies]: one per [com.postsaimanager.core.domain.extraction.v2.DocCategory],
+ * the statement being its stored family's description), and "Does this document concern `<topic>`?" for the topics, read from the letter's open
+ * [PromptSession]. Every category question is preceded by what the reading found ([read]: the sender, the dates and amounts with their
+ * meanings), so the model scores a document it has already understood instead of one it has only skimmed.
  *
- * The family is the argmax when it beats [ScoringProfile.threshold] of [ScoringProfile.FAMILY] and the runner-up by
- * [ScoringProfile.familyMinMargin] ([ScoringProfile.familyWinner]), otherwise the abstain family (the neutral "Document"):
- * [ExtractionSchema.FREE_FORM] is never scored, because a scored "anything else" gets a middling Yes on every letter and wins.
- * The topics are all those above the [ScoringProfile.TOPICS] threshold, so a bill about health is a bill with the topic `health`.
+ * A category is the winner when it beats [ScoringProfile.threshold] of [ScoringProfile.FAMILY], the runner-up by [ScoringProfile.familyMinMargin]
+ * and, when the profile asks for one, a made-up kind of document scored in the same batch ([ScoringDescriptions.CATEGORY_BASELINE], the
+ * content-free baseline: [ScoringProfile.categoryBaselineMargin]); otherwise the abstain family (the neutral "Document"). See
+ * [ScoringProfile.familyWinner]. [ExtractionSchema.FREE_FORM] is never scored, because a scored "anything else" gets a middling Yes on every
+ * letter and wins. The topics are all those above the [ScoringProfile.TOPICS] threshold.
  *
  * Both entry points return null when the engine failed the batch; the caller decides what a failed classification means.
  * The batch is handed to [onRecord] as one [AskRecord] named `score:family`, the way the interpreter records its scored batches.
  *
- * @param schema the families and topics; [ExtractionSchema.DEFAULT] is the registry of extraction-v2-2.
+ * @param schema the categories and topics; [ExtractionSchema.DEFAULT] is the registry.
  */
 class FamilyClassifier(
     private val session: PromptSession,
@@ -47,17 +51,20 @@ class FamilyClassifier(
 ) {
 
     /**
-     * Scores the families a document of [direction] can be and, when [includeTopics], the topics, in one batch.
-     * [tail] is what closes the user turn and opens the assistant's (the interpreter's `closing`).
+     * Scores the categories a document of [direction] can be and, when [includeTopics], the topics, in one batch.
+     * [tail] is what closes the user turn and opens the assistant's (the interpreter's `closing`). [read] is what the reading found, put
+     * before each category question (empty: the questions stand alone, as the first classifier asked them).
      */
-    suspend fun classify(direction: DocDirection, tail: String = "", includeTopics: Boolean = true): Classification? {
-        val families = schema.familiesFor(direction)
+    suspend fun classify(direction: DocDirection, tail: String = "", includeTopics: Boolean = true, read: String = ""): Classification? {
+        val families = schema.categoryFamilies(direction)
         val topics = if (includeTopics) schema.topics else emptyList()
-        val scores = scoreBatch(families, topics, tail) ?: return null
+        val withBaseline = profile.categoryBaselineMargin != null && families.isNotEmpty()
+        val scores = scoreBatch(families, withBaseline, topics, tail, read) ?: return null
         val familyScores = scores.subList(0, families.size)
-        val topicScores = scores.subList(families.size, scores.size)
+        val baseline = if (withBaseline) scores[families.size] else null
+        val topicScores = scores.subList(families.size + (if (withBaseline) 1 else 0), scores.size)
         val order = familyScores.indices.sortedByDescending { familyScores[it] }
-        val best = profile.familyWinner(familyScores)
+        val best = profile.familyWinner(familyScores, baseline)
         val margin = when {
             best == null -> 0.0
             order.size > 1 -> familyScores[best] - familyScores[order[1]]
@@ -67,29 +74,14 @@ class FamilyClassifier(
             family = if (best == null) abstainFamily() else families[best],
             familyConfidence = if (best == null) "LOW" else profile.confidence(margin),
             topics = topicsAbove(topics, topicScores),
-            scores = keyed(families, familyScores, topics, topicScores),
-        )
-    }
-
-    /**
-     * The same for a family the user chose: the family scores are skipped (nothing decides the family), only the topics are scored.
-     * With no topics to score, no batch is sent at all.
-     */
-    suspend fun classify(forced: DocFamily, tail: String = "", includeTopics: Boolean = true): Classification? {
-        val topics = if (includeTopics) schema.topics else emptyList()
-        val scores = scoreBatch(emptyList(), topics, tail) ?: return null
-        return Classification(
-            family = forced,
-            familyConfidence = "HIGH",
-            topics = topicsAbove(topics, scores),
-            scores = keyed(emptyList(), emptyList(), topics, scores),
+            scores = keyed(families, familyScores, baseline, topics, topicScores),
         )
     }
 
     /** The topics alone, for the profile that scores them in the second stage ([ModelProfile.topicsInFirstStage] false). */
     suspend fun topics(tail: String = ""): List<String>? {
         val topics = schema.topics
-        val scores = scoreBatch(emptyList(), topics, tail) ?: return null
+        val scores = scoreBatch(emptyList(), false, topics, tail, "") ?: return null
         return topicsAbove(topics, scores)
     }
 
@@ -103,20 +95,25 @@ class FamilyClassifier(
     private fun keyed(
         families: List<DocFamily>,
         familyScores: List<Double>,
+        baseline: Double?,
         topics: List<Topic>,
         topicScores: List<Double>,
     ): Map<String, Double> = buildMap {
         families.forEachIndexed { i, f -> put("family:${f.id}", familyScores[i]) }
+        if (baseline != null) put(BASELINE_KEY, baseline)
         topics.forEachIndexed { i, t -> put("topic:${t.id}", topicScores[i]) }
     }
 
-    /** One score per question in order: the families, then the topics. Null when the engine failed or there is nothing to ask. */
+    /** One score per question in order: the categories, the baseline when asked, then the topics. Null when the engine failed or there is nothing to ask. */
     private suspend fun scoreBatch(
         families: List<DocFamily>,
+        withBaseline: Boolean,
         topics: List<Topic>,
         tail: String,
+        read: String,
     ): List<Double>? {
-        val questions = families.map { "Is this document ${it.description}? Answer:" } +
+        val questions = families.map { read + "Is this document ${it.description}? Answer:" } +
+            (if (withBaseline) listOf(read + "Is this document ${ScoringDescriptions.CATEGORY_BASELINE}? Answer:") else emptyList()) +
             topics.map { "Does this document concern ${it.description}? Answer:" }
         if (questions.isEmpty()) return emptyList()
         val started = System.nanoTime()
@@ -133,7 +130,10 @@ class FamilyClassifier(
         return scores
     }
 
-    private companion object {
-        const val NANOS_PER_MS = 1_000_000L
+    companion object {
+        private const val NANOS_PER_MS = 1_000_000L
+
+        /** The key of the content-free baseline in [Classification.scores]. */
+        const val BASELINE_KEY = "baseline:family"
     }
 }

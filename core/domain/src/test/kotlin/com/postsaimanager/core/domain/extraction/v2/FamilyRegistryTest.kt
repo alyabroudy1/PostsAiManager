@@ -11,7 +11,7 @@ class FamilyRegistryTest {
     fun `the registry has the families and topics of the architecture`() {
         assertThat(schema.families.map { it.id }).containsExactly(
             "official_letter", "invoice_bill", "receipt", "form_application", "statement", "contract_policy", "certificate_id", "medical",
-            "ticket_booking", "appointment_reminder", "message_note", "outgoing_letter", "payment_proof", "free_form",
+            "ticket_booking", "appointment_reminder", "message_note", "notice_decision", "outgoing_letter", "payment_proof", "free_form",
         ).inOrder()
         assertThat(schema.topics.map { it.id }).containsExactly(
             "government", "tax", "health", "insurance", "bank_finance", "housing_utilities", "work", "school_education", "vehicle",
@@ -55,17 +55,16 @@ class FamilyRegistryTest {
     }
 
     @Test
-    fun `a received letter is scored against 11 families, and never the outgoing letter or the proof`() {
+    fun `a received letter can be 12 families, and never the outgoing letter or the proof`() {
         val incoming = schema.familiesFor(DocDirection.INCOMING).map { it.id }
         // The nine of extraction-v2-2 first, in their recorded order (the replays read the recorded columns by position), then the two
-        // kinds of a short text: an appointment reminder and a message or note.
+        // kinds of a short text (an appointment reminder, a message or note) and the notice or decision.
         assertThat(incoming.take(9)).containsExactly(
             "official_letter", "invoice_bill", "receipt", "form_application", "statement", "contract_policy", "certificate_id", "medical",
             "ticket_booking",
         ).inOrder()
-        assertThat(incoming.drop(9)).containsExactly("appointment_reminder", "message_note").inOrder()
+        assertThat(incoming.drop(9)).containsExactly("appointment_reminder", "message_note", "notice_decision").inOrder()
         assertThat(incoming).containsNoneOf("outgoing_letter", "payment_proof", "free_form")
-        assertThat(incoming.size + schema.topics.size).isAtMost(25)
         assertThat(schema.familiesFor(DocDirection.OUTGOING).map { it.id }).containsExactly("outgoing_letter")
         assertThat(schema.familiesFor(DocDirection.PROOF).map { it.id }).containsExactly("payment_proof")
     }
@@ -85,7 +84,7 @@ class FamilyRegistryTest {
     @Test
     fun `the recipient block belongs to the letter-like families`() {
         val withBlock = schema.families.filter { it.hasRecipientBlock }.map { it.id }
-        assertThat(withBlock).containsExactly("official_letter", "invoice_bill", "statement", "contract_policy", "medical")
+        assertThat(withBlock).containsExactly("official_letter", "invoice_bill", "statement", "contract_policy", "medical", "notice_decision")
     }
 
     @Test

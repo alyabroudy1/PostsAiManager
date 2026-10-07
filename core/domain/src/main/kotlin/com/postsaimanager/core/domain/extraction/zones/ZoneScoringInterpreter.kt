@@ -11,7 +11,9 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.domain.extraction.actions.ActionKindReader
+import com.postsaimanager.core.domain.extraction.text.DocumentNameWriter
 import com.postsaimanager.core.domain.extraction.text.KeyInfoWriter
+import com.postsaimanager.core.domain.extraction.text.ReadFacts
 import com.postsaimanager.core.domain.extraction.text.SummaryFacts
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.domain.extraction.v2.AnswerReader
@@ -75,24 +77,27 @@ import java.util.Locale
  * The confidence of a slot or party is derived from its scores ([ScoringProfile.confidence]): the winner's margin over
  * the runner-up and its own score, mapped to LOW, MEDIUM or HIGH by cut points that are data, fitted on recordings.
  *
- * What a document is comes first: [FamilyClassifier] scores one batch ("Is this document <family>?" for every family, "Does this
- * document concern <topic>?" for every topic) and the family is the argmax above the `family` threshold, else the abstain family; a
- * family a person chose is read as it is. [ExtractionSchema.slotsFor] then names the slots (the family's and those of the best two
- * topics). After the parties are settled, a family with a recipient block has its structured address read ([StructuredAddressReader]:
+ * What a document is comes LAST: the first stage reads the letter without knowing its type, and the second stage's first ask is
+ * [FamilyClassifier], one batch ("Is this document <category>?" for every broad category, a made-up category as the content-free baseline,
+ * "Does this document concern <topic>?" for every topic) preceded by what the first stage read ([ReadFacts]: the sender, the dates and amounts
+ * with their meanings). The category is the argmax above the `family` threshold, the runner-up margin and the baseline, else the abstain
+ * "Document". A category a person gave is context for every question ("The user says this document is a ..."), never a switch, and is not
+ * decided again. [ExtractionSchema.slotsFor] names the slots a document of the direction can have (the core and every family's own), asked of
+ * every document. After the parties are settled, a document with an addressee has its structured address read ([StructuredAddressReader]:
  * the line labels are scored too, never generated). Every scored question also keeps its runner-up candidates, the alternatives the
  * Edit sheet offers.
  *
- * The family is a label: every party and every slot is asked of every document (the general "Document" and a few lines of a message
- * included), and "none" is an answer each can give: a party or a reference is taken only when it beats a made-up name or reference asked
- * the same way by its margin ([ScoringProfile.baselineMargins]). What a kept date or amount means is then scored once per value
- * ([ValueMeaningReader]) and attached to the slot that holds it.
+ * The type is a label: every party and every slot is asked of every document (the general "Document" and a few lines of a message
+ * included), and "none" is an answer each can give: a party, a reference, or a date or an amount beyond the core is taken only when it beats
+ * a made-up name, reference, date or amount asked the same way by its margin ([ScoringProfile.baselineMargins]). What a kept date or amount
+ * means is then scored once per value ([ValueMeaningReader]) and attached to the slot that holds it.
  *
  * What needs writing is asked in the same open body session, each ask with its own small grammar: the letter's language
  * (BCP-47, one short ask), the naming of each extra ([extras]: which values no slot or party took is decided by score, the
  * words the letter prints next to it and an english key are written), the subject line and the suggested questions
- * ([ZoneFreeText]), and the summary ([SummaryWriter]: it is given the verified facts and writes one or two sentences, a gate checks
- * them, a template stands in when it cannot). There is no title ask: the title is composed from verified fields. This runs after the
- * reading, as the second stage. One combined generation for language and extras was measured on the device first and a 0.8B model
+ * ([ZoneFreeText]), the summary ([SummaryWriter]: it is given the verified facts and writes one or two sentences, a gate checks
+ * them, a template stands in when it cannot) and the specific name of the document ([DocumentNameWriter], grounded by
+ * [DocumentNameVerifier]). The title is composed from verified fields and that name. This runs after the reading, as the second stage. One combined generation for language and extras was measured on the device first and a 0.8B model
  * answered it with noise (it copied the example, repeated its last entry, or answered "yes"), which is why the decision is a score and
  * the writing is small.
  *
@@ -178,7 +183,7 @@ class ZoneScoringInterpreter(
         unread = null
         failures = 0
         letter = null
-        ownSlots = emptySet()
+        userLine = userSentence(request.forcedFamily)
         prescored.clear()
         baselines.clear()
         prefixTokens = 0
@@ -204,7 +209,7 @@ class ZoneScoringInterpreter(
 
         val partyNames = listOf(
             QuestionNames.SENDER to PartyRole.SENDER, QuestionNames.ADDRESSEE to PartyRole.ADDRESSEE, QuestionNames.CARE_OF to PartyRole.CARE_OF,
-            QuestionNames.CONTACT to PartyRole.ROUTING, QuestionNames.SUBJECT_PERSON to PartyRole.SUBJECT_PERSON,
+            QuestionNames.CONTACT to PartyRole.CONTACT, QuestionNames.SUBJECT_PERSON to PartyRole.SUBJECT_PERSON,
         )
         fun isHeader(name: String, slot: SlotKey? = null) = plan.isHeader(plan.zones(name, slot))
 
@@ -214,7 +219,7 @@ class ZoneScoringInterpreter(
         if (headerParties.isNotEmpty() || headerSlots.isNotEmpty()) {
             // The prefix is the instructions only: each question carries its own zone (and, with neighbour context,
             // a glimpse of the zones around it), so a zone is judged on its own text and hint.
-            val (head, closing) = setup.frame(system, ZonePrompt.HEADER_USER)
+            val (head, closing) = setup.frame(system, userContext() + ZonePrompt.HEADER_USER)
             if (!tryOpen(head, closing, "header")) throw Abort("the model could not read the letter")
             inPrefix = emptySet()
             prescored.clear()
@@ -234,14 +239,12 @@ class ZoneScoringInterpreter(
         unread = zoned.coverage(zonesInPrefix, budget).takeIf { it.droppedLines > 0 }?.let { UnreadText(it.droppedLines, it.firstCutPage) }
         unread?.let { traceLines += "unread lines=${it.lines} firstCutPage=${it.firstCutPage} budgetChars=$budget" }
 
-        val classification = classify(direction, forcedFamily)
-        val family = classification.family
-        val topics = if (topicsInFirstStage) classification.topics else emptyList()
-        ownSlots = schema.ownSlots(family, topics)
-        // The type is a label: it removes no question. Every party and every slot is asked of every document, the general "Document" and a
-        // few lines of a message included; "none" is an answer each question can give (the content-free baseline of its margin).
+        // The type is a label decided LAST (the second stage, from what was read): it removes no question and is not known here. Every party
+        // and every slot a document of this direction can have is asked of every document, the general "Document" and a few lines of a
+        // message included; "none" is an answer each question can give (the content-free baseline of its margin).
+        val topics = if (topicsInFirstStage) (classifier().topics(tail) ?: throw Abort("the topics could not be scored")) else emptyList()
         val bodyParties = partyNames.filter { !isHeader(it.first) }
-        val bodySlots = (Slots.CORE + schema.slotsFor(family, topics)).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) }
+        val bodySlots = (schema.slotsFor(direction) + schema.topicSlots(topics)).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) }
         prescored.clear()
         val bodyAsks = bodyParties.mapNotNull { partyAsk(setup, it.first) } + bodySlots.mapNotNull { slotAsk(setup, it) }
         prescore(setup, bodyAsks)
@@ -256,10 +259,15 @@ class ZoneScoringInterpreter(
         traceFinal(setup, s)
 
         // The structured address of the addressee and of the sender, once the parties are settled (a letter with a recipient block only).
-        val addresses = if (family.hasRecipientBlock) readAddresses(setup, layout, s) else null
+        // Read when the reading found an addressee: a document addressed to somebody has a recipient block, one with none (a receipt, a
+        // screenshot of a chat) has not. What the model read decides, not the type, which is not known yet.
+        val addresses = if (s.parties.any { it.role == PartyRole.ADDRESSEE.name }) readAddresses(setup, layout, s) else null
 
-        // Everything a person needs to see is decided: the family, the parties, the slots and the addresses. The extras, the language
-        // and the free text are the second stage ([enrich]); the body session stays open for it, and so does what it was told of the header.
+        // Everything a person needs to see is decided but the type: the parties, the slots and the addresses. The category, the extras, the
+        // language and the free text are the second stage ([enrich]); the body session stays open for it, and so does what it was told of the
+        // header. Until then the document is the neutral "Document", or the category a person gave.
+        val given = forcedFamily?.let(schema::family)
+        val provisional = given ?: schema.abstain ?: error("the schema has no abstain family")
         timing(
             String.format(
                 Locale.ROOT, "scoring total batches=%d scores=%d ms=%d msPerScore=%.0f", scoreBatches, scoreCount, scoreMs,
@@ -268,9 +276,9 @@ class ZoneScoringInterpreter(
         )
         letter = LetterSession(setup, zonesInPrefix, budget)
         return RawInterpretation(
-            type = family.id, typeConfidence = classification.familyConfidence, language = null,
+            type = provisional.id, typeConfidence = if (given != null) "HIGH" else "LOW", language = null,
             parties = s.parties.take(StructuredGrammar.MAX_PARTIES), slots = s.slots, established = summary,
-            topics = topics, layoutTemplate = setup.template.id,
+            topics = topics, layoutTemplate = setup.template.id, universalSlots = true,
             addresses = addresses?.addresses.orEmpty(), senderAddressAlternatives = addresses?.senderAlternatives.orEmpty(),
         )
     }
@@ -290,7 +298,7 @@ class ZoneScoringInterpreter(
     private suspend fun openBody(setup: ZoneSetup, zonesInPrefix: List<LetterZone>, summary: String): Int? {
         var budget = ZoneSetup.bodyBudgetChars(contextTokens)
         for (attempt in 0 until MAX_OPEN_ATTEMPTS) {
-            val (head, closing) = setup.frame(ZonePrompt.scoringSystem(setup.template), ZonePrompt.bodyUser(summary, zonedText(setup, zonesInPrefix, budget)))
+            val (head, closing) = setup.frame(ZonePrompt.scoringSystem(setup.template), userContext() + ZonePrompt.bodyUser(summary, zonedText(setup, zonesInPrefix, budget)))
             if (tryOpen(head, closing, "body#${attempt + 1}")) {
                 inPrefix = zonesInPrefix.toSet()
                 return budget
@@ -309,9 +317,22 @@ class ZoneScoringInterpreter(
 
     /** Reopens the session for writing: the same letter, under [ZonePrompt.writingSystem] instead of the scoring instruction. */
     private suspend fun switchToWriting(setup: ZoneSetup, bodyUser: String): Boolean {
-        val (head, closing) = setup.frame(ZonePrompt.writingSystem(setup.template), bodyUser)
+        val (head, closing) = setup.frame(ZonePrompt.writingSystem(setup.template), userContext() + bodyUser)
         return tryOpen(head, closing, "writing")
     }
+
+    /**
+     * What a person said the document is, as the one sentence every session of the reading opens with ("The user says this document is a
+     * bill or an invoice."), or "" when nobody said. The category is a person's word for the document, given to the model as context; it
+     * is never what decides which question is asked.
+     */
+    private var userLine = ""
+
+    private fun userContext(): String = if (userLine.isEmpty()) "" else "$userLine\n\n"
+
+    /** The sentence for the category of [familyId] (a family id or a legacy type id), or "" when the id names no category. */
+    private fun userSentence(familyId: String?): String =
+        schema.categoryOf(familyId)?.let { "The user says this document is ${it.phrase}." }.orEmpty()
 
     override val staged: Boolean = true
 
@@ -323,6 +344,7 @@ class ZoneScoringInterpreter(
     override suspend fun enrich(request: EnrichmentRequest): EnrichmentOutcome {
         val layout = request.layout ?: return EnrichmentOutcome.Failed("zones need the zoned layout")
         failures = 0
+        userLine = userSentence(request.userFamily)
         try {
             val open = letter ?: run {
                 val setup = ZoneSetup(engine, layout, request.offered, matcher, request.pageAspect)
@@ -331,21 +353,27 @@ class ZoneScoringInterpreter(
                 val budget = openBody(setup, zones, request.established) ?: return EnrichmentOutcome.Failed("the model could not read the letter")
                 LetterSession(setup, zones, budget).also { letter = it }
             }
+            // What the first stage read (the sender, the dates and amounts with their meanings), laid out as context for what is decided and
+            // written now. The category comes first: it is scored from the read facts, and is a label for everything after it.
+            val read = ReadFacts.block(request.facts, request.slots)
+            // A profile that keeps the topics out of the first stage scores them here too: in the same batch as the category.
+            val topicsHere = !topicsInFirstStage && request.topics.isEmpty()
+            val decided = decideCategory(request, read, topicsHere)
             // The family's hint says what matters in this kind of document: it steers which read fields are marked as key information;
             // the model still decides, code only verifies. The facts beyond the read fields are written later ([KeyInfoWriter]).
-            val hint = (request.documentTypeId?.let { schema.family(it) } ?: schema.abstain)?.hint
+            val hint = (decided.family ?: request.documentTypeId?.let { schema.family(it) } ?: schema.abstain)?.hint
             val keySlots = pickKeySlots(hint, request.slots)
-            // A profile that keeps the topics out of the first stage scores them here, still in the body session.
-            val lateTopics = if (topicsInFirstStage || request.topics.isNotEmpty()) null else classifier().topics(tail)
+            // The topics of such a profile: from the category's batch, or (a category a person gave decides nothing to score) on their own.
+            val lateTopics = if (!topicsHere) null else decided.topics ?: classifier().topics(tail)
             // What the reader has to do is scored too, in the same body session: a kind is chosen from the catalogue, nothing is written.
-            val actions = readActions(open.setup, request)
+            val actions = readActions(open.setup, request, decided.family ?: request.documentTypeId?.let(schema::family))
             // The letter as plain text: no zone hints and no summary of the header, which a small model copies instead of the letter.
             val writing = switchToWriting(open.setup, ZonePrompt.bodyUser("", open.setup.zoned.render(open.zonesInPrefix, open.budget)))
             if (!writing) {
                 return EnrichmentOutcome.Done(
                     Enrichment(
                         language = null, extras = emptyList(), text = null, textError = "the model could not read the letter again", topics = lateTopics,
-                        actions = actions, keySlots = keySlots,
+                        actions = actions, keySlots = keySlots, type = decided.family?.id, typeConfidence = decided.confidence,
                     ),
                 )
             }
@@ -354,16 +382,19 @@ class ZoneScoringInterpreter(
             val written = (text as? TextOutcome.Written)?.text
             // The summary rests on verified facts only: the subject line counts as one when it is printed in the letter.
             val subject = written?.subject?.takeIf { QuoteVerifier.verifyCopiedLine(it, request.ocrText) != null }
-            val facts = SummaryFacts.of(request.documentTypeId ?: schema.abstain?.id.orEmpty(), request.facts, subject)
+            val facts = SummaryFacts.of(decided.family?.id ?: request.documentTypeId ?: schema.abstain?.id.orEmpty(), request.facts, subject)
             val summary = SummaryWriter(FramedSession()).write(facts, request.ocrText, language)
             // The open key information: one more generation in the same session (the letter is still the prefix), shown the read fields so
             // it does not repeat them. Every value is checked against the letter; a failure leaves none.
             val extras = KeyInfoWriter(FramedSession("text:keyinfo")).write(readFields(request), request.ocrText, language)
+            // The specific name the title uses: written last, knowing what was read and what the category is, and kept only when every
+            // number and name in it is printed in the letter ([DocumentNameVerifier]); none otherwise.
+            val name = DocumentNameWriter(FramedSession("text:name")).write(read, categoryContext(decided), request.ocrText, language)
             return EnrichmentOutcome.Done(
                 Enrichment(
                     language = language, extras = extras, text = written,
                     textError = (text as? TextOutcome.Failed)?.reason, summary = summary, topics = lateTopics, actions = actions,
-                    keySlots = keySlots,
+                    keySlots = keySlots, type = decided.family?.id, typeConfidence = decided.confidence, name = name,
                 ),
             )
         } catch (e: Abort) {
@@ -378,9 +409,8 @@ class ZoneScoringInterpreter(
      * What the reader has to do, chosen by score from the catalogue of action kinds ([ActionKindReader]) with the reading's own scorer, in
      * the open body session. Null when the kinds could not be scored, so the stored actions stay.
      */
-    private suspend fun readActions(setup: ZoneSetup, request: EnrichmentRequest): List<ActionItem>? {
+    private suspend fun readActions(setup: ZoneSetup, request: EnrichmentRequest, family: DocFamily?): List<ActionItem>? {
         // What the reading decided the document is goes into the gate question as context: the model's own conclusion, nothing written here.
-        val family = request.documentTypeId?.let(schema::family)
         val reading = ActionKindReader({ name, questions -> scoreBatch(name, "", questions) }, profile.actions, schema = schema, trace = { traceLines += it })
             .read(request.slots, senderKnown = !request.facts[SummaryFacts.SENDER].isNullOrBlank(), family = family)
         // A recording run also scores the gate questions over an empty letter, for every family: the content-free baseline the gate is
@@ -472,21 +502,37 @@ class ZoneScoringInterpreter(
         timing(String.format(Locale.ROOT, "score %s n=%d ms=%d msPerScore=%.0f%s", record.name.removePrefix("score:"), n, record.ms, record.ms.toDouble() / n, if (record.answer == null) " FAILED" else ""))
     }
 
+    /** The category the second stage settled on: [family] (the category's stored family, or the abstain family) and its confidence word; both null when it could not be scored. */
+    private class Decided(val family: DocFamily?, val confidence: String?, val topics: List<String>? = null)
+
     /**
-     * What the letter is and what it is about: the family among those a document of [direction] can be ([ExtractionSchema.familiesFor]; a
-     * received letter is never offered "a letter the reader sent"), or [forcedFamily] when a person chose one, and the topics when they
-     * are scored in this stage.
+     * What broad kind of document this is, decided from what was read: the category among those a document of the request's direction can be
+     * ([ExtractionSchema.categoryFamilies]), or the neutral "Document" when none passes its threshold, runner-up margin and baseline. A
+     * category a person gave is not decided again: it is the answer. A scoring the engine failed decides nothing, so the stored type stays.
      */
-    private suspend fun classify(direction: DocDirection, forcedFamily: String?): Classification {
-        val forced = forcedFamily?.let(schema::family)
-        val classifier = classifier()
-        val result = (if (forced != null) classifier.classify(forced, tail, topicsInFirstStage) else classifier.classify(direction, tail, topicsInFirstStage))
-            ?: throw Abort("the family could not be scored")
-        val families = result.scores.filterKeys { it.startsWith("family:") }.entries.sortedByDescending { it.value }
-        traceLines += "family offered=${families.size} forced=${forced != null} " +
-            families.take(3).joinToString(" ") { it.key.removePrefix("family:") + String.format(Locale.ROOT, "=%+.2f", it.value) } +
-            " -> ${result.family.id} topics=${result.topics.joinToString(",")}"
-        return result
+    private suspend fun decideCategory(request: EnrichmentRequest, read: String, includeTopics: Boolean): Decided {
+        val given = request.userFamily?.let(schema::family)
+        if (given != null) {
+            traceLines += "category given by the user -> ${given.id}"
+            return Decided(given, "HIGH")
+        }
+        val result = classifier().classify(request.direction, tail, includeTopics = includeTopics, read = read)
+        if (result == null) {
+            traceLines += "category could not be scored"
+            return Decided(null, null)
+        }
+        val offered = result.scores.filterKeys { it.startsWith("family:") }.entries.sortedByDescending { it.value }
+        traceLines += "category offered=${offered.size} read=${read.isNotEmpty()} " +
+            offered.take(3).joinToString(" ") { it.key.removePrefix("family:") + String.format(Locale.ROOT, "=%+.2f", it.value) } +
+            result.scores[FamilyClassifier.BASELINE_KEY]?.let { String.format(Locale.ROOT, " baseline=%+.2f", it) }.orEmpty() +
+            " -> ${result.family.id}"
+        return Decided(result.family, result.familyConfidence, if (includeTopics) result.topics else null)
+    }
+
+    /** The category as one sentence for the name's prompt: the person's own word, else what the reading decided; empty for the neutral "Document". */
+    private fun categoryContext(decided: Decided): String {
+        if (userLine.isNotEmpty()) return userLine
+        return decided.family?.let { schema.categoryOf(it.id) }?.let { "The category of this document is ${it.phrase}." }.orEmpty()
     }
 
     // ── the structured address ──
@@ -572,15 +618,15 @@ class ZoneScoringInterpreter(
         val probe: String? = null,
     )
 
-    /** The slots this document is expected to have beyond the core (its family's own and its topics'): the ones that are not [ScoringProfile.optionalUnlessOwn]-optional for it. Set once the family is known. */
-    private var ownSlots: Set<SlotKey> = emptySet()
+    /**
+     * Whether [slot] may be none for this document (see [ScoringProfile.isOptional]). The type is not known while the slots are read, so no
+     * slot is "its own": every slot beyond the core must be one the model leans Yes to ([ScoringProfile.optionalUnlessOwn]).
+     */
+    private fun optional(slot: SlotKey): Boolean = profile.isOptional(QuestionNames.slot(slot.json), own = false)
 
-    /** Whether [slot] may be none for this document (see [ScoringProfile.isOptional]). */
-    private fun optional(slot: SlotKey): Boolean = profile.isOptional(QuestionNames.slot(slot.json), slot in ownSlots)
-
-    /** The threshold a slot question abstains under: its own, or the optional level for a number this document may not have. */
+    /** The threshold a slot question abstains under: its own, or the optional level for a value this document may not have. */
     private fun slotThreshold(name: String, slot: SlotKey?): Double =
-        if (slot == null) profile.threshold(name) else profile.slotThreshold(name, slot in ownSlots)
+        if (slot == null) profile.threshold(name) else profile.slotThreshold(name, own = false)
 
     /**
      * A reference found by shape alone in the small print at the foot of a page (a register or tax digit run): input for the extras, never offered
@@ -649,8 +695,21 @@ class ZoneScoringInterpreter(
         if (cands.isEmpty()) return null
         return Ask(
             name, askedZones(setup, preferred, emptyList(), cands), cands, ScoringDescriptions.ofSlot(slot), labelled = isReference && optional(slot),
-            probe = if (isReference) ScoringDescriptions.REFERENCE_BASELINE_VALUE else null,
+            probe = baselineProbe(slot, isReference),
         )
+    }
+
+    /**
+     * The made-up value a slot's content-free baseline is asked about: a reference for a reference slot, and for a date or an amount slot that
+     * is not in the core (the core's are always asked and always have a candidate worth taking; the others belong to some kinds of document,
+     * and a document of another kind has none, which is "none" for the question).
+     */
+    private fun baselineProbe(slot: SlotKey, isReference: Boolean): String? = when {
+        isReference -> ScoringDescriptions.REFERENCE_BASELINE_VALUE
+        slot in Slots.CORE -> null
+        slot.kind == SlotKind.AMOUNT -> ScoringDescriptions.AMOUNT_BASELINE_VALUE
+        slot.kind == SlotKind.DATE || slot.kind == SlotKind.DEADLINE -> ScoringDescriptions.DATE_BASELINE_VALUE
+        else -> null
     }
 
     /** The scores of [ask]'s candidates: the ones [prescore] computed, else scored now as a batch under [block]. */

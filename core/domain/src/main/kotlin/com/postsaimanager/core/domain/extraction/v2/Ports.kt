@@ -49,8 +49,9 @@ class InterpretationRequest(
      */
     val direction: DocDirection = DocDirection.INCOMING,
     /**
-     * A family a person chose ("Read again as ..."): the interpreter does not decide the family, it reads the letter as this one.
-     * An id the schema does not know is ignored.
+     * The category a person said the document is (a family id; "Change type"): context for every question, as "The user says this document
+     * is a <category>.", never a switch that decides what is asked. The category is then not decided again. An id the schema does not know
+     * is ignored.
      */
     val forcedFamily: String? = null,
 )
@@ -148,11 +149,18 @@ class EnrichmentRequest(
     val ocrText: String = "",
     /** The fixed slot values the first stage stored, scored for whether the reader needs them (see [Enrichment.keySlots]). */
     val slots: List<TicketSlot> = emptyList(),
+    /** The category a person said the document is (a family id): context for every question, and the category is then not decided. */
+    val userFamily: String? = null,
 )
 
 /**
  * What the second stage wrote, parsed but not trusted; any part may be missing.
  *
+ * @property type the family id of the category the stage decided from what was read (the abstain family when none passed), or the person's
+ *   own category when one was given; null when the stage could not decide, so the stored type stays.
+ * @property typeConfidence the confidence word of [type].
+ * @property name the specific name written for the document, in its language, checked against the letter ([DocumentNameVerifier]); null when none was
+ *   written or it was not grounded.
  * @property summary the summary the writer settled on (the model's sentences, or the template that renders from the verified
  *   fields); null when the second stage could not write at all, so the summary stays pending.
  * @property topics the topics, when this stage scored them (a profile that keeps them out of the first stage); null otherwise.
@@ -169,6 +177,9 @@ class Enrichment(
     val topics: List<String>? = null,
     val actions: List<ActionItem>? = null,
     val keySlots: List<KeySlot>? = null,
+    val type: String? = null,
+    val typeConfidence: String? = null,
+    val name: String? = null,
 )
 
 sealed interface EnrichmentOutcome {
@@ -292,6 +303,12 @@ data class RawInterpretation(
     val addresses: Map<PartyRole, PostalAddress> = emptyMap(),
     /** The sender's other address candidates, best first (see `AddressReading.senderAlternatives`). */
     val senderAddressAlternatives: List<PostalAddress> = emptyList(),
+    /**
+     * The slots were asked of every document, whatever its type (a scoring interpreter reads before the type is decided, and the type is only
+     * a label): the verifier accepts any slot of the schema, instead of those of [type]. False for an interpreter that asked only the slots of
+     * the type it chose, where an answer for another type's slot is a mistake.
+     */
+    val universalSlots: Boolean = false,
 )
 
 /** Call 2's answer, parsed but not trusted. */

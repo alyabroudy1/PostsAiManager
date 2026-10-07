@@ -2,9 +2,11 @@ package com.postsaimanager.core.domain.extraction.zones
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.address.LineAsk
+import com.postsaimanager.core.domain.extraction.text.ReadFacts
 import com.postsaimanager.core.domain.extraction.v2.AskRecord
 import com.postsaimanager.core.domain.extraction.v2.DocDirection
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.model.TicketSlot
 import com.postsaimanager.core.testing.FakePromptSession
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -65,15 +67,67 @@ class FamilyClassifierTest {
     }
 
     @Test
-    fun `one batch of 11 families and 14 topics, named score family`() = runTest {
+    fun `one batch of 9 categories and 14 topics, named score family`() = runTest {
         val session = session(mapOf("receipt" to 1.0))
         val records = ArrayList<AskRecord>()
         val c = FamilyClassifier(session, profile, onRecord = { records += it }).classify(DocDirection.INCOMING)!!
         assertThat(session.scored).hasSize(1)
-        assertThat(session.scored.single().size).isEqualTo(25)
-        assertThat(c.scores).hasSize(25)
+        assertThat(session.scored.single().size).isEqualTo(23)
+        assertThat(c.scores).hasSize(23)
         assertThat(records.single().name).isEqualTo("score:family")
-        assertThat(records.single().answer!!.split(',')).hasSize(25)
+        assertThat(records.single().answer!!.split(',')).hasSize(23)
+    }
+
+    @Test
+    fun `the categories scored are the nine broad ones, each as the family that stands for it, and a legacy family is not asked`() = runTest {
+        val session = session(emptyMap())
+        FamilyClassifier(session, profile).classify(DocDirection.INCOMING, includeTopics = false)
+        val asked = session.scored.single()
+        val standing = ExtractionSchema.DEFAULT.categoryFamilies(DocDirection.INCOMING).map { it.id }
+        assertThat(standing).containsExactly(
+            "official_letter", "invoice_bill", "receipt", "form_application", "statement", "contract_policy",
+            "appointment_reminder", "message_note", "notice_decision",
+        ).inOrder()
+        assertThat(asked).hasSize(9)
+        for (id in standing) assertThat(asked.any { it.contains(schema.family(id)!!.description) }).isTrue()
+        // "medical", "ticket_booking" and "certificate_id" are stored ids of documents read before the categories; they stand for a category.
+        for (id in listOf("medical", "ticket_booking", "certificate_id")) assertThat(asked.none { it.contains(schema.family(id)!!.description) }).isTrue()
+    }
+
+    @Test
+    fun `the category is scored after the facts that were read, which precede every category question and no topic question`() = runTest {
+        val session = session(mapOf("receipt" to 1.0))
+        val read = ReadFacts.block(
+            mapOf("sender" to "Stadtwerke Beispielstadt"),
+            listOf(TicketSlot("due_date", "Deadline", "30.11.2026", "the date by which the reader must pay")),
+        )
+        FamilyClassifier(session, profile).classify(DocDirection.INCOMING, read = read)
+        val asked = session.scored.single()
+        val categories = asked.filter { it.contains("Is this document ") }
+        assertThat(categories).hasSize(9)
+        assertThat(categories.all { it.contains("Stadtwerke Beispielstadt") && it.contains("30.11.2026 (the date by which the reader must pay)") }).isTrue()
+        assertThat(asked.filter { it.contains("Does this document concern ") }.none { it.contains("Stadtwerke Beispielstadt") }).isTrue()
+        // What the recordings hold is the question without the block.
+        assertThat(categories.map { ReadFacts.strip(it.removePrefix("\n\n")) }.all { it.startsWith("Is this document ") }).isTrue()
+    }
+
+    @Test
+    fun `a made-up kind of document is the content-free baseline, and a category that does not beat it is the neutral Document`() = runTest {
+        val withBaseline = profile.copy(categoryBaselineMargin = 0.0)
+        val byText = HashMap<String, Double>()
+        for (f in schema.families) byText["Is this document ${f.description}? Answer:"] = if (f.id == "invoice_bill") 0.8 else -2.0
+        byText["Is this document ${ScoringDescriptions.CATEGORY_BASELINE}? Answer:"] = 1.0
+        val session = FakePromptSession().apply {
+            open("prefix")
+            scorer = { c -> byText.entries.firstOrNull { c.contains(it.key) }?.value ?: -2.0 }
+        }
+        val c = FamilyClassifier(session, withBaseline).classify(DocDirection.INCOMING, includeTopics = false)!!
+        assertThat(session.scored.single()).hasSize(10)
+        assertThat(c.scores[FamilyClassifier.BASELINE_KEY]).isEqualTo(1.0)
+        assertThat(c.family.id).isEqualTo("free_form")
+        byText["Is this document ${ScoringDescriptions.CATEGORY_BASELINE}? Answer:"] = -1.0
+        val taken = FamilyClassifier(session, withBaseline).classify(DocDirection.INCOMING, includeTopics = false)!!
+        assertThat(taken.family.id).isEqualTo("invoice_bill")
     }
 
     @Test
@@ -114,23 +168,12 @@ class FamilyClassifierTest {
     }
 
     @Test
-    fun `a forced family skips the family scores and still finds the topics`() = runTest {
-        val session = session(mapOf("official_letter" to 5.0, "tax" to 0.7, "government" to -1.0))
-        val c = FamilyClassifier(session, profile).classify(ExtractionSchema.MEDICAL)!!
-        assertThat(c.family.id).isEqualTo("medical")
-        assertThat(c.familyConfidence).isEqualTo("HIGH")
-        assertThat(c.topics).containsExactly("tax")
-        assertThat(session.scored.single()).hasSize(schema.topics.size)
-        assertThat(c.scores.keys.none { it.startsWith("family:") }).isTrue()
-    }
-
-    @Test
-    fun `with the topics moved to the second stage only the family is scored there`() = runTest {
+    fun `with the topics moved to the second stage only the category is scored there`() = runTest {
         val session = session(mapOf("receipt" to 1.0, "shopping" to 2.0))
         val c = FamilyClassifier(session, profile).classify(DocDirection.INCOMING, includeTopics = false)!!
         assertThat(c.family.id).isEqualTo("receipt")
         assertThat(c.topics).isEmpty()
-        assertThat(session.scored.single()).hasSize(11)
+        assertThat(session.scored.single()).hasSize(9)
         val later = FamilyClassifier(session, profile).topics()!!
         assertThat(later).containsExactly("shopping")
     }

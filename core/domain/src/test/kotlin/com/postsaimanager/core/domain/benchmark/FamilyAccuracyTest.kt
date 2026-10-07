@@ -83,6 +83,52 @@ class FamilyAccuracyTest {
     }
 
     /**
+     * The category decision (extraction-v2-16: nine broad categories, scored last) on the same recordings. A category's score is the best
+     * recorded score of the families that stand for it ([com.postsaimanager.core.domain.extraction.v2.DocCategory.families], among the nine
+     * recorded columns: "medical" and "ticket_booking" for the appointment, "certificate_id" for the notice); a category none of whose
+     * families was recorded (the message) has no score and cannot win. This is an offline stand-in for what the categories would score, not
+     * a measurement of the new questions, which only a device recording holds. An expectation is accepted when the decided category is the
+     * category of an accepted family.
+     */
+    private fun categoryReplay(profile: ScoringProfile): Replay {
+        val recorded = schema.familiesFor(DocDirection.INCOMING).take(RECORDED_FAMILIES).map { it.id }
+        val categories = schema.categories
+        var right = 0
+        var abstained = 0
+        var total = 0
+        for (rec in recordings.filter { it.variant == "zonesscoring3" }) {
+            val ok = expected[rec.key] ?: continue
+            val scores = rec.asks.first { it.name == "score:family" }.answer!!.split(',').map { it.trim().toDouble() }.take(recorded.size)
+            val byCategory = categories.map { c ->
+                c.families.mapNotNull { id -> recorded.indexOf(id).takeIf { it >= 0 }?.let { scores[it] } }.maxOrNull() ?: LegacyFamilyBridge.NOT_RECORDED
+            }
+            val decided = profile.familyWinner(byCategory)?.let { categories[it].id }
+            val accepted = ok.map { schema.categoryOf(it)?.id ?: "free_form" }.toSet()
+            total++
+            if ((decided ?: "free_form") in accepted) right++ else if (decided == null) abstained++
+        }
+        return Replay(right, abstained, total)
+    }
+
+    @Test
+    fun `family accuracy at the category level on the device recordings is the measured 9 of 13 as well`() {
+        val before = deviceReplay(ModelProfiles.QWEN35_08B.scoring)
+        val after = categoryReplay(ModelProfiles.QWEN35_08B.scoring)
+        assertThat(after.total).isEqualTo(13)
+        // The nine categories are right on as many letters as the nine families were: the stand-in scores of the appointment (medical) and the
+        // notice (certificate) keep their letters, and no letter was right only because of a family that is now a category's alias.
+        assertThat(after.right).isAtLeast(before.right)
+        val out = System.getenv("FAMILY_OUT")
+        if (out != null) {
+            File("$out.category").writeText(
+                "# right / neutral Document / wrong, of 13, on the device recordings\n" +
+                    "families (before): ${before.right} / ${before.abstained} / ${before.wrong}\n" +
+                    "categories (after): ${after.right} / ${after.abstained} / ${after.wrong}\n",
+            )
+        }
+    }
+
+    /**
      * The decision of [profile] on the device recordings: how many of the 13 letters with an expectation get an accepted family. The
      * recordings hold the nine families of extraction-v2-2 (a tenth, email_printout, is dropped); the families added since were never
      * recorded, so only the first [RECORDED_FAMILIES] columns are replayed, among the families those columns were scored for.

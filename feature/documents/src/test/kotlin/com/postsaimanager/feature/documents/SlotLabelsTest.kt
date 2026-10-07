@@ -31,9 +31,25 @@ class SlotLabelsTest {
         assertThat(SlotLabels.typeIds).containsExactlyElementsIn(ExtractionSchema.DEFAULT.families.map { it.id })
         assertThat(SlotLabels.topicIds).containsExactlyElementsIn(ExtractionSchema.DEFAULT.topics.map { it.id })
         assertThat(SlotLabels.slotKeys).containsAtLeastElementsIn(ExtractionSchema.DEFAULT.allSlots.map { it.json })
-        assertThat(SlotLabels.type("medical")).isEqualTo(com.postsaimanager.core.designsystem.R.string.doctype_medical)
         assertThat(SlotLabels.topic("health")).isEqualTo(R.string.topic_health)
         assertThat(SlotLabels.topic("astrology")).isNull()
+    }
+
+    @Test
+    fun `the label of a stored id is the label of its category, one label per category`() {
+        // The label mapping is migrated in code: a stored id that stands for a category (a medical letter, a ticket) shows the category's words.
+        val schema = ExtractionSchema.DEFAULT
+        for (family in schema.families) {
+            val category = schema.categoryOf(family.id) ?: continue
+            val standing = schema.categoryFamilies(com.postsaimanager.core.domain.extraction.v2.DocDirection.INCOMING).map { it.id } +
+                schema.categoryFamilies(com.postsaimanager.core.domain.extraction.v2.DocDirection.OUTGOING).map { it.id } +
+                schema.categoryFamilies(com.postsaimanager.core.domain.extraction.v2.DocDirection.PROOF).map { it.id }
+            val representative = category.families.first { it in standing }
+            assertThat(SlotLabels.type(family.id)).isEqualTo(SlotLabels.type(representative))
+        }
+        assertThat(SlotLabels.type("medical")).isEqualTo(com.postsaimanager.core.designsystem.R.string.doctype_appointment_reminder)
+        assertThat(SlotLabels.type("certificate_id")).isEqualTo(com.postsaimanager.core.designsystem.R.string.doctype_notice_decision)
+        assertThat(SlotLabels.type("free_form")).isEqualTo(com.postsaimanager.core.designsystem.R.string.doctype_free_form)
     }
 
     @Test

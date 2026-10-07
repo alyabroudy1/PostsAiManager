@@ -4,6 +4,7 @@ import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.actions.ActionQuestions
+import com.postsaimanager.core.domain.extraction.text.ReadFacts
 import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
@@ -275,7 +276,10 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         // Zone questions list their candidates with ids in the text: compared without them, so ids that moved still match.
         val text = withoutIds(question.removePrefix("\n\n"))
         val at = recording.asks.indices.firstOrNull { it !in used && !recording.asks[it].name.startsWith("score:") && text.startsWith(withoutIds(recording.asks[it].question)) }
-            ?: return PamResult.Error(PamError.InferenceError("no recorded answer for this question")).also { misses += "ask «${text.take(MISS_CHARS)}»" }
+            ?: return PamResult.Error(PamError.InferenceError("no recorded answer for this question")).also {
+                // The name of the document (extraction-v2-16) is a generation no recording holds: listed under its own words, never cut mid-prompt.
+                misses += if (text.contains(NAME_ASK)) "ask «$NAME_MISS»" else "ask «${text.take(MISS_CHARS)}»"
+            }
         used += at
         val answer = recording.asks[at].answer ?: return PamResult.Error(PamError.InferenceError("the recorded question failed"))
         return PamResult.Success(IdRemap.inAnswer(answer, remap).let { if (recording.asks[at].name == QuestionNames.TYPE) legacyTypeAnswer(it) else it })
@@ -343,6 +347,13 @@ internal class ReplayPromptSession(private val recording: Recording, private val
                 unrecorded += "score «${live.firstOrNull().orEmpty().take(MISS_CHARS)}» x${live.size}"
                 return PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED })
             }
+            // The address of a document the recorded reading read none for: its type had no recipient block, and the reading now reads an
+            // address for any document it found an addressee of (extraction-v2-16, the type is decided last). Never recorded, so replayed as
+            // "not scored" and listed; a recording that DID read addresses and lacks one of their questions is still a miss.
+            if (recording.asks.none { it.name == "score:addr" } && live.all { it.startsWith(ADDRESS_BLOCK) }) {
+                unrecorded += "score «${live.firstOrNull().orEmpty().take(MISS_CHARS)}» x${live.size}"
+                return PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED })
+            }
             // The family and the topics of a recording made before the families: scripted from its legacy type scores, nothing else is.
             legacy?.let { view -> LegacyFamilyBridge.answer(view, live)?.let { return PamResult.Success(it) } }
             misses += "score «${live.firstOrNull().orEmpty().take(MISS_CHARS)}» x${live.size}"            // A question the old recording never held (a slot the old type did not have, an address line label) is scripted as "not scored":
@@ -404,7 +415,12 @@ internal class ReplayPromptSession(private val recording: Recording, private val
     /** A question about what a date or an amount means: it carries one of the registry's descriptions as its statement. */
     private fun isMeaningQuestion(question: String): Boolean = ValueMeanings.DEFAULT.all.any { question.contains(" ${it.description}? Answer:") }
 
-    private fun withoutIds(text: String) =ID_TOKEN.replace(withoutContext(withoutHint(text)), "#")
+    /**
+     * A category question is preceded by what the reading found (`ReadFacts`, extraction-v2-16); the recordings hold the question as it was
+     * asked before the block, and the recorded score of a category stands for the question about the same category, so the block is not part
+     * of the match (what the facts do to the scores is not in the recordings: it needs a device recording).
+     */
+    private fun withoutIds(text: String) = ID_TOKEN.replace(withoutContext(withoutHint(ReadFacts.strip(text))), "#")
 
     /**
      * A value's question is "Is «value» [printed after «label»] (context: its row and the rows around it) <statement>? Answer:". What stands
@@ -437,6 +453,12 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         val HINTED: List<Pair<String, String>> = ExtractionSchema.DEFAULT.families.map { it.hint }.filter { it.isNotBlank() }
             .map { "${ScoringDescriptions.EXTRA}. $it" to ScoringDescriptions.EXTRA }
         const val KEY_SLOT_QUESTION = "the reader need «"
+
+        /** The words that mark the generation of a document's specific name, and the line a replay lists it under. */
+        /** How every address-line question starts (`AddressLineLabeler`). */
+        const val ADDRESS_BLOCK = "[address-block]"
+        const val NAME_ASK = "Write a short name for THIS document"
+        const val NAME_MISS = "NAME OF THE DOCUMENT"
         const val NAMING_FACT = " is an important fact of this letter"
         const val NAMING_ASK = ". What does the letter call this value?"
 
@@ -532,12 +554,17 @@ internal class ZoneReplay(private val recording: Recording, private val scoring:
      */
     fun requireComplete() {
         val hard = misses.filterNot { it in scriptedMisses }
-        if (recording.asks.none { it.name == "score:family" } || hard.isEmpty()) return
+        // Exempt: a recording made before the families (it holds the legacy `score:type`, from which its family is scripted). One that holds
+        // neither batch cannot say what the document is, and fails like any other question it cannot answer.
+        val legacy = recording.asks.none { it.name == "score:family" } && recording.asks.any { it.name == "score:type" }
+        if (legacy || hard.isEmpty()) return
         error("the recording ${recording.key}.${recording.variant} has no answer for: ${hard.joinToString("; ")}; record it again on the device")
     }
 
     /** The summary asks and the key-information ask the recording could not answer (see [requireComplete]): the template summary, and no extra facts. */
-    val scriptedMisses: List<String> get() = misses.filter { it.startsWith("ask «FACTS") || it.startsWith("ask «READ FIELDS") }
+    val scriptedMisses: List<String> get() = misses.filter {
+        it.startsWith("ask «FACTS") || it.startsWith("ask «READ FIELDS") || it.startsWith("ask «NAME OF THE DOCUMENT")
+    }
 
     /** The party and slot questions the recording never held, replayed as "not recorded" (see [ReplayPromptSession.unrecorded]). */
     val unrecorded: List<String> get() = reading?.unrecorded.orEmpty()
@@ -549,7 +576,8 @@ internal class ZoneReplay(private val recording: Recording, private val scoring:
         // A variant name with "ctx" in it (zonesctx, zonesscoringctx2b) was recorded with the neighbour glimpse.
         val ctx = recording.variant.contains("ctx")
         return if (scoring != null) {
-            ZoneScoringInterpreter(engine, session, contextTokens = recording.contextTokens, profile = scoring, neighbourContext = ctx)
+            // As shipped: the topics are scored with the category, in the second stage (the recordings hold them in the family's batch).
+            ZoneScoringInterpreter(engine, session, contextTokens = recording.contextTokens, profile = scoring, neighbourContext = ctx, topicsInFirstStage = false)
         } else {
             ZoneInterpreter(engine, session, contextTokens = recording.contextTokens, neighbourContext = ctx)
         }

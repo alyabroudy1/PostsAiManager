@@ -38,7 +38,9 @@ class ExtractionV2Pipeline(
      * @param direction whose document it is; narrows the types the interpreter can choose from (incoming until P3 stores it).
      * @param traceContent adds page 1's lines (zone, position, text) and the name candidates to the trace. Only for a document
      *   its owner listed for diagnostics (a synthetic test letter): the trace is otherwise structure only.
-     * @param forcedFamily a family a person chose: the first stage reads the letter as this one instead of deciding it.
+     * @param forcedFamily the category a person said the document is: context for every question of both stages ("The user says this
+     *   document is ..."), and the category the second stage then does not decide again. The first stage never decides a type: it is the
+     *   neutral "Document" (or the person's category) until the second stage reads it from what the first stage found.
      */
     suspend fun run(
         pages: List<List<OcrBlock>>,
@@ -94,6 +96,7 @@ class ExtractionV2Pipeline(
         var summary: SummaryResult? = null
         var actions: List<ActionItem>? = null
         var keySlots: List<KeySlot>? = null
+        var name: String? = null
         val pageTexts = pages.map { blocks -> blocks.joinToString("\n") { OcrText.normalizeChars(it.text) } }
         fun context(rawText: String?, textError: String?) = VerificationContext(
             candidates = candidates,
@@ -115,7 +118,10 @@ class ExtractionV2Pipeline(
             val first = EnrichmentTicket(
                 typeId = raw.type, takenIds = takenIds(raw), established = raw.established, topics = firstReading.topics,
                 facts = SummaryFactsReader.of(firstReading).carried(),
-                slots = firstReading.slots.mapNotNull { (key, v) -> v.value.trim().takeIf { it.isNotEmpty() && !v.blocked }?.let { TicketSlot(key.json, key.label, it) } },
+                slots = firstReading.slots.mapNotNull { (key, v) ->
+                    v.value.trim().takeIf { it.isNotEmpty() && !v.blocked }?.let { TicketSlot(key.json, key.label, it, ValueMeanings.DEFAULT.byId(v.meaning)?.description) }
+                },
+                userFamily = forcedFamily?.takeIf { ExtractionSchema.DEFAULT.family(it) != null },
             )
             if (stages == Stages.FIRST) {
                 ticket = first
@@ -124,10 +130,13 @@ class ExtractionV2Pipeline(
                 lap("enrich (language, extras, summary, free text)")
                 when (enriched) {
                     is EnrichmentOutcome.Done -> {
+                        // The type is decided in the second stage, from what the first read: it replaces the neutral one the first stage left.
                         raw = raw.copy(
+                            type = enriched.enrichment.type ?: raw.type, typeConfidence = enriched.enrichment.typeConfidence ?: raw.typeConfidence,
                             language = enriched.enrichment.language ?: raw.language, extras = enriched.enrichment.extras,
                             topics = raw.topics + enriched.enrichment.topics.orEmpty(),
                         )
+                        name = enriched.enrichment.name
                         text = enriched.enrichment.text
                         rawText = enriched.enrichment.rawText
                         textError = enriched.enrichment.textError
@@ -151,7 +160,7 @@ class ExtractionV2Pipeline(
         lap("verify")
         return verified.copy(
             enrichment = ticket, summary = summary, actions = actions, keySlots = keySlots,
-            composedTitle = composeTitle(verified, verified.parties.sender?.name),
+            composedTitle = composeTitle(verified, verified.parties.sender?.name, name),
         ).withReading(
             layoutTrace(pages, layout, candidates, offered, description, traceContent) + timings + interpreter.trace,
             interpreter.unread, pages.size,
@@ -185,7 +194,9 @@ class ExtractionV2Pipeline(
         timings += "t enrich (language, extras, summary, free text) ms=${(System.nanoTime() - started) / NANOS_PER_MS}"
         val done = (enriched as? EnrichmentOutcome.Done)?.enrichment
         val raw = RawInterpretation(
-            type = ticket.typeId ?: ExtractionSchema.FREE_FORM.id, language = done?.language, parties = emptyList(), slots = emptyMap(),
+            // The category this stage decided from what the first read; the stored one stays when it could not decide.
+            type = done?.type ?: ticket.typeId ?: ExtractionSchema.FREE_FORM.id, typeConfidence = done?.typeConfidence,
+            language = done?.language, parties = emptyList(), slots = emptyMap(),
             extras = done?.extras.orEmpty(), topics = ticket.topics + done?.topics.orEmpty(),
         )
         val verified = verifier.verify(
@@ -197,23 +208,30 @@ class ExtractionV2Pipeline(
             ),
         )
         return verified.copy(
+            // The type the stage decided, or none: a stage that decided nothing must not hand the stored type back as if it had (a legacy id
+            // the schema does not hold would read as the neutral "Document" and replace the stored one).
+            documentType = verified.documentType.takeIf { done?.type != null },
             summary = done?.summary, actions = done?.actions, keySlots = done?.keySlots,
-            composedTitle = composeTitle(verified, ticket.facts[SummaryFacts.SENDER]),
+            composedTitle = composeTitle(verified, ticket.facts[SummaryFacts.SENDER], done?.name),
             diagnostics = verified.diagnostics.copy(modelCalled = true, modelUsed = done != null, trace = timings + interpreter.trace),
         )
     }
 
-    /** The title from the family, the sender and the verified subject line; null when there is no family (no model read the letter) or nothing to say. */
-    private fun composeTitle(result: ExtractionV2Result, sender: String?): TitleComposer.Composed? {
+    /**
+     * The title from the family, the sender and the specific name of the document ([name], written and checked by the second stage); the
+     * verified subject line stands in only where there is no name (a first stage, or a name that was not grounded). Null when there is no
+     * family (no model read the letter) or nothing to say.
+     */
+    private fun composeTitle(result: ExtractionV2Result, sender: String?, name: String?): TitleComposer.Composed? {
         val family = result.documentType?.id ?: return null
-        return TitleComposer.compose(family, sender, result.freeText.subject?.value)
+        return TitleComposer.compose(family, sender, name, subject = result.freeText.subject?.value)
     }
 
     private fun enrichmentRequest(
         layout: LetterLayout, offered: OfferedCandidates, pageAspect: Float?, direction: DocDirection, ticket: EnrichmentTicket, ocrText: String,
     ) = EnrichmentRequest(
         offered, layout, pageAspect, direction, ticket.takenIds.toSet(), ticket.typeId, ticket.established,
-        topics = ticket.topics, facts = ticket.facts, ocrText = ocrText, slots = ticket.slots,
+        topics = ticket.topics, facts = ticket.facts, ocrText = ocrText, slots = ticket.slots, userFamily = ticket.userFamily,
     )
 
     /** The candidate ids the reading's slots and parties took (before verification: the ids the model's scores chose). */

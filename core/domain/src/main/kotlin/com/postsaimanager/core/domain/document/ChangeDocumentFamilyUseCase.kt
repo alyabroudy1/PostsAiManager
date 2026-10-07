@@ -7,9 +7,13 @@ import com.postsaimanager.core.domain.repository.DocumentRepository
 import javax.inject.Inject
 
 /**
- * "Change type": the person says what the document is. The type is stored as theirs at once (the sections re-present and the list tag
- * changes), and the document is read again with that type pinned, not re-decided, so the fields (the sender, the dates, the amounts)
- * are the ones that fit the type. What the person already confirmed or edited survives the re-read (see [ReprocessOverwritePolicy]).
+ * "Change type": the person says what kind of document it is (one of the broad categories). The category is stored as theirs at once (the
+ * sections re-present and the list tag changes) and stays theirs: no later reading decides it again.
+ *
+ * It is context, not a switch. The type never decided which questions are asked, so there is nothing to re-gate; the document is read again
+ * with "The user says this document is a <category>." added to every question and to the name written for the document (see
+ * `ExtractionV2Pipeline`'s `forcedFamily`), which can only help the model read what the person already knows. What the person already
+ * confirmed or edited survives the re-read, field by field (see [ReprocessOverwritePolicy] and `MergeExtractionUseCase`).
  */
 class ChangeDocumentFamilyUseCase @Inject constructor(
     private val documents: DocumentRepository,

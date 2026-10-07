@@ -74,11 +74,11 @@ class UniversalQuestionsTest {
     }
 
     @Test
-    fun `the contact person is asked on every family, the general Document and the short texts included`() {
+    fun `the contact person is asked on every category, the general Document and the short texts included`() {
         val contact = ScoringDescriptions.ofRole(QuestionNames.CONTACT)
         val schema = ExtractionSchema.DEFAULT
-        val families = schema.familiesFor(DocDirection.INCOMING) + schema.abstain!!
-        assertThat(families.map { it.id }).containsAtLeast("appointment_reminder", "message_note", "free_form")
+        val families = schema.categoryFamilies(DocDirection.INCOMING) + schema.abstain!!
+        assertThat(families.map { it.id }).containsAtLeast("appointment_reminder", "message_note", "notice_decision", "free_form")
         for (family in families) {
             val (result, session) = run(Letters.receipt) { c -> if (!family.scored || !c.contains("Is this document ${family.description}? Answer:")) -5.0 else 5.0 }
             assertThat(result.documentType?.id).isEqualTo(family.id)

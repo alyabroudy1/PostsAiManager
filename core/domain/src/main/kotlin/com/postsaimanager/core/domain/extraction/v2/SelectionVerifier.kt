@@ -67,7 +67,8 @@ class SelectionVerifier(
             val slots = LinkedHashMap<SlotKey, SlotValue>()
             val lists = LinkedHashMap<SlotKey, List<SlotValue>>()
             if (docType != null) {
-                val allowed = schema.slotsFor(docType, topics)
+                // The slots of the type, or (an interpreter that asked every slot of every document) any slot the schema has.
+                val allowed = if (raw.universalSlots) (schema.slotsFor(docType, topics) + schema.allSlots).distinct() else schema.slotsFor(docType, topics)
                 for (slot in allowed) {
                     val answer = raw.slots[slot.json] ?: continue
                     if (slot.kind == SlotKind.REFERENCE_LIST) {

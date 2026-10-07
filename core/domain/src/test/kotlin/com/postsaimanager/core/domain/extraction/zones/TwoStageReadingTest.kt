@@ -52,6 +52,8 @@ class TwoStageReadingTest {
         responder = { q, _ ->
             when {
                 q.contains("BCP-47") -> "de"
+                // The specific name of the document: words and a name the letter prints.
+                q.contains("Write a short name for THIS document") -> "Rechnung Musterfirma GmbH"
                 // The key information: one fact the letter prints and the read fields do not hold, one it never printed, one the reading holds.
                 q.contains("READ FIELDS") -> "BIC: COBADEFFXXX\nLeistungszeitraum: September 2026\nKundennummer: KD-99999\nGesamt: 1.284,50 €"
                 // The summary writer is given the verified facts; a model that keeps to them writes a sentence the gate accepts.
@@ -72,7 +74,9 @@ class TwoStageReadingTest {
     fun `the first stage reads what a person needs and leaves a ticket, writing nothing`() {
         val session = session()
         val first = run(ExtractionV2Pipeline.Stages.FIRST, session)
-        assertThat(first.documentType?.id).isEqualTo("invoice_bill")
+        // The type is decided LAST, from what was read: the first stage leaves the neutral "Document" and scores no category.
+        assertThat(first.documentType?.id).isEqualTo("free_form")
+        assertThat(session.scored.flatten().none { it.contains("Is this document ") }).isTrue()
         assertThat(first.slots.keys.map { it.json }).containsAtLeast("letter_date", "total")
         assertThat(first.parties.sender?.name).isEqualTo("Musterfirma GmbH")
         // Nothing is written yet: no language, no extras, no free text, no summary, and not one generated answer was asked.
@@ -82,11 +86,12 @@ class TwoStageReadingTest {
         assertThat(first.summary).isNull()
         assertThat(session.asks).isEmpty()
         // The title is composed from what the first stage knows (the family and the sender); the second stage adds the subject.
-        assertThat(first.composedTitle?.args).containsExactly("invoice_bill", "Musterfirma GmbH", "").inOrder()
+        assertThat(first.composedTitle?.args).containsExactly("free_form", "Musterfirma GmbH", "").inOrder()
         // The ticket says what the second stage must not offer again, and the verified facts its summary rests on.
         val ticket = first.enrichment
         assertThat(ticket).isNotNull()
-        assertThat(ticket!!.typeId).isEqualTo("invoice_bill")
+        assertThat(ticket!!.typeId).isEqualTo("free_form")
+        assertThat(ticket.userFamily).isNull()
         assertThat(ticket.facts).containsAtLeast("sender", "Musterfirma GmbH", "addressed_to", "Erika Mustermann")
         assertThat(ticket.facts).containsKey("amount")
         val taken = (first.slots.values.mapNotNull { it.candidateId } + first.parties.all.mapNotNull { it.value.candidateId }).toSet()
@@ -104,6 +109,9 @@ class TwoStageReadingTest {
         val later = session()
         val second = run(ExtractionV2Pipeline.Stages.SECOND, later, ticket)
         assertThat(second.language).isEqualTo("de")
+        // The type is decided here, from what the first stage read: the category scored last, the title's name written last.
+        assertThat(second.documentType?.id).isEqualTo("invoice_bill")
+        assertThat(second.composedTitle?.args).containsExactly("invoice_bill", "Musterfirma GmbH", "Rechnung Musterfirma GmbH").inOrder()
         // The key information: the facts the letter prints that no read field holds, labelled as the model wrote them. The one it never
         // printed (a customer number with other digits) and the one the reading already holds (the amount) are dropped.
         assertThat(second.extras.map { it.label to it.value.value }).containsExactly("BIC" to "COBADEFFXXX", "Leistungszeitraum" to "September 2026").inOrder()
@@ -124,7 +132,7 @@ class TwoStageReadingTest {
         // Only the stored slot values and the actions were scored (no type, no party, no slot, no extra), in the body session the first
         // stage left (what it established is in its prefix), and the text and the key information were written in the writing session
         // that follows: one generation for the key information, in the same session as the summary (the letter is not read again).
-        assertThat(later.scored.flatten().all { it.contains(KEY_SLOT_ASK) || ActionQuestions.isActionQuestion(it) }).isTrue()
+        assertThat(later.scored.flatten().all { it.contains(KEY_SLOT_ASK) || ActionQuestions.isActionQuestion(it) || it.contains("Is this document ") }).isTrue()
         assertThat(later.opens).hasSize(2)
         assertThat(later.opens.first()).contains("ESTABLISHED FROM THE HEADER OF THE LETTER")
         assertThat(later.opens.first()).contains(ticket.established)
@@ -142,7 +150,7 @@ class TwoStageReadingTest {
         assertThat(hint).isNotEmpty()
         val scored = later.scored.flatten()
         assertThat(scored).isNotEmpty()
-        assertThat(scored.filterNot { ActionQuestions.isActionQuestion(it) }.all { it.contains(hint) }).isTrue()
+        assertThat(scored.filterNot { ActionQuestions.isActionQuestion(it) || it.contains("Is this document ") }.all { it.contains(hint) }).isTrue()
         // The actions are scored, never asked for: no ask mentions what the reader must do, and the chosen kind is a catalogue entry.
         assertThat(later.asks.none { it.question.contains("reader do") }).isTrue()
         assertThat(scored.count { it.contains(ActionQuestions.anything()) }).isEqualTo(1)
@@ -245,8 +253,11 @@ class TwoStageReadingTest {
         val all = run(ExtractionV2Pipeline.Stages.ALL, session())
         val first = run(ExtractionV2Pipeline.Stages.FIRST, session())
         val second = run(ExtractionV2Pipeline.Stages.SECOND, session(), first.enrichment)
-        fun ExtractionV2Result.firstStage() = listOf(documentType?.id, slots.map { (k, v) -> "${k.json}=${v.normalized}" }.sorted(), parties.all.map { "${it.role}/${it.name}" }.sorted())
+        fun ExtractionV2Result.firstStage() = listOf(slots.map { (k, v) -> "${k.json}=${v.normalized}" }.sorted(), parties.all.map { "${it.role}/${it.name}" }.sorted())
         assertThat(first.firstStage()).isEqualTo(all.firstStage())
+        // The type is the second stage's: run together or apart, the same category.
+        assertThat(second.documentType?.id).isEqualTo(all.documentType?.id)
+        assertThat(all.documentType?.id).isEqualTo("invoice_bill")
         assertThat(second.language).isEqualTo(all.language)
         assertThat(second.extras.map { it.label to it.value.candidateId }).isEqualTo(all.extras.map { it.label to it.value.candidateId })
         assertThat(second.composedTitle).isEqualTo(all.composedTitle)

@@ -23,7 +23,13 @@ class ZoneScoringInterpreterTest {
     private val letter = Letters.invoice
 
     /** Says Yes (+5) to the pairs of value and statement in [yes], No (-5) to everything else. */
-    private fun run(profile: ScoringProfile = ScoringProfile(), yes: (String) -> Boolean): Pair<com.postsaimanager.core.domain.extraction.v2.ExtractionV2Result, FakePromptSession> {
+    private fun run(profile: ScoringProfile = ScoringProfile(), yes: (String) -> Boolean) = runOn(letter, profile, yes)
+
+    private fun runOn(
+        letter: com.postsaimanager.core.domain.extraction.v2.Letter,
+        profile: ScoringProfile = ScoringProfile(),
+        yes: (String) -> Boolean,
+    ): Pair<com.postsaimanager.core.domain.extraction.v2.ExtractionV2Result, FakePromptSession> {
         val session = FakePromptSession().apply {
             scorer = { c -> if (yes(c)) 5.0 else -5.0 }
             responder = { _, _ -> "\"text\"" }
@@ -105,7 +111,8 @@ class ZoneScoringInterpreterTest {
 
     @Test
     fun `without the prefix tree every question is read whole, as recorded`() {
-        val (_, session) = run { c -> c.contains("the sender") }
+        // A page with no address window of its own (the generic layout): its address is not read, and an address is the one thing scored as a grid.
+        val (_, session) = runOn(Letters.receipt) { c -> c.contains("the sender") }
         assertThat(session.sharedLevels.all { it.isEmpty() }).isTrue()
         assertThat(session.grids).isEqualTo(0)
         // The same questions, asked one batch per question name, each whole text.

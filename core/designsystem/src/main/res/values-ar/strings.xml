@@ -23,18 +23,14 @@
 
     <!-- أنواع المستندات (العائلات)، تعرضها القائمة كوسم صغير. -->
     <string name="doctype_receipt">إيصال</string>
-    <string name="doctype_outgoing_letter">رسالة أرسلتها</string>
-    <string name="doctype_payment_proof">إثبات دفع</string>
-    <string name="doctype_official_letter">رسالة رسمية</string>
+    <string name="doctype_official_letter">رسالة</string>
     <string name="doctype_invoice_bill">فاتورة</string>
     <string name="doctype_form_application">نموذج أو طلب</string>
     <string name="doctype_statement">كشف حساب</string>
     <string name="doctype_contract_policy">عقد أو وثيقة تأمين</string>
-    <string name="doctype_certificate_id">شهادة أو هوية</string>
-    <string name="doctype_medical">طبي</string>
-    <string name="doctype_ticket_booking">تذكرة أو حجز</string>
-    <string name="doctype_appointment_reminder">تذكير بموعد</string>
+    <string name="doctype_appointment_reminder">موعد</string>
     <string name="doctype_message_note">رسالة أو ملاحظة</string>
+    <string name="doctype_notice_decision">إشعار أو قرار</string>
     <string name="doctype_free_form">مستند آخر</string>
 
     <!-- «الإبلاغ عن الإجابة» في إجابة الذكاء الاصطناعي: يفتح مسودة بريد إلكتروني يرسلها المستخدم بنفسه. -->

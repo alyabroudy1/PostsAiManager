@@ -37,14 +37,18 @@ object ReprocessOverwritePolicy {
      * @param forcedFamily the family a person just chose ("Read again as ..."): stored as the person's choice, whatever was there.
      *   Null: the model's family replaces the stored one only while [FamilySource.MODEL] chose it. The layout template is the
      *   letter's own shape, not a choice, so it is always the latest reading's.
+     * @param provisional the first stage of a staged reading, which decides no type (the second stage does, from what the first read): the
+     *   type it carries is the neutral "Document", so it is stored only where the document has no type yet (the second stage's recovery keys on
+     *   one), and never over an earlier reading's.
      */
-    fun applyFamily(document: Document, read: DocumentUnderstanding, forcedFamily: String? = null): Document {
+    fun applyFamily(document: Document, read: DocumentUnderstanding, forcedFamily: String? = null, provisional: Boolean = false): Document {
         val family = read.documentType.ifBlank { null } ?: return document
         val withLayout = read.layoutTemplate?.let { document.copy(layoutTemplate = it) } ?: document
         return when {
             forcedFamily != null -> withLayout.copy(
                 extractionType = family, extractionTypeConfidence = read.documentTypeConfidence, topics = read.topics, familySource = FamilySource.USER,
             )
+            provisional && !document.extractionType.isNullOrBlank() -> withLayout
             mayOverwriteFamily(document) -> {
                 val keptFamily = stickySensitiveFamily(document)?.takeIf { SCHEMA.family(family)?.sensitive != true }
                 withLayout.copy(
@@ -91,10 +95,14 @@ object ReprocessOverwritePolicy {
     /**
      * The composed title ([DocumentUnderstanding.titleCode] with its args), where [DocumentTitlePolicy] allows: over an app default or an
      * earlier composed title, never over a person's title nor over real words. [DocumentUnderstanding.title] is the plain-text fallback.
+     *
+     * @param provisional the first stage of a staged reading: its title has no type and no specific name yet (the second stage writes both),
+     *   so an earlier reading's composed title stays until the second stage replaces it.
      */
-    fun applyTitle(document: Document, read: DocumentUnderstanding): Document {
+    fun applyTitle(document: Document, read: DocumentUnderstanding, provisional: Boolean = false): Document {
         val code = read.titleCode ?: return document
         if (read.title.isBlank()) return document
+        if (provisional && document.titleCode == code) return document
         if (!DocumentTitlePolicy.modelTitleMayReplace(isUserTitle = document.isUserTitle, titleCode = document.titleCode)) return document
         return document.copy(title = read.title, titleCode = code, titleArgs = read.titleArgs, titleSource = TitleSource.COMPOSED)
     }

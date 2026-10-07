@@ -82,7 +82,9 @@ class ExtractionBenchmarkTest {
         checks["sender"] = p.sender?.let { fold(it.name) == fold(m.sender) } == true
         checks["addressees"] = names(p.allAddressees) == m.addressees.map { fold(it) }.toSet()
         checks["co-addressees"] = names(p.coAddressees) == m.coAddressees.map { fold(it) }.toSet()
-        val routing = (p.routingPerson ?: p.careOf)?.name
+        // The manifest's "routing person" is who the letter names beside the address block ("z. Hd.", c/o): the zone reading answers it with
+        // the contact question (CONTACT), the single call with ROUTING, and a mailbox with CARE_OF. Which role it got is tested on its own.
+        val routing = (p.routingPerson ?: p.contact ?: p.careOf)?.name
         checks["routing/c-o"] = (routing?.let { fold(it) }) == m.routing?.let { fold(it) }
         checks["subject persons"] = names(p.subjectPersons) == m.subjectPersons.map { fold(it) }.toSet()
         checks["household"] = p.household == m.household

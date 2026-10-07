@@ -6,6 +6,7 @@ import com.postsaimanager.core.domain.extraction.v2.Letter
 import com.postsaimanager.core.domain.extraction.v2.Letters
 import com.postsaimanager.core.domain.extraction.v2.Prepared
 import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
+import com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions
 import com.postsaimanager.core.domain.extraction.zones.ScoringProfile
 import com.postsaimanager.core.domain.extraction.zones.ZoneScoringInterpreter
 import com.postsaimanager.core.testing.FakeAiEngine
@@ -36,18 +37,28 @@ class ReplayStrictnessTest {
     private val recordingProfile = ModelProfiles.recordingProfile(profile)
 
     /** One live run of the real interpreter on a fake session, as the device runner would have recorded it. */
-    private fun liveRecording(variant: String = "zonesscoring3", keep: (String) -> Boolean = { true }): Recording {
+    private fun liveRecording(
+        variant: String = "zonesscoring3",
+        keep: (String) -> Boolean = { true },
+        /** What the recording holds as the question of an ask (the device recorded it as it was asked; a test changes it to be a question the code no longer asks). */
+        question: (name: String, text: String) -> String = { _, text -> text },
+    ): Recording {
         // The pages of the benchmark fixture the replay will read, with the page shape it is given, so the same layout and candidates are found.
         val pages = fixture.pages.map { it.blocks }
         val first = fixture.pages.firstOrNull()?.takeIf { it.height > 0 }
         val p = Prepared(pages)
         val session = FakePromptSession().apply {
-            scorer = { c -> if (c.contains("an invoice, a bill") || c.contains("the date of the letter itself")) 4.0 else -4.0 }
+            // The addressee is found too, so an address is read (a document with an addressee has a recipient block).
+            scorer = { c ->
+                val addressee = c.contains("the addressee") && !c.contains(ScoringDescriptions.PARTY_BASELINE_NAME)
+                if (c.contains("an invoice, a bill") || c.contains("the date of the letter itself") || addressee) 4.0 else -4.0
+            }
             responder = { q, _ -> if (q.contains("BCP-47")) "de" else "\"Rechnung Nr. RE-2026-0815\"" }
         }
         // As the device runner records: every candidate scored and nothing abstained, but with the shipped decoder, so the decisions the
         // summary's facts rest on are the ones a replay under the shipped profile makes again.
-        val interpreter = ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096, profile = recordingProfile)
+        // As shipped (and as the replay reads it): the topics are scored with the category, in the second stage.
+        val interpreter = ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096, profile = recordingProfile, topicsInFirstStage = false)
         runBlocking {
             com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline().run(pages, interpreter, 4096, first?.let { it.width.toFloat() / it.height })
         }
@@ -58,7 +69,7 @@ class ReplayStrictnessTest {
                 "asks",
                 buildJsonArray {
                     interpreter.transcript.filter { keep(it.name) }.forEach { a ->
-                        add(buildJsonObject { put("name", a.name); put("question", a.question); put("answer", a.answer); put("ms", 10) })
+                        add(buildJsonObject { put("name", a.name); put("question", question(a.name, a.question)); put("answer", a.answer); put("ms", 10) })
                     }
                 },
             )
@@ -91,11 +102,24 @@ class ReplayStrictnessTest {
     }
 
     @Test
-    fun `a recording that lacks the address labels fails the replay, naming the question`() {
-        val rec = liveRecording(keep = { it != "score:addr" })
+    fun `a recording whose address labels are not the ones asked now fails the replay, naming the question`() {
+        // The recording read an address, with other lines than the ones asked now: a question that changed since the device run.
+        val rec = liveRecording(question = { name, text -> if (name == "score:addr") text.replace("[address-block]", "[another-block]") else text })
+        assertThat(rec.asks.any { it.name == "score:addr" }).isTrue()
         val e = assertThrows(IllegalStateException::class.java) { InterpreterMetrics.replayResult(rec, fixture, profile) }
         assertThat(e.message).contains("has no answer for")
         assertThat(e.message).contains("record it again on the device")
+    }
+
+    @Test
+    fun `a recording that read no address replays the address labels as not recorded, listed and never a quiet zero`() {
+        // The recorded reading found no addressee (or its type had no recipient block); the reading now reads an address for any addressee.
+        val rec = liveRecording(keep = { it != "score:addr" })
+        val result = InterpreterMetrics.replayResult(rec, fixture, profile)
+        assertThat(result.diagnostics.modelUsed).isTrue()
+        val misses = InterpreterMetrics.replayMisses(rec, fixture, profile)
+        assertThat(misses.hard).isEmpty()
+        assertThat(misses.unrecorded.any { it.contains("[address-block]") }).isTrue()
     }
 
     @Test
@@ -113,7 +137,7 @@ class ReplayStrictnessTest {
         // Without score:family (and without the legacy score:type) nothing answers the family: the reading fails, loudly.
         val rec = liveRecording(keep = { it != "score:family" })
         val e = assertThrows(IllegalStateException::class.java) { InterpreterMetrics.replayResult(rec, fixture, profile) }
-        assertThat(e.message).contains("the replay of")
+        assertThat(e.message).contains("has no answer for")
         assertThat(e.message).contains("Is this document")
     }
 

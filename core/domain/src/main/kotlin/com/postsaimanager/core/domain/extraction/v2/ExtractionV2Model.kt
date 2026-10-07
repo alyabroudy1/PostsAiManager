@@ -79,7 +79,13 @@ data class SlotValue(
     val needsReview: Boolean get() = blocked || confidence < ConfidenceCombiner.REVIEW_BELOW
 }
 
-enum class PartyRole { SENDER, ADDRESSEE, CO_ADDRESSEE, ROUTING, CARE_OF, SUBJECT_PERSON }
+/**
+ * What a party is in the letter. Two roles are easy to confuse and are kept apart at the source:
+ * - [CONTACT] is the person at the SENDER who handles the matter (the information block's "contact person"): the answer of the contact question;
+ * - [ROUTING] is a person named on the ADDRESSEE side ("z. Hd.", "attn."): who the addressed organisation's letter is for.
+ * [CARE_OF] is a mailbox party ("c/o"), also on the addressee side.
+ */
+enum class PartyRole { SENDER, ADDRESSEE, CO_ADDRESSEE, ROUTING, CARE_OF, SUBJECT_PERSON, CONTACT }
 
 enum class PartyKind { PERSON, AUTHORITY, COMPANY, OTHER }
 
@@ -111,6 +117,9 @@ data class Parties(val all: List<Party> = emptyList()) {
     /** The addressee and the co-addressees together, in the order the model gave them. */
     val allAddressees: List<Party> get() = all.filter { it.role == PartyRole.ADDRESSEE || it.role == PartyRole.CO_ADDRESSEE }
     val routingPerson: Party? get() = withRole(PartyRole.ROUTING).firstOrNull()
+
+    /** The contact person at the sender (the contact question's answer), never a person on the addressee side. */
+    val contact: Party? get() = withRole(PartyRole.CONTACT).firstOrNull()
     val careOf: Party? get() = withRole(PartyRole.CARE_OF).firstOrNull()
     val subjectPersons: List<Party> get() = withRole(PartyRole.SUBJECT_PERSON)
 

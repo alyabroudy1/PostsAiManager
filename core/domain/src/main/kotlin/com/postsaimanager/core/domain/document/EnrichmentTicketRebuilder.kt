@@ -3,6 +3,8 @@ package com.postsaimanager.core.domain.document
 import com.postsaimanager.core.domain.extraction.text.SummaryFacts
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.Slots
+import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
+import com.postsaimanager.core.model.FamilySource
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.EnrichmentTicket
@@ -35,6 +37,8 @@ object EnrichmentTicketRebuilder {
             facts = factsOf(document, fields).carried(),
             takenValues = taken.filter { it.isNotEmpty() }.distinct(),
             slots = slotsOf(fields),
+            // A category a person gave is context for the stage and is not decided again; the model's own is decided afresh.
+            userFamily = document.extractionType?.takeIf { document.familySource == FamilySource.USER },
         )
     }
 
@@ -48,7 +52,7 @@ object EnrichmentTicketRebuilder {
     fun slotsOf(fields: List<ExtractedData>): List<TicketSlot> =
         liveFields(fields).mapNotNull { f ->
             val slot = f.slotKey?.let(schemaSlots::get) ?: return@mapNotNull null
-            TicketSlot(slot.json, slot.label, f.fieldValue.trim())
+            TicketSlot(slot.json, slot.label, f.fieldValue.trim(), ValueMeanings.fromRole(f.role)?.description)
         }.distinctBy { it.key }
 
     /**

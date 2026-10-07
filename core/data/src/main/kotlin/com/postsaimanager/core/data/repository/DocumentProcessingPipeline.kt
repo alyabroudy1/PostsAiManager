@@ -503,8 +503,12 @@ class DocumentProcessingPipeline @Inject constructor(
                     // until the second stage.)
                     var updated = documentMapper.toDomain(doc)
                     if (usedModel && read != null) {
-                        updated = ReprocessOverwritePolicy.applyFamily(updated, read, forcedFamily?.takeIf { ExtractionSchema.DEFAULT.family(it) != null })
-                        updated = ReprocessOverwritePolicy.applyTitle(updated, read)
+                        // A staged reading's first stage decides no type or name (the second stage does, from what this one read), so it
+                        // leaves an earlier reading's type and title in place ("provisional").
+                        updated = ReprocessOverwritePolicy.applyFamily(
+                            updated, read, forcedFamily?.takeIf { ExtractionSchema.DEFAULT.family(it) != null }, provisional = staged,
+                        )
+                        updated = ReprocessOverwritePolicy.applyTitle(updated, read, provisional = staged)
                         if (!staged) updated = ReprocessOverwritePolicy.applySummary(updated, read)
                     }
                     documentDao.update(
@@ -784,6 +788,9 @@ class DocumentProcessingPipeline @Inject constructor(
                     // The composed title, the summary and (for a profile that scores them here) the topics go through ReprocessOverwritePolicy:
                     // never a person's title, family or summary, never real words an older reading wrote.
                     var updated = documentMapper.toDomain(latest)
+                    // The type is decided here, from what the first stage read: the model's category replaces the stored one only while the
+                    // model chose it (a category a person gave stays theirs), and the title gets the type and the specific name with it.
+                    updated = ReprocessOverwritePolicy.applyFamily(updated, read)
                     updated = ReprocessOverwritePolicy.applyTitle(updated, read)
                     updated = ReprocessOverwritePolicy.applySummary(updated, read)
                     updated = ReprocessOverwritePolicy.applyActions(updated, read)
@@ -791,6 +798,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     documentDao.update(
                         documentMapper.toEntity(
                             updated.copy(
+                                documentType = ExtractionSchema.DEFAULT.legacyType(updated.extractionType) ?: updated.documentType,
                                 language = read.language.ifBlank { null } ?: updated.language,
                                 suggestedQuestions = read.suggestedQuestions.take(MAX_SUGGESTED_QUESTIONS).ifEmpty { updated.suggestedQuestions },
                                 // A summary was settled: nothing is owed. Without one, settleFailedAttempt below counts the attempt.

@@ -10,8 +10,17 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.InterpreterFactory
 import com.postsaimanager.core.domain.extraction.v2.ModelDocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.QuestionnaireInterpreter
+import com.postsaimanager.core.domain.extraction.v2.SlotKey
 import com.postsaimanager.core.domain.extraction.v2.SlotKind
+import com.postsaimanager.core.domain.extraction.v2.Slots
 import javax.inject.Inject
+
+/**
+ * A date or an amount that is not in the universal core ([Slots.CORE]): an appointment, a fee, a previous amount, the end of a contract ...
+ * Some kinds of document have one and most do not, and the kind is not known while it is asked, so "none" must be an answer.
+ */
+private fun SlotKey.isOptionalValue(): Boolean =
+    this !in Slots.CORE && (kind == SlotKind.AMOUNT || kind == SlotKind.DATE || kind == SlotKind.DEADLINE)
 
 /** How a model reads a letter. Every strategy produces the same `RawInterpretation`; the rest of the pipeline is unchanged. */
 enum class InterpreterStrategy {
@@ -105,16 +114,21 @@ object ModelProfiles {
             // type. The 0.8B model's family scores are close together, so a wider margin would hide types that are right. In-sample, on 13
             // letters, and the recordings hold only the nine families before the appointment and message families: a starting point.
             familyMinMargin = 0.05,
+            // The category is read against the same kind of baseline as everything else: a made-up kind of document scored in the same batch,
+            // and a category must beat it by this margin, else the document is the neutral "Document". 0.0 is the unfitted starting value; the
+            // recordings hold no baseline, so the replay scripts it as "not scored" and decides as before.
+            categoryBaselineMargin = 0.0,
             // "None of these" is an answer for every party question (sender, addressee, the person a letter is about, the contact person, the
-            // care-of party) and for every reference question (a reference, a customer, invoice, contract, policy, case or tax number ...), asked
-            // of every document whatever its type: the best candidate is taken only when it beats a made-up name or reference asked the same way
-            // by this margin. 0.0 is the unfitted starting value for ALL of them (a value that does not even beat a value that is nowhere in the
+            // care-of party), for every reference question (a reference, a customer, invoice, contract, policy, case or tax number ...) and for
+            // every date or amount beyond the core (an appointment, a fee, a previous amount ...), asked of every document whatever its type:
+            // the best candidate is taken only when it beats a made-up name, reference, date or amount asked the same way by this margin.
+            // 0.0 is the unfitted starting value for ALL of them (a value that does not even beat a value that is nowhere in the
             // letter is not there); it needs the baseline scores of a device recording to be fitted (the 16 recordings hold none, so the replay
             // scripts them as "not scored" and is unchanged).
             baselineMargins = (
                 listOf(
                     QuestionNames.SENDER, QuestionNames.ADDRESSEE, QuestionNames.SUBJECT_PERSON, QuestionNames.CONTACT, QuestionNames.CARE_OF,
-                ) + ExtractionSchema.DEFAULT.allSlots.filter { it.kind == SlotKind.REFERENCE || it.kind == SlotKind.REFERENCE_LIST }
+                ) + ExtractionSchema.DEFAULT.allSlots.filter { it.kind == SlotKind.REFERENCE || it.kind == SlotKind.REFERENCE_LIST || it.isOptionalValue() }
                     .map { QuestionNames.slot(it.json) }
                 ).associateWith { 0.0 },
             // The meaning of a date or an amount ("what does this date mean?") is read against the same kind of baseline; every margin is the
@@ -131,10 +145,15 @@ object ModelProfiles {
             // plain joint assignment has no number to fit; every variant with a tuned weight or a calibration did no better
             // held out (the date-order penalty and the net + VAT = gross bonus tuned to nothing or hurt one letter).
             decoder = DecoderSpec(DecoderKind.JOINT),
-            // The reference numbers every family is asked for but few documents have: a contract number on an invoice is none. The model must
-            // lean Yes (optionalThreshold, 0.0) unless the family has the slot as its own; the value is shown with its printed label, and the
-            // question is never widened to the whole letter.
-            optionalUnlessOwn = setOf("invoice_no", "contract_no", "policy_no", "case_no", "tax_no").map { QuestionNames.slot(it) }.toSet(),
+            // The reference numbers every document is asked for but few have: a contract number on an invoice is none. The model must lean Yes
+            // (optionalThreshold, 0.0); the value is shown with its printed label, and the question is never widened to the whole letter. The
+            // type is decided last, so no number is "the family's own" while they are asked: an invoice number is optional too. On the 16
+            // recorded letters that drops five invoice, case and tax numbers the model itself scored below 0 (the same registration number as
+            // both a case and a tax number among them) and keeps every other value (DecoderGoldenTest).
+            optionalUnlessOwn = (
+                setOf("invoice_no", "contract_no", "policy_no", "case_no", "tax_no").map { QuestionNames.slot(it) } +
+                    ExtractionSchema.DEFAULT.allSlots.filter { it.isOptionalValue() }.map { QuestionNames.slot(it.json) }
+                ).toSet(),
             optionalThreshold = 0.0,
             // The action kinds, fitted on the device recordings of the 16 letters (ActionKindTuneTest, ActionKindReplayTest):
             // - the raw sign of a score decides nothing: the model leans Yes on most kinds (every kind but attend and sign-and-return scores

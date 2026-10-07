@@ -19,7 +19,7 @@ package com.postsaimanager.core.domain.extraction.v2
  */
 object ExtractorVersion {
     /** What a model-read document is stamped with today. */
-    const val CURRENT = "extraction-v2-15"
+    const val CURRENT = "extraction-v2-16"
 
     /**
      * The first version whose second stage picks the extras by what the family's hint says the reader needs (the "Key information") and
