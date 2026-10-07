@@ -72,7 +72,10 @@ internal class AgentToolCalls(
             }
             is ActionParse.Parsed -> when (parsed.action) {
                 // Answered at once: it changes nothing and shares nothing, so there is no card.
-                AgentAction.GetDateTime -> mapOf("action" to name, "result" to ActionDateTime.forModel(now()))
+                AgentAction.GetDateTime -> {
+                    log("run_intent \"$name\" answered with the clock")
+                    mapOf("action" to name, "result" to ActionDateTime.forModel(now()))
+                }
                 else -> {
                     log("run_intent \"$name\" proposed")
                     context.propose(name, parameters)
@@ -98,7 +101,11 @@ internal class AgentToolCalls(
         const val LOAD_SKILL = "load_skill"
         const val RUN_INTENT = "run_intent"
 
-        /** What the model is told after a proposal: the user decides, so it must not claim the action is done. */
-        const val PROPOSED = "proposed to the user, waiting for their confirmation on the card"
+        /**
+         * What the model is told after a proposal: the truth, so that its one-sentence summary says the action was prepared for
+         * the user's confirmation and not that it was done (the user may still cancel).
+         */
+        const val PROPOSED = "Shown to the user as a card to confirm; nothing has been done yet. " +
+            "It is only prepared and waits for the user's confirmation."
     }
 }

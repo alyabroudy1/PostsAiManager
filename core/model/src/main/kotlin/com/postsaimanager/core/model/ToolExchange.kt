@@ -13,8 +13,8 @@ import kotlinx.serialization.json.Json
  *
  * @param name the tool, as the model called it (`load_skill`, `run_intent`).
  * @param argumentsJson the arguments as a JSON object, keyed by the tool's own parameter names.
- * @param resultJson what the tool answered, as a JSON object of strings (for `run_intent` the status the model read: "proposed
- *   to the user, waiting for their confirmation on the card").
+ * @param resultJson what the tool answered, as a JSON object of strings (for `run_intent` the status the model read: "Shown
+ *   to the user as a card to confirm; nothing has been done yet").
  */
 @Serializable
 data class ToolExchange(

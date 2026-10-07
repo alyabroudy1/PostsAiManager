@@ -24,12 +24,11 @@ class BundledSkillsTest {
     }
 
     @Test
-    fun `the six skills are there, each a folder with a SKILL md`() {
+    fun `the four skills are there, each a folder with a SKILL md, and no two of them overlap`() {
+        // One skill per action: a small model choosing between near-duplicates picked the wrong one.
         assertThat(folders.map { it.name }).containsExactly(
-            "add-deadline-to-calendar",
             "create-calendar-event",
             "draft-reply-to-letter",
-            "remind-me-before-deadline",
             "schedule-reminder",
             "send-email",
         )
@@ -90,8 +89,21 @@ class BundledSkillsTest {
     }
 
     @Test
+    fun `the date skills make the model read the clock first for a relative time`() {
+        listOf("schedule-reminder", "create-calendar-event").map { parse(File(root, it)) }.forEach { skill ->
+            assertThat(skill.instructions).contains("MUST first call")
+            assertThat(skill.instructions).contains("get_current_date_and_time")
+            assertThat(skill.instructions).contains("Never guess today's date")
+        }
+        // The merged reminder skill covers both ways of naming a time, and asks for one short line, not the letter's words.
+        val reminder = parse(File(root, "schedule-reminder")).instructions
+        assertThat(reminder).contains("before the deadline")
+        assertThat(reminder).contains("one short line")
+    }
+
+    @Test
     fun `the letter skills tell the model to ask rather than invent, and to write in the letter's language`() {
-        val letterSkills = listOf("draft-reply-to-letter", "add-deadline-to-calendar", "remind-me-before-deadline").map { name -> parse(File(root, name)) }
+        val letterSkills = listOf("draft-reply-to-letter", "create-calendar-event", "schedule-reminder").map { name -> parse(File(root, name)) }
 
         letterSkills.forEach { assertThat(it.instructions).contains("Never invent") }
         assertThat(letterSkills[0].instructions).contains("same language as the letter")

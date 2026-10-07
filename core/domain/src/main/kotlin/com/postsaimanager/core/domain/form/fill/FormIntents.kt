@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.form.fill
 
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.ai.ChatActivityGate
 import com.postsaimanager.core.domain.ai.EmbeddingService
 import com.postsaimanager.core.domain.ai.VectorMath
 
@@ -33,13 +34,17 @@ class FillRequestDetector(
     private val model: FormModel,
     private val embedder: EmbeddingService,
     private val profile: FormFillProfile = FormFillProfile(),
+    private val chatActivity: ChatActivityGate = ChatActivityGate.Idle,
 ) {
 
     private var exampleVectors: List<FloatArray>? = null
 
     suspend fun asksForFill(message: String, documentIsForm: Boolean): Boolean {
         if (message.isBlank()) return false
-        if (!documentIsForm && !closeToFillRequest(message)) return false
+        // On a document that is not a form the model is only a second opinion on a message that came close. While the chat model is
+        // in use that opinion is not worth it: asking replaces the chat model with this one, and the answer to the message then has
+        // to reload it and read the whole conversation again (tens of seconds on a phone CPU). The card still starts the agent.
+        if (!documentIsForm && (chatActivity.isChatActive() || !closeToFillRequest(message))) return false
         val statements = listOf("Does the user ask for help filling in this form? Answer:")
         val scores = (model.score(FormIntents.FILL_REQUEST_SYSTEM, "USER'S MESSAGE: $message", statements) as? PamResult.Success)?.data
         return scores?.firstOrNull()?.let { it > profile.fillRequestThreshold } ?: false

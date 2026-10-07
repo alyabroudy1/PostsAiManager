@@ -11,6 +11,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.data.database.dao.DocumentDao
+import com.postsaimanager.core.domain.ai.ChatActivityGate
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.EnrichmentTicket
@@ -36,6 +37,7 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val documentProcessor: DocumentProcessor,
     private val documentDao: DocumentDao,
+    private val chatActivity: ChatActivityGate,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -46,6 +48,10 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
         val scansInFlight = documentDao.getByStatus(DocumentStatus.QUEUED.name).isNotEmpty() ||
             documentDao.getByStatus(DocumentStatus.PROCESSING.name).isNotEmpty()
         if (scansInFlight) return Result.retry()
+
+        // Quiet work must not replace the chat model between two chat messages (the next message would reload it and read the whole
+        // conversation again): wait for the chat to be idle, and come back later when it is not. Nothing is dropped.
+        if (!chatActivity.awaitIdle()) return Result.retry()
 
         // The same quiet background queue also carries "who is this letter for or about?" (see [peopleRequest]).
         if (inputData.getBoolean(KEY_PEOPLE_CHECK, false)) {

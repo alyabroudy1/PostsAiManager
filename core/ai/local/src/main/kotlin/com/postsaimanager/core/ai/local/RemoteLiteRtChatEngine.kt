@@ -45,7 +45,10 @@ import javax.inject.Singleton
  *   service whether the model is really resident ([ModelLoadOps.isActuallyLoaded]) and reloads when it is not, and whether a
  *   session is primed ([isChatSessionPrimed]) is the service's answer, not a field here.
  * - **Background reading waits for a chat answer.** A reply streams under the shared mutex, and on the service's single
- *   inference thread, so a llama.cpp read queued behind it starts when the answer is over.
+ *   inference thread, so a llama.cpp read queued behind it starts when the answer is over. Between two messages the model sits
+ *   idle, and a quiet job that took it over then would cost the next message a reload and a full re-read of the conversation
+ *   (tens of seconds on a phone CPU), so the chat also counts as active for a while after its last use
+ *   ([ChatActivityTracker], read through [InferenceChatActivityGate]); quiet jobs wait for it to end, and are run again, not dropped.
  */
 @Singleton
 class RemoteLiteRtChatEngine @Inject constructor(
@@ -170,6 +173,7 @@ class RemoteLiteRtChatEngine @Inject constructor(
         systemPrompt: String,
         history: List<AiChatMessage>,
     ): Boolean {
+        connection.chatActivity.touch()
         if (isChatSessionPrimed(conversationId)) return false
         // Held across the call: a read must not slip in and replace the model between opening the session and the reply.
         return connection.engineMutex.withLock {
@@ -201,6 +205,7 @@ class RemoteLiteRtChatEngine @Inject constructor(
         connection.engineMutex.serialised(replyFlow(userText, request))
 
     private fun replyFlow(userText: String, request: AiRequest): Flow<String> = callbackFlow {
+        connection.chatActivity.touch()
         val remote = withContext(ioDispatcher) { connection.connect() } ?: run {
             close(IllegalStateException("The AI engine is not running."))
             return@callbackFlow
@@ -238,6 +243,8 @@ class RemoteLiteRtChatEngine @Inject constructor(
             }
 
             override fun onComplete() {
+                // The idle window runs from the end of the answer: the person reads it before the next message.
+                connection.chatActivity.touch()
                 logTiming(startedNanos, chunks)
                 close()
             }

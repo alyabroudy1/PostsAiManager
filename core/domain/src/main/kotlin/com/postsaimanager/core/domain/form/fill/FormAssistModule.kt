@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.form.fill
 
 import com.postsaimanager.core.domain.agent.AgentModel
+import com.postsaimanager.core.domain.ai.ChatActivityGate
 import com.postsaimanager.core.domain.agent.AgentTrace
 import com.postsaimanager.core.domain.agent.EngineAgentModel
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
@@ -64,8 +65,12 @@ abstract class FormAssistModule {
         ): UnderstandFormUseCase = UnderstandFormUseCase(session, framing, embedder, trace = trace)
 
         @Provides
-        fun provideFillRequestDetector(model: FormModel, embedder: EmbeddingService, profile: FormFillProfile): FillRequestDetector =
-            FillRequestDetector(model, embedder, profile)
+        fun provideFillRequestDetector(
+            model: FormModel,
+            embedder: EmbeddingService,
+            profile: FormFillProfile,
+            chatActivity: ChatActivityGate,
+        ): FillRequestDetector = FillRequestDetector(model, embedder, profile, chatActivity)
 
         @Provides
         @Singleton

@@ -26,8 +26,11 @@ Everything below exists and is tested WITHOUT the LiteRT-LM library. Phase 2b ad
 
 ## Skills shipped (`app/src/main/assets/skills`)
 
-`send-email`, `create-calendar-event`, `schedule-reminder` (Gallery style, from its intents) and our letter skills
-`draft-reply-to-letter`, `add-deadline-to-calendar`, `remind-me-before-deadline`. The skill folder name equals its `name`.
+`send-email`, `create-calendar-event`, `schedule-reminder` (Gallery style, from its intents) and our letter skill
+`draft-reply-to-letter`. One skill per action: `schedule-reminder` also covers "before this letter's deadline" and
+`create-calendar-event` also covers "the letter's deadline or appointment" (the former `remind-me-before-deadline` and
+`add-deadline-to-calendar` were merged into them, because a small model chose the wrong one of two near-duplicates). A relative
+time always starts with `run_intent get_current_date_and_time`. The skill folder name equals its `name`.
 `BundledSkillsTest` checks that every skill parses and that every intent and parameter it names is one the parser reads.
 
 ## Actions and the `run_intent` contract

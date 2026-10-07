@@ -408,7 +408,10 @@ class LiteRtChatEngine internal constructor(
                 initialMessages = LiteRtMessages.of(committed, withTools = false),
                 tools = kit?.providers.orEmpty(),
             )
+            conversationSampling = key
+            return
         }
+        if (committed.any { it.tools.isNotEmpty() }) Log.i(TAG, "the history with its tool calls was accepted (replayed as tool-call turns)")
         conversationSampling = key
     }
 
