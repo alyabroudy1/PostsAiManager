@@ -168,7 +168,8 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
             composable(
                 route = "profile/{${ProfileDetailViewModel.ARG_PROFILE_ID}}" +
                     "?${ProfileDetailViewModel.ARG_CONTACT_ID}={${ProfileDetailViewModel.ARG_CONTACT_ID}}" +
-                    "&${ProfileDetailViewModel.ARG_ROLE}={${ProfileDetailViewModel.ARG_ROLE}}",
+                    "&${ProfileDetailViewModel.ARG_ROLE}={${ProfileDetailViewModel.ARG_ROLE}}" +
+                    "&${ProfileDetailViewModel.ARG_CASE_ID}={${ProfileDetailViewModel.ARG_CASE_ID}}",
                 arguments = listOf(
                     navArgument(ProfileDetailViewModel.ARG_PROFILE_ID) { type = NavType.StringType },
                     // Optional: the contact to scroll to (set from a letter's contact chip).
@@ -181,9 +182,18 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
                         type = NavType.StringType
                         defaultValue = ""
                     },
+                    // Optional: the matter to open expanded on the timeline (set from a letter's "Part of" row).
+                    navArgument(ProfileDetailViewModel.ARG_CASE_ID) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
                 ),
             ) {
-                ProfileDetailScreen(onNavigateBack = { navController.popBackStack() })
+                ProfileDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    // A timeline event opens its letter.
+                    onOpenDocument = { id -> navController.navigate("document/$id") },
+                )
             }
             composable(TopLevelDestination.SETTINGS.route) {
                 SettingsScreen(
@@ -244,6 +254,11 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
                     onContactClick = { organisationId, contactId ->
                         navController.navigate("profile/$organisationId?${ProfileDetailViewModel.ARG_CONTACT_ID}=$contactId")
                     },
+                    // The "Part of" row: the matter on the person's (or the sender's) timeline.
+                    onCaseClick = { profileId, caseId ->
+                        navController.navigate("profile/$profileId?${ProfileDetailViewModel.ARG_CASE_ID}=$caseId")
+                    },
+                    onOpenDocument = { id -> navController.navigate("document/$id") },
                 )
             }
 

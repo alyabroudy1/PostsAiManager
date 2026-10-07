@@ -27,6 +27,11 @@ import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.model.TextBounds
 import com.postsaimanager.core.model.ValueSource
+import com.postsaimanager.core.domain.timeline.ObserveCaseForDocumentUseCase
+import com.postsaimanager.core.model.Case
+import com.postsaimanager.core.model.CaseStatus
+import com.postsaimanager.core.model.ProfileEvent
+import com.postsaimanager.core.testing.FakeEventRepository
 import com.postsaimanager.core.testing.FakeDocumentChunkRepository
 import com.postsaimanager.core.testing.FakeDocumentProcessor
 import com.postsaimanager.core.testing.FakeDocumentRepository
@@ -82,9 +87,43 @@ class DocumentDetailViewModelTest {
         installedModels = installedModels,
         profileRepository = profileRepository,
         loadLetterContacts = com.postsaimanager.core.testing.letterContactsFor(profileRepository, contactRepository),
+        observeCase = ObserveCaseForDocumentUseCase(eventRepository),
     )
 
     private val contactRepository = com.postsaimanager.core.testing.FakeContactRepository()
+    private val eventRepository = FakeEventRepository()
+
+    private fun letterEvent(id: String, doc: String, kind: String, day: Long, title: String = "T-$id") = ProfileEvent(
+        id = id, documentId = doc, kind = kind, eventDate = day * 86_400_000L, recordedAt = day, title = title,
+        personProfileIds = listOf("maria"), organisationProfileId = "jc", caseId = "k1",
+    )
+
+    @Test
+    fun `the Part of row carries the matter, its events newest first and the profile to open it on`() = runTest {
+        eventRepository.seedCases(Case("k1", "jc", "Bürgergeld", status = CaseStatus.REJECTED, createdAt = 1))
+        eventRepository.seedEvents(letterEvent("e1", "d1", "approval", 10), letterEvent("e2", "d2", "rejection", 20))
+
+        viewModel("d1").caseRow.test {
+            val row = expectMostRecentItem()!!
+            assertThat(row.title).isEqualTo("Bürgergeld")
+            assertThat(row.status).isEqualTo(CaseStatus.REJECTED)
+            assertThat(row.events.map { it.id }).containsExactly("e2", "e1").inOrder()
+            assertThat(row.openProfileId).isEqualTo("maria")
+            assertThat(row.currentDocumentId).isEqualTo("d1")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a letter alone in an unrenamed matter has no Part of row`() = runTest {
+        eventRepository.seedCases(Case("k1", "jc", "Info", createdAt = 1))
+        eventRepository.seedEvents(letterEvent("e1", "d1", "information", 10, title = "Info"))
+
+        viewModel("d1").caseRow.test {
+            assertThat(expectMostRecentItem()).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 
     private val installedModels = object : InstalledModelsRepository {
         val models = MutableStateFlow<List<InstalledModelSummary>>(emptyList())

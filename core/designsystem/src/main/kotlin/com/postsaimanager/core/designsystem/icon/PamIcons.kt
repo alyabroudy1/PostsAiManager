@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
@@ -67,6 +69,8 @@ object PamIcons {
     val More = Icons.Filled.MoreVert
     val Copy = Icons.Filled.ContentCopy
     val Send = Icons.AutoMirrored.Filled.Send
+    val ExpandMore = Icons.Filled.KeyboardArrowDown
+    val ExpandLess = Icons.Filled.KeyboardArrowUp
 
     // Features
     val Camera = Icons.Filled.CameraAlt

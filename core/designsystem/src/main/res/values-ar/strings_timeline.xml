@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- الخط الزمني للملف الشخصي وكتلة «جزء من» في الخطاب. -->
+    <string name="timeline_title">الخط الزمني</string>
+    <string name="timeline_other">أخرى</string>
+    <string name="timeline_empty">لا شيء في الخط الزمني بعد. تظهر الخطابات هنا حسب التاريخ بعد قراءتها.</string>
+    <plurals name="timeline_letters">
+        <item quantity="zero">%d خطاب</item>
+        <item quantity="one">خطاب واحد</item>
+        <item quantity="two">خطابان</item>
+        <item quantity="few">%d خطابات</item>
+        <item quantity="many">%d خطابًا</item>
+        <item quantity="other">%d خطاب</item>
+    </plurals>
+    <string name="timeline_latest">%1$s · %2$s</string>
+    <string name="timeline_case_from">من %1$s</string>
+    <string name="timeline_case_for">إلى %1$s</string>
+    <string name="timeline_status_open">مفتوح</string>
+    <string name="timeline_status_approved">تمت الموافقة</string>
+    <string name="timeline_status_rejected">مرفوض</string>
+    <string name="timeline_status_closed">مغلق</string>
+    <string name="timeline_status_description">الحالة: %1$s</string>
+    <string name="timeline_case_menu">خيارات هذه القضية</string>
+    <string name="timeline_rename">إعادة تسمية</string>
+    <string name="timeline_rename_title">إعادة تسمية هذه القضية</string>
+    <string name="timeline_rename_label">الاسم</string>
+    <string name="timeline_rename_save">حفظ</string>
+    <string name="timeline_rename_cancel">إلغاء</string>
+    <string name="timeline_show_all">عرض الكل (%1$d)</string>
+    <string name="timeline_show_less">عرض أقل</string>
+    <string name="timeline_expand">عرض الأحداث</string>
+    <string name="timeline_collapse">إخفاء الأحداث</string>
+    <string name="timeline_open_letter">فتح الخطاب</string>
+    <string name="timeline_source_letter">خطاب</string>
+    <string name="timeline_source_action">أجريته في التطبيق</string>
+    <string name="timeline_source_system">دوّنه التطبيق</string>
+    <string name="timeline_source_user">كتبته أنت</string>
+    <string name="timeline_part_of">جزء من: %1$s</string>
+    <string name="timeline_part_of_open">عرض هذه القضية في الخط الزمني</string>
+    <string name="timeline_this_letter">هذا الخطاب</string>
+    <string name="timeline_history_show">عرض الخطابات السابقة واللاحقة</string>
+    <string name="timeline_history_hide">إخفاء الخطابات السابقة واللاحقة</string>
+</resources>

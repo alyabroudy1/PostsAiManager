@@ -82,6 +82,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.postsaimanager.core.common.extensions.toRelativeTime
+import com.postsaimanager.core.designsystem.component.DocumentCaseRow
+import com.postsaimanager.core.designsystem.component.DocumentCaseUi
+import com.postsaimanager.core.domain.timeline.EventKinds
 import com.postsaimanager.core.designsystem.component.FriendlyDate
 import com.postsaimanager.core.designsystem.component.PagePreviewDialog
 import com.postsaimanager.core.designsystem.component.PamErrorState
@@ -131,6 +134,10 @@ fun DocumentDetailScreen(
     onInstallModel: () -> Unit = {},
     /** The letter's contact chip: opens the sender organisation's page at that contact (organisation id, contact id). */
     onContactClick: (organisationId: String, contactId: String) -> Unit = { _, _ -> },
+    /** The "Part of" row: opens the matter on a profile's timeline (profile id, case id). */
+    onCaseClick: (profileId: String, caseId: String) -> Unit = { _, _ -> },
+    /** Another letter of the matter, from the "Part of" row. */
+    onOpenDocument: (documentId: String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: DocumentDetailViewModel = hiltViewModel(),
     notesViewModel: DocumentNotesViewModel = hiltViewModel(),
@@ -138,6 +145,7 @@ fun DocumentDetailScreen(
     val notes by notesViewModel.notes.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val letterContacts by viewModel.letterContacts.collectAsStateWithLifecycle()
+    val caseRow by viewModel.caseRow.collectAsStateWithLifecycle()
     val pagesContext by viewModel.pagesContext.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val processingState by viewModel.processingProgress.collectAsStateWithLifecycle()
@@ -298,6 +306,9 @@ fun DocumentDetailScreen(
                     pagesContext = pagesContext,
                     letterContacts = letterContacts,
                     onContactClick = onContactClick,
+                    caseRow = caseRow,
+                    onCaseClick = onCaseClick,
+                    onOpenDocument = onOpenDocument,
                     onInstallModel = onInstallModel,
                     processingState = processingState,
                     summaryComing = summaryComing,
@@ -377,6 +388,9 @@ private fun DocumentDetailContent(
     pagesContext: PagesContext,
     letterContacts: LetterContacts,
     onContactClick: (organisationId: String, contactId: String) -> Unit,
+    caseRow: DocumentCaseUi?,
+    onCaseClick: (profileId: String, caseId: String) -> Unit,
+    onOpenDocument: (documentId: String) -> Unit,
     onInstallModel: () -> Unit,
     processingState: ProcessingState,
     /** The reading's second stage (summary, extras) is still being written: the summary card says so. */
@@ -460,6 +474,19 @@ private fun DocumentDetailContent(
                     )
                 }
             }
+        }
+
+        // "Part of: <matter>": the letter's place in its matter, on every tab.
+        if (caseRow != null) {
+            val language = LocalConfiguration.current.locales[0]?.language
+            val kindLabel = remember(language) { { id: String -> EventKinds.DEFAULT.byId(id).label(language) } }
+            DocumentCaseRow(
+                ui = caseRow,
+                kindLabel = kindLabel,
+                onOpenCase = onCaseClick,
+                onOpenDocument = onOpenDocument,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
         }
 
         TabRow(selectedTabIndex = selectedTab.ordinal) {
