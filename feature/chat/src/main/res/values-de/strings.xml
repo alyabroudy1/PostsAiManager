@@ -168,4 +168,11 @@
     <string name="chat_new_chat_confirm">Löschen und neu beginnen</string>
     <string name="chat_new_chat_cancel">Abbrechen</string>
     <string name="chat_error_new_chat_failed">Der Chat konnte nicht geleert werden. Bitte versuchen Sie es erneut.</string>
+
+    <!-- Notizen des Assistenten zu bestätigten Aktionen (Dokumentgedächtnis). Werden so gespeichert, wie sie geschrieben wurden. -->
+    <string name="note_action_date_time">%1$s, %2$s</string>
+    <string name="note_action_reminder">Erinnerung gestellt für %1$s: %2$s</string>
+    <string name="note_action_calendar">Kalendertermin angelegt für %1$s: %2$s</string>
+    <string name="note_action_email">E-Mail an %1$s am %2$s geöffnet: %3$s</string>
+    <string name="note_action_email_no_subject">E-Mail an %1$s am %2$s geöffnet</string>
 </resources>

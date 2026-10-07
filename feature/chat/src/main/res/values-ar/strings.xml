@@ -200,4 +200,11 @@
     <string name="chat_new_chat_confirm">حذف وبدء جديدة</string>
     <string name="chat_new_chat_cancel">إلغاء</string>
     <string name="chat_error_new_chat_failed">تعذّر مسح المحادثة. حاول مرة أخرى.</string>
+
+    <!-- ملاحظات المساعد عن الإجراءات المؤكَّدة (ذاكرة المستند). تُحفظ كما كُتبت. -->
+    <string name="note_action_date_time">%1$s، %2$s</string>
+    <string name="note_action_reminder">تم ضبط تذكير في %1$s: %2$s</string>
+    <string name="note_action_calendar">تمت إضافة حدث إلى التقويم في %1$s: %2$s</string>
+    <string name="note_action_email">تم فتح رسالة بريد إلكتروني إلى %1$s في %2$s: %3$s</string>
+    <string name="note_action_email_no_subject">تم فتح رسالة بريد إلكتروني إلى %1$s في %2$s</string>
 </resources>

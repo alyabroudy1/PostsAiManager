@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
@@ -77,6 +79,8 @@ object PamIcons {
     val Person = Icons.Filled.Person
     val Favorite = Icons.Filled.Favorite
     val FavoriteOutlined = Icons.Filled.FavoriteBorder
+    val Pin = Icons.Filled.PushPin
+    val PinOutlined = Icons.Outlined.PushPin
 
     // States
     val Error = Icons.Filled.Error

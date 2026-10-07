@@ -171,4 +171,11 @@
     <string name="chat_new_chat_confirm">Delete and start new</string>
     <string name="chat_new_chat_cancel">Cancel</string>
     <string name="chat_error_new_chat_failed">The chat could not be cleared. Please try again.</string>
+
+    <!-- The assistant's notes of confirmed actions (document memory). Stored as written, in the language of the moment. %1$s is a date and time such as "8 Oct 09:00". -->
+    <string name="note_action_date_time">%1$s %2$s</string>
+    <string name="note_action_reminder">Reminder set for %1$s: %2$s</string>
+    <string name="note_action_calendar">Calendar event added for %1$s: %2$s</string>
+    <string name="note_action_email">Email to %1$s opened on %2$s: %3$s</string>
+    <string name="note_action_email_no_subject">Email to %1$s opened on %2$s</string>
 </resources>

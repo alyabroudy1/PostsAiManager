@@ -208,6 +208,22 @@ internal object LlmChatModelHelper : LlmModelHelper {
             null
         }
 
+    override fun generateOnce(instance: LlmModelInstance, config: LlmModelConfig, system: String, prompt: String): String? =
+        try {
+            runCatching { instance.conversation.close() }
+            val conversation = newConversation(instance.engine, config, Contents.of(system), emptyList(), emptyList())
+            // Kept as the instance's conversation so that a clean-up closes whichever is open; closed again right after the answer.
+            instance.conversation = conversation
+            try {
+                conversation.sendMessage(Contents.of(prompt)).toString().takeIf { it.isNotBlank() }
+            } finally {
+                runCatching { conversation.close() }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "one-off generation failed: ${e.message}")
+            null
+        }
+
     override fun cleanUp(instance: LlmModelInstance, onDone: () -> Unit) {
         try {
             instance.conversation.close()

@@ -14,7 +14,10 @@ import com.postsaimanager.core.domain.skills.SaveActionCardStateUseCase
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.model.ToolExchange
+import com.postsaimanager.core.domain.memory.ForgetActionNoteUseCase
+import com.postsaimanager.core.domain.memory.RecordActionNoteUseCase
 import com.postsaimanager.core.testing.FakeConversationRepository
+import com.postsaimanager.core.testing.FakeDocumentNoteRepository
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeProfileFactRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
@@ -68,7 +71,18 @@ class ActionCardsViewModelTest {
         ObserveToolActionsUseCase(engine),
         ObserveStoredActionCardsUseCase(conversations),
         SaveActionCardStateUseCase(conversations),
+        ActionNotes(RecordActionNoteUseCase(notes), ForgetActionNoteUseCase(notes), wording),
     )
+
+    /** The document memory the cards write to, and the words of its notes (dates as ISO text: the wording itself is tested on Android). */
+    private val notes = FakeDocumentNoteRepository()
+    private val wording = object : ActionNoteWording {
+        override fun reminder(at: LocalDateTime, text: String) = "Reminder set for $at: $text"
+        override fun calendarEvent(start: LocalDateTime, title: String) = "Calendar event for $start: $title"
+        override fun email(to: String, openedOn: java.time.LocalDate, subject: String) = "Email to $to opened on $openedOn: $subject"
+    }
+
+    private fun noteTexts() = notes.snapshot.map { it.text }
 
     /** The grounding of a real [ProposeActionUseCase] over an empty letter (a reminder in the past is flagged by the clock alone). */
     private fun realPropose() = ProposeActionUseCase(LoadGroundingSourcesUseCase(FakeDocumentRepository(), FakeProfileRepository(), FakeProfileFactRepository(), com.postsaimanager.core.testing.letterContactsFor()))
@@ -363,6 +377,76 @@ class ActionCardsViewModelTest {
         assertThat(restarted.cards.value.map { it.status }).containsExactly(ActionCardStatus.OPENED, ActionCardStatus.PENDING).inOrder()
         restarted.open(restarted.cards.value.last().id, now)
         coVerify(exactly = 2) { confirm(any(), match { it[ActionField.BODY] == "Changed" }, now) }
+    }
+
+    @Test
+    fun `an opened card writes one note of what happened, from the values the user confirmed`() {
+        val vm = viewModel()
+        vm.propose(email, emptyList(), now)
+        val id = vm.only().id
+        vm.changeField(id, ActionField.SUBJECT, "Edited")
+
+        vm.open(id, now)
+
+        assertThat(noteTexts()).containsExactly("Email to a@b.de opened on 2026-10-07: Edited")
+        val note = notes.snapshot.single()
+        assertThat(note.source).isEqualTo(com.postsaimanager.core.model.NoteSource.ACTION)
+        assertThat(note.sourceRef).isEqualTo(id)
+        assertThat(note.documentId).isEqualTo("d1")
+    }
+
+    @Test
+    fun `a reminder note carries the card's date and text`() {
+        val vm = viewModel()
+        vm.propose(AgentAction.ScheduleReminder(LocalDateTime.of(2026, 10, 8, 9, 0), "Send the documents", "d1"), emptyList(), now)
+
+        vm.open(vm.only().id, now)
+
+        assertThat(noteTexts()).containsExactly("Reminder set for 2026-10-08T09:00: Send the documents")
+    }
+
+    @Test
+    fun `a cancelled card writes nothing, and a card whose Open failed writes nothing`() {
+        val vm = viewModel()
+        vm.propose(email, emptyList(), now)
+        vm.cancel(vm.only().id)
+        assertThat(noteTexts()).isEmpty()
+
+        coEvery { confirm(any(), any(), any()) } returns ConfirmOutcome.Executed(ActionResult.Failed("no app"))
+        val failing = viewModel()
+        failing.propose(email, emptyList(), now)
+        failing.open(failing.only().id, now)
+
+        assertThat(noteTexts()).isEmpty()
+    }
+
+    @Test
+    fun `restoring a cancelled card and opening it writes the note once, and Do again adds a second note for the copy`() {
+        val vm = viewModel()
+        storeReply("send_email", emailCall.parametersJson)
+        val id = vm.only().id
+        vm.cancel(id)
+        vm.restore(id, now)
+        assertThat(noteTexts()).isEmpty()
+
+        vm.open(id, now)
+        vm.open(id, now)
+        assertThat(noteTexts()).hasSize(1)
+
+        vm.doAgain(id, now)
+        assertThat(noteTexts()).hasSize(1)
+        vm.open(vm.cards.value.last().id, now)
+        assertThat(notes.snapshot.map { it.sourceRef }).containsExactly(id, vm.cards.value.last().id)
+    }
+
+    @Test
+    fun `a card of no letter writes no note`() {
+        val vm = viewModel(documentId = null)
+        vm.propose(email, emptyList(), now, documentId = null)
+
+        vm.open(vm.only().id, now)
+
+        assertThat(noteTexts()).isEmpty()
     }
 
     @Test

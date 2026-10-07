@@ -92,6 +92,7 @@ import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.model.Document
+import com.postsaimanager.core.model.DocumentNote
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedFieldType
@@ -132,7 +133,9 @@ fun DocumentDetailScreen(
     onContactClick: (organisationId: String, contactId: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
     viewModel: DocumentDetailViewModel = hiltViewModel(),
+    notesViewModel: DocumentNotesViewModel = hiltViewModel(),
 ) {
+    val notes by notesViewModel.notes.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val letterContacts by viewModel.letterContacts.collectAsStateWithLifecycle()
     val pagesContext by viewModel.pagesContext.collectAsStateWithLifecycle()
@@ -323,6 +326,8 @@ fun DocumentDetailScreen(
                         finish = viewModel::onExternalLaunchFinished,
                     ),
                     onDelete = { viewModel.moveToTrash(onDeleted) },
+                    notes = notes,
+                    noteActions = notesViewModel.actions,
                 )
             }
         }
@@ -396,6 +401,9 @@ private fun DocumentDetailContent(
     onFillForm: (() -> Unit)?,
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
+    /** "What the assistant remembers": the document's notes and what the user may do with them (Extracted tab). */
+    notes: List<DocumentNote> = emptyList(),
+    noteActions: NoteActions = NoteActions(),
 ) {
     val context = LocalContext.current
     Column(modifier = Modifier.fillMaxSize()) {
@@ -499,6 +507,8 @@ private fun DocumentDetailContent(
                 onUpdateSummary = onUpdateSummary,
                 onShowOnPage = onShowOnPage,
                 onFillForm = onFillForm,
+                notes = notes,
+                noteActions = noteActions,
                 selfName = pagesContext.selfName,
                 letterContacts = letterContacts,
                 onContactClick = onContactClick,

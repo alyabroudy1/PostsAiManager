@@ -552,6 +552,23 @@ object PamMigrations {
         override fun migrate(db: SupportSQLiteDatabase) = HouseholdMigration.apply(db)
     }
 
+    /**
+     * v23 (document memory): the table `document_notes`, the durable notes of a document ("What the assistant remembers"), gone with
+     * their document. Additive and idempotent: the table and its index are created only when missing. 1..22 are untouched (22 is
+     * installed on phones).
+     */
+    val MIGRATION_22_23 = object : Migration(22, 23) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `document_notes` (`id` TEXT NOT NULL, `documentId` TEXT NOT NULL, `text` TEXT NOT NULL, " +
+                    "`source` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `pinned` INTEGER NOT NULL, " +
+                    "`sourceRef` TEXT, PRIMARY KEY(`id`), FOREIGN KEY(`documentId`) REFERENCES `documents`(`id`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_document_notes_documentId` ON `document_notes` (`documentId`)")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -574,5 +591,6 @@ object PamMigrations {
         MIGRATION_19_20,
         MIGRATION_20_21,
         MIGRATION_21_22,
+        MIGRATION_22_23,
     )
 }

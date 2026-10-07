@@ -73,6 +73,7 @@ import com.postsaimanager.core.domain.extraction.v2.FamilyPresentation
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.SectionKind
 import com.postsaimanager.core.model.Document
+import com.postsaimanager.core.model.DocumentNote
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.FieldAlternative
 import com.postsaimanager.core.model.SummarySource
@@ -148,6 +149,9 @@ internal fun ExtractedTab(
     onShowOnPage: (page: Int?, bbox: TextBounds?) -> Unit,
     /** "Help me fill it": opens the document chat with the form fill started. Offered as a card on a form only; null hides it. */
     onFillForm: (() -> Unit)? = null,
+    /** "What the assistant remembers": the document's durable notes and what the user may do with them. */
+    notes: List<DocumentNote> = emptyList(),
+    noteActions: NoteActions = NoteActions(),
     selfName: String? = null,
     /** The letter's contact and the organisation's current one: the "From" chip and what a "contact" action offers. */
     letterContacts: LetterContacts = LetterContacts(),
@@ -253,6 +257,8 @@ internal fun ExtractedTab(
                 if (essentials.subject != null || essentials.keyInfo.isNotEmpty()) {
                     item(key = "essentials-key") { KeyInfoCard(essentials.subject, essentials.keyInfo, rowActions) }
                 }
+
+                item(key = "memory") { DocumentMemoryCard(notes, noteActions) }
 
                 if (presentation.detailCount > 0) {
                     item(key = "all-details") {

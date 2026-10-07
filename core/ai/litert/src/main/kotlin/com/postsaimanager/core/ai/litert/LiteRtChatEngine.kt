@@ -558,6 +558,33 @@ class LiteRtChatEngine internal constructor(
 
     override suspend fun lastReplyToolExchanges(): List<ToolExchange> = if (replyUsedTools) toolKit?.exchanges().orEmpty() else emptyList()
 
+    /**
+     * The notes' generation: a conversation of its own over the resident model ([LlmModelHelper.generateOnce]), taken only when
+     * nothing else holds the model ([Mutex.tryLock]: a reply in flight is never queued behind or interrupted). The session's turns
+     * ([committed], [system], [sessionId]) are not touched; the native conversation is, so it is marked unbuilt and the next reply
+     * rebuilds it from those turns (the same path as after a discarded reply).
+     */
+    override suspend fun generateOnce(system: String, request: AiRequest): String? {
+        if (!mutex.tryLock()) return null
+        try {
+            val live = instance ?: return null
+            val config = loaded?.second ?: return null
+            val modelConfig = LlmModelConfig(
+                modelPath = loaded?.first.orEmpty(),
+                accelerator = live.accelerator,
+                maxTokens = config.contextTokens,
+                topK = request.topK,
+                topP = request.topP,
+                temperature = request.temperature,
+            )
+            val answer = withContext(Dispatchers.IO) { helper.generateOnce(live, modelConfig, system, request.prompt) }
+            conversationSampling = null
+            return answer
+        } finally {
+            mutex.unlock()
+        }
+    }
+
     override suspend fun commitChatReply(answer: String): Unit = mutex.withLock {
         // The model may have been replaced since the reply began (a document was read in between): nothing to record into.
         if (sessionId == null) return@withLock

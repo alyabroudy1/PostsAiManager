@@ -9,9 +9,11 @@ import com.postsaimanager.core.data.repository.DocumentRepositoryImpl
 import com.postsaimanager.core.data.repository.FormFillRepositoryImpl
 import com.postsaimanager.core.data.repository.PersonDataSourceImpl
 import com.postsaimanager.core.domain.repository.FormFillRepository
+import com.postsaimanager.core.data.repository.DocumentNoteRepositoryImpl
 import com.postsaimanager.core.data.repository.ProfileFactRepositoryImpl
 import com.postsaimanager.core.data.repository.ProfileRepositoryImpl
 import com.postsaimanager.core.domain.form.PersonDataSource
+import com.postsaimanager.core.domain.repository.DocumentNoteRepository
 import com.postsaimanager.core.domain.repository.ProfileFactRepository
 import com.postsaimanager.core.data.repository.TimelineRepositoryImpl
 import com.postsaimanager.core.data.repository.UserPreferencesRepositoryImpl
@@ -53,6 +55,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindProfileFactRepository(impl: ProfileFactRepositoryImpl): ProfileFactRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDocumentNoteRepository(impl: DocumentNoteRepositoryImpl): DocumentNoteRepository
 
     @Binds
     @Singleton
