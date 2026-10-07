@@ -120,6 +120,15 @@ interface ChatEngine {
      */
     suspend fun lastReplyToolExchanges(): List<ToolExchange> = emptyList()
 
+    /**
+     * One short answer to [request]'s `prompt` under [system], generated on the loaded model outside the chat: the open session's
+     * transcript, history and committed turns are not touched and nothing becomes history. Quiet background work (the notes written
+     * when a chat session ends): it never loads a model, and it is skipped (null) when no model is resident or another caller holds
+     * the model (a reply, a reading). A runtime that cannot do this, or a failed generation, answers null. A conversation the model
+     * had open natively may be rebuilt from the engine's own bookkeeping by the next reply; that costs a prefill, never content.
+     */
+    suspend fun generateOnce(system: String, request: AiRequest): String? = null
+
     /** Appends [answer] (thinking-stripped) to the open session's history. */
     suspend fun commitChatReply(answer: String)
 

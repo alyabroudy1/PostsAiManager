@@ -1,0 +1,85 @@
+package com.postsaimanager.core.domain.memory
+
+import com.google.common.truth.Truth.assertThat
+import org.junit.jupiter.api.Test
+
+class SessionNoteVerifierTest {
+
+    private val verifier = SessionNoteVerifier()
+    private val grounding = listOf("I already paid the invoice on 5 October", "I will call them on Monday")
+    private val card = "Amount 64,98 EUR\nDue date 15.10.2026\nSender Stadtwerke"
+
+    private fun verify(vararg notes: String, existing: List<String> = emptyList(), ground: List<String> = grounding) =
+        verifier.verify(notes.toList(), ground, card, existing)
+
+    @Test
+    fun `a note whose numbers are all in the user's words is kept as written`() {
+        assertThat(verify("The user paid the invoice on 5 Oct.")).containsExactly("The user paid the invoice on 5 Oct.")
+    }
+
+    @Test
+    fun `a number the user never said is dropped`() {
+        assertThat(verify("The user paid the invoice on 6 Oct.", "The user paid 120 euros.")).isEmpty()
+    }
+
+    @Test
+    fun `numbers are compared as numbers, leading zeros and Arabic-Indic digits included`() {
+        assertThat(verify("Paid on 05 Oct.")).hasSize(1)
+        assertThat(verify("تم الدفع في ٥ أكتوبر", ground = listOf("دفعت في 5 أكتوبر"))).hasSize(1)
+    }
+
+    @Test
+    fun `a number in a tool result of the session grounds a note`() {
+        val kept = verifier.verify(listOf("A reminder was set for 8 Oct."), grounding, card, emptyList())
+        assertThat(kept).isEmpty()
+
+        val withTool = verifier.verify(listOf("A reminder was set for 8 Oct."), grounding + """{"status":"scheduled","day":8}""", card, emptyList())
+        assertThat(withTool).hasSize(1)
+    }
+
+    @Test
+    fun `a note without numbers needs no number grounding`() {
+        assertThat(verify("The user will call the Jobcenter.")).hasSize(1)
+    }
+
+    @Test
+    fun `a duplicate of an existing note is dropped, whatever the case and punctuation`() {
+        assertThat(verify("the user already PAID the invoice on 5 oct", existing = listOf("The user already paid the invoice on 5 Oct."))).isEmpty()
+    }
+
+    @Test
+    fun `a note that an existing note already contains, or contains, is a duplicate`() {
+        assertThat(verify("The user will call on Monday.", existing = listOf("The user will call on Monday, after lunch."))).isEmpty()
+    }
+
+    @Test
+    fun `a note that only restates the document card is dropped`() {
+        assertThat(verify("Due date 15.10.2026", ground = grounding + "15.10.2026")).isEmpty()
+    }
+
+    @Test
+    fun `two equal notes in one answer keep the first`() {
+        assertThat(verify("The user will call them.", "The user will call them!")).hasSize(1)
+    }
+
+    @Test
+    fun `an empty note and an over-long note are dropped`() {
+        assertThat(verify("", "   ", "x".repeat(SessionNotesFormat.MAX_NOTE_CHARS + 1))).isEmpty()
+        assertThat(verify("y".repeat(SessionNotesFormat.MAX_NOTE_CHARS))).hasSize(1)
+    }
+
+    @Test
+    fun `at most three notes are kept`() {
+        val kept = verify("one fact", "two facts", "three facts", "four facts", "five facts")
+
+        assertThat(kept).containsExactly("one fact", "two facts", "three facts").inOrder()
+    }
+
+    @Test
+    fun `a document that already holds the most notes takes no more`() {
+        val existing = (1..SessionNoteVerifier.MAX_NOTES_PER_DOCUMENT).map { "existing $it" }
+
+        assertThat(verify("a new fact", existing = existing)).isEmpty()
+        assertThat(verify("a new fact", "another new fact", existing = existing.drop(1))).hasSize(1)
+    }
+}

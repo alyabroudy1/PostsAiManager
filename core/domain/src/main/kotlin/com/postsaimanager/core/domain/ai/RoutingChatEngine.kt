@@ -92,6 +92,8 @@ class RoutingChatEngine(
 
     override suspend fun lastReplyToolExchanges() = active().lastReplyToolExchanges()
 
+    override suspend fun generateOnce(system: String, request: AiRequest): String? = active().generateOnce(system, request)
+
     override suspend fun commitChatReply(answer: String) = active().commitChatReply(answer)
 
     override suspend fun discardPendingReply() = active().discardPendingReply()

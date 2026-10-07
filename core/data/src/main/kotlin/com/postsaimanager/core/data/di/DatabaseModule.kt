@@ -8,6 +8,7 @@ import com.postsaimanager.core.data.database.dao.ContactDao
 import com.postsaimanager.core.data.database.dao.ConversationDao
 import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.dao.DocumentDao
+import com.postsaimanager.core.data.database.dao.DocumentNoteDao
 import com.postsaimanager.core.data.database.dao.DocumentChunkDao
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.database.dao.FormFillDao
@@ -76,4 +77,7 @@ object DatabaseModule {
 
     @Provides
     fun provideContactDao(database: PamDatabase): ContactDao = database.contactDao()
+
+    @Provides
+    fun provideDocumentNoteDao(database: PamDatabase): DocumentNoteDao = database.documentNoteDao()
 }

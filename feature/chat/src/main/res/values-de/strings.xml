@@ -171,4 +171,10 @@
 
     <!-- The quiet line in the chat above the messages the assistant still reads -->
     <string name="chat_context_divider">Frühere Nachrichten — der Assistent merkt sich Notizen, nicht den ganzen Chat</string>
+    <!-- Notizen des Assistenten zu bestätigten Aktionen (Dokumentgedächtnis). Werden so gespeichert, wie sie geschrieben wurden. -->
+    <string name="note_action_date_time">%1$s, %2$s</string>
+    <string name="note_action_reminder">Erinnerung gestellt für %1$s: %2$s</string>
+    <string name="note_action_calendar">Kalendertermin angelegt für %1$s: %2$s</string>
+    <string name="note_action_email">E-Mail an %1$s am %2$s geöffnet: %3$s</string>
+    <string name="note_action_email_no_subject">E-Mail an %1$s am %2$s geöffnet</string>
 </resources>

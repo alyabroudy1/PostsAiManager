@@ -1,0 +1,79 @@
+package com.postsaimanager.core.domain.memory
+
+/**
+ * The shape of the session-end answer, and the one place that knows it: the question and the parser that reads the answer.
+ *
+ * ```
+ * The user already paid the invoice by bank transfer.
+ * The user will call the Jobcenter on Monday.
+ * ```
+ * Up to [MAX_NOTES] lines, each a short statement of at most [MAX_NOTE_CHARS] characters, or the single word [NONE]. The model words
+ * the notes in the language the user wrote in; code never interprets them, it only verifies them ([SessionNoteVerifier]). The LiteRT-LM
+ * conversation API offers no grammar, so the shape is asked for in words and read leniently (bullets and numbering are dropped); what
+ * does not fit the limits is dropped by the verifier, never trusted.
+ */
+object SessionNotesFormat {
+
+    const val MAX_NOTES = 3
+    const val MAX_NOTE_CHARS = 140
+
+    /** The answer when nothing from the conversation is worth keeping. */
+    const val NONE = "NONE"
+
+    /** The decode budget of the one generation: three lines of about 40 tokens. */
+    const val MAX_TOKENS = 160
+
+    /** How much of the conversation the question carries: the newest part, as the notes are about what was said last. */
+    const val MAX_TRANSCRIPT_CHARS = 3_000
+
+    /** A turn as the question shows it. */
+    data class Turn(val fromUser: Boolean, val text: String)
+
+    /** The standing instruction of the one generation. */
+    const val SYSTEM =
+        "You write short durable notes for a document assistant. You only report what the user said they did, decided or asked to be " +
+            "remembered. You never add facts, numbers or dates that are not in the user's own messages."
+
+    /**
+     * The question: the conversation (newest part, within [MAX_TRANSCRIPT_CHARS]), the notes already kept (so they are not repeated),
+     * and the instruction. The wording is the plan's: durable facts or decisions that matter for this document later.
+     */
+    fun prompt(turns: List<Turn>, existingNotes: List<String>): String = buildString {
+        append("CONVERSATION:\n")
+        append(transcript(turns))
+        append("\n\nNOTES ALREADY KEPT (do not repeat them):\n")
+        if (existingNotes.isEmpty()) append("- none\n") else existingNotes.forEach { append("- ").append(it).append('\n') }
+        append("\nQUESTION: List up to ").append(MAX_NOTES)
+        append(" durable facts or decisions from this conversation that matter for this document later (for example what the user said ")
+        append("they did or decided). One note per line, at most ").append(MAX_NOTE_CHARS).append(" characters each, in the language ")
+        append("the user wrote in. Answer ").append(NONE).append(" if nothing.")
+    }
+
+    private fun transcript(turns: List<Turn>): String {
+        val lines = turns.filter { it.text.isNotBlank() }.map { (if (it.fromUser) "User: " else "Assistant: ") + it.text.trim().replace('\n', ' ') }
+        val kept = ArrayList<String>()
+        var used = 0
+        for (line in lines.asReversed()) {
+            if (used + line.length + 1 > MAX_TRANSCRIPT_CHARS && kept.isNotEmpty()) break
+            kept += if (line.length > MAX_TRANSCRIPT_CHARS) line.take(MAX_TRANSCRIPT_CHARS) else line
+            used += line.length + 1
+        }
+        return kept.asReversed().joinToString("\n")
+    }
+
+    /** The candidate notes of an answer, in order; empty for [NONE] or nothing readable. At most twice [MAX_NOTES] are read (the verifier keeps [MAX_NOTES]). */
+    fun parse(answer: String): List<String> {
+        val text = answer.trim()
+        if (text.isEmpty() || NONE_ONLY.matches(text)) return emptyList()
+        return text.lines()
+            .map { line -> LEAD.replace(line.trim(), "").trim().trim('"', '“', '”').trim() }
+            .filter { it.isNotEmpty() && !NONE_ONLY.matches(it) }
+            .take(MAX_NOTES * 2)
+    }
+
+    /** "NONE" alone, in any case, with or without a closing full stop. */
+    private val NONE_ONLY = Regex("(?i)\\s*none\\s*[.!]?\\s*")
+
+    /** A list marker at the start of a line: "- ", "* ", "• ", "1. ", "2) ". */
+    private val LEAD = Regex("^(?:[-*•–]|\\d{1,2}[.)])\\s+")
+}

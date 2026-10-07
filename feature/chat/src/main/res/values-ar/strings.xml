@@ -203,4 +203,10 @@
 
     <!-- The quiet line in the chat above the messages the assistant still reads -->
     <string name="chat_context_divider">رسائل سابقة — يحتفظ المساعد بملاحظات، لا بالمحادثة كاملة</string>
+    <!-- ملاحظات المساعد عن الإجراءات المؤكَّدة (ذاكرة المستند). تُحفظ كما كُتبت. -->
+    <string name="note_action_date_time">%1$s، %2$s</string>
+    <string name="note_action_reminder">تم ضبط تذكير في %1$s: %2$s</string>
+    <string name="note_action_calendar">تمت إضافة حدث إلى التقويم في %1$s: %2$s</string>
+    <string name="note_action_email">تم فتح رسالة بريد إلكتروني إلى %1$s في %2$s: %3$s</string>
+    <string name="note_action_email_no_subject">تم فتح رسالة بريد إلكتروني إلى %1$s في %2$s</string>
 </resources>

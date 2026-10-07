@@ -1186,6 +1186,26 @@ class MigrationTest {
         }
     }
 
+    /** v22 gains the `document_notes` table (empty) and validates against the exported schema, with the notes' foreign key. Needs a device. */
+    @Test
+    fun migrate22To23_createsTheDocumentNotesTable() {
+        helper.createDatabase(TEST_DB, 22).apply {
+            execSQL(
+                "INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus, " +
+                    "isUserTitle, enrichmentAttempts, enrichmentPending) VALUES ('d', 'Letter', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL', 0, 0, 0)",
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 23, true, PamMigrations.MIGRATION_22_23)
+
+        db.execSQL("INSERT INTO document_notes (id, documentId, text, source, createdAt, updatedAt, pinned) VALUES ('n', 'd', 'a note', 'USER', 1, 1, 0)")
+        db.query("SELECT text, source, pinned FROM document_notes").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("a note", c.getString(0)); assertEquals("USER", c.getString(1)); assertEquals(0, c.getInt(2))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

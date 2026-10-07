@@ -106,6 +106,7 @@ class ActionCardsViewModel @Inject constructor(
     observeToolActions: ObserveToolActionsUseCase,
     observeStoredCards: ObserveStoredActionCardsUseCase,
     private val saveCardState: SaveActionCardStateUseCase,
+    private val actionNotes: ActionNotes,
 ) : ViewModel() {
 
     private val documentId: String? = savedStateHandle["documentId"]
@@ -195,6 +196,7 @@ class ActionCardsViewModel @Inject constructor(
                         }
                     }
                     persist(id)
+                    if (outcome.result is ActionResult.Succeeded) syncNote(id, now)
                 }
             }
         }
@@ -205,6 +207,7 @@ class ActionCardsViewModel @Inject constructor(
             if (it.status == ActionCardStatus.PENDING) it.copy(status = ActionCardStatus.CANCELLED, editing = false, openFailed = false) else it
         }
         persist(id)
+        syncNote(id)
     }
 
     /** Restore: a cancelled card is pending again with its last values, flags recomputed; Open, Edit and Cancel work again. */
@@ -218,6 +221,7 @@ class ActionCardsViewModel @Inject constructor(
                 )
             }
             persist(id)
+            syncNote(id, now)
         }
     }
 
@@ -305,6 +309,19 @@ class ActionCardsViewModel @Inject constructor(
 
     private fun update(id: String, change: (ActionCardState) -> ActionCardState) {
         _cards.update { cards -> cards.map { if (it.id == id) change(it) else it } }
+    }
+
+    /**
+     * Keeps the document memory in step with the card ([ActionNotes], no AI): an opened card has its note (the values as the user
+     * confirmed them), a cancelled or restored one has none. Called where the state changes, so a card is one note however often.
+     */
+    private fun syncNote(id: String, now: LocalDateTime = LocalDateTime.now()) {
+        val card = _cards.value.firstOrNull { it.id == id } ?: return
+        viewModelScope.launch {
+            val action = (ActionForm.build(card.proposed.action, card.values, now, requireFuture = false) as? FormResult.Built)?.action
+                ?: card.proposed.action
+            actionNotes.sync(card.proposed.documentId ?: documentId, card.id, action, card.status, card.doneAt ?: now)
+        }
     }
 
     /** Saves the card's state with its reply now (a card without a stored reply has nothing to save to). */

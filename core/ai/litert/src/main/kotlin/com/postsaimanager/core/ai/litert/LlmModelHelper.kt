@@ -96,6 +96,13 @@ internal interface LlmModelHelper {
      */
     fun summarize(instance: LlmModelInstance, request: String): String?
 
+    /**
+     * One answer to [prompt] under [system] from a conversation of its own (no history, no tools), closed again afterwards. The
+     * engine holds one native conversation at a time, so the instance's live conversation is closed first and is dead afterwards:
+     * the caller rebuilds it before the next reply (it keeps the turns itself). Null when the engine failed or said nothing.
+     */
+    fun generateOnce(instance: LlmModelInstance, config: LlmModelConfig, system: String, prompt: String): String?
+
     /** Closes the conversation and the engine and frees the model. */
     fun cleanUp(instance: LlmModelInstance, onDone: () -> Unit = {})
 

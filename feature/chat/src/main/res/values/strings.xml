@@ -174,4 +174,10 @@
 
     <!-- The quiet line in the chat above the messages the assistant still reads -->
     <string name="chat_context_divider">Earlier messages — the assistant keeps notes, not the full chat</string>
+    <!-- The assistant's notes of confirmed actions (document memory). Stored as written, in the language of the moment. %1$s is a date and time such as "8 Oct 09:00". -->
+    <string name="note_action_date_time">%1$s %2$s</string>
+    <string name="note_action_reminder">Reminder set for %1$s: %2$s</string>
+    <string name="note_action_calendar">Calendar event added for %1$s: %2$s</string>
+    <string name="note_action_email">Email to %1$s opened on %2$s: %3$s</string>
+    <string name="note_action_email_no_subject">Email to %1$s opened on %2$s</string>
 </resources>

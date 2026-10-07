@@ -305,4 +305,22 @@
     <string name="meaning_premium">Premium or contribution</string>
     <string name="meaning_invoice_total">Invoice total</string>
     <string name="meaning_fee">Fee</string>
+    <!-- What the assistant remembers: the document's durable notes (Extracted tab) -->
+    <string name="memory_title">What the assistant remembers</string>
+    <string name="memory_hint">Short notes about this letter that the assistant reads when a chat starts. You can pin, edit or delete them.</string>
+    <string name="memory_empty">Nothing yet. Notes appear here after you open an action or finish a chat.</string>
+    <string name="memory_add">Add a note</string>
+    <string name="memory_edit_title">Edit note</string>
+    <string name="memory_note_label">Note</string>
+    <string name="memory_save">Save</string>
+    <string name="memory_cancel">Cancel</string>
+    <string name="memory_source_action">From an action</string>
+    <string name="memory_source_ai">From a chat</string>
+    <string name="memory_source_you">Written by you</string>
+    <string name="memory_note_meta">%1$s · %2$s</string>
+    <string name="memory_pin">Pin note</string>
+    <string name="memory_unpin">Unpin note</string>
+    <string name="memory_more">More actions for this note</string>
+    <string name="memory_edit">Edit</string>
+    <string name="memory_delete">Delete</string>
 </resources>
