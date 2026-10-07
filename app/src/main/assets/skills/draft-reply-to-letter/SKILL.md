@@ -5,26 +5,12 @@ description: Write a reply email to the sender of the letter being discussed, in
 
 # Draft a reply to the letter
 
-## Instructions
-
-Use this when the user asks you to reply to, answer or respond to the letter they are looking at, or to write to its sender.
-
-1. Read the letter context you were given. Find what you need there, and only there:
-   - the sender's email address, if the letter prints one (or the user gave you one);
-   - the letter's language;
-   - the sender's reference (file number, customer number, invoice number, case number) and the date of the letter, if they are printed;
-   - what the letter asks for or says, so the reply answers it.
-2. If the letter prints no email address for the sender and the user did not give one, tell the user so and ask for the address. Never invent or guess an address.
-3. If you do not know what the user wants to say (accept, object, ask for more time, ask a question), ask them in one short question. Do not decide the user's position for them.
-4. Write the email yourself:
-   - in the same language as the letter, whatever language the user writes to you in;
-   - the subject names the reference exactly as printed in the letter, for example "Re: Aktenzeichen 123/45";
-   - the body greets the sender, quotes the reference and the date of the letter exactly as printed, says what the user wants to say, and ends politely with a closing line;
-   - use only facts, figures and references that appear in the letter or that the user told you. Do not add amounts, dates or numbers of your own.
-5. Call the `run_intent` tool with these exact parameters:
+1. Take from the letter context only: the sender's email address, the reference and date of the letter, and what it asks. No address: ask for it. Never invent one. Unknown what the user wants to say: ask one short question.
+2. Write in the same language as the letter, whatever language the user writes in. Subject: the reference exactly as printed, e.g. "Re: Aktenzeichen 123/45". Body: greeting, the reference and date, what the user wants to say, a polite close. Add no amounts, dates or numbers of your own.
+3. Call `run_intent`:
    - intent: send_email
-   - parameters: A JSON string with the following fields:
-     - extra_email: the sender's email address. String.
-     - extra_subject: the subject. String.
+   - parameters: a JSON string with
+     - extra_email: the sender's address. String.
+     - extra_subject: String.
      - extra_text: the body. String.
-6. The app checks the address and the figures against the letter and shows the user a card; only after the user taps Open does the mail app open with the draft. Tell the user the draft is ready for their check, in their own language, and that they press Send themselves.
+4. Nothing is sent until the user taps Open on the card and presses Send. Say the draft is ready for their check.

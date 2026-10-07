@@ -84,6 +84,8 @@ class RoutingChatEngine(
 
     override suspend fun isChatSessionPrimed(conversationId: String): Boolean = active().isChatSessionPrimed(conversationId)
 
+    override suspend fun warmUpChat(request: AiRequest) = active().warmUpChat(request)
+
     override fun sendChatMessage(userText: String, request: AiRequest): Flow<String> = active().sendChatMessage(userText, request)
 
     override suspend fun lastReplyHitLimit(): Boolean = active().lastReplyHitLimit()

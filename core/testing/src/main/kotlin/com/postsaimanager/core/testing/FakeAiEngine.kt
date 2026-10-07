@@ -132,6 +132,13 @@ class FakeAiEngine(
     val lastSessionHistory: List<AiChatMessage>
         get() = ensureChatSessionCalls.lastOrNull()?.third.orEmpty()
 
+    /** Every request passed to [warmUpChat], in order. */
+    val warmUps = mutableListOf<AiRequest>()
+
+    override suspend fun warmUpChat(request: AiRequest) {
+        warmUps += request
+    }
+
     /** Every reply passed to [commitChatReply], in order. */
     val committedReplies = mutableListOf<String>()
 

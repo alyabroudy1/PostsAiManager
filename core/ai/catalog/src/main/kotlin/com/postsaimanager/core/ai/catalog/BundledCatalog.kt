@@ -208,7 +208,8 @@ object BundledCatalog {
         // on llama.cpp, so these are never the reader. The GGUF builds above remain: same model family, the llama.cpp engine.
         AiModelDescriptor(
             id = "gemma-4-e2b-it-litertlm",
-            name = "Gemma 4 E2B · fast (GPU)",
+            // No backend in the name: the chat header and the model sheet show the one that is actually running.
+            name = "Gemma 4 E2B",
             family = "Gemma",
             parameterCount = "E2B",
             quantization = "LiteRT-LM",
@@ -228,8 +229,8 @@ object BundledCatalog {
             supportsTools = true,
             // The Gallery's allowlist entry says `llmSupportImage: true` for this file; audio is declared for later (unused yet).
             inputs = GEMMA4_LITERT_INPUTS,
-            description = "Google's own LiteRT-LM build of Gemma 4, the one in the AI Edge Gallery. Chats on the phone's GPU " +
-                "when it has one. It only chats: your letters are still read by the reader model.",
+            description = "Google's own LiteRT-LM build of Gemma 4, the one in the AI Edge Gallery. Chats on the CPU by default; " +
+                "the GPU can be chosen in the chat's model settings. It only chats: your letters are still read by the reader model.",
             // CPU first: on the test phone the GPU engine garbled the figures and dates inside tool calls (dropped dots and hyphens,
             // doubled digits) that the CPU engine wrote correctly with the same model, prompt and sampling. The GPU stays selectable.
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.CPU, Accelerator.GPU)),
@@ -243,7 +244,7 @@ object BundledCatalog {
         ),
         AiModelDescriptor(
             id = "gemma-4-e4b-it-litertlm",
-            name = "Gemma 4 E4B · fast (GPU)",
+            name = "Gemma 4 E4B",
             family = "Gemma",
             parameterCount = "E4B",
             quantization = "LiteRT-LM",

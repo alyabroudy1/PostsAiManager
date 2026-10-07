@@ -58,9 +58,35 @@ class AgentActionParserTest {
         val action = parsed(
             "schedule_notification",
             """{"message":"Pay","year":2026,"month":"11","day":2,"hour":9.0,"minute":"30","document_id":"d7"}""",
+            doc = "d7",
         )
 
         assertThat(action).isEqualTo(AgentAction.ScheduleReminder(LocalDateTime.of(2026, 11, 2, 9, 30), "Pay", "d7"))
+    }
+
+    private fun reminderDocument(parameters: String, chat: String?, known: Set<String> = emptySet()): String? {
+        val parse = AgentActionParser.parse("schedule_notification", parameters, chat, knownDocumentIds = known) as ActionParse.Parsed
+        return (parse.action as AgentAction.ScheduleReminder).documentId
+    }
+
+    private val invented = """{"message":"Pay","in_minutes":5,"document_id":"BG-12345BG0001234"}"""
+
+    @Test
+    fun `an invented document_id is ignored and the reminder points at the chat's document`() {
+        assertThat(reminderDocument(invented, chat = "d1")).isEqualTo("d1")
+        assertThat(reminderDocument(invented, chat = null)).isNull()
+    }
+
+    @Test
+    fun `a document_id is used when it is the chat's document or a known one`() {
+        assertThat(reminderDocument("""{"message":"Pay","in_minutes":5,"document_id":"d1"}""", chat = "d1")).isEqualTo("d1")
+        assertThat(reminderDocument("""{"message":"Pay","in_minutes":5,"document_id":"d2"}""", chat = "d1", known = setOf("d2"))).isEqualTo("d2")
+        assertThat(reminderDocument("""{"message":"Pay","in_minutes":5,"document_id":"d2"}""", chat = null, known = setOf("d2"))).isEqualTo("d2")
+    }
+
+    @Test
+    fun `a reminder without a document_id uses the chat's document`() {
+        assertThat(reminderDocument("""{"message":"Pay","in_minutes":5}""", chat = "d1")).isEqualTo("d1")
     }
 
     private val clock = LocalDateTime.of(2026, 10, 7, 14, 30, 45)

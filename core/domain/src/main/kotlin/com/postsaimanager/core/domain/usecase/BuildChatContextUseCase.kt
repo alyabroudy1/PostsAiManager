@@ -111,7 +111,9 @@ class BuildChatContextUseCase @Inject constructor(
 
         val header = buildHeader(document.title, document.documentType?.name, document.language)
         val read = LetterReadingContext.section(document.actionItems, extracted, letterContacts(documentId))
-        val fields = buildFields(extracted)
+        // A value the "What was read" section already states is not listed again among the extracted details.
+        val stated = LetterReadingContext.statedSlots(document.actionItems, extracted)
+        val fields = buildFields(extracted.filter { it.slotKey == null || it.slotKey !in stated })
         val parties = buildProfiles(profiles)
         val instructions = INSTRUCTIONS
 

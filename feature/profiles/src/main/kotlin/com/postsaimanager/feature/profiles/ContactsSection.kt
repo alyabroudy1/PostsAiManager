@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
@@ -52,6 +53,7 @@ class ContactActions(
     val merge: (keepId: String, mergedId: String) -> Unit = { _, _ -> },
     val move: (contactId: String, organisationId: String) -> Unit = { _, _ -> },
     val delete: (contactId: String) -> Unit = {},
+    val confirm: (contactId: String) -> Unit = {},
     val call: (phone: String) -> Unit = {},
     val email: (address: String) -> Unit = {},
 )
@@ -91,12 +93,12 @@ internal fun ContactsSection(
         }
         contacts.current?.let { current ->
             Text(stringResource(R.string.contacts_current), style = MaterialTheme.typography.labelLarge)
-            ContactRow(current, everyone, otherOrganisations, actions, focusContactId, onFocusPlaced, isCurrent = true)
+            ContactRow(current, everyone, otherOrganisations, actions, focusContactId, onFocusPlaced, isCurrent = true, toCheck = current.id in contacts.toCheck)
         }
         if (contacts.earlier.isNotEmpty()) {
             Text(stringResource(R.string.contacts_earlier), style = MaterialTheme.typography.labelLarge)
             contacts.earlier.forEach {
-                ContactRow(it, everyone, otherOrganisations, actions, focusContactId, onFocusPlaced, isCurrent = false)
+                ContactRow(it, everyone, otherOrganisations, actions, focusContactId, onFocusPlaced, isCurrent = false, toCheck = it.id in contacts.toCheck)
             }
         }
     }
@@ -112,6 +114,7 @@ private fun ContactRow(
     focusContactId: String?,
     onFocusPlaced: (rootY: Float) -> Unit,
     isCurrent: Boolean,
+    toCheck: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var dialog by rememberSaveable(contact.id) { mutableStateOf<ContactDialog?>(null) }
@@ -124,13 +127,31 @@ private fun ContactRow(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(contact.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(contact.name, style = MaterialTheme.typography.bodyLarge)
+                if (toCheck) {
+                    // Read from a letter without being sure: shown unconfirmed. A tap on the mark confirms (as the menu entry does).
+                    Text(
+                        stringResource(R.string.contact_to_check),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.clickable { actions.confirm(contact.id) }.testTag("contact_to_check_${contact.id}"),
+                    )
+                }
+            }
             val moreDescription = stringResource(R.string.contact_more, contact.name)
             IconButton(
                 onClick = { menuOpen = true },
                 modifier = Modifier.testTag("contact_menu_${contact.id}").semantics { contentDescription = moreDescription },
             ) { Icon(PamIcons.More, contentDescription = null) }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                if (toCheck) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.contact_menu_confirm)) },
+                        onClick = { menuOpen = false; actions.confirm(contact.id) },
+                        modifier = Modifier.testTag("menu_confirm"),
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.contact_menu_edit)) },
                     onClick = { menuOpen = false; dialog = ContactDialog.EDIT },

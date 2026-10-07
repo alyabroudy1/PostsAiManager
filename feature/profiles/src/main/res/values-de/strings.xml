@@ -38,6 +38,8 @@
     <string name="contact_menu_active">Wieder zuständig</string>
     <string name="contact_menu_merge">Mit anderer Ansprechperson zusammenführen</string>
     <string name="contact_menu_move">In andere Organisation verschieben</string>
+    <string name="contact_to_check">Bitte prüfen</string>
+    <string name="contact_menu_confirm">Als geprüft markieren</string>
     <string name="contact_menu_delete">Löschen</string>
     <string name="contact_edit_title">Ansprechperson bearbeiten</string>
     <string name="contact_field_name">Name</string>

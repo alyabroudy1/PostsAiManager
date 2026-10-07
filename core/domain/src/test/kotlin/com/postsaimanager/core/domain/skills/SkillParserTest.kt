@@ -20,6 +20,13 @@ class SkillParserTest {
     }
 
     @Test
+    fun `time-aware is read from the frontmatter and is off by default`() {
+        assertThat(parsed("---\nname: a\ndescription: b\ntime-aware: true\n---\nbody").timeAware).isTrue()
+        assertThat(parsed("---\nname: a\ndescription: b\ntime-aware: false\n---\nbody").timeAware).isFalse()
+        assertThat(parsed("---\nname: a\ndescription: b\n---\nbody").timeAware).isFalse()
+    }
+
+    @Test
     fun `a rule or table inside the body survives, because only the first two delimiters are the frontmatter`() {
         val skill = parsed("---\nname: a\ndescription: b\n---\nfirst\n---\nsecond\n")
 

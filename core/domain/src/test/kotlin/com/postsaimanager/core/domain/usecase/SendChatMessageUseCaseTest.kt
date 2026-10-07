@@ -270,6 +270,44 @@ class SendChatMessageUseCaseTest {
     }
 
     @Test
+    @DisplayName("priming also warms the engine's conversation, with the sampling of the reply that will follow")
+    fun `prime warms the conversation with the reply's sampling`() = runTest {
+        sendChatMessage.primeConversation("conv-1", documentId = null, thinkingEffort = ThinkingEffort.OFF)
+        // A second prime of a prepared session still asks the engine, which is where "already prepared" is decided.
+        sendChatMessage.primeConversation("conv-1", documentId = null, thinkingEffort = ThinkingEffort.HIGH)
+
+        assertThat(engine.warmUps).hasSize(2)
+        val config = models.activeModelConfig()
+        val expected = ChatReplyBudget.request(ThinkingEffort.OFF, config.contextTokens, config.modelSampling)
+        assertThat(engine.warmUps[0].temperature).isEqualTo(expected.temperature)
+        assertThat(engine.warmUps[0].topK).isEqualTo(expected.topK)
+        assertThat(engine.warmUps[0].thinkingEnabled).isFalse()
+        assertThat(engine.warmUps[0].tools).isNull()
+        assertThat(engine.warmUps[1].thinkingEnabled).isTrue()
+    }
+
+    @Test
+    @DisplayName("a model with tools is warmed with the tools, so the conversation it prepares is the one the reply uses")
+    fun `warm-up carries the tools of a tool-capable model`() = runTest {
+        models.runtime = com.postsaimanager.core.model.ModelRuntime.LITERT_LM
+        models.supportsTools = true
+
+        sendChatMessage.primeConversation("conv-1", documentId = "doc-1")
+
+        assertThat(engine.warmUps.single().tools).isNotNull()
+    }
+
+    @Test
+    @DisplayName("no model installed warms nothing")
+    fun `no warm-up without a model`() = runTest {
+        models.path = null
+
+        sendChatMessage.primeConversation("conv-1", documentId = null)
+
+        assertThat(engine.warmUps).isEmpty()
+    }
+
+    @Test
     @DisplayName("a pending user message is not replayed into the prime")
     fun `prime skips a pending trailing user message`() = runTest {
         conversations.addMessage(

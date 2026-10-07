@@ -183,6 +183,8 @@ data class AiCapabilities(
      * engine falls back to ChatML, which may be wrong for that model — worth surfacing.
      */
     val hasNativeChatTemplate: Boolean = false,
+    /** The accelerator the engine says it started on (a requested GPU may have fallen back to the CPU); null when it does not say. */
+    val runningAccelerator: Accelerator? = null,
 )
 
 /** One turn in a conversation, independent of any model's prompt format. */

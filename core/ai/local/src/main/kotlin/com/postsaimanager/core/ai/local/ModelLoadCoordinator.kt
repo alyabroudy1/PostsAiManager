@@ -244,7 +244,7 @@ internal class ModelLoadCoordinator(
             is PamResult.Success -> {
                 lastCapabilities = result.data
                 val durationMs = (System.nanoTime() - startedAtNanos) / 1_000_000
-                _state.value = ModelLoadState.Ready(modelId, config, durationMs)
+                _state.value = ModelLoadState.Ready(modelId, config, durationMs, result.data.runningAccelerator)
             }
             is PamResult.Error -> {
                 lastCapabilities = null

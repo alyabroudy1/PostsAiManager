@@ -91,7 +91,7 @@ class BundledSkillsTest {
         val sample = mapOf(
             "send_email" to """{"extra_email":"a@b.de","extra_subject":"s","extra_text":"t"}""",
             "create_calendar_event" to """{"title":"t","description":"d","begin_time":"2026-11-05T09:00:00","end_time":"2026-11-05T10:00:00"}""",
-            "schedule_notification" to """{"message":"m","year":2026,"month":11,"day":2,"hour":9,"minute":0,"document_id":"d"}""",
+            "schedule_notification" to """{"message":"m","year":2026,"month":11,"day":2,"hour":9,"minute":0}""",
         )
         folders.map { parse(it) }.forEach { skill ->
             val intent = Regex("intent:\\s*(\\w+)").find(skill.instructions)!!.groupValues[1]
@@ -99,8 +99,10 @@ class BundledSkillsTest {
             val params = Regex("(?m)^\\s+- (\\w+(?:, \\w+)*):").findAll(skill.instructions).flatMap { it.groupValues[1].split(", ") }.toList()
             val known = setOf(
                 "extra_email", "extra_subject", "extra_text", "title", "description", "begin_time", "end_time",
-                "message", "year", "month", "day", "hour", "minute", "document_id", "in_minutes", "in_hours", "in_days",
+                "message", "year", "month", "day", "hour", "minute", "in_minutes", "in_hours", "in_days",
             )
+            // The app always uses the chat's document; a model-filled id would only be a wrong letter reference.
+            assertThat(skill.instructions).doesNotContain("document_id")
             assertThat(known).containsAtLeastElementsIn(params.filter { it != "intent" && it != "parameters" }.toSet())
         }
     }
@@ -118,19 +120,26 @@ class BundledSkillsTest {
     }
 
     @Test
-    fun `the date skills make the model read the clock first for a relative time`() {
-        listOf("schedule-reminder", "create-calendar-event").map { parse(File(root, it)) }.forEach { skill ->
-            assertThat(skill.instructions).contains("MUST first call")
-            assertThat(skill.instructions).contains("get_current_date_and_time")
-            assertThat(skill.instructions).contains("Never guess today's date")
+    fun `only the date skills declare they are time-aware, and they point to the time they are given`() {
+        // The time comes with the skill text (load_skill appends it), so no separate clock call is needed.
+        val aware = allFolders.filter { parse(it).timeAware }.map { it.name }
+        assertThat(aware).containsExactly("schedule-reminder", "create-calendar-event")
+        aware.map { parse(File(root, it)) }.forEach { skill ->
+            assertThat(skill.instructions).contains("\"Now:\"")
+            assertThat(skill.instructions).contains("Never invent a date")
         }
-        // The merged reminder skill covers both ways of naming a time, and asks for a self-contained line that names the sender or subject, not pronouns.
+        // The reminder covers both ways of naming a time, and asks for a self-contained line that names the sender or subject, not pronouns.
         val reminder = parse(File(root, "schedule-reminder")).instructions
-        assertThat(reminder).contains("before the deadline")
+        assertThat(reminder).contains("three days before")
         assertThat(reminder).contains("one self-contained line")
-        assertThat(reminder).contains("naming the sender or the subject of the letter")
+        assertThat(reminder).contains("naming the sender or subject")
         assertThat(reminder).contains("Never use pronouns")
         assertThat(parse(File(root, "create-calendar-event")).instructions).contains("without pronouns")
+    }
+
+    @Test
+    fun `every intent skill is short, because its whole text is read by the model after load_skill`() {
+        folders.forEach { assertThat(parse(it).instructions.length).isLessThan(1200) }
     }
 
     @Test
@@ -138,9 +147,9 @@ class BundledSkillsTest {
         val reminder = parse(File(root, "schedule-reminder")).instructions
 
         listOf("in_minutes", "in_hours", "in_days").forEach { assertThat(reminder).contains("- $it:") }
-        assertThat(reminder).contains("do NOT work out a date")
+        assertThat(reminder).contains("needs no clock call")
         assertThat(reminder).contains("\"tomorrow at 9\"")
-        assertThat(reminder).contains("MUST first call")
+        assertThat(reminder).doesNotContain("MUST first call")
         // A documented offset is one the parser turns into a time (the clock is the app's).
         val parsed = AgentActionParser.parse("schedule_notification", """{"message":"m","in_minutes":2}""") as ActionParse.Parsed
         assertThat((parsed.action as com.postsaimanager.core.domain.skills.AgentAction.ScheduleReminder).at).isNotNull()

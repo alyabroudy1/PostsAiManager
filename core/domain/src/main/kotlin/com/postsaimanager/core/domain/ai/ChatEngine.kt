@@ -90,6 +90,16 @@ interface ChatEngine {
     suspend fun isChatSessionPrimed(conversationId: String): Boolean
 
     /**
+     * Gets the open session ready for a reply made with [request]'s sampling and tools, so that the reply only has its own turn
+     * left to read: an engine whose conversation is built lazily builds it now and reads the grounding and the history. Generates
+     * nothing and records nothing in the history. Called by the chat when it opens, after [ensureChatSession]; an engine that has
+     * nothing to prepare (llama.cpp keeps its prefix cache itself) does nothing, and so does one that has no open session or is busy
+     * with another caller (a document being read), which is never queued behind or taken over for this. Cancelling the caller
+     * stops it as far as the engine can.
+     */
+    suspend fun warmUpChat(request: AiRequest) {}
+
+    /**
      * Streams a reply to [userText] within the session opened by [ensureChatSession]. [request] carries the sampling, the reply
      * budget and the thinking switch; its `prompt` and `grammar` are not used by chat.
      *

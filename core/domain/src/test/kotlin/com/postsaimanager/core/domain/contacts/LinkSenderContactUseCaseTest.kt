@@ -92,6 +92,32 @@ class LinkSenderContactUseCaseTest {
     }
 
     @Test
+    fun `a MEDIUM reading links, a LOW one does not`() = runTest {
+        documents.seedExtracted("d1", contactField("d1", "Frau Nadine Beispiel", confidence = 0.7f))
+        senderIs("d1")
+        documents.seedExtracted("d2", contactField("d2", "Frau Müller", confidence = 0.4f))
+        senderIs("d2")
+
+        assertThat(link("d1")).isInstanceOf(ContactLinkOutcome.Created::class.java)
+        assertThat(link("d2")).isEqualTo(ContactLinkOutcome.NothingToLink)
+        assertThat(contactsOfJobcenter().map { it.name }).containsExactly("Frau Nadine Beispiel")
+    }
+
+    @Test
+    fun `confirming a contact confirms the letters' contact fields that name it`() = runTest {
+        documents.seedExtracted("d1", contactField("d1", "Frau Nadine Beispiel", confidence = 0.7f))
+        senderIs("d1")
+        link("d1")
+        val nadine = contactsOfJobcenter().single()
+
+        val result = ConfirmContactUseCase(contacts, documents)(nadine.id)
+
+        assertThat(result).isInstanceOf(PamResult.Success::class.java)
+        val field = documents.observeExtractedData("d1").first().single()
+        assertThat(field.reviewState).isEqualTo(ReviewState.CONFIRMED)
+    }
+
+    @Test
     fun `a different person becomes the second contact and the newest one is current`() = runTest {
         documents.seedExtracted("d1", contactField("d1", "Frau Nadine Beispiel"))
         senderIs("d1")

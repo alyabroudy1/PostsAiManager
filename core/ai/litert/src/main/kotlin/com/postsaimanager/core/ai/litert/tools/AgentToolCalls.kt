@@ -57,14 +57,25 @@ internal class AgentToolCalls(
 
     /** `load_skill`: the skill's instructions, or "Skill not found". */
     fun loadSkill(skillName: String): Map<String, String> = runBlocking {
+        com.postsaimanager.core.common.util.TimingLog.at("tool: load_skill \"$skillName\" called")
         val skill = skills.load(skillName)
         log("load_skill \"$skillName\": ${if (skill != null) "found" else "not found"}")
-        mapOf("skill_name" to skillName, "skill_instructions" to (skill?.content() ?: "Skill not found"))
-    }.also { record(LOAD_SKILL, mapOf("skill_name" to skillName), it) }
+        // A skill that declares it is time-aware gets the phone's time with its text, so the model needs no clock call of its own.
+        // It is appended here, to what the tool returns, and never put in the system prompt: that stays the same all day and keeps
+        // the prepared conversation reusable.
+        val text = skill?.let { if (it.timeAware) it.content() + "\n\nNow: ${ActionDateTime.forModel(now())}." else it.content() }
+        mapOf("skill_name" to skillName, "skill_instructions" to (text ?: "Skill not found"))
+    }.also {
+        record(LOAD_SKILL, mapOf("skill_name" to skillName), it)
+        com.postsaimanager.core.common.util.TimingLog.at("tool: load_skill returns ${it["skill_instructions"]?.length ?: 0} chars (prefilled next)")
+    }
 
     /** `run_intent`: proposes the action (or answers the clock); never runs it. */
     fun runIntent(intent: String, parameters: String): Map<String, String> =
-        propose(intent, parameters).also { record(RUN_INTENT, mapOf("intent" to intent, "parameters" to parameters), it) }
+        propose(intent, parameters).also {
+            record(RUN_INTENT, mapOf("intent" to intent, "parameters" to parameters), it)
+            com.postsaimanager.core.common.util.TimingLog.at("tool: run_intent \"$intent\" -> ${it["status"] ?: it["result"]?.take(20)}")
+        }
 
     /**
      * `run_js` (the Gallery's `RunJsTool`): runs a script of a JS skill and returns what it answered. The script runs in the app

@@ -36,6 +36,11 @@ data class Skill(
     val folder: String = "",
     /** The files of its `scripts/` folder, a JS skill's entry points (`index.html`); empty for a skill that is only instructions. */
     val scripts: List<String> = emptyList(),
+    /**
+     * Declared by the skill itself (`time-aware: true` in its frontmatter): `load_skill` appends the phone's current date and time
+     * to the text it returns, so the model needs no separate clock call. Data in the skill, not a list in code.
+     */
+    val timeAware: Boolean = false,
 ) {
     /** True for a skill the model runs with `run_js`: it ships at least one script. */
     val isJsSkill: Boolean get() = scripts.isNotEmpty()

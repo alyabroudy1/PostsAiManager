@@ -91,6 +91,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.designsystem.component.MarkdownText
 import com.postsaimanager.core.designsystem.component.byContentDirection
@@ -139,6 +140,12 @@ fun ChatScreen(
         viewModel.refreshSearchModelHint()
         viewModel.refreshImageSupport()
         onPauseOrDispose {}
+    }
+    // The chat's pre-warm (the model, the conversation's prefill) runs only while the screen is in the foreground: it starts when
+    // the chat opens or returns, and stops when the app goes to the background or the chat closes.
+    LifecycleStartEffect(viewModel) {
+        viewModel.startWarmUp()
+        onStopOrDispose { viewModel.stopWarmUp() }
     }
     var inputText by rememberSaveable { mutableStateOf("") }
     var showModelSheet by rememberSaveable { mutableStateOf(false) }

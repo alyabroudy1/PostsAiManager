@@ -35,13 +35,22 @@ class CatalogInstalledModelsRepository @Inject constructor(
      * [InstalledModel.descriptorId], same as [CatalogActiveModelProvider.backendSpec]. Null
      * for a side-loaded model, which has no descriptor.
      */
-    private fun toSummary(model: InstalledModel): InstalledModelSummary = InstalledModelSummary(
+    private fun toSummary(model: InstalledModel): InstalledModelSummary = summaryOf(model)
+}
+
+/**
+ * The summary the chat header and the model sheet show. The name is the catalogue's current one, not the one stored when the model
+ * was installed: an install made when the entry was called something else (a backend label that is no longer in it) would keep the
+ * old name for good. The stored name stays for a model the catalogue does not know (a side-loaded one).
+ */
+internal fun summaryOf(model: InstalledModel): InstalledModelSummary {
+    val descriptor = model.descriptorId?.let { id -> BundledCatalog.models.firstOrNull { it.id == id } }
+    return InstalledModelSummary(
         id = model.id,
-        name = model.name,
+        name = descriptor?.name ?: model.name,
         filePath = model.filePath,
         sizeBytes = model.sizeBytes,
-        quantization = model.descriptorId
-            ?.let { id -> BundledCatalog.models.firstOrNull { it.id == id }?.quantization },
+        quantization = descriptor?.quantization,
         contextTokens = model.contextTokens,
     )
 }

@@ -39,6 +39,23 @@ class AgentToolsTest {
     }
 
     @Test
+    @DisplayName("a skill that declares it is time-aware gets the phone's time appended to its text, and only that skill")
+    fun `load_skill appends the time for a time-aware skill only`() {
+        val remind = Skill("remind", "Remind.", "1. Call run_intent.", timeAware = true)
+        val timeCalls = AgentToolCalls(
+            object : SkillCatalog {
+                override suspend fun skills(): List<Skill> = listOf(sendEmail, remind)
+            },
+            context,
+            now = { now },
+        )
+
+        assertThat(timeCalls.loadSkill("remind")["skill_instructions"])
+            .isEqualTo(remind.content() + "\n\nNow: 2026-10-07T14:30:05 Wednesday.")
+        assertThat(timeCalls.loadSkill("send-email")["skill_instructions"]).isEqualTo(sendEmail.content())
+    }
+
+    @Test
     fun `load_skill forgives the way a small model spells the name`() {
         assertThat(loadSkill.loadSkill("Send_Email")["skill_instructions"]).isEqualTo(sendEmail.content())
     }

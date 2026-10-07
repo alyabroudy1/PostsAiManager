@@ -301,7 +301,30 @@ class ChatViewModel @Inject constructor(
      * which `primeConversation` shares.
      */
     private fun preWarmModel() {
-        viewModelScope.launch { primeConversation() }
+        startWarmUp()
+    }
+
+    /** The pre-warm in flight (model load, session, and the engine's conversation prefill), or null. */
+    private var warmUpJob: Job? = null
+
+    /**
+     * Starts the pre-warm unless one is already running. Called when the chat opens and again each time the screen comes back to the
+     * foreground (a warm-up that was stopped in the background, or a conversation that is no longer prepared, is picked up again;
+     * for a prepared one every step is a no-op). Never blocks the UI and never gets in the way of typing: a message sent meanwhile
+     * waits for the engine like any message does.
+     */
+    fun startWarmUp() {
+        if (warmUpJob?.isActive == true) return
+        warmUpJob = viewModelScope.launch { primeConversation() }
+    }
+
+    /**
+     * Stops the pre-warm: the screen left the foreground, or the chat is closing. The engine stops what it can; a prefill that is
+     * already running in the native engine finishes and its result is kept (it is a valid conversation for the next message).
+     */
+    fun stopWarmUp() {
+        warmUpJob?.cancel()
+        warmUpJob = null
     }
 
     /** Shared by [preWarmModel] and [selectModel] — see their docs. */
@@ -313,9 +336,13 @@ class ChatViewModel @Inject constructor(
             it.copy(isPrimingConversation = true, primeWaitingForDocument = busyWithOtherWork)
         }
         try {
-            sendChatMessage.primeConversation(conversationId, documentId) {
-                _uiState.update { it.copy(primeWaitingForDocument = false) }
-            }
+            sendChatMessage.primeConversation(
+                conversationId,
+                documentId,
+                onLoadFinished = { _uiState.update { it.copy(primeWaitingForDocument = false) } },
+                // The mode of the first reply (default OFF, as `chatTurn` reads it): it decides which conversation the engine prepares.
+                thinkingEffort = modelSheetState.value.overrides.thinkingEffort ?: ThinkingEffort.OFF,
+            )
         } finally {
             _uiState.update { it.copy(isPrimingConversation = false, primeWaitingForDocument = false) }
         }
@@ -406,6 +433,8 @@ class ChatViewModel @Inject constructor(
      */
     private fun send(text: String, alreadyStored: Boolean) {
         if (text.isBlank() || _uiState.value.isProcessing) return
+        com.postsaimanager.core.common.util.TimingLog.mark()
+        com.postsaimanager.core.common.util.TimingLog.log("t0 send tapped (${text.length} chars, formFilling=${formFillingFlag.enabled})")
         lastSentText = text
         if (alreadyStored) {
             startChatTurn(text, persistUserMessage = false)
@@ -427,7 +456,9 @@ class ChatViewModel @Inject constructor(
         // In a document chat the form agent reads the message first: while it runs, every message is the user's next message to it
         // (it decides what the message means); a request to fill the form starts it; anything else is the normal grounded chat.
         runFormWork {
-            when (formFill.route(document, text)) {
+            val route = formFill.route(document, text)
+            com.postsaimanager.core.common.util.TimingLog.at("form route done: $route")
+            when (route) {
                 FormRoute.HANDLED -> Unit
                 FormRoute.NOT_FOR_FORM -> chatTurn(text)
             }
@@ -529,6 +560,8 @@ class ChatViewModel @Inject constructor(
                     it.copy(isProcessing = false, error = ChatError("", null, R.string.chat_error_new_chat_failed))
                 }
             }
+            // The cleared chat has no prepared conversation any more: prepare the new one now, as when the chat opened.
+            if (cleared) startWarmUp()
         }
     }
 
@@ -708,7 +741,9 @@ class ChatViewModel @Inject constructor(
      * primed just as much as opening the screen fresh does.
      */
     fun selectModel(modelId: String) {
-        viewModelScope.launch {
+        // The warm-up of the model being left would hold the engine: stop it before the switch.
+        stopWarmUp()
+        warmUpJob = viewModelScope.launch {
             selectActiveModel(modelId)
             primeConversation()
         }
@@ -745,6 +780,7 @@ class ChatViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        stopWarmUp()
         generationJob?.cancel()
         super.onCleared()
     }

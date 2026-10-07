@@ -52,11 +52,21 @@ enum class InvalidReason {
     IN_THE_PAST,
 }
 
-/** One field's verdict. [unfound] lists, for a text field, the figures and references in it that are not in the sources. */
+/** The unit of one part of a reminder's relative offset. */
+enum class OffsetUnit { DAYS, HOURS, MINUTES }
+
+/** An amount of a reminder's relative offset the model gave: [amount] of [unit]. */
+data class OffsetAmount(val amount: Int, val unit: OffsetUnit)
+
+/**
+ * One field's verdict. [unfound] lists, for a text field, the figures and references in it that are not in the sources.
+ * [unsaid] lists, for a reminder's time, the offset amounts the user's message does not contain as a number.
+ */
 data class FieldCheck(
     val status: FieldStatus,
     val reason: InvalidReason? = null,
     val unfound: List<String> = emptyList(),
+    val unsaid: List<OffsetAmount> = emptyList(),
 ) {
     companion object {
         val GROUNDED = FieldCheck(FieldStatus.GROUNDED)
@@ -98,7 +108,7 @@ object ActionGrounding {
                 ActionField.DESCRIPTION to text(action.description, facts),
             )
             is AgentAction.ScheduleReminder -> mapOf(
-                ActionField.AT to reminderTime(action.at, now, facts),
+                ActionField.AT to reminderTime(action, now, facts, sources.userMessages.lastOrNull().orEmpty()),
                 ActionField.TEXT to text(action.text, facts),
             )
             AgentAction.GetDateTime -> emptyMap()
@@ -121,13 +131,38 @@ object ActionGrounding {
         return if (end.toLocalDate() == action.start.toLocalDate() || end.toLocalDate() in facts.dates) FieldCheck.GROUNDED else FieldCheck.NOT_FOUND
     }
 
-    private fun reminderTime(at: LocalDateTime, now: LocalDateTime, facts: Facts): FieldCheck {
+    private fun reminderTime(action: AgentAction.ScheduleReminder, now: LocalDateTime, facts: Facts, userTurn: String): FieldCheck {
+        val at = action.at
         if (!at.isAfter(now)) return FieldCheck.invalid(InvalidReason.IN_THE_PAST)
         val day = at.toLocalDate()
         val latest = facts.dates.maxOrNull()
         val known = day in facts.dates || day == facts.today || (latest != null && !day.isAfter(latest))
-        return if (known) FieldCheck.GROUNDED else FieldCheck.NOT_FOUND
+        val unsaid = unsaidOffset(action.offset, userTurn)
+        return when {
+            unsaid.isNotEmpty() -> FieldCheck(FieldStatus.NOT_FOUND, unsaid = unsaid)
+            // A time computed from an offset that the user's words confirmed is grounded by those words, not by the letter.
+            action.offset != null && userTurn.isNotBlank() -> FieldCheck.GROUNDED
+            known -> FieldCheck.GROUNDED
+            else -> FieldCheck.NOT_FOUND
+        }
     }
+
+    /**
+     * The amounts of a relative offset that the user's message for this turn does not contain as a number ("in 2 minutes" turned into
+     * 120 minutes). Only digits are compared, in any script. One day is allowed without a digit: "tomorrow" says it in words, and no
+     * word is interpreted here.
+     */
+    internal fun unsaidOffset(offset: ReminderOffset?, userTurn: String): List<OffsetAmount> {
+        if (offset == null || userTurn.isBlank()) return emptyList()
+        val said = numbersIn(userTurn)
+        return listOf(
+            OffsetAmount(offset.days, OffsetUnit.DAYS), OffsetAmount(offset.hours, OffsetUnit.HOURS), OffsetAmount(offset.minutes, OffsetUnit.MINUTES),
+        ).filter { it.amount > 0 && it.amount !in said && !(it.unit == OffsetUnit.DAYS && it.amount == 1) }
+    }
+
+    /** The whole numbers written in [text] with digits of any script (Latin, Arabic-Indic ...). */
+    private fun numbersIn(text: String): Set<Int> =
+        DIGITS.findAll(text).mapNotNull { m -> m.value.fold(0L) { acc, c -> acc * 10 + Character.digit(c, 10) }.takeIf { it <= Int.MAX_VALUE }?.toInt() }.toSet()
 
     /** Free text: every figure or reference in it must be found; text with none has nothing to check. */
     private fun text(value: String, facts: Facts): FieldCheck {
@@ -199,5 +234,6 @@ object ActionGrounding {
     private const val BEFORE_FORBIDDEN = ".,_@+%"
     private const val AFTER_FORBIDDEN = "_@"
     private const val JOINERS = ".,-/:"
-    private val TOKEN = Regex("[\\p{L}\\p{N}]+(?:[.,/\\-:_][\\p{L}\\p{N}]+)*")
+    private val DIGITS = Regex("\\p{Nd}+")
+    private val TOKEN =Regex("[\\p{L}\\p{N}]+(?:[.,/\\-:_][\\p{L}\\p{N}]+)*")
 }

@@ -207,6 +207,78 @@ class ActionGroundingTest {
         assertThat(checks[ActionField.TEXT]!!.unfound).containsExactly("77,00")
     }
 
+    // ── a reminder's offset against the user's words ──
+
+    private fun offsetReminder(at: LocalDateTime, offset: ReminderOffset) =
+        AgentAction.ScheduleReminder(at = at, text = "Anrufen", documentId = null, offset = offset)
+
+    private fun said(text: String) = GroundingSources(userMessages = listOf("earlier 5 things", text))
+
+    @Test
+    fun `120 minutes when the user said 2 minutes is flagged`() {
+        val action = offsetReminder(now.plusMinutes(120), ReminderOffset(0, 0, 120, atTime = false))
+
+        val check = check(action, said("Remind me in 2 minutes"))[ActionField.AT]!!
+
+        assertThat(check.status).isEqualTo(FieldStatus.NOT_FOUND)
+        assertThat(check.unsaid).containsExactly(OffsetAmount(120, OffsetUnit.MINUTES))
+    }
+
+    @Test
+    fun `2 days when the user said tomorrow at 9 is flagged, and 9 is not an amount of days`() {
+        val action = offsetReminder(LocalDateTime.of(2026, 10, 9, 9, 0), ReminderOffset(2, 0, 0, atTime = true))
+
+        val check = check(action, said("Remind me tomorrow at 9"))[ActionField.AT]!!
+
+        assertThat(check.unsaid).containsExactly(OffsetAmount(2, OffsetUnit.DAYS))
+    }
+
+    @Test
+    fun `one day needs no digit, nothing else does`() {
+        val tomorrow = offsetReminder(LocalDateTime.of(2026, 10, 8, 9, 0), ReminderOffset(1, 0, 0, atTime = true))
+        val oneHour = offsetReminder(now.plusHours(1), ReminderOffset(0, 1, 0, atTime = false))
+
+        assertThat(check(tomorrow, said("Erinnere mich morgen um 9"))[ActionField.AT]!!.unsaid).isEmpty()
+        assertThat(check(oneHour, said("Erinnere mich in einer Stunde"))[ActionField.AT]!!.unsaid)
+            .containsExactly(OffsetAmount(1, OffsetUnit.HOURS))
+    }
+
+    @Test
+    fun `an amount the user wrote is fine, in any script`() {
+        val twoMinutes = offsetReminder(now.plusMinutes(2), ReminderOffset(0, 0, 2, atTime = false))
+        val threeDays = offsetReminder(LocalDateTime.of(2026, 10, 10, 9, 0), ReminderOffset(3, 0, 0, atTime = true))
+
+        assertThat(check(twoMinutes, said("in 2 Minuten bitte"))[ActionField.AT]).isEqualTo(FieldCheck.GROUNDED)
+        assertThat(check(threeDays, said("ذكّرني بعد ٣ أيام الساعة ٩"))[ActionField.AT]!!.unsaid).isEmpty()
+    }
+
+    @Test
+    fun `tomorrow at 9 from an offset is grounded by the user's words even when the letter has only earlier dates`() {
+        val clock = LocalDateTime.of(2026, 10, 7, 12, 0)
+        val parsed = AgentActionParser.parse(
+            "schedule_notification",
+            """{"message": "Send the documents for the Bürgergeld application", "in_days": 1, "hour": 9, "minute": 0, "document_id": "BG-12345BG0001234"}""",
+            now = clock,
+        ) as ActionParse.Parsed
+        val s = GroundingSources(
+            letterText = "Jobcenter\nBescheid vom 01.09.2026\nBG-12345BG0001234",
+            userMessages = listOf("Remind me tomorrow at 9 to send the documents"),
+        )
+
+        val checks = ActionGrounding.check(parsed.action, s, clock)
+
+        assertThat(checks[ActionField.AT]).isEqualTo(FieldCheck.GROUNDED)
+        assertThat(checks[ActionField.TEXT]!!.status).isEqualTo(FieldStatus.FREE)
+    }
+
+    @Test
+    fun `only the user's message of this turn counts`() {
+        val action = offsetReminder(now.plusMinutes(5), ReminderOffset(0, 0, 5, atTime = false))
+        val s = GroundingSources(userMessages = listOf("I have 5 minutes", "Remind me later"))
+
+        assertThat(check(action, s)[ActionField.AT]!!.unsaid).containsExactly(OffsetAmount(5, OffsetUnit.MINUTES))
+    }
+
     @Test
     fun `reading the clock has no values to check`() {
         assertThat(check(AgentAction.GetDateTime)).isEmpty()

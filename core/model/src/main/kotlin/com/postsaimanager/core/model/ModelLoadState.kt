@@ -28,12 +28,19 @@ sealed interface ModelLoadState {
      *
      * @param loadDurationMs how long the operation that produced this state took — a full
      *   load, or a context recreation, whichever last ran.
+     * @param runningAccelerator the accelerator the engine reported it actually started on, when it says (a GPU request that fell
+     *   back to the CPU shows here as CPU); null when the engine does not report one. What the UI shows, not [InferenceConfig.accelerator],
+     *   which is only what was asked for.
      */
     data class Ready(
         val modelId: String,
         val config: InferenceConfig,
         val loadDurationMs: Long,
-    ) : ModelLoadState
+        val runningAccelerator: Accelerator? = null,
+    ) : ModelLoadState {
+        /** The accelerator to show: the one running, else the one asked for. */
+        val shownAccelerator: Accelerator get() = runningAccelerator ?: config.accelerator
+    }
 
     /**
      * [modelId] failed to load, or a previously loaded model stopped unexpectedly (a crashed

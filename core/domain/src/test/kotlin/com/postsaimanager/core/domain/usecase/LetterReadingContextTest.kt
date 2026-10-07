@@ -52,6 +52,16 @@ class LetterReadingContextTest {
     }
 
     @Test
+    fun `the slots of the values it states are the ones the grounding does not list again`() {
+        assertThat(LetterReadingContext.statedSlots(listOf(pay), fields))
+            .containsExactly("due_date", "total_amount", "sender", "invoice_no")
+        // A deadline field no action covers is stated too; with nothing stated, nothing is left out.
+        assertThat(LetterReadingContext.statedSlots(emptyList(), listOf(field("deadline", "Deadline", "31.01.2026", ExtractedFieldType.DEADLINE))))
+            .containsExactly("deadline")
+        assertThat(LetterReadingContext.statedSlots(emptyList(), fields)).isEmpty()
+    }
+
+    @Test
     fun `a deadline field no action covers is listed on its own`() {
         val text = LetterReadingContext.section(emptyList(), listOf(field("deadline", "Deadline", "31.01.2026", ExtractedFieldType.DEADLINE)))
 

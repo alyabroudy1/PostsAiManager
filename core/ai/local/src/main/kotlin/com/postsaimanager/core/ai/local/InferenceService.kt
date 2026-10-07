@@ -67,6 +67,11 @@ class InferenceService : Service() {
     @Volatile
     private var liteRtReply: Job? = null
 
+    /** The warm-up in flight (a conversation being built ahead of the first message), and the count that tells a queued one it was cancelled. */
+    @Volatile
+    private var liteRtWarmUp: Job? = null
+    private val warmUpToken = java.util.concurrent.atomic.AtomicInteger()
+
     private val binder = object : IInferenceService.Stub() {
 
         override fun loadModel(modelPath: String?, config: InferenceConfigParcel?): Boolean {
@@ -358,6 +363,57 @@ class InferenceService : Service() {
         override fun isLiteRtSessionPrimed(conversationId: String?): Boolean {
             if (conversationId == null) return false
             return runBlocking { liteRt.isChatSessionPrimed(conversationId) }
+        }
+
+        override fun warmUpLiteRt(
+            maxTokens: Int,
+            temperature: Float,
+            topK: Int,
+            topP: Float,
+            toolsEnabled: Boolean,
+            thinking: Boolean,
+            callback: ILiteRtReplyCallback?,
+        ): Boolean {
+            if (callback == null || !isLiteRtReady()) return false
+            val request = AiRequest(
+                prompt = "",
+                maxTokens = maxTokens,
+                temperature = temperature,
+                topK = topK,
+                topP = topP,
+                thinkingEnabled = thinking,
+                tools = if (toolsEnabled) ChatToolsRequest(documentId = null) else null,
+            )
+            val token = warmUpToken.incrementAndGet()
+            // Queued on the inference thread like a reply: a message sent meanwhile starts when the conversation is built.
+            executor.execute {
+                // Cancelled while it waited its turn (the user left the chat): nothing to build.
+                if (warmUpToken.get() != token) {
+                    runCatching { callback.onComplete() }
+                    return@execute
+                }
+                val job = liteRtScope.launch {
+                    try {
+                        liteRt.warmUpChat(request)
+                        callback.onComplete()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: RemoteException) {
+                        Log.w(TAG, "client disconnected during a LiteRT-LM warm-up", e)
+                    } catch (e: Throwable) {
+                        Log.w(TAG, "LiteRT-LM warm-up failed", e)
+                        runCatching { callback.onError(e.message ?: "Warm-up failed.") }
+                    }
+                }
+                liteRtWarmUp = job
+                runBlocking { job.join() }
+            }
+            return true
+        }
+
+        override fun cancelLiteRtWarmUp() {
+            warmUpToken.incrementAndGet()
+            liteRtWarmUp?.cancel()
         }
 
         override fun sendLiteRtMessage(

@@ -19,7 +19,10 @@ import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.model.ModelRuntime
 import com.postsaimanager.core.model.ToolExchange
 import com.postsaimanager.core.model.ToolTrace
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -29,6 +32,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -85,6 +89,8 @@ class RemoteLiteRtChatEngine @Inject constructor(
                         contextTokens = config.contextTokens,
                         modelName = File(modelId).nameWithoutExtension,
                         hasNativeChatTemplate = true,
+                        // What the engine reports it started on, so the UI names the backend that runs, not the one asked for.
+                        runningAccelerator = Accelerator.entries.firstOrNull { it.name == startedOn },
                     ),
                 )
             }
@@ -111,7 +117,13 @@ class RemoteLiteRtChatEngine @Inject constructor(
 
     override val state: StateFlow<ModelLoadState> = coordinator.state
 
-    override val isBusy: Boolean get() = connection.engineMutex.isLocked
+    /** True while this engine's own [warmUpChat] holds the model: that is the chat's own work, not another caller's. */
+    @Volatile
+    private var warmingUp = false
+
+    // "Busy" says another caller (a document being read) holds the model, so the chat's own warm-up does not count: a message sent
+    // while it runs waits for it as for any preparation, and must not be told a document is being read.
+    override val isBusy: Boolean get() = connection.engineMutex.isLocked && !warmingUp
 
     // The engine streams the thought channel between think tags when the reply asks for thinking (Off by default in the chat).
     override val supportsThinking: Boolean get() = true
@@ -207,6 +219,67 @@ class RemoteLiteRtChatEngine @Inject constructor(
                 if (opened) Log.i(TAG, "ensureChatSession: opened a session with ${history.size} prior turns")
                 opened
             }
+        }
+    }
+
+    override suspend fun warmUpChat(request: AiRequest) {
+        // Another caller holds the model (a document being read, a reply in flight): this is never worth queueing behind, nor
+        // worth taking the model over for. The first message prepares the conversation itself, as it always did.
+        if (connection.engineMutex.isLocked) return
+        connection.chatActivity.touch()
+        connection.engineMutex.withLock {
+            warmingUp = true
+            try {
+                warmUpLocked(request)
+            } finally {
+                warmingUp = false
+            }
+        }
+    }
+
+    private suspend fun warmUpLocked(request: AiRequest) {
+        val remote = withContext(ioDispatcher) { connection.connect() } ?: return
+        val finished = CompletableDeferred<Unit>()
+        val callback = object : ILiteRtReplyCallback.Stub() {
+            override fun onToken(token: String?) {}
+            override fun onComplete() {
+                finished.complete(Unit)
+            }
+            override fun onError(message: String?) {
+                Log.w(TAG, "warm-up failed: $message")
+                finished.complete(Unit)
+            }
+            override fun onAction(intent: String?, parametersJson: String?, documentId: String?) {}
+            override fun onToolExchange(name: String?, argumentsJson: String?, resultJson: String?, shownJson: String?) {}
+            override fun onRunJs(requestId: String?, skillFolder: String?, scriptName: String?, data: String?) {}
+            override fun onBackendFallback() {}
+        }
+        // The service does nothing when no LiteRT-LM model is resident or no session is open.
+        val started = withContext(ioDispatcher) {
+            runCatching {
+                remote.warmUpLiteRt(
+                    request.maxTokens,
+                    request.temperature,
+                    request.topK,
+                    request.topP,
+                    request.tools != null,
+                    request.thinkingEnabled,
+                    callback,
+                )
+            }.getOrDefault(false)
+        }
+        if (!started) return
+        try {
+            // Bounded: a service that died mid-warm-up never calls back, and the mutex must not stay held for it.
+            if (withTimeoutOrNull(WARM_UP_TIMEOUT_MS) { finished.await() } == null) {
+                withContext(NonCancellable + ioDispatcher) { runCatching { remote.cancelLiteRtWarmUp() } }
+            }
+            // The idle window runs from the end of the work, as after a reply.
+            connection.chatActivity.touch()
+        } catch (e: CancellationException) {
+            // The user left the chat, or the app went to the background: the service stops what it can of the warm-up.
+            withContext(NonCancellable + ioDispatcher) { runCatching { remote.cancelLiteRtWarmUp() } }
+            throw e
         }
     }
 
@@ -351,6 +424,9 @@ class RemoteLiteRtChatEngine @Inject constructor(
 
     private companion object {
         const val TAG = "RemoteLiteRtChatEngine"
+
+        /** Far longer than a prefill of the longest grounding on a slow CPU takes. */
+        const val WARM_UP_TIMEOUT_MS = 3 * 60_000L
 
         /** Calls waiting for the chat to collect them: a reply makes a handful at most. */
         const val ACTION_BUFFER = 16
