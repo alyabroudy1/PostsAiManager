@@ -87,6 +87,8 @@ object AgentActionParser {
         now: LocalDateTime = LocalDateTime.now(),
         /** Where a reminder's disagreeing offset and date are noted. */
         log: (String) -> Unit = {},
+        /** The documents a reminder may point at besides the chat's own: the model's `document_id` is used only when it is one of these. */
+        knownDocumentIds: Set<String> = emptySet(),
     ): ActionParse {
         val kind = AgentIntent.of(intent) ?: return ActionParse.Rejected("Intent not found: \"${intent.trim()}\"")
         if (kind == AgentIntent.GET_CURRENT_DATE_AND_TIME) return ActionParse.Parsed(AgentAction.GetDateTime)
@@ -95,7 +97,7 @@ object AgentActionParser {
         return when (kind) {
             AgentIntent.SEND_EMAIL -> email(params)
             AgentIntent.CREATE_CALENDAR_EVENT -> event(params)
-            AgentIntent.SCHEDULE_NOTIFICATION -> reminder(params, chatDocumentId, now, log)
+            AgentIntent.SCHEDULE_NOTIFICATION -> reminder(params, chatDocumentId, knownDocumentIds, now, log)
             AgentIntent.GET_CURRENT_DATE_AND_TIME -> ActionParse.Parsed(AgentAction.GetDateTime)
         }
     }
@@ -112,9 +114,19 @@ object AgentActionParser {
         return ActionParse.Parsed(AgentAction.CreateCalendarEvent(title = title, start = start, end = end, description = p.text("description").orEmpty()))
     }
 
-    private fun reminder(p: JsonObject, chatDocumentId: String?, now: LocalDateTime, log: (String) -> Unit): ActionParse {
+    private fun reminder(
+        p: JsonObject,
+        chatDocumentId: String?,
+        knownDocumentIds: Set<String>,
+        now: LocalDateTime,
+        log: (String) -> Unit,
+    ): ActionParse {
         val message = p.text("message") ?: return missing("message")
-        val documentId = p.text("document_id") ?: chatDocumentId
+        // The model's document_id is never trusted on its own: a small model writes a reference number there. It counts only when it
+        // is the chat's document or one the caller knows exists; otherwise the reminder belongs to the chat's document.
+        val stated = p.text("document_id")
+        val documentId = stated?.takeIf { it == chatDocumentId || it in knownDocumentIds } ?: chatDocumentId
+        if (stated != null && stated != documentId) log("reminder: document_id \"${stated.take(40)}\" is not a known document; the chat's document is used")
         val offset = offset(p)
         if (offset != null) {
             val hour = p.number("hour")

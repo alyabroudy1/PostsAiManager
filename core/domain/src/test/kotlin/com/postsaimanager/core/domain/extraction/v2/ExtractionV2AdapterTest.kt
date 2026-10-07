@@ -165,10 +165,12 @@ class ExtractionV2AdapterTest {
     }
 
     @Test
-    fun `a routing person and a mailbox are mentioned, never recipients`() {
+    fun `a routing person is the letter's contact person, a mailbox is mentioned, neither is a recipient`() {
         val n4 = understand(Letters.n4)
         assertThat(n4.entities.single { it.role == EntityRole.RECIPIENT }.name).isEqualTo("Mustermann Consulting GmbH")
-        assertThat(n4.entities.single { it.name == "Erika Mustermann" }.role).isEqualTo(EntityRole.MENTIONED)
+        val contact = n4.entities.single { it.name == "Erika Mustermann" }
+        assertThat(contact.role).isEqualTo(EntityRole.SENDER_CONTACT)
+        assertThat(contact.provenance?.slotKey).isEqualTo("contact")
         val n5 = understand(Letters.n5)
         assertThat(n5.entities.single { it.role == EntityRole.RECIPIENT }.name).isEqualTo("Jonas Mustermann")
         assertThat(n5.entities.single { it.name == "Familie Beispiel" }.role).isEqualTo(EntityRole.MENTIONED)

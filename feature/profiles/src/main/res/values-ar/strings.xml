@@ -42,6 +42,8 @@
     <string name="contact_menu_active">مسؤول من جديد</string>
     <string name="contact_menu_merge">دمج مع جهة اتصال أخرى</string>
     <string name="contact_menu_move">نقل إلى جهة أخرى</string>
+    <string name="contact_to_check">يرجى التحقق</string>
+    <string name="contact_menu_confirm">وضع علامة «تم التحقق»</string>
     <string name="contact_menu_delete">حذف</string>
     <string name="contact_edit_title">تعديل جهة الاتصال</string>
     <string name="contact_field_name">الاسم</string>

@@ -28,6 +28,17 @@ class ObserveOrganisationContactsUseCaseTest {
     }
 
     @Test
+    fun `the contacts to check are carried along for the page's mark`() = runTest {
+        repository.seed(contact("a", 20), contact("b", 10))
+        repository.toCheck.value = setOf("b")
+
+        observe("jc").test {
+            assertThat(awaitItem().toCheck).containsExactly("b")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `a contact marked no longer responsible is never current`() = runTest {
         repository.seed(contact("gone", 30, active = false), contact("here", 20))
 

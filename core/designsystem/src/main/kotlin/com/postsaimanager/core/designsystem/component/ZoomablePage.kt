@@ -23,7 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -63,6 +66,20 @@ internal class PageViewport {
     var offset by mutableStateOf(Offset.Zero)
     var box by mutableStateOf(IntSize.Zero)
     var imageSize by mutableStateOf(Size.Zero)
+
+    /** Where the page's (unzoomed) box starts in the window. */
+    var rootOrigin by mutableStateOf(Offset.Zero)
+
+    /**
+     * Where a selection rect is on screen. Compose reports it in the text layer's layout coordinates moved only by the layer's
+     * transformed origin `p` (the zoom is a scale about the box's centre, then the pan), so a point `p + d` really lies at `p + d * scale`.
+     */
+    fun toolbarRect(rect: Rect): Rect {
+        if (scale == 1f && offset == Offset.Zero) return rect
+        val centre = Offset(box.width / 2f, box.height / 2f)
+        val p = rootOrigin + centre * (1f - scale) + offset
+        return Rect(p + (rect.topLeft - p) * scale, p + (rect.bottomRight - p) * scale)
+    }
 
     /** The page layer's fit inside the box, or null until the image's size is known. */
     fun fitted(): FittedPage? =
@@ -163,6 +180,7 @@ internal fun ZoomablePage(
             .fillMaxSize()
             .clipToBounds()
             .onSizeChanged { viewport.box = it }
+            .onGloballyPositioned { viewport.rootOrigin = it.positionInRoot() }
             .testTag(PAGE_TEST_TAG)
             .pageGestures(viewport, onTap = { if (selection.active) selection.clear() }),
     ) {
@@ -201,7 +219,7 @@ internal fun ZoomablePage(
                 }
             }
             val fit = viewport.fitted()
-            if (fit != null && lines.isNotEmpty()) OcrTextLayer(lines, fit, selection)
+            if (fit != null && lines.isNotEmpty()) OcrTextLayer(lines, fit, selection, viewport)
         }
     }
 }
