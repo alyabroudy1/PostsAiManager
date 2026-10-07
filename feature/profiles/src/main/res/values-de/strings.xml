@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Profilarten -->
+    <string name="profile_type_self">Ich</string>
+    <string name="profile_type_family">Familienmitglied</string>
+    <string name="profile_type_person">Andere Person</string>
+    <string name="profile_type_organisation">Organisation</string>
+
+    <!-- Beziehungen (zu \"Ich\") -->
+    <string name="relationship_partner">Partner/in</string>
+    <string name="relationship_child">Kind</string>
+    <string name="relationship_parent">Elternteil</string>
+    <string name="relationship_relative">Verwandte/r</string>
+    <string name="relationship_friend">Freund/in</string>
+    <string name="relationship_other">Sonstige</string>
+
+    <!-- Liste -->
+    <string name="profiles_add_person">Person hinzufügen</string>
+    <string name="profiles_section_household">Mein Haushalt</string>
+    <string name="profiles_section_organisations">Organisationen</string>
+    <string name="profiles_section_people">Weitere Personen</string>
+    <plurals name="profile_contacts_count">
+        <item quantity="one">%d Ansprechperson</item>
+        <item quantity="other">%d Ansprechpersonen</item>
+    </plurals>
+
+    <!-- Ansprechpersonen einer Organisation -->
+    <string name="contacts_title">Ansprechpersonen</string>
+    <string name="contacts_empty">Noch keine Ansprechpersonen.</string>
+    <string name="contacts_current">Ihre Ansprechperson jetzt</string>
+    <string name="contacts_earlier">Frühere Ansprechpersonen</string>
+    <string name="contacts_last_seen">Letzter Brief %1$s</string>
+    <string name="contacts_inactive">Nicht mehr zuständig</string>
+    <string name="contact_call">Anrufen</string>
+    <string name="contact_email">E-Mail</string>
+    <string name="contact_more">Weitere Aktionen für %1$s</string>
+    <string name="contact_menu_edit">Bearbeiten</string>
+    <string name="contact_menu_active">Wieder zuständig</string>
+    <string name="contact_menu_merge">Mit anderer Ansprechperson zusammenführen</string>
+    <string name="contact_menu_move">In andere Organisation verschieben</string>
+    <string name="contact_menu_delete">Löschen</string>
+    <string name="contact_edit_title">Ansprechperson bearbeiten</string>
+    <string name="contact_field_name">Name</string>
+    <string name="contact_field_title">Funktion oder Titel</string>
+    <string name="contact_field_department">Team oder Abteilung</string>
+    <string name="contact_field_phone">Telefon</string>
+    <string name="contact_field_email">E-Mail</string>
+    <string name="contact_field_room">Zimmer</string>
+    <string name="contact_save">Speichern</string>
+    <string name="contact_cancel">Abbrechen</string>
+    <string name="contact_merge_title">%1$s ist dieselbe Person wie</string>
+    <string name="contact_merge_hint">Die Briefe von %1$s wandern zur gewählten Ansprechperson. Nur die andere bleibt bestehen.</string>
+    <string name="contact_move_title">%1$s verschieben nach</string>
+    <string name="contact_delete_title">%1$s löschen?</string>
+    <string name="contact_delete_body">Die Briefe bleiben erhalten. Sie verlieren nur diese Ansprechperson, und beim erneuten Lesen kommt sie nicht zurück.</string>
+    <string name="contact_no_app">Keine App dafür gefunden.</string>
+
+    <!-- Art und Haushalt -->
+    <string name="profile_kind_person">Person</string>
+    <string name="profile_field_household">Haushalt</string>
+    <string name="profile_household_none">Nicht in meinem Haushalt</string>
+
+    <!-- Detailseite -->
+    <string name="profile_detail_title_new">Neue Person</string>
+    <string name="profile_detail_save">Speichern</string>
+    <string name="profile_detail_not_found">Dieses Profil gibt es nicht mehr.</string>
+    <string name="profile_field_name">Name</string>
+    <string name="profile_field_type">Art</string>
+    <string name="profile_field_relationship">Beziehung zu mir</string>
+    <string name="profile_field_birth_date">Geburtsdatum</string>
+    <string name="profile_field_birth_date_none">Nicht angegeben</string>
+    <string name="profile_field_birth_date_clear">Geburtsdatum entfernen</string>
+    <string name="profile_field_street">Straße und Hausnummer</string>
+    <string name="profile_field_postal_code">PLZ</string>
+    <string name="profile_field_city">Ort</string>
+    <string name="profile_field_phone">Telefon</string>
+    <string name="profile_field_email">E-Mail</string>
+    <string name="profile_section_contact">Adresse und Kontakt</string>
+    <string name="profile_sensitive_title">Sensibel</string>
+    <string name="profile_sensitive_explanation">Dokumente einer sensiblen Person bleiben aus dem Chat über alle Dokumente heraus.</string>
+    <string name="profile_me_taken">Ein anderes Profil ist bereits \"Ich\".</string>
+    <string name="date_picker_ok">OK</string>
+    <string name="date_picker_cancel">Abbrechen</string>
+
+    <!-- Gespeicherte Angaben -->
+    <string name="saved_details_title">Gespeicherte Angaben</string>
+    <string name="saved_details_empty">Noch nichts gespeichert. Angaben, die Sie beim Ausfüllen eines Formulars bestätigen, können hier gemerkt werden.</string>
+    <string name="saved_details_save_first">Speichern Sie zuerst diese Person, um Angaben hinzuzufügen.</string>
+    <string name="saved_details_add">Angabe hinzufügen</string>
+    <string name="saved_details_hidden">Verborgen. Zum Anzeigen tippen.</string>
+    <string name="saved_details_edit">Angabe bearbeiten</string>
+    <string name="saved_details_delete">Angabe löschen</string>
+    <string name="saved_details_deleted">Angabe entfernt</string>
+    <string name="saved_details_undo">Rückgängig</string>
+    <string name="saved_details_source_user">von Ihnen hinzugefügt · %1$s</string>
+    <string name="saved_details_source_form">aus einem Formular · %1$s</string>
+    <string name="saved_details_source_document">aus einem Brief · %1$s</string>
+    <string name="saved_details_dialog_add">Angabe hinzufügen</string>
+    <string name="saved_details_dialog_edit">Angabe bearbeiten</string>
+    <string name="saved_details_dialog_key">Welche Art von Angabe?</string>
+    <string name="saved_details_dialog_value">Wert</string>
+    <string name="saved_details_dialog_save">Speichern</string>
+    <string name="saved_details_dialog_cancel">Abbrechen</string>
+</resources>

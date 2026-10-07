@@ -542,6 +542,16 @@ object PamMigrations {
         }
     }
 
+    /**
+     * v22 (household and contacts): `profiles.kind` and `profiles.householdRole` filled from `type`, the tables `contact_persons`,
+     * `document_contacts` and `organisation_references`, and the move of former caseworker profiles into their organisation. See
+     * [HouseholdMigration]. Additive and idempotent. 1..21 are untouched (21 is installed on phones). Renumber by changing only this
+     * step's versions.
+     */
+    val MIGRATION_21_22 = object : Migration(21, 22) {
+        override fun migrate(db: SupportSQLiteDatabase) = HouseholdMigration.apply(db)
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -563,5 +573,6 @@ object PamMigrations {
         MIGRATION_18_19,
         MIGRATION_19_20,
         MIGRATION_20_21,
+        MIGRATION_21_22,
     )
 }

@@ -12,7 +12,7 @@ import com.postsaimanager.core.domain.repository.InstalledModelsRepository
 import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
 import com.postsaimanager.core.model.InstalledModelSummary
 import com.postsaimanager.core.model.Profile
-import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.model.HouseholdRole
 import com.postsaimanager.core.testing.FakeProfileRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -78,7 +78,10 @@ class DocumentDetailViewModelTest {
         externalFlowGuard = externalFlowGuard,
         installedModels = installedModels,
         profileRepository = profileRepository,
+        loadLetterContacts = com.postsaimanager.core.testing.letterContactsFor(profileRepository, contactRepository),
     )
+
+    private val contactRepository = com.postsaimanager.core.testing.FakeContactRepository()
 
     private val installedModels = object : InstalledModelsRepository {
         val models = MutableStateFlow<List<InstalledModelSummary>>(emptyList())
@@ -90,7 +93,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `the pages context follows the installed models and the Me profile`() = runTest {
-        profileRepository.seed(Profile(id = "me", type = ProfileType.USER_SELF, name = "Mo Ali", createdAt = 0, modifiedAt = 0))
+        profileRepository.seed(Profile(id = "me", householdRole = HouseholdRole.SELF, name = "Mo Ali", createdAt = 0, modifiedAt = 0))
         val context = viewModel().pagesContext
         assertThat(context.first { !it.aiInstalled && it.selfName != null }).isEqualTo(PagesContext(aiInstalled = false, selfName = "Mo Ali"))
         installedModels.models.value = listOf(InstalledModelSummary("m", "Model", "/m.gguf", 1L, "Q4_K_M", 4096))

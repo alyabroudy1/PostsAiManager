@@ -5,6 +5,8 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileRole
+import com.postsaimanager.core.model.HouseholdRole
+import com.postsaimanager.core.model.ProfileKind
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.Relationship
 import kotlinx.coroutines.flow.Flow
@@ -41,8 +43,11 @@ class FakeProfileRepository : ProfileRepository {
 
     override fun getProfiles(): Flow<List<Profile>> = profiles
 
-    override fun getProfilesByType(type: ProfileType): Flow<List<Profile>> =
-        profiles.map { list -> list.filter { it.type == type } }
+    override fun getProfilesByKind(kind: ProfileKind): Flow<List<Profile>> =
+        profiles.map { list -> list.filter { it.kind == kind } }
+
+    override fun getProfilesByRole(role: HouseholdRole): Flow<List<Profile>> =
+        profiles.map { list -> list.filter { it.householdRole == role } }
 
     override fun getProfilesForDocument(documentId: String): Flow<List<Pair<Profile, ProfileRole>>> =
         profiles.map { list ->
@@ -69,10 +74,8 @@ class FakeProfileRepository : ProfileRepository {
 
     /** Mirrors the real repository: a second "Me" is refused. */
     private fun secondSelf(profile: Profile): PamError? =
-        if (profile.type == ProfileType.USER_SELF &&
-            profiles.value.any { it.type == ProfileType.USER_SELF && it.id != profile.id }
-        ) {
-            PamError.ValidationError("type", "there is already a \"Me\" profile")
+        if (profile.isSelf && profiles.value.any { it.isSelf && it.id != profile.id }) {
+            PamError.ValidationError("householdRole","there is already a \"Me\" profile")
         } else {
             null
         }
@@ -145,9 +148,12 @@ fun testProfile(
     relationship: Relationship? = null,
     birthDate: String? = null,
     sensitive: Boolean = false,
+    kind: ProfileKind = type.kind,
+    householdRole: HouseholdRole? = type.householdRole,
 ) = Profile(
     id = id,
-    type = type,
+    kind = kind,
+    householdRole = householdRole,
     name = name,
     organization = organization,
     email = email,

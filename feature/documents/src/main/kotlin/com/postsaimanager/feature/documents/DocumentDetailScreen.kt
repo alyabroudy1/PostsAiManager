@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import com.postsaimanager.core.domain.contacts.LetterContacts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -127,10 +128,13 @@ fun DocumentDetailScreen(
     initialPage: Int? = null,
     /** "AI not installed · Install" on the Pages card: opens the model setup. */
     onInstallModel: () -> Unit = {},
+    /** The letter's contact chip: opens the sender organisation's page at that contact (organisation id, contact id). */
+    onContactClick: (organisationId: String, contactId: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
     viewModel: DocumentDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val letterContacts by viewModel.letterContacts.collectAsStateWithLifecycle()
     val pagesContext by viewModel.pagesContext.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val processingState by viewModel.processingProgress.collectAsStateWithLifecycle()
@@ -289,6 +293,8 @@ fun DocumentDetailScreen(
                     onZoomPage = viewModel::openPage,
                     jumpToPage = lastViewedPage,
                     pagesContext = pagesContext,
+                    letterContacts = letterContacts,
+                    onContactClick = onContactClick,
                     onInstallModel = onInstallModel,
                     processingState = processingState,
                     summaryComing = summaryComing,
@@ -364,6 +370,8 @@ private fun DocumentDetailContent(
     onZoomPage: (pageNumber: Int) -> Unit,
     jumpToPage: Int?,
     pagesContext: PagesContext,
+    letterContacts: LetterContacts,
+    onContactClick: (organisationId: String, contactId: String) -> Unit,
     onInstallModel: () -> Unit,
     processingState: ProcessingState,
     /** The reading's second stage (summary, extras) is still being written: the summary card says so. */
@@ -389,6 +397,7 @@ private fun DocumentDetailContent(
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val context = LocalContext.current
     Column(modifier = Modifier.fillMaxSize()) {
         // A document starts processing itself the moment it is captured — there is no
         // mandatory button here any more. What shows is honest status: queued, running (with
@@ -491,6 +500,10 @@ private fun DocumentDetailContent(
                 onShowOnPage = onShowOnPage,
                 onFillForm = onFillForm,
                 selfName = pagesContext.selfName,
+                letterContacts = letterContacts,
+                onContactClick = onContactClick,
+                onCall = { phone -> openContactApp(context, Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone.filter { it.isDigit() || it == '+' })), "dial", externalLaunch) },
+                onEmail = { address -> openContactApp(context, Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:" + Uri.encode(address))), "write-email", externalLaunch) },
             )
             DetailTab.TIMELINE -> TimelineTab(state.timeline)
         }
@@ -801,6 +814,17 @@ private fun getFileUri(context: Context, path: String): Uri? {
  * background consumes the protection by itself.
  */
 private class ExternalLaunch(val expect: (reason: String) -> Unit, val finish: () -> Unit)
+
+/** Opens the dialer or the mail app for a contact (the app itself dials and sends nothing). */
+private fun openContactApp(context: Context, intent: Intent, reason: String, external: ExternalLaunch) {
+    external.expect(reason)
+    try {
+        context.startActivity(intent)
+    } catch (_: Exception) {
+        external.finish()
+        Toast.makeText(context, context.getString(R.string.contact_no_app), Toast.LENGTH_SHORT).show()
+    }
+}
 
 private fun sharePdf(context: Context, generatePdf: () -> File?, external: ExternalLaunch) {
     val pdfFile = generatePdf()

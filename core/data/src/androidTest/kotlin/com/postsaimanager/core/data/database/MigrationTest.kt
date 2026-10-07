@@ -1161,6 +1161,31 @@ class MigrationTest {
         }
     }
 
+    /** v21 (the installed shape) gains kind and household role from `type` and the three contact tables, and validates against the schema. Needs a device. */
+    @Test
+    fun migrate21To22_fillsKindAndRoleAndCreatesTheContactTables() {
+        helper.createDatabase(TEST_DB, 21).apply {
+            execSQL(
+                """
+                INSERT INTO profiles (id, type, name, completionScore, createdAt, modifiedAt)
+                VALUES ('o', 'AUTHORITY', 'Jobcenter', 0, 1, 1), ('m', 'FAMILY_MEMBER', 'Maria', 0, 1, 1), ('s', 'USER_SELF', 'Mo', 0, 1, 1)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 22, true, PamMigrations.MIGRATION_21_22)
+
+        db.query("SELECT id, kind, householdRole FROM profiles ORDER BY id").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("m", c.getString(0)); assertEquals("PERSON", c.getString(1)); assertEquals("MEMBER", c.getString(2))
+            assertTrue(c.moveToNext())
+            assertEquals("o", c.getString(0)); assertEquals("ORGANISATION", c.getString(1)); assertTrue(c.isNull(2))
+            assertTrue(c.moveToNext())
+            assertEquals("s", c.getString(0)); assertEquals("PERSON", c.getString(1)); assertEquals("SELF", c.getString(2))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

@@ -55,6 +55,10 @@
     <string name="essentials_from">Von</string>
     <string name="essentials_for">An</string>
     <string name="essentials_about">Betrifft</string>
+    <string name="essentials_contact_open">%1$s bei der Organisation öffnen</string>
+    <string name="contact_offer_call">%1$s anrufen</string>
+    <string name="contact_offer_email">%1$s eine E-Mail schreiben</string>
+    <string name="contact_no_app">Keine App dafür gefunden.</string>
     <string name="essentials_address">Adresse</string>
     <string name="essentials_address_line">Adresse: %1$s</string>
     <string name="essentials_check_hint">Die markierten Zeilen unten sollten Sie prüfen.</string>

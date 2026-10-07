@@ -3,6 +3,10 @@ package com.postsaimanager.feature.profiles
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamError
+import com.postsaimanager.core.model.ContactPerson
+import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.model.Relationship
+import com.postsaimanager.core.testing.FakeContactRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
 import com.postsaimanager.core.testing.testProfile
@@ -30,7 +34,34 @@ class ProfilesViewModelTest {
 
     private val repo = FakeProfileRepository()
 
-    private fun viewModel() = ProfilesViewModel(repo)
+    private val contacts = FakeContactRepository()
+
+    private fun viewModel() = ProfilesViewModel(repo, contacts)
+
+    @Test
+    fun `the household comes first with Me, then organisations with their contact counts, then other people`() = runTest {
+        repo.seed(
+            testProfile(id = "landlord", name = "Herr Vermieter", type = ProfileType.PERSON),
+            testProfile(id = "jc", name = "Jobcenter", type = ProfileType.AUTHORITY),
+            testProfile(id = "maria", name = "Maria", type = ProfileType.FAMILY_MEMBER, relationship = Relationship.PARTNER),
+            testProfile(id = "me", name = "Zed", type = ProfileType.USER_SELF),
+            testProfile(id = "amir", name = "Amir", type = ProfileType.FAMILY_MEMBER, relationship = Relationship.CHILD),
+        )
+        contacts.seed(
+            ContactPerson("c1", "jc", "Frau Müller", firstSeen = 1, lastSeen = 2),
+            ContactPerson("c2", "jc", "Nadine Beispiel", firstSeen = 1, lastSeen = 1),
+        )
+
+        viewModel().uiState.test {
+            val success = awaitItem() as ProfilesUiState.Success
+            val sections = success.sections
+            assertThat(sections.household.map { it.id }).containsExactly("me", "amir", "maria").inOrder()
+            assertThat(sections.organisations.map { it.id }).containsExactly("jc")
+            assertThat(sections.people.map { it.id }).containsExactly("landlord")
+            assertThat(success.contactCounts).containsExactly("jc", 2)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 
     @Test
     fun `initial state before any collection is Loading`() = runTest {

@@ -9,8 +9,21 @@ import com.postsaimanager.core.domain.form.ObserveSavedDetailsUseCase
 import com.postsaimanager.core.domain.form.RememberDetailUseCase
 import com.postsaimanager.core.model.FactSource
 import com.postsaimanager.core.model.ProfileFact
+import com.postsaimanager.core.domain.applock.ExternalFlowGuard
+import com.postsaimanager.core.domain.contacts.DeleteContactUseCase
+import com.postsaimanager.core.domain.contacts.MergeContactsUseCase
+import com.postsaimanager.core.domain.contacts.MoveContactUseCase
+import com.postsaimanager.core.domain.contacts.ObserveOrganisationContactsUseCase
+import com.postsaimanager.core.domain.contacts.SetContactActiveUseCase
+import com.postsaimanager.core.domain.contacts.SetHouseholdRoleUseCase
+import com.postsaimanager.core.domain.contacts.UpdateContactUseCase
+import io.mockk.mockk
+import com.postsaimanager.core.model.ContactPerson
+import com.postsaimanager.core.model.HouseholdRole
+import com.postsaimanager.core.model.ProfileKind
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.Relationship
+import com.postsaimanager.core.testing.FakeContactRepository
 import com.postsaimanager.core.testing.FakeProfileFactRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
@@ -25,14 +38,25 @@ class ProfileDetailViewModelTest {
 
     private val profiles = FakeProfileRepository()
     private val facts = FakeProfileFactRepository()
+    private val contacts = FakeContactRepository()
 
     private fun viewModel(id: String) = ProfileDetailViewModel(
         SavedStateHandle(mapOf(ProfileDetailViewModel.ARG_PROFILE_ID to id)),
         profiles,
+        SetHouseholdRoleUseCase(profiles),
+        ObserveOrganisationContactsUseCase(contacts),
         ObserveSavedDetailsUseCase(facts),
         RememberDetailUseCase(profiles, facts),
         ForgetDetailUseCase(facts),
+        UpdateContactUseCase(contacts),
+        SetContactActiveUseCase(contacts),
+        MergeContactsUseCase(contacts),
+        MoveContactUseCase(contacts, profiles),
+        DeleteContactUseCase(contacts),
+        guard,
     )
+
+    private val guard = mockk<ExternalFlowGuard>(relaxed = true)
 
     private fun ahmad() = testProfile(id = "ahmad", name = "Ahmad", type = ProfileType.FAMILY_MEMBER, relationship = Relationship.CHILD)
 
@@ -102,15 +126,161 @@ class ProfileDetailViewModelTest {
     }
 
     @Test
-    fun `changing the type drops a relationship that no longer applies`() = runTest {
+    fun `changing the kind to organisation drops the role, relationship and birth date`() = runTest {
         profiles.seed(ahmad().copy(birthDate = "2019-03-12"))
         val vm = viewModel("ahmad")
         vm.uiState.test {
-            vm.setType(ProfileType.AUTHORITY)
+            vm.setKind(ProfileKind.ORGANISATION)
 
             val draft = expectMostRecentItem().draft!!
+            assertThat(draft.householdRole).isNull()
             assertThat(draft.relationship).isNull()
             assertThat(draft.birthDate).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a changed household role is applied on save through the use case, not before`() = runTest {
+        profiles.seed(ahmad())
+        val vm = viewModel("ahmad")
+        vm.uiState.test {
+            vm.setRole(null)
+            assertThat(profiles.getProfileById("ahmad").let { (it as com.postsaimanager.core.common.result.PamResult.Success).data.householdRole })
+                .isEqualTo(HouseholdRole.MEMBER)
+
+            vm.save()
+
+            val stored = (profiles.getProfileById("ahmad") as com.postsaimanager.core.common.result.PamResult.Success).data
+            assertThat(stored.householdRole).isNull()
+            assertThat(stored.relationship).isNull()
+            assertThat(expectMostRecentItem().finished).isTrue()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `Me cannot be cleared from the editor, the save reports it`() = runTest {
+        profiles.seed(testProfile(id = "me", name = "Mo", type = ProfileType.USER_SELF))
+        val vm = viewModel("me")
+        vm.uiState.test {
+            assertThat(expectMostRecentItem().selfLocked).isTrue()
+            vm.setRole(null)
+            vm.save()
+
+            assertThat(vm.message.value).isNotNull()
+            assertThat(expectMostRecentItem().finished).isFalse()
+            val stored = (profiles.getProfileById("me") as com.postsaimanager.core.common.result.PamResult.Success).data
+            assertThat(stored.isSelf).isTrue()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `an organisation shows its contacts, current first`() = runTest {
+        profiles.seed(testProfile(id = "jc", name = "Jobcenter", type = ProfileType.AUTHORITY))
+        contacts.seed(
+            ContactPerson("c1", "jc", "Nadine Beispiel", firstSeen = 1, lastSeen = 10),
+            ContactPerson("c2", "jc", "Frau Müller", firstSeen = 20, lastSeen = 30),
+        )
+
+        viewModel("jc").uiState.test {
+            val found = expectMostRecentItem().contacts
+            assertThat(found.current?.name).isEqualTo("Frau Müller")
+            assertThat(found.earlier.map { it.name }).containsExactly("Nadine Beispiel")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    private fun seedJobcenterWithTwoContacts() {
+        profiles.seed(
+            testProfile(id = "jc", name = "Jobcenter Musterstadt", type = ProfileType.AUTHORITY),
+            testProfile(id = "jc2", name = "Jobcenter Nordstadt", type = ProfileType.AUTHORITY),
+        )
+        contacts.seed(
+            ContactPerson("c1", "jc", "Nadine Beispiel", firstSeen = 1, lastSeen = 10),
+            ContactPerson("c2", "jc", "Frau Müller", firstSeen = 20, lastSeen = 30),
+        )
+    }
+
+    @Test
+    fun `editing a contact saves what was typed`() = runTest {
+        seedJobcenterWithTwoContacts()
+        val vm = viewModel("jc")
+
+        vm.saveContact(contacts.getContact("c2").let { (it as com.postsaimanager.core.common.result.PamResult.Success).data }.copy(phone = "030 222", title = "Teamleiterin"))
+
+        vm.uiState.test {
+            val current = expectMostRecentItem().contacts.current
+            assertThat(current?.phone).isEqualTo("030 222")
+            assertThat(current?.title).isEqualTo("Teamleiterin")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `marking the current contact no longer responsible makes the earlier one current`() = runTest {
+        seedJobcenterWithTwoContacts()
+        val vm = viewModel("jc")
+
+        vm.setContactActive("c2", false)
+
+        vm.uiState.test {
+            val found = expectMostRecentItem().contacts
+            assertThat(found.current?.name).isEqualTo("Nadine Beispiel")
+            assertThat(found.earlier.single().active).isFalse()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `merging, moving and deleting go through the contact use cases`() = runTest {
+        seedJobcenterWithTwoContacts()
+        contacts.seed(ContactPerson("c3", "jc", "N. Beispiel", firstSeen = 30, lastSeen = 40))
+        contacts.linkContactToDocument("c3", "d3")
+        val vm = viewModel("jc")
+
+        vm.mergeContact(keepId = "c1", mergedId = "c3")
+        vm.moveContactTo("c2", "jc2")
+        vm.removeContact("c1")
+
+        vm.uiState.test {
+            val state = expectMostRecentItem()
+            assertThat(state.contacts.isEmpty).isTrue()
+            assertThat(state.otherOrganisations.map { it.id }).containsExactly("jc2")
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertThat(contacts.observeContacts("jc2").first().map { it.name }).containsExactly("Frau Müller")
+        assertThat(contacts.isRemovedFromDocument("d3", "Nadine Beispiel")).isTrue()
+    }
+
+    @Test
+    fun `a refused change is reported`() = runTest {
+        seedJobcenterWithTwoContacts()
+        profiles.seed(testProfile(id = "anna", name = "Anna", type = ProfileType.PERSON))
+        val vm = viewModel("jc")
+
+        vm.moveContactTo("c1", "anna")
+
+        assertThat(vm.message.value).isNotNull()
+    }
+
+    @Test
+    fun `the contact a letter chip opened the page for is the focus`() = runTest {
+        seedJobcenterWithTwoContacts()
+        val vm = ProfileDetailViewModel(
+            SavedStateHandle(mapOf(ProfileDetailViewModel.ARG_PROFILE_ID to "jc", ProfileDetailViewModel.ARG_CONTACT_ID to "c1")),
+            profiles, SetHouseholdRoleUseCase(profiles), ObserveOrganisationContactsUseCase(contacts), ObserveSavedDetailsUseCase(facts),
+            RememberDetailUseCase(profiles, facts), ForgetDetailUseCase(facts), UpdateContactUseCase(contacts), SetContactActiveUseCase(contacts),
+            MergeContactsUseCase(contacts), MoveContactUseCase(contacts, profiles), DeleteContactUseCase(contacts), guard,
+        )
+
+        vm.uiState.test {
+            assertThat(expectMostRecentItem().focusContactId).isEqualTo("c1")
+            cancelAndIgnoreRemainingEvents()
+        }
+        viewModel("jc").uiState.test {
+            assertThat(expectMostRecentItem().focusContactId).isNull()
             cancelAndIgnoreRemainingEvents()
         }
     }

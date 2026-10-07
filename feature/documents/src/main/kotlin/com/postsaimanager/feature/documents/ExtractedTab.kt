@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import com.postsaimanager.core.designsystem.component.ReportAnswerButton
 import com.postsaimanager.core.designsystem.component.ReportAnswerDialog
 import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.domain.contacts.LetterContacts
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.FamilyPresentation
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
@@ -148,6 +149,12 @@ internal fun ExtractedTab(
     /** "Help me fill it": opens the document chat with the form fill started. Offered as a card on a form only; null hides it. */
     onFillForm: (() -> Unit)? = null,
     selfName: String? = null,
+    /** The letter's contact and the organisation's current one: the "From" chip and what a "contact" action offers. */
+    letterContacts: LetterContacts = LetterContacts(),
+    /** The chip: opens the organisation page at the contact (organisation id, contact id). */
+    onContactClick: (organisationId: String, contactId: String) -> Unit = { _, _ -> },
+    onCall: (phone: String) -> Unit = {},
+    onEmail: (address: String) -> Unit = {},
 ) {
     // Kept across a rotation: the row being edited is stored as its id and resolved from the data, so the sheet shows the latest row.
     var editingFieldId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -158,8 +165,9 @@ internal fun ExtractedTab(
     var detailsExpanded by rememberSaveable { mutableStateOf(false) }
     var ignoredExpanded by remember { mutableStateOf(false) }
 
-    val presentation = remember(document, data, showAllExtras, summaryComing, selfName) {
-        ExtractedPresenter.present(document, data, showAllExtras, summaryComing, selfName)
+    val offerContact = letterContacts.current ?: letterContacts.letterContact
+    val presentation = remember(document, data, showAllExtras, summaryComing, selfName, offerContact) {
+        ExtractedPresenter.present(document, data, showAllExtras, summaryComing, selfName, offerContact)
     }
     // The ✎ of any row opens the same sheet.
     val rowActions = remember(actions) {
@@ -240,8 +248,8 @@ internal fun ExtractedTab(
                         }
                     }
                 }
-                if (essentials.actions.isNotEmpty()) item(key = "essentials-actions") { ActionsCard(essentials.actions, rowActions) }
-                if (!essentials.parties.isEmpty) item(key = "essentials-parties") { PartiesCard(essentials.parties, rowActions) }
+                if (essentials.actions.isNotEmpty()) item(key = "essentials-actions") { ActionsCard(essentials.actions, rowActions, onCall, onEmail) }
+                if (!essentials.parties.isEmpty) item(key = "essentials-parties") { PartiesCard(essentials.parties, rowActions, letterContacts, onContactClick) }
                 if (essentials.subject != null || essentials.keyInfo.isNotEmpty()) {
                     item(key = "essentials-key") { KeyInfoCard(essentials.subject, essentials.keyInfo, rowActions) }
                 }

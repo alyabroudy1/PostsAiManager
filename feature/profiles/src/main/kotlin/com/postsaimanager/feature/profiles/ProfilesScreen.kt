@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,7 +58,6 @@ import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.Profile
-import com.postsaimanager.core.model.ProfileType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,18 +138,11 @@ fun ProfilesScreen(
                         message = state.message,
                         icon = PamIcons.Error,
                     )
-                    is ProfilesUiState.Success -> LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(state.profiles, key = { it.id }) { profile ->
-                            ProfileListItem(
-                                profile = profile,
-                                onClick = { onProfileClick(profile.id) },
-                                onDeleteClick = { viewModel.requestDelete(profile) },
-                            )
-                        }
-                    }
+                    is ProfilesUiState.Success -> ProfilesList(
+                        state = state,
+                        onProfileClick = onProfileClick,
+                        onDelete = viewModel::requestDelete,
+                    )
                 }
             }
         }
@@ -159,6 +153,54 @@ fun ProfilesScreen(
             profile = profile,
             onConfirm = viewModel::confirmDelete,
             onDismiss = viewModel::cancelDelete,
+        )
+    }
+}
+
+/** The profiles in three groups: my household first, then organisations, then other people. Stateless, so it can be tested alone. */
+@Composable
+internal fun ProfilesList(
+    state: ProfilesUiState.Success,
+    onProfileClick: (String) -> Unit,
+    onDelete: (Profile) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val sections = state.sections
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        profileSection(R.string.profiles_section_household, "household", sections.household, state.contactCounts, onProfileClick, onDelete)
+        profileSection(R.string.profiles_section_organisations, "organisations", sections.organisations, state.contactCounts, onProfileClick, onDelete)
+        profileSection(R.string.profiles_section_people, "people", sections.people, state.contactCounts, onProfileClick, onDelete)
+    }
+}
+
+/** One titled group of the list; nothing at all when the group is empty. Keys are prefixed so a profile id cannot clash with a header. */
+private fun LazyListScope.profileSection(
+    title: Int,
+    tag: String,
+    profiles: List<Profile>,
+    contactCounts: Map<String, Int>,
+    onProfileClick: (String) -> Unit,
+    onDelete: (Profile) -> Unit,
+) {
+    if (profiles.isEmpty()) return
+    item(key = "header_$tag") {
+        Text(
+            text = stringResource(title),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(top = 8.dp).testTag("section_$tag"),
+        )
+    }
+    items(profiles, key = { it.id }) { profile ->
+        ProfileListItem(
+            profile = profile,
+            contactCount = contactCounts[profile.id] ?: 0,
+            onClick = { onProfileClick(profile.id) },
+            onDeleteClick = { onDelete(profile) },
         )
     }
 }
@@ -207,6 +249,7 @@ private fun DeleteProfileDialog(
 @Composable
 private fun ProfileListItem(
     profile: Profile,
+    contactCount: Int,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -245,12 +288,11 @@ private fun ProfileListItem(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                val typeText = stringResource(typeLabel(profile.type))
-                val subtitle = buildString {
-                    append(typeText)
-                    profile.relationship?.let { append(" · ${stringResource(relationshipLabel(it))}") }
-                    profile.organization?.let { append(" · $it") }
-                }
+                val typeText = stringResource(profileLabel(profile))
+                val relationshipText = profile.relationship?.let { stringResource(relationshipLabel(it)) }
+                val contactsText = contactCount.takeIf { it > 0 }
+                    ?.let { pluralStringResource(R.plurals.profile_contacts_count, it, it) }
+                val subtitle = listOfNotNull(typeText, relationshipText, profile.organization, contactsText).joinToString(" · ")
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,

@@ -71,7 +71,7 @@ class ActionCardsViewModelTest {
     )
 
     /** The grounding of a real [ProposeActionUseCase] over an empty letter (a reminder in the past is flagged by the clock alone). */
-    private fun realPropose() = ProposeActionUseCase(LoadGroundingSourcesUseCase(FakeDocumentRepository(), FakeProfileRepository(), FakeProfileFactRepository()))
+    private fun realPropose() = ProposeActionUseCase(LoadGroundingSourcesUseCase(FakeDocumentRepository(), FakeProfileRepository(), FakeProfileFactRepository(), com.postsaimanager.core.testing.letterContactsFor()))
 
     /** A stored assistant reply that made one `run_intent` call, as the engine stores it. */
     private fun storeReply(intent: String, parameters: String, id: String = "m1") = runBlocking {

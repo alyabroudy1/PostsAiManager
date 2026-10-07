@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.skills
 
+import com.postsaimanager.core.domain.contacts.LoadLetterContactsUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileFactRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
@@ -21,6 +22,7 @@ class LoadGroundingSourcesUseCase @Inject constructor(
     private val documents: DocumentRepository,
     private val profiles: ProfileRepository,
     private val profileFacts: ProfileFactRepository,
+    private val letterContacts: LoadLetterContactsUseCase,
 ) {
     suspend operator fun invoke(documentId: String?, userMessages: List<String>): GroundingSources {
         val letter = documentId?.let { id ->
@@ -30,7 +32,10 @@ class LoadGroundingSourcesUseCase @Inject constructor(
             documents.observeExtractedData(id).first().filterNot { it.deletedByUser }.map { it.fieldValue }
         }.orEmpty()
         val people = profiles.getProfiles().first()
-        val profileValues = people.mapNotNull { it.email } +
+        // The letter's contact person and the organisation's current contact: their e-mail address and phone are values the app already
+        // holds, offered to the model in the chat context, so an address it took from there is found (the model still decides whom to write to).
+        val contactValues = documentId?.let { id -> letterContacts(id).people.flatMap { listOfNotNull(it.email, it.phone) } }.orEmpty()
+        val profileValues = people.mapNotNull { it.email } + contactValues +
             people.flatMap { person -> profileFacts.facts(person.id).filterNot { it.sensitive }.map { it.value } }
         return GroundingSources(letterText = letter, verifiedValues = verified, profileValues = profileValues, userMessages = userMessages)
     }

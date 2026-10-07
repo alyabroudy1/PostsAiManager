@@ -37,7 +37,7 @@ class SendChatMessageUseCaseTest {
     private val engine = FakeAiEngine()
     private val models = FakeActiveModelProvider()
     private val conversations = FakeConversationRepository()
-    private val buildChatContext = BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository())
+    private val buildChatContext = BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor())
     private val chunkRepository = FakeDocumentChunkRepository()
     private val retrieveChunks = RetrieveChunksUseCase(chunkRepository, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(FakeDocumentRepository()))
     private val sendChatMessage =
@@ -663,7 +663,7 @@ class SendChatMessageUseCaseTest {
         )
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
-            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            BuildChatContextUseCase(documents, FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor()),
             RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
@@ -694,7 +694,7 @@ class SendChatMessageUseCaseTest {
         )
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
-            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            BuildChatContextUseCase(documents, FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor()),
             RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
@@ -726,7 +726,7 @@ class SendChatMessageUseCaseTest {
         seedOverflowingDocument(documents)
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
-            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            BuildChatContextUseCase(documents, FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor()),
             RetrieveChunksUseCase(FakeDocumentChunkRepository(), FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
@@ -752,7 +752,7 @@ class SendChatMessageUseCaseTest {
         chunks.seed(testChunk("c1", documentId = "d1", text = "Should never be injected."))
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
-            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            BuildChatContextUseCase(documents, FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor()),
             RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
@@ -780,7 +780,7 @@ class SendChatMessageUseCaseTest {
         chunks.seed(testChunk("c3", documentId = "d1", ordinal = 2, pageNumber = 2, text = "Bankverbindung."))
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
-            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            BuildChatContextUseCase(documents, FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor()),
             RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
@@ -812,7 +812,7 @@ class SendChatMessageUseCaseTest {
         )
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
-            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            BuildChatContextUseCase(documents, FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor()),
             RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 
@@ -831,7 +831,7 @@ class SendChatMessageUseCaseTest {
         chunks.seed(testChunk("c1", documentId = "d1", pageNumber = 1, text = "Die Antwort auf diese Frage."))
         val useCase = SendChatMessageUseCase(
             conversations, engine, models,
-            BuildChatContextUseCase(documents, FakeProfileRepository()),
+            BuildChatContextUseCase(documents, FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor()),
             RetrieveChunksUseCase(chunks, FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
         )
 

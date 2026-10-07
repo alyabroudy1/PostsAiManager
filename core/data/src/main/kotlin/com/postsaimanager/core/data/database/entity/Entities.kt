@@ -131,6 +131,94 @@ data class ProfileEntity(
     val relationship: String? = null,
     val birthDate: String? = null,
     @ColumnInfo(defaultValue = "0") val sensitive: Boolean = false,
+    /** PERSON or ORGANISATION (see `ProfileKind`). Added in v22, filled from [type]. */
+    @ColumnInfo(defaultValue = "'PERSON'") val kind: String = "PERSON",
+    /** SELF, MEMBER or null (see `HouseholdRole`). Added in v22, filled from [type]. */
+    val householdRole: String? = null,
+)
+
+/**
+ * A person inside one organisation profile (see `ContactPerson`). Gone with the organisation. Added in v22.
+ */
+@Entity(
+    tableName = "contact_persons",
+    foreignKeys = [
+        ForeignKey(
+            entity = ProfileEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["organisationId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("organisationId")],
+)
+data class ContactPersonEntity(
+    @PrimaryKey val id: String,
+    val organisationId: String,
+    val name: String,
+    val title: String?,
+    val department: String?,
+    val phone: String?,
+    val email: String?,
+    val room: String?,
+    val firstSeen: Long,
+    val lastSeen: Long,
+    val active: Boolean,
+)
+
+/** Which contact handled which document; gone with either side. Added in v22. */
+@Entity(
+    tableName = "document_contacts",
+    primaryKeys = ["documentId", "contactId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = DocumentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["documentId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = ContactPersonEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["contactId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("documentId"), Index("contactId")],
+)
+data class DocumentContactEntity(
+    val documentId: String,
+    val contactId: String,
+    val createdAt: Long,
+)
+
+/** A number a household person has at one organisation (see `OrganisationReference`). Empty until phase 3. Added in v22. */
+@Entity(
+    tableName = "organisation_references",
+    foreignKeys = [
+        ForeignKey(
+            entity = ProfileEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["organisationId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = ProfileEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["profileId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("organisationId"), Index("profileId")],
+)
+data class OrganisationReferenceEntity(
+    @PrimaryKey val id: String,
+    val organisationId: String,
+    val profileId: String,
+    val label: String,
+    val value: String,
+    val sourceDocumentId: String?,
+    val createdAt: Long,
 )
 
 /** A remembered detail of a person (see `ProfileFact`); one row per (profile, key). */

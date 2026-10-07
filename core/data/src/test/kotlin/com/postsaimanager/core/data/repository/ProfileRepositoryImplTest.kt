@@ -12,7 +12,9 @@ import com.postsaimanager.core.data.database.dao.ProfileWithRole
 import com.postsaimanager.core.data.database.entity.DismissedEntityEntity
 import com.postsaimanager.core.data.database.entity.DocumentProfileLinkEntity
 import com.postsaimanager.core.data.database.entity.ProfileEntity
+import com.postsaimanager.core.model.HouseholdRole
 import com.postsaimanager.core.model.Profile
+import com.postsaimanager.core.model.ProfileKind
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.Relationship
 import kotlinx.coroutines.flow.Flow
@@ -47,7 +49,7 @@ class ProfileRepositoryImplTest {
     }
 
     private fun profile(id: String, type: ProfileType, relationship: Relationship? = null) = Profile(
-        id = id, type = type, name = id, relationship = relationship, birthDate = "2019-03-12", sensitive = true,
+        id = id, kind = type.kind, householdRole = type.householdRole, name = id, relationship = relationship, birthDate = "2019-03-12", sensitive = true,
         createdAt = 1, modifiedAt = 1,
     )
 
@@ -80,6 +82,26 @@ class ProfileRepositoryImplTest {
     }
 
     @Test
+    fun `kind and household role are stored, the legacy type is written along, and the role is derived back`() = runTest {
+        repository.createProfile(profile("jobcenter", ProfileType.AUTHORITY))
+        repository.createProfile(profile("me", ProfileType.USER_SELF))
+        repository.createProfile(profile("maria", ProfileType.FAMILY_MEMBER, Relationship.PARTNER))
+        repository.createProfile(profile("landlord", ProfileType.PERSON))
+
+        assertThat(dao.rows.map { Triple(it.kind, it.householdRole, it.type) }).containsExactly(
+            Triple("ORGANISATION", null, "AUTHORITY"),
+            Triple("PERSON", "SELF", "USER_SELF"),
+            Triple("PERSON", "MEMBER", "FAMILY_MEMBER"),
+            Triple("PERSON", null, "PERSON"),
+        ).inOrder()
+        val loaded = (repository.getProfileById("maria") as PamResult.Success).data
+        assertThat(loaded.kind).isEqualTo(ProfileKind.PERSON)
+        assertThat(loaded.householdRole).isEqualTo(HouseholdRole.MEMBER)
+        assertThat(loaded.isManaged).isTrue()
+        assertThat((repository.getProfileById("jobcenter") as PamResult.Success).data.isManaged).isFalse()
+    }
+
+    @Test
     fun `an unknown stored relationship reads as none`() = runTest {
         dao.insert(entity("x", "PERSON").copy(relationship = "COUSIN_TWICE_REMOVED"))
 
@@ -97,12 +119,13 @@ private class InMemoryProfileDao : ProfileDao {
     val rows = mutableListOf<ProfileEntity>()
 
     override fun observeAll(): Flow<List<ProfileEntity>> = MutableStateFlow(rows.toList())
-    override fun observeByType(type: String): Flow<List<ProfileEntity>> = MutableStateFlow(rows.filter { it.type == type })
+    override fun observeByKind(kind: String): Flow<List<ProfileEntity>> = MutableStateFlow(rows.filter { it.kind == kind })
+    override fun observeByRole(role: String): Flow<List<ProfileEntity>> = MutableStateFlow(rows.filter { it.householdRole == role })
     override fun search(query: String): Flow<List<ProfileEntity>> = emptyFlow()
     override suspend fun getById(id: String): ProfileEntity? = rows.firstOrNull { it.id == id }
     override suspend fun findSimilar(name: String, organization: String?): List<ProfileEntity> = emptyList()
     override suspend fun findOtherSelfId(exceptId: String): String? =
-        rows.firstOrNull { it.type == "USER_SELF" && it.id != exceptId }?.id
+        rows.firstOrNull { it.householdRole == "SELF" && it.id != exceptId }?.id
 
     override suspend fun insert(profile: ProfileEntity) {
         rows.removeAll { it.id == profile.id }

@@ -2,14 +2,12 @@ package com.postsaimanager.core.domain.document.people
 
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
-import com.postsaimanager.core.domain.form.FormScorer
-import com.postsaimanager.core.domain.form.FormScoringException
+import com.postsaimanager.core.domain.form.BaselineScores
+import com.postsaimanager.core.domain.form.BaselineYesNo
 import com.postsaimanager.core.domain.form.PromptFraming
 import com.postsaimanager.core.domain.form.SubjectCandidate
 import com.postsaimanager.core.domain.form.SuggestSubject
 import com.postsaimanager.core.model.Relationship
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -42,7 +40,7 @@ data class ConcernedPeopleProfile(
     val baselineName: String = "Zoltan Quillfeather",
 ) {
     /** The indexes of [scores] that beat [baseline] by at least [margin]. */
-    fun select(scores: List<Double>, baseline: Double): List<Int> = scores.indices.filter { scores[it] - baseline >= margin }
+    fun select(scores: List<Double>, baseline: Double): List<Int> = BaselineScores(scores, baseline).beating(margin)
 }
 
 /** The log-odds of "for or about this member?" per listed member (in the listed order), and of the same question for the made-up name. */
@@ -75,19 +73,18 @@ class ModelConcernedPeople @Inject constructor(
     /** The scores [decide] decides from, and what the evaluation records. */
     suspend fun scores(letter: String, members: List<SubjectCandidate>): PamResult<ConcernedScores> {
         val listed = members.take(profile.maxMembers)
-        val (head, tail) = framing.frame(SYSTEM, "LETTER\n" + letter.take(profile.maxLetterChars))
-        when (val opened = session.open(head)) {
-            is PamResult.Error -> return opened
-            is PamResult.Success -> Unit
-        }
-        return try {
-            val baseline = SubjectCandidate("baseline", profile.baselineName, Relationship.RELATIVE)
-            val all = FormScorer(session, tail).yesNo((listed + baseline).map(::statement), shared(listed))
-            PamResult.Success(ConcernedScores(all.dropLast(1), all.last()))
-        } catch (e: FormScoringException) {
-            PamResult.Error(e.error)
-        } finally {
-            withContext(NonCancellable) { session.close() }
+        val baseline = SubjectCandidate("baseline", profile.baselineName, Relationship.RELATIVE)
+        return when (
+            val scored = BaselineYesNo(session, framing).score(
+                system = SYSTEM,
+                user = "LETTER\n" + letter.take(profile.maxLetterChars),
+                statements = listed.map(::statement),
+                baselineStatement = statement(baseline),
+                shared = shared(listed),
+            )
+        ) {
+            is PamResult.Error -> scored
+            is PamResult.Success -> PamResult.Success(ConcernedScores(scored.data.candidates, scored.data.baseline))
         }
     }
 

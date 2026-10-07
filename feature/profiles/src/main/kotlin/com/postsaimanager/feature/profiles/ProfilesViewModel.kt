@@ -3,6 +3,7 @@ package com.postsaimanager.feature.profiles
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.repository.ContactRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Profile
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -22,6 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfilesViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
+    private val contactRepository: ContactRepository,
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -33,9 +36,9 @@ class ProfilesViewModel @Inject constructor(
                 if (query.isBlank()) profileRepository.getProfiles()
                 else profileRepository.searchProfiles(query)
             }
-            .map<List<Profile>, ProfilesUiState> { profiles ->
+            .combine<List<Profile>, Map<String, Int>, ProfilesUiState>(contactRepository.observeContactCounts().catch { emit(emptyMap()) }) { profiles, counts ->
                 if (profiles.isEmpty()) ProfilesUiState.Empty
-                else ProfilesUiState.Success(profiles)
+                else ProfilesUiState.Success(profiles, counts)
             }
             .catch { emit(ProfilesUiState.Error(it.message ?: "Unknown error")) }
             .stateIn(
@@ -99,6 +102,12 @@ class ProfilesViewModel @Inject constructor(
 sealed interface ProfilesUiState {
     data object Loading : ProfilesUiState
     data object Empty : ProfilesUiState
-    data class Success(val profiles: List<Profile>) : ProfilesUiState
+    data class Success(
+        val profiles: List<Profile>,
+        /** Contacts per organisation profile id (organisations without any are absent). */
+        val contactCounts: Map<String, Int> = emptyMap(),
+    ) : ProfilesUiState {
+        val sections: ProfileSections get() = ProfileSections.of(profiles)
+    }
     data class Error(val message: String) : ProfilesUiState
 }

@@ -28,7 +28,7 @@ class SendChatMessageImagesTest {
         conversations,
         engine,
         models,
-        BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository()),
+        BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor()),
         RetrieveChunksUseCase(FakeDocumentChunkRepository(), FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(FakeDocumentRepository())),
     )
 

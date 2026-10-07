@@ -2,7 +2,6 @@ package com.postsaimanager.core.domain.form
 
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Profile
-import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.Relationship
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -18,7 +17,7 @@ class GuardiansOfUseCase @Inject constructor(
         val all = profiles.getProfiles().first()
         val person = all.firstOrNull { it.id == profileId } ?: return emptyList()
         if (person.relationship != Relationship.CHILD) return emptyList()
-        val me = all.firstOrNull { it.type == ProfileType.USER_SELF }
+        val me = all.firstOrNull { it.isSelf }
         val partner = all.firstOrNull { it.relationship == Relationship.PARTNER }
         return listOfNotNull(me, partner).filter { it.id != person.id }
     }

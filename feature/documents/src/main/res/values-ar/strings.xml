@@ -55,6 +55,10 @@
     <string name="essentials_from">من</string>
     <string name="essentials_for">إلى</string>
     <string name="essentials_about">بخصوص</string>
+    <string name="essentials_contact_open">فتح %1$s لدى الجهة</string>
+    <string name="contact_offer_call">الاتصال بـ %1$s</string>
+    <string name="contact_offer_email">مراسلة %1$s بالبريد</string>
+    <string name="contact_no_app">لا يوجد تطبيق لهذا.</string>
     <string name="essentials_address">العنوان</string>
     <string name="essentials_address_line">العنوان: %1$s</string>
     <string name="essentials_check_hint">يُفضَّل مراجعة الأسطر المعلَّمة أدناه.</string>

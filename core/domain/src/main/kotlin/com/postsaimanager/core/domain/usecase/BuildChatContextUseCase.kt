@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.postsaimanager.core.common.result.getOrNull
+import com.postsaimanager.core.domain.contacts.LoadLetterContactsUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.ExtractedData
@@ -78,6 +79,7 @@ data class ChatGrounding(val text: String, val retrievalMode: Boolean)
 class BuildChatContextUseCase @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val profileRepository: ProfileRepository,
+    private val letterContacts: LoadLetterContactsUseCase,
 ) {
 
     suspend operator fun invoke(
@@ -108,7 +110,7 @@ class BuildChatContextUseCase @Inject constructor(
             .coerceAtLeast(MIN_CONTEXT_TOKENS)) * CHARS_PER_TOKEN
 
         val header = buildHeader(document.title, document.documentType?.name, document.language)
-        val read = LetterReadingContext.section(document.actionItems, extracted)
+        val read = LetterReadingContext.section(document.actionItems, extracted, letterContacts(documentId))
         val fields = buildFields(extracted)
         val parties = buildProfiles(profiles)
         val instructions = INSTRUCTIONS

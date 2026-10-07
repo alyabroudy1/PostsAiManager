@@ -3,6 +3,11 @@ package com.postsaimanager.core.domain.skills
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
+import com.postsaimanager.core.model.ContactPerson
+import com.postsaimanager.core.model.ProfileRole
+import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.testing.FakeContactRepository
+import com.postsaimanager.core.testing.letterContactsFor
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
@@ -23,7 +28,9 @@ class ProposeAndConfirmActionTest {
     private val profiles = FakeProfileRepository()
     private val facts = FakeProfileFactRepository()
 
-    private val propose = ProposeActionUseCase(LoadGroundingSourcesUseCase(documents, profiles, facts))
+    private val contacts = FakeContactRepository()
+
+    private val propose = ProposeActionUseCase(LoadGroundingSourcesUseCase(documents, profiles, facts, letterContactsFor(profiles, contacts)))
 
     private class RecordingExecutor(var result: ActionResult = ActionResult.Succeeded()) : AgentActionExecutor {
         val executed = mutableListOf<AgentAction>()
@@ -76,6 +83,28 @@ class ProposeAndConfirmActionTest {
         assertThat(fact.checks[ActionField.TO]).isEqualTo(FieldCheck.GROUNDED)
         assertThat(unknown.checks[ActionField.TO]).isEqualTo(FieldCheck.NOT_FOUND)
         assertThat(executor.executed).isEmpty()
+    }
+
+    @Test
+    fun `the current contact's e-mail is offered as a recipient when the letter has none, and a stranger's is still not found`() = runTest {
+        documents.seedPages("d1", DocumentPage("p1", "d1", 1, "file:///1.jpg", ocrText = "Ihr Schreiben vom 01.10.2026"))
+        profiles.seed(testProfile(id = "jc", name = "Jobcenter Musterstadt", organization = "Jobcenter Musterstadt", type = ProfileType.AUTHORITY))
+        profiles.linkProfileToDocument("jc", "d1", ProfileRole.SENDER)
+        contacts.seed(
+            ContactPerson("c1", "jc", "Nadine Beispiel", email = "nadine.beispiel@jobcenter-musterstadt.example", firstSeen = 1, lastSeen = 10),
+            ContactPerson("c2", "jc", "Frau Müller", email = "mueller@jobcenter-musterstadt.example", firstSeen = 20, lastSeen = 30),
+        )
+        contacts.linkContactToDocument("c1", "d1")
+
+        val letterContact = propose(AgentAction.SendEmail("nadine.beispiel@jobcenter-musterstadt.example", "x", "y"), "d1", emptyList(), now)
+        val currentContact = propose(AgentAction.SendEmail("mueller@jobcenter-musterstadt.example", "x", "y"), "d1", emptyList(), now)
+        val stranger = propose(AgentAction.SendEmail("someone@else.example", "x", "y"), "d1", emptyList(), now)
+
+        assertThat(letterContact.checks[ActionField.TO]).isEqualTo(FieldCheck.GROUNDED)
+        assertThat(currentContact.checks[ActionField.TO]).isEqualTo(FieldCheck.GROUNDED)
+        assertThat(stranger.checks[ActionField.TO]).isEqualTo(FieldCheck.NOT_FOUND)
+        // The values are only offered: the proposal still holds exactly what the model chose.
+        assertThat(currentContact.action).isEqualTo(AgentAction.SendEmail("mueller@jobcenter-musterstadt.example", "x", "y"))
     }
 
     @Test

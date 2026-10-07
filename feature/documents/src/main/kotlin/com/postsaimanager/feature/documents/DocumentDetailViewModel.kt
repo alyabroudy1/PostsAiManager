@@ -7,6 +7,8 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
+import com.postsaimanager.core.domain.contacts.LetterContacts
+import com.postsaimanager.core.domain.contacts.LoadLetterContactsUseCase
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.DocumentProcessor
@@ -15,7 +17,7 @@ import com.postsaimanager.core.domain.document.ReadAgainAsFamilyUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.InstalledModelsRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
-import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.model.HouseholdRole
 import kotlinx.coroutines.flow.combine
 import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
 import com.postsaimanager.core.model.DocumentPreview
@@ -59,6 +61,7 @@ class DocumentDetailViewModel @Inject constructor(
     private val externalFlowGuard: ExternalFlowGuard,
     installedModels: InstalledModelsRepository,
     profileRepository: ProfileRepository,
+    loadLetterContacts: LoadLetterContactsUseCase,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
@@ -110,9 +113,14 @@ class DocumentDetailViewModel @Inject constructor(
     /** What the Pages card needs beyond the document: whether an AI model is installed, and the "Me" profile's name. */
     val pagesContext: StateFlow<PagesContext> = combine(
         installedModels.installed.map { it.isNotEmpty() }.catch { emit(true) },
-        profileRepository.getProfilesByType(ProfileType.USER_SELF).map { it.firstOrNull()?.name }.catch { emit(null) },
+        profileRepository.getProfilesByRole(HouseholdRole.SELF).map { it.firstOrNull()?.name }.catch { emit(null) },
     ) { aiInstalled, selfName -> PagesContext(aiInstalled, selfName) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PagesContext())
+
+    /** The contact this letter names and the sender organisation's current contact: the "From" chip and what a "contact" action offers. */
+    val letterContacts: StateFlow<LetterContacts> = loadLetterContacts.observe(documentId)
+        .catch { emit(LetterContacts()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LetterContacts())
 
     /** Guards the auto-enqueue below so opening a `NEW` document does not re-enqueue on
      * every recomposition — `enqueue` is idempotent via `ExistingWorkPolicy.KEEP` anyway,

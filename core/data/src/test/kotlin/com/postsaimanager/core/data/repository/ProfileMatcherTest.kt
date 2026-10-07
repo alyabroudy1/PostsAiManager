@@ -2,6 +2,7 @@ package com.postsaimanager.core.data.repository
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamError
+import com.postsaimanager.core.model.ProfileKind
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.testProfile
@@ -84,7 +85,7 @@ class ProfileMatcherTest {
         val authority = testProfile(id = "authority", name = "Jobcenter", organization = "Jobcenter Berlin", type = ProfileType.AUTHORITY)
         repo.similarProfilesOverride = listOf(person, authority)
 
-        val (profile, _) = matcher.findBestMatch(null, "Jobcenter Berlin", profileType = { it == ProfileType.AUTHORITY })
+        val (profile, _) = matcher.findBestMatch(null, "Jobcenter Berlin", profileKind = { it == ProfileKind.ORGANISATION })
 
         assertThat(profile?.id).isEqualTo("authority")
     }

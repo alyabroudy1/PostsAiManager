@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.extraction.actions
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.model.ActionItem
+import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.ReviewState
@@ -38,6 +39,37 @@ class ActionLinesTest {
         assertThat(line.rows.map { it.slotKey }).containsExactly("due_date", "total", "iban", "invoice_no").inOrder()
         // The account and the reference are shown under the sentence to copy; the date and the amount are in the sentence.
         assertThat(line.valueRows.map { it.slotKey }).containsExactly("iban", "invoice_no").inOrder()
+    }
+
+    private val mueller = ContactPerson("c2", "jc", "Frau Müller", phone = "030 222", email = "mueller@jc.example", firstSeen = 1, lastSeen = 2)
+    private val contactAction = ActionItem("contact", mapOf("party" to "sender"))
+
+    @Test
+    fun `a contact action offers the current contact's phone and e-mail when the letter has none`() {
+        val line = ActionLines.resolve(listOf(contactAction), fields, mueller).single()
+
+        assertThat(line.offer).isEqualTo(ContactOffer("Frau Müller", "030 222", "mueller@jc.example"))
+    }
+
+    @Test
+    fun `only the channel the letter gives no value for is offered`() {
+        val withPhone = fields + ExtractedData("p", "d", "Phone", "030 999", ExtractedFieldType.PHONE, 0.9f, slotKey = "x:phone")
+
+        val line = ActionLines.resolve(listOf(contactAction), withPhone, mueller).single()
+
+        assertThat(line.offer).isEqualTo(ContactOffer("Frau Müller", null, "mueller@jc.example"))
+    }
+
+    @Test
+    fun `no offer when the letter has both, for another kind of action, or without a contact`() {
+        val both = fields +
+            ExtractedData("p", "d", "Phone", "030 999", ExtractedFieldType.PHONE, 0.9f, slotKey = "x:phone") +
+            ExtractedData("e", "d", "Email", "a@jc.example", ExtractedFieldType.EMAIL, 0.9f, slotKey = "x:email")
+
+        assertThat(ActionLines.resolve(listOf(contactAction), both, mueller).single().offer).isNull()
+        assertThat(ActionLines.resolve(listOf(pay), fields, mueller).single().offer).isNull()
+        assertThat(ActionLines.resolve(listOf(contactAction), fields).single().offer).isNull()
+        assertThat(ActionLines.resolve(listOf(contactAction), fields, mueller.copy(phone = null, email = " ")).single().offer).isNull()
     }
 
     @Test
