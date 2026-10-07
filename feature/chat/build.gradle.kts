@@ -52,8 +52,11 @@ dependencies {
     // Navigation
     implementation(libs.navigation.compose)
 
-    // Page images in the citation preview
+    // Page images in the citation preview, and the pictures of a message
     implementation(libs.coil.compose)
+
+    // The system photo picker for "attach a picture"
+    implementation(libs.activity.compose)
 
     // Coroutines
     implementation(libs.coroutines.core)

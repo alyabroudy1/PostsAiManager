@@ -15,7 +15,9 @@ import com.postsaimanager.core.data.repository.TimelineRepositoryImpl
 import com.postsaimanager.core.data.repository.UserPreferencesRepositoryImpl
 import com.postsaimanager.core.data.skills.AssetSkillCatalog
 import com.postsaimanager.core.data.skills.WorkManagerReminderScheduler
+import com.postsaimanager.core.data.util.FileChatImageStore
 import com.postsaimanager.core.data.util.PdfGenerator
+import com.postsaimanager.core.domain.ai.ChatImageStore
 import com.postsaimanager.core.domain.skills.ReminderScheduler
 import com.postsaimanager.core.domain.skills.SkillCatalog
 import com.postsaimanager.core.domain.document.DocumentExporter
@@ -90,6 +92,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindSkillCatalog(impl: AssetSkillCatalog): SkillCatalog
+
+    @Binds
+    @Singleton
+    abstract fun bindChatImageStore(impl: FileChatImageStore): ChatImageStore
 
     @Binds
     @Singleton

@@ -88,4 +88,48 @@
     <string name="debug_test_email_action">اختبار إجراء الوكيل: بريد</string>
     <string name="debug_test_event_action">اختبار إجراء الوكيل: تقويم</string>
     <string name="debug_test_reminder_action">اختبار إجراء الوكيل: تذكير</string>
+
+    <!-- The model's reasoning -->
+    <string name="chat_thinking_live">يفكّر…</string>
+    <string name="chat_thought_for">فكّر لمدة %1$s</string>
+    <string name="chat_thinking_done">الأفكار</string>
+    <string name="chat_thinking_show">إظهار التفكير</string>
+    <string name="chat_thinking_hide">إخفاء التفكير</string>
+
+    <!-- What the model did before it answered -->
+    <plurals name="chat_progress_title">
+        <item quantity="zero">%1$d خطوة</item>
+        <item quantity="one">خطوة واحدة</item>
+        <item quantity="two">خطوتان</item>
+        <item quantity="few">%1$d خطوات</item>
+        <item quantity="many">%1$d خطوة</item>
+        <item quantity="other">%1$d خطوة</item>
+    </plurals>
+    <string name="chat_progress_expand">إظهار الخطوات</string>
+    <string name="chat_progress_collapse">إخفاء الخطوات</string>
+    <string name="chat_step_load_skill">تم تحميل المهارة \"%1$s\"</string>
+    <string name="chat_step_load_skill_failed">تعذّر تحميل المهارة \"%1$s\"</string>
+    <string name="chat_step_intent">تم تجهيز الإجراء \"%1$s\"</string>
+    <string name="chat_step_intent_failed">تم رفض الإجراء \"%1$s\"</string>
+    <string name="chat_step_js">تم تشغيل برنامج المهارة \"%1$s\"</string>
+    <string name="chat_step_js_failed">فشل برنامج المهارة \"%1$s\"</string>
+    <string name="chat_webview_full_screen">عرض بملء الشاشة</string>
+    <string name="chat_webview_close">إغلاق</string>
+
+    <!-- Pictures in a message -->
+    <string name="chat_attach">إرفاق صورة</string>
+    <string name="chat_attach_photo">صورة من المعرض</string>
+    <string name="chat_attach_page">الصفحة %1$d من هذه الرسالة</string>
+    <string name="chat_attachment_remove">إزالة هذه الصورة</string>
+    <string name="chat_image_description">صورة مرفقة</string>
+    <string name="chat_image_in_group_description">صورة مرفقة %1$d من %2$d</string>
+    <string name="chat_error_image_unreadable">تعذّرت قراءة هذا الملف كصورة.</string>
+
+    <!-- A new chat -->
+    <string name="chat_new_chat">محادثة جديدة</string>
+    <string name="chat_new_chat_title">بدء محادثة جديدة؟</string>
+    <string name="chat_new_chat_message">سيتم حذف رسائل هذه المحادثة ولا يمكن استعادتها. رسائلك ومستنداتك لا تتأثر.</string>
+    <string name="chat_new_chat_confirm">حذف وبدء جديدة</string>
+    <string name="chat_new_chat_cancel">إلغاء</string>
+    <string name="chat_error_new_chat_failed">تعذّر مسح المحادثة. حاول مرة أخرى.</string>
 </resources>

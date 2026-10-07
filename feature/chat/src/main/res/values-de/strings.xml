@@ -88,4 +88,44 @@
     <string name="debug_test_email_action">Agent-Aktion testen: E-Mail</string>
     <string name="debug_test_event_action">Agent-Aktion testen: Kalender</string>
     <string name="debug_test_reminder_action">Agent-Aktion testen: Erinnerung</string>
+
+    <!-- The model's reasoning -->
+    <string name="chat_thinking_live">Denkt nach…</string>
+    <string name="chat_thought_for">Nachgedacht: %1$s</string>
+    <string name="chat_thinking_done">Gedanken</string>
+    <string name="chat_thinking_show">Gedanken anzeigen</string>
+    <string name="chat_thinking_hide">Gedanken ausblenden</string>
+
+    <!-- What the model did before it answered -->
+    <plurals name="chat_progress_title">
+        <item quantity="one">%1$d Schritt</item>
+        <item quantity="other">%1$d Schritte</item>
+    </plurals>
+    <string name="chat_progress_expand">Schritte anzeigen</string>
+    <string name="chat_progress_collapse">Schritte ausblenden</string>
+    <string name="chat_step_load_skill">Skill \"%1$s\" geladen</string>
+    <string name="chat_step_load_skill_failed">Skill \"%1$s\" konnte nicht geladen werden</string>
+    <string name="chat_step_intent">Aktion \"%1$s\" vorbereitet</string>
+    <string name="chat_step_intent_failed">Aktion \"%1$s\" wurde abgelehnt</string>
+    <string name="chat_step_js">Skript von \"%1$s\" ausgeführt</string>
+    <string name="chat_step_js_failed">Skript von \"%1$s\" ist fehlgeschlagen</string>
+    <string name="chat_webview_full_screen">Im Vollbild ansehen</string>
+    <string name="chat_webview_close">Schließen</string>
+
+    <!-- Pictures in a message -->
+    <string name="chat_attach">Bild anhängen</string>
+    <string name="chat_attach_photo">Foto aus der Galerie</string>
+    <string name="chat_attach_page">Seite %1$d dieses Briefs</string>
+    <string name="chat_attachment_remove">Dieses Bild entfernen</string>
+    <string name="chat_image_description">Angehängtes Bild</string>
+    <string name="chat_image_in_group_description">Angehängtes Bild %1$d von %2$d</string>
+    <string name="chat_error_image_unreadable">Diese Datei konnte nicht als Bild gelesen werden.</string>
+
+    <!-- A new chat -->
+    <string name="chat_new_chat">Neuer Chat</string>
+    <string name="chat_new_chat_title">Neuen Chat beginnen?</string>
+    <string name="chat_new_chat_message">Die Nachrichten dieses Chats werden gelöscht und lassen sich nicht wiederherstellen. Ihre Briefe bleiben unberührt.</string>
+    <string name="chat_new_chat_confirm">Löschen und neu beginnen</string>
+    <string name="chat_new_chat_cancel">Abbrechen</string>
+    <string name="chat_error_new_chat_failed">Der Chat konnte nicht geleert werden. Bitte versuchen Sie es erneut.</string>
 </resources>

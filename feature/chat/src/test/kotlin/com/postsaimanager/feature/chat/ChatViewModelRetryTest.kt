@@ -66,6 +66,10 @@ class ChatViewModelRetryTest {
         formFill = mockk(relaxed = true),
         formFills = FakeFormFillRepository(),
         searchModelHint = testSearchModelHint(),
+        startNewChat = io.mockk.mockk(relaxed = true),
+        attachChatImage = io.mockk.mockk(relaxed = true),
+        chatImageSupport = io.mockk.mockk(relaxed = true),
+        jsSkillRelay = io.mockk.mockk(relaxed = true),
         formFillingFlag = FormFillingFlag.OFF,
     )
 
