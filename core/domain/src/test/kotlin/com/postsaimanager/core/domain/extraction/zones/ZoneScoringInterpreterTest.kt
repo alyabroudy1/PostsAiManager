@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.zones
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
@@ -342,6 +343,14 @@ class ZoneScoringInterpreterTest {
     fun `the sender falls back to the footer and no other party has a fallback`() {
         assertThat(SlotPlacements.partyFallback(QuestionNames.SENDER).map { it.tag }).containsExactly("footer")
         assertThat(SlotPlacements.partyFallback(QuestionNames.ADDRESSEE)).isEmpty()
+    }
+
+    @Test
+    fun `every template that has an information block asks for the contact person there`() {
+        for (t in listOf(LayoutTemplates.DIN5008_A, LayoutTemplates.DIN5008_B, LayoutTemplates.RTL_DIN, LayoutTemplates.UK_LETTER, LayoutTemplates.US_BLOCK)) {
+            val info = t.zones.single { it.zone == LetterZone.INFO_BLOCK }
+            assertThat(info.asks).contains(QuestionNames.CONTACT)
+        }
     }
 
     @Test

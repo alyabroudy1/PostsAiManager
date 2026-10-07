@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Text einer gescannten Seite in der Vorschau auswählen und kopieren. -->
-    <string name="page_preview_select_text">Text auswählen</string>
     <string name="page_preview_select_text_unavailable">Auf dieser Seite gibt es keinen auswählbaren Text</string>
 
     <!-- Eine Zeile der Dokumentliste: Personen-Chips und Fälligkeitsdatum. -->

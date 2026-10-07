@@ -126,7 +126,7 @@ internal class AgentToolCalls(
 
     private fun propose(intent: String, parameters: String): Map<String, String> {
         val name = intent.trim()
-        return when (val parsed = AgentActionParser.parse(name, parameters, context.chatDocumentId())) {
+        return when (val parsed = AgentActionParser.parse(name, parameters, context.chatDocumentId(), now(), log)) {
             is ActionParse.Rejected -> {
                 log("run_intent \"$name\" rejected: ${parsed.reason} (parameters were: ${parameters.take(300)})")
                 rejected(name, parsed.reason)
@@ -138,7 +138,13 @@ internal class AgentToolCalls(
                     mapOf("action" to name, "result" to ActionDateTime.forModel(now()))
                 }
                 else -> {
-                    log("run_intent \"$name\" proposed")
+                    // A reminder's parameters as the model sent them and what they became, so a wrong time can be traced to its
+                    // cause. An email's or an event's carry the letter's content, so those are not logged.
+                    val reminder = parsed.action as? AgentAction.ScheduleReminder
+                    log(
+                        if (reminder != null) "run_intent \"$name\" proposed: parameters ${parameters.take(300)} -> at ${reminder.at}, offset ${reminder.offset}"
+                        else "run_intent \"$name\" proposed",
+                    )
                     context.propose(name, parameters)
                     mapOf("action" to name, "status" to PROPOSED)
                 }
@@ -170,10 +176,10 @@ internal class AgentToolCalls(
         const val JS_TIMEOUT_MS = 60_000L
 
         /**
-         * What the model is told after a proposal: the truth, so that its one-sentence summary says the action was prepared for
-         * the user's confirmation and not that it was done (the user may still cancel).
+         * What the model is told after a proposal: the truth, and what to say, so that its one-sentence summary says the action
+         * was prepared for the user's confirmation and not that it was done (the user may still cancel).
          */
-        const val PROPOSED = "Shown to the user as a card to confirm; nothing has been done yet. " +
-            "It is only prepared and waits for the user's confirmation."
+        const val PROPOSED = "Not done yet: it is shown to the user as a card and waits for their confirmation. " +
+            "Tell the user in one sentence that you prepared it and that they can confirm it on the card."
     }
 }
