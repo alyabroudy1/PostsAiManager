@@ -14,6 +14,20 @@ interface DocumentNoteRepository {
 
     suspend fun notes(documentId: String): List<DocumentNote>
 
+    /** The notes of the household person [profileId], in the same order. */
+    fun observeForProfile(profileId: String): Flow<List<DocumentNote>>
+
+    /**
+     * The notes of the all-documents chat: those of every person and the household-wide ones (every note that is not about a
+     * document), in the same order.
+     */
+    fun observeOutsideDocuments(): Flow<List<DocumentNote>>
+
+    suspend fun notesOutsideDocuments(): List<DocumentNote>
+
+    /** Adds a note of the all-documents chat: about the household person [profileId], or household-wide when it is null. */
+    suspend fun addOutsideDocument(profileId: String?, text: String, source: NoteSource, sourceRef: String? = null): DocumentNote
+
     /** Adds a note; [sourceRef] identifies what it came from (null for one the user typed). */
     suspend fun add(documentId: String, text: String, source: NoteSource, sourceRef: String? = null): DocumentNote
 

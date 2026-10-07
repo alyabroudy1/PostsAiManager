@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.data.database.PamDatabase
 import com.postsaimanager.core.data.database.entity.DocumentEntity
+import com.postsaimanager.core.data.database.entity.ProfileEntity
 import com.postsaimanager.core.model.NoteSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -109,6 +110,47 @@ class DocumentNoteRepositoryRoomTest {
         notes.deleteByRef(NoteSource.ACTION, "card-1")
 
         assertThat(texts()).containsExactly("two", "same ref, other source")
+    }
+
+    private fun person(id: String) = ProfileEntity(
+        id = id, type = "FAMILY_MEMBER", name = id, organization = null, department = null, street = null, city = null, postalCode = null,
+        country = null, phone = null, email = null, website = null, reference = null, notes = null, completionScore = 0f,
+        missingFields = null, avatarPath = null, createdAt = 1, modifiedAt = 1, kind = "PERSON", householdRole = "MEMBER",
+    )
+
+    @Test
+    fun `a note of a person, and a household-wide note, are stored without a document and read by their owner`() = runBlocking<Unit> {
+        listOf("maria", "omar").forEach { db.profileDao().insert(person(it)) }
+        val ofMaria = notes.addOutsideDocument("maria", "Works part-time", NoteSource.AI, "m1")
+        notes.addOutsideDocument("omar", "Has swimming on Tuesdays", NoteSource.AI, "m2")
+        val wide = notes.addOutsideDocument(null, "The family moves in March", NoteSource.AI, "m3")
+        notes.add("d1", "A note of a letter", NoteSource.USER)
+
+        assertThat(ofMaria.documentId).isNull()
+        assertThat(ofMaria.profileId).isEqualTo("maria")
+        assertThat(wide.profileId).isNull()
+        assertThat(notes.observeForProfile("maria").first().map { it.text }).containsExactly("Works part-time")
+        assertThat(notes.observeOutsideDocuments().first().map { it.text })
+            .containsExactly("Works part-time", "Has swimming on Tuesdays", "The family moves in March")
+        assertThat(notes.notesOutsideDocuments()).hasSize(3)
+        // A document's notes stay its own, and the person's are not among them.
+        assertThat(texts("d1")).containsExactly("A note of a letter")
+    }
+
+    @Test
+    fun `the person's notes are pinned first, edited and deleted like any note, and go with the profile`() = runBlocking<Unit> {
+        db.profileDao().insert(person("maria"))
+        val first = notes.addOutsideDocument("maria", "first", NoteSource.AI)
+        Thread.sleep(3)
+        notes.addOutsideDocument("maria", "second", NoteSource.USER)
+        notes.setPinned(first.id, true)
+        notes.updateText(first.id, "first, edited")
+
+        assertThat(notes.observeForProfile("maria").first().map { it.text }).containsExactly("first, edited", "second").inOrder()
+
+        db.profileDao().deleteById("maria")
+
+        assertThat(notes.observeForProfile("maria").first()).isEmpty()
     }
 
     @Test

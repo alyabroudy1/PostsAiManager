@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- What the assistant remembers: the durable notes of a document (Extracted tab) or of a household person (their profile) -->
+    <string name="memory_title">ما يتذكره المساعد</string>
+    <string name="memory_hint">ملاحظات قصيرة عن هذه الرسالة يقرؤها المساعد عند بدء المحادثة. يمكنك تثبيتها أو تعديلها أو حذفها.</string>
+    <string name="memory_empty">لا شيء بعد. تظهر الملاحظات هنا بعد أن تفتح إجراءً أو تنهي محادثة.</string>
+    <string name="memory_hint_person">ملاحظات قصيرة عن هذا الشخص يقرؤها المساعد عندما تتحدث عن جميع مستنداتك. يمكنك تثبيتها أو تعديلها أو حذفها.</string>
+    <string name="memory_empty_person">لا شيء بعد. تظهر الملاحظات هنا بعد أن تنهي محادثة عن جميع مستنداتك.</string>
+    <string name="memory_add">إضافة ملاحظة</string>
+    <string name="memory_edit_title">تعديل الملاحظة</string>
+    <string name="memory_note_label">ملاحظة</string>
+    <string name="memory_save">حفظ</string>
+    <string name="memory_cancel">إلغاء</string>
+    <string name="memory_source_action">من إجراء</string>
+    <string name="memory_source_ai">من محادثة</string>
+    <string name="memory_source_you">كتبتها أنت</string>
+    <string name="memory_note_meta">%1$s · %2$s</string>
+    <string name="memory_pin">تثبيت الملاحظة</string>
+    <string name="memory_unpin">إلغاء تثبيت الملاحظة</string>
+    <string name="memory_more">مزيد من الإجراءات لهذه الملاحظة</string>
+    <string name="memory_edit">تعديل</string>
+    <string name="memory_delete">حذف</string>
+</resources>

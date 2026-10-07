@@ -3,7 +3,9 @@ package com.postsaimanager.core.domain.usecase
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.memory.DocumentMemoryFormat
 import com.postsaimanager.core.domain.memory.ObserveDocumentMemoryUseCase
+import com.postsaimanager.core.domain.memory.ObserveHouseholdMemoryUseCase
 import com.postsaimanager.core.model.AiMessage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
@@ -56,24 +58,41 @@ class BuildModelContextUseCase internal constructor(
     private val buildChatContext: BuildChatContextUseCase,
     /** The document's notes, already formatted ([ObserveDocumentMemoryUseCase]); read once per plan. */
     private val memoryOf: suspend (documentId: String) -> String,
+    /** The household's notes for the all-documents chat, already formatted ([ObserveHouseholdMemoryUseCase]); read once per plan. */
+    private val householdMemoryOf: suspend () -> String,
+    /** The household overview that is the all-documents chat's card ([BuildHouseholdOverviewUseCase]); built once per plan. */
+    private val overviewOf: suspend () -> String,
 ) {
 
     @Inject
     constructor(
         buildChatContext: BuildChatContextUseCase,
         observeDocumentMemory: ObserveDocumentMemoryUseCase,
-    ) : this(buildChatContext, { documentId -> observeDocumentMemory(documentId).first() })
+        observeHouseholdMemory: ObserveHouseholdMemoryUseCase,
+        buildHouseholdOverview: BuildHouseholdOverviewUseCase,
+    ) : this(
+        buildChatContext,
+        { documentId -> observeDocumentMemory(documentId).first() },
+        { observeHouseholdMemory().first() },
+        { buildHouseholdOverview() },
+    )
+
+    /** A builder with a document memory only (tests): the all-documents chat gets no overview and no notes. */
+    constructor(
+        buildChatContext: BuildChatContextUseCase,
+        observeDocumentMemory: ObserveDocumentMemoryUseCase,
+    ) : this(buildChatContext, { documentId -> observeDocumentMemory(documentId).first() }, { "" }, { "" })
 
     /** A builder without a memory (tests, and callers that never have notes). */
-    constructor(buildChatContext: BuildChatContextUseCase) : this(buildChatContext, { "" })
+    constructor(buildChatContext: BuildChatContextUseCase) : this(buildChatContext, { "" }, { "" }, { "" })
 
     /**
      * @param transcript the stored turns that PRECEDE the message about to be sent.
      * @param historyTokens the window the tail is budgeted against (the context minus what the tools need).
      * @param systemPrompt replaces the card (a caller with its own prompt); the tail is still added.
      *
-     * The document memory comes from the notes of [documentId] at this moment (so a plan built after a session's notes were written
-     * has them). A chat without a document (all documents) has none yet.
+     * The memory comes from the notes of [documentId] at this moment (so a plan built after a session's notes were written has them).
+     * A chat without a document (all documents) gets the household's notes instead, and a household overview as its card.
      */
     suspend operator fun invoke(
         documentId: String?,
@@ -82,9 +101,15 @@ class BuildModelContextUseCase internal constructor(
         transcript: List<AiMessage>,
         systemPrompt: String? = null,
     ): ChatContextPlan {
-        val memory = if (systemPrompt == null && documentId != null) memorySection(memoryOf(documentId)) else ""
+        val own = systemPrompt == null
+        val memory = when {
+            !own -> ""
+            documentId != null -> memorySection(memoryOf(documentId))
+            else -> memorySection(quietly { householdMemoryOf() }, HOUSEHOLD_MEMORY_HEADER)
+        }
+        val overview = if (own && documentId == null) quietly { overviewOf() } else ""
         val card = systemPrompt?.let { ChatGrounding(it, retrievalMode = false) }
-            ?: buildChatContext(documentId, contextTokens, documentMemory = memory)
+            ?: buildChatContext(documentId, contextTokens, documentMemory = memory, householdOverview = overview)
         val totalBudgetChars = (
             (historyTokens - BuildChatContextUseCase.DEFAULT_REPLY_RESERVE - BuildChatContextUseCase.TEMPLATE_OVERHEAD_TOKENS)
                 .coerceAtLeast(BuildChatContextUseCase.MIN_CONTEXT_TOKENS)
@@ -93,6 +118,15 @@ class BuildModelContextUseCase internal constructor(
         val tailMessages = ContinuityTail.select(transcript)
         val tail = ContinuityTail.history(transcript, budgetChars)
         return ChatContextPlan(card, memory.length, tail, if (tail.isEmpty()) emptyList() else tailMessages)
+    }
+
+    /** Overview and household notes are extras: when reading them fails, the chat still opens, without them. */
+    private suspend fun quietly(block: suspend () -> String): String = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        ""
     }
 
     companion object {
@@ -106,13 +140,16 @@ class BuildModelContextUseCase internal constructor(
          * The section of the formatted notes ([DocumentMemoryFormat]: one `- note` line each), cut at a whole line under
          * [MEMORY_CAP_CHARS] (the heading not counted); empty for no notes.
          */
-        internal fun memorySection(notes: String): String {
+        internal fun memorySection(notes: String, header: String = MEMORY_HEADER): String {
             val body = StringBuilder()
             for (line in notes.lines().map { it.trim() }.filter { it.isNotEmpty() }) {
                 if (body.length + line.length + 1 > MEMORY_CAP_CHARS) break
                 body.append(line).append('\n')
             }
-            return if (body.isEmpty()) "" else MEMORY_HEADER + body
+            return if (body.isEmpty()) "" else header + body
         }
+
+        /** The heading of the all-documents chat's slot: the notes are about the household's persons. */
+        internal const val HOUSEHOLD_MEMORY_HEADER = "\n## What you remember about the household\n"
     }
 }

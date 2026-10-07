@@ -83,6 +83,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.postsaimanager.core.common.extensions.toRelativeTime
 import com.postsaimanager.core.designsystem.component.FriendlyDate
+import com.postsaimanager.core.designsystem.component.NoteActions
 import com.postsaimanager.core.designsystem.component.PagePreviewDialog
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState

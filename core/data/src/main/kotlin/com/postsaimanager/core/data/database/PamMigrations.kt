@@ -577,6 +577,15 @@ object PamMigrations {
         override fun migrate(db: SupportSQLiteDatabase) = TimelineMigration.apply(db)
     }
 
+    /**
+     * v25 (notes per person): `document_notes.profileId` and a nullable `documentId`, so a note can belong to a household person (or to
+     * the household) instead of a document. See [NotesPerPersonMigration]. Additive and idempotent; the rows are kept. 1..24 are
+     * untouched (23 and 24 may be installed on phones).
+     */
+    val MIGRATION_24_25 = object : Migration(24, 25) {
+        override fun migrate(db: SupportSQLiteDatabase) = NotesPerPersonMigration.apply(db)
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -601,5 +610,6 @@ object PamMigrations {
         MIGRATION_21_22,
         MIGRATION_22_23,
         MIGRATION_23_24,
+        MIGRATION_24_25,
     )
 }

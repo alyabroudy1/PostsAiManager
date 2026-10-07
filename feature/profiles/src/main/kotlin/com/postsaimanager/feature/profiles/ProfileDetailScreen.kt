@@ -56,9 +56,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.postsaimanager.core.designsystem.component.MemoryCard
+import com.postsaimanager.core.designsystem.component.MemorySubject
+import com.postsaimanager.core.designsystem.component.NoteActions
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.domain.memory.DocumentNoteText
+import com.postsaimanager.core.model.DocumentNote
 import com.postsaimanager.core.model.FormDataKey
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileFact
@@ -77,8 +82,10 @@ fun ProfileDetailScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProfileDetailViewModel = hiltViewModel(),
+    notesViewModel: ProfileNotesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val notes by notesViewModel.notes.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val message by viewModel.message.collectAsStateWithLifecycle()
     val removed by viewModel.removed.collectAsStateWithLifecycle()
@@ -111,6 +118,8 @@ fun ProfileDetailScreen(
         onRelationship = viewModel::setRelationship,
         onSave = viewModel::save,
         detailActions = SavedDetailActions(save = viewModel::saveDetail, delete = viewModel::deleteDetail),
+        notes = notes,
+        noteActions = notesViewModel.actions,
         contactActions = ContactActions(
             save = viewModel::saveContact,
             setActive = viewModel::setContactActive,
@@ -152,6 +161,9 @@ fun ProfileDetailContent(
     detailActions: SavedDetailActions,
     modifier: Modifier = Modifier,
     contactActions: ContactActions = ContactActions(),
+    /** The notes the assistant keeps about this person ("What the assistant remembers"); shown for a household person only. */
+    notes: List<DocumentNote> = emptyList(),
+    noteActions: NoteActions = NoteActions(),
 ) {
     val draft = state.draft
     val scrollState = rememberScrollState()
@@ -295,6 +307,11 @@ fun ProfileDetailContent(
                     canAdd = !state.isNew,
                     actions = detailActions,
                 )
+
+                // What the assistant remembers about a household person (written by the chat about all documents).
+                if (draft.isManaged && !state.isNew) {
+                    MemoryCard(notes, noteActions, MemorySubject.PERSON, DocumentNoteText.MAX_CHARS)
+                }
             }
         }
     }

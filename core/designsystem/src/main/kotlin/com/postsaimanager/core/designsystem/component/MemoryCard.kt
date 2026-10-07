@@ -1,5 +1,6 @@
-package com.postsaimanager.feature.documents
+package com.postsaimanager.core.designsystem.component
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,41 +27,73 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.postsaimanager.core.designsystem.component.FriendlyDate
+import com.postsaimanager.core.designsystem.R
 import com.postsaimanager.core.designsystem.icon.PamIcons
-import com.postsaimanager.core.domain.memory.DocumentNoteText
 import com.postsaimanager.core.model.DocumentNote
 import com.postsaimanager.core.model.NoteSource
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+/** What the card "What the assistant remembers" does with a note. */
+data class NoteActions(
+    val add: (text: String) -> Unit = {},
+    val edit: (id: String, text: String) -> Unit = { _, _ -> },
+    val delete: (id: String) -> Unit = {},
+    val pin: (id: String, pinned: Boolean) -> Unit = { _, _ -> },
+)
+
+/** What a card of notes is about: the words of its hint and of its empty state follow. */
+enum class MemorySubject(@StringRes internal val hint: Int, @StringRes internal val empty: Int) {
+    /** The notes of one letter, written in a chat about it or when an action was confirmed. */
+    DOCUMENT(R.string.memory_hint, R.string.memory_empty),
+
+    /** The notes of one household person, written in the chat about all documents. */
+    PERSON(R.string.memory_hint_person, R.string.memory_empty_person),
+}
+
 /**
- * "What the assistant remembers": the document's durable notes, as the assistant reads them at the start of a chat. Each note shows
- * where it came from (an action, a chat, you), its date, and lets the user pin, edit or delete it; "Add a note" writes one of the
- * user's own. Trust and privacy: nothing the assistant keeps is hidden from the person it is about.
+ * "What the assistant remembers": durable notes, as the assistant reads them at the start of a chat. Each note shows where it came
+ * from (an action, a chat, you), its date, and lets the user pin, edit or delete it; "Add a note" writes one of the user's own. Trust
+ * and privacy: nothing the assistant keeps is hidden from the person it is about.
  *
- * Lives in the Extracted tab, under what the reading found: both are what the app knows about this letter, and the user reviews
- * them in one place (the chat's header is for talking).
+ * One component for the notes of a document (the Extracted tab) and of a household person (the person's profile): they are the same
+ * thing, kept for different things.
+ *
+ * @param maxChars the longest note the editor accepts (the notes' own limit, owned by the domain).
  */
 @Composable
-internal fun DocumentMemoryCard(notes: List<DocumentNote>, actions: NoteActions, today: LocalDate = LocalDate.now()) {
+fun MemoryCard(
+    notes: List<DocumentNote>,
+    actions: NoteActions,
+    subject: MemorySubject = MemorySubject.DOCUMENT,
+    maxChars: Int = DEFAULT_MAX_CHARS,
+    today: LocalDate = LocalDate.now(),
+) {
     // Kept across a rotation: the note being edited is its id, resolved from the list, so the dialog shows the latest text.
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var adding by rememberSaveable { mutableStateOf(false) }
     val editing = editingId?.let { id -> notes.firstOrNull { it.id == id } }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        SectionHeader(stringResource(R.string.memory_title))
         Text(
-            stringResource(R.string.memory_hint),
+            stringResource(R.string.memory_title),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Text(
+            stringResource(subject.hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (notes.isEmpty()) {
             Text(
-                stringResource(R.string.memory_empty),
+                stringResource(subject.empty),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(vertical = 8.dp),
             )
@@ -78,6 +112,7 @@ internal fun DocumentMemoryCard(notes: List<DocumentNote>, actions: NoteActions,
         NoteDialog(
             title = stringResource(R.string.memory_add),
             initial = "",
+            maxChars = maxChars,
             onDismiss = { adding = false },
             onSave = {
                 actions.add(it)
@@ -89,6 +124,7 @@ internal fun DocumentMemoryCard(notes: List<DocumentNote>, actions: NoteActions,
         NoteDialog(
             title = stringResource(R.string.memory_edit_title),
             initial = note.text,
+            maxChars = maxChars,
             onDismiss = { editingId = null },
             onSave = {
                 actions.edit(note.id, it)
@@ -97,6 +133,8 @@ internal fun DocumentMemoryCard(notes: List<DocumentNote>, actions: NoteActions,
         )
     }
 }
+
+private const val DEFAULT_MAX_CHARS = 300
 
 @Composable
 private fun NoteRow(note: DocumentNote, today: LocalDate, actions: NoteActions, onEdit: () -> Unit) {
@@ -156,7 +194,7 @@ private fun NoteRow(note: DocumentNote, today: LocalDate, actions: NoteActions, 
 }
 
 @Composable
-private fun NoteDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+private fun NoteDialog(title: String, initial: String, maxChars: Int, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var text by rememberSaveable { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -164,7 +202,7 @@ private fun NoteDialog(title: String, initial: String, onDismiss: () -> Unit, on
         text = {
             OutlinedTextField(
                 value = text,
-                onValueChange = { text = it.take(DocumentNoteText.MAX_CHARS) },
+                onValueChange = { text = it.take(maxChars) },
                 maxLines = 5,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.memory_note_label)) },
@@ -183,6 +221,7 @@ private fun sourceIcon(source: NoteSource) = when (source) {
     NoteSource.USER -> PamIcons.Person
 }
 
+@StringRes
 private fun sourceLabelRes(source: NoteSource) = when (source) {
     NoteSource.ACTION -> R.string.memory_source_action
     NoteSource.AI -> R.string.memory_source_ai

@@ -27,11 +27,32 @@ class DocumentNoteRepositoryImpl @Inject constructor(
         dao.getByDocument(documentId).map(::toDomain)
     }
 
+    override fun observeForProfile(profileId: String): Flow<List<DocumentNote>> =
+        dao.observeByProfile(profileId).map { it.map(::toDomain) }.flowOn(ioDispatcher)
+
+    override fun observeOutsideDocuments(): Flow<List<DocumentNote>> =
+        dao.observeOutsideDocuments().map { it.map(::toDomain) }.flowOn(ioDispatcher)
+
+    override suspend fun notesOutsideDocuments(): List<DocumentNote> = withContext(ioDispatcher) {
+        dao.getOutsideDocuments().map(::toDomain)
+    }
+
+    override suspend fun addOutsideDocument(profileId: String?, text: String, source: NoteSource, sourceRef: String?): DocumentNote =
+        withContext(ioDispatcher) {
+            val now = System.currentTimeMillis()
+            val entity = DocumentNoteEntity(
+                id = UUID.randomUUID().toString(), documentId = null, profileId = profileId, text = text, source = source.name,
+                createdAt = now, updatedAt = now, pinned = false, sourceRef = sourceRef,
+            )
+            dao.upsert(entity)
+            toDomain(entity)
+        }
+
     override suspend fun add(documentId: String, text: String, source: NoteSource, sourceRef: String?): DocumentNote =
         withContext(ioDispatcher) {
             val now = System.currentTimeMillis()
             val entity = DocumentNoteEntity(
-                id = UUID.randomUUID().toString(), documentId = documentId, text = text, source = source.name,
+                id = UUID.randomUUID().toString(), documentId = documentId, profileId = null, text = text, source = source.name,
                 createdAt = now, updatedAt = now, pinned = false, sourceRef = sourceRef,
             )
             dao.upsert(entity)
@@ -43,7 +64,7 @@ class DocumentNoteRepositoryImpl @Inject constructor(
             val now = System.currentTimeMillis()
             val existing = dao.getByRef(documentId, source.name, sourceRef)
             val entity = existing?.copy(text = text, updatedAt = now) ?: DocumentNoteEntity(
-                id = UUID.randomUUID().toString(), documentId = documentId, text = text, source = source.name,
+                id = UUID.randomUUID().toString(), documentId = documentId, profileId = null, text = text, source = source.name,
                 createdAt = now, updatedAt = now, pinned = false, sourceRef = sourceRef,
             )
             dao.upsert(entity)
@@ -68,6 +89,7 @@ class DocumentNoteRepositoryImpl @Inject constructor(
     private fun toDomain(entity: DocumentNoteEntity) = DocumentNote(
         id = entity.id,
         documentId = entity.documentId,
+        profileId = entity.profileId,
         text = entity.text,
         source = NoteSource.entries.firstOrNull { it.name == entity.source } ?: NoteSource.USER,
         createdAt = entity.createdAt,
