@@ -321,7 +321,11 @@ class ExtractedTabUiTest {
     /** The pay line as the app writes it, with the date in the short form of the test's locale. */
     private fun payLine(amount: String = "64,98 €") =
         "Pay $amount to Nordlicht Mobilfunk GmbH by ${actionDateText(java.time.LocalDate.of(2026, 10, 15), java.util.Locale.getDefault())}"
-    private val payLine = payLine()
+
+    // A getter, not a value: the line is worked out when a test runs, in the locale Robolectric has set up for it. As a value it
+    // was worked out when the test class was built, in whatever default locale the JVM had before the sandbox set the test's,
+    // so a run could expect a date in one locale and draw it in another (a different month text; failed once, passed on re-run).
+    private val payLine get() = payLine()
 
     @Test
     fun `All details is collapsed by default, shows its count and opens on a tap`() {
