@@ -52,4 +52,40 @@
     <string name="search_model_hint">يمكن للإجابات أن تعرض مصادرها بعد تثبيت نموذج البحث</string>
     <string name="search_model_hint_install">تثبيت</string>
     <string name="search_model_hint_dismiss">إغلاق التلميح</string>
+
+    <!-- بطاقات الإجراءات: ما تقترحه المهارة (بريد، موعد في التقويم، تذكير)؛ لا يحدث شيء قبل الضغط على «فتح» -->
+    <string name="action_card_email_title">مسودة بريد إلكتروني</string>
+    <string name="action_card_event_title">موعد في التقويم</string>
+    <string name="action_card_reminder_title">تذكير</string>
+    <string name="action_field_to">إلى</string>
+    <string name="action_field_subject">الموضوع</string>
+    <string name="action_field_body">الرسالة</string>
+    <string name="action_field_title">العنوان</string>
+    <string name="action_field_start">البداية</string>
+    <string name="action_field_end">النهاية</string>
+    <string name="action_field_description">ملاحظات</string>
+    <string name="action_field_at">ذكّرني في</string>
+    <string name="action_field_text">نص التذكير</string>
+    <string name="action_flag_not_found">غير موجود في الرسالة — يرجى التحقق</string>
+    <string name="action_flag_not_found_values">غير موجود في الرسالة: %1$s — يرجى التحقق</string>
+    <string name="action_flag_edited">عدّلته أنت</string>
+    <string name="action_error_required">حقل مطلوب</string>
+    <string name="action_error_email">عنوان بريد إلكتروني غير صالح</string>
+    <string name="action_error_date_time">استخدم الصيغة 2026-11-05 14:30</string>
+    <string name="action_error_end_before_start">النهاية قبل البداية</string>
+    <string name="action_error_past">هذا الوقت مضى بالفعل</string>
+    <string name="action_open">فتح</string>
+    <string name="action_edit">تعديل</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="action_status_opened_email">فُتح في تطبيق البريد</string>
+    <string name="action_status_opened_event">فُتح في التقويم</string>
+    <string name="action_status_reminder_set">تم ضبط التذكير</string>
+    <string name="action_status_cancelled">أُلغي</string>
+    <string name="action_failed">لم ينجح ذلك. تحقق من الحقول أو حاول مرة أخرى.</string>
+
+    <!-- نسخ التصحيح فقط: قائمة لتجربة بطاقات الإجراءات قبل أن يقترح النموذج أي إجراء -->
+    <string name="debug_menu_description">قائمة التصحيح</string>
+    <string name="debug_test_email_action">اختبار إجراء الوكيل: بريد</string>
+    <string name="debug_test_event_action">اختبار إجراء الوكيل: تقويم</string>
+    <string name="debug_test_reminder_action">اختبار إجراء الوكيل: تذكير</string>
 </resources>
