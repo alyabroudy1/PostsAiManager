@@ -225,6 +225,29 @@ document through the same use case as the scanner (`CreateDocumentFromPagesUseCa
 currently running top-most instance"). Pages are in the order named. A name with a path separator or `..` is rejected. The files are copied into the app's own storage and
 deleted from the inbox after a successful import; the app then opens and reads the document in the background.
 
+### 6.2 Trying the share and "Open with" intents (debug builds only)
+
+The debug build also has `DebugShareProvider` (source: `app/src/debug`, authority `com.postsaimanager.debug.testshare`, not exported, read-only,
+plain file names only). It serves the same `debug-import` folder as `content://` URIs, so the import feature's share sheet and
+"Open with" entries can be started with `am` and no other app's file browser, which could show real files. Push invented files to the
+folder as in 6.1, then:
+
+```bash
+P=com.postsaimanager.debug
+A=content://$P.testshare
+# One PDF or one image shared (ACTION_SEND)
+./scripts/dev-adb.sh shell am start -n $P/com.postsaimanager.importing.ImportActivity -a android.intent.action.SEND -t application/pdf --eu android.intent.extra.STREAM $A/letter.pdf
+# "Open with" a PDF (ACTION_VIEW)
+./scripts/dev-adb.sh shell am start -n $P/com.postsaimanager.importing.ImportActivity -a android.intent.action.VIEW -d $A/letter.pdf -t application/pdf
+# Several files shared (ACTION_SEND_MULTIPLE): am cannot build a list of URIs, so a debug-only helper activity sends the intent
+./scripts/dev-adb.sh shell am start -n $P/com.postsaimanager.debug.DebugShareActivity --esa files page-1.jpg,page-2.jpg
+```
+
+`DebugShareActivity` builds exactly the `ACTION_SEND_MULTIPLE` intent (type from the first name, `EXTRA_STREAM` list of provider URIs) that a
+share sheet would, aimed at `ImportActivity`; its log tag is `DebugShare`. The files are not deleted from the folder. Neither the provider
+nor the activity is in a release build: check `./gradlew :app:processReleaseMainManifest` and grep `testshare` and `DebugShare` in the merged
+manifest (there must be no match).
+
 ---
 
 ## 7. Test case format

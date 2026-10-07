@@ -12,7 +12,7 @@ Everything below exists and is tested WITHOUT the LiteRT-LM library. Phase 2b ad
 | Piece | Where | Role |
 |---|---|---|
 | `Skill`, `SkillCatalog` (port), `SkillParser`, `SkillNames`, `SkillPrompt` | `core/domain/.../skills/Skill.kt`, `SkillParser.kt` | the SKILL.md model and parsing |
-| `AssetSkillCatalog` | `core/data/.../skills/` | the catalog: `app/src/main/assets/skills/<name>/SKILL.md` |
+| `AssetSkillCatalog` | `core/ai/litert/.../skills/` (bound in the app's `SkillModule`) | the catalog: `app/src/main/assets/skills/<name>/SKILL.md` |
 | `AgentAction` (sealed), `AgentActionParser`, `AgentIntent` | `core/domain/.../skills/` | what a `run_intent` call means |
 | `ActionGrounding`, `GroundingSources`, `FieldCheck` | `core/domain/.../skills/ActionGrounding.kt` | code verifies the model's values |
 | `ProposeActionUseCase`, `LoadGroundingSourcesUseCase` | `core/domain/.../skills/ProposeActionUseCase.kt` | step 1: check, build the proposal. Runs nothing |

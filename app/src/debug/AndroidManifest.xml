@@ -7,5 +7,17 @@
             android:name="com.postsaimanager.debug.DebugImportActivity"
             android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- DEBUG ONLY: serves the same folder as content:// URIs, so the share and "Open with" intents can be tried without another app. -->
+        <provider
+            android:name="com.postsaimanager.debug.DebugShareProvider"
+            android:authorities="${applicationId}.testshare"
+            android:exported="false" />
+
+        <!-- DEBUG ONLY: starts a SEND_MULTIPLE share of named files from that folder (am cannot build a URI list itself). -->
+        <activity
+            android:name="com.postsaimanager.debug.DebugShareActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
     </application>
 </manifest>
