@@ -238,7 +238,8 @@ enum class DocDirection { INCOMING, OUTGOING, PROOF }
  *   question; it is a model prompt, not UI text).
  * @property directions the document directions this family can describe (a letter the user received is never an
  *   outgoing letter or a proof of payment); data, read by [ExtractionSchema.familiesFor].
- * @property hasRecipientBlock the family is a letter with an addressee block (a structured recipient address is worth reading).
+ * @property hasRecipientBlock the family is a letter with an addressee block, so it is presented with a recipient and a sender block
+ *   ([FamilyPresentation]). It does not decide whether an address is read: that is decided by whether the reading found an addressee.
  * @property sensitive the all-documents chat never shows these documents (health letters); see [ExtractionSchema.isSensitive].
  * @property scored whether the classifier asks about this family. False for the abstain outcome ([ExtractionSchema.FREE_FORM]):
  *   a scored "anything else" gets a middling Yes on every letter and wins, so it is what is chosen when no family scores above the threshold.
@@ -257,8 +258,6 @@ data class DocFamily(
     val sensitive: Boolean = false,
     val scored: Boolean = true,
     val hint: String = "",
-    /** The slots that belong to this family beyond the universal core (a bill's invoice number): a document of the family is expected to have them. */
-    val own: List<SlotKey> = emptyList(),
 ) {
     override fun toString() = id
 
@@ -286,7 +285,7 @@ data class DocFamily(
     companion object {
         /** A family with the universal core plus [specific] slots. */
         fun of(id: String, legacy: DocumentType, vararg specific: SlotKey) =
-            DocFamily(id, (Slots.CORE + specific).distinct(), legacy, own = specific.toList())
+            DocFamily(id, (Slots.CORE + specific).distinct(), legacy)
     }
 }
 
@@ -308,7 +307,11 @@ data class Topic(
 }
 
 /** The registry the rest of the package reads. */
-class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = emptyList()) {
+class ExtractionSchema(
+    val families: List<DocFamily>,
+    val topics: List<Topic> = emptyList(),
+    categories: List<DocCategory>? = null,
+) {
 
     init {
         require(families.isNotEmpty()) { "a schema needs at least one document family" }
@@ -316,7 +319,38 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
         require(topics.map { it.id }.toSet().size == topics.size) { "duplicate topic id" }
     }
 
+    /**
+     * The broad categories the reading scores last ([DocCategory]). A schema that names none has one per scored family (so a registry made
+     * for a test behaves as it always did).
+     */
+    val categories: List<DocCategory> = categories ?: families.filter { it.scored }.map { DocCategory(it.id, it.description, listOf(it.id)) }
+
     fun family(id: String?): DocFamily? = families.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) }
+
+    /**
+     * The category a stored type id stands for: a family id of the category, or the family a legacy id maps to ([LegacyTypes]); null for an id
+     * no category holds (the abstain "Document", an unknown id).
+     */
+    fun categoryOf(typeId: String?): DocCategory? {
+        val id = family(typeId)?.id ?: LegacyTypes.of(typeId?.trim()?.lowercase())?.family ?: return null
+        return categories.firstOrNull { c -> c.families.any { it.equals(id, ignoreCase = true) } }
+    }
+
+    /**
+     * The families the classifier scores for a document of [direction], one per category in the category order: the first family of the
+     * category that this schema holds and that a document of the direction can be. A category with none for the direction is not scored
+     * (a letter the reader sent is never offered "a bill").
+     */
+    fun categoryFamilies(direction: DocDirection): List<DocFamily> =
+        categories.mapNotNull { c -> c.families.firstNotNullOfOrNull { id -> family(id)?.takeIf { it.scored && direction in it.directions } } }
+
+    /** The slots the best two of [topicIds] add (ids this schema does not know are skipped and use up no place). */
+    fun topicSlots(topicIds: List<String>): List<SlotKey> =
+        topicIds.mapNotNull(::topic).distinct().take(MAX_TOPICS_WITH_SLOTS).flatMap { it.slots }.distinct()
+
+    /** The slots a reading asks of a document of [direction] before it knows what the document is: the core and every slot of the families it can be. */
+    fun slotsFor(direction: DocDirection): List<SlotKey> =
+        (Slots.CORE + families.filter { direction in it.directions }.flatMap { it.slots }).distinct()
 
     fun topic(id: String?): Topic? = topics.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) }
 
@@ -332,7 +366,7 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
      * "a letter you sent" whichever strategy reads it.
      */
     fun forDirection(direction: DocDirection): ExtractionSchema =
-        ExtractionSchema(families.filter { direction in it.directions }, topics)
+        ExtractionSchema(families.filter { direction in it.directions }, topics, categories)
 
     /**
      * The slots a document of [family] about [topics] has: the family's own, then those of the best two topics.
@@ -343,10 +377,6 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
         val best = topics.mapNotNull(::topic).distinct().take(MAX_TOPICS_WITH_SLOTS)
         return (family.slots + best.flatMap { it.slots }).distinct()
     }
-
-    /** The slots a document of [family] about [topics] is expected to have beyond the universal core: the family's own and those of the best two topics. */
-    fun ownSlots(family: DocFamily, topics: List<String>): Set<SlotKey> =
-        (family.own + topics.mapNotNull(::topic).distinct().take(MAX_TOPICS_WITH_SLOTS).flatMap { it.slots }).toSet()
 
     /** Whether a document of [familyId] about [topicIds] stays out of the all-documents chat. Unknown ids are not sensitive. */
     fun isSensitive(familyId: String?, topicIds: List<String>): Boolean =
@@ -424,6 +454,37 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
             .described("a ticket, a booking confirmation or a travel itinerary")
             .withHint("In a ticket or a booking, the event or trip, the date and time, the place and the booking number are important.")
 
+        /**
+         * A short reminder or confirmation of an appointment. Added with the message family below because the registry had no kind for a
+         * few lines of text, so a screenshot of appointment reminders was the nearest "official letter". It is scored after the families
+         * of extraction-v2-2, so the recorded scores of the first nine keep their columns; the questions of those nine are unchanged.
+         */
+        val APPOINTMENT_REMINDER = DocFamily.of("appointment_reminder", DocumentType.NOTICE, Slots.APPOINTMENT)
+            .asksSomething()
+            .described("a short reminder or confirmation of an appointment, such as a text message or an email that gives a date, a time and a place")
+            .withHint(
+                "In an appointment reminder, who it is from, the date, the time and the place, and what the reader should do " +
+                    "(come, bring something, confirm or cancel) are important.",
+            )
+
+        /** What a few sentences of text are: a message, a chat or a note, not a letter. */
+        val MESSAGE_NOTE = DocFamily.of("message_note", DocumentType.OTHER)
+            .described("a short message, a few lines of a chat or text messages, or a handwritten or typed note, rather than a formal letter")
+            .withHint("In a message or a note, who it is from and for, what it says and any date, time or place it mentions are important.")
+
+        /**
+         * A notice, a decision or an official announcement: the ninth broad category. Added with the categories, after the families of the
+         * device recordings, so their scored columns keep their places.
+         */
+        val NOTICE_DECISION = DocFamily.of(
+            "notice_decision", DocumentType.NOTICE, Slots.EFFECTIVE_DATE, Slots.OBJECTION_DEADLINE,
+        ).asksSomething().withRecipientBlock()
+            .described("a notice, a decision or an official announcement that tells the reader something has been decided or will change")
+            .withHint(
+                "In a notice or a decision, who it is from and for, what was decided or announced, the date it takes effect and any right to " +
+                    "object or appeal with its deadline are important.",
+            )
+
         /** A letter the user sent (P3; the pipeline does not produce it yet). */
         val OUTGOING_LETTER = DocFamily.of(
             "outgoing_letter", DocumentType.OFFICIAL_LETTER,
@@ -471,9 +532,10 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
         val DEFAULT = ExtractionSchema(
             listOf(
                 OFFICIAL_LETTER, INVOICE_BILL, RECEIPT, FORM_APPLICATION, STATEMENT, CONTRACT_POLICY, CERTIFICATE_ID, MEDICAL,
-                TICKET_BOOKING, OUTGOING_LETTER, PAYMENT_PROOF, FREE_FORM,
+                TICKET_BOOKING, APPOINTMENT_REMINDER, MESSAGE_NOTE, NOTICE_DECISION, OUTGOING_LETTER, PAYMENT_PROOF, FREE_FORM,
             ),
             TOPICS,
+            DocCategory.DEFAULT,
         )
     }
 }

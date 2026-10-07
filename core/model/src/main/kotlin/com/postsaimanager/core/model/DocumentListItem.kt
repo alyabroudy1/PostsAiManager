@@ -22,6 +22,11 @@ data class DocumentListItem(
     val openActionCount: Int,
     /** The managed people the document is for or about, "for" first; empty when no profile matches. */
     val people: List<PersonTag> = emptyList(),
+    /**
+     * The family id the row shows as its type tag; null when the document has no type worth a tag (not read yet, or the model could not
+     * name a kind: the neutral "Document").
+     */
+    val typeId: String? = null,
 ) {
     val id: String get() = document.id
 }

@@ -67,7 +67,7 @@ class ReceivedLetterDirectionTest {
             scorer = { 5.0 }
             responder = { q, _ -> if (q.contains("BCP-47")) "de" else "\"text\"" }
         }
-        val interpreter = ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096)
+        val interpreter = ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096, topicsInFirstStage = false)
         val result = runBlocking { ExtractionV2Pipeline().run(letter.pages, interpreter, 4096) }
         val batch = interpreter.transcript.single { it.name == "score:family" }
         assertThat(batch.question).doesNotContain(outgoing.description)

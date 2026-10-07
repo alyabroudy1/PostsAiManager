@@ -69,6 +69,67 @@ class LetterReadingContextTest {
     }
 
     @Test
+    fun `the generated key information is listed as label and value after the answers, within the line cap, and for a letter with nothing else`() {
+        val facts = listOf(
+            field("x:zahlungsziel", "Zahlungsziel", "30 Tage netto"),
+            field("x:المرجع", "المرجع", "REF-5521"),
+            // A label the verifier replaced by its key (a collision) and a value the person ignored are not stated.
+            field("x:amount", "x:amount", "9,00 EUR"),
+            field("x:ignored", "Notiz", "gestrichen", deleted = true),
+        )
+        val alone = LetterReadingContext.section(emptyList(), facts)
+        assertThat(alone).contains("- Zahlungsziel: 30 Tage netto")
+        assertThat(alone).contains("- المرجع: REF-5521")
+        assertThat(alone).doesNotContain("9,00 EUR")
+        assertThat(alone).doesNotContain("gestrichen")
+
+        // The action lines come first, and the whole section keeps its cap.
+        val withAction = LetterReadingContext.section(listOf(pay), fields + facts).lines()
+        assertThat(withAction.indexOfFirst { it.contains("pay an amount") }).isLessThan(withAction.indexOfFirst { it.contains("Zahlungsziel") })
+        val many = (1..12).map { field("x:fact_$it", "Fact $it", "value $it") }
+        assertThat(LetterReadingContext.section(emptyList(), many).lines().count { it.startsWith("- ") }).isEqualTo(8)
+    }
+
+    @Test
+    fun `the dates and amounts the reading gave a meaning are listed with it, an appointment beside a payment`() {
+        val read = listOf(
+            field("due_date", "Deadline", "15.10.2026", ExtractedFieldType.DEADLINE).copy(role = "meaning:APPOINTMENT"),
+            field("event_date", "Event Date", "14.10.2026 10:30", ExtractedFieldType.DATE).copy(role = "meaning:APPOINTMENT"),
+            field("contract_end", "Contract End", "31.12.2026", ExtractedFieldType.DATE).copy(role = "meaning:PERIOD_END"),
+            field("fee", "Fee", "5,00 EUR").copy(role = "meaning:FEE"),
+            // A slot's own expected role is no meaning, and a value with none is not stated.
+            field("letter_date", "Document Date", "01.10.2026", ExtractedFieldType.DATE).copy(role = "LETTER_DATE"),
+            field("customer_no", "Customer Number", "KD-1"),
+        )
+        val text = LetterReadingContext.section(emptyList(), read)
+
+        assertThat(text).contains("- date 14.10.2026 10:30 (the date of an appointment or a meeting the reader is to attend)")
+        // The deadline field holds an appointment: stated as what the reading found it to be, once.
+        assertThat(text).contains("- date 15.10.2026 (the date of an appointment or a meeting the reader is to attend)")
+        assertThat(text).doesNotContain("- Deadline:")
+        assertThat(text).contains("- date 31.12.2026 (the last day of a period this document covers)")
+        assertThat(text).contains("- amount 5,00 EUR (a fee or a surcharge)")
+        assertThat(text).doesNotContain("01.10.2026")
+        assertThat(text).doesNotContain("KD-1")
+    }
+
+    @Test
+    fun `an action's own meaning of its date wins, and a bound value with a meaning is not listed twice`() {
+        val read = fields.map {
+            when (it.slotKey) {
+                "due_date" -> it.copy(role = "meaning:DUE_DATE")
+                "total_amount" -> it.copy(role = "meaning:PREMIUM")
+                else -> it
+            }
+        }
+        val text = LetterReadingContext.section(listOf(pay), read)
+
+        assertThat(text).contains("date 15.10.2026 (the date by which the reader is asked to pay)")
+        assertThat(text.lines().count { it.contains("15.10.2026") }).isEqualTo(1)
+        assertThat(text.lines().count { it.contains("563,00 EUR") }).isEqualTo(1)
+    }
+
+    @Test
     fun `nothing is written for a letter with no action and no deadline`() {
         assertThat(LetterReadingContext.section(emptyList(), fields)).isEmpty()
     }

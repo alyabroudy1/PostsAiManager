@@ -42,7 +42,9 @@ class ExtractionV2Adapter(
         val type = result.documentType
         if (type != null) {
             val canonicalTaken = mutableSetOf<Canonical>()
-            for (slot in schema.slotsFor(type, result.topics)) {
+            // The type's slots in its order (the first of a group present wins the field's name), then any other slot the reading holds: the
+            // slots are asked of every document, so a value can belong to a slot the type does not list.
+            for (slot in (schema.slotsFor(type, result.topics) + (result.slots.keys + result.slotLists.keys)).distinct()) {
                 val v = result.slots[slot]
                 if (v != null) {
                     val canonical = slot.canonical?.takeIf { canonicalTaken.add(it) }
@@ -129,9 +131,13 @@ class ExtractionV2Adapter(
         )
     }
 
+    /**
+     * A decided meaning is stored in the role ([ValueMeanings.role], never a slot's own expected role, so the two cannot be mistaken); it is
+     * what the stored row says the value is, so it supersedes the slot's role, which nothing else reads. No meaning: the role as before.
+     */
     private fun provenanceOf(slotKey: String, v: SlotValue) = FieldProvenance(
         slotKey = slotKey,
-        role = v.role,
+        role = ValueMeanings.DEFAULT.byId(v.meaning)?.let { ValueMeanings.role(it) } ?: v.role,
         origin = v.origin.name,
         aiConfidence = v.aiConfidence,
         evidence = v.evidence.takeIf { it.isNotBlank() },
@@ -193,10 +199,14 @@ class ExtractionV2Adapter(
                 add(a.name, kindOf(a.kind), EntityRole.RECIPIENT, if (a.relation == PartyRelation.HOUSEHOLD) "household" else "", a, key)
             }
         }
-        parties.routingPerson?.let {
-            // The contact question's answer is stored as ROUTING; it is the letter's contact person, so it fills the `contact` slot
-            // (the "Contact Person" field, which the contact linking reads), never a profile.
+        parties.contact?.let {
+            // The contact question's answer is the letter's contact person at the sender, so it fills the `contact` slot (the
+            // "Contact Person" field, which the contact linking reads), never a profile.
             add(it.name, kindOf(it.kind), EntityRole.SENDER_CONTACT, "contact person", it, UnderstandingToFields.SLOT_CONTACT)
+        }
+        parties.routingPerson?.let {
+            // A person named on the addressee side ("z. Hd.", attn.) is somebody the addressed organisation's letter is for, not a contact at the sender.
+            add(it.name, kindOf(it.kind), EntityRole.MENTIONED, "contact at the addressee", it, null)
         }
         parties.careOf?.let {
             add(it.name, kindOf(it.kind), EntityRole.MENTIONED, "care of (mailbox)", it, null)

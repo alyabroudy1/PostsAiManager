@@ -210,8 +210,8 @@ private fun StatusIndicator(status: DocumentListStatus, runningState: Processing
 }
 
 /**
- * The person chips, the "n to check" count, the action badge and the one date chip, in that order,
- * wrapping rather than overflowing a narrow row.
+ * The action badge, the one date chip, the "n to check" count, the person chips and the document type, in that order (what the person
+ * has to do first, who it concerns, then what kind of document it is), wrapping rather than overflowing a narrow row.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -220,7 +220,8 @@ private fun MetaChips(item: DocumentListItem) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        PersonChips(item.people)
+        if (item.openActionCount > 0) ActionBadge()
+        DateChip(item.dateChip)
         (item.status as? DocumentListStatus.NeedsReview)?.let { review ->
             Text(
                 text = pluralStringResource(R.plurals.doc_row_to_check, review.count, review.count),
@@ -229,8 +230,19 @@ private fun MetaChips(item: DocumentListItem) {
                 modifier = Modifier.padding(vertical = 2.dp),
             )
         }
-        if (item.openActionCount > 0) ActionBadge()
-        DateChip(item.dateChip)
+        PersonChips(item.people)
+        DocumentTypeLabels.of(item.typeId)?.let { TypeChip(stringResource(it)) }
+    }
+}
+
+/**
+ * The document's type as a small neutral tag, the shape and size of the other chips and in the colour of a plain date, so it never reads
+ * as "action needed".
+ */
+@Composable
+private fun TypeChip(label: String) {
+    ChipSurface(color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -354,6 +366,7 @@ private fun previewItem(
     actions: Int = 0,
     title: String = "Jahresabrechnung Strom 2025",
     people: List<PersonTag> = emptyList(),
+    typeId: String? = "official_letter",
 ) = DocumentListItem(
     document = Document(
         id = "preview", title = title, status = documentStatus, sourceType = SourceType.CAMERA,
@@ -366,6 +379,7 @@ private fun previewItem(
     dateChip = chip,
     openActionCount = actions,
     people = people,
+    typeId = typeId,
 )
 
 @Composable

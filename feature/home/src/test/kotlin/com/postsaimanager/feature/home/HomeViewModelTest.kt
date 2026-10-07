@@ -5,6 +5,8 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.document.list.IdentityPartyNameResolver
 import com.postsaimanager.core.domain.document.list.ConcernedPeopleTagsUseCase
 import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
+import com.postsaimanager.core.domain.household.DismissHouseholdPromptUseCase
+import com.postsaimanager.core.domain.household.ObserveHouseholdPromptUseCase
 import com.postsaimanager.core.domain.repository.InstalledModelsRepository
 import com.postsaimanager.core.domain.setup.DownloadActivity
 import com.postsaimanager.core.domain.setup.ObserveModelBannerUseCase
@@ -44,17 +46,37 @@ class HomeViewModelTest {
         override suspend fun setActive(modelId: String) = Unit
     }
 
+    private val profiles = FakeProfileRepository()
+
     private fun viewModel() = HomeViewModel(
         observeDocumentListItems = ObserveDocumentListItemsUseCase(
-            repository, IdentityPartyNameResolver(), clock, FakeProfileRepository(), ConcernedPeopleTagsUseCase(),
+            repository, IdentityPartyNameResolver(), clock, profiles, ConcernedPeopleTagsUseCase(),
         ),
         documentProcessor = FakeDocumentProcessor(),
         observeModelBanner = ObserveModelBannerUseCase(ObserveSetupNeedUseCase(installedRepository, preferences), downloads),
+        observeHouseholdPrompt = ObserveHouseholdPromptUseCase(profiles, repository, preferences),
+        dismissHouseholdPrompt = DismissHouseholdPromptUseCase(preferences),
         importQueue = importQueue,
         externalFlowGuard = com.postsaimanager.core.domain.applock.AppLockState(com.postsaimanager.core.testing.FakeMonotonicClock()),
     )
 
     private val importQueue = com.postsaimanager.core.testing.FakeImportQueue()
+
+    @Test
+    fun `the household card shows while there is a letter and no Me, and Not now hides it for good`() = runTest {
+        repository.seed(testDocument(id = "d1", status = DocumentStatus.EXTRACTED))
+        val vm = viewModel()
+        vm.householdPrompt.test {
+            // The initial value is "no card"; the card follows as soon as the letter and the profiles are read.
+            var shown = awaitItem()
+            if (shown == null) shown = awaitItem()
+            assertThat(shown).isEqualTo(com.postsaimanager.core.model.HouseholdRole.SELF)
+            vm.onDismissHouseholdPrompt()
+            assertThat(awaitItem()).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertThat(preferences.current.householdPromptDismissed).isTrue()
+    }
 
     @Test
     fun `the import status follows the queue`() = runTest {

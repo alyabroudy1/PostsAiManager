@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.benchmark
 
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
+import com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions
 
 /**
  * Lets the recordings made before extraction-v2-2 (variants `zonesscoring`, `zonesscoringctx`, `zonesscoring2b`) stand in for the
@@ -85,6 +86,8 @@ internal object LegacyFamilyBridge {
             val family = schema.families.firstOrNull { text.startsWith("Is this document ${it.description}? Answer:") }
             val topic = schema.topics.firstOrNull { text.startsWith("Does this document concern ${it.description}? Answer:") }
             out += when {
+                // The made-up kind of document (the category's content-free baseline, extraction-v2-16) was never recorded.
+                text.startsWith("Is this document ${ScoringDescriptions.CATEGORY_BASELINE}? Answer:") -> NOT_RECORDED
                 family != null -> view.familyScores[family.id] ?: NO_LEGACY_TYPE
                 topic != null -> if (topic.id in view.topics) TOPIC_YES else TOPIC_NO
                 else -> return null

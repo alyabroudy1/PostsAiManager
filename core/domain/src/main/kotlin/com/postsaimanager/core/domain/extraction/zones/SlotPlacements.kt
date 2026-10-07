@@ -38,15 +38,29 @@ object SlotPlacements {
     }
 
     /**
-     * Where a party is looked for when the zones it is asked on hold no name at all: the sender's name is sometimes only
-     * printed in the small print at the foot of the page. A prior like the rest; the model still decides among the names
-     * found there.
+     * Where a party's names are offered right after those of its own zones, before the rest of the page: the sender's name is
+     * sometimes only printed in the small print at the foot of the page. A prior like the rest (an order, never a gate); the model
+     * still decides among the names.
      */
     private val PARTY_FALLBACKS: Map<String, List<LetterZone>> = mapOf(
         QuestionNames.SENDER to listOf(LetterZone.FOOTER),
     )
 
     fun partyFallback(name: String): List<LetterZone> = PARTY_FALLBACKS[name].orEmpty()
+
+    /**
+     * Where a party is usually printed, for a template that places the question in no zone of its own (a receipt has no address field, a
+     * form no reference column). Only an order: the question is asked over every name of the page either way (see [ZonePlan.offer]).
+     */
+    private val PARTY_ZONES: Map<String, List<LetterZone>> = mapOf(
+        QuestionNames.SENDER to listOf(LetterZone.LETTERHEAD, LetterZone.RETURN_ADDRESS_LINE),
+        QuestionNames.ADDRESSEE to listOf(LetterZone.ADDRESS_FIELD),
+        QuestionNames.CARE_OF to listOf(LetterZone.ADDRESS_FIELD),
+        QuestionNames.CONTACT to listOf(LetterZone.INFO_BLOCK, LetterZone.LETTERHEAD),
+        QuestionNames.SUBJECT_PERSON to listOf(LetterZone.BODY),
+    )
+
+    fun partyZones(name: String): List<LetterZone> = PARTY_ZONES[name].orEmpty()
 
     /** The zones [slot] is asked on under [template], before the template's zone remap. */
     fun zonesFor(slot: SlotKey, template: LayoutTemplate): List<LetterZone> =

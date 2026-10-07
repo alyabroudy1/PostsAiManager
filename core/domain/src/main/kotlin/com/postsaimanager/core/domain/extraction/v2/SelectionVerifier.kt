@@ -67,7 +67,8 @@ class SelectionVerifier(
             val slots = LinkedHashMap<SlotKey, SlotValue>()
             val lists = LinkedHashMap<SlotKey, List<SlotValue>>()
             if (docType != null) {
-                val allowed = schema.slotsFor(docType, topics)
+                // The slots of the type, or (an interpreter that asked every slot of every document) any slot the schema has.
+                val allowed = if (raw.universalSlots) (schema.slotsFor(docType, topics) + schema.allSlots).distinct() else schema.slotsFor(docType, topics)
                 for (slot in allowed) {
                     val answer = raw.slots[slot.json] ?: continue
                     if (slot.kind == SlotKind.REFERENCE_LIST) {
@@ -77,7 +78,9 @@ class SelectionVerifier(
                         if (values.isNotEmpty()) lists[slot] = values.map { withScoreNote(it, answer.scoreNote) }
                     } else {
                         slotValue(slot, answer)?.let {
-                            slots[slot] = withAlternatives(withScoreNote(withZoneNote(it, answer.zoneNote), answer.scoreNote), answer.alternatives)
+                            slots[slot] = withMeaning(
+                                withAlternatives(withScoreNote(withZoneNote(it, answer.zoneNote), answer.scoreNote), answer.alternatives), answer.meaning,
+                            )
                         }
                     }
                 }
@@ -388,6 +391,18 @@ class SelectionVerifier(
             val combined = ConfidenceCombiner.combine(value.confidence, listOf(Check.Cap(Caps.ZONE_HINT, note)))
             conflicts += note
             return value.copy(confidence = combined.final, blocked = true, notes = value.notes + combined.notes)
+        }
+
+        /**
+         * The meaning the reading decided for a date or an amount ([ValueMeanings]): kept only when the registry knows it for this slot's
+         * kind and the value is a candidate of the page (a period quoted in words has none). Never a cap and never a second decision:
+         * the slot's value, role and confidence are unchanged.
+         */
+        private fun withMeaning(value: SlotValue, meaning: String?): SlotValue {
+            if (meaning == null || value.candidateId == null) return value
+            val known = ValueMeanings.DEFAULT.byId(meaning) ?: return value.also { rejections += "meaning '$meaning' is not in the registry" }
+            if (known.kind != value.slot?.kind?.let(MeaningKind::of)) return value.also { rejections += "meaning '$meaning' does not fit ${value.slot?.json}" }
+            return value.copy(meaning = known.id)
         }
 
         /** The raw numbers a scoring interpreter's confidence rests on, kept in the value's notes for diagnostics; never a cap. */

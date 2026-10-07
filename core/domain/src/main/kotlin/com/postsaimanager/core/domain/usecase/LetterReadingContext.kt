@@ -3,6 +3,8 @@ package com.postsaimanager.core.domain.usecase
 import com.postsaimanager.core.domain.extraction.actions.ActionKinds
 import com.postsaimanager.core.domain.extraction.actions.ActionPart
 import com.postsaimanager.core.domain.contacts.LetterContacts
+import com.postsaimanager.core.domain.extraction.v2.ValueMeaning
+import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
 import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.model.ExtractedData
@@ -54,6 +56,7 @@ object LetterReadingContext {
 
         val lines = mutableListOf<Line>()
         val coveredDates = mutableSetOf<String>()
+        val covered = mutableSetOf<String>()
         actionItems.forEach { item ->
             val kind = ActionKinds.of(item.kind) ?: return@forEach
             val date = bound(item, ActionPart.DATE)
@@ -61,9 +64,11 @@ object LetterReadingContext {
             val party = bound(item, ActionPart.PARTY)
             val reference = bound(item, ActionPart.REFERENCE)
             date?.let { d -> d.slotKey?.let(coveredDates::add) }
+            listOfNotNull(date, amount).forEach { covered += it.id }
+            // What the action says its date or amount is wins; where it says nothing, what the reading decided the value itself means does.
             val parts = listOfNotNull(
-                date?.let { "date ${it.fieldValue.trim()}" + (kind.dateMeaning?.let { m -> " ($m)" } ?: "") },
-                amount?.let { "amount ${it.fieldValue.trim()}" + (kind.amountMeaning?.let { m -> " ($m)" } ?: "") },
+                date?.let { "date ${it.fieldValue.trim()}" + ((kind.dateMeaning ?: meaningOf(it)?.description)?.let { m -> " ($m)" } ?: "") },
+                amount?.let { "amount ${it.fieldValue.trim()}" + ((kind.amountMeaning ?: meaningOf(it)?.description)?.let { m -> " ($m)" } ?: "") },
                 party?.let { "sender ${it.fieldValue.trim()}" },
                 reference?.let { "reference ${it.fieldValue.trim()}" },
             )
@@ -72,8 +77,25 @@ object LetterReadingContext {
                 listOfNotNull(date, amount, party, reference).mapNotNull { it.slotKey }.toSet(),
             )
         }
-        live.filter { it.fieldType == ExtractedFieldType.DEADLINE && it.slotKey !in coveredDates }
-            .forEach { lines += Line("- ${it.fieldName}: ${it.fieldValue.trim()}", listOfNotNull(it.slotKey).toSet()) }
+        // The other dates and amounts the reading gave a meaning (an appointment, the end of a period, a premium ...), and any deadline field no
+        // action covers: the dates in a chat mean what the reading found, not the most prominent one on the page.
+        live.filter { it.slotKey !in coveredDates && it.id !in covered }.forEach { field ->
+            val slots = listOfNotNull(field.slotKey).toSet()
+            val meaning = meaningOf(field)
+            when {
+                meaning != null -> lines += Line("- ${meaning.kind.name.lowercase()} ${field.fieldValue.trim()} (${meaning.description})", slots)
+                field.fieldType == ExtractedFieldType.DEADLINE -> lines += Line("- ${field.fieldName}: ${field.fieldValue.trim()}", slots)
+            }
+        }
+
+        // The key information the reading listed for this document (label: value, the label as written), after the answers above and within
+        // the same cap: each value was checked against the letter's text, and nothing here ranks one fact over another.
+        live.filter { it.isExtra && it.id !in covered }.forEach { field ->
+            val label = field.fieldName.trim()
+            if (label.isNotEmpty() && !label.startsWith(ExtractedData.EXTRA_KEY_PREFIX)) {
+                lines += Line("- $label: ${field.fieldValue.trim()}", listOfNotNull(field.slotKey).toSet())
+            }
+        }
         return lines
     }
 
@@ -98,6 +120,9 @@ object LetterReadingContext {
         }
     }
 
+    /** What the reading decided the value of [field] means (a date or an amount), or null when it decided none ("other"). */
+    private fun meaningOf(field: ExtractedData): ValueMeaning? = ValueMeanings.fromRole(field.role)
+
     private fun describe(contact: ContactPerson): String = listOfNotNull(
         contact.name,
         contact.title?.takeIf { it.isNotBlank() },
@@ -105,5 +130,5 @@ object LetterReadingContext {
         contact.email?.takeIf { it.isNotBlank() }?.let { "email $it" },
     ).joinToString(", ")
 
-    private const val MAX_LINES = 6
+    private const val MAX_LINES = 8
 }

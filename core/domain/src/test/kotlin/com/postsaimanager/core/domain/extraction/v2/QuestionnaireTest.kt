@@ -416,7 +416,10 @@ class QuestionnaireTest {
                 fun ExtractionV2Result.shape() = listOf(
                     documentType?.id,
                     slots.map { (k, v) -> "${k.json}=${v.candidateId}/${v.normalized}/${v.role}/${v.aiConfidence}" }.sorted(),
-                    parties.all.map { "${it.role}/${it.kind}/${it.relation}/${it.name}" }.sorted(),
+                    // The questionnaire asks one "contact person" question, whose answer is the CONTACT role; the fixtures' single call gives that
+                    // same person ROUTING (a person named as the contact at the addressee, "z. Hd."). The same answer asked two ways: the role
+                    // split itself is tested on its own (ExtractionV2AdapterTest, ContactRoleTest).
+                    parties.all.map { "${if (it.role == PartyRole.CONTACT) PartyRole.ROUTING else it.role}/${it.kind}/${it.relation}/${it.name}" }.sorted(),
                     extras.map { "${it.label}/${it.value.normalized}" }.sorted(),
                     // (No title: the questionnaire does not ask one any more, the pipeline composes it from the family, sender and subject.)
                     freeText.subject?.value, freeText.suggestedQuestions, composedTitle,

@@ -6,8 +6,9 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import javax.inject.Inject
 
 /**
- * "Read again as <family>": re-reads a document with its family forced to the one the person picked from the chip's menu.
- * Reviewed rows survive the re-read (the merge protects them), so only what nobody has looked at changes.
+ * "Read again as <category>": re-reads a document with the category the person picked from the chip's menu given as context for every
+ * question (never as a switch of what is asked). Reviewed rows survive the re-read (the merge protects them), so only what nobody has
+ * looked at changes.
  *
  * Only a family of the current schema can be forced; anything else is rejected rather than handed to the pipeline.
  */

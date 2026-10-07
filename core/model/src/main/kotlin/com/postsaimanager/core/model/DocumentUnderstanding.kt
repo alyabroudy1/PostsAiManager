@@ -128,6 +128,8 @@ data class RecognisedFact(
  *   cannot know the candidate ids): a candidate that reads as one of these is never offered as an extra, as one in [takenIds] is not.
  * @property slots the fixed slot values the first stage stored (key, English label, value), which the second stage scores for whether
  *   the reader needs them (the key information). Filled from the stored fields when the second stage runs.
+ * @property userFamily the category a person said the document is (a family id), or null. It is context for every question of the second
+ *   stage and for the name written for the document, and the category is then not decided again: it stays the person's choice.
  */
 @Serializable
 data class EnrichmentTicket(
@@ -138,11 +140,15 @@ data class EnrichmentTicket(
     val facts: Map<String, String> = emptyMap(),
     val takenValues: List<String> = emptyList(),
     val slots: List<TicketSlot> = emptyList(),
+    val userFamily: String? = null,
 )
 
-/** One stored slot value as the second stage sees it: the slot's key, its English label (data of the schema) and the value as stored. */
+/**
+ * One stored slot value as the second stage sees it: the slot's key, its English label (data of the schema) and the value as stored.
+ * [meaning] is what the reading decided the value means, as one English phrase (a date's "the date of an appointment ..."), when it did.
+ */
 @Serializable
-data class TicketSlot(val key: String, val label: String, val value: String)
+data class TicketSlot(val key: String, val label: String, val value: String, val meaning: String? = null)
 
 /** A slot the second stage picked as key information: its key and the score that picked it (higher is more important). */
 @Serializable

@@ -40,6 +40,7 @@ private object PrefsKeys {
     val UPDATE_OLDER_LETTERS = booleanPreferencesKey("update_older_letters_automatically")
     val SEARCH_MODEL_HINT_DISMISSED = booleanPreferencesKey("search_model_hint_dismissed")
     val MODEL_SETUP_SKIPPED = booleanPreferencesKey("model_setup_skipped")
+    val HOUSEHOLD_PROMPT_DISMISSED = booleanPreferencesKey("household_prompt_dismissed")
 }
 
 @Singleton
@@ -68,6 +69,7 @@ class UserPreferencesRepositoryImpl @Inject constructor(
                     updateOlderLettersAutomatically = prefs[PrefsKeys.UPDATE_OLDER_LETTERS] ?: true,
                     searchModelHintDismissed = prefs[PrefsKeys.SEARCH_MODEL_HINT_DISMISSED] ?: false,
                     modelSetupSkipped = prefs[PrefsKeys.MODEL_SETUP_SKIPPED] ?: false,
+                    householdPromptDismissed = prefs[PrefsKeys.HOUSEHOLD_PROMPT_DISMISSED] ?: false,
                 )
             }
             .catch { emit(UserPreferences()) }
@@ -108,6 +110,9 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 
     override suspend fun setModelSetupSkipped(skipped: Boolean): PamResult<Unit> =
         editPrefs { it[PrefsKeys.MODEL_SETUP_SKIPPED] = skipped }
+
+    override suspend fun setHouseholdPromptDismissed(dismissed: Boolean): PamResult<Unit> =
+        editPrefs { it[PrefsKeys.HOUSEHOLD_PROMPT_DISMISSED] = dismissed }
 
     private suspend fun editPrefs(
         block: (MutablePreferences) -> Unit,

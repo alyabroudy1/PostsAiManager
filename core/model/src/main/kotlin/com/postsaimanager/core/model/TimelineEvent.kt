@@ -52,6 +52,15 @@ object TimelineCodes {
 /** The [Document.titleCode] the scanner writes. args: page count. */
 object DocumentTitleCodes {
     const val SCANNED_PAGES = "scanned_pages"
+
+    /**
+     * A title composed from verified fields. args: `[family id, sender, subject]`, always three, `""` for a slot the letter did not
+     * give (see `TitleComposer`, which owns how it is built).
+     */
+    const val COMPOSED = "composed"
+
+    /** Between the slots of a composed title. */
+    const val SEPARATOR = " · "
 }
 
 @Serializable

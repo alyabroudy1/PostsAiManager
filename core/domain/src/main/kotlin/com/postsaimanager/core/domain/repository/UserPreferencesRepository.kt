@@ -30,4 +30,7 @@ interface UserPreferencesRepository {
 
     /** See [UserPreferences.modelSetupSkipped]. */
     suspend fun setModelSetupSkipped(skipped: Boolean): PamResult<Unit>
+
+    /** See [UserPreferences.householdPromptDismissed]. */
+    suspend fun setHouseholdPromptDismissed(dismissed: Boolean): PamResult<Unit>
 }

@@ -117,7 +117,7 @@ class ProfileDetailViewModel @Inject constructor(
         if (isNew) {
             val now = System.currentTimeMillis()
             draft.value = Profile(
-                id = profileId, householdRole = HouseholdRole.MEMBER, name = "", createdAt = now, modifiedAt = now,
+                id = profileId, householdRole = startingRole(savedState.get<String>(ARG_ROLE)), name = "", createdAt = now, modifiedAt = now,
             )
         } else {
             viewModelScope.launch {
@@ -277,6 +277,13 @@ class ProfileDetailViewModel @Inject constructor(
 
         /** Optional: the contact to scroll to on an organisation page (set when arriving from a letter's contact chip). */
         const val ARG_CONTACT_ID = "contactId"
+
+        /** Optional, for a new person: the household role the editor opens with (`SELF` from the household card); a member when absent. */
+        const val ARG_ROLE = "role"
+
+        /** The household role a new person starts with: [requested] (a [HouseholdRole] name) when it names one, else a member. */
+        internal fun startingRole(requested: String?): HouseholdRole =
+            requested?.let { name -> HouseholdRole.entries.firstOrNull { it.name == name } } ?: HouseholdRole.MEMBER
 
         /** The route argument that means "create a new person". */
         const val NEW = "new"

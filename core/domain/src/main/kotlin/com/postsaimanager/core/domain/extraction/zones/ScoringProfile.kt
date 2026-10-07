@@ -16,6 +16,31 @@ data class ScoringProfile(
     /** The document type's margin over the next type: MEDIUM from here, HIGH from [highMargin]. */
     val mediumMargin: Double = 1.0,
     val highMargin: Double = 3.0,
+    /**
+     * The least the best family must lead the runner-up by to be taken; a closer call is the abstain family (the neutral "Document"),
+     * because a model that cannot tell two kinds apart is not telling which one it is. 0.0 (the default) takes any lead.
+     */
+    val familyMinMargin: Double = 0.0,
+    /**
+     * The margin the best category must beat the content-free baseline by: the same scoring question about a made-up kind of document
+     * ([ScoringDescriptions.CATEGORY_BASELINE]), asked in the same batch. A category that does not beat it is not taken and the document is the
+     * neutral "Document". Null (the default) asks for no baseline, so a profile that never measured one decides as before.
+     */
+    val categoryBaselineMargin: Double? = null,
+    /**
+     * The party questions (`sender`, `addressee`, `subject_person`, `contact`, ...) and the reference questions (`slot:invoice_no`, ...) whose
+     * answer may be "none of these": the best candidate is taken only when its score beats, by more than this margin, the score of a made-up
+     * value that is nowhere in the letter (a name, a reference), asked the same way over the same zones (the content-free baseline). A line that
+     * is no party (a greeting, a sentence of a message) or no reference then leaves the field empty instead of being the best of a bad lot.
+     * By question name; a question not listed is taken as before (the best above its threshold). Asked of every document, whatever its type.
+     */
+    val baselineMargins: Map<String, Double> = emptyMap(),
+    /**
+     * The margin a meaning of a date or an amount ([com.postsaimanager.core.domain.extraction.v2.ValueMeanings]) must beat its content-free
+     * baseline by, by meaning id; one not listed uses [defaultMeaningMargin]. A value no meaning beats it by is "other" (no meaning).
+     */
+    val meaningMargins: Map<String, Double> = emptyMap(),
+    val defaultMeaningMargin: Double = 0.0,
     /** The cut points of a slot's or a party's confidence; see [ScoreCuts]. */
     val cuts: ScoreCuts = ScoreCuts(),
     /** How the scores of all questions are combined into the answers ([SlotDecoder]); the per-slot argmax by default. */
@@ -51,6 +76,27 @@ data class ScoringProfile(
 
     /** The threshold of a slot question: [optionalThreshold] when it [isOptional], else the question's own ([threshold]). */
     fun slotThreshold(ask: String, own: Boolean): Double = thresholds[ask] ?: if (isOptional(ask, own)) optionalThreshold else defaultThreshold
+
+    /**
+     * The family the scores decide, as an index into [scores] (one per scored family), or null for the abstain family: the best score
+     * must be above the family threshold and lead the runner-up by at least [familyMinMargin]. A lone candidate leads by its own score. When
+     * the content-free [baseline] (a made-up kind of document, scored in the same batch) is given and [categoryBaselineMargin] is set, the best
+     * must also beat it by that margin: a document that is no better a letter than a made-up kind of document is the neutral "Document".
+     */
+    fun familyWinner(scores: List<Double>, baseline: Double? = null): Int? {
+        val order = scores.indices.sortedByDescending { scores[it] }
+        val best = order.firstOrNull()?.takeIf { scores[it] > threshold(FAMILY) } ?: return null
+        val lead = if (order.size > 1) scores[best] - scores[order[1]] else scores[best]
+        if (lead < familyMinMargin) return null
+        val floor = categoryBaselineMargin?.let { m -> baseline?.plus(m) }
+        return best.takeIf { floor == null || scores[it] > floor }
+    }
+
+    /** The margin over the content-free baseline the party or reference question [ask] needs, or null when it is not asked against one. */
+    fun baselineMargin(ask: String): Double? = baselineMargins[ask]
+
+    /** The margin the meaning [id] of a date or an amount needs over its content-free baseline. */
+    fun meaningMargin(id: String): Double = meaningMargins[id] ?: defaultMeaningMargin
 
     /** The type's confidence from its margin. */
     fun confidence(margin: Double): String = when {
@@ -137,9 +183,16 @@ object ScoringDescriptions {
 
     const val HOUSEHOLD = "the name of a family or household (several people living together)"
 
-    /** The scoring name of the extras batch: the threshold and the statement ([EXTRA]) of a value no slot or party took. */
+    /**
+     * The scoring name of the key-slot batch (the stored slot values scored for whether the reader needs them). It keeps the name of the
+     * extras batch it replaced: the recordings hold their scores under it, and a profile's `extras` threshold is still read from there.
+     */
     const val EXTRAS_ASK = "extras"
 
+    /**
+     * The statement the retired scored extras were asked under. No reading asks it any more (the facts beyond the read fields are
+     * generated, see `KeyInfoWriter`); it stays so the recordings, which hold those questions, still replay and the tools that read them compile.
+     */
     const val EXTRA = "an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount " +
         "that matters), other than the letter's main amount, due date, IBAN, reference or customer number"
 
@@ -155,9 +208,42 @@ object ScoringDescriptions {
      */
     const val KEY_SLOTS_ASK = "keyslots"
 
+    /**
+     * The made-up name scored beside a party's candidates as the content-free baseline (see [ScoringProfile.baselineMargins]); it must
+     * not be a name that could be printed in a letter.
+     */
+    const val PARTY_BASELINE_NAME = "Zoltan Quillfeather"
+
+    /** The made-up reference scored beside a reference question's candidates, the same baseline for numbers; not a reference a letter could print. */
+    const val REFERENCE_BASELINE_VALUE = "ZQ-0000-QUILLFEATHER"
+
+    /** The made-up date scored beside the meanings of a date ([com.postsaimanager.core.domain.extraction.v2.ValueMeanings]); not a date a letter could print. */
+    const val DATE_BASELINE_VALUE = "the 41st of Zoltember"
+
+    /** The made-up amount scored beside the meanings of an amount; not an amount a letter could print. */
+    const val AMOUNT_BASELINE_VALUE = "77 Quillfeather coins"
+
+    /**
+     * The made-up kind of document scored beside the categories as their content-free baseline (see [ScoringProfile.categoryBaselineMargin]); it
+     * names no kind of document that exists. It is asked as "Is this document <this>?" in the same batch as the categories.
+     */
+    const val CATEGORY_BASELINE = "a quillfeather zoltember, a kind of document that exists nowhere"
+
+    /** Every made-up value a content-free baseline is asked about: a question that holds one is a baseline, never a question about the letter. */
+    val BASELINE_PROBES = listOf(PARTY_BASELINE_NAME, REFERENCE_BASELINE_VALUE, DATE_BASELINE_VALUE, AMOUNT_BASELINE_VALUE)
+
+    /** Whether [question] is a content-free baseline (it asks about one of the [BASELINE_PROBES]). */
+    fun isBaselineQuestion(question: String): Boolean = BASELINE_PROBES.any { question.contains(it) }
+
     /** At most this many stored slot values are scored for key information in one reading: the batch stays small. */
     const val MAX_KEY_SLOT_SCORES = 15
 
-    /** The key information is at most this many rows: extras and stored slot values together, best score first. */
+    /** At most this many read (stored) slot values are marked as key information, best score first. */
     const val MAX_KEY_INFO = 4
+
+    /**
+     * The "Key information" section shows at most this many rows: the marked slot values first, then the generated facts
+     * (`KeyInfoFormat.MAX_FACTS`), so it stays short whatever is stored. The rest stay under "All details".
+     */
+    const val MAX_KEY_INFO_SHOWN = 8
 }

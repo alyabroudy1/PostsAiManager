@@ -117,6 +117,7 @@ object FamilyPresentation {
 
     private val BY_FAMILY: Map<String, PresentationSpec> = mapOf(
         ExtractionSchema.OFFICIAL_LETTER.id to LETTER,
+        ExtractionSchema.NOTICE_DECISION.id to LETTER,
         ExtractionSchema.INVOICE_BILL.id to LETTER,
         ExtractionSchema.STATEMENT.id to LETTER,
         ExtractionSchema.CONTRACT_POLICY.id to LETTER,
@@ -127,6 +128,8 @@ object FamilyPresentation {
         ExtractionSchema.FORM_APPLICATION.id to FREE_FORM,
         ExtractionSchema.CERTIFICATE_ID.id to FREE_FORM,
         ExtractionSchema.TICKET_BOOKING.id to FREE_FORM,
+        ExtractionSchema.APPOINTMENT_REMINDER.id to FREE_FORM,
+        ExtractionSchema.MESSAGE_NOTE.id to FREE_FORM,
         ExtractionSchema.FREE_FORM.id to FREE_FORM,
     )
 

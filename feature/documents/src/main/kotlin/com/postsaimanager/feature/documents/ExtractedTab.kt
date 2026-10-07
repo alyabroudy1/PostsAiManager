@@ -68,8 +68,8 @@ import com.postsaimanager.core.designsystem.component.ReportAnswerButton
 import com.postsaimanager.core.designsystem.component.ReportAnswerDialog
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.contacts.LetterContacts
+import com.postsaimanager.core.domain.extraction.v2.DocDirection
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
-import com.postsaimanager.core.domain.extraction.v2.FamilyPresentation
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.SectionKind
 import com.postsaimanager.core.model.Document
@@ -435,10 +435,11 @@ private fun FamilyPickerDialog(mode: PickerMode, current: String?, onDismiss: ()
         },
         text = {
             LazyColumn {
-                items(ExtractionSchema.DEFAULT.families, key = { it.id }) { family ->
+                // The person picks a broad category (letter, bill, appointment ...): the family that stands for each is stored.
+                items(ExtractionSchema.DEFAULT.categoryFamilies(DocDirection.INCOMING), key = { it.id }) { family ->
                     val label = SlotLabels.type(family.id)?.let { stringResource(it) } ?: family.id
-                    // The current family is marked even when the stored id is a legacy one that stands for it.
-                    val selected = family.id == FamilyPresentation.familyId(current)
+                    // The current category is marked even when the stored id is another family or a legacy id that stands for it.
+                    val selected = ExtractionSchema.DEFAULT.categoryOf(family.id) == ExtractionSchema.DEFAULT.categoryOf(current)
                     Row(
                         modifier = Modifier.fillMaxWidth().minimumInteractiveComponentSize().clickable { onPick(family.id) }.padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,

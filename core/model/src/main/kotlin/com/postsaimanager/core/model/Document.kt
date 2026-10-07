@@ -111,6 +111,20 @@ data class Document(
         }
         return title
     }
+
+    /**
+     * The title a list row shows: [displayTitle], except that a composed title (`family · sender · subject`) loses its first slot.
+     * The type is a tag of its own in the list, so it is not repeated in the title; the stored [title] carries it in English, which is
+     * why the words are rebuilt from the args instead of cut from the text. A composed title with no sender and no subject, or with
+     * args this build cannot read, is shown as [displayTitle] does.
+     */
+    fun titleWithoutType(scannedPages: (count: Int) -> String): String {
+        if (titleCode == DocumentTitleCodes.COMPOSED) {
+            val rest = titleArgs.drop(1).map { it.trim() }.filter { it.isNotEmpty() }
+            if (rest.isNotEmpty()) return rest.joinToString(DocumentTitleCodes.SEPARATOR)
+        }
+        return displayTitle(scannedPages)
+    }
 }
 
 /**

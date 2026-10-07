@@ -1,6 +1,7 @@
 package com.postsaimanager.feature.documents
 
 import androidx.annotation.StringRes
+import com.postsaimanager.core.designsystem.component.DocumentTypeLabels
 import com.postsaimanager.core.domain.extraction.address.AddressRows
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
@@ -8,6 +9,7 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.Slots
+import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.AddressPart
 import com.postsaimanager.core.model.ExtractedData
@@ -88,22 +90,6 @@ object SlotLabels {
         }
     }
 
-    /** One label per family; a legacy type id is rendered as the family it maps to ([LegacyTypes]). */
-    private val types: Map<String, Int> = mapOf(
-        ExtractionSchema.RECEIPT.id to R.string.doctype_receipt,
-        ExtractionSchema.OUTGOING_LETTER.id to R.string.doctype_outgoing_letter,
-        ExtractionSchema.PAYMENT_PROOF.id to R.string.doctype_payment_proof,
-        ExtractionSchema.OFFICIAL_LETTER.id to R.string.doctype_official_letter,
-        ExtractionSchema.INVOICE_BILL.id to R.string.doctype_invoice_bill,
-        ExtractionSchema.FORM_APPLICATION.id to R.string.doctype_form_application,
-        ExtractionSchema.STATEMENT.id to R.string.doctype_statement,
-        ExtractionSchema.CONTRACT_POLICY.id to R.string.doctype_contract_policy,
-        ExtractionSchema.CERTIFICATE_ID.id to R.string.doctype_certificate_id,
-        ExtractionSchema.MEDICAL.id to R.string.doctype_medical,
-        ExtractionSchema.TICKET_BOOKING.id to R.string.doctype_ticket_booking,
-        ExtractionSchema.FREE_FORM.id to R.string.doctype_free_form,
-    )
-
     private val topics: Map<String, Int> = mapOf(
         "government" to R.string.topic_government,
         "tax" to R.string.topic_tax,
@@ -166,16 +152,40 @@ object SlotLabels {
         return slots[slot.json]
     }
 
+    /** The label of a family id (the words live in [DocumentTypeLabels]); a legacy type id is rendered as the family it maps to ([LegacyTypes]). */
     @StringRes
-    fun type(id: String?): Int? = id?.let { types[it] ?: types[LegacyTypes.of(it)?.family] }
+    fun type(id: String?): Int? = id?.let { DocumentTypeLabels.of(it) ?: DocumentTypeLabels.of(LegacyTypes.of(it)?.family) }
 
     /** The label resource for a topic id, or null for an id with none. */
     @StringRes
     fun topic(id: String?): Int? = id?.let(topics::get)
 
+    /** The words of each meaning of a date or an amount ([ValueMeanings]); a test fails until every meaning in the registry has one. */
+    private val meanings: Map<String, Int> = mapOf(
+        "DUE_DATE" to R.string.meaning_due_date,
+        "APPOINTMENT" to R.string.meaning_appointment,
+        "DEADLINE" to R.string.meaning_deadline,
+        "PERIOD_START" to R.string.meaning_period_start,
+        "PERIOD_END" to R.string.meaning_period_end,
+        "LETTER_DATE" to R.string.meaning_letter_date,
+        "BIRTH_DATE" to R.string.meaning_birth_date,
+        "TOTAL_DUE" to R.string.meaning_total_due,
+        "CREDIT" to R.string.meaning_credit,
+        "PREMIUM" to R.string.meaning_premium,
+        "INVOICE_TOTAL" to R.string.meaning_invoice_total,
+        "FEE" to R.string.meaning_fee,
+    )
+
+    /** The label of the meaning a stored [role] holds (`meaning:APPOINTMENT`), or null when the role is no meaning. */
+    @StringRes
+    fun meaning(role: String?): Int? = ValueMeanings.fromRole(role)?.let { meanings[it.id] }
+
+    /** Every meaning id that has a label; for the test that guards the registry. */
+    val meaningIds: Set<String> get() = meanings.keys
+
     /** Every key that has a label; for the test that guards the schema. */
     val slotKeys: Set<String> get() = slots.keys + addressRows.keys
-    val typeIds: Set<String> get() = types.keys
+    val typeIds: Set<String> get() = DocumentTypeLabels.ids
     val topicIds: Set<String> get() = topics.keys
 
     /**
@@ -187,6 +197,8 @@ object SlotLabels {
      */
     @StringRes
     fun labelFor(field: ExtractedData): Int? {
+        // A date or an amount the reading gave a meaning is labelled by it ("Appointment"), whichever slot holds it.
+        if (field.source == ValueSource.MACHINE) meaning(field.role)?.let { return it }
         val res = slot(field.slotKey.takeUnless { field.isExtra }) ?: return null
         if (field.source == ValueSource.MACHINE) return res
         return res.takeIf { field.fieldName in defaultNames(field.slotKey!!) }

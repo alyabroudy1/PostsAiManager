@@ -128,6 +128,26 @@ class ObserveDocumentListItemsUseCaseTest {
         assertThat(flow.first().single().people).isEmpty()
     }
 
+    // ── the type tag ──
+
+    @Test
+    fun `the row names the document's family for the type tag`() = runTest {
+        assertThat(rowOf(doc(type = "official_letter")).typeId).isEqualTo("official_letter")
+        assertThat(rowOf(doc(type = "appointment_reminder")).typeId).isEqualTo("appointment_reminder")
+    }
+
+    @Test
+    fun `a document read before the families shows the family its legacy type maps to`() = runTest {
+        assertThat(rowOf(doc(type = "bill")).typeId).isEqualTo("invoice_bill")
+    }
+
+    @Test
+    fun `the neutral Document, an unread document and an unknown type have no tag`() = runTest {
+        assertThat(rowOf(doc(type = "free_form")).typeId).isNull()
+        assertThat(rowOf(doc(type = null)).typeId).isNull()
+        assertThat(rowOf(doc(type = "astrology")).typeId).isNull()
+    }
+
     // ── status ──
 
     @Test

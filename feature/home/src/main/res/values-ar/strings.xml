@@ -3,6 +3,11 @@
     <!-- شريط يظهر بعد «تخطَّ الآن» في الإعداد الأول، إلى أن يتم تثبيت نموذج ذكاء اصطناعي -->
     <string name="home_model_banner_text">نموذج الذكاء الاصطناعي غير مثبّت</string>
     <string name="home_model_banner_action">تثبيت</string>
+    <!-- بطاقة تظهر مرة واحدة: أضف نفسك وعائلتك ليتم وسم الرسائل الخاصة بهم في القائمة -->
+    <string name="home_household_card_title">وسم الرسائل الخاصة بك وبعائلتك</string>
+    <string name="home_household_card_text">أضف نفسك وعائلتك ليتم وسم الرسائل الموجهة إليك.</string>
+    <string name="home_household_card_action">إضافة</string>
+    <string name="home_household_card_dismiss">ليس الآن</string>
     <!-- شريط أثناء تنزيل نماذج الذكاء الاصطناعي في الخلفية؛ النقر يفتح شاشة النماذج -->
     <string name="home_download_banner_progress">إعداد الذكاء الاصطناعي · %1$d من %2$d · %3$d%%</string>
     <string name="home_download_banner_progress_unknown">إعداد الذكاء الاصطناعي · %1$d من %2$d</string>

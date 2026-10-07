@@ -165,16 +165,35 @@ class ExtractionV2AdapterTest {
     }
 
     @Test
-    fun `a routing person is the letter's contact person, a mailbox is mentioned, neither is a recipient`() {
+    fun `a routing person on the addressee side and a mailbox are mentioned, never recipients and never a contact at the sender`() {
         val n4 = understand(Letters.n4)
         assertThat(n4.entities.single { it.role == EntityRole.RECIPIENT }.name).isEqualTo("Mustermann Consulting GmbH")
-        val contact = n4.entities.single { it.name == "Erika Mustermann" }
-        assertThat(contact.role).isEqualTo(EntityRole.SENDER_CONTACT)
-        assertThat(contact.provenance?.slotKey).isEqualTo("contact")
+        val routing = n4.entities.single { it.name == "Erika Mustermann" }
+        assertThat(routing.role).isEqualTo(EntityRole.MENTIONED)
+        assertThat(routing.relation).contains("addressee")
+        assertThat(routing.provenance?.slotKey).isNotEqualTo("contact")
         val n5 = understand(Letters.n5)
         assertThat(n5.entities.single { it.role == EntityRole.RECIPIENT }.name).isEqualTo("Jonas Mustermann")
         assertThat(n5.entities.single { it.name == "Familie Beispiel" }.role).isEqualTo(EntityRole.MENTIONED)
         assertThat(n5.entities.single { it.name == "Familie Beispiel" }.relation).contains("care of")
+    }
+
+    @Test
+    fun `the contact person at the sender is the sender's contact, filling the contact slot`() {
+        // The same letter as n4, with the person the contact question answered (the role split: CONTACT is the sender's, ROUTING the addressee's).
+        val n4 = Letters.n4
+        val asContact = Letter(
+            n4.id, n4.pages, n4.type, n4.language, n4.slots,
+            n4.parties.map { if (it.role == PartyRole.ROUTING) ExpParty(PartyRole.CONTACT, it.text, it.relation, it.kind, it.quote) else it },
+            n4.extras, n4.subject, n4.summary, n4.manifest, n4.notInSchema,
+        )
+        val u = understand(asContact)
+        val contact = u.entities.single { it.name == "Erika Mustermann" }
+        assertThat(contact.role).isEqualTo(EntityRole.SENDER_CONTACT)
+        assertThat(contact.provenance?.slotKey).isEqualTo("contact")
+        assertThat(u.entities.single { it.role == EntityRole.RECIPIENT }.name).isEqualTo("Mustermann Consulting GmbH")
+        // A letter with a mailbox and no contact has no sender contact.
+        assertThat(understand(Letters.n5).entities.none { it.role == EntityRole.SENDER_CONTACT }).isTrue()
     }
 
     @Test

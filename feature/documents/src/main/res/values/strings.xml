@@ -243,19 +243,7 @@
     <string name="slot_cited_references">Cited references</string>
     <string name="slot_action_kind">Action</string>
 
-    <!-- Document families, keyed by family id; a legacy type id is shown as the family it maps to -->
-    <string name="doctype_receipt">Receipt</string>
-    <string name="doctype_outgoing_letter">Letter you sent</string>
-    <string name="doctype_payment_proof">Proof of payment</string>
-    <string name="doctype_official_letter">Official letter</string>
-    <string name="doctype_invoice_bill">Invoice or bill</string>
-    <string name="doctype_form_application">Form or application</string>
-    <string name="doctype_statement">Statement</string>
-    <string name="doctype_contract_policy">Contract or policy</string>
-    <string name="doctype_certificate_id">Certificate or ID</string>
-    <string name="doctype_medical">Medical</string>
-    <string name="doctype_ticket_booking">Ticket or booking</string>
-    <string name="doctype_free_form">Other document</string>
+    <!-- The document family labels (doctype_<id>) live in :core:designsystem, where the list's type tag reads them (DocumentTypeLabels). -->
 
     <!-- Topics, keyed by topic id -->
     <string name="topic_government">Government</string>
@@ -303,4 +291,18 @@
     <string name="action_share_original">Share original</string>
     <string name="original_unavailable">The original file is not available.</string>
     <string name="no_app_for_pdf">No app found to open PDFs</string>
+
+    <!-- What a date or an amount means (ValueMeanings): the row's label when the reading decided it -->
+    <string name="meaning_due_date">Payment due date</string>
+    <string name="meaning_appointment">Appointment</string>
+    <string name="meaning_deadline">Cancellation or objection deadline</string>
+    <string name="meaning_period_start">Period start</string>
+    <string name="meaning_period_end">Period end</string>
+    <string name="meaning_letter_date">Date of the letter</string>
+    <string name="meaning_birth_date">Birth date</string>
+    <string name="meaning_total_due">Amount to pay</string>
+    <string name="meaning_credit">Amount credited or refunded</string>
+    <string name="meaning_premium">Premium or contribution</string>
+    <string name="meaning_invoice_total">Invoice total</string>
+    <string name="meaning_fee">Fee</string>
 </resources>

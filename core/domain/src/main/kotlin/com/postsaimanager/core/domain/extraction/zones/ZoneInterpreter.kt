@@ -253,7 +253,7 @@ class ZoneInterpreter(
                 .forEachIndexed { i, p -> addParty(a, if (i == 0) PartyRole.ADDRESSEE else PartyRole.CO_ADDRESSEE, p, zones, cands, zoned) }
             QuestionNames.SUBJECT_PERSON -> AnswerReader.parties(answer, withRelation = false).take(QuestionGrammars.MAX_ADDRESSEES)
                 .forEach { addParty(a, PartyRole.SUBJECT_PERSON, it, zones, cands, zoned) }
-            QuestionNames.CONTACT -> AnswerReader.parties(answer, withRelation = false).firstOrNull()?.let { addParty(a, PartyRole.ROUTING, it, zones, cands, zoned) }
+            QuestionNames.CONTACT -> AnswerReader.parties(answer, withRelation = false).firstOrNull()?.let { addParty(a, PartyRole.CONTACT, it, zones, cands, zoned) }
             QuestionNames.CARE_OF -> AnswerReader.parties(answer, withRelation = false).firstOrNull()?.let { addParty(a, PartyRole.CARE_OF, it, zones, cands, zoned) }
             else -> step.slot?.let { slot ->
                 AnswerReader.slot(slot, answer)?.let { raw ->

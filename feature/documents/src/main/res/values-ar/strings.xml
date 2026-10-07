@@ -79,4 +79,17 @@
     <string name="action_share_original">مشاركة الأصل</string>
     <string name="original_unavailable">الملف الأصلي غير متوفر.</string>
     <string name="no_app_for_pdf">لا يوجد تطبيق لفتح ملفات PDF</string>
+
+    <string name="meaning_due_date">تاريخ استحقاق الدفع</string>
+    <string name="meaning_appointment">موعد</string>
+    <string name="meaning_deadline">مهلة الإلغاء أو الاعتراض</string>
+    <string name="meaning_period_start">بداية الفترة</string>
+    <string name="meaning_period_end">نهاية الفترة</string>
+    <string name="meaning_letter_date">تاريخ الرسالة</string>
+    <string name="meaning_birth_date">تاريخ الميلاد</string>
+    <string name="meaning_total_due">المبلغ المطلوب دفعه</string>
+    <string name="meaning_credit">مبلغ دائن أو مسترد</string>
+    <string name="meaning_premium">قسط أو اشتراك</string>
+    <string name="meaning_invoice_total">إجمالي الفاتورة</string>
+    <string name="meaning_fee">رسوم</string>
 </resources>

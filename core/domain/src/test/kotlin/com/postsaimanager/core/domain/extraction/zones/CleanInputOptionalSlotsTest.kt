@@ -87,8 +87,9 @@ class CleanInputOptionalSlotsTest {
         val contract = interpreter.transcript.first { it.name == "score:slot:contract_no" }.question
         assertThat(contract).contains("Is «RE-2026-0815», printed after «Rechnung Nr.» (context:")
         assertThat(contract).contains("Is «KD-40417», printed after «Kundennummer» (context:")
-        // the invoice's own number is asked as it was: no label, it is not optional for an invoice
-        assertThat(interpreter.transcript.first { it.name == "score:slot:invoice_no" }.question).doesNotContain("printed after")
+        // The type is not known while the numbers are asked (it is decided last), so no number is "the family's own": the invoice's own is
+        // asked with its printed label too, and the model must lean Yes to it.
+        assertThat(interpreter.transcript.first { it.name == "score:slot:invoice_no" }.question).contains("printed after «Rechnung Nr.»")
     }
 
     @Test

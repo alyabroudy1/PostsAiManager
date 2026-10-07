@@ -3,6 +3,11 @@
     <!-- Hinweis nach „Vorerst überspringen“ in der Ersteinrichtung, bis ein KI-Modell installiert ist -->
     <string name="home_model_banner_text">KI-Modell nicht installiert</string>
     <string name="home_model_banner_action">Installieren</string>
+    <!-- Einmalige Karte: „Ich“ und die Familie anlegen, damit Briefe für sie in der Liste markiert werden -->
+    <string name="home_household_card_title">Briefe für Sie und Ihre Familie markieren</string>
+    <string name="home_household_card_text">Legen Sie sich und Ihre Familie an, damit Briefe für Sie markiert werden.</string>
+    <string name="home_household_card_action">Hinzufügen</string>
+    <string name="home_household_card_dismiss">Nicht jetzt</string>
     <!-- Hinweis, solange die KI-Modelle im Hintergrund geladen werden; Antippen öffnet die Modellübersicht -->
     <string name="home_download_banner_progress">KI wird eingerichtet · %1$d von %2$d · %3$d %%</string>
     <string name="home_download_banner_progress_unknown">KI wird eingerichtet · %1$d von %2$d</string>

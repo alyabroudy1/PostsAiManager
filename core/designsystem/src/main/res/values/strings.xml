@@ -30,6 +30,17 @@
     <string name="doc_row_status_processing">Being read</string>
     <string name="doc_row_status_ready">Read, nothing to check</string>
     <string name="doc_row_status_failed">Reading failed</string>
+    <!-- Document categories, keyed by the family id that stands for each; the other stored ids share their category's words (DocumentTypeLabels). The list shows one as a small tag. -->
+    <string name="doctype_receipt">Receipt</string>
+    <string name="doctype_official_letter">Letter</string>
+    <string name="doctype_invoice_bill">Invoice or bill</string>
+    <string name="doctype_form_application">Form or application</string>
+    <string name="doctype_statement">Statement</string>
+    <string name="doctype_contract_policy">Contract or policy</string>
+    <string name="doctype_appointment_reminder">Appointment</string>
+    <string name="doctype_message_note">Message or note</string>
+    <string name="doctype_notice_decision">Notice or decision</string>
+    <string name="doctype_free_form">Other document</string>
     <string name="doc_row_favorite">Favorite</string>
     <string name="doc_row_toggle_favorite">Toggle favorite</string>
 

@@ -1,16 +1,20 @@
 package com.postsaimanager.core.domain.extraction.text
 
+import com.postsaimanager.core.model.DocumentTitleCodes
+
 /**
- * Builds a document's title from fields that are already verified. No model call: the title costs nothing.
+ * Builds a document's title from fields that are already verified. No model call: the title costs nothing. The one owner of the title's
+ * text: the specific name the reading wrote for the document ([DocumentNameWriter], grounded by [DocumentNameVerifier]) goes in the third
+ * position, and the printed subject line only where there is no name.
  *
  * A composed title is a **coded title**: `Document.titleCode = "composed"` ([CODE]) with `Document.titleArgs` of
  * exactly three positions, always present:
  *
- * | index | content                                                    |
- * |-------|------------------------------------------------------------|
- * | 0     | the family id (`invoice_bill`, `free_form`, ...)             |
- * | 1     | the sender's name, or `""` when there is none                |
- * | 2     | the subject line, or `""` when there is none                 |
+ * | index | content                                                                         |
+ * |-------|---------------------------------------------------------------------------------|
+ * | 0     | the family id (`invoice_bill`, `free_form`, ...)                                  |
+ * | 1     | the sender's name, or `""` when there is none                                     |
+ * | 2     | the specific name, else the subject line, or `""` when there is neither           |
  *
  * The positions are fixed so that a dropped slot does not shift the next one. The UI (P3) renders the localised
  * "{family label} · {sender} · {subject}" from these args and leaves out every empty slot; [Composed.title] is the same
@@ -34,6 +38,8 @@ object TitleComposer {
     data class Composed(val title: String, val code: String, val args: List<String>)
 
     /**
+     * @param name the specific name of the document, already verified; the third position when it is not blank
+     * @param subject the verified subject line as printed: stands in for [name] when there is none
      * @param familyLabel the words for a family id; the default turns the id into words (`invoice_bill` -> "Invoice bill"),
      * a caller that has localised labels passes them
      * @return null when every slot is empty, so there is nothing to call the document
@@ -41,12 +47,13 @@ object TitleComposer {
     fun compose(
         familyId: String?,
         senderName: String?,
-        subject: String?,
+        name: String?,
+        subject: String? = null,
         familyLabel: (String) -> String = ::idAsWords,
     ): Composed? {
         val family = clean(familyId, Int.MAX_VALUE)
         val sender = clean(senderName, MAX_SENDER_CHARS)
-        val subjectLine = clean(subject, MAX_SUBJECT_CHARS)
+        val subjectLine = clean(name, MAX_SUBJECT_CHARS).ifEmpty { clean(subject, MAX_SUBJECT_CHARS) }
         val parts = listOf(family.takeIf { it.isNotEmpty() }?.let(familyLabel).orEmpty(), sender, subjectLine).filter { it.isNotBlank() }
         if (parts.isEmpty()) return null
         return Composed(parts.joinToString(SEPARATOR), CODE, listOf(family, sender, subjectLine))

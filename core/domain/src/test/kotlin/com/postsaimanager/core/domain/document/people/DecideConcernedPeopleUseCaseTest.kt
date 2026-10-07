@@ -171,6 +171,33 @@ class DecideConcernedPeopleUseCaseTest {
         }
 
     @Test
+    fun `a person who joins the household under the same name sets the documents that mention them back to not asked`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val models = object : InstalledModelsRepository {
+                override val installed: Flow<List<InstalledModelSummary>> = MutableStateFlow(emptyList())
+                override val activeModelId: Flow<String?> = MutableStateFlow(null)
+                override suspend fun setActive(modelId: String) = Unit
+            }
+            // Read long ago and settled to "nobody", because there was no household then.
+            profiles.seed(profile("erika", "Erika Mustermann", ProfileType.PERSON))
+            seedDocument("d1", "Sehr geehrte Frau Erika Mustermann", concernedIds = emptyList())
+            seedDocument("d2", "Ein Brief ohne Namen", concernedIds = emptyList())
+            val watcher = ConcernedPeopleWatcher(
+                profiles, models, QueueConcernedPeopleCheckUseCase(documents, processor), BackfillConcernedPeopleUseCase(documents, processor),
+            )
+            val job = launch { watcher.watch() }
+            coVerify(exactly = 0) { processor.enqueuePeopleCheck(any()) }
+
+            profiles.updateProfile(profile("erika", "Erika Mustermann", ProfileType.USER_SELF))
+
+            coVerify(exactly = 1) { processor.enqueuePeopleCheck("d1") }
+            coVerify(exactly = 0) { processor.enqueuePeopleCheck("d2") }
+            assertThat(stored("d1")).isNull()
+            assertThat(stored("d2")).isEmpty()
+            job.cancel()
+        }
+
+    @Test
     fun `the watcher's diff names the new and the renamed managed profiles only`() {
         val now = listOf(profile("a", "Amir Ahmed"), profile("b", "Maria Ahmed"), profile("c", "Lea Ahmed"))
         val changed = ConcernedPeopleWatcher.changed(mapOf("a" to "Amir Ahmed", "b" to "Maria Berger"), now)

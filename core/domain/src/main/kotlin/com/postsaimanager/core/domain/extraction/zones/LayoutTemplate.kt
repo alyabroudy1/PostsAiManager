@@ -109,12 +109,5 @@ object QuestionNames {
     const val CARE_OF = "care_of"
     const val EXTRAS = "extras"
 
-    /**
-     * Where the scoring reader looks for extras: every zone that holds facts worth keeping, not only the body (the amounts of a
-     * payment block and the numbers of a reference block are extras too). A separate name from [EXTRAS], which is where the
-     * generating reader asks its one extras question on a zone's text and candidates.
-     */
-    const val EXTRAS_SCORED = "extras_scored"
-
     fun slot(json: String) = "slot:$json"
 }

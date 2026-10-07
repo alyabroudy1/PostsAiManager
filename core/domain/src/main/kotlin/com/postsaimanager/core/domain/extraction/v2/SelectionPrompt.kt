@@ -30,7 +30,7 @@ object SelectionPrompt {
         - parties: everybody who plays a role (at most ${StructuredGrammar.MAX_PARTIES}). r is SENDER (who wrote and
           sent the letter), ADDRESSEE (who it is addressed to), CO_ADDRESSEE (someone addressed together with
           the addressee), ROUTING (a person named only as the contact or handler at an organisation that is
-          the addressee), CARE_OF (a person or household whose address is only used as a mailbox),
+          the addressee), CONTACT (the person at the SENDER who handles the matter), CARE_OF (a person or household whose address is only used as a mailbox),
           SUBJECT_PERSON (who the letter is about, for example a child when the parents are addressed).
           id is a name candidate id, or the name copied exactly from the letter when there is no candidate.
           n is the party's name as you would write it, using only words of that line: leave out any form of
