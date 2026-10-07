@@ -109,7 +109,8 @@ internal object LlmChatModelHelper : LlmModelHelper {
             )
         val engine = Engine(engineConfig)
         try {
-            ExperimentalFlags.enableBenchmark = false
+            // Diagnostics (branch diag/chat-timing): benchmark counters on, to log prefill/decode tokens and rates per reply.
+            ExperimentalFlags.enableBenchmark = true
             engine.initialize()
         } catch (e: Exception) {
             runCatching { engine.close() }
@@ -137,6 +138,7 @@ internal object LlmChatModelHelper : LlmModelHelper {
             "conversation: topK=${config.topK} topP=${config.topP} temperature=${config.temperature} context=${config.maxTokens} " +
                 "tools=${tools.size} system=${systemInstruction?.toString()?.length ?: 0} chars initialMessages=${initialMessages.size}",
         )
+        com.postsaimanager.core.common.util.TimingLog.at("createConversation: constrainedDecoding=${tools.isNotEmpty()} backend=${config.accelerator}")
         try {
             return engine.createConversation(
                 ConversationConfig(
@@ -155,6 +157,7 @@ internal object LlmChatModelHelper : LlmModelHelper {
             )
         } finally {
             ExperimentalFlags.enableConversationConstrainedDecoding = false
+            com.postsaimanager.core.common.util.TimingLog.at("createConversation returned")
         }
     }
 
@@ -173,6 +176,17 @@ internal object LlmChatModelHelper : LlmModelHelper {
         }
         instance.conversation = newConversation(instance.engine, config, systemInstruction, initialMessages, tools)
     }
+
+    /** Diagnostics: the engine's own prefill/decode counters for the last send, as one log line. */
+    @OptIn(ExperimentalApi::class)
+    fun benchmarkLine(instance: LlmModelInstance): String =
+        try {
+            val b = instance.conversation.getBenchmarkInfo()
+            "bench: ttft=${"%.2f".format(b.timeToFirstTokenInSecond)}s prefill=${b.lastPrefillTokenCount} tok @ ${"%.1f".format(b.lastPrefillTokensPerSecond)} tok/s, " +
+                "decode=${b.lastDecodeTokenCount} tok @ ${"%.1f".format(b.lastDecodeTokensPerSecond)} tok/s, contextTokens=${instance.conversation.getTokenCount()}"
+        } catch (e: Throwable) {
+            "bench: unavailable (${e.message})"
+        }
 
     override fun tokenCount(instance: LlmModelInstance): Int =
         try {

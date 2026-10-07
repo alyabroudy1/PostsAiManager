@@ -108,6 +108,7 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         enableStrictModeInDebug()
+        if (BuildConfig.DEBUG) com.postsaimanager.core.common.util.TimingLog.sink = { android.util.Log.i("PamTiming", it) }
         if (!isMainProcess()) return
         // First, and on Main: the lock must know about lifecycle events from the very first
         // ON_START, and starts locked until the stored settings arrive.

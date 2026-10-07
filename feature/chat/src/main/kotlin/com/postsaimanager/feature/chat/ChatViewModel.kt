@@ -406,6 +406,8 @@ class ChatViewModel @Inject constructor(
      */
     private fun send(text: String, alreadyStored: Boolean) {
         if (text.isBlank() || _uiState.value.isProcessing) return
+        com.postsaimanager.core.common.util.TimingLog.mark()
+        com.postsaimanager.core.common.util.TimingLog.log("t0 send tapped (${text.length} chars, formFilling=${formFillingFlag.enabled})")
         lastSentText = text
         if (alreadyStored) {
             startChatTurn(text, persistUserMessage = false)
@@ -427,7 +429,9 @@ class ChatViewModel @Inject constructor(
         // In a document chat the form agent reads the message first: while it runs, every message is the user's next message to it
         // (it decides what the message means); a request to fill the form starts it; anything else is the normal grounded chat.
         runFormWork {
-            when (formFill.route(document, text)) {
+            val route = formFill.route(document, text)
+            com.postsaimanager.core.common.util.TimingLog.at("form route done: $route")
+            when (route) {
                 FormRoute.HANDLED -> Unit
                 FormRoute.NOT_FOR_FORM -> chatTurn(text)
             }
