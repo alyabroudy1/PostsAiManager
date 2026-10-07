@@ -1,9 +1,12 @@
 package com.postsaimanager.core.data.repository
 
+import android.util.Log
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.entity.DismissedEntityEntity
+import com.postsaimanager.core.domain.contacts.ContactLinkOutcome
+import com.postsaimanager.core.domain.contacts.LinkSenderContactUseCase
 import com.postsaimanager.core.domain.document.normaliseEntityName
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.domain.usecase.EntityLinkingUseCase
@@ -26,6 +29,9 @@ import javax.inject.Singleton
  * entity has already been dismissed for this document ([DismissedEntityDao]), and the actual
  * database writes for the outcome ([ProfileRepository]).
  *
+ * A letter's contact person is never a profile: after the entities are handled (so after the sender organisation is linked) the
+ * contact linking ([LinkSenderContactUseCase]) attaches it to that organisation, or leaves it waiting on the letter.
+ *
  * Only a confident link or create is acted on. A `Propose` decision (an entity the app would have asked the person about) is
  * left alone: nothing is stored and nobody is asked, so a document never raises an "is this you?" question.
  *
@@ -38,6 +44,8 @@ class EntityProfileLinker @Inject constructor(
     private val profileRepository: ProfileRepository,
     private val dismissedEntityDao: DismissedEntityDao,
     private val decide: EntityLinkingUseCase,
+    // Lazy: the same-person question reaches the model, which reaches the document processor that owns this linker (a cycle otherwise).
+    private val linkSenderContact: dagger.Lazy<LinkSenderContactUseCase>,
 ) {
 
     data class Outcome(
@@ -45,28 +53,33 @@ class EntityProfileLinker @Inject constructor(
         val created: Int,
         /** Dismissed before, this run — not a count of everything skipped for any reason. */
         val ignoredAsDismissed: Int,
+        /** What the contact linking did for the letter (never a profile); null when it failed unexpectedly. */
+        val contact: ContactLinkOutcome? = null,
     )
 
     suspend fun process(documentId: String, understanding: DocumentUnderstanding): Outcome {
         var linked = 0
         var created = 0
         var ignored = 0
-
-        // The one SENDER entity in the document, if any — see rule 3: a contact is only ever
-        // auto-created when there is an organisation on this document to attach it to.
-        val senderOrganisation = understanding.sender
-            ?.takeIf { isOrganisation(it.kind) }
-            ?.name
+        var contactDismissed = false
 
         for (entity in understanding.entities) {
             if (entity.name.isBlank()) continue
 
             val key = normaliseEntityName(entity.name)
             val dismissed = dismissedEntityDao.isDismissed(documentId, key)
-            val match = if (dismissed) null else findMatch(entity, senderOrganisation)
+            // A contact person is not matched against profiles: it belongs to the organisation, not to the list of profiles.
+            val match = if (dismissed || entity.role == EntityRole.SENDER_CONTACT) null else findMatch(entity)
 
-            when (val action = decide.decide(entity, match, senderOrganisation, dismissed)) {
-                is EntityLinkingUseCase.Action.Ignore -> ignored++
+            when (val action = decide.decide(entity, match, dismissed)) {
+                is EntityLinkingUseCase.Action.Ignore -> {
+                    ignored++
+                    // A contact the user removed from this letter stays removed.
+                    if (entity.role == EntityRole.SENDER_CONTACT) contactDismissed = true
+                }
+
+                // Handled once below, after the sender is linked, whatever the order of the entities.
+                is EntityLinkingUseCase.Action.AttachContact -> Unit
 
                 is EntityLinkingUseCase.Action.Link -> {
                     val result = profileRepository.linkProfileToDocument(
@@ -83,7 +96,37 @@ class EntityProfileLinker @Inject constructor(
             }
         }
 
-        return Outcome(linked, created, ignored)
+        // The contact person waits on the letter (its stored "Contact Person" field) until the sender organisation is linked: this is the
+        // one place a sender link is confirmed, so the contact is attached here, after it. Without a resolved sender it stays waiting, and
+        // the next run that confirms the sender attaches it.
+        val contact = if (contactDismissed) ContactLinkOutcome.NothingToLink else try {
+            linkSenderContact.get()(documentId).also { logContactDecision(documentId, it) }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+
+        return Outcome(linked, created, ignored, contact)
+    }
+
+    /** The scores of the same-person question, ids and numbers only (no name), at debug level. */
+    private fun logContactDecision(documentId: String, outcome: ContactLinkOutcome) {
+        val decision = when (outcome) {
+            is ContactLinkOutcome.Matched -> outcome.decision
+            is ContactLinkOutcome.Created -> outcome.decision
+            else -> null
+        }
+        val text = buildString {
+            append("contact for ").append(documentId).append(": ").append(outcome::class.simpleName)
+            if (outcome is ContactLinkOutcome.Pending) append(" ").append(outcome.reason)
+            decision?.let { d ->
+                append(" matched=").append(d.matchedId).append(" baseline=").append(d.baseline).append(" margin=").append(d.margin)
+                append(" scores=").append(d.asked.joinToString { "${it.candidateId}:${it.score}" })
+            }
+        }
+        // android.util.Log is not available in a JVM unit test.
+        runCatching { Log.d(TAG, text) }
     }
 
     /**
@@ -110,8 +153,7 @@ class EntityProfileLinker @Inject constructor(
         val now = System.currentTimeMillis()
         val profile = Profile(
             id = UuidGenerator.generate(),
-            kind = action.profileType.kind,
-            householdRole = action.profileType.householdRole,
+            kind = action.kind,
             name = action.name,
             organization = action.organization,
             sourceDocumentId = documentId,
@@ -129,21 +171,13 @@ class EntityProfileLinker @Inject constructor(
     /**
      * Looks up the best existing profile for an entity, using the scoring of [ProfileMatcher].
      *
-     * An organisation entity is matched by organisation; a person is matched by name, plus
-     * organisation when they are a [EntityRole.SENDER_CONTACT] — "Frau Müller" should match
-     * the "Frau Müller" already on file *at this Jobcenter*, not a namesake elsewhere.
+     * An organisation entity is matched by organisation; a person is matched by name. (A contact person is never matched here: it
+     * is not a profile.)
      */
-    private suspend fun findMatch(
-        entity: RecognisedEntity,
-        senderOrganisation: String?,
-    ): EntityLinkingUseCase.MatchCandidate? {
+    private suspend fun findMatch(entity: RecognisedEntity): EntityLinkingUseCase.MatchCandidate? {
         val isOrg = isOrganisation(entity.kind)
         val name = entity.name.takeUnless { isOrg }
-        val organization = when {
-            isOrg -> entity.name
-            entity.role == EntityRole.SENDER_CONTACT -> senderOrganisation
-            else -> null
-        }
+        val organization = if (isOrg) entity.name else null
 
         // An organisation entity may only match its own AUTHORITY profile, never a person's
         // profile that merely shares its `organization` string (see findBestMatch's doc).
@@ -155,11 +189,16 @@ class EntityProfileLinker @Inject constructor(
 
         return EntityLinkingUseCase.MatchCandidate(
             profileId = profile.id,
-            profileType = profile.type,
+            kind = profile.kind,
+            isSelf = profile.isSelf,
             isExactMatch = confidence >= ProfileMatcher.EXACT_MATCH_CONFIDENCE,
         )
     }
 
     private fun isOrganisation(kind: EntityKind): Boolean =
         kind == EntityKind.AUTHORITY || kind == EntityKind.COMPANY
+
+    private companion object {
+        const val TAG = "EntityProfileLinker"
+    }
 }

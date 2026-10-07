@@ -78,7 +78,10 @@ class DocumentDetailViewModelTest {
         externalFlowGuard = externalFlowGuard,
         installedModels = installedModels,
         profileRepository = profileRepository,
+        loadLetterContacts = com.postsaimanager.core.testing.letterContactsFor(profileRepository, contactRepository),
     )
+
+    private val contactRepository = com.postsaimanager.core.testing.FakeContactRepository()
 
     private val installedModels = object : InstalledModelsRepository {
         val models = MutableStateFlow<List<InstalledModelSummary>>(emptyList())

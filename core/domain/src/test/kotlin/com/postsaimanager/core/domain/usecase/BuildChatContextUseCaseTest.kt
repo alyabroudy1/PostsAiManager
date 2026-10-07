@@ -25,7 +25,7 @@ class BuildChatContextUseCaseTest {
 
     private val documents = FakeDocumentRepository()
     private val profiles = FakeProfileRepository()
-    private val useCase = BuildChatContextUseCase(documents, profiles)
+    private val useCase = BuildChatContextUseCase(documents, profiles, com.postsaimanager.core.testing.letterContactsFor(profiles))
 
     private fun field(
         name: String,

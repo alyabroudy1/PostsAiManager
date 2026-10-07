@@ -17,6 +17,7 @@ import com.postsaimanager.core.domain.extraction.v2.SectionKind
 import com.postsaimanager.core.domain.extraction.v2.SlotKind
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.AddressPart
+import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
@@ -222,6 +223,7 @@ object ExtractedPresenter {
 
     /**
      * @param selfName the name on the "Me" profile: an addressee whose folded name equals it reads "You" ([PartyRecipients])
+     * @param offerContact the organisation's current contact (else the letter's), whose phone and e-mail a "contact" action offers when the letter has none
      */
     fun present(
         document: Document,
@@ -229,6 +231,7 @@ object ExtractedPresenter {
         showAllExtras: Boolean = false,
         summaryComing: Boolean = false,
         selfName: String? = null,
+        offerContact: ContactPerson? = null,
     ): ExtractedPresentation {
         val spec = FamilyPresentation.of(document.extractionType)
         val family = FamilyPresentation.familyId(document.extractionType)?.let { schema.family(it) }
@@ -254,7 +257,7 @@ object ExtractedPresenter {
         // and the subject: its extras were not picked for what the reader needs.
         val (visibleExtras, hiddenExtras) = extraRows.partition { showAllExtras || !isHidden(it) }
         // Rendered from the live fields now: a value a person corrected is the value the line states.
-        val actions = ActionLines.resolve(document.actionItems, live)
+        val actions = ActionLines.resolve(document.actionItems, live, offerContact)
         val actionRowIds = actions.flatMap { a -> a.rows.map { it.id } }.toSet()
         // The slot rows the AI picked as key information (an invoice number, an IBAN ...) come first, best score first, then the extras. A
         // value an action line already states stays in that line's sub-lines and is not drawn twice.

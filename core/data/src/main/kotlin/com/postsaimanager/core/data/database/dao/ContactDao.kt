@@ -49,6 +49,9 @@ interface ContactDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertLink(link: DocumentContactEntity)
 
+    @Query("SELECT documentId FROM document_contacts WHERE contactId = :contactId")
+    suspend fun documentIdsOf(contactId: String): List<String>
+
     @Query("DELETE FROM document_contacts WHERE contactId = :contactId AND documentId = :documentId")
     suspend fun deleteLink(contactId: String, documentId: String)
 

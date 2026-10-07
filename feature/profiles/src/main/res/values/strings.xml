@@ -27,10 +27,33 @@
     <!-- Organisation contacts -->
     <string name="contacts_title">Contacts</string>
     <string name="contacts_empty">No contacts yet.</string>
-    <string name="contacts_current">Current contact</string>
-    <string name="contacts_earlier">Earlier</string>
+    <string name="contacts_current">Your contact now</string>
+    <string name="contacts_earlier">Earlier contacts</string>
     <string name="contacts_last_seen">Last letter %1$s</string>
     <string name="contacts_inactive">No longer responsible</string>
+    <string name="contact_call">Call</string>
+    <string name="contact_email">Email</string>
+    <string name="contact_more">More actions for %1$s</string>
+    <string name="contact_menu_edit">Edit</string>
+    <string name="contact_menu_active">Responsible again</string>
+    <string name="contact_menu_merge">Merge into another contact</string>
+    <string name="contact_menu_move">Move to another organisation</string>
+    <string name="contact_menu_delete">Delete</string>
+    <string name="contact_edit_title">Edit contact</string>
+    <string name="contact_field_name">Name</string>
+    <string name="contact_field_title">Job or title</string>
+    <string name="contact_field_department">Team or department</string>
+    <string name="contact_field_phone">Phone</string>
+    <string name="contact_field_email">Email</string>
+    <string name="contact_field_room">Room</string>
+    <string name="contact_save">Save</string>
+    <string name="contact_cancel">Cancel</string>
+    <string name="contact_merge_title">%1$s is the same person as</string>
+    <string name="contact_merge_hint">The letters of %1$s move to the contact you pick. Only the other contact stays.</string>
+    <string name="contact_move_title">Move %1$s to</string>
+    <string name="contact_delete_title">Delete %1$s?</string>
+    <string name="contact_delete_body">The letters stay. They only lose this contact, and reading them again does not bring it back.</string>
+    <string name="contact_no_app">No app found for this.</string>
 
     <!-- Kind and household -->
     <string name="profile_kind_person">Person</string>

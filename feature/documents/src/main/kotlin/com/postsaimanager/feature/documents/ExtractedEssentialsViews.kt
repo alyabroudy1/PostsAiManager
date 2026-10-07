@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.platform.testTag
+import com.postsaimanager.core.domain.contacts.LetterContacts
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -81,18 +85,23 @@ private fun EssentialCard(title: String, containerColor: Color, content: @Compos
  * corrected value is the value stated), with the account or reference it names as copyable sub-lines.
  */
 @Composable
-internal fun ActionsCard(lines: List<ActionLine>, actions: FieldActions) {
+internal fun ActionsCard(
+    lines: List<ActionLine>,
+    actions: FieldActions,
+    onCall: (phone: String) -> Unit = {},
+    onEmail: (address: String) -> Unit = {},
+) {
     EssentialCard(stringResource(R.string.essentials_actions_title), MaterialTheme.colorScheme.primaryContainer) {
         lines.forEachIndexed { index, line ->
             val text = actionLineText(line) ?: return@forEachIndexed
             if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(end = 12.dp))
-            ActionLineView(line, text, actions)
+            ActionLineView(line, text, actions, onCall, onEmail)
         }
     }
 }
 
 @Composable
-private fun ActionLineView(line: ActionLine, text: String, actions: FieldActions) {
+private fun ActionLineView(line: ActionLine, text: String, actions: FieldActions, onCall: (String) -> Unit, onEmail: (String) -> Unit) {
     val open = line.rows.filter { !it.isSettled }
     val uncertain = line.rows.any { it.isUncertain }
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -119,6 +128,21 @@ private fun ActionLineView(line: ActionLine, text: String, actions: FieldActions
             }
         }
         line.valueRows.forEach { row -> ValueSubLine(row) }
+        // The letter gives no phone or e-mail for the contact action: the contact person's own are offered (the action stays the AI's).
+        line.offer?.let { offer ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                offer.phone?.let { phone ->
+                    OutlinedButton(onClick = { onCall(phone) }, modifier = Modifier.testTag("action_offer_call")) {
+                        Text(stringResource(R.string.contact_offer_call, offer.name))
+                    }
+                }
+                offer.email?.let { address ->
+                    OutlinedButton(onClick = { onEmail(address) }, modifier = Modifier.testTag("action_offer_email")) {
+                        Text(stringResource(R.string.contact_offer_email, offer.name))
+                    }
+                }
+            }
+        }
         line.rows.filter { it.hasUnreviewedMachineChange && it.machineValue != null }.forEach { MachineChangeNotice(it, actions) }
         if (uncertain) WorthChecking()
     }
@@ -145,22 +169,44 @@ private fun ValueSubLine(row: ExtractedData) {
 
 /** "From / For / About": the sender, the addressee ("You" for the Me profile) and the person the letter is about, when someone else. */
 @Composable
-internal fun PartiesCard(parties: PartiesView, actions: FieldActions) {
+internal fun PartiesCard(
+    parties: PartiesView,
+    actions: FieldActions,
+    contacts: LetterContacts = LetterContacts(),
+    onContactClick: (organisationId: String, contactId: String) -> Unit = { _, _ -> },
+) {
     EssentialCard(stringResource(R.string.essentials_parties_title), MaterialTheme.colorScheme.surfaceContainerHigh) {
-        parties.from?.let { PartyRow(stringResource(R.string.essentials_from), it, actions) }
+        parties.from?.let { PartyRow(stringResource(R.string.essentials_from), it, actions, contacts, onContactClick) }
         parties.forWhom?.let { PartyRow(stringResource(R.string.essentials_for), it, actions) }
         parties.about?.let { PartyRow(stringResource(R.string.essentials_about), it, actions) }
     }
 }
 
 @Composable
-private fun PartyRow(label: String, party: PartyEntry, actions: FieldActions) {
+private fun PartyRow(
+    label: String,
+    party: PartyEntry,
+    actions: FieldActions,
+    contacts: LetterContacts? = null,
+    onContactClick: (organisationId: String, contactId: String) -> Unit = { _, _ -> },
+) {
     val value = when (val r = party.recipient) {
         PagesRecipient.You -> stringResource(R.string.pages_to_you)
         is PagesRecipient.Named -> r.name
         null -> party.row.fieldValue
     }
     EssentialLine(label = label, value = value, row = party.row, actions = actions, copyable = false) {
+        // "From: <organisation> · <contact>": the contact this letter names, a chip that opens the organisation page at that contact.
+        val contact = contacts?.letterContact
+        if (contact != null) {
+            val open = stringResource(R.string.essentials_contact_open, contact.name)
+            AssistChip(
+                onClick = { onContactClick(contact.organisationId, contact.id) },
+                label = { Text(contact.name) },
+                leadingIcon = { Icon(PamIcons.Person, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                modifier = Modifier.testTag("letter_contact_chip").semantics { contentDescription = open },
+            )
+        }
         if (party.addressLines.isNotEmpty()) AddressLine(party.row.id, party.addressLines)
     }
 }

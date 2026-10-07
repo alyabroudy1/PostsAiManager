@@ -11,7 +11,7 @@ Adapted from the Google AI Edge Gallery `send-email` skill (Apache License 2.0).
 
 Use this when the user asks you to send, write or draft an email and tells you, or the conversation shows, who it goes to and what it says.
 
-1. Decide the three values yourself from the conversation. Never invent an email address: use one the user wrote or one printed in the letter or stored for the person. If the address or the point of the email is missing, ask the user instead of calling the tool.
+1. Decide the three values yourself from the conversation. Never invent an email address: use one the user wrote or one printed in the letter or stored for the person. When the letter itself gives no address, the contact person named in the letter, or the organisation's current contact, may have one in the letter's context ("What was read from this letter"): you may use it when the user means that person. If the address or the point of the email is missing, ask the user instead of calling the tool.
 2. Call the `run_intent` tool with these exact parameters:
    - intent: send_email
    - parameters: A JSON string with the following fields:

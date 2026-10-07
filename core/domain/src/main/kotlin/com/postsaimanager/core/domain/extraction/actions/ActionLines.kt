@@ -1,7 +1,9 @@
 package com.postsaimanager.core.domain.extraction.actions
 
 import com.postsaimanager.core.model.ActionItem
+import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.ReviewState
 
 /**
@@ -21,7 +23,16 @@ class ActionLine(
     val party: String?,
     val rows: List<ExtractedData>,
     val valueRows: List<ExtractedData>,
+    val offer: ContactOffer? = null,
 )
+
+/**
+ * The contact person's phone and e-mail, offered under an action of the kind "contact the sender" when the letter itself gives none. The
+ * action was chosen by the reading; this only supplies the values the app holds for the person to reach them.
+ */
+data class ContactOffer(val name: String, val phone: String?, val email: String?) {
+    val isEmpty: Boolean get() = phone == null && email == null
+}
 
 /**
  * Resolves the stored [ActionItem]s against the document's fields as they are NOW: the line is rendered from live values, so a value a
@@ -32,8 +43,17 @@ class ActionLine(
  */
 object ActionLines {
 
-    fun resolve(items: List<ActionItem>, fields: List<ExtractedData>): List<ActionLine> {
+    /**
+     * @param contact the contact person to offer (the letter's, else the organisation's current one); it is offered under a "contact"
+     *   action only for the channel the letter has no value of its own for (no live phone field, no live e-mail field)
+     */
+    fun resolve(items: List<ActionItem>, fields: List<ExtractedData>, contact: ContactPerson? = null): List<ActionLine> {
         val live = fields.filter { !it.deletedByUser && it.reviewState != ReviewState.IGNORED && it.fieldValue.isNotBlank() }
+        val letterHasPhone = live.any { it.fieldType == ExtractedFieldType.PHONE }
+        val letterHasEmail = live.any { it.fieldType == ExtractedFieldType.EMAIL }
+        val offer = contact?.let {
+            ContactOffer(it.name, it.phone?.takeIf { p -> p.isNotBlank() && !letterHasPhone }, it.email?.takeIf { e -> e.isNotBlank() && !letterHasEmail })
+        }?.takeUnless { it.isEmpty }
         fun field(item: ActionItem, part: ActionPart): ExtractedData? = item.bindings[part.key]?.let { key -> live.firstOrNull { it.slotKey == key } }
 
         return items.mapNotNull { item ->
@@ -55,6 +75,7 @@ object ActionLines {
                 party = field(item, ActionPart.PARTY)?.fieldValue?.trim(),
                 rows = listOfNotNull(dateRow, amountRow, ibanRow, referenceRow),
                 valueRows = shownUnder,
+                offer = offer.takeIf { kind.id == ActionKinds.CONTACT.id },
             )
         }
     }

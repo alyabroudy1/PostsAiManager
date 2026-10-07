@@ -7,6 +7,8 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
+import com.postsaimanager.core.domain.contacts.LetterContacts
+import com.postsaimanager.core.domain.contacts.LoadLetterContactsUseCase
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.DocumentProcessor
@@ -59,6 +61,7 @@ class DocumentDetailViewModel @Inject constructor(
     private val externalFlowGuard: ExternalFlowGuard,
     installedModels: InstalledModelsRepository,
     profileRepository: ProfileRepository,
+    loadLetterContacts: LoadLetterContactsUseCase,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
@@ -113,6 +116,11 @@ class DocumentDetailViewModel @Inject constructor(
         profileRepository.getProfilesByRole(HouseholdRole.SELF).map { it.firstOrNull()?.name }.catch { emit(null) },
     ) { aiInstalled, selfName -> PagesContext(aiInstalled, selfName) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PagesContext())
+
+    /** The contact this letter names and the sender organisation's current contact: the "From" chip and what a "contact" action offers. */
+    val letterContacts: StateFlow<LetterContacts> = loadLetterContacts.observe(documentId)
+        .catch { emit(LetterContacts()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LetterContacts())
 
     /** Guards the auto-enqueue below so opening a `NEW` document does not re-enqueue on
      * every recomposition — `enqueue` is idempotent via `ExistingWorkPolicy.KEEP` anyway,

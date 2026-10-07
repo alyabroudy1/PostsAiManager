@@ -162,8 +162,15 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
                 )
             }
             composable(
-                route = "profile/{${ProfileDetailViewModel.ARG_PROFILE_ID}}",
-                arguments = listOf(navArgument(ProfileDetailViewModel.ARG_PROFILE_ID) { type = NavType.StringType }),
+                route = "profile/{${ProfileDetailViewModel.ARG_PROFILE_ID}}?${ProfileDetailViewModel.ARG_CONTACT_ID}={${ProfileDetailViewModel.ARG_CONTACT_ID}}",
+                arguments = listOf(
+                    navArgument(ProfileDetailViewModel.ARG_PROFILE_ID) { type = NavType.StringType },
+                    // Optional: the contact to scroll to (set from a letter's contact chip).
+                    navArgument(ProfileDetailViewModel.ARG_CONTACT_ID) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
             ) {
                 ProfileDetailScreen(onNavigateBack = { navController.popBackStack() })
             }
@@ -222,6 +229,10 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
                     },
                     initialPage = page.takeIf { it != NO_INITIAL_PAGE },
                     onInstallModel = { navController.navigate(StartRoutes.SETUP) },
+                    // The letter's contact chip: the organisation page, scrolled to that contact.
+                    onContactClick = { organisationId, contactId ->
+                        navController.navigate("profile/$organisationId?${ProfileDetailViewModel.ARG_CONTACT_ID}=$contactId")
+                    },
                 )
             }
 

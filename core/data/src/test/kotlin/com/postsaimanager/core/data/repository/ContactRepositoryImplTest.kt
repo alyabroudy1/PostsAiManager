@@ -31,7 +31,7 @@ class ContactRepositoryImplTest {
     fun open() {
         db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication() as Context, PamDatabase::class.java)
             .allowMainThreadQueries().build()
-        contacts = ContactRepositoryImpl(db, db.contactDao(), Dispatchers.Unconfined)
+        contacts = ContactRepositoryImpl(db, db.contactDao(), db.dismissedEntityDao(), Dispatchers.Unconfined)
         runBlocking {
             listOf("jc", "tax").forEach { db.profileDao().insert(organisation(it)) }
             listOf("d1", "d2", "d3").forEach { db.documentDao().insert(document(it)) }
@@ -125,6 +125,18 @@ class ContactRepositoryImplTest {
         assertThat(contacts.mergeContacts("a", "b")).isInstanceOf(PamResult.Error::class.java)
         assertThat(contacts.mergeContacts("a", "a")).isInstanceOf(PamResult.Error::class.java)
         assertThat(contacts.observeContactCounts().first()).containsExactly("jc", 1, "tax", 1)
+    }
+
+    @Test
+    fun `a deleted contact is remembered for the letters it was linked to, and only for those`(): Unit = runBlocking {
+        contacts.addContact(contact("c1").copy(name = "Frau Müller"))
+        contacts.linkContactToDocument("c1", "d1")
+
+        contacts.deleteContact("c1")
+
+        assertThat(contacts.isRemovedFromDocument("d1", "  frau MÜLLER ")).isTrue()
+        assertThat(contacts.isRemovedFromDocument("d2", "Frau Müller")).isFalse()
+        assertThat(contacts.isRemovedFromDocument("d1", "Nadine Beispiel")).isFalse()
     }
 
     @Test

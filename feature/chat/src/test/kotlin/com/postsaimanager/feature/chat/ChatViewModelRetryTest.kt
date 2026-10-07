@@ -41,7 +41,7 @@ class ChatViewModelRetryTest {
         conversations,
         chatEngine,
         FakeActiveModelProvider(),
-        BuildChatContextUseCase(documents, FakeProfileRepository()),
+        BuildChatContextUseCase(documents, FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor()),
         RetrieveChunksUseCase(FakeDocumentChunkRepository(), FakeEmbeddingService(), ObserveChatVisibleDocumentsUseCase(documents)),
     )
     private val engine = mockk<AiEngine>(relaxed = true) {

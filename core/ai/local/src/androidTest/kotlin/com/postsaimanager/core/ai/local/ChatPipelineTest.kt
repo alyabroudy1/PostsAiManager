@@ -102,7 +102,7 @@ class ChatPipelineTest {
      * want to exercise; grounding has its own unit tests.
      */
     private fun contextUseCase() =
-        BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository())
+        BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor())
 
     private fun retrieveChunksUseCase() =
         RetrieveChunksUseCase(

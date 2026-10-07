@@ -42,11 +42,19 @@ class FakeContactRepository : ContactRepository {
         return PamResult.Success(Unit)
     }
 
+    /** Removed (documentId, trimmed lower-case name) pairs, as the real repository remembers them. */
+    val removed = mutableSetOf<Pair<String, String>>()
+
     override suspend fun deleteContact(id: String): PamResult<Unit> {
+        val gone = contacts.value.firstOrNull { it.id == id }
+        if (gone != null) links.filter { it.first == id }.forEach { removed += it.second to gone.name.trim().lowercase() }
         contacts.value = contacts.value.filterNot { it.id == id }
         links.removeAll { it.first == id }
         return PamResult.Success(Unit)
     }
+
+    override suspend fun isRemovedFromDocument(documentId: String, name: String): Boolean =
+        (documentId to name.trim().lowercase()) in removed
 
     override suspend fun setActive(id: String, active: Boolean): PamResult<Unit> {
         contacts.value = contacts.value.map { if (it.id == id) it.copy(active = active) else it }

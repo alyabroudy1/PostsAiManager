@@ -9,8 +9,15 @@ import com.postsaimanager.core.domain.form.ObserveSavedDetailsUseCase
 import com.postsaimanager.core.domain.form.RememberDetailUseCase
 import com.postsaimanager.core.model.FactSource
 import com.postsaimanager.core.model.ProfileFact
+import com.postsaimanager.core.domain.applock.ExternalFlowGuard
+import com.postsaimanager.core.domain.contacts.DeleteContactUseCase
+import com.postsaimanager.core.domain.contacts.MergeContactsUseCase
+import com.postsaimanager.core.domain.contacts.MoveContactUseCase
 import com.postsaimanager.core.domain.contacts.ObserveOrganisationContactsUseCase
+import com.postsaimanager.core.domain.contacts.SetContactActiveUseCase
 import com.postsaimanager.core.domain.contacts.SetHouseholdRoleUseCase
+import com.postsaimanager.core.domain.contacts.UpdateContactUseCase
+import io.mockk.mockk
 import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.model.HouseholdRole
 import com.postsaimanager.core.model.ProfileKind
@@ -41,7 +48,15 @@ class ProfileDetailViewModelTest {
         ObserveSavedDetailsUseCase(facts),
         RememberDetailUseCase(profiles, facts),
         ForgetDetailUseCase(facts),
+        UpdateContactUseCase(contacts),
+        SetContactActiveUseCase(contacts),
+        MergeContactsUseCase(contacts),
+        MoveContactUseCase(contacts, profiles),
+        DeleteContactUseCase(contacts),
+        guard,
     )
+
+    private val guard = mockk<ExternalFlowGuard>(relaxed = true)
 
     private fun ahmad() = testProfile(id = "ahmad", name = "Ahmad", type = ProfileType.FAMILY_MEMBER, relationship = Relationship.CHILD)
 
@@ -173,6 +188,99 @@ class ProfileDetailViewModelTest {
             val found = expectMostRecentItem().contacts
             assertThat(found.current?.name).isEqualTo("Frau Müller")
             assertThat(found.earlier.map { it.name }).containsExactly("Nadine Beispiel")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    private fun seedJobcenterWithTwoContacts() {
+        profiles.seed(
+            testProfile(id = "jc", name = "Jobcenter Musterstadt", type = ProfileType.AUTHORITY),
+            testProfile(id = "jc2", name = "Jobcenter Nordstadt", type = ProfileType.AUTHORITY),
+        )
+        contacts.seed(
+            ContactPerson("c1", "jc", "Nadine Beispiel", firstSeen = 1, lastSeen = 10),
+            ContactPerson("c2", "jc", "Frau Müller", firstSeen = 20, lastSeen = 30),
+        )
+    }
+
+    @Test
+    fun `editing a contact saves what was typed`() = runTest {
+        seedJobcenterWithTwoContacts()
+        val vm = viewModel("jc")
+
+        vm.saveContact(contacts.getContact("c2").let { (it as com.postsaimanager.core.common.result.PamResult.Success).data }.copy(phone = "030 222", title = "Teamleiterin"))
+
+        vm.uiState.test {
+            val current = expectMostRecentItem().contacts.current
+            assertThat(current?.phone).isEqualTo("030 222")
+            assertThat(current?.title).isEqualTo("Teamleiterin")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `marking the current contact no longer responsible makes the earlier one current`() = runTest {
+        seedJobcenterWithTwoContacts()
+        val vm = viewModel("jc")
+
+        vm.setContactActive("c2", false)
+
+        vm.uiState.test {
+            val found = expectMostRecentItem().contacts
+            assertThat(found.current?.name).isEqualTo("Nadine Beispiel")
+            assertThat(found.earlier.single().active).isFalse()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `merging, moving and deleting go through the contact use cases`() = runTest {
+        seedJobcenterWithTwoContacts()
+        contacts.seed(ContactPerson("c3", "jc", "N. Beispiel", firstSeen = 30, lastSeen = 40))
+        contacts.linkContactToDocument("c3", "d3")
+        val vm = viewModel("jc")
+
+        vm.mergeContact(keepId = "c1", mergedId = "c3")
+        vm.moveContactTo("c2", "jc2")
+        vm.removeContact("c1")
+
+        vm.uiState.test {
+            val state = expectMostRecentItem()
+            assertThat(state.contacts.isEmpty).isTrue()
+            assertThat(state.otherOrganisations.map { it.id }).containsExactly("jc2")
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertThat(contacts.observeContacts("jc2").first().map { it.name }).containsExactly("Frau Müller")
+        assertThat(contacts.isRemovedFromDocument("d3", "Nadine Beispiel")).isTrue()
+    }
+
+    @Test
+    fun `a refused change is reported`() = runTest {
+        seedJobcenterWithTwoContacts()
+        profiles.seed(testProfile(id = "anna", name = "Anna", type = ProfileType.PERSON))
+        val vm = viewModel("jc")
+
+        vm.moveContactTo("c1", "anna")
+
+        assertThat(vm.message.value).isNotNull()
+    }
+
+    @Test
+    fun `the contact a letter chip opened the page for is the focus`() = runTest {
+        seedJobcenterWithTwoContacts()
+        val vm = ProfileDetailViewModel(
+            SavedStateHandle(mapOf(ProfileDetailViewModel.ARG_PROFILE_ID to "jc", ProfileDetailViewModel.ARG_CONTACT_ID to "c1")),
+            profiles, SetHouseholdRoleUseCase(profiles), ObserveOrganisationContactsUseCase(contacts), ObserveSavedDetailsUseCase(facts),
+            RememberDetailUseCase(profiles, facts), ForgetDetailUseCase(facts), UpdateContactUseCase(contacts), SetContactActiveUseCase(contacts),
+            MergeContactsUseCase(contacts), MoveContactUseCase(contacts, profiles), DeleteContactUseCase(contacts), guard,
+        )
+
+        vm.uiState.test {
+            assertThat(expectMostRecentItem().focusContactId).isEqualTo("c1")
+            cancelAndIgnoreRemainingEvents()
+        }
+        viewModel("jc").uiState.test {
+            assertThat(expectMostRecentItem().focusContactId).isNull()
             cancelAndIgnoreRemainingEvents()
         }
     }

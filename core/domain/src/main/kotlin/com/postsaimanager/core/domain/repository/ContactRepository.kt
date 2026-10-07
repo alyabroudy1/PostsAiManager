@@ -21,7 +21,15 @@ interface ContactRepository {
     suspend fun getContact(id: String): PamResult<ContactPerson>
     suspend fun addContact(contact: ContactPerson): PamResult<ContactPerson>
     suspend fun updateContact(contact: ContactPerson): PamResult<Unit>
+
+    /**
+     * Deletes a contact. The letters stay; they only lose the link. The contact's name is remembered for every letter it was
+     * linked to ([isRemovedFromDocument]), so reading one of those letters again does not bring the contact back.
+     */
     suspend fun deleteContact(id: String): PamResult<Unit>
+
+    /** Whether the user deleted a contact named [name] from [documentId]'s links (compared as a trimmed, lower-cased name). */
+    suspend fun isRemovedFromDocument(documentId: String, name: String): Boolean
 
     /** Marks a contact "no longer responsible" ([active] false) or back. The contact stays as history. */
     suspend fun setActive(id: String, active: Boolean): PamResult<Unit>

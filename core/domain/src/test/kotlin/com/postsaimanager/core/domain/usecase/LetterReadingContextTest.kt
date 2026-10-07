@@ -1,12 +1,18 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.contacts.LetterContacts
 import com.postsaimanager.core.model.ActionItem
+import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
+import com.postsaimanager.core.model.ProfileRole
+import com.postsaimanager.core.testing.FakeContactRepository
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
+import com.postsaimanager.core.testing.letterContactsFor
 import com.postsaimanager.core.testing.testDocument
+import com.postsaimanager.core.testing.testProfile
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 
@@ -70,10 +76,54 @@ class LetterReadingContextTest {
         documents.seed(testDocument(id = "d1").copy(actionItems = listOf(pay)))
         documents.seedExtracted("d1", *fields.toTypedArray())
 
-        val prompt = BuildChatContextUseCase(documents, FakeProfileRepository()).invoke("d1", contextTokens = 4096).text
+        val prompt = BuildChatContextUseCase(documents, FakeProfileRepository(), letterContactsFor()).invoke("d1", contextTokens = 4096).text
 
         assertThat(prompt).contains("date 15.10.2026 (the date by which the reader is asked to pay)")
         assertThat(prompt.indexOf("What was read from this letter")).isLessThan(prompt.indexOf("## Extracted details"))
+    }
+
+    private val nadine = ContactPerson("nadine", "jc", "Frau Nadine Beispiel", phone = "030 111", firstSeen = 1, lastSeen = 10)
+    private val mueller = ContactPerson(
+        "mueller", "jc", "Frau Müller", title = "Sachbearbeiterin", phone = "030 222", email = "mueller@jc.example", firstSeen = 20, lastSeen = 30,
+    )
+
+    @Test
+    fun `the letter's contact and the organisation's current contact are read facts with their phone and e-mail`() {
+        val text = LetterReadingContext.section(
+            emptyList(), emptyList(),
+            LetterContacts(letterContact = nadine, current = mueller, organisationId = "jc", organisationName = "Jobcenter Musterstadt"),
+        )
+
+        assertThat(text).contains("## What was read from this letter")
+        assertThat(text).contains("The contact person named in this letter: Frau Nadine Beispiel, phone 030 111")
+        assertThat(text).contains("The current contact at Jobcenter Musterstadt: Frau Müller, Sachbearbeiterin, phone 030 222, email mueller@jc.example")
+    }
+
+    @Test
+    fun `one person who is both is stated once`() {
+        val text = LetterReadingContext.section(emptyList(), emptyList(), LetterContacts(letterContact = mueller, current = mueller, organisationName = "Jobcenter Musterstadt"))
+
+        assertThat(text).contains("The contact person named in this letter: Frau Müller")
+        assertThat(text).contains("Frau Müller is also the organisation's current contact at Jobcenter Musterstadt")
+        assertThat(text.split("mueller@jc.example")).hasSize(2)
+    }
+
+    @Test
+    fun `the chat grounding offers the contacts so who is my contact there is answered from the context`() = runTest {
+        val documents = FakeDocumentRepository()
+        val profiles = FakeProfileRepository()
+        val contacts = FakeContactRepository()
+        documents.seed(testDocument(id = "d1"))
+        profiles.seed(testProfile(id = "jc", name = "Jobcenter Musterstadt"))
+        profiles.linkProfileToDocument("jc", "d1", ProfileRole.SENDER)
+        contacts.seed(nadine, mueller)
+        contacts.linkContactToDocument("nadine", "d1")
+
+        val prompt = BuildChatContextUseCase(documents, profiles, letterContactsFor(profiles, contacts)).invoke("d1", contextTokens = 4096).text
+
+        assertThat(prompt).contains("The contact person named in this letter: Frau Nadine Beispiel")
+        assertThat(prompt).contains("The current contact at Jobcenter Musterstadt: Frau Müller")
+        assertThat(prompt).contains("mueller@jc.example")
     }
 
     @Test
@@ -82,7 +132,7 @@ class LetterReadingContextTest {
         documents.seed(testDocument(id = "d1"))
         documents.seedExtracted("d1", field("sender", "Sender", "Stadtwerke Beispielstadt"))
 
-        val prompt = BuildChatContextUseCase(documents, FakeProfileRepository()).invoke("d1", contextTokens = 4096).text
+        val prompt = BuildChatContextUseCase(documents, FakeProfileRepository(), letterContactsFor()).invoke("d1", contextTokens = 4096).text
 
         assertThat(prompt).doesNotContain("What was read from this letter")
     }

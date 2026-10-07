@@ -33,7 +33,7 @@ class SendChatMessageEngineWithoutThinkingTest {
         conversations,
         engine,
         models,
-        BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository()),
+        BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor()),
         retrieveChunks,
     )
 
@@ -60,7 +60,7 @@ class SendChatMessageEngineWithoutThinkingTest {
             conversations,
             thinking,
             models,
-            BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository()),
+            BuildChatContextUseCase(FakeDocumentRepository(), FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor()),
             retrieveChunks,
         )
         thinking.reply = "reasoning</think>answer"

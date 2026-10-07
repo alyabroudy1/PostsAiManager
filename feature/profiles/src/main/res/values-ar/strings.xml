@@ -31,10 +31,33 @@
     <!-- جهات اتصال الجهة -->
     <string name="contacts_title">جهات الاتصال</string>
     <string name="contacts_empty">لا توجد جهات اتصال بعد.</string>
-    <string name="contacts_current">جهة الاتصال الحالية</string>
-    <string name="contacts_earlier">سابقًا</string>
+    <string name="contacts_current">جهة اتصالك الآن</string>
+    <string name="contacts_earlier">جهات اتصال سابقة</string>
     <string name="contacts_last_seen">آخر رسالة %1$s</string>
     <string name="contacts_inactive">لم يعد مسؤولًا</string>
+    <string name="contact_call">اتصال</string>
+    <string name="contact_email">بريد إلكتروني</string>
+    <string name="contact_more">المزيد من الإجراءات لـ %1$s</string>
+    <string name="contact_menu_edit">تعديل</string>
+    <string name="contact_menu_active">مسؤول من جديد</string>
+    <string name="contact_menu_merge">دمج مع جهة اتصال أخرى</string>
+    <string name="contact_menu_move">نقل إلى جهة أخرى</string>
+    <string name="contact_menu_delete">حذف</string>
+    <string name="contact_edit_title">تعديل جهة الاتصال</string>
+    <string name="contact_field_name">الاسم</string>
+    <string name="contact_field_title">الوظيفة أو اللقب</string>
+    <string name="contact_field_department">الفريق أو القسم</string>
+    <string name="contact_field_phone">الهاتف</string>
+    <string name="contact_field_email">البريد الإلكتروني</string>
+    <string name="contact_field_room">الغرفة</string>
+    <string name="contact_save">حفظ</string>
+    <string name="contact_cancel">إلغاء</string>
+    <string name="contact_merge_title">%1$s هو نفس الشخص مثل</string>
+    <string name="contact_merge_hint">تنتقل رسائل %1$s إلى جهة الاتصال التي تختارها. تبقى جهة الاتصال الأخرى فقط.</string>
+    <string name="contact_move_title">نقل %1$s إلى</string>
+    <string name="contact_delete_title">حذف %1$s؟</string>
+    <string name="contact_delete_body">تبقى الرسائل. تفقد فقط جهة الاتصال هذه، ولن تعود عند قراءتها مرة أخرى.</string>
+    <string name="contact_no_app">لا يوجد تطبيق لهذا.</string>
 
     <!-- النوع والأسرة -->
     <string name="profile_kind_person">شخص</string>

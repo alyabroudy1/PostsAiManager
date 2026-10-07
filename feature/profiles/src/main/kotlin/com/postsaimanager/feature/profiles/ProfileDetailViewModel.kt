@@ -5,9 +5,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.result.map
+import com.postsaimanager.core.domain.applock.ExternalFlowGuard
+import com.postsaimanager.core.domain.applock.ExternalFlowToken
+import com.postsaimanager.core.domain.contacts.DeleteContactUseCase
+import com.postsaimanager.core.domain.contacts.MergeContactsUseCase
+import com.postsaimanager.core.domain.contacts.MoveContactUseCase
 import com.postsaimanager.core.domain.contacts.ObserveOrganisationContactsUseCase
 import com.postsaimanager.core.domain.contacts.OrganisationContacts
+import com.postsaimanager.core.domain.contacts.SetContactActiveUseCase
 import com.postsaimanager.core.domain.contacts.SetHouseholdRoleUseCase
+import com.postsaimanager.core.domain.contacts.UpdateContactUseCase
+import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.domain.form.ForgetDetailUseCase
 import com.postsaimanager.core.domain.form.FormDataKeys
 import com.postsaimanager.core.domain.form.ObserveSavedDetailsUseCase
@@ -49,7 +57,16 @@ class ProfileDetailViewModel @Inject constructor(
     private val observeDetails: ObserveSavedDetailsUseCase,
     private val rememberDetail: RememberDetailUseCase,
     private val forgetDetail: ForgetDetailUseCase,
+    private val updateContact: UpdateContactUseCase,
+    private val setContactActive: SetContactActiveUseCase,
+    private val mergeContacts: MergeContactsUseCase,
+    private val moveContact: MoveContactUseCase,
+    private val deleteContact: DeleteContactUseCase,
+    private val externalFlowGuard: ExternalFlowGuard,
 ) : ViewModel() {
+
+    /** The contact the organisation page was opened for (the letter's contact chip): scrolled into view once. */
+    private val focusContactId: String? = savedState.get<String>(ARG_CONTACT_ID)?.takeIf { it.isNotBlank() }
 
     private val requestedId: String = savedState.get<String>(ARG_PROFILE_ID) ?: NEW
     private val isNew = requestedId == NEW
@@ -87,7 +104,10 @@ class ProfileDetailViewModel @Inject constructor(
             )
         }
         .combine(if (isNew) flowOf(OrganisationContacts(null, emptyList())) else observeContacts(profileId)) { state, found ->
-            state.copy(contacts = found)
+            state.copy(contacts = found, focusContactId = focusContactId)
+        }
+        .combine(profiles.getProfilesByKind(ProfileKind.ORGANISATION)) { state, organisations ->
+            state.copy(otherOrganisations = organisations.filter { it.id != profileId }.sortedBy { it.name.lowercase() })
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProfileDetailUiState(isNew = isNew))
 
@@ -199,6 +219,48 @@ class ProfileDetailViewModel @Inject constructor(
         _removed.value = null
     }
 
+    // ── Contacts of an organisation: each change is one small use case ──
+
+    /** Saves the edited details of a contact; what is typed is the contact's value from then on. */
+    fun saveContact(contact: ContactPerson) = changeContact { updateContact(contact) }
+
+    /** "No longer responsible" ([active] false) or responsible again. */
+    fun setContactActive(contactId: String, active: Boolean) = changeContact { setContactActive.invoke(contactId, active) }
+
+    /** [mergedId] is the same person as [keepId]: it goes into it, with its letters. */
+    fun mergeContact(keepId: String, mergedId: String) = changeContact { mergeContacts(keepId, mergedId) }
+
+    /** Moves the contact to another organisation profile. */
+    fun moveContactTo(contactId: String, organisationId: String) = changeContact { moveContact(contactId, organisationId) }
+
+    /** Deletes the contact; the letters stay. */
+    fun removeContact(contactId: String) = changeContact { deleteContact(contactId) }
+
+    private fun changeContact(change: suspend () -> PamResult<Unit>) {
+        viewModelScope.launch {
+            val result = change()
+            if (result is PamResult.Error) _message.value = result.error.userMessage
+        }
+    }
+
+    /** Called just before the dialer or the mail app is launched from this screen, so coming back does not trigger the app lock. */
+    fun onExternalLaunching(reason: String) {
+        externalFlowGuard.finish(externalFlow)
+        externalFlow = externalFlowGuard.expect(reason)
+    }
+
+    /** The launch failed or its result came back: the protection is no longer needed. */
+    fun onExternalLaunchFinished() {
+        externalFlowGuard.finish(externalFlow)
+        externalFlow = null
+    }
+
+    override fun onCleared() {
+        externalFlowGuard.finish(externalFlow)
+    }
+
+    private var externalFlow: ExternalFlowToken? = null
+
     fun consumeMessage() {
         _message.value = null
     }
@@ -207,6 +269,9 @@ class ProfileDetailViewModel @Inject constructor(
 
     companion object {
         const val ARG_PROFILE_ID = "profileId"
+
+        /** Optional: the contact to scroll to on an organisation page (set when arriving from a letter's contact chip). */
+        const val ARG_CONTACT_ID = "contactId"
 
         /** The route argument that means "create a new person". */
         const val NEW = "new"
@@ -228,6 +293,10 @@ data class ProfileDetailUiState(
     val selfLocked: Boolean = false,
     /** The contacts of this profile when it is an organisation (empty otherwise). */
     val contacts: OrganisationContacts = OrganisationContacts(null, emptyList()),
+    /** The contact the page was opened for: scrolled into view. */
+    val focusContactId: String? = null,
+    /** The other organisation profiles a contact can be moved to. */
+    val otherOrganisations: List<Profile> = emptyList(),
 ) {
     val canSave: Boolean get() = draft?.name?.isNotBlank() == true
 }

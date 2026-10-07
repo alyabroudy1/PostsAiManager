@@ -7,8 +7,11 @@ import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.data.database.PamDatabase
 import com.postsaimanager.core.data.database.dao.ContactDao
+import com.postsaimanager.core.data.database.dao.DismissedEntityDao
 import com.postsaimanager.core.data.database.entity.ContactPersonEntity
+import com.postsaimanager.core.data.database.entity.DismissedEntityEntity
 import com.postsaimanager.core.data.database.entity.DocumentContactEntity
+import com.postsaimanager.core.domain.document.normaliseEntityName
 import com.postsaimanager.core.domain.repository.ContactRepository
 import com.postsaimanager.core.model.ContactPerson
 import kotlinx.coroutines.CoroutineDispatcher
@@ -22,6 +25,7 @@ import javax.inject.Inject
 class ContactRepositoryImpl @Inject constructor(
     private val database: PamDatabase,
     private val contactDao: ContactDao,
+    private val dismissedEntityDao: DismissedEntityDao,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : ContactRepository {
 
@@ -49,8 +53,22 @@ class ContactRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteContact(id: String): PamResult<Unit> = guarded {
-        contactDao.deleteById(id)
-        PamResult.Success(Unit)
+        database.withTransaction<PamResult<Unit>> {
+            val contact = contactDao.getById(id)
+            if (contact != null) {
+                // The same tombstone a deleted machine-made profile leaves: reading the letter again does not bring the person back.
+                val now = System.currentTimeMillis()
+                contactDao.documentIdsOf(id).forEach { documentId ->
+                    dismissedEntityDao.dismiss(DismissedEntityEntity(documentId, normaliseEntityName(contact.name), now))
+                }
+            }
+            contactDao.deleteById(id)
+            PamResult.Success(Unit)
+        }
+    }
+
+    override suspend fun isRemovedFromDocument(documentId: String, name: String): Boolean = withContext(ioDispatcher) {
+        dismissedEntityDao.isDismissed(documentId, normaliseEntityName(name))
     }
 
     override suspend fun setActive(id: String, active: Boolean): PamResult<Unit> = guarded {

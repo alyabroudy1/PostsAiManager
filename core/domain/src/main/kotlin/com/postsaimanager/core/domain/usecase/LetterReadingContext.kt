@@ -2,7 +2,9 @@ package com.postsaimanager.core.domain.usecase
 
 import com.postsaimanager.core.domain.extraction.actions.ActionKinds
 import com.postsaimanager.core.domain.extraction.actions.ActionPart
+import com.postsaimanager.core.domain.contacts.LetterContacts
 import com.postsaimanager.core.model.ActionItem
+import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.ReviewState
@@ -21,7 +23,7 @@ import com.postsaimanager.core.model.ReviewState
 object LetterReadingContext {
 
     /** The section, starting with a blank line, or an empty string when the reading found nothing to state. */
-    fun section(actionItems: List<ActionItem>, fields: List<ExtractedData>): String {
+    fun section(actionItems: List<ActionItem>, fields: List<ExtractedData>, contacts: LetterContacts = LetterContacts()): String {
         val live = fields.filter { !it.deletedByUser && it.reviewState != ReviewState.IGNORED && it.fieldValue.isNotBlank() }
         fun bound(item: ActionItem, part: ActionPart): ExtractedData? =
             item.bindings[part.key]?.let { key -> live.firstOrNull { it.slotKey == key } }
@@ -46,14 +48,44 @@ object LetterReadingContext {
         live.filter { it.fieldType == ExtractedFieldType.DEADLINE && it.slotKey !in coveredDates }
             .forEach { lines += "- ${it.fieldName}: ${it.fieldValue.trim()}" }
 
-        if (lines.isEmpty()) return ""
+        val contactLines = contactLines(contacts)
+        if (lines.isEmpty() && contactLines.isEmpty()) return ""
         return buildString {
             appendLine()
             appendLine("## What was read from this letter")
             appendLine("The app already read this letter; these are its answers.")
             lines.take(MAX_LINES).forEach { appendLine(it) }
+            contactLines.forEach { appendLine(it) }
         }
     }
+
+    /**
+     * The contact person the letter names and the organisation's current contact, as read facts with their phone and e-mail. They are
+     * offered so a question such as "who is my contact there?" or a skill's recipient can be answered from them; nothing here decides
+     * which contact the reader means.
+     */
+    private fun contactLines(contacts: LetterContacts): List<String> {
+        val organisation = contacts.organisationName?.takeIf { it.isNotBlank() }
+        val letterContact = contacts.letterContact
+        val current = contacts.current
+        return buildList {
+            if (letterContact != null) add("- The contact person named in this letter: ${describe(letterContact)}")
+            if (current != null) {
+                val of = organisation?.let { " at $it" }.orEmpty()
+                add(
+                    if (current.id == letterContact?.id) "- ${current.name} is also the organisation's current contact$of"
+                    else "- The current contact$of: ${describe(current)}",
+                )
+            }
+        }
+    }
+
+    private fun describe(contact: ContactPerson): String = listOfNotNull(
+        contact.name,
+        contact.title?.takeIf { it.isNotBlank() },
+        contact.phone?.takeIf { it.isNotBlank() }?.let { "phone $it" },
+        contact.email?.takeIf { it.isNotBlank() }?.let { "email $it" },
+    ).joinToString(", ")
 
     private const val MAX_LINES = 6
 }
