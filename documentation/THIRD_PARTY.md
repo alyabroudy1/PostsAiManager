@@ -68,3 +68,26 @@ This file records data (not libraries) the app ships under a licence that asks f
 - **Where the attribution lives:** the headers of the files above; the string resource `settings_skills_attribution` in
   `feature/settings/src/main/res/values/` (en, de, ar).
 - **Shown in the app:** Settings > About > "Open-source data" shows it under the address data text.
+
+## Google AI Edge Gallery: chat pieces (Apache License 2.0)
+
+Phase 3 of `plans/11-gemma4-litertlm.md`. Source: the Gallery v1.0.20, `Android/src/app/src/main/java/com/google/ai/edge/gallery/`
+(Copyright Google LLC). Each adapted file keeps Google's licence header and carries a "Modified by PostsAiManager" note. Details of
+how they work: [agent-skills.md](agent-skills.md), "Chat pieces".
+
+| Gallery file | Our file | Adapted / left out |
+|---|---|---|
+| `ui/common/chat/MessageBodyThinking.kt` | `feature/chat/.../MessageBodyThinking.kt` | string resources, the app's right-to-left aware `MarkdownText`, "Thought for N s" title; starts collapsed; no long-press copy |
+| `ui/common/chat/MessageBodyCollapsableProgressPanel.kt` | `feature/chat/.../MessageBodyCollapsableProgressPanel.kt` | shows the stored `ToolStep`s of a reply instead of a live `ChatMessageCollapsableProgressPanel`; no spinner, no logs viewer |
+| `ui/common/chat/MessageBodyImage.kt` | `feature/chat/.../MessageBodyImage.kt` | files drawn by Coil instead of decoded Bitmaps; same single and grid layout |
+| `ui/common/chat/MessageBodyWebview.kt` | `feature/chat/.../MessageBodyWebview.kt` | the offline sandbox instead of `GalleryWebView`; same "full screen" sheet |
+| `ui/common/GalleryWebView.kt` (`BaseGalleryWebViewClient`) | `feature/chat/.../skills/SkillSandbox.kt` | **not network, not files**: every request answered from the bundled skill folder or blocked; no `allowFileAccess`, no DOM storage, no camera or microphone prompts, a Content-Security-Policy on every answer |
+| `customtasks/agentchat/AgentChatScreen.kt` (`CallJsToolAction` branch, `ChatWebViewJavascriptInterface`) | `feature/chat/.../skills/WebViewJsSkillExecutor.kt` | an off-screen WebView per call instead of the screen's visible one; no secret |
+| `tools/RunJsTool.kt`, `tools/ToolAction.kt` (`CallJsSkillResult`) | `core/ai/litert/.../tools/RunJsTool.kt`, `AgentToolCalls.runJs`; `core/domain/.../skills/JsSkills.kt` | Moshi becomes kotlinx.serialization; no skill secrets, no `image` result, no remote skill URLs; the script runs in the app process and the tool waits for its answer over AIDL |
+| `skills/SkillExtensions.kt` (`getJsSkillUrl`, `getJsSkillWebviewUrl`) | `JsSkillPaths` in `JsSkills.kt` | skill-relative paths only; an absolute webview address is refused |
+| `skills/built-in/calculate-hash/` (SKILL.md, scripts/index.html, scripts/index.js) | `app/src/main/assets/skills/calculate-hash/` | adopted unchanged (the simplest built-in skill that needs no network and no camera) |
+| `ui/llmchat/LlmChatModelHelper.kt` (image part: `visionBackend`, `Content.ImageBytes` before the text) | `core/ai/litert/.../LlmChatModelHelper.kt` | the vision encoder is started on demand; audio still not taken |
+| `common/Utils.kt` (`decodeSampledBitmapFromUri`, `rotateBitmap`, `calculateInSampleSize`) and the picker flow of `ui/common/chat/MessageInputText.kt` | `core/data/.../util/FileChatImageStore.kt`, `feature/chat/.../ChatInputBar.kt` | pictures are decoded to at most 1024 px, turned upright, kept as PNG in the app's private `chat-attachments` folder; the system photo picker |
+| The Gallery's reset session (`ChatViewModel` clear history + `LlmChatViewModel.resetSession`) | `StartNewChatUseCase`, `ChatViewModel.newChat` | the document's conversation is deleted (not archived) and the model's conversation dropped |
+
+Not taken: their whole `ChatView`/`ChatViewModel`/model manager, MCP, Firebase, remote skill URLs, benchmark screens, audio.
