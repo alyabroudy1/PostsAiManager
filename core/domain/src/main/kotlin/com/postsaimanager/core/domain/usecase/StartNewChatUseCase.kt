@@ -21,6 +21,8 @@ class StartNewChatUseCase @Inject constructor(
     private val conversations: ConversationRepository,
     private val engine: ChatEngine,
     private val images: ChatImageStore,
+    /** The chat's session is forgotten without an end event: its notes would be about a conversation that is gone. */
+    private val sessions: ChatSessionTracker = ChatSessionTracker(),
 ) {
 
     /**
@@ -32,6 +34,8 @@ class StartNewChatUseCase @Inject constructor(
         if (conversations.deleteConversation(conversationId) is PamResult.Error) return false
         images.deleteAll(conversationId)
         engine.resetChatSession()
+        // The next message begins a session over an empty transcript: the card alone, no tail.
+        sessions.discard(conversationId)
         return true
     }
 }

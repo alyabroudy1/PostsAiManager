@@ -126,6 +126,12 @@ class LiteRtChatEngine internal constructor(
     /** The sampling the live conversation was made with; null when there is none to reuse (the next send builds one). */
     private var conversationSampling: ConversationKey? = null
 
+    /**
+     * Set when the engine was restarted under the conversation (a GPU failure moved it to the CPU): the next build is a new session
+     * in the sense of plan 16, so it continues from the last exchange, not from every turn of the visit.
+     */
+    private var restartFromPlan = false
+
     /** The Gallery's summarise-and-reset decisions for a conversation past 75% of its window. */
     private val compactor = LiteRtContextCompactor()
 
@@ -435,6 +441,7 @@ class LiteRtChatEngine internal constructor(
         )
         instance = cpu
         conversationSampling = null
+        restartFromPlan = true
         val cpuConfig = config.copy(accelerator = Accelerator.CPU)
         loaded = path to cpuConfig
         _state.value = ModelLoadState.Ready(path, cpuConfig, 0L, Accelerator.CPU)
@@ -485,6 +492,7 @@ class LiteRtChatEngine internal constructor(
         // The day is part of the key: the phone's date is in the system instruction, and a conversation kept past midnight would
         // keep saying yesterday. The rebuild is faithful (tool calls included), so a new day costs one prefill and nothing else.
         val key = keyFor(sampling, kit)
+        val previous = conversationSampling
         val config = loaded?.second
         val window = config?.contextTokens ?: 0
         if (conversationSampling == key) {
@@ -510,7 +518,20 @@ class LiteRtChatEngine internal constructor(
             }
             committed.clear()
             committed += restart
+        } else {
+            // A conversation built again after a new day or a restart on the CPU is a new session, not a replay of the visit: the
+            // card (the system instruction) and the last exchange only. A sampling change inside the day (thinking switched) or a
+            // discarded reply keeps the visit's turns: the session is live.
+            val newDay = previous?.day != null && key.day != null && previous.day != key.day
+            if (newDay || restartFromPlan) {
+                val before = committed.size
+                val tail = LiteRtTurns.lastExchange(committed)
+                committed.clear()
+                committed += tail
+                Log.i(TAG, "conversation rebuilt as a new session (${if (newDay) "new day" else "engine restart"}): $before turns -> ${tail.size}")
+            }
         }
+        restartFromPlan = false
         val instruction = listOfNotNull(system.takeIf { it.isNotBlank() }, toolPrompt.takeIf { kit != null }).joinToString("\n\n")
         TimingLog.at(
             "engine: conversation REBUILT, why=${if (conversationSampling == null) "no live conversation (session start, discard or reset)" else "key changed or over 75% of window"} " +

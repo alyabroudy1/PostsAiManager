@@ -200,4 +200,7 @@
     <string name="chat_new_chat_confirm">حذف وبدء جديدة</string>
     <string name="chat_new_chat_cancel">إلغاء</string>
     <string name="chat_error_new_chat_failed">تعذّر مسح المحادثة. حاول مرة أخرى.</string>
+
+    <!-- The quiet line in the chat above the messages the assistant still reads -->
+    <string name="chat_context_divider">رسائل سابقة — يحتفظ المساعد بملاحظات، لا بالمحادثة كاملة</string>
 </resources>

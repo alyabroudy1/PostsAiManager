@@ -26,6 +26,11 @@ internal sealed interface TimelineEntry {
         override val key: Any = message.id.ifEmpty { message.timestamp.toString() }
     }
 
+    /** The quiet line above the first message the model reads: what is above it is in the transcript only, the assistant keeps notes. */
+    data object ContextDivider : TimelineEntry {
+        override val key: Any = "context-divider"
+    }
+
     companion object {
         fun cardKey(cardId: String): String = "action-$cardId"
     }
@@ -40,7 +45,9 @@ internal object ChatTimeline {
 
     /**
      * The rows, newest first. [messages] are in conversation order (oldest first), [cards] in the order they came. The flags say
-     * which live rows exist: an [error], the live reply or its status ([live]) and the reasoning trace ([thinking]).
+     * which live rows exist: an [error], the live reply or its status ([live]) and the reasoning trace ([thinking]). With
+     * [contextStartId] (the first message of the continuity tail) a [TimelineEntry.ContextDivider] sits above that message, when
+     * there are older messages.
      */
     fun build(
         messages: List<ChatMessage>,
@@ -48,7 +55,10 @@ internal object ChatTimeline {
         error: Boolean,
         live: Boolean,
         thinking: Boolean,
+        contextStartId: String? = null,
     ): List<TimelineEntry> {
+        // Only when something is above it: with nothing older, the whole chat is what the model reads.
+        val dividerAbove = contextStartId?.takeIf { id -> messages.indexOfFirst { it.id == id } > 0 }
         val shown = messages.filter { it.id.isNotEmpty() }.map { it.id }.toSet()
         val byReply = cards.filter { it.storedKey?.messageId in shown }.groupBy { it.storedKey?.messageId }
         val unplaced = cards.filter { it.storedKey?.messageId !in shown }
@@ -63,6 +73,7 @@ internal object ChatTimeline {
                 if (message.isEmptyReply && message.toolSteps.isEmpty() && own.isEmpty()) continue
                 own.asReversed().forEach { add(TimelineEntry.Card(it)) }
                 add(TimelineEntry.Message(message))
+                if (message.id == dividerAbove) add(TimelineEntry.ContextDivider)
             }
         }
     }

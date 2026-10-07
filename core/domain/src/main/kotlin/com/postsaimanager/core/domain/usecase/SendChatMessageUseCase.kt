@@ -6,8 +6,6 @@ import com.postsaimanager.core.domain.setup.NoDownloadActivity
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.AiEngine
-import com.postsaimanager.core.domain.ai.AiChatMessage
-import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
 import com.postsaimanager.core.domain.ai.ChatImagePolicy
@@ -116,10 +114,11 @@ enum class ChatErrorAction {
  *
  * ### What is sent to the model
  *
- * The prompt for a turn is built from exactly three things, in this order: the grounding
- * system prompt ([BuildChatContextUseCase]), the prior turns of *this* conversation, and
- * the new user message. Prior turns are read straight off [AiMessage.content] —
- * [AiMessage.thinking] is never referenced here, anywhere else in [buildHistory], or
+ * The transcript is not the model's context. A conversation that is (re)built from what is stored gets what
+ * [BuildModelContextUseCase] plans: the grounding system prompt ([BuildChatContextUseCase]) and only the LAST exchange of the
+ * transcript ([ContinuityTail]); within a live session ([ChatSessionTracker]) the engine keeps every turn of the visit. The
+ * new user message follows either way. Replayed turns are read straight off [AiMessage.content] —
+ * [AiMessage.thinking] is never referenced here, anywhere else in [ContinuityTail], or
  * anywhere in this file. That is deliberate and is the single code path this rule is
  * enforced on: a reasoning model's `<think>…</think>` trace is display-only (a collapsible
  * "Thought for N s" block in the UI) and must never re-enter a future prompt — re-sending
@@ -132,8 +131,8 @@ enum class ChatErrorAction {
  * ### Stopped / interrupted replies
  *
  * A reply the user stops, or one that fails mid-stream, is still persisted — with whatever
- * text was produced — but marked [AiMessage.incomplete]. [isEligibleForModel]
- * is the one place that exclusion is enforced: [buildHistory] drops such messages before they
+ * text was produced — but marked [AiMessage.incomplete]. [ContinuityTail.isEligibleForModel]
+ * is the one place that exclusion is enforced: [ContinuityTail] drops such messages before they
  * ever become part of a prompt, whether replayed fresh into a reloaded engine session
  * ([ensureChatSession]) or read here on the next send. The engine's own chat-session KV cache
  * is kept in sync on the same event: [AiEngine.discardPendingReply] is called instead of
@@ -157,7 +156,7 @@ enum class ChatErrorAction {
  *    passages are, definitionally, different every turn, so they can never live there.
  *  - The [AiMessage] persisted for the user's turn (see "Persistence brackets generation"
  *    above) is `text` itself, untouched — never the passage-prefixed version sent to the
- *    engine. [buildHistory] replays that same raw text into a rebuilt prompt on a future
+ *    engine. [ContinuityTail] replays that same raw text into a rebuilt prompt on a future
  *    re-prime, which is exactly what keeps a re-prime a faithful replay of the conversation
  *    the user actually had, rather than one that silently re-injects every old turn's
  *    passages back into the window.
@@ -182,6 +181,10 @@ class SendChatMessageUseCase @Inject constructor(
     private val retrieveChunks: RetrieveChunksUseCase,
     /** Tells "no model yet" from "no model yet, but it is downloading". */
     private val downloads: DownloadActivity = NoDownloadActivity,
+    /** What the model reads when a conversation is built from the stored transcript: the card and the last exchange only. */
+    private val buildModelContext: BuildModelContextUseCase = BuildModelContextUseCase(buildChatContext),
+    /** Which chats have a live session: the first send of a new session builds the conversation again from [buildModelContext]. */
+    private val sessions: ChatSessionTracker = ChatSessionTracker(),
 ) {
 
     operator fun invoke(
@@ -289,8 +292,14 @@ class SendChatMessageUseCase @Inject constructor(
         // DB reads this does are cheap (Room, no model call); see the class KDoc,
         // "Retrieval-augmented grounding".
         com.postsaimanager.core.common.util.TimingLog.at("use case: db + model path done, building context")
-        val chatContext = systemPrompt?.let { ChatGrounding(it, retrievalMode = false) }
-            ?: buildChatContext(documentId, config.contextTokens)
+        val plan = buildModelContext(
+            documentId = documentId,
+            contextTokens = config.contextTokens,
+            historyTokens = historyWindow(config, config.contextTokens),
+            transcript = priorTurns,
+            systemPrompt = systemPrompt,
+        )
+        val chatContext = plan.card
         com.postsaimanager.core.common.util.TimingLog.at(
             "context built: grounding=${chatContext.text.length} chars retrievalMode=${chatContext.retrievalMode} contextTokens=${config.contextTokens}",
         )
@@ -354,6 +363,9 @@ class SendChatMessageUseCase @Inject constructor(
         // session. This is the ground truth for whether `ensureChatSession` below is about
         // to re-prime.
         com.postsaimanager.core.common.util.TimingLog.at("load + retrieval done (retrieved=${retrieved?.chunks?.size})")
+        // A send that begins a new session (the first after the person left, or after 10 idle minutes) must not continue the old
+        // conversation the engine may still hold: it is dropped, and built again from the plan below.
+        beginSession(conversationId)
         val needsPriming = !engine.isChatSessionPrimed(conversationId)
         val contextTokens = when (val state = engine.state.value) {
             is ModelLoadState.Ready -> state.config.contextTokens
@@ -378,13 +390,14 @@ class SendChatMessageUseCase @Inject constructor(
         // Cheap to call on every send, same as `engine.load` above: a no-op when this
         // conversation's session is already primed and valid.
         primeMutex.withLock {
-            engine.ensureChatSession(conversationId, grounding, buildHistory(priorTurns, historyWindow(config, contextTokens), grounding))
+            if (needsPriming) com.postsaimanager.core.common.util.TimingLog.at(plan.describe())
+            engine.ensureChatSession(conversationId, grounding, plan.tail)
         }
-        com.postsaimanager.core.common.util.TimingLog.at("ensureChatSession done (needsPriming=$needsPriming, prior turns=${priorTurns.size})")
+        com.postsaimanager.core.common.util.TimingLog.at("ensureChatSession done (needsPriming=$needsPriming, prior turns=${priorTurns.size}, replayed=${plan.tail.size})")
 
         // 4.1/4.2: fold retrieved passages into *this turn's* text only — never into
         // `grounding` above, which must stay stable across turns. `sentText` is what the
-        // engine actually sees; `text` (persisted a few lines up, and again in `buildHistory`
+        // engine actually sees; `text` (persisted a few lines up, and again in `ContinuityTail`
         // on a future re-prime) never changes. `sources` is every passage that made it in —
         // persisted verbatim on the assistant reply (4.3), see [persistAssistant].
         val (sentText, sources) = if (chatContext.retrievalMode) {
@@ -567,6 +580,7 @@ class SendChatMessageUseCase @Inject constructor(
         // and what got persisted (and is shown as history next time) are always the same
         // string.
         engine.commitChatReply(assistant.content)
+        sessions.touch(conversationId)
         emit(ChatTurn.Complete(assistant, sources = sources))
     }
 
@@ -695,12 +709,13 @@ class SendChatMessageUseCase @Inject constructor(
         // the lock, so a send that raced this prime (both waiting behind an in-flight
         // document read, say) joins it instead of priming the same conversation twice.
         primeMutex.withLock {
+            // Opening the chat begins a session (or continues the live one); a new one drops what the engine still holds.
+            beginSession(conversationId)
             // Same ground truth invoke() re-checks after load — a config change during load
             // can still require a (re)prime even if this conversation looked primed a
             // moment ago.
             if (engine.isChatSessionPrimed(conversationId)) return
 
-            val chatContext = buildChatContext(documentId, config.contextTokens)
             // A trailing user message is a turn a concurrent send has just persisted and is
             // about to append itself (or an orphan): replaying it here would put it in the
             // session twice.
@@ -710,12 +725,23 @@ class SendChatMessageUseCase @Inject constructor(
                 is ModelLoadState.Ready -> state.config.contextTokens
                 else -> config.contextTokens
             }
-            engine.ensureChatSession(
-                conversationId,
-                chatContext.text,
-                buildHistory(priorTurns, historyWindow(config, contextTokens), chatContext.text),
+            val plan = buildModelContext(
+                documentId = documentId,
+                contextTokens = config.contextTokens,
+                historyTokens = historyWindow(config, contextTokens),
+                transcript = priorTurns,
             )
+            com.postsaimanager.core.common.util.TimingLog.at(plan.describe())
+            engine.ensureChatSession(conversationId, plan.card.text, plan.tail)
         }
+    }
+
+    /**
+     * Marks [conversationId]'s chat as used. When that begins a new session, the conversation the engine may still hold from the
+     * last visit is dropped, so the next [AiEngine.ensureChatSession] builds it from the plan (the card and the last exchange).
+     */
+    private suspend fun beginSession(conversationId: String) {
+        if (sessions.begin(conversationId)) engine.resetChatSession()
     }
 
     /**
@@ -730,98 +756,12 @@ class SendChatMessageUseCase @Inject constructor(
     private val primeMutex = Mutex()
 
     /**
-     * Prior turns of this conversation, as history the model can see — user text and
-     * assistant *answers* only. See the class KDoc: [AiMessage.thinking] is intentionally
-     * never touched here.
-     *
-     * [AiMessage.incomplete] turns are dropped here too — see
-     * [isEligibleForModel]. This covers the "replay history" path
-     * ([ensureChatSession]'s `history` parameter, via `primeChatSession`); the live-session
-     * path is covered separately by [AiEngine.discardPendingReply], called instead of
-     * [AiEngine.commitChatReply] for the same messages when they were first produced.
-     *
-     * ### Token budget (3.3)
-     *
-     * [MAX_HISTORY_TURNS] alone is a coarse, turn-count cap — a long-winded 20-turn
-     * conversation can still overflow the context window once [grounding] and the reply
-     * reserve are accounted for. After that cap, history is additionally trimmed by estimated
-     * *tokens*, using the same chars-per-token heuristic [BuildChatContextUseCase] budgets
-     * grounding against (reused, not re-derived, so the two halves of one prompt can never
-     * silently disagree about how many characters a token costs).
-     *
-     * Trimming drops the *oldest* eligible turns first — same rule [MAX_HISTORY_TURNS]
-     * already follows — and, when the budget is exceeded, cuts down to
-     * [HISTORY_TRIM_TARGET_RATIO] of it rather than to exactly the limit. The KV cache reason:
-     * the standing chat session's cache holds exactly the history last primed with, so trimming
-     * to the very edge of the budget would make the next turn (one message longer) overflow
-     * again and force another re-prime — a conversation hovering near the limit would re-prime
-     * on every single turn instead of settling into the fast per-turn diff path. Cutting
-     * further leaves headroom for several more turns before the next re-prime.
-     *
-     * @param contextTokens the window this turn is budgeting against — see
-     *   [SendChatMessageUseCase.invoke] on why this is read *after* [engine.load][AiEngine.load]
-     *   rather than guessed.
-     * @param grounding the system prompt this history will sit alongside, so its token cost is
-     *   subtracted from the budget rather than double-spent.
-     */
-    private fun buildHistory(
-        priorTurns: List<AiMessage>,
-        contextTokens: Int,
-        grounding: String,
-    ): List<AiChatMessage> {
-        val eligible = priorTurns
-            .filter { it.role == MessageRole.USER || it.role == MessageRole.ASSISTANT }
-            .filter(::isEligibleForModel)
-            .takeLast(MAX_HISTORY_TURNS)
-
-        if (eligible.isEmpty()) return emptyList()
-
-        val totalBudgetChars = (
-            (contextTokens - BuildChatContextUseCase.DEFAULT_REPLY_RESERVE - BuildChatContextUseCase.TEMPLATE_OVERHEAD_TOKENS)
-                .coerceAtLeast(BuildChatContextUseCase.MIN_CONTEXT_TOKENS)
-            ) * BuildChatContextUseCase.CHARS_PER_TOKEN
-        val historyBudgetChars = (totalBudgetChars - grounding.length).coerceAtLeast(0)
-
-        // A replayed tool trace is prompt too: the skill text a load_skill call returned is a thousand characters or more.
-        fun promptChars(message: AiMessage) = message.content.length + message.toolTrace.sumOf { it.promptChars }
-        var totalChars = eligible.sumOf(::promptChars)
-        val trimmed = if (totalChars <= historyBudgetChars) {
-            eligible
-        } else {
-            // Drop oldest-first down to HISTORY_TRIM_TARGET_RATIO of budget, not just under
-            // it — see the class doc above on why a smaller, stabler cut avoids re-priming
-            // every turn once a conversation is hovering near the limit.
-            val targetChars = (historyBudgetChars * HISTORY_TRIM_TARGET_RATIO).toInt()
-            val kept = eligible.toMutableList()
-            while (kept.size > 1 && totalChars > targetChars) {
-                totalChars -= promptChars(kept.removeAt(0))
-            }
-            kept
-        }
-
-        return trimmed.map { message ->
-            AiChatMessage(
-                role = if (message.role == MessageRole.USER) AiChatRole.USER else AiChatRole.ASSISTANT,
-                content = withImageMarker(message),
-                toolTrace = message.toolTrace,
-            )
-        }
-    }
-
-    /** A turn that had pictures is replayed with a text marker in their place (see [MessageImages.marker]). */
-    private fun withImageMarker(message: AiMessage): String {
-        if (message.role != MessageRole.USER || message.mediaType != MediaType.IMAGE) return message.content
-        val count = MessageImages.decode(message.mediaPath).size
-        return if (count == 0) message.content else "${MessageImages.marker(count)}\n${message.content}"
-    }
-
-    /**
      * Folds [retrieval]'s passages, if any, into a copy of [text] for the engine to see —
      * see the class KDoc's "Retrieval-augmented grounding" for why this must never touch
      * [text] itself or the grounding prefix.
      *
      * Passages are fit into their own budget — [PASSAGE_BUDGET_FRACTION] of [contextTokens]
-     * — independent of, and on top of, the grounding/history budgets [buildHistory] already
+     * — independent of, and on top of, the grounding/history budgets [BuildModelContextUseCase] already
      * enforces: those account for the *stable* prefix, this is purely this turn's addition,
      * dropped once the reply is generated. Passages are taken in ranked order and the first
      * one that would overflow the budget is where inclusion stops, so at least one passage
@@ -906,38 +846,10 @@ class SendChatMessageUseCase @Inject constructor(
         (System.nanoTime() - startNanos) / NANOS_PER_MILLI
 
     private companion object {
-        /**
-         * INCOMPLETE_REPLIES_ARE_NOT_SENT_TO_MODEL.
-         *
-         * The single rule, enforced in the single place: a message the user stopped or that
-         * failed mid-stream ([AiMessage.incomplete]) is kept for display but never fed back
-         * into a prompt. See the class KDoc's "Stopped / interrupted replies" section for
-         * why — the engine's own KV cache already had this reply's tokens rolled back via
-         * [AiEngine.discardPendingReply], and replaying it here would silently reintroduce
-         * exactly what that call exists to prevent.
-         */
-        fun isEligibleForModel(message: AiMessage): Boolean = !message.incomplete
-
         const val CONVERSATION_TITLE_LENGTH = 60
-
-        /**
-         * Caps how many prior turns are replayed into the prompt, before the token-aware
-         * budget in [buildHistory] (3.3) does its own, finer-grained trim. Kept as an outer
-         * cap regardless — a bound on how much history is even considered before estimating
-         * its size is cheap insurance against a pathological conversation.
-         */
-        const val MAX_HISTORY_TURNS = 20
 
         /** Tokens kept free of history for the tools' prompt, schemas, a loaded skill and the call (see [historyWindow]). */
         const val TOOLS_RESERVE_TOKENS = 2000
-
-        /**
-         * When [buildHistory]'s token budget is exceeded, oldest turns are dropped down to
-         * this fraction of the budget rather than to exactly the limit — see that function's
-         * KDoc on why a bigger cut keeps the session's KV cache stable across several turns
-         * instead of forcing a re-prime on every one.
-         */
-        const val HISTORY_TRIM_TARGET_RATIO = 0.6
 
         /** [ChatTurn.PreparingModel.reason] when the engine is busy with another caller. */
         const val BUSY_REASON = ChatTurn.PreparingModel.WAITING_FOR_DOCUMENT
