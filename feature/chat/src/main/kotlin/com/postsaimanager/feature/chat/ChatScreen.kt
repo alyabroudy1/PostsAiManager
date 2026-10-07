@@ -1,12 +1,9 @@
 package com.postsaimanager.feature.chat
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -39,12 +36,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddComment
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -79,7 +76,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil3.compose.AsyncImage
+import com.postsaimanager.core.domain.ai.MessageImages
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -106,8 +110,9 @@ private const val BOTTOM_SLACK_PX = 24
 /** Coalesces a burst of token updates into one scroll instead of one per token. */
 private const val SCROLL_THROTTLE_MS = 80L
 
-/** Bounded height for the thinking card's own inner scroll region. */
-private const val THINKING_CARD_MAX_HEIGHT_DP = 160
+/** The tags of the new-chat button and its dialog's confirm button, for tests. */
+const val NEW_CHAT_TAG = "new-chat"
+const val NEW_CHAT_CONFIRM_TAG = "new-chat-confirm"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,10 +137,18 @@ fun ChatScreen(
     // Coming back from the models screen: the search model may be installed by now.
     LifecycleResumeEffect(viewModel) {
         viewModel.refreshSearchModelHint()
+        viewModel.refreshImageSupport()
         onPauseOrDispose {}
     }
     var inputText by rememberSaveable { mutableStateOf("") }
     var showModelSheet by rememberSaveable { mutableStateOf(false) }
+    var confirmNewChat by rememberSaveable { mutableStateOf(false) }
+    // A picture of a message, opened larger.
+    var viewedImage by remember { mutableStateOf<String?>(null) }
+    // The Gallery's picker: the system photo picker, no storage permission.
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MessageImages.MAX_PER_MESSAGE)) { uris ->
+        uris.forEach { viewModel.attachImage(it.toString()) }
+    }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
@@ -238,6 +251,26 @@ fun ChatScreen(
         )
     }
 
+    viewedImage?.let { path -> ImageViewerDialog(path = path, onDismiss = { viewedImage = null }) }
+
+    if (confirmNewChat) {
+        AlertDialog(
+            onDismissRequest = { confirmNewChat = false },
+            title = { Text(stringResource(R.string.chat_new_chat_title)) },
+            text = { Text(stringResource(R.string.chat_new_chat_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmNewChat = false
+                        viewModel.newChat()
+                    },
+                    modifier = Modifier.testTag(NEW_CHAT_CONFIRM_TAG),
+                ) { Text(stringResource(R.string.chat_new_chat_confirm)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmNewChat = false }) { Text(stringResource(R.string.chat_new_chat_cancel)) } },
+        )
+    }
+
     if (showModelSheet) {
         ModelConfigBottomSheet(
             state = modelSheetState,
@@ -266,6 +299,12 @@ fun ChatScreen(
                             actionCardsViewModel.propose(action, userMessages = uiState.messages.filter { it.isUser }.map { it.text })
                         },
                     )
+                    // The Gallery's "new session": clears this chat (after a question) and starts over.
+                    if (uiState.messages.isNotEmpty()) {
+                        IconButton(onClick = { confirmNewChat = true }, modifier = Modifier.testTag(NEW_CHAT_TAG)) {
+                            Icon(Icons.Filled.AddComment, contentDescription = stringResource(R.string.chat_new_chat))
+                        }
+                    }
                     ModelHeaderChip(
                         state = modelSheetState,
                         onClick = { showModelSheet = true },
@@ -300,6 +339,15 @@ fun ChatScreen(
                 // disabling input — the user can always cancel and type something else.
                 isGenerating = uiState.isProcessing,
                 onStop = viewModel::stopGeneration,
+                attachments = uiState.attachments,
+                imageInputSupported = uiState.imageInputSupported,
+                attachablePages = uiState.attachablePages,
+                onPickPhotos = {
+                    photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                onOpenAttachMenu = viewModel::loadAttachablePages,
+                onAttachPage = viewModel::attachPage,
+                onRemoveAttachment = viewModel::removeAttachment,
             )
           }
         },
@@ -415,9 +463,9 @@ fun ChatScreen(
                     // answer starts streaming, so it never just vanishes mid-turn.
                     if (uiState.thinkingText.isNotEmpty() || uiState.isThinkingActive) {
                         item {
-                            ThinkingCard(
+                            MessageBodyThinking(
                                 thinkingText = uiState.thinkingText,
-                                isActive = uiState.isThinkingActive,
+                                inProgress = uiState.isThinkingActive,
                                 durationMs = uiState.thinkingDurationMs,
                             )
                         }
@@ -445,7 +493,8 @@ fun ChatScreen(
                     val pendingChipsId = uiState.messages.lastOrNull { isPendingChipsMessage(it) }?.id
 
                     items(
-                        uiState.messages.filterNot { it.isEmptyReply }.asReversed(),
+                        // An action-only reply has no words to show, but its steps (the skill it used) are still shown.
+                        uiState.messages.filterNot { it.isEmptyReply && it.toolSteps.isEmpty() }.asReversed(),
                         key ={ it.id.ifEmpty { it.timestamp.toString() } },
                     ) { message ->
                         val form = message.form
@@ -470,7 +519,8 @@ fun ChatScreen(
                             onSourceClick = viewModel::openPreview,
                             onCopy = { copyToClipboard(message.text) },
                             onRegenerate = { viewModel.regenerate() },
-                            isLatestAssistantReply = !message.isUser &&
+                            onImageClick = { path -> viewedImage = path },
+                            isLatestAssistantReply =!message.isUser &&
                                 message.id.isNotEmpty() &&
                                 message.id == latestAssistantId &&
                                 !uiState.isProcessing,
@@ -506,65 +556,6 @@ fun ChatScreen(
     }
 }
 
-@Composable
-private fun ChatInputBar(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onSend: () -> Unit,
-    isGenerating: Boolean,
-    onStop: () -> Unit,
-) {
-    Surface(
-        tonalElevation = 3.dp,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Stays enabled and editable even while generating — the user can queue up
-            // their next thought, or just cancel via the button on the right.
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Type a message...") },
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                ),
-                maxLines = 4,
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            if (isGenerating) {
-                // Send → Stop while a reply streams, rather than disabling the button —
-                // cancelling is always one tap away, never a dead end.
-                IconButton(onClick = onStop) {
-                    Icon(
-                        imageVector = Icons.Filled.Stop,
-                        contentDescription = "Stop generating",
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
-            } else {
-                IconButton(
-                    onClick = onSend,
-                    enabled = value.isNotBlank(),
-                ) {
-                    Icon(
-                        imageVector = PamIcons.Send,
-                        contentDescription = "Send",
-                        tint = if (value.isNotBlank()) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChatBubble(
@@ -578,6 +569,8 @@ private fun ChatBubble(
     onRegenerate: () -> Unit = {},
     /** True only for the newest, finished assistant reply — see `ChatScreen`'s call site. */
     isLatestAssistantReply: Boolean = false,
+    /** A picture of this (user) message was tapped: it is shown larger. */
+    onImageClick: (String) -> Unit = {},
 ) {
     val isUser = message.isUser
     var reporting by rememberSaveable { mutableStateOf(false) }
@@ -585,13 +578,34 @@ private fun ChatBubble(
         // A persisted reply that thought before answering shows its trace collapsed to a
         // "Thought for N s" header, right above the bubble — expandable, never streaming.
         if (!isUser && message.thinking != null) {
-            ThinkingCard(
+            MessageBodyThinking(
                 thinkingText = message.thinking,
-                isActive = false,
+                inProgress = false,
                 durationMs = message.thinkingDurationMs,
                 modifier = Modifier.padding(bottom = 4.dp).widthIn(max = 280.dp),
             )
         }
+        // What the model did before it answered (skills loaded, actions proposed, scripts run), collapsed to a header.
+        if (!isUser && message.toolSteps.isNotEmpty()) {
+            MessageBodyCollapsableProgressPanel(
+                steps = message.toolSteps,
+                modifier = Modifier.padding(bottom = 4.dp).widthIn(max = 280.dp),
+            )
+            // A JS skill's own page, shown offline right under the steps.
+            message.toolSteps.mapNotNull { it.webview }.forEach { webview ->
+                MessageBodyWebview(webview = webview, modifier = Modifier.padding(bottom = 4.dp).widthIn(max = 280.dp))
+            }
+        }
+        // The pictures the user attached, above their words.
+        if (isUser && message.images.isNotEmpty()) {
+            MessageBodyImage(
+                paths = message.images,
+                onImageClicked = { index -> onImageClick(message.images[index]) },
+                modifier = Modifier.padding(bottom = 4.dp),
+            )
+        }
+        // An action-only reply is its steps and its card: no empty bubble.
+        if (!isUser && message.text.isBlank() && message.toolSteps.isNotEmpty() && !message.incomplete) return@Column
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
@@ -781,119 +795,22 @@ private fun SourceChip(source: ChatSource, documentChat: Boolean, onClick: () ->
     )
 }
 
-/**
- * A collapsible card for a model's reasoning trace — bounded height with its own inner
- * scroll while [isActive], a chevron to maximize/minimize any time, and a header that
- * reads "Thinking…" while live and "Thought for N s" once [durationMs] is known.
- *
- * Expansion state resets whenever [isActive] flips: starts expanded the moment thinking
- * begins (so the user sees it happening, not a flat header), and collapses the instant the
- * answer starts streaming or a persisted message is shown — matching the spec's "auto-
- * collapse to header-only when the answer starts streaming" and "persisted messages show
- * the collapsed header, expandable". A manual tap on the chevron always overrides this
- * within one streaming session.
- */
+/** A picture of a message, shown larger over the chat; a tap anywhere closes it. */
 @Composable
-private fun ThinkingCard(
-    thinkingText: String,
-    isActive: Boolean,
-    durationMs: Long?,
-    modifier: Modifier = Modifier,
-) {
-    var expanded by remember(isActive) { mutableStateOf(isActive) }
-    val scrollState = rememberScrollState()
-
-    // Follows the newest thinking text while live — the same "stick to the bottom of what's
-    // streaming" idea as the main transcript, scoped to this card's own inner scroll.
-    LaunchedEffect(thinkingText, isActive, expanded) {
-        if (isActive && expanded) scrollState.animateScrollTo(scrollState.maxValue)
-    }
-
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        tonalElevation = 1.dp,
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (isActive) {
-                    PulsingDot(modifier = Modifier.padding(end = 8.dp))
-                } else {
-                    Icon(
-                        imageVector = PamIcons.AiChat,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp).padding(end = 8.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(
-                    text = when {
-                        isActive -> "Thinking…"
-                        durationMs != null -> "Thought for ${formatThinkingDuration(durationMs)}"
-                        else -> "Thoughts"
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                    contentDescription = if (expanded) "Collapse thinking" else "Expand thinking",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            AnimatedVisibility(visible = expanded) {
-                // B2: the answer bubble already renders through MarkdownText (see ChatBubble
-                // above) and streams live the same way this does — a reasoning trace is no
-                // less likely to contain a list or a code fence, so it gets the same
-                // treatment rather than showing raw `**`/`` ` `` characters. Muted style/size
-                // and the bounded inner scroll are unchanged from the plain-Text version.
-                MarkdownText(
-                    text = thinkingText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = THINKING_CARD_MAX_HEIGHT_DP.dp)
-                        .verticalScroll(scrollState)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                )
-            }
+private fun ImageViewerDialog(path: String, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            modifier = Modifier.fillMaxSize().clickable(onClick = onDismiss),
+            color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.9f),
+        ) {
+            AsyncImage(
+                model = java.io.File(path),
+                contentDescription = stringResource(R.string.chat_image_description),
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                contentScale = ContentScale.Fit,
+            )
         }
     }
-}
-
-/** A small breathing dot next to "Thinking…" — enough motion to read as live, no more. */
-@Composable
-private fun PulsingDot(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "thinking-pulse")
-    val alpha by transition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(700, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "thinking-pulse-alpha",
-    )
-    Box(
-        modifier = modifier
-            .size(8.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = alpha)),
-    )
-}
-
-private fun formatThinkingDuration(durationMs: Long): String {
-    val seconds = durationMs / 1000.0
-    return if (seconds < 10) "%.1fs".format(seconds) else "${seconds.toInt()}s"
 }
 
 @Composable
@@ -958,7 +875,7 @@ private fun ChatErrorCard(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = error.message,
+                text = error.messageRes?.let { stringResource(it) } ?: error.message,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )

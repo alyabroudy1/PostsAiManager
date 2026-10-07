@@ -126,10 +126,47 @@ it must use `ReminderScheduler` too. No DB change was made.
    whole turns that fit are used (`LiteRtTurns.compact`). The card's
    outcome (opened, edited, cancelled) is not replayed: the model never heard it live either, only "waiting for the user".
 
+## Chat pieces (phase 3)
+
+The Gallery's chat bodies, adopted into `feature/chat` (files and what was changed: [THIRD_PARTY.md](THIRD_PARTY.md), "chat pieces").
+No database change: everything below uses columns that existed (`mediaType`, `mediaPath`, `toolArgs`, `thinking`).
+
+- **Thinking.** `MessageBodyThinking` replaces the old thinking card (collapsed until tapped; "Thinking..." while live, "Thought for
+  N s" after). The engine writes LiteRT-LM's thought channel into the one token stream between `<think>` tags
+  (`ThoughtStream`), so the app's `ThinkingStreamParser`, the stored trace and the per-model Thinking effort setting serve both
+  engines. It happens only when the reply asked for thinking (the setting's default stays Off): then `enable_thinking=true`;
+  otherwise the channel is ignored, as before.
+- **Skill and tool progress.** `MessageBodyCollapsableProgressPanel` shows the steps of a reply: `load_skill`, `run_intent`,
+  `run_js`, read from the reply's stored `toolTrace` (`ToolSteps`). It appears after the reply (the exchanges reach the app when the
+  reply ends), is kept with the message, and a failed step is marked.
+- **Images.** The catalogue entry declares `inputs` (`ModelInput.TEXT/IMAGE/AUDIO`, the Gallery's `llmSupportImage`/`llmSupportAudio`;
+  Gemma 4 E2B/E4B declare image, and audio for later). The composer shows the attach button only for a LiteRT-LM model that declares
+  image (`ChatImagePolicy`). Menu: a photo (system picker, up to 10) and, in a letter's chat, each page of the letter. A picture is
+  decoded to at most 1024 px, turned upright and stored as PNG in `filesDir/chat-attachments/<conversation>/` (`FileChatImageStore`);
+  the message stores the paths in its `mediaPath` (`MessageImages`: one path as it is, several as a JSON array). Only paths cross AIDL
+  (`sendLiteRtMessage(..., imagePaths, ...)`); the engine reads the files and sends `Content.ImageBytes` before the text, as the
+  Gallery does. The vision encoder is started on demand: a model loaded for plain chat is restarted once with
+  `EngineConfig.visionBackend` when a reply carries a picture. Only the current turn sends the pixels; a rebuilt conversation replays
+  the marker `[image: photo 1]`. A retry or regenerate keeps the message's pictures.
+- **JS skills.** A skill folder with `scripts/` is a JS skill; the model calls `run_js(skill_name, script_name, data)`. The tool runs
+  in `:inference`, so it publishes a request (`ILiteRtReplyCallback.onRunJs`) and waits for the answer
+  (`IInferenceService.deliverJsResult`, not queued behind the inference thread) for at most 60 s. The app process runs the script
+  (`JsSkillRelay` -> `WebViewJsSkillExecutor`) in an off-screen WebView that is **offline**: every request is answered by
+  `OfflineSkillWebViewClient` from the bundled skill folder (`scripts/` and `assets/` of that one skill) or blocked; no network
+  (`blockNetworkLoads` and the policy), no file access (`allowFileAccess=false`, only the sandbox's own https address), no DOM
+  storage, no camera or microphone, and a Content-Security-Policy on every answer (own origin only). A script's `webview` result is
+  stored beside the call (`ToolExchange.shownJson`, never told to the model) and drawn by `MessageBodyWebview` in the same sandbox.
+  The bundled test skill is the Gallery's `calculate-hash`.
+- **New chat.** The toolbar's "New chat" (after a confirmation) calls `StartNewChatUseCase`: the document's conversation is deleted
+  (its messages and citations go with it, `ON DELETE CASCADE`), its pictures are deleted, and the engine's conversation is dropped.
+  Nothing is archived, so a cleared chat stays cleared; the next message makes a fresh conversation row.
+
 ## Not built (listed for later)
 
 - `send_sms` (needs `SENDTO smsto:`, no permission but sensitive) and `read_calendar_events` (needs `READ_CALENDAR` at run time);
-- JavaScript skills, `run_js`, the offline WebView, `run_mcp`, skills from URLs or a remote list (against the on-device-only rule);
+- `run_mcp`, skills from URLs or a remote list (against the on-device-only rule); JS skills' secrets and `image` results;
+- audio input (declared by the catalogue, unused), PDF in chat;
+- progress steps streamed live while the reply runs (they appear when it ends);
 - user-imported skill folders (SAF): the Gallery's `addSkillFromLocalImport` is tied to its protos, DataStore selection state and
   Firebase logging, and does not port cleanly; the catalog port (`SkillCatalog`) is where a second source plugs in later (phase 2b+);
 - per-skill enable/disable settings.

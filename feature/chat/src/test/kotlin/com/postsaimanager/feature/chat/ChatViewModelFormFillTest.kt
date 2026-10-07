@@ -82,6 +82,10 @@ class ChatViewModelFormFillTest {
         formFill = formFill,
         formFills = fills,
         searchModelHint = testSearchModelHint(),
+        startNewChat = io.mockk.mockk(relaxed = true),
+        attachChatImage = io.mockk.mockk(relaxed = true),
+        chatImageSupport = io.mockk.mockk(relaxed = true),
+        jsSkillRelay = io.mockk.mockk(relaxed = true),
         formFillingFlag = flag,
     )
 
@@ -102,6 +106,8 @@ class ChatViewModelFormFillTest {
             getDocumentPreview = GetDocumentPreviewUseCase(documents, FakeDocumentChunkRepository()),
             observeSuggestedQuestions = ObserveSuggestedQuestionsUseCase(documents), formFill = formFill, formFills = fills,
             searchModelHint = testSearchModelHint(),
+            startNewChat = io.mockk.mockk(relaxed = true), attachChatImage = io.mockk.mockk(relaxed = true),
+            chatImageSupport = io.mockk.mockk(relaxed = true), jsSkillRelay = io.mockk.mockk(relaxed = true),
         )
 
         vm()

@@ -11,6 +11,7 @@ import com.postsaimanager.core.model.DeviceCapability
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.InferenceOverrides
 import com.postsaimanager.core.model.InstalledModel
+import com.postsaimanager.core.model.ModelInput
 import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.model.ModelRuntime
 import com.postsaimanager.core.model.applying
@@ -103,7 +104,12 @@ class CatalogActiveModelProvider @Inject constructor(
         val defaults = InferenceConfig.defaults(device, window, cpuTopology.coreMaxFreqsKHz())
             .copy(contextTokens = window)
         return defaults.applying(overrides, device, backendSpec(model))
-            .copy(runtime = ModelRuntime.LITERT_LM, supportsTools = declaresTools(model), modelSampling = descriptorOf(model)?.sampling)
+            .copy(
+                runtime = ModelRuntime.LITERT_LM,
+                supportsTools = declaresTools(model),
+                supportsImages = descriptorOf(model)?.inputs?.contains(ModelInput.IMAGE) == true,
+                modelSampling = descriptorOf(model)?.sampling,
+            )
     }
 
     private fun descriptorOf(model: InstalledModel) = model.descriptorId?.let { id -> BundledCatalog.models.firstOrNull { it.id == id } }

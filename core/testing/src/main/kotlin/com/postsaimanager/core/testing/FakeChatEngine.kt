@@ -41,6 +41,9 @@ class FakeChatEngine(
     /** Every `(path, config)` that reached [load], in order. */
     val loads = mutableListOf<Pair<String, InferenceConfig>>()
 
+    /** The history of every session that was opened or re-primed, in order. */
+    val sessions = mutableListOf<List<AiChatMessage>>()
+
     /** Every user text that reached [sendChatMessage], in order. */
     val sent = mutableListOf<String>()
     val committed = mutableListOf<String>()
@@ -73,6 +76,8 @@ class FakeChatEngine(
         history: List<AiChatMessage>,
     ): Boolean = mutex.withLock {
         val wasPrimed = sessionId == conversationId
+        // The history each (re)prime was given, so a test can read what a rebuilt conversation replays.
+        if (!wasPrimed) sessions += history
         sessionId = conversationId
         !wasPrimed
     }

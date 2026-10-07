@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.ai
 
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.skills.JsSkillRequest
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.model.ToolExchange
@@ -52,6 +53,16 @@ interface ChatEngine {
      * proposal, which the app checks and shows on a card (`ObserveToolActionsUseCase`).
      */
     val toolActions: Flow<ToolActionCall> get() = emptyFlow()
+
+    /**
+     * The `run_js` calls the model makes while it replies: hot, no replay. The engine waits for the script's answer
+     * ([deliverJsResult]); the app runs the script in an offline sandbox ([com.postsaimanager.core.domain.skills.JsSkillExecutor]).
+     * An engine without tools never emits.
+     */
+    val jsRequests: Flow<JsSkillRequest> get() = emptyFlow()
+
+    /** The answer of the script of request [requestId], so the `run_js` call waiting for it can return to the model. */
+    suspend fun deliverJsResult(requestId: String, result: String) {}
 
     /**
      * Loads a model, replacing any currently loaded one.

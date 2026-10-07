@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.ai
 
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.skills.JsSkillRequest
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.model.ModelRuntime
@@ -61,6 +62,12 @@ class RoutingChatEngine(
     /** The tool calls of whichever engine is current (a runtime switch moves the collection with it). */
     @OptIn(ExperimentalCoroutinesApi::class)
     override val toolActions: Flow<ToolActionCall> = current.flatMapLatest { runtime -> engines.getValue(runtime).toolActions }
+
+    /** The `run_js` calls of whichever engine is current. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override val jsRequests: Flow<JsSkillRequest> = current.flatMapLatest { runtime -> engines.getValue(runtime).jsRequests }
+
+    override suspend fun deliverJsResult(requestId: String, result: String) = active().deliverJsResult(requestId, result)
 
     override suspend fun load(modelPath: String, config: InferenceConfig): PamResult<AiCapabilities> {
         val target = engines[config.runtime]

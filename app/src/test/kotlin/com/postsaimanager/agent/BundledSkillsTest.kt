@@ -15,7 +15,13 @@ class BundledSkillsTest {
 
     private val root = File("src/main/assets/skills")
 
-    private val folders: List<File> = root.listFiles { f -> f.isDirectory }.orEmpty().sortedBy { it.name }
+    private val allFolders: List<File> = root.listFiles { f -> f.isDirectory }.orEmpty().sortedBy { it.name }
+
+    /** A JS skill has a `scripts/` folder and is run with `run_js`; the others only call `run_intent`. */
+    private val jsFolders: List<File> = allFolders.filter { File(it, "scripts").isDirectory }
+
+    /** The intent skills: what the tests about intents and parameters read. */
+    private val folders: List<File> = allFolders - jsFolders.toSet()
 
     private fun parse(folder: File): Skill {
         val result = SkillParser.parse(File(folder, "SKILL.md").readText())
@@ -24,7 +30,7 @@ class BundledSkillsTest {
     }
 
     @Test
-    fun `the four skills are there, each a folder with a SKILL md, and no two of them overlap`() {
+    fun `the four intent skills and the one JS test skill are there, each a folder with a SKILL md, and no two intent skills overlap`() {
         // One skill per action: a small model choosing between near-duplicates picked the wrong one.
         assertThat(folders.map { it.name }).containsExactly(
             "create-calendar-event",
@@ -32,12 +38,35 @@ class BundledSkillsTest {
             "schedule-reminder",
             "send-email",
         )
-        folders.forEach { assertThat(File(it, "SKILL.md").isFile).isTrue() }
+        assertThat(jsFolders.map { it.name }).containsExactly("calculate-hash")
+        allFolders.forEach { assertThat(File(it, "SKILL.md").isFile).isTrue() }
+    }
+
+    @Test
+    fun `the JS skill is the Gallery's, runs with run_js, and its scripts are bundled files that fetch nothing`() {
+        val skill = parse(File(root, "calculate-hash"))
+        assertThat(skill.instructions).contains("run_js")
+        assertThat(skill.instructions).contains("index.html")
+
+        val scripts = File(root, "calculate-hash/scripts")
+        assertThat(scripts.list().orEmpty().toList()).containsExactly("index.html", "index.js")
+        scripts.listFiles().orEmpty().forEach { file ->
+            val text = file.readText().lowercase()
+            // The Apache licence URL in the header is the only address, and a script never loads from one.
+            val withoutLicenceUrl = text.replace("http://www.apache.org/licenses/license-2.0", "")
+            assertThat(withoutLicenceUrl).doesNotContain("http://")
+            assertThat(withoutLicenceUrl).doesNotContain("https://")
+            assertThat(text).doesNotContain("fetch(")
+            assertThat(text).doesNotContain("xmlhttprequest")
+            assertThat(text).doesNotContain("websocket")
+        }
+        // It copies the Gallery's licence header.
+        assertThat(File(scripts, "index.js").readText()).contains("Copyright 2026 Google LLC")
     }
 
     @Test
     fun `every skill parses and is named like its folder`() {
-        folders.forEach { folder ->
+        allFolders.forEach { folder ->
             val skill = parse(folder)
             assertThat(skill.name).isEqualTo(folder.name)
             assertThat(skill.description).isNotEmpty()

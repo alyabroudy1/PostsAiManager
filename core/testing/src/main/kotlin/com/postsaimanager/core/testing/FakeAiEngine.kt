@@ -240,6 +240,8 @@ class FakeActiveModelProvider(
     /** The runtime of the chat model, and whether its catalogue entry declares tools: what `ChatToolsPolicy` decides on. */
     var runtime: ModelRuntime = ModelRuntime.LLAMA_CPP,
     var supportsTools: Boolean = false,
+    /** Whether the chat model's catalogue entry declares image input. */
+    var supportsImages: Boolean = false,
 ) : com.postsaimanager.core.domain.ai.ActiveModelProvider {
     /** Generous enough that [InferenceConfig.defaults]'s heuristic never clamps [contextTokens]. */
     private val device = DeviceCapability(
@@ -256,6 +258,7 @@ class FakeActiveModelProvider(
             gpuLayers = if (accelerator == Accelerator.GPU) -1 else 0,
             runtime = runtime,
             supportsTools = supportsTools,
+            supportsImages = supportsImages,
         )
 
     override suspend fun extractionModelPath(): String? = extractionPath ?: path

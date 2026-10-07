@@ -159,6 +159,9 @@ interface IInferenceService {
      *
      * With [toolsEnabled] the reply may call the Agent Skills tools; each `run_intent` call comes back through
      * [callback]'s `onAction`, carrying [toolsDocumentId] (the letter the reply is about, empty for none).
+     *
+     * With [thinking] the model's reasoning is streamed first between think tags. [imagePaths] are files in the app's private
+     * `chat-attachments` folder (paths only: no picture bytes cross the binder) for the model to look at in this reply.
      */
     boolean sendLiteRtMessage(
         String userText,
@@ -168,7 +171,15 @@ interface IInferenceService {
         float topP,
         boolean toolsEnabled,
         String toolsDocumentId,
+        boolean thinking,
+        in String[] imagePaths,
         ILiteRtReplyCallback callback);
+
+    /**
+     * The answer of the script of a `run_js` request (`ILiteRtReplyCallback.onRunJs`). Not queued behind the inference thread: it
+     * must reach the reply that is waiting for it.
+     */
+    void deliverJsResult(String requestId, String result);
 
     /** Stops the LiteRT-LM reply in flight, if any. Not queued: it must reach a running reply. */
     void cancelLiteRt();

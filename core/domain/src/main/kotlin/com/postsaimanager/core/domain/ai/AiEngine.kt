@@ -165,6 +165,13 @@ data class AiRequest(
      * (LiteRT-LM) acts on it, the llama.cpp engines ignore it. See [ChatToolsRequest] and `ChatToolsPolicy`.
      */
     val tools: ChatToolsRequest? = null,
+    /**
+     * Files of the pictures the user attached to this turn's message (copied into the app's own storage by `ChatImageStore`).
+     * Only an image-capable engine (LiteRT-LM, [com.postsaimanager.core.model.InferenceConfig.supportsImages]) looks at them; the
+     * llama.cpp engines ignore it. Never replayed into a rebuilt conversation: the model sees the picture for the reply it was
+     * attached to.
+     */
+    val imagePaths: List<String> = emptyList(),
 )
 
 data class AiCapabilities(

@@ -10,6 +10,8 @@ import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.ChatImagePolicy
+import com.postsaimanager.core.domain.ai.MessageImages
 import com.postsaimanager.core.domain.ai.StreamSegment
 import com.postsaimanager.core.domain.ai.ThinkingStreamParser
 import com.postsaimanager.core.domain.repository.ConversationRepository
@@ -18,6 +20,7 @@ import com.postsaimanager.core.domain.skills.ChatToolsPolicy
 import com.postsaimanager.core.model.AiConversation
 import com.postsaimanager.core.model.AiMessage
 import com.postsaimanager.core.model.AiModelType
+import com.postsaimanager.core.model.MediaType
 import com.postsaimanager.core.model.MessageRole
 import com.postsaimanager.core.model.MessageSource
 import com.postsaimanager.core.model.ModelLoadState
@@ -198,6 +201,11 @@ class SendChatMessageUseCase @Inject constructor(
          * priming, commit) runs exactly as a normal send.
          */
         persistUserMessage: Boolean = true,
+        /**
+         * The pictures the user attached to [text] (files of `ChatImageStore`, at most [MessageImages.MAX_PER_MESSAGE]), stored with
+         * the user's message. A message that is sent again as it is (a retry, [regenerateLastReply]) keeps its pictures.
+         */
+        imagePaths: List<String> = emptyList(),
     ): Flow<ChatTurn> = flow {
         val now = System.currentTimeMillis()
 
@@ -231,10 +239,18 @@ class SendChatMessageUseCase @Inject constructor(
                 conversationId = conversationId,
                 role = MessageRole.USER,
                 content = text,
+                mediaType = if (imagePaths.isNotEmpty()) MediaType.IMAGE else MediaType.TEXT,
+                mediaPath = MessageImages.encode(imagePaths),
                 createdAt = now,
             )
             conversationRepository.addMessage(userMessage)
         }
+        // The pictures of this turn: the ones just attached, or the ones the re-sent message was stored with.
+        val turnImages = imagePaths.ifEmpty {
+            readTurns.lastOrNull()?.takeIf {
+                !persistUserMessage && it.role == MessageRole.USER && it.mediaType == MediaType.IMAGE
+            }?.let { MessageImages.decode(it.mediaPath) }.orEmpty()
+        }.take(MessageImages.MAX_PER_MESSAGE)
 
         // Always reconcile against the active path AND config, on every send — not just
         // when the engine reports not-ready or a different model path. The user may have
@@ -417,7 +433,12 @@ class SendChatMessageUseCase @Inject constructor(
             // Agent Skills tools: only for a LiteRT-LM model whose catalogue entry declares them (ChatToolsPolicy). The letter the
             // actions are grounded on is the chat's, or the one the reply's passages all come from; null leaves the card flagged.
             val tools = ChatToolsPolicy.requestFor(config, documentId, sources.map { it.chunk.documentId })
-            engine.sendChatMessage(sentText, ChatReplyBudget.request(effort, contextTokens, config.modelSampling).copy(tools = tools))
+            // The picture goes to a model that can look at it; any other model answers the words alone.
+            val images = if (ChatImagePolicy.enabledFor(config)) turnImages else emptyList()
+            engine.sendChatMessage(
+                sentText,
+                ChatReplyBudget.request(effort, contextTokens, config.modelSampling).copy(tools = tools, imagePaths = images),
+            )
                 .collect { token -> apply(parser.consume(token)).forEach { emit(it) } }
             apply(parser.finish()).forEach { emit(it) }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -745,10 +766,17 @@ class SendChatMessageUseCase @Inject constructor(
         return trimmed.map { message ->
             AiChatMessage(
                 role = if (message.role == MessageRole.USER) AiChatRole.USER else AiChatRole.ASSISTANT,
-                content = message.content,
+                content = withImageMarker(message),
                 toolTrace = message.toolTrace,
             )
         }
+    }
+
+    /** A turn that had pictures is replayed with a text marker in their place (see [MessageImages.marker]). */
+    private fun withImageMarker(message: AiMessage): String {
+        if (message.role != MessageRole.USER || message.mediaType != MediaType.IMAGE) return message.content
+        val count = MessageImages.decode(message.mediaPath).size
+        return if (count == 0) message.content else "${MessageImages.marker(count)}\n${message.content}"
     }
 
     /**

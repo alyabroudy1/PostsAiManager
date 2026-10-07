@@ -47,6 +47,8 @@ class FakeConversationRepository : ConversationRepository {
 
     override suspend fun deleteConversation(id: String): PamResult<Unit> {
         conversations.value = conversations.value.filterNot { it.id == id }
+        // As the database does: the messages of a deleted conversation go with it (ON DELETE CASCADE).
+        messages.value = messages.value.filterNot { it.conversationId == id }
         return PamResult.Success(Unit)
     }
 }

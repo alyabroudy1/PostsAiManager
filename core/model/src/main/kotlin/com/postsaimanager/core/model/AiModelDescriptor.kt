@@ -24,6 +24,8 @@ data class AiModelDescriptor(
     /** Required before any download is allowed. See [isInstallable]. */
     val sha256: String? = null,
     val supportsTools: Boolean = false,
+    /** What a chat message to this model may carry (the Gallery's `llmSupportImage` / `llmSupportAudio`). */
+    val inputs: Set<ModelInput> = setOf(ModelInput.TEXT),
     /**
      * Suited to reading a document into structured fields, which is a different job from
      * holding a conversation.

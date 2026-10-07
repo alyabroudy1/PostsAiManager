@@ -3,6 +3,7 @@ package com.postsaimanager.core.ai.catalog
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.AiModelDescriptor
 import com.postsaimanager.core.model.BackendSpec
+import com.postsaimanager.core.model.ModelInput
 import com.postsaimanager.core.model.ModelRole
 import com.postsaimanager.core.model.ModelRuntime
 import com.postsaimanager.core.model.SamplingConfig
@@ -62,7 +63,8 @@ object BundledCatalog {
      * E2B at 1.0 doubled and dropped digits ("RE-22026-0815" for "RE-2026-0815", a begin_time of "20202-1114:00"), in the raw
      * stream, so not in the app's assembly of it.
      */
-    private val GEMMA4_GALLERY_SAMPLING = SamplingConfig(temperature = 0.3f, topK = 64, topP = 0.95f)
+    private val GEMMA4_LITERT_INPUTS = setOf(ModelInput.TEXT, ModelInput.IMAGE, ModelInput.AUDIO)
+    private val GEMMA4_GALLERY_SAMPLING =SamplingConfig(temperature = 0.3f, topK = 64, topP = 0.95f)
 
     private const val QWEN35_08B_REV = "6ab461498e2023f6e3c1baea90a8f0fe38ab64d0"
     private const val QWEN35_2B_REV = "f6d5376be1edb4d416d56da11e5397a961aca8ae"
@@ -224,6 +226,8 @@ object BundledCatalog {
             sha256 = "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
             // Gemma 4 on LiteRT-LM calls tools natively (the Gallery's Agent Skills run on it): chat offers the skills.
             supportsTools = true,
+            // The Gallery's allowlist entry says `llmSupportImage: true` for this file; audio is declared for later (unused yet).
+            inputs = GEMMA4_LITERT_INPUTS,
             description = "Google's own LiteRT-LM build of Gemma 4, the one in the AI Edge Gallery. Chats on the phone's GPU " +
                 "when it has one. It only chats: your letters are still read by the reader model.",
             // CPU first: on the test phone the GPU engine garbled the figures and dates inside tool calls (dropped dots and hyphens,
@@ -251,6 +255,7 @@ object BundledCatalog {
                 "resolve/$GEMMA4_E4B_LITERT_REV/gemma-4-E4B-it.litertlm",
             sha256 = "0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0",
             supportsTools = true,
+            inputs = GEMMA4_LITERT_INPUTS,
             description = "The larger LiteRT-LM build of Gemma 4, from the AI Edge Gallery. Better answers, on a high-end " +
                 "phone. It only chats: your letters are still read by the reader model.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.CPU, Accelerator.GPU)),

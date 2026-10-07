@@ -55,6 +55,10 @@ class SearchModelHintTest {
         formFill = mockk(relaxed = true),
         formFills = FakeFormFillRepository(),
         searchModelHint = hint,
+        startNewChat = io.mockk.mockk(relaxed = true),
+        attachChatImage = io.mockk.mockk(relaxed = true),
+        chatImageSupport = io.mockk.mockk(relaxed = true),
+        jsSkillRelay = io.mockk.mockk(relaxed = true),
     )
 
     @Test

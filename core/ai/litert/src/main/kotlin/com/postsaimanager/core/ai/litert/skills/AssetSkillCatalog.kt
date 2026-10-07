@@ -59,7 +59,7 @@ class AssetSkillCatalog(
                 return@mapNotNull null
             }
             when (val parsed = SkillParser.parse(text)) {
-                is SkillParseResult.Parsed -> parsed.skill
+                is SkillParseResult.Parsed -> parsed.skill.copy(folder = folder, scripts = scriptsOf(folder))
                 is SkillParseResult.Invalid -> {
                     Log.w(TAG, "Skill $folder does not parse: ${parsed.errors.joinToString()}")
                     null
@@ -68,7 +68,12 @@ class AssetSkillCatalog(
         }
     }
 
+    /** The files of the skill's `scripts/` folder (a JS skill's entry points), or none. */
+    private fun scriptsOf(folder: String): List<String> =
+        runCatching { context.assets.list("$ROOT/$folder/$SCRIPTS").orEmpty().sorted() }.getOrDefault(emptyList())
+
     private companion object {
+        const val SCRIPTS = "scripts"
         const val TAG = "AssetSkillCatalog"
         const val ROOT = "skills"
         const val FILE = "SKILL.md"

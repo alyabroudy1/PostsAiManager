@@ -12,8 +12,14 @@ import com.postsaimanager.core.domain.form.fill.FillProgress
 import com.postsaimanager.core.domain.form.fill.FormMessageCodec
 import com.postsaimanager.core.domain.repository.ConversationRepository
 import com.postsaimanager.core.domain.repository.FormFillRepository
+import com.postsaimanager.core.domain.ai.MessageImages
+import com.postsaimanager.core.domain.skills.ToolSteps
+import com.postsaimanager.core.domain.usecase.AttachChatImageUseCase
 import com.postsaimanager.core.domain.usecase.ChatErrorAction
+import com.postsaimanager.core.domain.usecase.ChatImageSupportUseCase
 import com.postsaimanager.core.domain.usecase.ChatTurn
+import com.postsaimanager.core.domain.usecase.StartNewChatUseCase
+import com.postsaimanager.feature.chat.skills.JsSkillRelay
 import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
 import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.ObserveInstalledModelsUseCase
@@ -74,6 +80,10 @@ class ChatViewModel @Inject constructor(
     private val formFill: FormFillAgent,
     private val formFills: FormFillRepository,
     private val searchModelHint: SearchModelHint,
+    private val startNewChat: StartNewChatUseCase,
+    private val attachChatImage: AttachChatImageUseCase,
+    private val chatImageSupport: ChatImageSupportUseCase,
+    private val jsSkillRelay: JsSkillRelay,
     private val formFillingFlag: FormFillingFlag = FormFillingFlag.ON,
 ) : ViewModel() {
 
@@ -221,6 +231,8 @@ class ChatViewModel @Inject constructor(
         ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
+        // The model's `run_js` calls are answered by the offline sandbox from the first reply on.
+        jsSkillRelay.ensureStarted()
         restoreHistory()
         observeEngine()
         preWarmModel()
@@ -325,6 +337,8 @@ class ChatViewModel @Inject constructor(
                         timestamp = message.createdAt,
                         thinking = message.thinking,
                         thinkingDurationMs = message.thinkingDurationMs,
+                        images = if (message.role == MessageRole.USER) MessageImages.decode(message.mediaPath) else emptyList(),
+                        toolSteps = ToolSteps.of(message.toolTrace),
                         incomplete = message.incomplete,
                         cutOff = message.cutOff,
                         // 4.3: every source SendChatMessageUseCase persisted was *shown* to
@@ -383,17 +397,25 @@ class ChatViewModel @Inject constructor(
     /** The text of the last message sent — what [retry] resends after a failure. */
     private var lastSentText: String? = null
 
+    /** Sends [text] with the pictures attached so far (cleared once sent). */
     fun sendMessage(text: String) = send(text, alreadyStored = false)
 
     /**
      * @param alreadyStored the message is already the last row of the conversation (a retry after a failed attempt): it is sent
-     *   again as it is, so the chat shows one bubble, not one per attempt.
+     *   again as it is (with the pictures it was stored with), so the chat shows one bubble, not one per attempt.
      */
     private fun send(text: String, alreadyStored: Boolean) {
         if (text.isBlank() || _uiState.value.isProcessing) return
         lastSentText = text
         if (alreadyStored) {
             startChatTurn(text, persistUserMessage = false)
+            return
+        }
+        // A message with pictures is for the chat model: the form agent reads words, not pictures.
+        val attached = _uiState.value.attachments
+        if (attached.isNotEmpty()) {
+            _uiState.update { it.copy(attachments = emptyList()) }
+            startChatTurn(text, imagePaths = attached)
             return
         }
         val document = documentId
@@ -413,13 +435,13 @@ class ChatViewModel @Inject constructor(
     }
 
     /** The normal chat turn, in the background of the view model (the all-documents chat). */
-    private fun startChatTurn(text: String, persistUserMessage: Boolean = true) {
+    private fun startChatTurn(text: String, persistUserMessage: Boolean = true, imagePaths: List<String> = emptyList()) {
         beginChatTurn()
-        generationJob = viewModelScope.launch { chatTurn(text, persistUserMessage) }
+        generationJob = viewModelScope.launch { chatTurn(text, persistUserMessage, imagePaths) }
     }
 
     /** Streams the grounded reply to [text] until it completes, fails or is stopped. */
-    private suspend fun chatTurn(text: String, persistUserMessage: Boolean = true) {
+    private suspend fun chatTurn(text: String, persistUserMessage: Boolean = true, imagePaths: List<String> = emptyList()) {
         beginChatTurn()
         sendChatMessage(
             conversationId = conversationId,
@@ -428,7 +450,86 @@ class ChatViewModel @Inject constructor(
             // Default OFF — see InferenceOverrides.thinkingEffort's KDoc.
             thinkingEffort = modelSheetState.value.overrides.thinkingEffort ?: ThinkingEffort.OFF,
             persistUserMessage = persistUserMessage,
+            imagePaths = imagePaths,
         ).collect(::applyTurn)
+    }
+
+    // ── Pictures ──────────────────────────────────────────────────────────────────────────────────
+
+    /** Looks again at whether the chat model takes pictures (the screen opens, or the model changed). */
+    fun refreshImageSupport() {
+        viewModelScope.launch {
+            val supported = chatImageSupport()
+            _uiState.update { it.copy(imageInputSupported = supported) }
+        }
+    }
+
+    /**
+     * A picture from the picker ([source] is its URI): copied into the app's own storage and attached to the next message, up
+     * to the Gallery's limit. A file that is not a picture is not attached, and says so.
+     */
+    fun attachImage(source: String) {
+        if (_uiState.value.attachments.size >= MessageImages.MAX_PER_MESSAGE) return
+        viewModelScope.launch {
+            val stored = attachChatImage(conversationId, source)
+            _uiState.update {
+                when {
+                    stored == null -> it.copy(error = ChatError("", null, R.string.chat_error_image_unreadable))
+                    it.attachments.size >= MessageImages.MAX_PER_MESSAGE -> it
+                    else -> it.copy(attachments = it.attachments + stored)
+                }
+            }
+        }
+    }
+
+    /** The pages of this letter that can be attached, once the attach menu is opened. */
+    fun loadAttachablePages() {
+        val document = documentId ?: return
+        viewModelScope.launch {
+            val pages = getDocumentPreview(document)?.pages.orEmpty()
+            _uiState.update { it.copy(attachablePages = pages.map { page -> AttachablePage(page.pageNumber, page.imagePath) }) }
+        }
+    }
+
+    /** A page image of the current letter attached as a picture (the stored page image is copied, scaled, like a picked photo). */
+    fun attachPage(page: AttachablePage) = attachImage(page.imagePath)
+
+    fun removeAttachment(path: String) {
+        _uiState.update { it.copy(attachments = it.attachments - path) }
+    }
+
+    // ── A new chat ────────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * The Gallery's "new session" for this chat: stops a reply in flight, deletes the conversation (history, citations and
+     * pictures) and drops the model's conversation. What is deleted stays deleted; the next message starts a fresh one.
+     */
+    fun newChat() {
+        generationJob?.cancel()
+        generationJob = null
+        previewJob?.cancel()
+        _preview.value = null
+        viewModelScope.launch {
+            val cleared = startNewChat(conversationId)
+            lastSentText = null
+            _uiState.update {
+                if (cleared) {
+                    it.copy(
+                        messages = emptyList(),
+                        isProcessing = false,
+                        streamingText = "",
+                        thinkingText = "",
+                        isThinkingActive = false,
+                        thinkingDurationMs = null,
+                        statusText = null,
+                        attachments = emptyList(),
+                        error = null,
+                    )
+                } else {
+                    it.copy(isProcessing = false, error = ChatError("", null, R.string.chat_error_new_chat_failed))
+                }
+            }
+        }
     }
 
     private fun beginChatTurn() {
@@ -701,6 +802,12 @@ data class ChatUiState(
     /** The pre-warm started while the engine was busy reading a document, and is still waiting. */
     val primeWaitingForDocument: Boolean = false,
     val error: ChatError? = null,
+    /** The pictures attached to the message being written (files of the app's chat-attachments folder), oldest first. */
+    val attachments: List<String> = emptyList(),
+    /** The chat model can look at pictures: the attach button is shown only then. */
+    val imageInputSupported: Boolean = false,
+    /** The pages of this letter that can be attached; loaded when the attach menu opens. */
+    val attachablePages: List<AttachablePage> = emptyList(),
     /**
      * Set to `System.currentTimeMillis()` every time [ChatViewModel.sendMessage] runs —
      * never derived from [messages] itself. See [ChatViewModel.sendMessage]'s doc: this is
@@ -723,7 +830,12 @@ data class ChatUiState(
 data class ChatError(
     val message: String,
     val action: ChatErrorAction?,
+    /** The app's own wording of the failure (a string resource); when set it is shown instead of [message]. */
+    @androidx.annotation.StringRes val messageRes: Int? = null,
 )
+
+/** A page of the current letter the user can attach to a message as a picture. */
+data class AttachablePage(val pageNumber: Int, val imagePath: String)
 
 data class ChatMessage(
     val id: String = "",
@@ -733,6 +845,10 @@ data class ChatMessage(
     /** The model's reasoning trace for this reply, if any — display-only, see [com.postsaimanager.core.model.AiMessage]. */
     val thinking: String? = null,
     val thinkingDurationMs: Long? = null,
+    /** The pictures the user attached to this message (files), for a user message. */
+    val images: List<String> = emptyList(),
+    /** The tools the model used for this reply (skills loaded, actions proposed, scripts run), for the progress panel. */
+    val toolSteps: List<com.postsaimanager.core.domain.skills.ToolStep> = emptyList(),
     /** True for a reply the user stopped, or one that failed mid-stream. See [com.postsaimanager.core.model.AiMessage.incomplete]. */
     val incomplete: Boolean = false,
     /** With [incomplete]: the reply hit its token cap ("Answer was cut off") rather than being stopped. */

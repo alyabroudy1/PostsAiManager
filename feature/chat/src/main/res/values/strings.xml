@@ -88,4 +88,44 @@
     <string name="debug_test_email_action">Test agent action: email</string>
     <string name="debug_test_event_action">Test agent action: calendar</string>
     <string name="debug_test_reminder_action">Test agent action: reminder</string>
+
+    <!-- The model's reasoning (the Gallery's thinking body) -->
+    <string name="chat_thinking_live">Thinking…</string>
+    <string name="chat_thought_for">Thought for %1$s</string>
+    <string name="chat_thinking_done">Thoughts</string>
+    <string name="chat_thinking_show">Show thinking</string>
+    <string name="chat_thinking_hide">Hide thinking</string>
+
+    <!-- What the model did before it answered (the Gallery's progress panel) -->
+    <plurals name="chat_progress_title">
+        <item quantity="one">%1$d step</item>
+        <item quantity="other">%1$d steps</item>
+    </plurals>
+    <string name="chat_progress_expand">Show steps</string>
+    <string name="chat_progress_collapse">Hide steps</string>
+    <string name="chat_step_load_skill">Loaded skill \"%1$s\"</string>
+    <string name="chat_step_load_skill_failed">Could not load skill \"%1$s\"</string>
+    <string name="chat_step_intent">Prepared the action \"%1$s\"</string>
+    <string name="chat_step_intent_failed">The action \"%1$s\" was refused</string>
+    <string name="chat_step_js">Ran the script of \"%1$s\"</string>
+    <string name="chat_step_js_failed">The script of \"%1$s\" failed</string>
+    <string name="chat_webview_full_screen">View full screen</string>
+    <string name="chat_webview_close">Close</string>
+
+    <!-- Pictures in a message -->
+    <string name="chat_attach">Attach a picture</string>
+    <string name="chat_attach_photo">Photo from your gallery</string>
+    <string name="chat_attach_page">Page %1$d of this letter</string>
+    <string name="chat_attachment_remove">Remove this picture</string>
+    <string name="chat_image_description">Attached picture</string>
+    <string name="chat_image_in_group_description">Attached picture %1$d of %2$d</string>
+    <string name="chat_error_image_unreadable">This file could not be read as a picture.</string>
+
+    <!-- A new chat (the Gallery\'s reset session) -->
+    <string name="chat_new_chat">New chat</string>
+    <string name="chat_new_chat_title">Start a new chat?</string>
+    <string name="chat_new_chat_message">The messages of this chat are deleted and cannot be restored. Your letters are not touched.</string>
+    <string name="chat_new_chat_confirm">Delete and start new</string>
+    <string name="chat_new_chat_cancel">Cancel</string>
+    <string name="chat_error_new_chat_failed">The chat could not be cleared. Please try again.</string>
 </resources>

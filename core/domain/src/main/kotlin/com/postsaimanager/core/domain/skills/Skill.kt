@@ -29,7 +29,17 @@ data class Skill(
     val description: String,
     /** The markdown body of `SKILL.md`, after the frontmatter. */
     val instructions: String,
+    /**
+     * The folder the skill lives in (`skills/<folder>/`), which `run_js` and a skill's webview address its files by. Empty for a
+     * skill that has no folder of its own (a test double): it then has no scripts.
+     */
+    val folder: String = "",
+    /** The files of its `scripts/` folder, a JS skill's entry points (`index.html`); empty for a skill that is only instructions. */
+    val scripts: List<String> = emptyList(),
 ) {
+    /** True for a skill the model runs with `run_js`: it ships at least one script. */
+    val isJsSkill: Boolean get() = scripts.isNotEmpty()
+
     /**
      * What a `load_skill` call hands back to the model: the skill as the Gallery formats it (frontmatter echoed, then the body).
      * Adapted from the Gallery's `SKILL_INSTRUCTIONS_TEMPLATE` (Apache 2.0).

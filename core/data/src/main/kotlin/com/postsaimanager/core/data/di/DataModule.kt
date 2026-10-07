@@ -14,7 +14,9 @@ import com.postsaimanager.core.domain.repository.ProfileFactRepository
 import com.postsaimanager.core.data.repository.TimelineRepositoryImpl
 import com.postsaimanager.core.data.repository.UserPreferencesRepositoryImpl
 import com.postsaimanager.core.data.skills.WorkManagerReminderScheduler
+import com.postsaimanager.core.data.util.FileChatImageStore
 import com.postsaimanager.core.data.util.PdfGenerator
+import com.postsaimanager.core.domain.ai.ChatImageStore
 import com.postsaimanager.core.domain.skills.ReminderScheduler
 import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.DocumentProcessor
@@ -84,6 +86,10 @@ abstract class DataModule {
     abstract fun bindDocumentExporter(impl: PdfGenerator): DocumentExporter
 
     // ── The app's one reminder scheduler (the bundled skills are bound in the app's SkillModule) ──
+
+    @Binds
+    @Singleton
+    abstract fun bindChatImageStore(impl: FileChatImageStore): ChatImageStore
 
     @Binds
     @Singleton
