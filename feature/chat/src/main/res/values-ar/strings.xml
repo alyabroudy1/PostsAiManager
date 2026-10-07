@@ -68,6 +68,30 @@
     <string name="action_field_text">نص التذكير</string>
     <string name="action_flag_not_found">غير موجود في الرسالة — يرجى التحقق</string>
     <string name="action_flag_not_found_values">غير موجود في الرسالة: %1$s — يرجى التحقق</string>
+    <plurals name="action_flag_unsaid_days">
+        <item quantity="zero">تحقق من الوقت: لم تذكر %1$d يوم</item>
+        <item quantity="one">تحقق من الوقت: لم تذكر يومًا واحدًا</item>
+        <item quantity="two">تحقق من الوقت: لم تذكر يومين</item>
+        <item quantity="few">تحقق من الوقت: لم تذكر %1$d أيام</item>
+        <item quantity="many">تحقق من الوقت: لم تذكر %1$d يومًا</item>
+        <item quantity="other">تحقق من الوقت: لم تذكر %1$d يوم</item>
+    </plurals>
+    <plurals name="action_flag_unsaid_hours">
+        <item quantity="zero">تحقق من الوقت: لم تذكر %1$d ساعة</item>
+        <item quantity="one">تحقق من الوقت: لم تذكر ساعة واحدة</item>
+        <item quantity="two">تحقق من الوقت: لم تذكر ساعتين</item>
+        <item quantity="few">تحقق من الوقت: لم تذكر %1$d ساعات</item>
+        <item quantity="many">تحقق من الوقت: لم تذكر %1$d ساعة</item>
+        <item quantity="other">تحقق من الوقت: لم تذكر %1$d ساعة</item>
+    </plurals>
+    <plurals name="action_flag_unsaid_minutes">
+        <item quantity="zero">تحقق من الوقت: لم تذكر %1$d دقيقة</item>
+        <item quantity="one">تحقق من الوقت: لم تذكر دقيقة واحدة</item>
+        <item quantity="two">تحقق من الوقت: لم تذكر دقيقتين</item>
+        <item quantity="few">تحقق من الوقت: لم تذكر %1$d دقائق</item>
+        <item quantity="many">تحقق من الوقت: لم تذكر %1$d دقيقة</item>
+        <item quantity="other">تحقق من الوقت: لم تذكر %1$d دقيقة</item>
+    </plurals>
     <string name="action_flag_edited">عدّلته أنت</string>
     <string name="action_error_required">حقل مطلوب</string>
     <string name="action_error_email">عنوان بريد إلكتروني غير صالح</string>

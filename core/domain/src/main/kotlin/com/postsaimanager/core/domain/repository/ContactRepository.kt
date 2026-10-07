@@ -15,6 +15,15 @@ interface ContactRepository {
     /** The contacts that handled one document. */
     fun observeContactsForDocument(documentId: String): Flow<List<ContactPerson>>
 
+    /**
+     * The ids of the organisation's contacts that are "to check": made from a machine reading that was not sure (below the profile
+     * auto-create bar) and that nobody has confirmed, edited or typed. Confirming the letter's contact field clears it.
+     */
+    fun observeContactsToCheck(organisationId: String): Flow<Set<String>>
+
+    /** The documents a contact is linked to. */
+    suspend fun documentIdsOf(contactId: String): List<String>
+
     /** How many contacts each organisation has (organisations without any are absent). */
     fun observeContactCounts(): Flow<Map<String, Int>>
 

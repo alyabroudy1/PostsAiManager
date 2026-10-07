@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.extraction.v2
 
 import com.postsaimanager.core.domain.extraction.address.AddressRows
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
+import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EntityKind
 import com.postsaimanager.core.model.EntityRole
@@ -193,7 +194,9 @@ class ExtractionV2Adapter(
             }
         }
         parties.routingPerson?.let {
-            add(it.name, kindOf(it.kind), EntityRole.MENTIONED, "contact at the addressee", it, null)
+            // The contact question's answer is stored as ROUTING; it is the letter's contact person, so it fills the `contact` slot
+            // (the "Contact Person" field, which the contact linking reads), never a profile.
+            add(it.name, kindOf(it.kind), EntityRole.SENDER_CONTACT, "contact person", it, UnderstandingToFields.SLOT_CONTACT)
         }
         parties.careOf?.let {
             add(it.name, kindOf(it.kind), EntityRole.MENTIONED, "care of (mailbox)", it, null)

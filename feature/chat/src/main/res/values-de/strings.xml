@@ -68,6 +68,18 @@
     <string name="action_field_text">Text der Erinnerung</string>
     <string name="action_flag_not_found">Im Brief nicht gefunden — bitte prüfen</string>
     <string name="action_flag_not_found_values">Im Brief nicht gefunden: %1$s — bitte prüfen</string>
+    <plurals name="action_flag_unsaid_days">
+        <item quantity="one">Zeit prüfen: Du hast nicht %1$d Tag gesagt</item>
+        <item quantity="other">Zeit prüfen: Du hast nicht %1$d Tage gesagt</item>
+    </plurals>
+    <plurals name="action_flag_unsaid_hours">
+        <item quantity="one">Zeit prüfen: Du hast nicht %1$d Stunde gesagt</item>
+        <item quantity="other">Zeit prüfen: Du hast nicht %1$d Stunden gesagt</item>
+    </plurals>
+    <plurals name="action_flag_unsaid_minutes">
+        <item quantity="one">Zeit prüfen: Du hast nicht %1$d Minute gesagt</item>
+        <item quantity="other">Zeit prüfen: Du hast nicht %1$d Minuten gesagt</item>
+    </plurals>
     <string name="action_flag_edited">Von dir geändert</string>
     <string name="action_error_required">Pflichtfeld</string>
     <string name="action_error_email">Keine gültige E-Mail-Adresse</string>

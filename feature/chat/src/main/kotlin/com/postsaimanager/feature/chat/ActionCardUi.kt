@@ -45,6 +45,7 @@ import com.postsaimanager.core.domain.skills.AgentAction
 import com.postsaimanager.core.domain.skills.FieldCheck
 import com.postsaimanager.core.domain.skills.FieldStatus
 import com.postsaimanager.core.domain.skills.InvalidReason
+import com.postsaimanager.core.domain.skills.OffsetUnit
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
@@ -342,13 +343,31 @@ private fun CheckLine(check: FieldCheck?) {
     if (check == null) return
     when (check.status) {
         FieldStatus.NOT_FOUND ->
-            Text(
-                if (check.unfound.isEmpty()) stringResource(R.string.action_flag_not_found)
-                else stringResource(R.string.action_flag_not_found_values, check.unfound.joinToString(", ")),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.testTag("actionFlag"),
-            )
+            if (check.unsaid.isNotEmpty()) {
+                // The offset the model gave is not a number the user said ("in 2 minutes" read as 120).
+                Column(modifier = Modifier.testTag("actionFlag")) {
+                    check.unsaid.forEach { part ->
+                        val plural = when (part.unit) {
+                            OffsetUnit.DAYS -> R.plurals.action_flag_unsaid_days
+                            OffsetUnit.HOURS -> R.plurals.action_flag_unsaid_hours
+                            OffsetUnit.MINUTES -> R.plurals.action_flag_unsaid_minutes
+                        }
+                        Text(
+                            pluralStringResource(plural, part.amount, part.amount),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    if (check.unfound.isEmpty()) stringResource(R.string.action_flag_not_found)
+                    else stringResource(R.string.action_flag_not_found_values, check.unfound.joinToString(", ")),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.testTag("actionFlag"),
+                )
+            }
         FieldStatus.INVALID ->
             check.reason?.let {
                 Text(stringResource(ActionCardTexts.error(it)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("actionFlag"))

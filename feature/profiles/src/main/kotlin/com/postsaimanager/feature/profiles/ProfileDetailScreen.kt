@@ -117,6 +117,7 @@ fun ProfileDetailScreen(
             merge = viewModel::mergeContact,
             move = viewModel::moveContactTo,
             delete = viewModel::removeContact,
+            confirm = viewModel::confirmContact,
             call = { phone -> launch(context, Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone.filter { it.isDigit() || it == '+' })), "dial", viewModel) },
             email = { address -> launch(context, Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:" + Uri.encode(address))), "write-email", viewModel) },
         ),
