@@ -4,4 +4,6 @@
     <string name="reminder_channel_description">Erinnerungen, die du für deine Briefe setzt, zum Beispiel vor einer Frist.</string>
     <string name="reminder_notification_title">Erinnerung</string>
     <string name="reminder_notification_discreet">Du hast eine Erinnerung</string>
+    <string name="reminder_deadline_with_sender">Eine Frist im Brief von %1$s läuft bald ab.</string>
+    <string name="reminder_deadline_without_sender">Eine Frist in einem deiner Briefe läuft bald ab.</string>
 </resources>

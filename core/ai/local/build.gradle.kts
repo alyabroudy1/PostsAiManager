@@ -164,8 +164,6 @@ dependencies {
     implementation(project(":core:domain"))
     // LiteRT-LM chat engine (the Gallery's), hosted in the :inference process next to llama.cpp.
     implementation(project(":core:ai:litert"))
-    // The bundled skills' one owner (AssetSkillCatalog), read by the LiteRT-LM tools in this process.
-    implementation(project(":core:data"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

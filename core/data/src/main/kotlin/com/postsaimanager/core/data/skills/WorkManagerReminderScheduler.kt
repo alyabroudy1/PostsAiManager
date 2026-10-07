@@ -2,8 +2,10 @@ package com.postsaimanager.core.data.skills
 
 import android.content.Context
 import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.postsaimanager.core.data.R
 import com.postsaimanager.core.data.worker.ReminderWorker
 import com.postsaimanager.core.domain.skills.ReminderScheduler
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -23,18 +25,40 @@ class WorkManagerReminderScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : ReminderScheduler {
 
-    override suspend fun schedule(at: LocalDateTime, text: String, documentId: String?): Boolean {
+    override suspend fun schedule(at: LocalDateTime, text: String, documentId: String?): Boolean =
+        enqueue(at, text, documentId, tags = listOf(TAG), uniqueName = null)
+
+    override suspend fun scheduleDeadline(at: LocalDateTime, documentId: String, sender: String?): Boolean {
+        val text = sender?.takeIf { it.isNotBlank() }
+            ?.let { context.getString(R.string.reminder_deadline_with_sender, it) }
+            ?: context.getString(R.string.reminder_deadline_without_sender)
+        return enqueue(at, text, documentId, tags = listOf(TAG, DEADLINE_TAG), uniqueName = DEADLINE_PREFIX + documentId)
+    }
+
+    override suspend fun cancelDeadlines() {
+        runCatching { WorkManager.getInstance(context).cancelAllWorkByTag(DEADLINE_TAG) }
+    }
+
+    /** One WorkManager job; with a [uniqueName] a job of that name is replaced, so scheduling the same letter twice leaves one. */
+    private fun enqueue(at: LocalDateTime, text: String, documentId: String?, tags: List<String>, uniqueName: String?): Boolean {
         val delay = Duration.between(Instant.now(), at.atZone(ZoneId.systemDefault()).toInstant())
         if (delay.isNegative || delay.isZero || text.isBlank()) return false
         val input = Data.Builder()
             .putString(ReminderWorker.KEY_TEXT, text)
             .apply { documentId?.let { putString(ReminderWorker.KEY_DOCUMENT_ID, it) } }
             .build()
-        val request = OneTimeWorkRequestBuilder<ReminderWorker>().setInitialDelay(delay).setInputData(input).addTag(TAG).build()
-        return runCatching { WorkManager.getInstance(context).enqueue(request) }.isSuccess
+        val request = OneTimeWorkRequestBuilder<ReminderWorker>().setInitialDelay(delay).setInputData(input)
+            .apply { tags.forEach(::addTag) }
+            .build()
+        val manager = WorkManager.getInstance(context)
+        return runCatching {
+            if (uniqueName == null) manager.enqueue(request) else manager.enqueueUniqueWork(uniqueName, ExistingWorkPolicy.REPLACE, request)
+        }.isSuccess
     }
 
     private companion object {
         const val TAG = "reminder"
+        const val DEADLINE_TAG = "deadline_reminder"
+        const val DEADLINE_PREFIX = "deadline-reminder-"
     }
 }

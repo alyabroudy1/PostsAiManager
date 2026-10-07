@@ -114,6 +114,7 @@ dependencies {
     implementation(project(":core:ai:core"))
     implementation(project(":core:ai:catalog"))
     implementation(project(":core:ai:local"))
+    implementation(project(":core:ai:litert"))
     implementation(project(":core:ai:embed"))
     implementation(project(":core:download"))
     implementation(project(":core:config"))

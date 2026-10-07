@@ -8,6 +8,7 @@ import com.postsaimanager.core.domain.applock.DeviceAuthResult
 import com.postsaimanager.core.domain.applock.DeviceAuthenticator
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
+import com.postsaimanager.core.domain.reminder.SetDeadlineRemindersUseCase
 import com.postsaimanager.core.domain.repository.UserPreferencesRepository
 import com.postsaimanager.core.domain.usecase.InferenceSettingsUiState
 import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
@@ -48,6 +49,7 @@ class SettingsViewModel @Inject constructor(
     private val resetInferenceSettings: ResetInferenceSettingsUseCase,
     private val deviceAuthenticator: DeviceAuthenticator,
     private val externalFlowGuard: ExternalFlowGuard,
+    private val setDeadlineReminders: SetDeadlineRemindersUseCase,
 ) : ViewModel() {
 
     private var securitySettingsFlow: ExternalFlowToken? = null
@@ -111,8 +113,9 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { userPreferencesRepository.setDefaultLanguage(language) }
     }
 
+    /** The "Deadline reminders" switch: stores it, and schedules or cancels the deadline reminders through the one scheduler. */
     fun setNotificationsEnabled(enabled: Boolean) {
-        viewModelScope.launch { userPreferencesRepository.setNotificationsEnabled(enabled) }
+        viewModelScope.launch { setDeadlineReminders(enabled) }
     }
 
     /**

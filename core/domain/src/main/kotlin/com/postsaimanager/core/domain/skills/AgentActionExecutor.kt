@@ -29,4 +29,13 @@ interface ReminderScheduler {
 
     /** Schedules [text] for [at] (device time zone); [documentId] is the letter a tap opens. False when it cannot be scheduled. */
     suspend fun schedule(at: LocalDateTime, text: String, documentId: String?): Boolean
+
+    /**
+     * Schedules the deadline reminder of the letter [documentId] for [at]; the wording is the scheduler's (a string resource,
+     * naming [sender] when known). One per letter: scheduling again replaces the earlier one. False when it cannot be scheduled.
+     */
+    suspend fun scheduleDeadline(at: LocalDateTime, documentId: String, sender: String?): Boolean
+
+    /** Cancels every deadline reminder; reminders a skill proposed are left alone. */
+    suspend fun cancelDeadlines()
 }
