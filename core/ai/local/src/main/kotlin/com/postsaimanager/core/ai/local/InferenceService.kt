@@ -506,6 +506,14 @@ class InferenceService : Service() {
             submit { runBlocking { liteRt.resetChatSession() } }
         }
 
+        override fun generateLiteRtOnce(system: String?, prompt: String?, maxTokens: Int, temperature: Float, topK: Int): String? {
+            if (system == null || prompt == null || !isLiteRtReady()) return null
+            // Quiet work is skipped, never queued behind a reply or a warm-up (the engine's own tryLock covers the rest).
+            if (liteRtReply?.isActive == true || liteRtWarmUp?.isActive == true) return null
+            val request = AiRequest(prompt = prompt, maxTokens = maxTokens, temperature = temperature, topK = topK, thinkingEnabled = false)
+            return submit { runBlocking { liteRt.generateOnce(system, request) } }
+        }
+
         override fun unloadLiteRt() {
             submit { freeLiteRt() }
         }

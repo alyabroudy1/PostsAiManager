@@ -222,6 +222,14 @@ class RemoteLiteRtChatEngine @Inject constructor(
         }
     }
 
+    private val generateOnceCall by lazy { RemoteGenerateOnce(connection.engineMutex, { connection.service }, ioDispatcher) }
+
+    /**
+     * The notes' generation, through the service ([IInferenceService.generateLiteRtOnce]): skipped (null) when anything holds the
+     * model, never queued behind it, and never counted as the chat's activity (it is quiet work). See [RemoteGenerateOnce].
+     */
+    override suspend fun generateOnce(system: String, request: AiRequest): String? = generateOnceCall(system, request)
+
     override suspend fun warmUpChat(request: AiRequest) {
         // Another caller holds the model (a document being read, a reply in flight): this is never worth queueing behind, nor
         // worth taking the model over for. The first message prepares the conversation itself, as it always did.

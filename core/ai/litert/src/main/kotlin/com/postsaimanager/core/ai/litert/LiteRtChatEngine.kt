@@ -582,8 +582,9 @@ class LiteRtChatEngine internal constructor(
     /**
      * The notes' generation: a conversation of its own over the resident model ([LlmModelHelper.generateOnce]), taken only when
      * nothing else holds the model ([Mutex.tryLock]: a reply in flight is never queued behind or interrupted). The session's turns
-     * ([committed], [system], [sessionId]) are not touched; the native conversation is, so it is marked unbuilt and the next reply
-     * rebuilds it from those turns (the same path as after a discarded reply).
+     * ([committed], [system], [sessionId]) are not touched; the native conversation is, so it is marked unbuilt and the next build
+     * is a new session ([restartFromPlan]: the last exchange of [committed]). In practice the chat session has ended when this runs,
+     * so the next open resets it and the app builds the conversation from its plan, with the notes just written.
      */
     override suspend fun generateOnce(system: String, request: AiRequest): String? {
         if (!mutex.tryLock()) return null
@@ -600,6 +601,9 @@ class LiteRtChatEngine internal constructor(
             )
             val answer = withContext(Dispatchers.IO) { helper.generateOnce(live, modelConfig, system, request.prompt) }
             conversationSampling = null
+            // The live conversation is closed: whatever builds it next is a new session (the card and the last exchange), never a
+            // replay of the whole visit that just ended. The app also drops the session when a new one begins, with the fresh notes.
+            restartFromPlan = true
             return answer
         } finally {
             mutex.unlock()

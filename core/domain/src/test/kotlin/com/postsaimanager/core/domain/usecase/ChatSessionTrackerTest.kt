@@ -35,7 +35,7 @@ class ChatSessionTrackerTest {
         tracker.leave("c")
         tracker.leave("c")
 
-        assertThat(events).containsExactly(ChatSessionEnded("c", ChatSessionEnd.LEFT))
+        assertThat(events).containsExactly(ChatSessionEnded("c", ChatSessionEnd.LEFT, startedAt = 1_000_000L))
         assertThat(tracker.isLive("c")).isFalse()
         assertThat(tracker.begin("c")).isTrue()
         job.cancel()
@@ -54,7 +54,7 @@ class ChatSessionTrackerTest {
 
         now += minute
         assertThat(tracker.endIfIdle("c")).isTrue()
-        assertThat(events).containsExactly(ChatSessionEnded("c", ChatSessionEnd.IDLE))
+        assertThat(events).containsExactly(ChatSessionEnded("c", ChatSessionEnd.IDLE, startedAt = 1_000_000L))
         assertThat(tracker.isLive("c")).isFalse()
         job.cancel()
     }
@@ -80,7 +80,28 @@ class ChatSessionTrackerTest {
         now += 11 * minute
 
         assertThat(tracker.begin("c")).isTrue()
-        assertThat(events).containsExactly(ChatSessionEnded("c", ChatSessionEnd.IDLE))
+        assertThat(events).containsExactly(ChatSessionEnded("c", ChatSessionEnd.IDLE, startedAt = 1_000_000L))
+        job.cancel()
+    }
+
+    @Test
+    @DisplayName("the end event says when the session began, not when it was last used")
+    fun `event carries the session start`() = runTest {
+        val events = mutableListOf<ChatSessionEnded>()
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { tracker.ended.toList(events) }
+        tracker.begin("c")
+        now += 3 * minute
+        tracker.begin("c")
+        tracker.touch("c")
+
+        tracker.leave("c")
+        // The next session of the same chat starts later and says so.
+        now += minute
+        tracker.begin("c")
+        now += minute
+        tracker.leave("c")
+
+        assertThat(events.map { it.startedAt }).containsExactly(1_000_000L, 1_000_000L + 4 * minute).inOrder()
         job.cancel()
     }
 

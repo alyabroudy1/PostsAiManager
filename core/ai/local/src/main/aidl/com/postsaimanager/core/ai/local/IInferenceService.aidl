@@ -206,6 +206,13 @@ interface IInferenceService {
     /** Drops the chat session. */
     void resetLiteRtSession();
 
+    /**
+     * One short answer under [system] to [prompt], generated outside the chat session (see `LiteRtChatEngine.generateOnce`): the
+     * notes written when a chat session ends. Not queued: null at once when a reply or a warm-up is in flight, and null when no
+     * LiteRT-LM model is resident or the generation failed. Blocking while it generates, on the inference thread.
+     */
+    String generateLiteRtOnce(String system, String prompt, int maxTokens, float temperature, int topK);
+
     /** Frees the LiteRT-LM model. */
     void unloadLiteRt();
 }

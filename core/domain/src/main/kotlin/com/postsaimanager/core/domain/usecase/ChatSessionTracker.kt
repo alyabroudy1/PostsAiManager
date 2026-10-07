@@ -15,8 +15,14 @@ enum class ChatSessionEnd {
     IDLE,
 }
 
-/** A chat session ended: the visit of [conversationId] is over and its next send starts a fresh one. */
-data class ChatSessionEnded(val conversationId: String, val reason: ChatSessionEnd)
+/**
+ * A chat session ended: the visit of [conversationId] is over and its next send starts a fresh one.
+ *
+ * @param startedAt the tracker's clock when the session began. The messages of the session are the stored ones created at or after
+ *   it (a message is created after the session began, never before), which is how the notes of the session are written from
+ *   exactly what was said in it.
+ */
+data class ChatSessionEnded(val conversationId: String, val reason: ChatSessionEnd, val startedAt: Long = 0L)
 
 /**
  * Which chats have a live session, the short-term memory of plan 16. A session is one visit: it begins with the chat opening (or the
@@ -26,8 +32,8 @@ data class ChatSessionEnded(val conversationId: String, val reason: ChatSessionE
  * first send or warm-up after a session ended finds [begin] returning true: the conversation is built again from the stored transcript
  * by [BuildModelContextUseCase] (card plus the last exchange), not by replaying the chat.
  *
- * [ended] is the hook for what happens at the end of a visit (the notes of the document memory are written there in a later
- * phase); nothing listens to it yet. Pure state and a clock, so the rules are unit-tested with a fake clock.
+ * [ended] is the hook for what happens at the end of a visit: `SessionNotesCollector` writes the notes of the document memory
+ * there. Pure state and a clock, so the rules are unit-tested with a fake clock.
  */
 @Singleton
 class ChatSessionTracker internal constructor(
@@ -43,6 +49,9 @@ class ChatSessionTracker internal constructor(
 
     /** The time of the last activity of each live session, by conversation id. */
     private val live = mutableMapOf<String, Long>()
+
+    /** When each live session began, by conversation id. */
+    private val started = mutableMapOf<String, Long>()
 
     private val _ended = MutableSharedFlow<ChatSessionEnded>(extraBufferCapacity = EVENT_BUFFER)
 
@@ -61,6 +70,7 @@ class ChatSessionTracker internal constructor(
         val last = live[conversationId]
         if (last != null && now - last >= idleMs) end(conversationId, ChatSessionEnd.IDLE)
         val isNew = conversationId !in live
+        if (isNew) started[conversationId] = now
         live[conversationId] = now
         return isNew
     }
@@ -98,6 +108,7 @@ class ChatSessionTracker internal constructor(
     @Synchronized
     fun discard(conversationId: String) {
         live.remove(conversationId)
+        started.remove(conversationId)
     }
 
     /** Whether [conversationId] has a live session (not counting idleness that was not noticed yet). */
@@ -106,7 +117,8 @@ class ChatSessionTracker internal constructor(
 
     private fun end(conversationId: String, reason: ChatSessionEnd) {
         live.remove(conversationId)
-        _ended.tryEmit(ChatSessionEnded(conversationId, reason))
+        val startedAt = started.remove(conversationId) ?: 0L
+        _ended.tryEmit(ChatSessionEnded(conversationId, reason, startedAt))
     }
 
     companion object {

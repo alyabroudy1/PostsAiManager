@@ -15,6 +15,7 @@ import com.postsaimanager.core.domain.document.PurgeExpiredDocumentsUseCase
 import com.postsaimanager.core.domain.document.ReadDocumentsAwaitingModelUseCase
 import com.postsaimanager.core.domain.document.ReprocessOutdatedDocumentsUseCase
 import com.postsaimanager.core.domain.document.people.ConcernedPeopleWatcher
+import com.postsaimanager.core.domain.memory.SessionNotesCollector
 import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CancellationException
@@ -93,6 +94,10 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
     @Inject
     lateinit var concernedPeopleWatcher: Lazy<ConcernedPeopleWatcher>
 
+    // Same reason: writes the document memory's notes when a chat session ends (it reaches the chat engine).
+    @Inject
+    lateinit var sessionNotesCollector: Lazy<SessionNotesCollector>
+
     // Lazy for the same reason as above: only the main process has a UI to lock.
     @Inject
     lateinit var appLockCoordinator: Lazy<AppLockCoordinator>
@@ -142,6 +147,9 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
             runCatching { concernedPeopleWatcher.get().watch() }
                 .onFailure { if (it is CancellationException) throw it }
         }
+        // The notes of a chat session are written when it ends (the person leaves the chat, or 10 idle minutes), here and not in the
+        // chat's ViewModel, which is gone by then. Quiet: skipped when no chat model is loaded or the model is busy.
+        runCatching { sessionNotesCollector.get().start(applicationScope) }
     }
 
     /**

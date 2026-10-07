@@ -139,7 +139,7 @@ class ChatViewModelSessionTest {
         // Ten idle minutes: the session ends, with its event, and the context will start at the newest exchange.
         now += 11 * 60_000L
         main.dispatcher.scheduler.advanceTimeBy(11 * 60_000L)
-        assertThat(events).containsExactly(ChatSessionEnded(id, ChatSessionEnd.IDLE))
+        assertThat(events).containsExactly(ChatSessionEnded(id, ChatSessionEnd.IDLE, startedAt = 1_000_000L))
         assertThat(vm.uiState.value.contextStartMessageId).isEqualTo("m6")
         collector.cancel()
     }
@@ -155,7 +155,7 @@ class ChatViewModelSessionTest {
 
         clear(vm)
 
-        assertThat(events).containsExactly(ChatSessionEnded(id, ChatSessionEnd.LEFT))
+        assertThat(events).containsExactly(ChatSessionEnded(id, ChatSessionEnd.LEFT, startedAt = 1_000_000L))
         assertThat(tracker.isLive(id)).isFalse()
         collector.cancel()
     }

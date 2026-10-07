@@ -4,8 +4,16 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.model.AiConversation
 import com.postsaimanager.core.model.AiMessage
+import com.postsaimanager.core.domain.memory.ObserveDocumentMemoryUseCase
+import com.postsaimanager.core.domain.memory.SessionNoteGenerator
+import com.postsaimanager.core.domain.memory.SessionNoteVerifier
+import com.postsaimanager.core.domain.memory.SessionNotesCollector
+import com.postsaimanager.core.domain.memory.WriteSessionNotesUseCase
 import com.postsaimanager.core.model.AiModelType
 import com.postsaimanager.core.model.MessageRole
+import com.postsaimanager.core.model.NoteSource
+import com.postsaimanager.core.testing.FakeDocumentNoteRepository
+import kotlinx.coroutines.plus
 import com.postsaimanager.core.model.ToolExchange
 import com.postsaimanager.core.testing.FakeActiveModelProvider
 import com.postsaimanager.core.testing.FakeAiEngine
@@ -30,7 +38,8 @@ class ChatContextPlanTest {
 
     private val documents = FakeDocumentRepository().apply { seed(testDocument(id = "d1")) }
     private val buildChatContext = BuildChatContextUseCase(documents, FakeProfileRepository(), com.postsaimanager.core.testing.letterContactsFor())
-    private val buildModelContext = BuildModelContextUseCase(buildChatContext)
+    private val notes = FakeDocumentNoteRepository()
+    private val buildModelContext = BuildModelContextUseCase(buildChatContext, ObserveDocumentMemoryUseCase(notes))
 
     private fun message(i: Int, role: MessageRole, text: String = "message $i", trace: List<ToolExchange> = emptyList()) =
         AiMessage(id = "m$i", conversationId = "conv-d1", role = role, content = text, createdAt = i.toLong(), toolTrace = trace)
@@ -43,8 +52,11 @@ class ChatContextPlanTest {
         }
     }
 
-    private suspend fun plan(transcript: List<AiMessage>, documentMemory: List<String> = emptyList()) =
-        buildModelContext(documentId = "d1", contextTokens = 4096, historyTokens = 4096, transcript = transcript, documentMemory = documentMemory)
+    /** A plan for document d1 whose memory holds [documentMemory] as notes (the last one is the newest). */
+    private suspend fun plan(transcript: List<AiMessage>, documentMemory: List<String> = emptyList(), documentId: String? = "d1"): ChatContextPlan {
+        documentMemory.forEach { notes.add("d1", it, NoteSource.USER) }
+        return buildModelContext(documentId = documentId, contextTokens = 4096, historyTokens = 4096, transcript = transcript)
+    }
 
     @Test
     @DisplayName("a long history replays only its last exchange")
@@ -104,19 +116,75 @@ class ChatContextPlanTest {
     }
 
     @Test
-    @DisplayName("the document memory is a capped slot of the card: empty now, bounded when filled")
+    @DisplayName("the document memory is a capped slot of the card: empty without notes, bounded when filled")
     fun `memory slot is capped`() = runTest {
         val empty = plan(emptyList())
         assertThat(empty.documentMemoryChars).isEqualTo(0)
 
-        val notes = List(40) { "Note number $it: the user said something durable about this letter." }
-        val filled = plan(emptyList(), documentMemory = notes)
+        val many = List(40) { "Note number $it: the user said something durable about this letter." }
+        val filled = plan(emptyList(), documentMemory = many)
 
-        assertThat(filled.documentMemoryChars).isAtMost(BuildModelContextUseCase.MEMORY_CAP_CHARS)
+        // One cap for the notes (the slot's heading comes on top), the same one the person sees on the document.
+        assertThat(BuildModelContextUseCase.MEMORY_CAP_CHARS).isEqualTo(com.postsaimanager.core.domain.memory.DocumentMemoryFormat.MAX_CHARS)
+        assertThat(filled.documentMemoryChars).isAtMost(BuildModelContextUseCase.MEMORY_CAP_CHARS + BuildModelContextUseCase.MEMORY_HEADER.length)
         assertThat(filled.documentMemoryChars).isGreaterThan(0)
-        assertThat(filled.card.text).contains("Note number 0")
-        assertThat(filled.card.text).doesNotContain("Note number 39")
+        // The newest notes are kept, the oldest do not fit.
+        assertThat(filled.card.text).contains("Note number 39")
+        assertThat(filled.card.text).doesNotContain("Note number 0:")
         assertThat(filled.cardChars).isEqualTo(empty.cardChars)
+    }
+
+    @Test
+    @DisplayName("the plan contains the memory text of the document, read when the plan is built")
+    fun `plan contains the memory`() = runTest {
+        val plan = plan(emptyList(), documentMemory = listOf("Already paid on 5 Oct, says the user"))
+
+        assertThat(plan.card.text).contains("What you remember about this document")
+        assertThat(plan.card.text).contains("- Already paid on 5 Oct, says the user")
+        assertThat(plan.documentMemoryChars).isGreaterThan(0)
+    }
+
+    @Test
+    @DisplayName("a chat of all documents has no memory yet")
+    fun `no memory without a document`() = runTest {
+        val plan = plan(emptyList(), documentMemory = listOf("Already paid on 5 Oct, says the user"), documentId = null)
+
+        assertThat(plan.documentMemoryChars).isEqualTo(0)
+        assertThat(plan.card.text).doesNotContain("Already paid")
+    }
+
+    @Test
+    @DisplayName("after a session's notes are written, the next conversation is rebuilt from the plan: fresh notes, last exchange only")
+    fun `rebuild after note writing uses the plan`() = runTest {
+        seedConversation(exchanges = 3)
+        engine.response = "ok"
+        send.primeConversation("conv-d1", "d1")
+        send("conv-d1", "d1", "I paid the bill on 5 Oct").toList()
+        send("conv-d1", "d1", "and thanks").toList()
+        val collector = SessionNotesCollector(
+            sessions.tracker,
+            conversations,
+            WriteSessionNotesUseCase(
+                object : SessionNoteGenerator {
+                    override fun isAvailable() = true
+                    override suspend fun generate(system: String, prompt: String) = "The user paid the bill on 5 Oct."
+                },
+                notes,
+                documents,
+                SessionNoteVerifier(),
+            ),
+        )
+        collector.start(backgroundScope + kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler))
+
+        // The visit ends: its notes are written in the background (the model's live conversation is closed by that).
+        sessions.tracker.leave("conv-d1")
+        testScheduler.advanceUntilIdle()
+        assertThat(notes.snapshot.map { it.text }).containsExactly("The user paid the bill on 5 Oct.")
+        send.primeConversation("conv-d1", "d1")
+
+        val (_, system, history) = engine.ensureChatSessionCalls.last()
+        assertThat(system).contains("- The user paid the bill on 5 Oct.")
+        assertThat(history.map { it.content }).containsExactly("and thanks", "ok").inOrder()
     }
 
     @Test
