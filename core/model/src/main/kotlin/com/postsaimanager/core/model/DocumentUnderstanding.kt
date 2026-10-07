@@ -255,6 +255,8 @@ data class DocumentUnderstanding(
      * them (a first stage, a failed scoring), so the picks already stored are kept.
      */
     val keySlots: List<KeySlot>? = null,
+    /** The event the second stage decided the letter reports (kind and title); null when none was scored (a first stage, a failed scoring). */
+    val event: EventReading? = null,
 ) {
     val sender: RecognisedEntity? get() = entities.firstOrNull { it.role == EntityRole.SENDER }
 

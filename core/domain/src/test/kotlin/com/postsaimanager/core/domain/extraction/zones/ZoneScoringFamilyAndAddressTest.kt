@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.zones
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.timeline.EventTitleWriter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Result
@@ -261,7 +262,10 @@ class ZoneScoringFamilyAndAddressTest {
             written = { q -> if (q.contains("BCP-47")) "de" else if (q.contains("FACTS (verified")) "\"Der Betrag 999,99 € ist fällig.\"" else "\"text\"" },
             scorer = answers(family("invoice_bill"), "«Musterfirma GmbH»"),
         )
-        assertThat(r.session.asks.none { it.question.contains("title", ignoreCase = true) && !it.question.contains("FACTS") }).isTrue()
+        // (The title of the letter's event is a separate, grounded generation: extraction-v2-17.)
+        assertThat(
+            r.session.asks.none { it.question.contains("title", ignoreCase = true) && !it.question.contains("FACTS") && !it.question.contains(EventTitleWriter.MARKER) },
+        ).isTrue()
         assertThat(r.interpreter.transcript.none { it.name == "text:title" || it.name == "text:other" }).isTrue()
         val summary = r.interpreter.transcript.filter { it.name == "text:summary" }
         assertThat(summary).hasSize(2)

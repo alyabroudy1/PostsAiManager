@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.skills
 
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
+import com.postsaimanager.core.domain.timeline.RecordActionEventUseCase
 import java.time.LocalDateTime
 import javax.inject.Inject
 
@@ -23,6 +24,7 @@ sealed interface ConfirmOutcome {
 class ConfirmActionUseCase @Inject constructor(
     private val executor: AgentActionExecutor,
     private val externalFlows: ExternalFlowGuard,
+    private val recordEvent: RecordActionEventUseCase,
 ) {
     /** [edited] holds the fields the user changed (all fields may be passed; one missing keeps the proposal's own text). */
     suspend operator fun invoke(proposed: ProposedAction, edited: Map<ActionField, String>, now: LocalDateTime): ConfirmOutcome {
@@ -34,6 +36,16 @@ class ConfirmActionUseCase @Inject constructor(
         val token = if (opensAnotherApp) externalFlows.expect("agent-action") else null
         val result = executor.execute(action)
         if (result is ActionResult.Failed) externalFlows.finish(token)
+        // What was done is a fact on the letter's timeline (written by code); a failure to write it never undoes or hides the action.
+        if (result is ActionResult.Succeeded && proposed.documentId != null) {
+            try {
+                recordEvent(proposed.documentId, action)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The timeline is a record, not part of the action.
+            }
+        }
         return ConfirmOutcome.Executed(result)
     }
 }

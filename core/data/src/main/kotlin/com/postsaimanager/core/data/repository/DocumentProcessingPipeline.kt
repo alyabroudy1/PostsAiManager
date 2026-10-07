@@ -32,6 +32,8 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
+import com.postsaimanager.core.domain.timeline.RecordDocumentEventsUseCase
+import com.postsaimanager.core.domain.timeline.SyncEventLinksUseCase
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
@@ -83,6 +85,9 @@ class DocumentProcessingPipeline @Inject constructor(
     private val entityProfileLinker: EntityProfileLinker,
     // Lazy: the decision writes through DocumentRepository, which itself needs this processor (a cycle otherwise).
     private val concernedPeopleDecision: dagger.Lazy<DecideConcernedPeopleUseCase>,
+    // Lazy for the same reason: the timeline reads documents through DocumentRepository.
+    private val recordEvents: dagger.Lazy<RecordDocumentEventsUseCase>,
+    private val syncEventLinks: dagger.Lazy<SyncEventLinksUseCase>,
     private val fieldRevisionDao: FieldRevisionDao,
     private val documentMapper: DocumentMapper,
     private val documentDao: DocumentDao,
@@ -673,6 +678,11 @@ class DocumentProcessingPipeline @Inject constructor(
                     is PamResult.Error -> PamResult.Error(decided.error)
                     is PamResult.Success -> {
                         Log.i(TIMING_TAG, "$documentId concerned people ms=${msSince(started)} n=${decided.data.size}")
+                        // The people the events concern are decided here, usually after the events were written: bring their links up to date.
+                        runCatching { syncEventLinks.get()(documentId) }.onFailure { e ->
+                            if (e is kotlinx.coroutines.CancellationException) throw e
+                            Log.w(TAG, "timeline links failed for $documentId: ${e.message}")
+                        }
                         PamResult.Success(Unit)
                     }
                 }
@@ -806,6 +816,14 @@ class DocumentProcessingPipeline @Inject constructor(
                             ),
                         ).copy(syncStatus = latest.syncStatus),
                     )
+                    // What the letter reports goes on the timeline (replacing this document's earlier DOCUMENT events; the user's and the
+                    // actions' stay). A reading that could not score the kinds writes nothing and leaves the stored events. Never fails the stage.
+                    read.event?.let { reading ->
+                        runCatching { recordEvents.get()(documentId, reading) }.onFailure { e ->
+                            if (e is kotlinx.coroutines.CancellationException) throw e
+                            Log.w(TAG, "timeline events failed for $documentId: ${e.message}")
+                        }
+                    }
                     if (read.summarySource == null) {
                         Log.w(TAG, "second stage of $documentId wrote no summary; attempt counted")
                         settleFailedAttempt(documentId)

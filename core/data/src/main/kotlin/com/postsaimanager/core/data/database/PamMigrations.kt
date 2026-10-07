@@ -552,6 +552,15 @@ object PamMigrations {
         override fun migrate(db: SupportSQLiteDatabase) = HouseholdMigration.apply(db)
     }
 
+    /**
+     * v23 (the profile timeline): the tables `cases`, `profile_events` and `profile_event_people`, with their indices. See
+     * [TimelineMigration]. Additive and idempotent; 1..22 are untouched. Another branch also adds a v23 (`document_notes`): renumber by
+     * changing only this step's versions (and the `ALL` list), the object is self-contained.
+     */
+    val MIGRATION_22_23 = object : Migration(22, 23) {
+        override fun migrate(db: SupportSQLiteDatabase) = TimelineMigration.apply(db)
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -574,5 +583,6 @@ object PamMigrations {
         MIGRATION_19_20,
         MIGRATION_20_21,
         MIGRATION_21_22,
+        MIGRATION_22_23,
     )
 }

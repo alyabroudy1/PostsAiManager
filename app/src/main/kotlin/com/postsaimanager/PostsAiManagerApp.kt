@@ -15,6 +15,7 @@ import com.postsaimanager.core.domain.document.PurgeExpiredDocumentsUseCase
 import com.postsaimanager.core.domain.document.ReadDocumentsAwaitingModelUseCase
 import com.postsaimanager.core.domain.document.ReprocessOutdatedDocumentsUseCase
 import com.postsaimanager.core.domain.document.people.ConcernedPeopleWatcher
+import com.postsaimanager.core.domain.timeline.RecordPassedDeadlinesUseCase
 import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CancellationException
@@ -93,6 +94,10 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
     @Inject
     lateinit var concernedPeopleWatcher: Lazy<ConcernedPeopleWatcher>
 
+    // Same reason: it reaches the document list and so DocumentProcessor. "Deadline passed" events of the profile timeline.
+    @Inject
+    lateinit var recordPassedDeadlines: Lazy<RecordPassedDeadlinesUseCase>
+
     // Lazy for the same reason as above: only the main process has a UI to lock.
     @Inject
     lateinit var appLockCoordinator: Lazy<AppLockCoordinator>
@@ -140,6 +145,11 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
         // mention a profile added or renamed. Quiet background work; see ConcernedPeopleWatcher.
         applicationScope.launch {
             runCatching { concernedPeopleWatcher.get().watch() }
+                .onFailure { if (it is CancellationException) throw it }
+        }
+        // Every time the app opens: a due date that passed with nothing done is written once to the letter's timeline (code only, no model).
+        applicationScope.launch {
+            runCatching { recordPassedDeadlines.get().invoke() }
                 .onFailure { if (it is CancellationException) throw it }
         }
     }

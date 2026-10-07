@@ -57,7 +57,18 @@ class ProposeAndConfirmActionTest {
 
     private val executor = RecordingExecutor()
     private val guard = RecordingGuard()
-    private val confirm = ConfirmActionUseCase(executor, guard)
+    private val clock = java.time.Clock.fixed(java.time.Instant.parse("2026-10-07T12:00:00Z"), java.time.ZoneOffset.UTC)
+    private val events = com.postsaimanager.core.testing.FakeEventRepository()
+    private val confirm = ConfirmActionUseCase(
+        executor, guard,
+        com.postsaimanager.core.domain.timeline.RecordActionEventUseCase(
+            documents,
+            com.postsaimanager.core.domain.timeline.MechanicalEventWriter(
+                events, com.postsaimanager.core.domain.timeline.ResolveEventLinksUseCase(profiles, contacts), clock,
+            ),
+            clock,
+        ),
+    )
 
     private fun seedLetter() {
         documents.seedPages("d1", DocumentPage("p1", "d1", 1, "file:///1.jpg", ocrText = "Kontakt: info@amt.de\nAktenzeichen AZ-1/2026\nFrist 05.11.2026"))

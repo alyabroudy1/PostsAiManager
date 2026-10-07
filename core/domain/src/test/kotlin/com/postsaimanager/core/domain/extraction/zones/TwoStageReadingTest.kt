@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
+import com.postsaimanager.core.domain.timeline.EventQuestions
 import com.postsaimanager.core.domain.extraction.actions.ActionKinds
 import com.postsaimanager.core.domain.extraction.actions.ActionQuestions
 import com.postsaimanager.core.domain.extraction.text.KeyInfoFormat
@@ -132,7 +133,11 @@ class TwoStageReadingTest {
         // Only the stored slot values and the actions were scored (no type, no party, no slot, no extra), in the body session the first
         // stage left (what it established is in its prefix), and the text and the key information were written in the writing session
         // that follows: one generation for the key information, in the same session as the summary (the letter is not read again).
-        assertThat(later.scored.flatten().all { it.contains(KEY_SLOT_ASK) || ActionQuestions.isActionQuestion(it) || it.contains("Is this document ") }).isTrue()
+        assertThat(
+            later.scored.flatten().all {
+                it.contains(KEY_SLOT_ASK) || ActionQuestions.isActionQuestion(it) || EventQuestions.isEventQuestion(it) || it.contains("Is this document ")
+            },
+        ).isTrue()
         assertThat(later.opens).hasSize(2)
         assertThat(later.opens.first()).contains("ESTABLISHED FROM THE HEADER OF THE LETTER")
         assertThat(later.opens.first()).contains(ticket.established)
@@ -150,7 +155,7 @@ class TwoStageReadingTest {
         assertThat(hint).isNotEmpty()
         val scored = later.scored.flatten()
         assertThat(scored).isNotEmpty()
-        assertThat(scored.filterNot { ActionQuestions.isActionQuestion(it) || it.contains("Is this document ") }.all { it.contains(hint) }).isTrue()
+        assertThat(scored.filterNot { ActionQuestions.isActionQuestion(it) || EventQuestions.isEventQuestion(it) || it.contains("Is this document ") }.all { it.contains(hint) }).isTrue()
         // The actions are scored, never asked for: no ask mentions what the reader must do, and the chosen kind is a catalogue entry.
         assertThat(later.asks.none { it.question.contains("reader do") }).isTrue()
         assertThat(scored.count { it.contains(ActionQuestions.anything()) }).isEqualTo(1)

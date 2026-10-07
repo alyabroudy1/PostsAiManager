@@ -74,6 +74,8 @@ class DocumentReprocessPipelineTest {
         aiExtraction = aiExtraction,
         entityProfileLinker = entityProfileLinker,
         concernedPeopleDecision = mockk(relaxed = true),
+        recordEvents = mockk(relaxed = true),
+        syncEventLinks = mockk(relaxed = true),
         fieldRevisionDao = mockk<FieldRevisionDao>(relaxed = true),
         documentMapper = mapper,
         documentDao = documentDao,

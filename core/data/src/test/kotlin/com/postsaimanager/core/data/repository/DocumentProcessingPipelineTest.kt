@@ -53,6 +53,8 @@ class DocumentProcessingPipelineTest {
         aiExtraction = mockk<AiExtractionUseCase>(relaxed = true),
         entityProfileLinker = mockk(relaxed = true),
         concernedPeopleDecision = mockk(relaxed = true),
+        recordEvents = mockk(relaxed = true),
+        syncEventLinks = mockk(relaxed = true),
         fieldRevisionDao = mockk<FieldRevisionDao>(relaxed = true),
         documentMapper = DocumentMapper(),
         documentDao = documentDao,

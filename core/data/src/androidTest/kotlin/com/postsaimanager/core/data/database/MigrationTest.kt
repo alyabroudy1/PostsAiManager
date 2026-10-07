@@ -1186,6 +1186,21 @@ class MigrationTest {
         }
     }
 
+    /** v22 gains the profile timeline's three tables (empty) and validates against the schema. Needs a device. */
+    @Test
+    fun migrate22To23_createsTheTimelineTables() {
+        helper.createDatabase(TEST_DB, 22).close()
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 23, true, PamMigrations.MIGRATION_22_23)
+
+        listOf("cases", "profile_events", "profile_event_people").forEach { table ->
+            db.query("SELECT count(*) FROM `$table`").use { c ->
+                assertTrue(c.moveToFirst())
+                assertEquals(0, c.getInt(0))
+            }
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }
