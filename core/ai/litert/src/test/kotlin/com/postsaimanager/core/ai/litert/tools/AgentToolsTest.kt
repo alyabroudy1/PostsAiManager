@@ -57,7 +57,9 @@ class AgentToolsTest {
 
         assertThat(emitted).containsExactly(ToolActionCall("send_email", emailJson, "doc-1"))
         assertThat(result["status"]).isEqualTo(AgentToolCalls.PROPOSED)
-        assertThat(result["status"]).contains("waiting")
+        // The truth about the state: a card to confirm, nothing done yet (so the model's summary cannot claim it was done).
+        assertThat(result["status"]).contains("Shown to the user as a card to confirm")
+        assertThat(result["status"]).contains("nothing has been done yet")
         assertThat(result).doesNotContainKey("error")
     }
 
@@ -170,7 +172,7 @@ class AgentToolsTest {
         assertThat(recorded[0].argumentsJson).isEqualTo("""{"skill_name":"send-email"}""")
         assertThat(recorded[0].resultJson).contains("skill_instructions")
         assertThat(recorded[1].argumentsJson).contains("\"intent\":\"send_email\"")
-        assertThat(recorded[1].resultJson).contains("waiting for their confirmation")
+        assertThat(recorded[1].resultJson).contains("nothing has been done yet")
         // The app is told as they happen, in the same order.
         assertThat(told).isEqualTo(recorded)
     }

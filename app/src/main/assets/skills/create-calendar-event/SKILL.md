@@ -12,7 +12,7 @@ Based on the `create_calendar_event` intent of the Google AI Edge Gallery (Apach
 Use this when the user asks to add an appointment, a meeting or a date to their calendar.
 
 1. Decide the values yourself from the conversation and the letter. Use only dates and times that the user said or that are printed in the letter. If the date or the time is missing, ask the user instead of guessing.
-2. If you need today's date to work out a day such as "next Monday" or "tomorrow", first call the `run_intent` tool with intent get_current_date_and_time and parameters {}.
+2. If the time the user asked for is relative ("in 2 hours", "tomorrow", "next Monday", "this Friday"), you MUST first call the `run_intent` tool with intent get_current_date_and_time and parameters {} to get the user's local date, time and day of the week. Never guess today's date. Then write out in your response: today's exact date and day of the week, the relative time the user asked for, how many days to add, and the final date, rolling over to the next month or year where needed. Only after that call the action below.
 3. Call the `run_intent` tool with these exact parameters:
    - intent: create_calendar_event
    - parameters: A JSON string with the following fields:

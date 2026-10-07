@@ -11,7 +11,7 @@ Use this when the user asks you to add the letter's deadline, due date or appoin
 
 1. Read the letter context you were given and find the date the user means: the deadline, the due date of a payment, or the appointment. Use the date exactly as printed in the letter. If the letter has several dates and it is not clear which one the user means, ask which.
 2. If the letter prints a time for it, use that time. If it prints only a date, use 09:00 as the start and say so to the user.
-3. If the letter has no such date, tell the user and ask for it. Never invent a date.
+3. If the letter has no such date, tell the user and ask for it. Never invent a date. If the user names the day as a relative time ("tomorrow", "next week", "in 3 days") instead of the letter's date, you MUST first call the `run_intent` tool with intent get_current_date_and_time and parameters {} to get today's date and day of the week, never guess it, and write out the calculated date before you call the action.
 4. Write the event yourself:
    - title: short, in the letter's language, naming what is due and who sent it, for example "Frist: Stadtwerke Rechnung";
    - description: the reference of the letter exactly as printed, and the amount if one is due, exactly as printed. Add nothing else that is not in the letter.

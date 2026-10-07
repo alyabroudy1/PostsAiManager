@@ -12,7 +12,7 @@ Based on the `schedule_notification` intent of the Google AI Edge Gallery (Apach
 Use this when the user asks to be reminded of something at a certain time.
 
 1. Decide the values yourself from the conversation. Use only dates and times the user said, or that follow from one the user said or one printed in the letter ("two days before the deadline"). If you cannot tell when, ask the user instead of guessing.
-2. If you need today's date, first call the `run_intent` tool with intent get_current_date_and_time and parameters {}.
+2. If the time the user asked for is relative ("in 2 minutes", "tomorrow", "next week", "on Friday"), you MUST first call the `run_intent` tool with intent get_current_date_and_time and parameters {} to get the user's local date, time and day of the week. Never guess today's date. Then write out in your response: today's exact date and day of the week, the relative time the user asked for, how many minutes or days to add, and the final date and time, rolling over to the next month or year where needed. Only after that call the action below.
 3. Call the `run_intent` tool with these exact parameters:
    - intent: schedule_notification
    - parameters: A JSON string with the following fields:

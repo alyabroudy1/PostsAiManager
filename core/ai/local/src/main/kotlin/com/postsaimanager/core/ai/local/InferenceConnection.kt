@@ -54,6 +54,9 @@ class InferenceConnection @Inject constructor(
     @Volatile
     var resident: ModelRuntime? = null
 
+    /** When the chat last used the model: quiet jobs that would replace the chat model wait while it is recent ([InferenceChatActivityGate]). */
+    val chatActivity = ChatActivityTracker()
+
     private val deathListeners = CopyOnWriteArrayList<(ModelRuntime?) -> Unit>()
 
     private val _crashes = MutableSharedFlow<InferenceCrash>(extraBufferCapacity = 4)

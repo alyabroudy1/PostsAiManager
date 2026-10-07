@@ -13,6 +13,7 @@ import androidx.work.workDataOf
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.data.database.dao.DocumentDao
 import com.postsaimanager.core.data.database.entity.DocumentEntity
+import com.postsaimanager.core.domain.ai.ChatActivityGate
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.model.DocumentStatus
@@ -34,6 +35,7 @@ class ReprocessDocumentWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val documentProcessor: DocumentProcessor,
     private val documentDao: DocumentDao,
+    private val chatActivity: ChatActivityGate,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -50,6 +52,9 @@ class ReprocessDocumentWorker @AssistedInject constructor(
             ReprocessGate.Decision.DEFER -> return Result.retry()
             ReprocessGate.Decision.RUN -> Unit
         }
+
+        // Not between two chat messages: replacing the chat model then costs the next message a reload and a full re-read. Come back later.
+        if (!chatActivity.awaitIdle()) return Result.retry()
 
         // The charging and the idle request are the same job under two names; whichever starts first
         // does it and the other is dropped.

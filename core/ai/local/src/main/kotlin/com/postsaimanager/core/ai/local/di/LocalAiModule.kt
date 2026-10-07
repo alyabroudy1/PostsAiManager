@@ -1,8 +1,10 @@
 package com.postsaimanager.core.ai.local.di
 
+import com.postsaimanager.core.ai.local.InferenceChatActivityGate
 import com.postsaimanager.core.ai.local.RemoteAiEngine
 import com.postsaimanager.core.ai.local.RemoteLiteRtChatEngine
 import com.postsaimanager.core.domain.ai.AiEngine
+import com.postsaimanager.core.domain.ai.ChatActivityGate
 import com.postsaimanager.core.domain.ai.ChatEngine
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.ai.RoutingChatEngine
@@ -41,6 +43,9 @@ abstract class LocalAiModule {
     @Binds
     @Singleton
     abstract fun bindPromptSession(impl: RemoteAiEngine): PromptSession
+
+    @Binds
+    abstract fun bindChatActivityGate(impl: InferenceChatActivityGate): ChatActivityGate
 
     @Binds
     abstract fun bindInterpreterFactory(impl: ProfileInterpreterFactory): InterpreterFactory
