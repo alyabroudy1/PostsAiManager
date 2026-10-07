@@ -9,6 +9,7 @@ import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.contacts.LetterContacts
 import com.postsaimanager.core.domain.contacts.LoadLetterContactsUseCase
+import com.postsaimanager.core.domain.document.ChangeDocumentFamilyUseCase
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.DocumentProcessor
@@ -56,6 +57,7 @@ class DocumentDetailViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val documentProcessor: DocumentProcessor,
     private val readAgainAsFamily: ReadAgainAsFamilyUseCase,
+    private val changeDocumentFamily: ChangeDocumentFamilyUseCase,
     private val getDocumentPreview: GetDocumentPreviewUseCase,
     private val documentExporter: DocumentExporter,
     private val externalFlowGuard: ExternalFlowGuard,
@@ -176,9 +178,12 @@ class DocumentDetailViewModel @Inject constructor(
     }
 
     // ── The family chip ──
-    /** "Change type": the person says what the document is. The sections re-present at once; nothing is re-read. */
+    /**
+     * "Change type": the person says what the document is. The type is stored at once and the document is read again with it pinned,
+     * so the fields fit the type; what the person confirmed or edited is kept.
+     */
     fun changeFamily(familyId: String) {
-        viewModelScope.launch { documentRepository.setDocumentFamily(documentId, familyId) }
+        viewModelScope.launch { changeDocumentFamily(documentId, familyId) }
     }
 
     /** "Read again as …": a fresh read with the family forced; rows a person already reviewed are kept. */

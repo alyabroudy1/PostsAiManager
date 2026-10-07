@@ -73,6 +73,9 @@ class DocumentDetailViewModelTest {
         documentRepository = documentRepository,
         documentProcessor = documentProcessor,
         readAgainAsFamily = ReadAgainAsFamilyUseCase(documentProcessor),
+        changeDocumentFamily = com.postsaimanager.core.domain.document.ChangeDocumentFamilyUseCase(
+            documentRepository, ReadAgainAsFamilyUseCase(documentProcessor),
+        ),
         getDocumentPreview = GetDocumentPreviewUseCase(documentRepository, FakeDocumentChunkRepository()),
         documentExporter = documentExporter,
         externalFlowGuard = externalFlowGuard,
@@ -388,7 +391,7 @@ class DocumentDetailViewModelTest {
     inner class FamilyChip {
 
         @Test
-        fun `change type stores the family as the person's and does not read again`() = runTest {
+        fun `change type stores the family as the person's and reads again with it pinned`() = runTest {
             documentRepository.seed(testDocument(id = "d1", status = DocumentStatus.EXTRACTED, extractionType = "free_form"))
             val vm = viewModel("d1")
             vm.open()
@@ -398,7 +401,8 @@ class DocumentDetailViewModelTest {
             val doc = documentRepository.getDocumentById("d1").let { (it as com.postsaimanager.core.common.result.PamResult.Success).data }
             assertThat(doc.extractionType).isEqualTo("invoice_bill")
             assertThat(doc.familySource).isEqualTo(FamilySource.USER)
-            assertThat(documentProcessor.enqueueCalls).isEmpty()
+            assertThat(documentProcessor.enqueueCalls)
+                .containsExactly(FakeDocumentProcessor.EnqueueCall("d1", force = true, forcedFamily = "invoice_bill"))
         }
 
         @Test

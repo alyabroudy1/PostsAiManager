@@ -65,15 +65,45 @@ class FamilyClassifierTest {
     }
 
     @Test
-    fun `one batch of at most 24 scores, named score family`() = runTest {
+    fun `one batch of 11 families and 14 topics, named score family`() = runTest {
         val session = session(mapOf("receipt" to 1.0))
         val records = ArrayList<AskRecord>()
         val c = FamilyClassifier(session, profile, onRecord = { records += it }).classify(DocDirection.INCOMING)!!
         assertThat(session.scored).hasSize(1)
-        assertThat(session.scored.single().size).isEqualTo(23)
-        assertThat(c.scores).hasSize(23)
+        assertThat(session.scored.single().size).isEqualTo(25)
+        assertThat(c.scores).hasSize(25)
         assertThat(records.single().name).isEqualTo("score:family")
-        assertThat(records.single().answer!!.split(',')).hasSize(23)
+        assertThat(records.single().answer!!.split(',')).hasSize(25)
+    }
+
+    @Test
+    fun `a short appointment reminder can be the appointment family instead of an official letter`() = runTest {
+        val session = session(mapOf("appointment_reminder" to 1.4, "official_letter" to 0.6))
+        val c = FamilyClassifier(session, profile).classify(DocDirection.INCOMING)!!
+        assertThat(c.family.id).isEqualTo("appointment_reminder")
+    }
+
+    @Test
+    fun `a lead under the minimum margin is the neutral abstain family, not a forced official letter`() = runTest {
+        val margined = profile.copy(familyMinMargin = 0.3)
+        val close = session(mapOf("official_letter" to 0.5, "message_note" to 0.4))
+        val abstained = FamilyClassifier(close, margined).classify(DocDirection.INCOMING)!!
+        assertThat(abstained.family.id).isEqualTo("free_form")
+        assertThat(abstained.familyConfidence).isEqualTo("LOW")
+        assertThat(abstained.scores["family:official_letter"]).isEqualTo(0.5)
+        val clear = session(mapOf("official_letter" to 0.9, "message_note" to 0.4))
+        assertThat(FamilyClassifier(clear, margined).classify(DocDirection.INCOMING)!!.family.id).isEqualTo("official_letter")
+    }
+
+    @Test
+    fun `the winner of the scores needs the threshold and the lead, and a lone score leads by itself`() {
+        val margined = ScoringProfile(thresholds = mapOf(ScoringProfile.FAMILY to 0.0), familyMinMargin = 0.2)
+        assertThat(margined.familyWinner(listOf(0.1, 0.9, 0.5))).isEqualTo(1)
+        assertThat(margined.familyWinner(listOf(0.1, 0.9, 0.8))).isNull()
+        assertThat(margined.familyWinner(listOf(-0.5, -0.1))).isNull()
+        assertThat(margined.familyWinner(listOf(0.3))).isEqualTo(0)
+        assertThat(margined.familyWinner(emptyList())).isNull()
+        assertThat(ScoringProfile().familyWinner(listOf(0.5, 0.5))).isEqualTo(0)
     }
 
     @Test
@@ -100,7 +130,7 @@ class FamilyClassifierTest {
         val c = FamilyClassifier(session, profile).classify(DocDirection.INCOMING, includeTopics = false)!!
         assertThat(c.family.id).isEqualTo("receipt")
         assertThat(c.topics).isEmpty()
-        assertThat(session.scored.single()).hasSize(9)
+        assertThat(session.scored.single()).hasSize(11)
         val later = FamilyClassifier(session, profile).topics()!!
         assertThat(later).containsExactly("shopping")
     }

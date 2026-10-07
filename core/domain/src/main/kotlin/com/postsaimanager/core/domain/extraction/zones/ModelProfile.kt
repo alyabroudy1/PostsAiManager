@@ -97,6 +97,19 @@ object ModelProfiles {
                 // A street-shaped address line is a post office box or a locker only when the model leans Yes.
                 LineAsk.DELIVERY_ASK to 0.0,
             ),
+            // A type is taken only when it leads the runner-up by this much; a closer call is the neutral "Document" (shown with no tag), not a
+            // guess. Swept on the device recordings of the 13 letters with an expectation (FamilyAccuracyTest): 0.0 gives 9 right, 1 neutral,
+            // 3 wrong; 0.05 gives 9 right, 2 neutral, 2 wrong (a wrong type becomes the neutral one at no cost); 0.1 and above lose a right
+            // type. The 0.8B model's family scores are close together, so a wider margin would hide types that are right. In-sample, on 13
+            // letters, and the recordings hold only the nine families before the appointment and message families: a starting point.
+            familyMinMargin = 0.05,
+            // "None of these" is an answer for the sender, the addressee and the person a letter is about: the best name is taken only when it
+            // beats a made-up name asked the same way by this margin. 0.0 is the unfitted starting value (a name that does not even beat a
+            // name that is nowhere in the letter is no party); it needs the baseline scores of a device recording to be fitted (the 16 recordings
+            // hold none, so the replay scripts them as "not scored" and is unchanged).
+            partyBaselineMargins = mapOf(
+                QuestionNames.SENDER to 0.0, QuestionNames.ADDRESSEE to 0.0, QuestionNames.SUBJECT_PERSON to 0.0,
+            ),
             // Fitted on the 137 scored answers of the 16 letters (ConfidenceCalibrationTest). HIGH: a margin of 0.2 over the runner-up
             // (91% right in-sample, 85 answers; 83% held out, cuts fitted on the other half of the letters). LOW: the winner's own
             // log-odds are under -0.25, the model itself leaning No (50% right, 14 answers in-sample). The fitter, which keeps a safety

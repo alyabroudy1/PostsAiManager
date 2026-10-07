@@ -31,7 +31,7 @@ class SlotLabelsTest {
         assertThat(SlotLabels.typeIds).containsExactlyElementsIn(ExtractionSchema.DEFAULT.families.map { it.id })
         assertThat(SlotLabels.topicIds).containsExactlyElementsIn(ExtractionSchema.DEFAULT.topics.map { it.id })
         assertThat(SlotLabels.slotKeys).containsAtLeastElementsIn(ExtractionSchema.DEFAULT.allSlots.map { it.json })
-        assertThat(SlotLabels.type("medical")).isEqualTo(R.string.doctype_medical)
+        assertThat(SlotLabels.type("medical")).isEqualTo(com.postsaimanager.core.designsystem.R.string.doctype_medical)
         assertThat(SlotLabels.topic("health")).isEqualTo(R.string.topic_health)
         assertThat(SlotLabels.topic("astrology")).isNull()
     }
@@ -42,7 +42,7 @@ class SlotLabelsTest {
             assertThat(SlotLabels.type(legacy)).isEqualTo(SlotLabels.type(mapping.family))
             assertThat(SlotLabels.type(legacy)).isNotNull()
         }
-        assertThat(SlotLabels.type("bill")).isEqualTo(R.string.doctype_invoice_bill)
+        assertThat(SlotLabels.type("bill")).isEqualTo(com.postsaimanager.core.designsystem.R.string.doctype_invoice_bill)
         assertThat(SlotLabels.type("astrology")).isNull()
     }
 

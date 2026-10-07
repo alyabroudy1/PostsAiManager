@@ -23,4 +23,21 @@ class DocumentTitleTest {
         assertThat(doc("T", DocumentTitleCodes.SCANNED_PAGES, listOf("three")).displayTitle { "x" }).isEqualTo("T")
         assertThat(doc("T", DocumentTitleCodes.SCANNED_PAGES).displayTitle { "x" }).isEqualTo("T")
     }
+
+    @Test
+    fun `a composed title in a list loses its type slot and keeps the sender and the subject`() {
+        val composed = doc("Official letter · Nordstern · Mahnung", DocumentTitleCodes.COMPOSED, listOf("official_letter", "Nordstern", "Mahnung"))
+        assertThat(composed.titleWithoutType { "x" }).isEqualTo("Nordstern · Mahnung")
+        assertThat(doc("T", DocumentTitleCodes.COMPOSED, listOf("official_letter", "Nordstern", "")).titleWithoutType { "x" }).isEqualTo("Nordstern")
+        assertThat(doc("T", DocumentTitleCodes.COMPOSED, listOf("receipt", "", "Beleg 12")).titleWithoutType { "x" }).isEqualTo("Beleg 12")
+    }
+
+    @Test
+    fun `a composed title with nothing after the type, and any other title, is shown as before`() {
+        assertThat(doc("Official letter", DocumentTitleCodes.COMPOSED, listOf("official_letter", "", "")).titleWithoutType { "x" })
+            .isEqualTo("Official letter")
+        assertThat(doc("Official letter", DocumentTitleCodes.COMPOSED).titleWithoutType { "x" }).isEqualTo("Official letter")
+        assertThat(doc("Mein Brief").titleWithoutType { "x" }).isEqualTo("Mein Brief")
+        assertThat(doc("Scanned 3 page(s)", DocumentTitleCodes.SCANNED_PAGES, listOf("3")).titleWithoutType { "Gescannt $it" }).isEqualTo("Gescannt 3")
+    }
 }

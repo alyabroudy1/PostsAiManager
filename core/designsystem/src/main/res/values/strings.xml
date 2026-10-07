@@ -30,6 +30,21 @@
     <string name="doc_row_status_processing">Being read</string>
     <string name="doc_row_status_ready">Read, nothing to check</string>
     <string name="doc_row_status_failed">Reading failed</string>
+    <!-- Document families, keyed by family id; a legacy type id is shown as the family it maps to. The list shows one as a small tag. -->
+    <string name="doctype_receipt">Receipt</string>
+    <string name="doctype_outgoing_letter">Letter you sent</string>
+    <string name="doctype_payment_proof">Proof of payment</string>
+    <string name="doctype_official_letter">Official letter</string>
+    <string name="doctype_invoice_bill">Invoice or bill</string>
+    <string name="doctype_form_application">Form or application</string>
+    <string name="doctype_statement">Statement</string>
+    <string name="doctype_contract_policy">Contract or policy</string>
+    <string name="doctype_certificate_id">Certificate or ID</string>
+    <string name="doctype_medical">Medical</string>
+    <string name="doctype_ticket_booking">Ticket or booking</string>
+    <string name="doctype_appointment_reminder">Appointment reminder</string>
+    <string name="doctype_message_note">Message or note</string>
+    <string name="doctype_free_form">Other document</string>
     <string name="doc_row_favorite">Favorite</string>
     <string name="doc_row_toggle_favorite">Toggle favorite</string>
 

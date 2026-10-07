@@ -1,5 +1,7 @@
 package com.postsaimanager.core.domain.extraction.text
 
+import com.postsaimanager.core.model.DocumentTitleCodes
+
 /**
  * Builds a document's title from fields that are already verified. No model call: the title costs nothing.
  *

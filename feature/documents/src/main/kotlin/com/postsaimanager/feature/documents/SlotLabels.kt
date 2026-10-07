@@ -1,6 +1,7 @@
 package com.postsaimanager.feature.documents
 
 import androidx.annotation.StringRes
+import com.postsaimanager.core.designsystem.component.DocumentTypeLabels
 import com.postsaimanager.core.domain.extraction.address.AddressRows
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
@@ -88,22 +89,6 @@ object SlotLabels {
         }
     }
 
-    /** One label per family; a legacy type id is rendered as the family it maps to ([LegacyTypes]). */
-    private val types: Map<String, Int> = mapOf(
-        ExtractionSchema.RECEIPT.id to R.string.doctype_receipt,
-        ExtractionSchema.OUTGOING_LETTER.id to R.string.doctype_outgoing_letter,
-        ExtractionSchema.PAYMENT_PROOF.id to R.string.doctype_payment_proof,
-        ExtractionSchema.OFFICIAL_LETTER.id to R.string.doctype_official_letter,
-        ExtractionSchema.INVOICE_BILL.id to R.string.doctype_invoice_bill,
-        ExtractionSchema.FORM_APPLICATION.id to R.string.doctype_form_application,
-        ExtractionSchema.STATEMENT.id to R.string.doctype_statement,
-        ExtractionSchema.CONTRACT_POLICY.id to R.string.doctype_contract_policy,
-        ExtractionSchema.CERTIFICATE_ID.id to R.string.doctype_certificate_id,
-        ExtractionSchema.MEDICAL.id to R.string.doctype_medical,
-        ExtractionSchema.TICKET_BOOKING.id to R.string.doctype_ticket_booking,
-        ExtractionSchema.FREE_FORM.id to R.string.doctype_free_form,
-    )
-
     private val topics: Map<String, Int> = mapOf(
         "government" to R.string.topic_government,
         "tax" to R.string.topic_tax,
@@ -166,8 +151,9 @@ object SlotLabels {
         return slots[slot.json]
     }
 
+    /** The label of a family id (the words live in [DocumentTypeLabels]); a legacy type id is rendered as the family it maps to ([LegacyTypes]). */
     @StringRes
-    fun type(id: String?): Int? = id?.let { types[it] ?: types[LegacyTypes.of(it)?.family] }
+    fun type(id: String?): Int? = id?.let { DocumentTypeLabels.of(it) ?: DocumentTypeLabels.of(LegacyTypes.of(it)?.family) }
 
     /** The label resource for a topic id, or null for an id with none. */
     @StringRes
@@ -175,7 +161,7 @@ object SlotLabels {
 
     /** Every key that has a label; for the test that guards the schema. */
     val slotKeys: Set<String> get() = slots.keys + addressRows.keys
-    val typeIds: Set<String> get() = types.keys
+    val typeIds: Set<String> get() = DocumentTypeLabels.ids
     val topicIds: Set<String> get() = topics.keys
 
     /**

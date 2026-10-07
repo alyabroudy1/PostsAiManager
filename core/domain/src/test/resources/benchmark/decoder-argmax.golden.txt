@@ -51,15 +51,6 @@ extra 3.29 EUR
 extra 2.50 EUR
 == degraded-3p
 type other language de
-slot customer_no N2 1EMH0000123456 null 0.9 0.6 [read with an OCR character repair (1EMHO000123456 -> 1EMH0000123456), score margin +0.28 (winner +0.15 of 2)]
-slot due_date D5 2026-09-30 DUE_DATE 0.7 0.7 [score margin +0.10 (winner -0.07 of 3)]
-slot iban I1 DE89370400440532013000 null 0.9 0.9 [score margin +0.28 (winner +0.28 of 1)]
-slot letter_date D3 2026-09-25 LETTER_DATE 0.7 0.7 [score margin +0.19 (winner +0.19 of 1)]
-slot reference N2 1EMH0000123456 null 0.9 0.6 [read with an OCR character repair (1EMHO000123456 -> 1EMH0000123456), score margin +0.35 (winner +0.50 of 2)]
-slot total A2 74.00 EUR TOTAL_DUE 0.9 0.9 [score margin +0.33 (winner -0.02 of 4)]
-party SENDER M1 Stadtwerke Beispielstadt COMPANY NONE 0.9 [score margin +0.35 (winner +0.34 of 2)]
-party ADDRESSEE M2 Erika Mustermann PERSON NONE 0.9 [ADDRESSEE was taken from the return address, which contradicts the layout, score margin +0.52 (winner +0.52 of 1)]
-party CARE_OF M2 Erika Mustermann PERSON NONE 0.9 [CARE_OF was taken from the return address, which contradicts the layout, score margin +0.38 (winner +0.38 of 1)]
 == arabic-rtl-1p
 type other language de
 slot customer_no N1 2026-041 null 0.4 0.4 [score margin -0.55 (winner -0.55 of 1)]
@@ -108,20 +99,6 @@ party CARE_OF M2 Familie Mustermann PERSON NONE 0.9 [score margin +0.25 (winner 
 party ROUTING M4 Frau S. Sommer PERSON NONE 0.9 [score margin +0.69 (winner +0.69 of 1)]
 == N4-zhd-firma-1p
 type other language de
-slot customer_no N7 wV-2291 null 0.9 0.9 [score margin +0.28 (winner -0.04 of 4)]
-slot due_date D4 2026-10-15 DUE_DATE 0.9 0.9 [score margin +0.40 (winner -0.23 of 4)]
-slot iban I1 DE89370400440532013000 null 0.9 0.9 [score margin +0.36 (winner +0.36 of 1)]
-slot letter_date D6 2026-09-23 LETTER_DATE 0.7 0.7 [score margin +0.18 (winner +0.18 of 1)]
-slot reference N1 WN-2291 null 0.7 0.7 [score margin +0.07 (winner +0.65 of 4)]
-slot total A1 1.01 EUR TOTAL_DUE 0.4 0.4 [no currency next to the amount, score margin +0.18 (winner -0.27 of 2)]
-party SENDER M4 Büro-Partner Beispiel KG COMPANY NONE 0.9 [score margin +0.81 (winner +0.81 of 1)]
-party ADDRESSEE M1 Mustermann Consulting GmbH COMPANY NONE 0.9 [score margin +0.22 (winner +0.91 of 2)]
-party CARE_OF M2 Frau Erika Mustermann PERSON NONE 0.7 [score margin +0.11 (winner +1.14 of 2)]
-party ROUTING M9 Herr T. Muster PERSON NONE 0.9 [score margin +0.29 (winner +0.29 of 1)]
-extra vertrieb@buero-partner.example
-extra 2026-12-31
-extra 01234 888 44
-extra EM/2026 wV-2291
 == N5-co-familie-1p
 type bill language de
 slot customer_no N3 1234567 null 0.9 0.9 [score margin +0.74 (winner +0.23 of 4)]

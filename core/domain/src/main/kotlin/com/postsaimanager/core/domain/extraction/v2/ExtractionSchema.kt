@@ -256,6 +256,17 @@ data class DocFamily(
     val hasRecipientBlock: Boolean = false,
     val sensitive: Boolean = false,
     val scored: Boolean = true,
+    /**
+     * Whether the document is addressed to someone (an addressee, a mailbox, a person it is about). False for a few lines of a message or
+     * a reminder, where no party but the sender is asked: a greeting or a sentence is not an addressee. A property of the family, decided
+     * by the model's type, never by the text.
+     */
+    val hasAddressee: Boolean = true,
+    /**
+     * Whether the type-specific questions (the parties and the letter's slots) are asked at all. False for the general "Document", the
+     * fallback when no specific type is detected: nothing letter-shaped is suggested to the model for it.
+     */
+    val asksFields: Boolean = true,
     val hint: String = "",
     /** The slots that belong to this family beyond the universal core (a bill's invoice number): a document of the family is expected to have them. */
     val own: List<SlotKey> = emptyList(),
@@ -279,6 +290,12 @@ data class DocFamily(
 
     /** The same family, kept out of the all-documents chat. */
     fun markedSensitive(): DocFamily = copy(sensitive = true)
+
+    /** The same family, with no type-specific questions: the general "Document". */
+    fun withoutFieldQuestions(): DocFamily = copy(asksFields = false)
+
+    /** The same family, for documents with no addressee block: only the sender is asked among the parties. */
+    fun withoutAddressee(): DocFamily = copy(hasAddressee = false)
 
     /** The same family, never asked about by the classifier (the abstain outcome). */
     fun unscored(): DocFamily = copy(scored = false)
@@ -424,6 +441,24 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
             .described("a ticket, a booking confirmation or a travel itinerary")
             .withHint("In a ticket or a booking, the event or trip, the date and time, the place and the booking number are important.")
 
+        /**
+         * A short reminder or confirmation of an appointment. Added with the message family below because the registry had no kind for a
+         * few lines of text, so a screenshot of appointment reminders was the nearest "official letter". It is scored after the families
+         * of extraction-v2-2, so the recorded scores of the first nine keep their columns; the questions of those nine are unchanged.
+         */
+        val APPOINTMENT_REMINDER = DocFamily.of("appointment_reminder", DocumentType.NOTICE, Slots.APPOINTMENT)
+            .asksSomething().withoutAddressee()
+            .described("a short reminder or confirmation of an appointment, such as a text message or an email that gives a date, a time and a place")
+            .withHint(
+                "In an appointment reminder, who it is from, the date, the time and the place, and what the reader should do " +
+                    "(come, bring something, confirm or cancel) are important.",
+            )
+
+        /** What a few sentences of text are: a message, a chat or a note, not a letter. */
+        val MESSAGE_NOTE = DocFamily.of("message_note", DocumentType.OTHER).withoutAddressee()
+            .described("a short message, a few lines of a chat or text messages, or a handwritten or typed note, rather than a formal letter")
+            .withHint("In a message or a note, who it is from and for, what it says and any date, time or place it mentions are important.")
+
         /** A letter the user sent (P3; the pipeline does not produce it yet). */
         val OUTGOING_LETTER = DocFamily.of(
             "outgoing_letter", DocumentType.OFFICIAL_LETTER,
@@ -441,6 +476,7 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
         /** The abstain outcome: what a document is when no family scores above the threshold. Never scored, so it carries only the core. */
         val FREE_FORM = DocFamily.of("free_form", DocumentType.OTHER)
             .described("a document of a kind not listed here").forDirections(*DocDirection.entries.toTypedArray()).unscored()
+            .withoutFieldQuestions()
             .withHint("In any document, who it is from and for, and what the reader should know or do, are important.")
 
         // ── the topics ──
@@ -471,7 +507,7 @@ class ExtractionSchema(val families: List<DocFamily>, val topics: List<Topic> = 
         val DEFAULT = ExtractionSchema(
             listOf(
                 OFFICIAL_LETTER, INVOICE_BILL, RECEIPT, FORM_APPLICATION, STATEMENT, CONTRACT_POLICY, CERTIFICATE_ID, MEDICAL,
-                TICKET_BOOKING, OUTGOING_LETTER, PAYMENT_PROOF, FREE_FORM,
+                TICKET_BOOKING, APPOINTMENT_REMINDER, MESSAGE_NOTE, OUTGOING_LETTER, PAYMENT_PROOF, FREE_FORM,
             ),
             TOPICS,
         )

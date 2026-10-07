@@ -145,6 +145,10 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
                     onDownloadsClick = {
                         navController.navigate("models")
                     },
+                    // The household card: the profile editor for a new person, opened as "Me".
+                    onAddHousehold = { role ->
+                        navController.navigate("profile/${ProfileDetailViewModel.NEW}?${ProfileDetailViewModel.ARG_ROLE}=${role.name}")
+                    },
                     onImportPicked = { uris -> context.startActivity(ImportActivity.intentFor(context, uris)) },
                 )
             }
@@ -162,11 +166,18 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
                 )
             }
             composable(
-                route = "profile/{${ProfileDetailViewModel.ARG_PROFILE_ID}}?${ProfileDetailViewModel.ARG_CONTACT_ID}={${ProfileDetailViewModel.ARG_CONTACT_ID}}",
+                route = "profile/{${ProfileDetailViewModel.ARG_PROFILE_ID}}" +
+                    "?${ProfileDetailViewModel.ARG_CONTACT_ID}={${ProfileDetailViewModel.ARG_CONTACT_ID}}" +
+                    "&${ProfileDetailViewModel.ARG_ROLE}={${ProfileDetailViewModel.ARG_ROLE}}",
                 arguments = listOf(
                     navArgument(ProfileDetailViewModel.ARG_PROFILE_ID) { type = NavType.StringType },
                     // Optional: the contact to scroll to (set from a letter's contact chip).
                     navArgument(ProfileDetailViewModel.ARG_CONTACT_ID) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    // Optional: the household role a new person starts with (set from the household card on Home).
+                    navArgument(ProfileDetailViewModel.ARG_ROLE) {
                         type = NavType.StringType
                         defaultValue = ""
                     },

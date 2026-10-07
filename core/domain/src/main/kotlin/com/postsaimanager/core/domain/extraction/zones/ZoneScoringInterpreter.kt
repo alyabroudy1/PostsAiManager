@@ -235,8 +235,24 @@ class ZoneScoringInterpreter(
         val family = classification.family
         val topics = if (topicsInFirstStage) classification.topics else emptyList()
         ownSlots = schema.ownSlots(family, topics)
-        val bodyParties = partyNames.filter { !isHeader(it.first) } + deferredParties
-        val bodySlots = (Slots.CORE + schema.slotsFor(family, topics)).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) } + deferred
+        // A document the model took for a few lines of a message or a reminder has no addressee: what the header read as one is dropped and
+        // none is asked for (the sender still is). Decided by the type the model chose, never by the words.
+        // The general "Document" (no specific type detected) asks no letter question at all: the parties and slots the header session already
+        // scored (it runs before the type is known) are dropped too.
+        if (!family.asksFields) {
+            s.parties.clear()
+            s.slots.clear()
+            s.senderId = null
+            scored.clear()
+        } else if (!family.hasAddressee) {
+            s.parties.removeAll { it.role != PartyRole.SENDER.name }
+            scored.removeAll { it.role != null && it.role != PartyRole.SENDER }
+        }
+        val bodyParties = (partyNames.filter { !isHeader(it.first) } + deferredParties)
+            .filter { family.asksFields && (family.hasAddressee || it.second == PartyRole.SENDER) }
+        val bodySlots = if (!family.asksFields) emptyList() else {
+            (Slots.CORE + schema.slotsFor(family, topics)).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) } + deferred
+        }
         prescored.clear()
         prescore(setup, bodyParties.mapNotNull { partyAsk(setup, it.first, widen = true) } + bodySlots.mapNotNull { slotAsk(setup, it, widen = true) })
         bodyParties.forEach { (name, role) -> party(setup, s, name, role, widen = true) }
@@ -293,7 +309,9 @@ class ZoneScoringInterpreter(
 
     private fun zonedText(setup: ZoneSetup, zones: List<LetterZone>, budget: Int): String {
         val hints = zones.filter { setup.zoned.hasText(it) }.joinToString("\n") { "ZONE ${it.tag}. HINT: ${setup.plan.hint(it)}" }
-        return hints + "\n" + setup.zoned.render(zones, budget)
+        val text = setup.zoned.render(zones, budget)
+        // How much text there is, as context only (see [LetterExtent]): the family is asked after this, and a few lines are not a letter.
+        return LetterExtent.describe(text) + "\n" + hints + "\n" + text
     }
 
     /** Reopens the session for writing: the same letter, under [ZonePrompt.writingSystem] instead of the scoring instruction. */
@@ -726,16 +744,32 @@ class ZoneScoringInterpreter(
         val cands = ask.cands
         val block = block(setup, zones)
         val scores = scored(setup, ask, block) ?: return true
-        collect(name, cands, scores, role = role, slot = null, block = block)
+        // "None of these" is an answer: a name is taken only when it also beats a made-up name asked the same way over the same zones, so the
+        // threshold of the question is raised to that level (the decoder, which re-decides from the scores, then abstains the same way).
+        val threshold = maxOf(profile.threshold(name), baselineFloor(ask, block) ?: Double.NEGATIVE_INFINITY)
+        collect(name, cands, scores, role = role, slot = null, block = block, threshold = threshold)
         val allowed = scores.indices.filter { role == PartyRole.SENDER || cands[it].id != s.senderId }
         val ranked = allowed.sortedByDescending { scores[it] }
         traceAsk(setup, name, zones, cands, scores, ranked.firstOrNull())
         val best = ranked.firstOrNull() ?: return true
-        val threshold = profile.threshold(name)
         if (scores[best] <= threshold) return true
         val (confidence, note) = confidenceOf(scores[best], ranked.getOrNull(1)?.let { scores[it] }, ranked.size)
         addParty(setup, s, name, role, cands[best], block, confidence, note, ranked.drop(1).take(MAX_ALTERNATIVES).map { RawAlternative(cands[it].id, scores[it]) })
         return true
+    }
+
+    /**
+     * The score a name of [ask] must be above to be taken: the content-free baseline (the same question about a made-up name,
+     * [ScoringDescriptions.PARTY_BASELINE_NAME], over the same zone block) plus the profile's margin. Null when the profile sets no margin
+     * for this question, and when the baseline could not be scored (nothing is then known against the name, so it is kept as before).
+     */
+    private suspend fun baselineFloor(ask: Ask, block: String): Double? {
+        val margin = profile.partyBaselineMargin(ask.name) ?: return null
+        val baseline = scoreBatch(
+            "baseline:${ask.name}", block, listOf(ZonePrompt.scoringQuestion(ScoringDescriptions.PARTY_BASELINE_NAME, null, ask.what)),
+        )?.firstOrNull() ?: return null
+        traceLines += String.format(Locale.ROOT, "%s baseline %+.2f margin %.2f -> a name needs more than %+.2f", ask.name, baseline, margin, baseline + margin)
+        return baseline + margin
     }
 
     /** The party [c] as [role]: its kind and (for an addressee) household relation scored, recorded as the sender or addressee established so far. */
@@ -835,9 +869,12 @@ class ZoneScoringInterpreter(
 
     private fun facts(c: Candidate) = CandidateFacts(c.id, c.kind, c.normalized, c.cents, c.currency)
 
-    private fun collect(name: String, cands: List<Candidate>, scores: List<Double>, role: PartyRole?, slot: SlotKey?, block: String) {
+    private fun collect(
+        name: String, cands: List<Candidate>, scores: List<Double>, role: PartyRole?, slot: SlotKey?, block: String,
+        threshold: Double = slotThreshold(name, slot),
+    ) {
         val question = ScoredQuestion(
-            name, cands.mapIndexed { i, c -> ScoredCandidate(facts(c), scores[i]) }, slotThreshold(name, slot),
+            name, cands.mapIndexed { i, c -> ScoredCandidate(facts(c), scores[i]) }, threshold,
             excludesWinnerOf = if (role != null && role != PartyRole.SENDER) QuestionNames.SENDER else null,
         )
         scored += Scored(question, slot, role, block, cands)

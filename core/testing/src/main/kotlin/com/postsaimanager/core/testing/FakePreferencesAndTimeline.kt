@@ -65,6 +65,9 @@ class FakeUserPreferencesRepository(
 
     override suspend fun setModelSetupSkipped(skipped: Boolean) =
         update { it.copy(modelSetupSkipped = skipped) }
+
+    override suspend fun setHouseholdPromptDismissed(dismissed: Boolean) =
+        update { it.copy(householdPromptDismissed = dismissed) }
 }
 
 /** In-memory [InferenceSettingsRepository], the same shape as the DataStore-backed one. */

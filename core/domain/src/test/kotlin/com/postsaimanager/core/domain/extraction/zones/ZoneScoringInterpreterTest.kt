@@ -148,7 +148,8 @@ class ZoneScoringInterpreterTest {
 
     @Test
     fun `the abstain threshold decides between a value and none`() {
-        val yesLetterDate = says("28.09.2026", "the date of the letter itself")
+        // A bill: the general "Document" (no type detected) asks no letter question, so a type is detected here.
+        val yesLetterDate: (String) -> Boolean = { c -> says("28.09.2026", "the date of the letter itself")(c) || c.contains("Is this document an invoice, a bill") }
         val strict = ScoringProfile(thresholds = mapOf("slot:letter_date" to 8.0))
         val (result, _) = run(strict, yesLetterDate)
         assertThat(result.slots.keys.map { it.json }).doesNotContain("letter_date")
@@ -264,7 +265,7 @@ class ZoneScoringInterpreterTest {
 
     @Test
     fun `confidence follows the margin and the winner's score through the cuts in the profile`() {
-        val yesDate = says("28.09.2026", "the date of the letter itself")
+        val yesDate: (String) -> Boolean = { c -> says("28.09.2026", "the date of the letter itself")(c) || c.contains("Is this document an invoice, a bill") }
         // The one date the model likes is +5 against the others' -5: a margin of 10 over the runner-up.
         val sure = ScoringProfile(cuts = ScoreCuts(mediumMargin = 1.0, highMargin = 5.0))
         val (high, _) = run(sure, yesDate)
@@ -281,6 +282,37 @@ class ZoneScoringInterpreterTest {
         val (low, _) = run(cautious, yesDate)
         assertThat(low.slots.entries.first { it.key.json == "letter_date" }.value.aiConfidence)
             .isAtMost(com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner.UNKNOWN)
+    }
+
+    @Test
+    fun `the general Document, when no type is detected, asks no party and no letter slot`() {
+        // Even a model that says Yes to every party and slot gets none of them stored: the type decides which questions are asked.
+        val (result, _) = run { c -> !c.contains("Is this document") }
+        assertThat(result.documentType?.id).isEqualTo("free_form")
+        assertThat(result.parties.all).isEmpty()
+        assertThat(result.slots).isEmpty()
+    }
+
+    @Test
+    fun `none of these is an answer for a party, a name must beat the made-up name by the margin`() {
+        fun yes(baseline: Double): (String) -> Boolean = { c ->
+            says("Musterfirma GmbH", "the sender")(c) || c.contains("Is this document an invoice, a bill") || (baseline > 0 && c.contains("«Zoltan Quillfeather»"))
+        }
+        val margin = ScoringProfile(partyBaselineMargins = mapOf("sender" to 1.0))
+        // The made-up name is scored No (-5): the real sender (+5) beats it by far and is kept.
+        assertThat(run(margin, yes(baseline = 0.0)).first.parties.sender?.name).isEqualTo("Musterfirma GmbH")
+        // The model leans Yes on the made-up name as well (+5): the sender no longer beats it by the margin, so the field stays empty.
+        assertThat(run(margin, yes(baseline = 1.0)).first.parties.sender).isNull()
+        // No margin set for the question: taken as before.
+        assertThat(run(ScoringProfile(), yes(baseline = 1.0)).first.parties.sender?.name).isEqualTo("Musterfirma GmbH")
+    }
+
+    @Test
+    fun `a message has no addressee, only the sender is asked among the parties`() {
+        val (result, _) = run { c -> c.contains("Is this document a short message") || says("Musterfirma GmbH", "the sender")(c) || says("Erika Mustermann", "the addressee")(c) }
+        assertThat(result.documentType?.id).isEqualTo("message_note")
+        assertThat(result.parties.sender?.name).isEqualTo("Musterfirma GmbH")
+        assertThat(result.parties.all.none { it.role == PartyRole.ADDRESSEE }).isTrue()
     }
 
     @Test

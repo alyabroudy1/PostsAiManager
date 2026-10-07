@@ -8,8 +8,11 @@ import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.importing.ImportQueue
 import com.postsaimanager.core.domain.importing.ImportStatus
 import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
+import com.postsaimanager.core.domain.household.DismissHouseholdPromptUseCase
+import com.postsaimanager.core.domain.household.ObserveHouseholdPromptUseCase
 import com.postsaimanager.core.domain.setup.ObserveModelBannerUseCase
 import com.postsaimanager.core.model.DocumentListItem
+import com.postsaimanager.core.model.HouseholdRole
 import com.postsaimanager.core.model.ModelBannerState
 import com.postsaimanager.core.model.ProcessingState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -26,9 +30,24 @@ class HomeViewModel @Inject constructor(
     observeDocumentListItems: ObserveDocumentListItemsUseCase,
     documentProcessor: DocumentProcessor,
     observeModelBanner: ObserveModelBannerUseCase,
+    observeHouseholdPrompt: ObserveHouseholdPromptUseCase,
+    private val dismissHouseholdPrompt: DismissHouseholdPromptUseCase,
     private val importQueue: ImportQueue,
     private val externalFlowGuard: ExternalFlowGuard,
 ) : ViewModel() {
+
+    /**
+     * The one-time "Add yourself and your family" card: the household role the profile editor should open with, or null for no card
+     * (a "Me" exists, it was dismissed, or there is no document yet).
+     */
+    val householdPrompt: StateFlow<HouseholdRole?> = observeHouseholdPrompt()
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** "Not now": the card never comes back. */
+    fun onDismissHouseholdPrompt() {
+        viewModelScope.launch { dismissHouseholdPrompt() }
+    }
 
     private var pickerFlow: ExternalFlowToken? = null
 

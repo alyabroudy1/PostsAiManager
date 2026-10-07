@@ -296,7 +296,9 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         val live = asked
         // The batch as recorded; failing that, a subset of a recorded one in the same order (fewer candidates than were recorded).
         var picked: List<Int> = emptyList()
-        fun find(subset: Boolean): Int? = recording.asks.indices.firstOrNull { i ->
+        // [newFamilies]: a family question the recording never held (a family added after it was made) is scripted as "not scored"
+        // (-1 below), so the recorded families keep their recorded scores and the new ones can never win.
+        fun find(subset: Boolean, newFamilies: Boolean = false): Int? = recording.asks.indices.firstOrNull { i ->
             val a = recording.asks[i]
             if (i in used || !a.name.startsWith("score:")) return@firstOrNull false
             val questions = a.question.split(SCORE_SEPARATOR).map { withoutIds(it) }
@@ -304,15 +306,23 @@ internal class ReplayPromptSession(private val recording: Recording, private val
             val found = ArrayList<Int>()
             var from = 0
             for (l in live) {
-                val j = (from until questions.size).firstOrNull { l.startsWith(questions[it]) } ?: return@firstOrNull false
+                val j = (from until questions.size).firstOrNull { l.startsWith(questions[it]) }
+                if (j == null) {
+                    if (newFamilies && l.startsWith(FAMILY_QUESTION)) found += NEW_QUESTION else return@firstOrNull false
+                    continue
+                }
                 found += j
                 from = j + 1
             }
+            if (found.all { it == NEW_QUESTION }) return@firstOrNull false
             picked = found
             true
         }
-        val at = find(subset = false) ?: find(subset = true)
+        val at = find(subset = false) ?: find(subset = true) ?: find(subset = true, newFamilies = true)
         if (at == null) {
+            // The content-free baseline of a party question (a made-up name) is newer than the 16 recordings: replayed as recorded when the
+            // recording holds it, else "not scored" (far below any score, so it never makes a name lose and the reading is as recorded).
+            if (live.all { it.contains(ScoringDescriptions.PARTY_BASELINE_NAME) }) return PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED })
             // The reference slots every family asks since extraction-v2-5 are newer than the recordings: a batch that holds them besides
             // recorded questions replays the recorded ones and scripts the new ones as "not scored".
             scriptedAroundNewCore(live)?.let { return it }
@@ -327,7 +337,7 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         used += at
         val answer = recording.asks[at].answer ?: return PamResult.Error(PamError.InferenceError("the recorded batch failed"))
         val scores = answer.split(',').map { it.trim().toDouble() }
-        return PamResult.Success(picked.map { scores[it] })
+        return PamResult.Success(picked.map { if (it == NEW_QUESTION) LegacyFamilyBridge.NOT_RECORDED else scores[it] })
     }
 
     /**
@@ -422,6 +432,10 @@ internal class ReplayPromptSession(private val recording: Recording, private val
             .map { ScoringDescriptions.ofSlot(it) }
         const val SCORE_SEPARATOR = "\n@@\n"
         const val MISS_CHARS = 70
+
+        /** How a family question starts, and the marker of one the recording never held (see `find`). */
+        const val FAMILY_QUESTION = "Is this document "
+        const val NEW_QUESTION = -1
     }
 
     override suspend fun close() = Unit

@@ -41,6 +41,11 @@ data class UserPreferences(
      */
     val searchModelHintDismissed: Boolean = false,
     /**
+     * Whether the user dismissed the one-time card on Home that asks them to add themselves and their family, so letters for them
+     * are tagged. Never shown again after that.
+     */
+    val householdPromptDismissed: Boolean = false,
+    /**
      * Whether the user chose "Skip for now" on the first-run AI model setup. While no chat model is installed the app then opens
      * Home with an "AI model not installed" banner instead of the setup screen; it is cleared when setup finishes.
      */

@@ -1,6 +1,8 @@
 package com.postsaimanager.core.domain.document.list
 
 import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner
+import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
+import com.postsaimanager.core.domain.extraction.v2.FamilyPresentation
 import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
@@ -82,8 +84,16 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
             dateChip = dateChip(document, due, letterDate, today),
             openActionCount = document.actionItems.size,
             people = people,
+            typeId = typeTagOf(document.extractionType),
         )
     }
+
+    /**
+     * The family the type tag names: the stored type as a family id (a document read before extraction-v2-2 has a legacy id), or null
+     * for none, for one this build does not know and for the abstain family, which is the neutral "Document" and gets no tag.
+     */
+    private fun typeTagOf(storedType: String?): String? =
+        FamilyPresentation.familyId(storedType)?.takeIf { it != ExtractionSchema.FREE_FORM.id }
 
     private fun statusOf(status: DocumentStatus, fields: List<ExtractedData>): DocumentListStatus = when (status) {
         DocumentStatus.NEW, DocumentStatus.QUEUED -> DocumentListStatus.Waiting

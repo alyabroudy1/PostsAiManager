@@ -29,7 +29,8 @@ data class Classification(
  * `<family>`?" for every scored family and "Does this document concern `<topic>`?" for every topic, read from the letter's open
  * [PromptSession] (for a received letter, 10 + 14 = 24 scores, tree-shared).
  *
- * The family is the argmax when it beats [ScoringProfile.threshold] of [ScoringProfile.FAMILY], otherwise the abstain family:
+ * The family is the argmax when it beats [ScoringProfile.threshold] of [ScoringProfile.FAMILY] and the runner-up by
+ * [ScoringProfile.familyMinMargin] ([ScoringProfile.familyWinner]), otherwise the abstain family (the neutral "Document"):
  * [ExtractionSchema.FREE_FORM] is never scored, because a scored "anything else" gets a middling Yes on every letter and wins.
  * The topics are all those above the [ScoringProfile.TOPICS] threshold, so a bill about health is a bill with the topic `health`.
  *
@@ -56,7 +57,7 @@ class FamilyClassifier(
         val familyScores = scores.subList(0, families.size)
         val topicScores = scores.subList(families.size, scores.size)
         val order = familyScores.indices.sortedByDescending { familyScores[it] }
-        val best = order.firstOrNull()?.takeIf { familyScores[it] > profile.threshold(ScoringProfile.FAMILY) }
+        val best = profile.familyWinner(familyScores)
         val margin = when {
             best == null -> 0.0
             order.size > 1 -> familyScores[best] - familyScores[order[1]]

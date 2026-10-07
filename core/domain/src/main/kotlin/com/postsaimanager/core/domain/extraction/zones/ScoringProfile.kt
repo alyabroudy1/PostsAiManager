@@ -16,6 +16,18 @@ data class ScoringProfile(
     /** The document type's margin over the next type: MEDIUM from here, HIGH from [highMargin]. */
     val mediumMargin: Double = 1.0,
     val highMargin: Double = 3.0,
+    /**
+     * The least the best family must lead the runner-up by to be taken; a closer call is the abstain family (the neutral "Document"),
+     * because a model that cannot tell two kinds apart is not telling which one it is. 0.0 (the default) takes any lead.
+     */
+    val familyMinMargin: Double = 0.0,
+    /**
+     * The party questions (`sender`, `addressee`, `subject_person`, ...) whose answer may be "none of these": the best name is taken only when
+     * its score beats, by at least this margin, the score of a made-up name that is nowhere in the letter, asked the same way over the same
+     * zones (the content-free baseline). A line that is no party (a greeting, a sentence of a message) then leaves the field empty instead of
+     * being the best of a bad lot. By question name; a question not listed is taken as before (the best above its threshold).
+     */
+    val partyBaselineMargins: Map<String, Double> = emptyMap(),
     /** The cut points of a slot's or a party's confidence; see [ScoreCuts]. */
     val cuts: ScoreCuts = ScoreCuts(),
     /** How the scores of all questions are combined into the answers ([SlotDecoder]); the per-slot argmax by default. */
@@ -51,6 +63,20 @@ data class ScoringProfile(
 
     /** The threshold of a slot question: [optionalThreshold] when it [isOptional], else the question's own ([threshold]). */
     fun slotThreshold(ask: String, own: Boolean): Double = thresholds[ask] ?: if (isOptional(ask, own)) optionalThreshold else defaultThreshold
+
+    /**
+     * The family the scores decide, as an index into [scores] (one per scored family), or null for the abstain family: the best score
+     * must be above the family threshold and lead the runner-up by at least [familyMinMargin]. A lone candidate leads by its own score.
+     */
+    fun familyWinner(scores: List<Double>): Int? {
+        val order = scores.indices.sortedByDescending { scores[it] }
+        val best = order.firstOrNull()?.takeIf { scores[it] > threshold(FAMILY) } ?: return null
+        val lead = if (order.size > 1) scores[best] - scores[order[1]] else scores[best]
+        return best.takeIf { lead >= familyMinMargin }
+    }
+
+    /** The margin over the content-free baseline the party question [ask] needs, or null when it is not asked against one. */
+    fun partyBaselineMargin(ask: String): Double? = partyBaselineMargins[ask]
 
     /** The type's confidence from its margin. */
     fun confidence(margin: Double): String = when {
@@ -154,6 +180,12 @@ object ScoringDescriptions {
      * its threshold is the profile's (`defaultThreshold` unless the profile sets this name). What scores above it is key information too.
      */
     const val KEY_SLOTS_ASK = "keyslots"
+
+    /**
+     * The made-up name scored beside a party's candidates as the content-free baseline (see [ScoringProfile.partyBaselineMargins]); it must
+     * not be a name that could be printed in a letter.
+     */
+    const val PARTY_BASELINE_NAME = "Zoltan Quillfeather"
 
     /** At most this many stored slot values are scored for key information in one reading: the batch stays small. */
     const val MAX_KEY_SLOT_SCORES = 15

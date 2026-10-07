@@ -45,6 +45,7 @@ import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.importing.ImportStatus
 import com.postsaimanager.core.model.DocumentListItem
 import com.postsaimanager.core.model.DownloadSummary
+import com.postsaimanager.core.model.HouseholdRole
 import com.postsaimanager.core.model.ModelBannerState
 import com.postsaimanager.core.model.ProcessingState
 
@@ -56,6 +57,8 @@ fun HomeScreen(
     onAskAcrossDocumentsClick: () -> Unit,
     onInstallModelClick: () -> Unit,
     onDownloadsClick: () -> Unit,
+    /** "Add" on the household card: open the profile editor with this role preset. */
+    onAddHousehold: (HouseholdRole) -> Unit,
     /** The person picked PDFs or images to import (read grants included); the caller opens the confirm sheet. */
     onImportPicked: (List<Uri>) -> Unit,
     modifier: Modifier = Modifier,
@@ -63,6 +66,7 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val modelBanner by viewModel.modelBanner.collectAsStateWithLifecycle()
+    val householdPrompt by viewModel.householdPrompt.collectAsStateWithLifecycle()
     val processingState by viewModel.processingState.collectAsStateWithLifecycle()
     val importStatus by viewModel.importStatus.collectAsStateWithLifecycle()
     val importPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -122,6 +126,9 @@ fun HomeScreen(
                 is ModelBannerState.Failed -> DownloadBanner(banner.summary, failed = true, onClick = onDownloadsClick)
             }
             ImportBanner(importStatus, onDismissFailure = viewModel::dismissImportFailures)
+            householdPrompt?.let { role ->
+                HouseholdCard(onAdd = { onAddHousehold(role) }, onDismiss = viewModel::onDismissHouseholdPrompt)
+            }
             HomeContent(uiState, processingState, onDocumentClick, onScanClick, Modifier.weight(1f))
         }
     }
@@ -146,6 +153,32 @@ private fun ImportBanner(status: ImportStatus, onDismissFailure: () -> Unit, mod
                 color = if (running) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer,
             )
             if (running) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+/**
+ * The one-time household card: letters for the user and their family are tagged with their name on the list, but only once they are
+ * added. "Add" opens the profile editor ready to add "Me"; "Not now" hides the card for good.
+ */
+@Composable
+private fun HouseholdCard(onAdd: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = modifier.fillMaxWidth()) {
+        Column(Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 4.dp)) {
+            Text(
+                text = stringResource(R.string.home_household_card_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Text(
+                text = stringResource(R.string.home_household_card_text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.home_household_card_dismiss)) }
+                TextButton(onClick = onAdd) { Text(stringResource(R.string.home_household_card_action)) }
+            }
         }
     }
 }

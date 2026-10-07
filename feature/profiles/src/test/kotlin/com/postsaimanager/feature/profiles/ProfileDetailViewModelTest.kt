@@ -40,8 +40,8 @@ class ProfileDetailViewModelTest {
     private val facts = FakeProfileFactRepository()
     private val contacts = FakeContactRepository()
 
-    private fun viewModel(id: String) = ProfileDetailViewModel(
-        SavedStateHandle(mapOf(ProfileDetailViewModel.ARG_PROFILE_ID to id)),
+    private fun viewModel(id: String, role: String? = null) = ProfileDetailViewModel(
+        SavedStateHandle(listOfNotNull(ProfileDetailViewModel.ARG_PROFILE_ID to id, role?.let { ProfileDetailViewModel.ARG_ROLE to it }).toMap()),
         profiles,
         SetHouseholdRoleUseCase(profiles),
         ObserveOrganisationContactsUseCase(contacts),
@@ -123,6 +123,25 @@ class ProfileDetailViewModelTest {
             assertThat(created.type).isEqualTo(ProfileType.FAMILY_MEMBER)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `a new person opened from the household card is Me, and a role name this build does not know falls back to a member`() = runTest {
+        val vm = viewModel(ProfileDetailViewModel.NEW, role = "SELF")
+        vm.uiState.test {
+            assertThat(expectMostRecentItem().draft?.householdRole).isEqualTo(HouseholdRole.SELF)
+            vm.update { it.copy(name = "Erika Mustermann") }
+            vm.save()
+
+            val created = profiles.getProfiles().first().single()
+            assertThat(created.isSelf).isTrue()
+            assertThat(created.isManaged).isTrue()
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertThat(ProfileDetailViewModel.startingRole("")).isEqualTo(HouseholdRole.MEMBER)
+        assertThat(ProfileDetailViewModel.startingRole(null)).isEqualTo(HouseholdRole.MEMBER)
+        assertThat(ProfileDetailViewModel.startingRole("GUARDIAN")).isEqualTo(HouseholdRole.MEMBER)
+        assertThat(ProfileDetailViewModel.startingRole("SELF")).isEqualTo(HouseholdRole.SELF)
     }
 
     @Test
