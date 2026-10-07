@@ -5,6 +5,8 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.actions.ActionQuestions
 import com.postsaimanager.core.domain.extraction.text.ReadFacts
+import com.postsaimanager.core.domain.timeline.EventQuestions
+import com.postsaimanager.core.domain.timeline.EventTitleWriter
 import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
@@ -240,6 +242,9 @@ class ScriptedInterpreter(private val recording: Recording) : DocumentInterprete
     }
 }
 
+/** The line a replay lists the event title's generation under (extraction-v2-17): no recording holds it, so it is scripted, never a hard miss. */
+internal const val EVENT_TITLE_MISS = "TITLE OF THE EVENT"
+
 /**
  * A [PromptSession] that answers from a questionnaire recording, so the real [QuestionnaireInterpreter] (its
  * questions, its order, its parsing) is what replays. A question is matched by its text, which does not depend
@@ -278,7 +283,12 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         val at = recording.asks.indices.firstOrNull { it !in used && !recording.asks[it].name.startsWith("score:") && text.startsWith(withoutIds(recording.asks[it].question)) }
             ?: return PamResult.Error(PamError.InferenceError("no recorded answer for this question")).also {
                 // The name of the document (extraction-v2-16) is a generation no recording holds: listed under its own words, never cut mid-prompt.
-                misses += if (text.contains(NAME_ASK)) "ask «$NAME_MISS»" else "ask «${text.take(MISS_CHARS)}»"
+                // The title of the letter's event (extraction-v2-17) is the same: a generation no recording holds.
+                misses += when {
+                    text.contains(NAME_ASK) -> "ask «$NAME_MISS»"
+                    text.contains(EventTitleWriter.MARKER) -> "ask «$EVENT_TITLE_MISS»"
+                    else -> "ask «${text.take(MISS_CHARS)}»"
+                }
             }
         used += at
         val answer = recording.asks[at].answer ?: return PamResult.Error(PamError.InferenceError("the recorded question failed"))
@@ -297,7 +307,11 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         // The stored-slot questions (key information) and the action questions are newer than the recordings of the reading: they are scripted
         // as "not scored" (no threshold accepts that), and the rest of the batch is replayed as recorded. The action scores are replayed
         // from their own recordings (ActionKindReplayTest).
-        val keySlot = continuations.indices.filter { continuations[it].contains(KEY_SLOT_QUESTION) || ActionQuestions.isActionQuestion(continuations[it]) }.toSet()
+        // The event-kind questions (extraction-v2-17) are scripted the same way: never recorded, so "not scored", and every letter replays as
+        // "information" (no kind passes its margin).
+        val keySlot = continuations.indices.filter {
+            continuations[it].contains(KEY_SLOT_QUESTION) || ActionQuestions.isActionQuestion(continuations[it]) || EventQuestions.isEventQuestion(continuations[it])
+        }.toSet()
         if (keySlot.isNotEmpty()) {
             val rest = continuations.filterIndexed { i, _ -> i !in keySlot }
             val replayed = if (rest.isEmpty()) PamResult.Success(emptyList()) else score(rest, yes, no, shared)
@@ -563,7 +577,7 @@ internal class ZoneReplay(private val recording: Recording, private val scoring:
 
     /** The summary asks and the key-information ask the recording could not answer (see [requireComplete]): the template summary, and no extra facts. */
     val scriptedMisses: List<String> get() = misses.filter {
-        it.startsWith("ask «FACTS") || it.startsWith("ask «READ FIELDS") || it.startsWith("ask «NAME OF THE DOCUMENT")
+        it.startsWith("ask «FACTS") || it.startsWith("ask «READ FIELDS") || it.startsWith("ask «NAME OF THE DOCUMENT") || it.startsWith("ask «$EVENT_TITLE_MISS")
     }
 
     /** The party and slot questions the recording never held, replayed as "not recorded" (see [ReplayPromptSession.unrecorded]). */

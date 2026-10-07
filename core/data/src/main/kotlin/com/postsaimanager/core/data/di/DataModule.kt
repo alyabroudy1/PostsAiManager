@@ -1,6 +1,8 @@
 package com.postsaimanager.core.data.di
 
 import com.postsaimanager.core.data.repository.ContactRepositoryImpl
+import com.postsaimanager.core.data.repository.EventRepositoryImpl
+import com.postsaimanager.core.domain.repository.EventRepository
 import com.postsaimanager.core.domain.repository.ContactRepository
 import com.postsaimanager.core.data.repository.ConversationRepositoryImpl
 import com.postsaimanager.core.data.repository.DocumentChunkRepositoryImpl
@@ -67,6 +69,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindFormFillRepository(impl: FormFillRepositoryImpl): FormFillRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindEventRepository(impl: EventRepositoryImpl): EventRepository
 
     @Binds
     @Singleton

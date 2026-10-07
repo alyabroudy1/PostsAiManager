@@ -1206,6 +1206,36 @@ class MigrationTest {
         }
     }
 
+    /** v23 gains the profile timeline's three tables (empty) and validates against the schema. Needs a device. */
+    @Test
+    fun migrate23To24_createsTheTimelineTables() {
+        helper.createDatabase(TEST_DB, 23).close()
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 24, true, PamMigrations.MIGRATION_23_24)
+
+        listOf("cases", "profile_events", "profile_event_people").forEach { table ->
+            db.query("SELECT count(*) FROM `$table`").use { c ->
+                assertTrue(c.moveToFirst())
+                assertEquals(0, c.getInt(0))
+            }
+        }
+    }
+
+    /** A v22 database goes through both steps (notes, then timeline) and validates against the v24 schema. Needs a device. */
+    @Test
+    fun migrate22To24_chainsNotesAndTimeline() {
+        helper.createDatabase(TEST_DB, 22).close()
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 24, true, PamMigrations.MIGRATION_22_23, PamMigrations.MIGRATION_23_24)
+
+        listOf("document_notes", "cases", "profile_events", "profile_event_people").forEach { table ->
+            db.query("SELECT count(*) FROM `$table`").use { c ->
+                assertTrue(c.moveToFirst())
+                assertEquals(0, c.getInt(0))
+            }
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

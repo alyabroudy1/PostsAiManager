@@ -569,6 +569,14 @@ object PamMigrations {
         }
     }
 
+    /**
+     * v24 (the profile timeline): the tables `cases`, `profile_events` and `profile_event_people`, with their indices. See
+     * [TimelineMigration]. Additive and idempotent; 1..23 are untouched (23 may be installed on phones).
+     */
+    val MIGRATION_23_24 = object : Migration(23, 24) {
+        override fun migrate(db: SupportSQLiteDatabase) = TimelineMigration.apply(db)
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -592,5 +600,6 @@ object PamMigrations {
         MIGRATION_20_21,
         MIGRATION_21_22,
         MIGRATION_22_23,
+        MIGRATION_23_24,
     )
 }

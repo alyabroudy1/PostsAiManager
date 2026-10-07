@@ -6,6 +6,7 @@ import com.postsaimanager.core.domain.extraction.text.SummaryResult
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.EnrichmentTicket
+import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.FieldAlternative
 import com.postsaimanager.core.model.KeySlot
 import com.postsaimanager.core.model.PostalAddress
@@ -228,6 +229,8 @@ data class ExtractionV2Result(
     val actions: List<ActionItem>? = null,
     /** The stored slots the second stage picked as key information, best first; null when it did not score them. */
     val keySlots: List<KeySlot>? = null,
+    /** The event the second stage decided the letter reports; null when it could not be scored. */
+    val event: EventReading? = null,
     /** The title composed from the family, the sender and the verified subject; null when nothing could be composed (no model read the letter). */
     val composedTitle: TitleComposer.Composed? = null,
     val freeText: FreeText = FreeText(),

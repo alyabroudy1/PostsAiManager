@@ -14,6 +14,7 @@ import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.database.dao.FormFillDao
 import com.postsaimanager.core.data.database.dao.MessageDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
+import com.postsaimanager.core.data.database.dao.ProfileEventDao
 import com.postsaimanager.core.data.database.dao.ProfileFactDao
 import com.postsaimanager.core.data.database.dao.TimelineDao
 import dagger.Module
@@ -80,4 +81,7 @@ object DatabaseModule {
 
     @Provides
     fun provideDocumentNoteDao(database: PamDatabase): DocumentNoteDao = database.documentNoteDao()
+
+    @Provides
+    fun provideProfileEventDao(database: PamDatabase): ProfileEventDao = database.profileEventDao()
 }

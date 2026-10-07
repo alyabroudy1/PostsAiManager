@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.extraction.zones
 
 import com.postsaimanager.core.domain.extraction.actions.ActionKindProfile
 import com.postsaimanager.core.domain.extraction.v2.SlotKey
+import com.postsaimanager.core.domain.timeline.EventKindProfile
 
 /**
  * How a log-odds score becomes a decision, as data, per model (see [ModelProfile]): the abstain threshold per
@@ -68,6 +69,8 @@ data class ScoringProfile(
     val optionalThreshold: Double = 0.0,
     /** How the scores of the action questions become the actions a letter asks of its reader (see [ActionKindProfile]). */
     val actions: ActionKindProfile = ActionKindProfile(),
+    /** How the scores of the event-kind questions become the kind of event a letter reports (see [EventKindProfile]); unfitted: baseline 0.0, margin 0.0. */
+    val events: EventKindProfile = EventKindProfile(),
 ) {
     fun threshold(ask: String): Double = thresholds[ask] ?: defaultThreshold
 

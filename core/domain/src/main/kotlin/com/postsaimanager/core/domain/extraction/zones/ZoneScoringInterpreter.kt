@@ -53,7 +53,11 @@ import com.postsaimanager.core.domain.extraction.v2.StructuredGrammar
 import com.postsaimanager.core.domain.extraction.v2.TextOutcome
 import com.postsaimanager.core.domain.extraction.v2.TextRequest
 import com.postsaimanager.core.domain.extraction.v2.UnreadText
+import com.postsaimanager.core.domain.timeline.EventKindReader
+import com.postsaimanager.core.domain.timeline.EventKinds
+import com.postsaimanager.core.domain.timeline.EventTitleWriter
 import com.postsaimanager.core.model.ActionItem
+import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.KeySlot
 import com.postsaimanager.core.model.TicketSlot
 import java.util.Locale
@@ -366,7 +370,12 @@ class ZoneScoringInterpreter(
             // The topics of such a profile: from the category's batch, or (a category a person gave decides nothing to score) on their own.
             val lateTopics = if (!topicsHere) null else decided.topics ?: classifier().topics(tail)
             // What the reader has to do is scored too, in the same body session: a kind is chosen from the catalogue, nothing is written.
-            val actions = readActions(open.setup, request, decided.family ?: request.documentTypeId?.let(schema::family))
+            val decidedFamily = decided.family ?: request.documentTypeId?.let(schema::family)
+            val actions = readActions(open.setup, request, decidedFamily)
+            // What the letter reports (an approval, a payment demand ...) is scored in the same session, from the registry of event kinds:
+            // one batch against the content-free baseline, "information" when no kind passes its margin. Null when it could not be scored.
+            val eventKind = EventKindReader({ name, questions -> scoreBatch(name, "", questions) }, profile.events, trace = { traceLines += it })
+                .read(decidedFamily?.takeIf { it.scored }?.description)
             // The letter as plain text: no zone hints and no summary of the header, which a small model copies instead of the letter.
             val writing = switchToWriting(open.setup, ZonePrompt.bodyUser("", open.setup.zoned.render(open.zonesInPrefix, open.budget)))
             if (!writing) {
@@ -374,6 +383,7 @@ class ZoneScoringInterpreter(
                     Enrichment(
                         language = null, extras = emptyList(), text = null, textError = "the model could not read the letter again", topics = lateTopics,
                         actions = actions, keySlots = keySlots, type = decided.family?.id, typeConfidence = decided.confidence,
+                        event = eventKind?.let { EventReading(it.kindId) },
                     ),
                 )
             }
@@ -390,11 +400,15 @@ class ZoneScoringInterpreter(
             // The specific name the title uses: written last, knowing what was read and what the category is, and kept only when every
             // number and name in it is printed in the letter ([DocumentNameVerifier]); none otherwise.
             val name = DocumentNameWriter(FramedSession("text:name")).write(read, categoryContext(decided), request.ocrText, language)
+            // The event's title: written last, in the document's language, kept only when grounded like the name ([DocumentNameVerifier]).
+            val event = eventKind?.let {
+                EventReading(it.kindId, EventTitleWriter(FramedSession("text:eventtitle")).write(read, EventKinds.DEFAULT.byId(it.kindId), request.ocrText, language))
+            }
             return EnrichmentOutcome.Done(
                 Enrichment(
                     language = language, extras = extras, text = written,
                     textError = (text as? TextOutcome.Failed)?.reason, summary = summary, topics = lateTopics, actions = actions,
-                    keySlots = keySlots, type = decided.family?.id, typeConfidence = decided.confidence, name = name,
+                    keySlots = keySlots, type = decided.family?.id, typeConfidence = decided.confidence, name = name, event = event,
                 ),
             )
         } catch (e: Abort) {

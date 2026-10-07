@@ -12,6 +12,7 @@ import com.postsaimanager.core.domain.extraction.text.SummaryResult
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.EnrichmentTicket
+import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.KeySlot
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.TicketSlot
@@ -96,6 +97,7 @@ class ExtractionV2Pipeline(
         var summary: SummaryResult? = null
         var actions: List<ActionItem>? = null
         var keySlots: List<KeySlot>? = null
+        var event: EventReading? = null
         var name: String? = null
         val pageTexts = pages.map { blocks -> blocks.joinToString("\n") { OcrText.normalizeChars(it.text) } }
         fun context(rawText: String?, textError: String?) = VerificationContext(
@@ -143,6 +145,7 @@ class ExtractionV2Pipeline(
                         summary = enriched.enrichment.summary
                         actions = enriched.enrichment.actions
                         keySlots = enriched.enrichment.keySlots
+                        event = enriched.enrichment.event
                     }
                     is EnrichmentOutcome.Failed -> textError = enriched.reason
                 }
@@ -159,7 +162,7 @@ class ExtractionV2Pipeline(
         val verified = verifier.verify(raw, text, context(rawText, textError))
         lap("verify")
         return verified.copy(
-            enrichment = ticket, summary = summary, actions = actions, keySlots = keySlots,
+            enrichment = ticket, summary = summary, actions = actions, keySlots = keySlots, event = event,
             composedTitle = composeTitle(verified, verified.parties.sender?.name, name),
         ).withReading(
             layoutTrace(pages, layout, candidates, offered, description, traceContent) + timings + interpreter.trace,
@@ -211,7 +214,7 @@ class ExtractionV2Pipeline(
             // The type the stage decided, or none: a stage that decided nothing must not hand the stored type back as if it had (a legacy id
             // the schema does not hold would read as the neutral "Document" and replace the stored one).
             documentType = verified.documentType.takeIf { done?.type != null },
-            summary = done?.summary, actions = done?.actions, keySlots = done?.keySlots,
+            summary = done?.summary, actions = done?.actions, keySlots = done?.keySlots, event = done?.event,
             composedTitle = composeTitle(verified, ticket.facts[SummaryFacts.SENDER], done?.name),
             diagnostics = verified.diagnostics.copy(modelCalled = true, modelUsed = done != null, trace = timings + interpreter.trace),
         )

@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.text.SummaryResult
 import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.DocumentUnderstanding
+import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.KeySlot
 import com.postsaimanager.core.model.TicketSlot
 import com.postsaimanager.core.model.OcrBlock
@@ -180,6 +181,8 @@ class Enrichment(
     val type: String? = null,
     val typeConfidence: String? = null,
     val name: String? = null,
+    /** The event the letter reports: its kind (scored from the registry) and its grounded title; null when the kinds could not be scored. */
+    val event: EventReading? = null,
 )
 
 sealed interface EnrichmentOutcome {

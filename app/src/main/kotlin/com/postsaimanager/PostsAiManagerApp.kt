@@ -16,6 +16,7 @@ import com.postsaimanager.core.domain.document.ReadDocumentsAwaitingModelUseCase
 import com.postsaimanager.core.domain.document.ReprocessOutdatedDocumentsUseCase
 import com.postsaimanager.core.domain.document.people.ConcernedPeopleWatcher
 import com.postsaimanager.core.domain.memory.SessionNotesCollector
+import com.postsaimanager.core.domain.timeline.RecordPassedDeadlinesUseCase
 import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CancellationException
@@ -98,6 +99,10 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
     @Inject
     lateinit var sessionNotesCollector: Lazy<SessionNotesCollector>
 
+    // Same reason: it reaches the document list and so DocumentProcessor. "Deadline passed" events of the profile timeline.
+    @Inject
+    lateinit var recordPassedDeadlines: Lazy<RecordPassedDeadlinesUseCase>
+
     // Lazy for the same reason as above: only the main process has a UI to lock.
     @Inject
     lateinit var appLockCoordinator: Lazy<AppLockCoordinator>
@@ -150,6 +155,12 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
         // The notes of a chat session are written when it ends (the person leaves the chat, or 10 idle minutes), here and not in the
         // chat's ViewModel, which is gone by then. Quiet: skipped when no chat model is loaded or the model is busy.
         runCatching { sessionNotesCollector.get().start(applicationScope) }
+
+        // Every time the app opens: a due date that passed with nothing done is written once to the letter's timeline (code only, no model).
+        applicationScope.launch {
+            runCatching { recordPassedDeadlines.get().invoke() }
+                .onFailure { if (it is CancellationException) throw it }
+        }
     }
 
     /**
