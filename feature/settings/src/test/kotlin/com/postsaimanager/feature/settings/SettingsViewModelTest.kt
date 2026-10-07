@@ -18,7 +18,16 @@ import com.postsaimanager.core.testing.FakeDeviceAuthenticator
 import com.postsaimanager.core.testing.FakeInferenceSettingsRepository
 import com.postsaimanager.core.testing.FakeUserPreferencesRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
+import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
+import com.postsaimanager.core.domain.reminder.SetDeadlineRemindersUseCase
+import com.postsaimanager.core.domain.skills.ReminderScheduler
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import java.time.Clock
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -39,7 +48,11 @@ class SettingsViewModelTest {
     private val inferenceSettingsRepo = FakeInferenceSettingsRepository()
     private val authenticator = FakeDeviceAuthenticator()
 
+    private val reminders = mockk<ReminderScheduler>(relaxed = true)
+    private val documents = mockk<ObserveDocumentListItemsUseCase> { every { this@mockk.invoke("") } returns flowOf(emptyList()) }
+
     private fun viewModel(userPreferencesRepository: FakeUserPreferencesRepository = repo) = SettingsViewModel(
+        setDeadlineReminders = SetDeadlineRemindersUseCase(userPreferencesRepository, documents, reminders, Clock.systemUTC()),
         userPreferencesRepository = userPreferencesRepository,
         observeInferenceSettings = ObserveInferenceSettingsUseCase(models, inferenceSettingsRepo),
         updateInferenceSetting = UpdateInferenceSettingUseCase(inferenceSettingsRepo),
@@ -81,6 +94,20 @@ class SettingsViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
         assertThat(repo.current.theme).isEqualTo(AppTheme.DARK)
+    }
+
+    @Test
+    fun `the deadline reminders switch cancels the scheduled reminders when turned off and reschedules when turned on`() = runTest {
+        val vm = viewModel()
+
+        vm.setNotificationsEnabled(false)
+        coVerify(exactly = 1) { reminders.cancelDeadlines() }
+        assertThat(repo.current.notificationsEnabled).isFalse()
+
+        vm.setNotificationsEnabled(true)
+        coVerify(exactly = 2) { reminders.cancelDeadlines() }
+        verify(exactly = 1) { documents.invoke("") }
+        assertThat(repo.current.notificationsEnabled).isTrue()
     }
 
     @Test
