@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.usecase.CreateDocumentFromPagesUseCase
 import com.postsaimanager.core.model.SourceType
 import com.postsaimanager.core.testing.FakeDocumentProcessor
 import com.postsaimanager.core.testing.FakeDocumentRepository
+import com.postsaimanager.core.testing.FakeImportRequestJournal
 import com.postsaimanager.core.testing.FakePageImageSource
 import com.postsaimanager.core.testing.stagedFile
 import kotlinx.coroutines.CancellationException
@@ -19,7 +20,8 @@ class ImportFilesUseCaseTest {
     private val source = FakePageImageSource()
     private val repository = FakeDocumentRepository()
     private val processor = FakeDocumentProcessor()
-    private val useCase = ImportFilesUseCase(source, CreateDocumentFromPagesUseCase(repository, processor))
+    private val journal = FakeImportRequestJournal()
+    private val useCase = ImportFilesUseCase(source, CreateDocumentFromPagesUseCase(repository, processor), journal)
 
     private val pdf = stagedFile("a", ImportedKind.PDF, pages = 3)
     private val img1 = stagedFile("i1")
@@ -126,6 +128,49 @@ class ImportFilesUseCaseTest {
 
         assertThat(source.discarded).containsExactly("batch-1")
         assertThat(repository.getDocuments().first()).isEmpty()
+    }
+
+    @Test
+    fun `each created document is written to the request at once, so a second run skips it`() = runTest {
+        // The process dies after the first group: its journal entry is what survives.
+        source.renderResult = { file, _ ->
+            if (file.id == "i1") throw IllegalStateException("process died") else RenderResult.Rendered(listOf("file:///pages/${file.id}.jpg"))
+        }
+        val first = request(ImportGroup(listOf(pdf)), ImportGroup(listOf(img1)))
+        runCatching { useCase(first) }
+
+        val survived = journal.latest!!
+        assertThat(survived.created.keys).containsExactly(0)
+        val firstDocument = repository.getDocuments().first().single().id
+        assertThat(survived.created[0]).isEqualTo(firstDocument)
+
+        // WorkManager runs the job again with the stored request.
+        source.renderResult = { file, _ -> RenderResult.Rendered(listOf("file:///pages/${file.id}.jpg")) }
+        source.rendered.clear()
+        val outcome = useCase(survived)
+
+        assertThat(repository.getDocuments().first()).hasSize(2)
+        assertThat(source.rendered.map { it.id }).containsExactly("i1")
+        assertThat(outcome.documentIds).hasSize(2)
+        assertThat(outcome.documentIds.first()).isEqualTo(firstDocument)
+        assertThat(processor.enqueueCalls).hasSize(2)
+    }
+
+    @Test
+    fun `a password is taken out of the stored request once its PDF has been rendered`() = runTest {
+        useCase(request(ImportGroup(listOf(pdf)), passwords = mapOf("a" to "secret")))
+
+        assertThat(source.renderPasswords).containsExactly("secret")
+        assertThat(journal.saved).isNotEmpty()
+        assertThat(journal.saved.first().passwords).isEmpty()
+        assertThat(journal.saved.none { it.passwords.containsKey("a") }).isTrue()
+    }
+
+    @Test
+    fun `a password stays while its PDF has not rendered`() = runTest {
+        source.renderResult = { file, _ -> RenderResult.Failed(ImportProblem.WrongPassword(file.displayName)) }
+        useCase(request(ImportGroup(listOf(pdf)), passwords = mapOf("a" to "secret")))
+        assertThat(journal.saved.none { it.passwords.isEmpty() }).isTrue()
     }
 
     @Test

@@ -41,6 +41,13 @@ interface PageImageSource {
     suspend fun discard(batchId: String)
 }
 
+/** Where a confirmed [ImportRequest] is kept while its job runs; the job rewrites it as it makes progress (see [ImportRequest.created]). */
+interface ImportRequestJournal {
+
+    /** Replaces the stored request of its batch. */
+    fun save(request: ImportRequest)
+}
+
 /**
  * The background side of importing: hands a confirmed [ImportRequest] to an expedited job that survives leaving the app, and tells
  * the list what is going on, so it can show "Importing...".

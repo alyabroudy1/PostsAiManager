@@ -112,13 +112,16 @@ data class ImportGroup(val files: List<StagedFile>) {
 /**
  * Everything the background import needs, so only [batchId] has to be handed to WorkManager (its input data is small and stored).
  * [passwords] maps a staged file's id to the password the user typed for that PDF; it lives only in the batch's private folder
- * and is deleted with it.
+ * and is deleted with it, and each entry is removed as soon as its PDF has been opened and rendered.
+ * [created] maps a group's index to the id of the document already made from it, written as soon as it exists, so a job that
+ * WorkManager runs again after the process died skips the finished groups instead of making their documents twice.
  */
 @Serializable
 data class ImportRequest(
     val batchId: String,
     val groups: List<ImportGroup>,
     val passwords: Map<String, String> = emptyMap(),
+    val created: Map<Int, String> = emptyMap(),
 )
 
 /** What an import run produced: the new documents' ids and the groups that could not be imported. */

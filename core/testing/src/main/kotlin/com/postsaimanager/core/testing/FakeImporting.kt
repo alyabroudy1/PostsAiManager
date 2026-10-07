@@ -2,6 +2,7 @@ package com.postsaimanager.core.testing
 
 import com.postsaimanager.core.domain.importing.ImportQueue
 import com.postsaimanager.core.domain.importing.ImportRequest
+import com.postsaimanager.core.domain.importing.ImportRequestJournal
 import com.postsaimanager.core.domain.importing.ImportResult
 import com.postsaimanager.core.domain.importing.ImportStatus
 import com.postsaimanager.core.domain.importing.ImportedKind
@@ -65,6 +66,17 @@ class FakePageImageSource : PageImageSource {
 
     override suspend fun discard(batchId: String) {
         discarded += batchId
+    }
+}
+
+/** In-memory [ImportRequestJournal]: every saved request, in order, and the latest one as it would be on disk. */
+class FakeImportRequestJournal : ImportRequestJournal {
+
+    val saved = mutableListOf<ImportRequest>()
+    val latest: ImportRequest? get() = saved.lastOrNull()
+
+    override fun save(request: ImportRequest) {
+        saved += request
     }
 }
 

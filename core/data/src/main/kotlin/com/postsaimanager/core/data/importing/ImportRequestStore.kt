@@ -2,6 +2,7 @@ package com.postsaimanager.core.data.importing
 
 import android.content.Context
 import com.postsaimanager.core.domain.importing.ImportRequest
+import com.postsaimanager.core.domain.importing.ImportRequestJournal
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -16,10 +17,10 @@ import javax.inject.Singleton
 @Singleton
 class ImportRequestStore @Inject constructor(
     @ApplicationContext private val context: Context,
-) {
+) : ImportRequestJournal {
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun save(request: ImportRequest) {
+    override fun save(request: ImportRequest) {
         val file = file(request.batchId)
         file.parentFile?.mkdirs()
         file.writeText(json.encodeToString(ImportRequest.serializer(), request))

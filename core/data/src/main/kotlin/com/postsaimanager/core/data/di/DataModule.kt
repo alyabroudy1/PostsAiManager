@@ -95,6 +95,10 @@ abstract class DataModule {
     @Singleton
     abstract fun bindImportQueue(impl: com.postsaimanager.core.data.importing.WorkManagerImportQueue): com.postsaimanager.core.domain.importing.ImportQueue
 
+    @Binds
+    @Singleton
+    abstract fun bindImportRequestJournal(impl: com.postsaimanager.core.data.importing.ImportRequestStore): com.postsaimanager.core.domain.importing.ImportRequestJournal
+
     // ── The app's one reminder scheduler (the bundled skills are bound in the app's SkillModule) ──
 
     @Binds
