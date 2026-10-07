@@ -70,7 +70,7 @@ class BundledSkillsTest {
             val params = Regex("(?m)^\\s+- (\\w+(?:, \\w+)*):").findAll(skill.instructions).flatMap { it.groupValues[1].split(", ") }.toList()
             val known = setOf(
                 "extra_email", "extra_subject", "extra_text", "title", "description", "begin_time", "end_time",
-                "message", "year", "month", "day", "hour", "minute", "document_id",
+                "message", "year", "month", "day", "hour", "minute", "document_id", "in_minutes", "in_hours", "in_days",
             )
             assertThat(known).containsAtLeastElementsIn(params.filter { it != "intent" && it != "parameters" }.toSet())
         }
@@ -99,6 +99,19 @@ class BundledSkillsTest {
         val reminder = parse(File(root, "schedule-reminder")).instructions
         assertThat(reminder).contains("before the deadline")
         assertThat(reminder).contains("one short line")
+    }
+
+    @Test
+    fun `the reminder skill names the relative offset for a time from now and the date fields for an absolute one`() {
+        val reminder = parse(File(root, "schedule-reminder")).instructions
+
+        listOf("in_minutes", "in_hours", "in_days").forEach { assertThat(reminder).contains("- $it:") }
+        assertThat(reminder).contains("do NOT work out a date")
+        assertThat(reminder).contains("\"tomorrow at 9\"")
+        assertThat(reminder).contains("MUST first call")
+        // A documented offset is one the parser turns into a time (the clock is the app's).
+        val parsed = AgentActionParser.parse("schedule_notification", """{"message":"m","in_minutes":2}""") as ActionParse.Parsed
+        assertThat((parsed.action as com.postsaimanager.core.domain.skills.AgentAction.ScheduleReminder).at).isNotNull()
     }
 
     @Test

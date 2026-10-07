@@ -21,6 +21,8 @@
 package com.postsaimanager.core.domain.skills
 
 import java.time.DateTimeException
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlinx.serialization.json.Json
@@ -57,7 +59,8 @@ sealed interface ActionParse {
  * - `send_email`: `extra_email`, `extra_subject`, `extra_text`;
  * - `create_calendar_event`: `title`, `description`, `begin_time`, `end_time` (optional), as `yyyy-MM-ddTHH:mm:ss`;
  * - `schedule_notification`: `message` (and an ignored `title`), `year`, `month`, `day`, `hour`, `minute`, and optionally
- *   `document_id` (otherwise the document the chat is about).
+ *   `document_id` (otherwise the document the chat is about). Instead of the date and time, a relative offset: `in_minutes`,
+ *   `in_hours`, `in_days` (numbers, added together); the app adds it to the phone's clock, and it wins over an absolute time.
  *
  * It reads shape only; whether the values are really in the letter is [ActionGrounding]'s job.
  */
@@ -65,7 +68,8 @@ object AgentActionParser {
 
     private val json = Json { isLenient = true }
 
-    fun parse(intent: String, parameters: String, chatDocumentId: String? = null): ActionParse {
+    /** [now] is the phone's clock at proposal time; only a reminder's relative offset reads it. */
+    fun parse(intent: String, parameters: String, chatDocumentId: String? = null, now: LocalDateTime = LocalDateTime.now()): ActionParse {
         val kind = AgentIntent.of(intent) ?: return ActionParse.Rejected("Intent not found: \"${intent.trim()}\"")
         if (kind == AgentIntent.GET_CURRENT_DATE_AND_TIME) return ActionParse.Parsed(AgentAction.GetDateTime)
         val params = runCatching { json.parseToJsonElement(parameters.ifBlank { "{}" }).jsonObject }.getOrNull()
@@ -73,7 +77,7 @@ object AgentActionParser {
         return when (kind) {
             AgentIntent.SEND_EMAIL -> email(params)
             AgentIntent.CREATE_CALENDAR_EVENT -> event(params)
-            AgentIntent.SCHEDULE_NOTIFICATION -> reminder(params, chatDocumentId)
+            AgentIntent.SCHEDULE_NOTIFICATION -> reminder(params, chatDocumentId, now)
             AgentIntent.GET_CURRENT_DATE_AND_TIME -> ActionParse.Parsed(AgentAction.GetDateTime)
         }
     }
@@ -90,8 +94,14 @@ object AgentActionParser {
         return ActionParse.Parsed(AgentAction.CreateCalendarEvent(title = title, start = start, end = end, description = p.text("description").orEmpty()))
     }
 
-    private fun reminder(p: JsonObject, chatDocumentId: String?): ActionParse {
+    private fun reminder(p: JsonObject, chatDocumentId: String?, now: LocalDateTime): ActionParse {
         val message = p.text("message") ?: return missing("message")
+        val offset = offset(p)
+        if (offset != null) {
+            if (offset.isZero || offset.isNegative) return ActionParse.Rejected("in_minutes, in_hours and in_days must add up to more than zero.")
+            val at = now.truncatedTo(ChronoUnit.MINUTES).plus(offset)
+            return ActionParse.Parsed(AgentAction.ScheduleReminder(at = at, text = message, documentId = p.text("document_id") ?: chatDocumentId))
+        }
         val at = try {
             LocalDateTime.of(
                 p.number("year") ?: return missing("year"),
@@ -104,6 +114,18 @@ object AgentActionParser {
             return ActionParse.Rejected("year, month, day, hour and minute are not a real date and time.")
         }
         return ActionParse.Parsed(AgentAction.ScheduleReminder(at = at, text = message, documentId = p.text("document_id") ?: chatDocumentId))
+    }
+
+    /**
+     * The relative offset the model stated ("in 2 minutes"), or null when it gave none. The model says how long; the app adds it
+     * to the phone's clock, so the model never does date arithmetic. It wins over an absolute time when both are given.
+     */
+    private fun offset(p: JsonObject): Duration? {
+        val minutes = p.number("in_minutes")
+        val hours = p.number("in_hours")
+        val days = p.number("in_days")
+        if (minutes == null && hours == null && days == null) return null
+        return Duration.ofMinutes((minutes ?: 0).toLong()).plusHours((hours ?: 0).toLong()).plusDays((days ?: 0).toLong())
     }
 
     private fun missing(name: String) = ActionParse.Rejected("Missing parameter: $name")
