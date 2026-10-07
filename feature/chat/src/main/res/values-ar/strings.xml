@@ -91,7 +91,7 @@
     <plurals name="action_understood_days">
         <item quantity="zero">%1$d يوم</item>
         <item quantity="one">يوم واحد</item>
-        <item quantity="two">يومان</item>
+        <item quantity="two">يومين</item>
         <item quantity="few">%1$d أيام</item>
         <item quantity="many">%1$d يومًا</item>
         <item quantity="other">%1$d يوم</item>
@@ -99,7 +99,7 @@
     <plurals name="action_understood_hours">
         <item quantity="zero">%1$d ساعة</item>
         <item quantity="one">ساعة واحدة</item>
-        <item quantity="two">ساعتان</item>
+        <item quantity="two">ساعتين</item>
         <item quantity="few">%1$d ساعات</item>
         <item quantity="many">%1$d ساعة</item>
         <item quantity="other">%1$d ساعة</item>
@@ -107,7 +107,7 @@
     <plurals name="action_understood_minutes">
         <item quantity="zero">%1$d دقيقة</item>
         <item quantity="one">دقيقة واحدة</item>
-        <item quantity="two">دقيقتان</item>
+        <item quantity="two">دقيقتين</item>
         <item quantity="few">%1$d دقائق</item>
         <item quantity="many">%1$d دقيقة</item>
         <item quantity="other">%1$d دقيقة</item>
