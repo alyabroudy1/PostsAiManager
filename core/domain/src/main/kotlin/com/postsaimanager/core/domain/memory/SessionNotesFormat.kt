@@ -17,6 +17,12 @@ object SessionNotesFormat {
     const val MAX_NOTES = 3
     const val MAX_NOTE_CHARS = 140
 
+    /** What the notes of a document's chat are about, as the question words it. */
+    const val ABOUT_DOCUMENT = "this document"
+
+    /** What the notes of the all-documents chat are about. */
+    const val ABOUT_HOUSEHOLD = "the user's household and the people in it"
+
     /** The answer when nothing from the conversation is worth keeping. */
     const val NONE = "NONE"
 
@@ -38,13 +44,13 @@ object SessionNotesFormat {
      * The question: the conversation (newest part, within [MAX_TRANSCRIPT_CHARS]), the notes already kept (so they are not repeated),
      * and the instruction. The wording is the plan's: durable facts or decisions that matter for this document later.
      */
-    fun prompt(turns: List<Turn>, existingNotes: List<String>): String = buildString {
+    fun prompt(turns: List<Turn>, existingNotes: List<String>, about: String = ABOUT_DOCUMENT): String = buildString {
         append("CONVERSATION:\n")
         append(transcript(turns))
         append("\n\nNOTES ALREADY KEPT (do not repeat them):\n")
         if (existingNotes.isEmpty()) append("- none\n") else existingNotes.forEach { append("- ").append(it).append('\n') }
         append("\nQUESTION: List up to ").append(MAX_NOTES)
-        append(" durable facts or decisions from this conversation that matter for this document later (for example what the user said ")
+        append(" durable facts or decisions from this conversation that matter for ").append(about).append(" later (for example what the user said ")
         append("they did or decided). One note per line, at most ").append(MAX_NOTE_CHARS).append(" characters each, in the language ")
         append("the user wrote in. Answer ").append(NONE).append(" if nothing.")
     }

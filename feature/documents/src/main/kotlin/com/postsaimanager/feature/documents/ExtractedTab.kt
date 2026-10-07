@@ -64,10 +64,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.postsaimanager.core.designsystem.component.MemoryCard
+import com.postsaimanager.core.designsystem.component.MemorySubject
+import com.postsaimanager.core.designsystem.component.NoteActions
 import com.postsaimanager.core.designsystem.component.ReportAnswerButton
 import com.postsaimanager.core.designsystem.component.ReportAnswerDialog
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.contacts.LetterContacts
+import com.postsaimanager.core.domain.memory.DocumentNoteText
 import com.postsaimanager.core.domain.extraction.v2.DocDirection
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
@@ -258,7 +262,7 @@ internal fun ExtractedTab(
                     item(key = "essentials-key") { KeyInfoCard(essentials.subject, essentials.keyInfo, rowActions) }
                 }
 
-                item(key = "memory") { DocumentMemoryCard(notes, noteActions) }
+                item(key = "memory") { MemoryCard(notes, noteActions, MemorySubject.DOCUMENT, DocumentNoteText.MAX_CHARS) }
 
                 if (presentation.detailCount > 0) {
                     item(key = "all-details") {

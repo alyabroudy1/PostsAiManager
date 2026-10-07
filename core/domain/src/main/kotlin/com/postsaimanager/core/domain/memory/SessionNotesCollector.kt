@@ -17,8 +17,9 @@ import javax.inject.Singleton
  * session's messages to [WriteSessionNotesUseCase].
  *
  * It runs in an application-scoped coroutine ([start]), never in a ViewModel's: leaving the chat clears the ViewModel, and that is
- * exactly when a session ends. Only a chat of a document has notes; the all-documents chat has none yet (A3). A chat that was
- * deleted meanwhile has nothing to read. The use case itself skips when no chat model is loaded or the model is busy.
+ * exactly when a session ends. A chat of a document writes that document's notes ([WriteSessionNotesUseCase]); the all-documents
+ * chat writes the household's, each about a person or the whole household ([WriteHouseholdNotesUseCase]). A chat that was deleted
+ * meanwhile has nothing to read. The use case itself skips when no chat model is loaded or the model is busy.
  *
  * ### Which messages are "the session's"
  * The tracker stamps the session with the time it began ([ChatSessionEnded.startedAt]); the session's messages are the stored ones
@@ -34,6 +35,7 @@ class SessionNotesCollector @Inject constructor(
     private val sessions: ChatSessionTracker,
     private val conversations: ConversationRepository,
     private val writeNotes: WriteSessionNotesUseCase,
+    private val writeHouseholdNotes: WriteHouseholdNotesUseCase,
 ) {
 
     private var job: Job? = null
@@ -56,11 +58,17 @@ class SessionNotesCollector @Inject constructor(
     /** The notes of one ended session; never throws (quiet background work). Returns how many notes were written. */
     suspend fun handle(event: ChatSessionEnded): Int {
         return try {
-            val documentId = conversations.getConversationById(event.conversationId).getOrNull()?.documentId ?: return 0
+            val conversation = conversations.getConversationById(event.conversationId).getOrNull() ?: return 0
             val turns = conversations.getMessages(event.conversationId).first()
                 .filter { it.createdAt >= event.startedAt }
                 .sortedBy { it.createdAt }
-            if (turns.isEmpty()) 0 else writeNotes(documentId, turns)
+            val documentId = conversation.documentId
+            when {
+                turns.isEmpty() -> 0
+                // The chat of a document writes the document's notes; the all-documents chat writes the household's (per person).
+                documentId != null -> writeNotes(documentId, turns)
+                else -> writeHouseholdNotes(turns)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

@@ -86,6 +86,7 @@ import com.postsaimanager.core.designsystem.component.DocumentCaseRow
 import com.postsaimanager.core.designsystem.component.DocumentCaseUi
 import com.postsaimanager.core.domain.timeline.EventKinds
 import com.postsaimanager.core.designsystem.component.FriendlyDate
+import com.postsaimanager.core.designsystem.component.NoteActions
 import com.postsaimanager.core.designsystem.component.PagePreviewDialog
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState

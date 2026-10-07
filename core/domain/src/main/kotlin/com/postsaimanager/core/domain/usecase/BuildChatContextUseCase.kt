@@ -3,6 +3,8 @@ package com.postsaimanager.core.domain.usecase
 import com.postsaimanager.core.common.result.getOrNull
 import com.postsaimanager.core.domain.contacts.LoadLetterContactsUseCase
 import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.domain.timeline.CaseHistory
+import com.postsaimanager.core.domain.timeline.ObserveCaseForDocumentUseCase
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.Profile
@@ -76,20 +78,45 @@ data class ChatGrounding(val text: String, val retrievalMode: Boolean)
  * partial, so a model that cannot find an answer in what it was given can say so instead of
  * confidently answering from a fragment.
  */
-class BuildChatContextUseCase @Inject constructor(
+class BuildChatContextUseCase internal constructor(
     private val documentRepository: DocumentRepository,
     private val profileRepository: ProfileRepository,
     private val letterContacts: LoadLetterContactsUseCase,
+    /** The lines of "Earlier in this case" for a document ([CaseHistory]): the matter's other events, oldest first; empty for none. */
+    private val caseHistoryOf: suspend (documentId: String) -> List<String>,
 ) {
+
+    @Inject
+    constructor(
+        documentRepository: DocumentRepository,
+        profileRepository: ProfileRepository,
+        letterContacts: LoadLetterContactsUseCase,
+        caseOfDocument: ObserveCaseForDocumentUseCase,
+    ) : this(
+        documentRepository, profileRepository, letterContacts,
+        { documentId -> CaseHistory.lines(caseOfDocument(documentId).first(), documentId) },
+    )
+
+    /** A builder without a case history (tests, and callers that never have one). */
+    constructor(
+        documentRepository: DocumentRepository,
+        profileRepository: ProfileRepository,
+        letterContacts: LoadLetterContactsUseCase,
+    ) : this(documentRepository, profileRepository, letterContacts, { emptyList() })
 
     suspend operator fun invoke(
         documentId: String?,
         contextTokens: Int,
         reservedForReply: Int = DEFAULT_REPLY_RESERVE,
-        /** The document-memory section ([BuildModelContextUseCase] renders it, capped); empty in the first release of the memory. */
+        /**
+         * The memory section ([BuildModelContextUseCase] renders it, capped): the notes of the document, or, without a document, of
+         * the household.
+         */
         documentMemory: String = "",
+        /** The household overview ([BuildHouseholdOverviewUseCase]) the all-documents chat's card carries; ignored for a document. */
+        householdOverview: String = "",
     ): ChatGrounding {
-        if (documentId == null) return standaloneGrounding()
+        if (documentId == null) return standaloneGrounding(householdOverview, documentMemory)
 
         val document = documentRepository.getDocumentById(documentId).getOrNull()
             ?.takeUnless { it.isTrashed }
@@ -112,9 +139,10 @@ class BuildChatContextUseCase @Inject constructor(
             .coerceAtLeast(MIN_CONTEXT_TOKENS)) * CHARS_PER_TOKEN
 
         val header = buildHeader(document.title, document.documentType?.name, document.language)
-        val read = LetterReadingContext.section(document.actionItems, extracted, letterContacts(documentId))
+        val earlier = caseHistoryOf(documentId)
+        val read = LetterReadingContext.section(document.actionItems, extracted, letterContacts(documentId), earlier)
         // A value the "What was read" section already states is not listed again among the extracted details.
-        val stated = LetterReadingContext.statedSlots(document.actionItems, extracted)
+        val stated = LetterReadingContext.statedSlots(document.actionItems, extracted, earlier)
         val fields = buildFields(extracted.filter { it.slotKey == null || it.slotKey !in stated })
         val parties = buildProfiles(profiles)
         val instructions = INSTRUCTIONS
@@ -164,7 +192,7 @@ class BuildChatContextUseCase @Inject constructor(
      * no single document whose text could ever "fit", only a corpus
      * [RetrieveChunksUseCase] searches fresh per question.
      */
-    private suspend fun standaloneGrounding(): ChatGrounding {
+    private suspend fun standaloneGrounding(householdOverview: String, memory: String): ChatGrounding {
         // Only what the all-documents chat may see: health letters are not named here.
         val titles = documentRepository.getDocuments().first()
             .filter(ObserveChatVisibleDocumentsUseCase::isChatVisible)
@@ -172,17 +200,20 @@ class BuildChatContextUseCase @Inject constructor(
             .map { it.title }
 
         val text = if (titles.isEmpty()) {
-            STANDALONE_PROMPT
+            STANDALONE_PROMPT + householdOverview
         } else {
             buildString {
                 append(STANDALONE_PROMPT)
+                // The overview starts with its own blank line; the titles follow it.
+                append(householdOverview)
                 appendLine()
                 appendLine()
                 appendLine("## Your documents")
                 titles.forEach { appendLine("- $it") }
             }
         }
-        return ChatGrounding(text, retrievalMode = true)
+        // The memory slot comes last, after the card, as in a document's grounding.
+        return ChatGrounding(text + memory, retrievalMode = true)
     }
 
     private fun buildHeader(title: String, type: String?, language: String?) = buildString {

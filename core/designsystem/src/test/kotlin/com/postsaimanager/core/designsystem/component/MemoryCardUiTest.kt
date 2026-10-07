@@ -1,4 +1,4 @@
-package com.postsaimanager.feature.documents
+package com.postsaimanager.core.designsystem.component
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
@@ -24,12 +24,12 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * "What the assistant remembers" drawn for real (Robolectric, real string resources): the list with each note's source and date, the
- * empty state, and add, edit, delete and pin, each reaching the actions with the note's id.
+ * "What the assistant remembers" drawn for real (Robolectric, real string resources), for a document and for a household person: the
+ * list with each note's source and date, the empty state, and add, edit, delete and pin, each reaching the actions with the note's id.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
-class DocumentMemoryCardUiTest {
+class MemoryCardUiTest {
 
     @get:Rule
     val compose = createComposeRule()
@@ -49,11 +49,11 @@ class DocumentMemoryCardUiTest {
     private val today = LocalDate.of(2026, 10, 7)
     private val millis = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-    private fun note(id: String, text: String, source: NoteSource, pinned: Boolean = false) =
-        DocumentNote(id, "d", text, source, createdAt = millis, updatedAt = millis, pinned = pinned)
+    private fun note(id: String, text: String, source: NoteSource, pinned: Boolean = false, profileId: String? = null) =
+        DocumentNote(id, if (profileId == null) "d" else null, text, source, createdAt = millis, updatedAt = millis, pinned = pinned, profileId = profileId)
 
-    private fun show(vararg notes: DocumentNote) = compose.setContent {
-        MaterialTheme { DocumentMemoryCard(notes.toList(), actions, today) }
+    private fun show(vararg notes: DocumentNote, subject: MemorySubject = MemorySubject.DOCUMENT) = compose.setContent {
+        MaterialTheme { MemoryCard(notes.toList(), actions, subject, today = today) }
     }
 
     @Test
@@ -85,8 +85,31 @@ class DocumentMemoryCardUiTest {
     }
 
     @Test
+    fun `a person's card lists that person's notes and speaks of the chat about all documents`() {
+        show(
+            note("a", "Works part-time", NoteSource.AI, profileId = "maria"),
+            note("b", "Allergic to penicillin", NoteSource.USER, pinned = true, profileId = "maria"),
+            subject = MemorySubject.PERSON,
+        )
+
+        compose.onNodeWithText("What the assistant remembers").assertIsDisplayed()
+        compose.onNodeWithText("Works part-time").assertIsDisplayed()
+        compose.onNodeWithText("Allergic to penicillin").assertIsDisplayed()
+        compose.onNode(hasText("about this person", substring = true)).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Unpin note").assertExists()
+    }
+
+    @Test
+    fun `a person with no notes gets the empty text of the person's card`() {
+        show(subject = MemorySubject.PERSON)
+
+        compose.onNodeWithText("Nothing yet. Notes appear here after you finish a chat about all your documents.").assertIsDisplayed()
+        compose.onNodeWithText("Add a note").assertIsDisplayed()
+    }
+
+    @Test
     fun `Add a note writes the typed text as a new note`() {
-        show()
+        show(subject = MemorySubject.PERSON)
 
         compose.onNodeWithText("Add a note").performClick()
         compose.onNode(hasSetTextAction()).performTextInput("Paid by transfer")
@@ -135,5 +158,16 @@ class DocumentMemoryCardUiTest {
         compose.onNodeWithContentDescription("Unpin note").performClick()
 
         assertThat(pinned).containsExactly("n1" to true, "n2" to false).inOrder()
+    }
+
+    @Test
+    fun `the editor takes no more than the notes' limit`() {
+        compose.setContent { MaterialTheme { MemoryCard(emptyList(), actions, maxChars = 5, today = today) } }
+
+        compose.onNodeWithText("Add a note").performClick()
+        compose.onNode(hasSetTextAction()).performTextInput("0123456789")
+        compose.onNodeWithText("Save").performClick()
+
+        assertThat(added).containsExactly("01234")
     }
 }

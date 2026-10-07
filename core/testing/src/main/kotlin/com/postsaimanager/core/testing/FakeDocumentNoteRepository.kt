@@ -28,6 +28,25 @@ class FakeDocumentNoteRepository : DocumentNoteRepository {
 
     override suspend fun notes(documentId: String): List<DocumentNote> = ordered(all.value, documentId)
 
+    private fun orderedOutside(list: List<DocumentNote>, profileId: String? = null) =
+        list.filter { it.documentId == null && (profileId == null || it.profileId == profileId) }
+            .sortedWith(compareByDescending<DocumentNote> { it.pinned }.thenByDescending { it.updatedAt })
+
+    override fun observeForProfile(profileId: String): Flow<List<DocumentNote>> = all.map { orderedOutside(it, profileId) }
+
+    override fun observeOutsideDocuments(): Flow<List<DocumentNote>> = all.map { orderedOutside(it) }
+
+    override suspend fun notesOutsideDocuments(): List<DocumentNote> = orderedOutside(all.value)
+
+    override suspend fun addOutsideDocument(profileId: String?, text: String, source: NoteSource, sourceRef: String?): DocumentNote {
+        val now = ++clock
+        val note = DocumentNote(
+            "note-${counter++}", null, text, source, createdAt = now, updatedAt = now, sourceRef = sourceRef, profileId = profileId,
+        )
+        all.value = all.value + note
+        return note
+    }
+
     override suspend fun add(documentId: String, text: String, source: NoteSource, sourceRef: String?): DocumentNote {
         val now = ++clock
         val note = DocumentNote("note-${counter++}", documentId, text, source, createdAt = now, updatedAt = now, sourceRef = sourceRef)

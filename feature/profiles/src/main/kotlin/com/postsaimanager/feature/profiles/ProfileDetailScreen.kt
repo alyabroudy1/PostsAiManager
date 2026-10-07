@@ -59,9 +59,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalConfiguration
 import com.postsaimanager.core.designsystem.component.TimelineSection
 import com.postsaimanager.core.domain.timeline.EventKinds
+import com.postsaimanager.core.designsystem.component.MemoryCard
+import com.postsaimanager.core.designsystem.component.MemorySubject
+import com.postsaimanager.core.designsystem.component.NoteActions
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.domain.memory.DocumentNoteText
+import com.postsaimanager.core.model.DocumentNote
 import com.postsaimanager.core.model.FormDataKey
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileFact
@@ -82,8 +87,10 @@ fun ProfileDetailScreen(
     /** A timeline event was tapped: opens its letter. */
     onOpenDocument: (documentId: String) -> Unit = {},
     viewModel: ProfileDetailViewModel = hiltViewModel(),
+    notesViewModel: ProfileNotesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val notes by notesViewModel.notes.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val message by viewModel.message.collectAsStateWithLifecycle()
     val removed by viewModel.removed.collectAsStateWithLifecycle()
@@ -118,6 +125,8 @@ fun ProfileDetailScreen(
         detailActions = SavedDetailActions(save = viewModel::saveDetail, delete = viewModel::deleteDetail),
         onOpenDocument = onOpenDocument,
         onRenameCase = viewModel::rename,
+        notes = notes,
+        noteActions = notesViewModel.actions,
         contactActions = ContactActions(
             save = viewModel::saveContact,
             setActive = viewModel::setContactActive,
@@ -161,6 +170,9 @@ fun ProfileDetailContent(
     contactActions: ContactActions = ContactActions(),
     onOpenDocument: (documentId: String) -> Unit = {},
     onRenameCase: (caseId: String, title: String) -> Unit = { _, _ -> },
+    /** The notes the assistant keeps about this person ("What the assistant remembers"); shown for a household person only. */
+    notes: List<DocumentNote> = emptyList(),
+    noteActions: NoteActions = NoteActions(),
 ) {
     val draft = state.draft
     val language = LocalConfiguration.current.locales[0]?.language
@@ -318,6 +330,11 @@ fun ProfileDetailContent(
                     canAdd = !state.isNew,
                     actions = detailActions,
                 )
+
+                // What the assistant remembers about a household person (written by the chat about all documents).
+                if (draft.isManaged && !state.isNew) {
+                    MemoryCard(notes, noteActions, MemorySubject.PERSON, DocumentNoteText.MAX_CHARS)
+                }
             }
         }
     }

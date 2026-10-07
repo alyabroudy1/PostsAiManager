@@ -12,4 +12,8 @@ abstract class SessionNotesModule {
 
     @Binds
     abstract fun bindSessionNoteGenerator(impl: ChatEngineSessionNoteGenerator): SessionNoteGenerator
+
+    /** Which household person a note of the all-documents chat is about: the loaded model's decision. */
+    @Binds
+    abstract fun bindNotePersonDecider(impl: ModelNotePersonDecider): NotePersonDecider
 }

@@ -4,6 +4,10 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.model.AiConversation
 import com.postsaimanager.core.model.AiMessage
+import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.form.SubjectCandidate
+import com.postsaimanager.core.domain.memory.NotePersonDecider
+import com.postsaimanager.core.domain.memory.WriteHouseholdNotesUseCase
 import com.postsaimanager.core.domain.memory.ObserveDocumentMemoryUseCase
 import com.postsaimanager.core.domain.memory.SessionNoteGenerator
 import com.postsaimanager.core.domain.memory.SessionNoteVerifier
@@ -145,8 +149,8 @@ class ChatContextPlanTest {
     }
 
     @Test
-    @DisplayName("a chat of all documents has no memory yet")
-    fun `no memory without a document`() = runTest {
+    @DisplayName("a chat of all documents never reads a document's notes (its own memory is the household's, see HouseholdContextPlanTest)")
+    fun `no document memory without a document`() = runTest {
         val plan = plan(emptyList(), documentMemory = listOf("Already paid on 5 Oct, says the user"), documentId = null)
 
         assertThat(plan.documentMemoryChars).isEqualTo(0)
@@ -161,17 +165,19 @@ class ChatContextPlanTest {
         send.primeConversation("conv-d1", "d1")
         send("conv-d1", "d1", "I paid the bill on 5 Oct").toList()
         send("conv-d1", "d1", "and thanks").toList()
+        val generator = object : SessionNoteGenerator {
+            override fun isAvailable() = true
+            override suspend fun generate(system: String, prompt: String) = "The user paid the bill on 5 Oct."
+        }
         val collector = SessionNotesCollector(
             sessions.tracker,
             conversations,
-            WriteSessionNotesUseCase(
-                object : SessionNoteGenerator {
-                    override fun isAvailable() = true
-                    override suspend fun generate(system: String, prompt: String) = "The user paid the bill on 5 Oct."
+            WriteSessionNotesUseCase(generator, notes, documents, SessionNoteVerifier()),
+            WriteHouseholdNotesUseCase(
+                generator, notes, FakeProfileRepository(), SessionNoteVerifier(),
+                object : NotePersonDecider {
+                    override suspend fun decide(note: String, persons: List<SubjectCandidate>) = PamResult.Success(null)
                 },
-                notes,
-                documents,
-                SessionNoteVerifier(),
             ),
         )
         collector.start(backgroundScope + kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler))

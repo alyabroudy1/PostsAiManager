@@ -1236,6 +1236,49 @@ class MigrationTest {
         }
     }
 
+    /**
+     * v24 gains `document_notes.profileId` and a nullable `documentId` (the table is rebuilt), keeps the notes it had, and validates
+     * against the v25 schema; a note of a person and a household-wide note can then be stored. Needs a device.
+     */
+    @Test
+    fun migrate24To25_keepsTheNotesAndAddsThePerson() {
+        helper.createDatabase(TEST_DB, 24).apply {
+            execSQL(
+                "INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus, " +
+                    "isUserTitle, enrichmentAttempts, enrichmentPending) VALUES ('d', 'Letter', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL', 0, 0, 0)",
+            )
+            execSQL("INSERT INTO document_notes (id, documentId, text, source, createdAt, updatedAt, pinned) VALUES ('n', 'd', 'a note', 'USER', 1, 1, 1)")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 25, true, PamMigrations.MIGRATION_24_25)
+
+        db.query("SELECT text, pinned, profileId FROM document_notes WHERE id = 'n'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("a note", c.getString(0)); assertEquals(1, c.getInt(1)); assertTrue(c.isNull(2))
+        }
+        db.execSQL("INSERT INTO document_notes (id, documentId, profileId, text, source, createdAt, updatedAt, pinned) VALUES ('h', NULL, NULL, 'household', 'AI', 1, 1, 0)")
+        db.query("SELECT count(*) FROM document_notes WHERE documentId IS NULL").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(1, c.getInt(0))
+        }
+    }
+
+    /** A v22 database goes through every step and validates against the v25 schema. Needs a device. */
+    @Test
+    fun migrate22To25_chainsNotesTimelineAndPersonNotes() {
+        helper.createDatabase(TEST_DB, 22).close()
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 25, true, PamMigrations.MIGRATION_22_23, PamMigrations.MIGRATION_23_24, PamMigrations.MIGRATION_24_25,
+        )
+
+        db.query("SELECT count(*) FROM document_notes").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(0, c.getInt(0))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

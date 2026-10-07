@@ -21,8 +21,13 @@ object DocumentMemoryFormat {
 
     private const val BULLET = "- "
 
-    /** The slot's text, one note per line, or an empty string when there is nothing to remember. */
-    fun format(notes: List<DocumentNote>): String {
+    /**
+     * The slot's text, one note per line, or an empty string when there is nothing to remember.
+     *
+     * @param labelOf who a note is about, shown before it ("- Maria: ..."): the all-documents chat's notes belong to household
+     *   persons. Null (the default, and every document note) shows the note alone.
+     */
+    fun format(notes: List<DocumentNote>, labelOf: (DocumentNote) -> String? = { null }): String {
         val lines = ArrayList<String>()
         var used = 0
         val ordered = notes.sortedWith(compareByDescending<DocumentNote> { it.pinned }.thenByDescending { it.updatedAt })
@@ -30,7 +35,8 @@ object DocumentMemoryFormat {
             if (lines.size >= MAX_NOTES) break
             val body = note.text.replace(WHITESPACE, " ").trim()
             if (body.isEmpty()) continue
-            val line = BULLET + body
+            val label = labelOf(note)?.trim()?.takeIf { it.isNotEmpty() }
+            val line = BULLET + (label?.let { "$it: " }.orEmpty()) + body
             val cost = line.length + if (lines.isEmpty()) 0 else 1
             if (used + cost > MAX_CHARS) {
                 if (lines.isEmpty()) lines += line.take(MAX_CHARS - 1) + "…"

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- What the assistant remembers: the durable notes of a document (Extracted tab) or of a household person (their profile) -->
+    <string name="memory_title">Das merkt sich der Assistent</string>
+    <string name="memory_hint">Kurze Notizen zu diesem Brief, die der Assistent zu Beginn eines Chats liest. Sie können sie anheften, bearbeiten oder löschen.</string>
+    <string name="memory_empty">Noch nichts. Notizen erscheinen hier, nachdem Sie eine Aktion geöffnet oder einen Chat beendet haben.</string>
+    <string name="memory_hint_person">Kurze Notizen zu dieser Person, die der Assistent liest, wenn Sie über alle Ihre Dokumente chatten. Sie können sie anheften, bearbeiten oder löschen.</string>
+    <string name="memory_empty_person">Noch nichts. Notizen erscheinen hier, nachdem Sie einen Chat über alle Ihre Dokumente beendet haben.</string>
+    <string name="memory_add">Notiz hinzufügen</string>
+    <string name="memory_edit_title">Notiz bearbeiten</string>
+    <string name="memory_note_label">Notiz</string>
+    <string name="memory_save">Speichern</string>
+    <string name="memory_cancel">Abbrechen</string>
+    <string name="memory_source_action">Aus einer Aktion</string>
+    <string name="memory_source_ai">Aus einem Chat</string>
+    <string name="memory_source_you">Von Ihnen geschrieben</string>
+    <string name="memory_note_meta">%1$s · %2$s</string>
+    <string name="memory_pin">Notiz anheften</string>
+    <string name="memory_unpin">Notiz lösen</string>
+    <string name="memory_more">Weitere Aktionen für diese Notiz</string>
+    <string name="memory_edit">Bearbeiten</string>
+    <string name="memory_delete">Löschen</string>
+</resources>

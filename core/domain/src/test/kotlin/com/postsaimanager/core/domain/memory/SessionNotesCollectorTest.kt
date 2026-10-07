@@ -1,6 +1,11 @@
 package com.postsaimanager.core.domain.memory
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.form.SubjectCandidate
+import com.postsaimanager.core.model.ProfileType
+import com.postsaimanager.core.testing.FakeProfileRepository
+import com.postsaimanager.core.testing.testProfile
 import com.postsaimanager.core.domain.usecase.ChatSessionEnd
 import com.postsaimanager.core.domain.usecase.ChatSessionEnded
 import com.postsaimanager.core.domain.usecase.ChatSessionTracker
@@ -17,7 +22,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
-/** Plan 16, A1 + A2 wired: a session that ends hands exactly its own messages to the note writer, for document chats only. */
+/** Plan 16, A1 + A2 + A3 wired: a session that ends hands exactly its own messages to the note writer: a document's, or the household's. */
 class SessionNotesCollectorTest {
 
     /** Answers one grounded note, and remembers what it was asked. */
@@ -35,10 +40,20 @@ class SessionNotesCollectorTest {
     private val conversations = FakeConversationRepository()
     private val notes = FakeDocumentNoteRepository()
     private val generator = RecordingGenerator()
+    private val profiles = FakeProfileRepository().apply {
+        seed(testProfile(id = "me", name = "Erika Mustermann", type = ProfileType.USER_SELF))
+    }
+
+    /** The note is about the one household person whose first name it carries; about nobody otherwise. */
+    private val decider = object : NotePersonDecider {
+        override suspend fun decide(note: String, persons: List<SubjectCandidate>): PamResult<String?> =
+            PamResult.Success(persons.firstOrNull { note.contains(it.name.substringBefore(' ')) }?.profileId)
+    }
     private val collector = SessionNotesCollector(
         tracker,
         conversations,
         WriteSessionNotesUseCase(generator, notes, FakeDocumentRepository(), SessionNoteVerifier()),
+        WriteHouseholdNotesUseCase(generator, notes, profiles, SessionNoteVerifier(), decider),
     )
 
     private suspend fun conversation(id: String, documentId: String?) {
@@ -87,8 +102,8 @@ class SessionNotesCollectorTest {
     }
 
     @Test
-    @DisplayName("a chat of all documents has no notes yet")
-    fun `all documents chat writes nothing`() = runTest {
+    @DisplayName("a chat of all documents writes the household's notes, not a document's")
+    fun `all documents chat writes household notes`() = runTest {
         conversation("all", documentId = null)
         collector.start(backgroundScope + UnconfinedTestDispatcher(testScheduler))
         tracker.begin("all")
@@ -97,8 +112,12 @@ class SessionNotesCollectorTest {
         tracker.leave("all")
         testScheduler.advanceUntilIdle()
 
-        assertThat(generator.prompts).isEmpty()
-        assertThat(notes.snapshot).isEmpty()
+        assertThat(generator.prompts).hasSize(1)
+        assertThat(generator.prompts.single()).contains(SessionNotesFormat.ABOUT_HOUSEHOLD)
+        val note = notes.snapshot.single()
+        assertThat(note.documentId).isNull()
+        assertThat(note.profileId).isNull()
+        assertThat(note.text).isEqualTo("The user paid on 5 Oct.")
     }
 
     @Test
