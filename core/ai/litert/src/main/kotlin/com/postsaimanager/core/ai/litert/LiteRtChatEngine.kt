@@ -53,7 +53,8 @@ import java.util.concurrent.atomic.AtomicLong
  * next. A rebuild must not lose them: the committed turns carry each reply's tool calls and results ([LiteRtTurn.tools], stored
  * with the message by the app), and [LiteRtMessages] replays them as tool-call turns. A history that shows "I created the reminder"
  * with no call in front of it teaches the model to claim actions without making them. Like the Gallery's compactor, a conversation
- * past 75% of its window is restarted, here from the newest turns that fit rather than from a model-written summary.
+ * past 75% of its window is summarised by the model and restarted from that summary ([LiteRtContextCompactor]), with the newest
+ * exchange kept after it; if no summary comes, from the newest turns that fit ([LiteRtTurns.compact]).
  *
  * The text is handed over as plain messages: the model file carries its chat template and LiteRT-LM applies it, so nothing here
  * adds turn markers.
@@ -109,6 +110,9 @@ class LiteRtChatEngine internal constructor(
 
     /** The sampling the live conversation was made with; null when there is none to reuse (the next send builds one). */
     private var conversationSampling: ConversationKey? = null
+
+    /** The Gallery's summarise-and-reset decisions for a conversation past 75% of its window. */
+    private val compactor = LiteRtContextCompactor()
 
     @Volatile
     private var hitLimit = false
@@ -357,11 +361,22 @@ class LiteRtChatEngine internal constructor(
             // The Gallery's context compaction: past 75% of the window the conversation is restarted, from less history. A live
             // conversation otherwise grows until the engine refuses it ("Prefill input length exceeds available state entries").
             val used = helper.tokenCount(live)
-            if (window <= 0 || used <= window * COMPACT_AT_SHARE) return
-            Log.i(TAG, "context at $used of $window tokens: restarting the conversation from the newest turns")
-            val kept = LiteRtTurns.compact(committed, LiteRtTurns.rebuildBudgetChars(window))
+            if (!compactor.isOverThreshold(used, window)) return
+            // Summarise and restart (the Gallery's SummarizationContextCompactor). When the summary fails, or the check is backing
+            // off after a failure, the newest whole turns that fit are what the conversation restarts from instead.
+            val attempt = compactor.shouldCompact(used, window)
+            val summary = if (attempt) helper.summarize(live, compactor.summaryPrompt(compactor.wordLimit(used, window))) else null
+            val restart = if (summary != null) {
+                Log.i(TAG, "context at $used of $window tokens: restarting the conversation from its summary")
+                compactor.onSuccess()
+                compactor.turnsAfterSummary(summary, committed)
+            } else {
+                Log.i(TAG, "context at $used of $window tokens: no summary, restarting from the newest turns")
+                if (attempt) compactor.onFailure()
+                LiteRtTurns.compact(committed, LiteRtTurns.rebuildBudgetChars(window))
+            }
             committed.clear()
-            committed += kept
+            committed += restart
         }
         val instruction = listOfNotNull(system.takeIf { it.isNotBlank() }, toolPrompt.takeIf { kit != null }).joinToString("\n\n")
         val modelConfig = LlmModelConfig(
@@ -454,9 +469,6 @@ class LiteRtChatEngine internal constructor(
         /** How often the idle watchdog looks, and how long a reply may stay silent (a tool call or a slow CPU prefill included). */
         const val WATCHDOG_STEP_MS = 5_000L
         const val REPLY_IDLE_TIMEOUT_MS = 180_000L
-
-        /** The Gallery's `TOKEN_LIMIT_THRESHOLD_RATIO`: a conversation past this share of its window is restarted from less history. */
-        const val COMPACT_AT_SHARE = 0.75
 
         const val TAG = "PamLiteRt"
     }

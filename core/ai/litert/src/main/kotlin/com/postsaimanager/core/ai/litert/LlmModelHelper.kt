@@ -86,6 +86,13 @@ internal interface LlmModelHelper {
      */
     fun tokenCount(instance: LlmModelInstance): Int
 
+    /**
+     * Asks the instance's live conversation [request] and waits for the whole answer (the Gallery's `LlmConversationInstance.sendMessage`
+     * used by its context compactor). The request and the answer become part of that conversation. Null when the engine failed or
+     * said nothing.
+     */
+    fun summarize(instance: LlmModelInstance, request: String): String?
+
     /** Closes the conversation and the engine and frees the model. */
     fun cleanUp(instance: LlmModelInstance, onDone: () -> Unit = {})
 

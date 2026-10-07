@@ -116,8 +116,11 @@ it must use `ReminderScheduler` too. No DB change was made.
    teaches the model to claim actions without making them. So every call and its result (`ToolExchange`, recorded by `ToolContext`
    in `:inference`, sent to the app by `ILiteRtReplyCallback.onToolExchange`) is stored with the reply (`AiMessage.toolTrace`, in the
    existing `toolArgs` column of the assistant row, no schema change) and replayed as tool-call turns (`LiteRtMessages`). A message
-   stored before this has no trace and replays as text. A conversation past 75% of its window is restarted from the newest turns
-   that fit (`LiteRtTurns.compact`), the Gallery's compaction trigger with trimming instead of a model-written summary. The card's
+   stored before this has no trace and replays as text. A conversation past 75% of its window is summarised by the model and restarted
+   from that summary, as in the Gallery's `SummarizationContextCompactor` (`LiteRtContextCompactor`: its trigger, prompt, word limit
+   and failure back-off); the newest exchange stays after the summary with its tool calls. The summary is kept in memory only, as in
+   the Gallery; after a process death the chat rebuilds from the newest stored turns that fit. If the summary fails, the newest
+   whole turns that fit are used (`LiteRtTurns.compact`). The card's
    outcome (opened, edited, cancelled) is not replayed: the model never heard it live either, only "waiting for the user".
 
 ## Not built (listed for later)

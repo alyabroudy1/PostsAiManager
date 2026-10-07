@@ -171,6 +171,14 @@ internal object LlmChatModelHelper : LlmModelHelper {
             0
         }
 
+    override fun summarize(instance: LlmModelInstance, request: String): String? =
+        try {
+            instance.conversation.sendMessage(Contents.of(request)).toString().takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            Log.w(TAG, "summary failed: ${e.message}")
+            null
+        }
+
     override fun cleanUp(instance: LlmModelInstance, onDone: () -> Unit) {
         try {
             instance.conversation.close()
