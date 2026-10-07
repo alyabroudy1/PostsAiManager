@@ -128,9 +128,13 @@ class ExtractionV2Adapter(
         )
     }
 
+    /**
+     * A decided meaning is stored in the role ([ValueMeanings.role], never a slot's own expected role, so the two cannot be mistaken); it is
+     * what the stored row says the value is, so it supersedes the slot's role, which nothing else reads. No meaning: the role as before.
+     */
     private fun provenanceOf(slotKey: String, v: SlotValue) = FieldProvenance(
         slotKey = slotKey,
-        role = v.role,
+        role = ValueMeanings.DEFAULT.byId(v.meaning)?.let { ValueMeanings.role(it) } ?: v.role,
         origin = v.origin.name,
         aiConfidence = v.aiConfidence,
         evidence = v.evidence.takeIf { it.isNotBlank() },

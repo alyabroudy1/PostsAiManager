@@ -101,6 +101,44 @@ class ExtractedTabUiTest {
     }
 
     @Test
+    fun `a date or an amount the reading gave a meaning is labelled with it, next to its value`() {
+        val appointment = row(id = "a", slotKey = "due_date", value = "14 Oct 10:30", name = "Deadline").copy(role = "meaning:APPOINTMENT")
+        val cancel = row(id = "c", slotKey = "due_date", value = "30 Nov", name = "Deadline", confirmed = true).copy(role = "meaning:DEADLINE")
+        compose.setContent {
+            MaterialTheme {
+                androidx.compose.foundation.layout.Column {
+                    FieldRow(appointment, actions)
+                    FieldRow(cancel, actions)
+                }
+            }
+        }
+
+        // The slot's own label ("Deadline") gives way to what the reading decided the value is.
+        compose.onNodeWithText("Appointment").assertIsDisplayed()
+        compose.onNodeWithText("14 Oct 10:30").assertIsDisplayed()
+        compose.onNodeWithText("Cancellation or objection deadline: 30 Nov").assertIsDisplayed()
+        compose.onNodeWithText("Deadline").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a value with no meaning keeps its slot's label, and a person's own row keeps its own name`() {
+        val plain = row(id = "p", slotKey = "due_date", value = "15 Oct", name = "Deadline")
+        val edited = row(id = "e", slotKey = "total", value = "5 €", name = "What I owe", source = ValueSource.USER).copy(role = "meaning:TOTAL_DUE")
+        compose.setContent {
+            MaterialTheme {
+                androidx.compose.foundation.layout.Column {
+                    FieldRow(plain, actions)
+                    FieldRow(edited, actions)
+                }
+            }
+        }
+
+        compose.onNodeWithText("Deadline").assertIsDisplayed()
+        compose.onNodeWithText("What I owe: 5 €").assertIsDisplayed()
+        compose.onNodeWithText("Amount to pay").assertDoesNotExist()
+    }
+
+    @Test
     fun `a confirmed row collapses to one line, shows a mark and has no confirm entry, edit and ignore stay`() {
         compose.setContent { MaterialTheme { FieldRow(row(confirmed = true), actions) } }
 

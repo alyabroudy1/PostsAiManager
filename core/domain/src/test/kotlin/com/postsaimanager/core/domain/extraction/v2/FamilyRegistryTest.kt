@@ -71,9 +71,9 @@ class FamilyRegistryTest {
     }
 
     @Test
-    fun `only the general Document asks no letter question, and only the short-text families have no addressee`() {
-        assertThat(schema.families.filter { !it.asksFields }.map { it.id }).containsExactly("free_form")
-        assertThat(schema.families.filter { !it.hasAddressee }.map { it.id }).containsExactly("appointment_reminder", "message_note")
+    fun `the type removes no question, every family including the general Document and the short texts has the whole universal core`() {
+        for (family in schema.families) assertThat(family.slots).containsAtLeastElementsIn(Slots.CORE)
+        assertThat(schema.abstain?.slots).containsAtLeastElementsIn(Slots.CORE)
     }
 
     @Test

@@ -6,9 +6,11 @@ import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.address.LineAsk
 import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
+import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.InterpreterFactory
 import com.postsaimanager.core.domain.extraction.v2.ModelDocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.QuestionnaireInterpreter
+import com.postsaimanager.core.domain.extraction.v2.SlotKind
 import javax.inject.Inject
 
 /** How a model reads a letter. Every strategy produces the same `RawInterpretation`; the rest of the pipeline is unchanged. */
@@ -103,13 +105,20 @@ object ModelProfiles {
             // type. The 0.8B model's family scores are close together, so a wider margin would hide types that are right. In-sample, on 13
             // letters, and the recordings hold only the nine families before the appointment and message families: a starting point.
             familyMinMargin = 0.05,
-            // "None of these" is an answer for the sender, the addressee and the person a letter is about: the best name is taken only when it
-            // beats a made-up name asked the same way by this margin. 0.0 is the unfitted starting value (a name that does not even beat a
-            // name that is nowhere in the letter is no party); it needs the baseline scores of a device recording to be fitted (the 16 recordings
-            // hold none, so the replay scripts them as "not scored" and is unchanged).
-            partyBaselineMargins = mapOf(
-                QuestionNames.SENDER to 0.0, QuestionNames.ADDRESSEE to 0.0, QuestionNames.SUBJECT_PERSON to 0.0,
-            ),
+            // "None of these" is an answer for every party question (sender, addressee, the person a letter is about, the contact person, the
+            // care-of party) and for every reference question (a reference, a customer, invoice, contract, policy, case or tax number ...), asked
+            // of every document whatever its type: the best candidate is taken only when it beats a made-up name or reference asked the same way
+            // by this margin. 0.0 is the unfitted starting value for ALL of them (a value that does not even beat a value that is nowhere in the
+            // letter is not there); it needs the baseline scores of a device recording to be fitted (the 16 recordings hold none, so the replay
+            // scripts them as "not scored" and is unchanged).
+            baselineMargins = (
+                listOf(
+                    QuestionNames.SENDER, QuestionNames.ADDRESSEE, QuestionNames.SUBJECT_PERSON, QuestionNames.CONTACT, QuestionNames.CARE_OF,
+                ) + ExtractionSchema.DEFAULT.allSlots.filter { it.kind == SlotKind.REFERENCE || it.kind == SlotKind.REFERENCE_LIST }
+                    .map { QuestionNames.slot(it.json) }
+                ).associateWith { 0.0 },
+            // The meaning of a date or an amount ("what does this date mean?") is read against the same kind of baseline; every margin is the
+            // unfitted 0.0 (defaultMeaningMargin) until a device recording holds the baseline scores.
             // Fitted on the 137 scored answers of the 16 letters (ConfidenceCalibrationTest). HIGH: a margin of 0.2 over the runner-up
             // (91% right in-sample, 85 answers; 83% held out, cuts fitted on the other half of the letters). LOW: the winner's own
             // log-odds are under -0.25, the model itself leaning No (50% right, 14 answers in-sample). The fitter, which keeps a safety

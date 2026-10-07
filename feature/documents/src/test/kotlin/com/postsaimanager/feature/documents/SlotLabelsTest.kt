@@ -37,6 +37,17 @@ class SlotLabelsTest {
     }
 
     @Test
+    fun `every meaning of a date or an amount in the registry has a label, and a slot's own role is no meaning`() {
+        assertThat(SlotLabels.meaningIds).containsExactlyElementsIn(
+            com.postsaimanager.core.domain.extraction.v2.ValueMeanings.DEFAULT.all.map { it.id },
+        )
+        assertThat(SlotLabels.meaning("meaning:APPOINTMENT")).isEqualTo(R.string.meaning_appointment)
+        assertThat(SlotLabels.meaning("DUE_DATE")).isNull()
+        assertThat(SlotLabels.labelFor(field("Deadline", "due_date").copy(role = "meaning:APPOINTMENT"))).isEqualTo(R.string.meaning_appointment)
+        assertThat(SlotLabels.labelFor(field("Deadline", "due_date").copy(role = "DUE_DATE"))).isEqualTo(R.string.slot_due_date)
+    }
+
+    @Test
     fun `a legacy type id is labelled as the family it maps to, one label per family`() {
         for ((legacy, mapping) in LegacyTypes.BY_TYPE) {
             assertThat(SlotLabels.type(legacy)).isEqualTo(SlotLabels.type(mapping.family))

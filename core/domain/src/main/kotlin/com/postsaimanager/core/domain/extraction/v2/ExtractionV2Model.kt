@@ -73,6 +73,8 @@ data class SlotValue(
     val role: String? = null,
     val idLogProb: Double? = null,
     val alternatives: List<FieldAlternative> = emptyList(),
+    /** What the value means ([ValueMeaning.id]) when the reading decided one for a date or an amount, else null; see [RawSlot.meaning]. */
+    val meaning: String? = null,
 ) {
     val needsReview: Boolean get() = blocked || confidence < ConfidenceCombiner.REVIEW_BELOW
 }

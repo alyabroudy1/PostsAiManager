@@ -25,6 +25,7 @@ import com.postsaimanager.core.domain.extraction.v2.DocFamily
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.InterpretationOutcome
 import com.postsaimanager.core.domain.extraction.v2.InterpretationRequest
+import com.postsaimanager.core.domain.extraction.v2.MeaningKind
 import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
 import com.postsaimanager.core.domain.extraction.v2.Parties
 import com.postsaimanager.core.domain.extraction.v2.Party
@@ -79,6 +80,11 @@ import java.util.Locale
  * topics). After the parties are settled, a family with a recipient block has its structured address read ([StructuredAddressReader]:
  * the line labels are scored too, never generated). Every scored question also keeps its runner-up candidates, the alternatives the
  * Edit sheet offers.
+ *
+ * The family is a label: every party and every slot is asked of every document (the general "Document" and a few lines of a message
+ * included), and "none" is an answer each can give: a party or a reference is taken only when it beats a made-up name or reference asked
+ * the same way by its margin ([ScoringProfile.baselineMargins]). What a kept date or amount means is then scored once per value
+ * ([ValueMeaningReader]) and attached to the slot that holds it.
  *
  * What needs writing is asked in the same open body session, each ask with its own small grammar: the letter's language
  * (BCP-47, one short ask), the naming of each extra ([extras]: which values no slot or party took is decided by score, the
@@ -173,6 +179,7 @@ class ZoneScoringInterpreter(
         letter = null
         ownSlots = emptySet()
         prescored.clear()
+        baselines.clear()
         prefixTokens = 0
         prefixMs = 0
         val layout = request.layout ?: return InterpretationOutcome.Failed("zones need the zoned layout", null, "", "")
@@ -211,10 +218,9 @@ class ZoneScoringInterpreter(
             inPrefix = emptySet()
             prescored.clear()
             // Questions that bring the same zone block and ask about the same values are scored ahead as a grid (see [prescore]).
-            prescore(
-                setup,
-                headerParties.mapNotNull { partyAsk(setup, it.first) } + headerSlots.mapNotNull { slotAsk(setup, it) },
-            )
+            val asks = headerParties.mapNotNull { partyAsk(setup, it.first) } + headerSlots.mapNotNull { slotAsk(setup, it) }
+            prescore(setup, asks)
+            scoreBaselines(setup, asks)
             // The layout only orders what a question scores: it is asked over every candidate of the page, the zones it prefers first.
             headerParties.forEach { party(setup, s, it.first, it.second) }
             headerSlots.forEach { slot(setup, s, it) }
@@ -231,31 +237,21 @@ class ZoneScoringInterpreter(
         val family = classification.family
         val topics = if (topicsInFirstStage) classification.topics else emptyList()
         ownSlots = schema.ownSlots(family, topics)
-        // A document the model took for a few lines of a message or a reminder has no addressee: what the header read as one is dropped and
-        // none is asked for (the sender still is). Decided by the type the model chose, never by the words.
-        // The general "Document" (no specific type detected) asks no letter question at all: the parties and slots the header session already
-        // scored (it runs before the type is known) are dropped too.
-        if (!family.asksFields) {
-            s.parties.clear()
-            s.slots.clear()
-            s.senderId = null
-            scored.clear()
-        } else if (!family.hasAddressee) {
-            s.parties.removeAll { it.role != PartyRole.SENDER.name }
-            scored.removeAll { it.role != null && it.role != PartyRole.SENDER }
-        }
+        // The type is a label: it removes no question. Every party and every slot is asked of every document, the general "Document" and a
+        // few lines of a message included; "none" is an answer each question can give (the content-free baseline of its margin).
         val bodyParties = partyNames.filter { !isHeader(it.first) }
-            .filter { family.asksFields && (family.hasAddressee || it.second == PartyRole.SENDER) }
-        val bodySlots = if (!family.asksFields) emptyList() else {
-            (Slots.CORE + schema.slotsFor(family, topics)).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) }
-        }
+        val bodySlots = (Slots.CORE + schema.slotsFor(family, topics)).distinct().filter { !isHeader(QuestionNames.slot(it.json), it) }
         prescored.clear()
-        prescore(setup, bodyParties.mapNotNull { partyAsk(setup, it.first) } + bodySlots.mapNotNull { slotAsk(setup, it) })
+        val bodyAsks = bodyParties.mapNotNull { partyAsk(setup, it.first) } + bodySlots.mapNotNull { slotAsk(setup, it) }
+        prescore(setup, bodyAsks)
+        scoreBaselines(setup, bodyAsks)
         bodyParties.forEach { (name, role) -> party(setup, s, name, role) }
         bodySlots.forEach { slot(setup, s, it) }
         val decoding = System.nanoTime()
         redecide(setup, s)
         timing("decode ms=${(System.nanoTime() - decoding) / NANOS_PER_MS} (includes the kind and household scoring of a changed answer)")
+        // What each kept date and amount means, attached to the slot that holds it (see [readMeanings]).
+        readMeanings(setup, s)
         traceFinal(setup, s)
 
         // The structured address of the addressee and of the sender, once the parties are settled (a letter with a recipient block only).
@@ -603,7 +599,11 @@ class ZoneScoringInterpreter(
     // ── planned questions, scored as a grid where they share ──
 
     /** One question of the reading, planned before it is asked: the zones it is about, the candidates it scores and what it asks of each. */
-    private class Ask(val name: String, val zones: List<LetterZone>, val cands: List<Candidate>, val what: String, val labelled: Boolean = false)
+    private class Ask(
+        val name: String, val zones: List<LetterZone>, val cands: List<Candidate>, val what: String, val labelled: Boolean = false,
+        /** The made-up value its content-free baseline is asked about ([ScoringDescriptions.BASELINE_PROBES]); null for a question that has none. */
+        val probe: String? = null,
+    )
 
     /** The slots this document is expected to have beyond the core (its family's own and its topics'): the ones that are not [ScoringProfile.optionalUnlessOwn]-optional for it. Set once the family is known. */
     private var ownSlots: Set<SlotKey> = emptySet()
@@ -659,7 +659,7 @@ class ZoneScoringInterpreter(
         val names = zoned.offered.rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME && !zoned.isTableCell(it) }
         val cands = setup.plan.offer(names, preferred, fallback)
         if (cands.isEmpty()) return null
-        return Ask(name, askedZones(setup, preferred, fallback, cands), cands, ScoringDescriptions.ofRole(name))
+        return Ask(name, askedZones(setup, preferred, fallback, cands), cands, ScoringDescriptions.ofRole(name), probe = ScoringDescriptions.PARTY_BASELINE_NAME)
     }
 
     /**
@@ -680,7 +680,10 @@ class ZoneScoringInterpreter(
         }
         val cands = setup.plan.offer(offered(zoned.offered.rows.map { it.candidate }), preferred)
         if (cands.isEmpty()) return null
-        return Ask(name, askedZones(setup, preferred, emptyList(), cands), cands, ScoringDescriptions.ofSlot(slot), labelled = isReference && optional(slot))
+        return Ask(
+            name, askedZones(setup, preferred, emptyList(), cands), cands, ScoringDescriptions.ofSlot(slot), labelled = isReference && optional(slot),
+            probe = if (isReference) ScoringDescriptions.REFERENCE_BASELINE_VALUE else null,
+        )
     }
 
     /** The scores of [ask]'s candidates: the ones [prescore] computed, else scored now as a batch under [block]. */
@@ -751,7 +754,7 @@ class ZoneScoringInterpreter(
         val scores = scored(setup, ask, block) ?: return true
         // "None of these" is an answer: a name is taken only when it also beats a made-up name asked the same way over the same zones, so the
         // threshold of the question is raised to that level (the decoder, which re-decides from the scores, then abstains the same way).
-        val threshold = maxOf(profile.threshold(name), baselineFloor(ask, block) ?: Double.NEGATIVE_INFINITY)
+        val threshold = maxOf(profile.threshold(name), baselineFloor(ask) ?: Double.NEGATIVE_INFINITY)
         collect(name, cands, scores, role = role, slot = null, block = block, threshold = threshold)
         val allowed = scores.indices.filter { role == PartyRole.SENDER || cands[it].id != s.senderId }
         val ranked = allowed.sortedByDescending { scores[it] }
@@ -763,17 +766,31 @@ class ZoneScoringInterpreter(
         return true
     }
 
+    /** The content-free baselines scored ahead by [scoreBaselines], by question name. */
+    private val baselines = HashMap<String, Double>()
+
     /**
-     * The score a name of [ask] must be above to be taken: the content-free baseline (the same question about a made-up name,
-     * [ScoringDescriptions.PARTY_BASELINE_NAME], over the same zone block) plus the profile's margin. Null when the profile sets no margin
-     * for this question, and when the baseline could not be scored (nothing is then known against the name, so it is kept as before).
+     * Scores ahead the content-free baseline of every question of [asks] that has a margin ([ScoringProfile.baselineMargin]): the same
+     * question about a made-up value that is nowhere in the letter ([Ask.probe]: a name, a reference), over the same zone block. The questions
+     * that share a block and a made-up value are one batch (the block is decoded once), so "none" costs one statement per question.
      */
-    private suspend fun baselineFloor(ask: Ask, block: String): Double? {
-        val margin = profile.partyBaselineMargin(ask.name) ?: return null
-        val baseline = scoreBatch(
-            "baseline:${ask.name}", block, listOf(ZonePrompt.scoringQuestion(ScoringDescriptions.PARTY_BASELINE_NAME, null, ask.what)),
-        )?.firstOrNull() ?: return null
-        traceLines += String.format(Locale.ROOT, "%s baseline %+.2f margin %.2f -> a name needs more than %+.2f", ask.name, baseline, margin, baseline + margin)
+    private suspend fun scoreBaselines(setup: ZoneSetup, asks: List<Ask>) {
+        val wanted = asks.filter { it.probe != null && profile.baselineMargin(it.name) != null }
+        for ((key, group) in wanted.groupBy { block(setup, it.zones) to it.probe!! }) {
+            val (block, probe) = key
+            val scores = scoreBatch("baseline:" + group.joinToString("+") { it.name }, block, group.map { ZonePrompt.scoringQuestion(probe, null, it.what) }) ?: continue
+            group.forEachIndexed { i, ask -> baselines[ask.name] = scores[i] }
+        }
+    }
+
+    /**
+     * The score a candidate of [ask] must be above to be taken: its content-free baseline plus the profile's margin. Null when the profile sets
+     * no margin for this question, and when the baseline could not be scored (nothing is then known against the value, so it is kept as before).
+     */
+    private fun baselineFloor(ask: Ask): Double? {
+        val margin = profile.baselineMargin(ask.name) ?: return null
+        val baseline = baselines[ask.name] ?: return null
+        traceLines += String.format(Locale.ROOT, "%s baseline %+.2f margin %.2f -> a value needs more than %+.2f", ask.name, baseline, margin, baseline + margin)
         return baseline + margin
     }
 
@@ -831,8 +848,9 @@ class ZoneScoringInterpreter(
         val cands = ask.cands
         val block = block(setup, asked)
         val scores = scored(setup, ask, block) ?: return true
-        if (slot.kind != SlotKind.REFERENCE_LIST) collect(name, cands, scores, role = null, slot = slot, block = block)
-        val threshold = slotThreshold(name, slot)
+        // "None" is an answer for a reference too: it is taken only when it beats a made-up reference over the same zones by the margin.
+        val threshold = maxOf(slotThreshold(name, slot), baselineFloor(ask) ?: Double.NEGATIVE_INFINITY)
+        if (slot.kind != SlotKind.REFERENCE_LIST) collect(name, cands, scores, role = null, slot = slot, block = block, threshold = threshold)
         val order = scores.indices.sortedByDescending { scores[it] }
         val best = order.first()
         traceAsk(setup, name, asked, cands, scores, best)
@@ -865,6 +883,28 @@ class ZoneScoringInterpreter(
     private fun roleOf(slot: SlotKey): String {
         val order = if (slot.kind == SlotKind.AMOUNT) Roles.AMOUNT else Roles.DATE
         return order.firstOrNull { it in slot.expects } ?: "OTHER"
+    }
+
+    // ── what a date or an amount means ──
+
+    /**
+     * Attaches to each date and amount slot the reading kept what its value MEANS ([ValueMeaningReader]), in the open body session. The slots
+     * were decided above and stay as decided: the meaning is an attribute of the slot's value, so there is one decision, never two that
+     * could disagree. A value no meaning beats its baseline by is "other" and gets none; a slot that holds a period quoted in words has no
+     * candidate to ask about.
+     */
+    private suspend fun readMeanings(setup: ZoneSetup, s: State) {
+        val zoned = setup.zoned
+        val targets = scored.mapNotNull { a ->
+            val slot = a.slot ?: return@mapNotNull null
+            val kind = MeaningKind.of(slot.kind) ?: return@mapNotNull null
+            val id = s.slots[slot.json]?.id ?: return@mapNotNull null
+            val c = a.cands.firstOrNull { it.id == id } ?: return@mapNotNull null
+            ValueMeaningReader.Target(slot.json, kind, c.raw.replace('\n', ' '), zoned.context(c), a.block)
+        }
+        if (targets.isEmpty()) return
+        val meanings = ValueMeaningReader({ name, shared, questions -> scoreBatch(name, shared, questions) }, profile, trace = { traceLines += it }).read(targets)
+        for ((key, meaning) in meanings) s.slots[key]?.let { s.slots[key] = it.copy(meaning = meaning.id) }
     }
 
     // ── decoding ──

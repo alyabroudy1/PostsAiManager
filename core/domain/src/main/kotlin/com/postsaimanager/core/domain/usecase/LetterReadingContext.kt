@@ -3,6 +3,8 @@ package com.postsaimanager.core.domain.usecase
 import com.postsaimanager.core.domain.extraction.actions.ActionKinds
 import com.postsaimanager.core.domain.extraction.actions.ActionPart
 import com.postsaimanager.core.domain.contacts.LetterContacts
+import com.postsaimanager.core.domain.extraction.v2.ValueMeaning
+import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
 import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.model.ExtractedData
@@ -30,6 +32,7 @@ object LetterReadingContext {
 
         val lines = mutableListOf<String>()
         val coveredDates = mutableSetOf<String>()
+        val covered = mutableSetOf<String>()
         actionItems.forEach { item ->
             val kind = ActionKinds.of(item.kind) ?: return@forEach
             val date = bound(item, ActionPart.DATE)
@@ -37,16 +40,25 @@ object LetterReadingContext {
             val party = bound(item, ActionPart.PARTY)
             val reference = bound(item, ActionPart.REFERENCE)
             date?.let { d -> d.slotKey?.let(coveredDates::add) }
+            listOfNotNull(date, amount).forEach { covered += it.id }
+            // What the action says its date or amount is wins; where it says nothing, what the reading decided the value itself means does.
             val parts = listOfNotNull(
-                date?.let { "date ${it.fieldValue.trim()}" + (kind.dateMeaning?.let { m -> " ($m)" } ?: "") },
-                amount?.let { "amount ${it.fieldValue.trim()}" + (kind.amountMeaning?.let { m -> " ($m)" } ?: "") },
+                date?.let { "date ${it.fieldValue.trim()}" + ((kind.dateMeaning ?: meaningOf(it)?.description)?.let { m -> " ($m)" } ?: "") },
+                amount?.let { "amount ${it.fieldValue.trim()}" + ((kind.amountMeaning ?: meaningOf(it)?.description)?.let { m -> " ($m)" } ?: "") },
                 party?.let { "sender ${it.fieldValue.trim()}" },
                 reference?.let { "reference ${it.fieldValue.trim()}" },
             )
             lines += "- The reader is asked to ${kind.task}" + if (parts.isEmpty()) "" else ": " + parts.joinToString("; ")
         }
-        live.filter { it.fieldType == ExtractedFieldType.DEADLINE && it.slotKey !in coveredDates }
-            .forEach { lines += "- ${it.fieldName}: ${it.fieldValue.trim()}" }
+        // The other dates and amounts the reading gave a meaning (an appointment, the end of a period, a premium ...), and any deadline field no
+        // action covers: the dates in a chat mean what the reading found, not the most prominent one on the page.
+        live.filter { it.slotKey !in coveredDates && it.id !in covered }.forEach { field ->
+            val meaning = meaningOf(field)
+            when {
+                meaning != null -> lines += "- ${meaning.kind.name.lowercase()} ${field.fieldValue.trim()} (${meaning.description})"
+                field.fieldType == ExtractedFieldType.DEADLINE -> lines += "- ${field.fieldName}: ${field.fieldValue.trim()}"
+            }
+        }
 
         val contactLines = contactLines(contacts)
         if (lines.isEmpty() && contactLines.isEmpty()) return ""
@@ -80,6 +92,9 @@ object LetterReadingContext {
         }
     }
 
+    /** What the reading decided the value of [field] means (a date or an amount), or null when it decided none ("other"). */
+    private fun meaningOf(field: ExtractedData): ValueMeaning? = ValueMeanings.fromRole(field.role)
+
     private fun describe(contact: ContactPerson): String = listOfNotNull(
         contact.name,
         contact.title?.takeIf { it.isNotBlank() },
@@ -87,5 +102,5 @@ object LetterReadingContext {
         contact.email?.takeIf { it.isNotBlank() }?.let { "email $it" },
     ).joinToString(", ")
 
-    private const val MAX_LINES = 6
+    private const val MAX_LINES = 8
 }

@@ -22,12 +22,19 @@ data class ScoringProfile(
      */
     val familyMinMargin: Double = 0.0,
     /**
-     * The party questions (`sender`, `addressee`, `subject_person`, ...) whose answer may be "none of these": the best name is taken only when
-     * its score beats, by at least this margin, the score of a made-up name that is nowhere in the letter, asked the same way over the same
-     * zones (the content-free baseline). A line that is no party (a greeting, a sentence of a message) then leaves the field empty instead of
-     * being the best of a bad lot. By question name; a question not listed is taken as before (the best above its threshold).
+     * The party questions (`sender`, `addressee`, `subject_person`, `contact`, ...) and the reference questions (`slot:invoice_no`, ...) whose
+     * answer may be "none of these": the best candidate is taken only when its score beats, by more than this margin, the score of a made-up
+     * value that is nowhere in the letter (a name, a reference), asked the same way over the same zones (the content-free baseline). A line that
+     * is no party (a greeting, a sentence of a message) or no reference then leaves the field empty instead of being the best of a bad lot.
+     * By question name; a question not listed is taken as before (the best above its threshold). Asked of every document, whatever its type.
      */
-    val partyBaselineMargins: Map<String, Double> = emptyMap(),
+    val baselineMargins: Map<String, Double> = emptyMap(),
+    /**
+     * The margin a meaning of a date or an amount ([com.postsaimanager.core.domain.extraction.v2.ValueMeanings]) must beat its content-free
+     * baseline by, by meaning id; one not listed uses [defaultMeaningMargin]. A value no meaning beats it by is "other" (no meaning).
+     */
+    val meaningMargins: Map<String, Double> = emptyMap(),
+    val defaultMeaningMargin: Double = 0.0,
     /** The cut points of a slot's or a party's confidence; see [ScoreCuts]. */
     val cuts: ScoreCuts = ScoreCuts(),
     /** How the scores of all questions are combined into the answers ([SlotDecoder]); the per-slot argmax by default. */
@@ -75,8 +82,11 @@ data class ScoringProfile(
         return best.takeIf { lead >= familyMinMargin }
     }
 
-    /** The margin over the content-free baseline the party question [ask] needs, or null when it is not asked against one. */
-    fun partyBaselineMargin(ask: String): Double? = partyBaselineMargins[ask]
+    /** The margin over the content-free baseline the party or reference question [ask] needs, or null when it is not asked against one. */
+    fun baselineMargin(ask: String): Double? = baselineMargins[ask]
+
+    /** The margin the meaning [id] of a date or an amount needs over its content-free baseline. */
+    fun meaningMargin(id: String): Double = meaningMargins[id] ?: defaultMeaningMargin
 
     /** The type's confidence from its margin. */
     fun confidence(margin: Double): String = when {
@@ -182,10 +192,25 @@ object ScoringDescriptions {
     const val KEY_SLOTS_ASK = "keyslots"
 
     /**
-     * The made-up name scored beside a party's candidates as the content-free baseline (see [ScoringProfile.partyBaselineMargins]); it must
+     * The made-up name scored beside a party's candidates as the content-free baseline (see [ScoringProfile.baselineMargins]); it must
      * not be a name that could be printed in a letter.
      */
     const val PARTY_BASELINE_NAME = "Zoltan Quillfeather"
+
+    /** The made-up reference scored beside a reference question's candidates, the same baseline for numbers; not a reference a letter could print. */
+    const val REFERENCE_BASELINE_VALUE = "ZQ-0000-QUILLFEATHER"
+
+    /** The made-up date scored beside the meanings of a date ([com.postsaimanager.core.domain.extraction.v2.ValueMeanings]); not a date a letter could print. */
+    const val DATE_BASELINE_VALUE = "the 41st of Zoltember"
+
+    /** The made-up amount scored beside the meanings of an amount; not an amount a letter could print. */
+    const val AMOUNT_BASELINE_VALUE = "77 Quillfeather coins"
+
+    /** Every made-up value a content-free baseline is asked about: a question that holds one is a baseline, never a question about the letter. */
+    val BASELINE_PROBES = listOf(PARTY_BASELINE_NAME, REFERENCE_BASELINE_VALUE, DATE_BASELINE_VALUE, AMOUNT_BASELINE_VALUE)
+
+    /** Whether [question] is a content-free baseline (it asks about one of the [BASELINE_PROBES]). */
+    fun isBaselineQuestion(question: String): Boolean = BASELINE_PROBES.any { question.contains(it) }
 
     /** At most this many stored slot values are scored for key information in one reading: the batch stays small. */
     const val MAX_KEY_SLOT_SCORES = 15

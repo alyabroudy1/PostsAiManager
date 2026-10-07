@@ -291,4 +291,18 @@
     <string name="action_share_original">Share original</string>
     <string name="original_unavailable">The original file is not available.</string>
     <string name="no_app_for_pdf">No app found to open PDFs</string>
+
+    <!-- What a date or an amount means (ValueMeanings): the row's label when the reading decided it -->
+    <string name="meaning_due_date">Payment due date</string>
+    <string name="meaning_appointment">Appointment</string>
+    <string name="meaning_deadline">Cancellation or objection deadline</string>
+    <string name="meaning_period_start">Period start</string>
+    <string name="meaning_period_end">Period end</string>
+    <string name="meaning_letter_date">Date of the letter</string>
+    <string name="meaning_birth_date">Birth date</string>
+    <string name="meaning_total_due">Amount to pay</string>
+    <string name="meaning_credit">Amount credited or refunded</string>
+    <string name="meaning_premium">Premium or contribution</string>
+    <string name="meaning_invoice_total">Invoice total</string>
+    <string name="meaning_fee">Fee</string>
 </resources>

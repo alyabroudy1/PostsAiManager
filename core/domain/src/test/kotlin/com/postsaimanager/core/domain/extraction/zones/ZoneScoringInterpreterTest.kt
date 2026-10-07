@@ -286,12 +286,13 @@ class ZoneScoringInterpreterTest {
     }
 
     @Test
-    fun `the general Document, when no type is detected, asks no party and no letter slot`() {
-        // Even a model that says Yes to every party and slot gets none of them stored: the type decides which questions are asked.
+    fun `the general Document, when no type is detected, is asked every party and every slot like any other`() {
+        // A model that says Yes to every party and slot gets them stored: the type is a label, it removes no question.
         val (result, _) = run { c -> !c.contains("Is this document") }
         assertThat(result.documentType?.id).isEqualTo("free_form")
-        assertThat(result.parties.all).isEmpty()
-        assertThat(result.slots).isEmpty()
+        assertThat(result.parties.sender).isNotNull()
+        assertThat(result.parties.all.any { it.role == PartyRole.ADDRESSEE }).isTrue()
+        assertThat(result.slots).isNotEmpty()
     }
 
     @Test
@@ -299,7 +300,7 @@ class ZoneScoringInterpreterTest {
         fun yes(baseline: Double): (String) -> Boolean = { c ->
             says("Musterfirma GmbH", "the sender")(c) || c.contains("Is this document an invoice, a bill") || (baseline > 0 && c.contains("«Zoltan Quillfeather»"))
         }
-        val margin = ScoringProfile(partyBaselineMargins = mapOf("sender" to 1.0))
+        val margin = ScoringProfile(baselineMargins = mapOf("sender" to 1.0))
         // The made-up name is scored No (-5): the real sender (+5) beats it by far and is kept.
         assertThat(run(margin, yes(baseline = 0.0)).first.parties.sender?.name).isEqualTo("Musterfirma GmbH")
         // The model leans Yes on the made-up name as well (+5): the sender no longer beats it by the margin, so the field stays empty.
@@ -309,11 +310,11 @@ class ZoneScoringInterpreterTest {
     }
 
     @Test
-    fun `a message has no addressee, only the sender is asked among the parties`() {
+    fun `a message is asked for its addressee too, the type removes no question`() {
         val (result, _) = run { c -> c.contains("Is this document a short message") || says("Musterfirma GmbH", "the sender")(c) || says("Erika Mustermann", "the addressee")(c) }
         assertThat(result.documentType?.id).isEqualTo("message_note")
         assertThat(result.parties.sender?.name).isEqualTo("Musterfirma GmbH")
-        assertThat(result.parties.all.none { it.role == PartyRole.ADDRESSEE }).isTrue()
+        assertThat(result.parties.all.first { it.role == PartyRole.ADDRESSEE }.name).isEqualTo("Erika Mustermann")
     }
 
     @Test

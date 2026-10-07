@@ -249,6 +249,12 @@ data class RawSlot(
     val scoreNote: String? = null,
     /** Like [RawParty.alternatives]. */
     val alternatives: List<RawAlternative> = emptyList(),
+    /**
+     * What the value MEANS ([ValueMeaning.id]) when the reading asked and a meaning beat its content-free baseline; null when it did not
+     * ask or the answer is "other". Attached to the slot's own decision, never a second decision: the slot, its [role] and its checks
+     * are unchanged.
+     */
+    val meaning: String? = null,
 )
 
 /**

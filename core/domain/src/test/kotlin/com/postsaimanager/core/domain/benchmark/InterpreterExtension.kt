@@ -6,6 +6,7 @@ import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.actions.ActionQuestions
 import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.domain.extraction.v2.Slots
+import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
 import com.postsaimanager.core.domain.extraction.zones.QuestionNames
 import com.postsaimanager.core.domain.extraction.zones.ScoringDescriptions
 import com.postsaimanager.core.domain.extraction.zones.ScoringProfile
@@ -331,7 +332,9 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         if (at == null) {
             // The content-free baseline of a party question (a made-up name) is newer than the 16 recordings: replayed as recorded when the
             // recording holds it, else "not scored" (far below any score, so it never makes a name lose and the reading is as recorded).
-            if (live.all { it.contains(ScoringDescriptions.PARTY_BASELINE_NAME) }) return PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED })
+            // The same holds for the baselines of the reference questions and for the meaning of a date or an amount (extraction-v2-14): never
+            // recorded, so "not scored" and no meaning is decided in a replay.
+            if (live.all { ScoringDescriptions.isBaselineQuestion(it) || isMeaningQuestion(it) }) return PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED })
             // The reference slots every family asks since extraction-v2-5 are newer than the recordings: a batch that holds them besides
             // recorded questions replays the recorded ones and scripts the new ones as "not scored".
             scriptedAroundNewCore(live)?.let { return it }
@@ -398,7 +401,10 @@ internal class ReplayPromptSession(private val recording: Recording, private val
         return PamResult.Success(heads.indices.map { i -> asks.indices.map { j -> columns[j][i] } })
     }
 
-    private fun withoutIds(text: String) = ID_TOKEN.replace(withoutContext(withoutHint(text)), "#")
+    /** A question about what a date or an amount means: it carries one of the registry's descriptions as its statement. */
+    private fun isMeaningQuestion(question: String): Boolean = ValueMeanings.DEFAULT.all.any { question.contains(" ${it.description}? Answer:") }
+
+    private fun withoutIds(text: String) =ID_TOKEN.replace(withoutContext(withoutHint(text)), "#")
 
     /**
      * A value's question is "Is «value» [printed after «label»] (context: its row and the rows around it) <statement>? Answer:". What stands

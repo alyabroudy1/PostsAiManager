@@ -9,6 +9,7 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.Slots
+import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.AddressPart
 import com.postsaimanager.core.model.ExtractedData
@@ -159,6 +160,29 @@ object SlotLabels {
     @StringRes
     fun topic(id: String?): Int? = id?.let(topics::get)
 
+    /** The words of each meaning of a date or an amount ([ValueMeanings]); a test fails until every meaning in the registry has one. */
+    private val meanings: Map<String, Int> = mapOf(
+        "DUE_DATE" to R.string.meaning_due_date,
+        "APPOINTMENT" to R.string.meaning_appointment,
+        "DEADLINE" to R.string.meaning_deadline,
+        "PERIOD_START" to R.string.meaning_period_start,
+        "PERIOD_END" to R.string.meaning_period_end,
+        "LETTER_DATE" to R.string.meaning_letter_date,
+        "BIRTH_DATE" to R.string.meaning_birth_date,
+        "TOTAL_DUE" to R.string.meaning_total_due,
+        "CREDIT" to R.string.meaning_credit,
+        "PREMIUM" to R.string.meaning_premium,
+        "INVOICE_TOTAL" to R.string.meaning_invoice_total,
+        "FEE" to R.string.meaning_fee,
+    )
+
+    /** The label of the meaning a stored [role] holds (`meaning:APPOINTMENT`), or null when the role is no meaning. */
+    @StringRes
+    fun meaning(role: String?): Int? = ValueMeanings.fromRole(role)?.let { meanings[it.id] }
+
+    /** Every meaning id that has a label; for the test that guards the registry. */
+    val meaningIds: Set<String> get() = meanings.keys
+
     /** Every key that has a label; for the test that guards the schema. */
     val slotKeys: Set<String> get() = slots.keys + addressRows.keys
     val typeIds: Set<String> get() = DocumentTypeLabels.ids
@@ -173,6 +197,8 @@ object SlotLabels {
      */
     @StringRes
     fun labelFor(field: ExtractedData): Int? {
+        // A date or an amount the reading gave a meaning is labelled by it ("Appointment"), whichever slot holds it.
+        if (field.source == ValueSource.MACHINE) meaning(field.role)?.let { return it }
         val res = slot(field.slotKey.takeUnless { field.isExtra }) ?: return null
         if (field.source == ValueSource.MACHINE) return res
         return res.takeIf { field.fieldName in defaultNames(field.slotKey!!) }

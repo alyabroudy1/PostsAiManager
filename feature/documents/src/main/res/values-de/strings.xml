@@ -79,4 +79,17 @@
     <string name="action_share_original">Original teilen</string>
     <string name="original_unavailable">Die Originaldatei ist nicht verfügbar.</string>
     <string name="no_app_for_pdf">Keine App zum Öffnen von PDFs gefunden</string>
+
+    <string name="meaning_due_date">Fälligkeitsdatum</string>
+    <string name="meaning_appointment">Termin</string>
+    <string name="meaning_deadline">Kündigungs- oder Widerspruchsfrist</string>
+    <string name="meaning_period_start">Beginn des Zeitraums</string>
+    <string name="meaning_period_end">Ende des Zeitraums</string>
+    <string name="meaning_letter_date">Datum des Schreibens</string>
+    <string name="meaning_birth_date">Geburtsdatum</string>
+    <string name="meaning_total_due">Zu zahlender Betrag</string>
+    <string name="meaning_credit">Gutschrift oder Erstattung</string>
+    <string name="meaning_premium">Beitrag oder Prämie</string>
+    <string name="meaning_invoice_total">Rechnungsbetrag</string>
+    <string name="meaning_fee">Gebühr</string>
 </resources>
