@@ -526,6 +526,22 @@ object PamMigrations {
         }
     }
 
+    /**
+     * v21 (file import): `documents.sourceHash` (SHA-256 of the imported file, to notice the same file added twice) and
+     * `documents.originalFilePath` (the original PDF kept privately). Both nullable, nothing is rewritten. Additive and idempotent:
+     * each column is added only when missing. 1..20 are untouched (20 is installed on phones).
+     */
+    val MIGRATION_20_21 = object : Migration(20, 21) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            val existing = db.query("PRAGMA table_info(`documents`)").use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                generateSequence { if (cursor.moveToNext()) cursor.getString(nameIndex) else null }.toSet()
+            }
+            if ("sourceHash" !in existing) db.execSQL("ALTER TABLE `documents` ADD COLUMN `sourceHash` TEXT")
+            if ("originalFilePath" !in existing) db.execSQL("ALTER TABLE `documents` ADD COLUMN `originalFilePath` TEXT")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -546,5 +562,6 @@ object PamMigrations {
         MIGRATION_17_18,
         MIGRATION_18_19,
         MIGRATION_19_20,
+        MIGRATION_20_21,
     )
 }

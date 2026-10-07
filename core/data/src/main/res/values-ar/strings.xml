@@ -6,4 +6,8 @@
     <string name="reminder_notification_discreet">لديك تذكير</string>
     <string name="reminder_deadline_with_sender">يقترب موعد نهائي في الرسالة من %1$s.</string>
     <string name="reminder_deadline_without_sender">يقترب موعد نهائي في إحدى رسائلك.</string>
+
+    <!-- إضافة الملفات كمستندات: الإشعار الجاري الوحيد أثناء تجهيز الصفحات (لا يذكر أي ملف) -->
+    <string name="import_notification_title">جارٍ إضافة ملفاتك…</string>
+    <string name="import_notification_text">يتم تجهيز الصفحات في الخلفية</string>
 </resources>

@@ -69,6 +69,9 @@ class FakeDocumentRepository : DocumentRepository {
             list.filter { it.title.contains(query, ignoreCase = true) && !it.isTrashed }
         }
 
+    override suspend fun findBySourceHash(hash: String): Document? =
+        documents.value.filter { it.sourceHash == hash && !it.isTrashed }.minByOrNull { it.createdAt }
+
     override suspend fun getDocumentById(id: String): PamResult<Document> = guard {
         documents.value.firstOrNull { it.id == id }
             ?.let { PamResult.Success(it) }

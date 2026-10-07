@@ -7,4 +7,8 @@
     <string name="home_download_banner_progress">إعداد الذكاء الاصطناعي · %1$d من %2$d · %3$d%%</string>
     <string name="home_download_banner_progress_unknown">إعداد الذكاء الاصطناعي · %1$d من %2$d</string>
     <string name="home_download_banner_failed">فشل تنزيل نموذج. انقر للمحاولة مجددًا.</string>
+    <!-- استيراد ملفات PDF والصور: زر «+» بجانب المسح والشريط أثناء تجهيز الصفحات في الخلفية -->
+    <string name="home_import_action">استيراد PDF أو صور</string>
+    <string name="home_importing">جارٍ الاستيراد…</string>
+    <string name="home_import_failed">تعذّر استيراد بعض الملفات. انقر للإغلاق.</string>
 </resources>

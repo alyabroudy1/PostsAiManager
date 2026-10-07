@@ -69,4 +69,10 @@
     <string name="section_all_details">كل التفاصيل (%1$d)</string>
     <string name="pages_zoom_page">فتح الصفحة %1$d بملء الشاشة</string>
     <string name="pages_zoom_hint">تكبير</string>
+
+    <!-- ملف PDF الأصلي الذي يحتفظ به المستند المستورد -->
+    <string name="action_open_original">فتح الأصل</string>
+    <string name="action_share_original">مشاركة الأصل</string>
+    <string name="original_unavailable">الملف الأصلي غير متوفر.</string>
+    <string name="no_app_for_pdf">لا يوجد تطبيق لفتح ملفات PDF</string>
 </resources>

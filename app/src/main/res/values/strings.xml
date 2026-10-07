@@ -19,4 +19,38 @@
     <string name="applock_prompt_unlock_subtitle">Use your fingerprint, face, PIN or pattern</string>
     <string name="applock_prompt_enable_title">Turn on App lock</string>
     <string name="applock_prompt_enable_subtitle">Confirm it is you before locking the app</string>
+
+    <!-- Importing PDFs and images (the confirm sheet of a share, "Open with" or the Home import button) -->
+    <string name="import_add">Add to my letters</string>
+    <string name="import_cancel">Cancel</string>
+    <string name="import_close">Close</string>
+    <string name="import_reading">Reading your files…</string>
+    <string name="import_adding">Adding your letters…</string>
+    <string name="import_continue_background">Continue in the background</string>
+    <string name="import_failed_all">None of these files could be added.</string>
+    <string name="import_each_image_separate">Each image is its own document</string>
+    <plurals name="import_group_images">
+        <item quantity="one">%d image</item>
+        <item quantity="other">%d images</item>
+    </plurals>
+    <plurals name="import_pages">
+        <item quantity="one">%d page</item>
+        <item quantity="other">%d pages</item>
+    </plurals>
+    <string name="import_duplicate">You added this file on %1$s</string>
+    <string name="import_duplicate_group">You added these files on %1$s</string>
+    <string name="import_add_again">Add it again anyway</string>
+    <string name="import_password_title">%1$s is password-protected</string>
+    <string name="import_password_label">Password</string>
+    <string name="import_unlock">Unlock</string>
+    <string name="import_wrong_password">That password did not work. Try again.</string>
+    <string name="import_thumbnail_description">Preview of the first page</string>
+    <string name="import_problem_not_supported">%1$s is not a PDF or an image this app can read.</string>
+    <string name="import_problem_too_large">%1$s is larger than %2$d MB.</string>
+    <string name="import_problem_too_many_pages">%1$s has %2$d pages. A PDF can have up to %3$d pages here.</string>
+    <string name="import_problem_password_unsupported">%1$s is password-protected. This Android version cannot open it: share an unprotected copy.</string>
+    <string name="import_problem_password_required">%1$s needs its password.</string>
+    <string name="import_problem_wrong_password">The password for %1$s did not work.</string>
+    <string name="import_problem_broken">%1$s is damaged and cannot be read.</string>
+    <string name="import_problem_unreadable">%1$s could not be opened. Try sharing it again.</string>
 </resources>

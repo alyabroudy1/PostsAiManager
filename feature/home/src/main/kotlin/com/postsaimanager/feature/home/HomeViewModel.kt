@@ -2,7 +2,11 @@ package com.postsaimanager.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.postsaimanager.core.domain.applock.ExternalFlowGuard
+import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.document.DocumentProcessor
+import com.postsaimanager.core.domain.importing.ImportQueue
+import com.postsaimanager.core.domain.importing.ImportStatus
 import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
 import com.postsaimanager.core.domain.setup.ObserveModelBannerUseCase
 import com.postsaimanager.core.model.DocumentListItem
@@ -22,7 +26,36 @@ class HomeViewModel @Inject constructor(
     observeDocumentListItems: ObserveDocumentListItemsUseCase,
     documentProcessor: DocumentProcessor,
     observeModelBanner: ObserveModelBannerUseCase,
+    private val importQueue: ImportQueue,
+    private val externalFlowGuard: ExternalFlowGuard,
 ) : ViewModel() {
+
+    private var pickerFlow: ExternalFlowToken? = null
+
+    /**
+     * Files being turned into pages in the background, or an import that ended with a problem: the list shows "Importing…" (a
+     * document only exists once its pages do) or the failure until it is dismissed.
+     */
+    val importStatus: StateFlow<ImportStatus> = importQueue.status
+        .catch { emit(ImportStatus()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ImportStatus())
+
+    /** The system file picker is a trip out of the app and back: the app lock must not treat the return as a background. */
+    fun onImportPickerLaunching() {
+        externalFlowGuard.finish(pickerFlow)
+        pickerFlow = externalFlowGuard.expect("import-file-picker")
+    }
+
+    fun onImportPickerResult() {
+        externalFlowGuard.finish(pickerFlow)
+        pickerFlow = null
+    }
+
+    fun dismissImportFailures() = importQueue.dismissFailures()
+
+    override fun onCleared() {
+        externalFlowGuard.finish(pickerFlow)
+    }
 
     /**
      * The model banner: "AI model not installed · Install" after the user skipped the first-run setup, the download progress

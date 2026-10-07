@@ -20,4 +20,8 @@
     <string name="reminder_notification_discreet">You have a reminder</string>
     <string name="reminder_deadline_with_sender">A deadline on the letter from %1$s is coming up.</string>
     <string name="reminder_deadline_without_sender">A deadline on one of your letters is coming up.</string>
+
+    <!-- Importing PDFs and images as documents: the one ongoing notification while the pages are made (names no file) -->
+    <string name="import_notification_title">Adding your files…</string>
+    <string name="import_notification_text">Preparing pages in the background</string>
 </resources>

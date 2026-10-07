@@ -24,6 +24,8 @@ import com.postsaimanager.feature.setup.SetupScreen
 import kotlinx.coroutines.launch
 import com.postsaimanager.feature.documents.DocumentUndoViewModel
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.postsaimanager.importing.ImportActivity
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -59,6 +61,7 @@ fun PamApp(formFillingEnabled: Boolean) {
 @Composable
 private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
     val navController = rememberNavController()
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     // App-level scope and host: the "moved to Recently deleted / Undo" snackbar has to
     // outlive the detail screen that triggered it, so it is shown here, on the screen
@@ -142,6 +145,7 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
                     onDownloadsClick = {
                         navController.navigate("models")
                     },
+                    onImportPicked = { uris -> context.startActivity(ImportActivity.intentFor(context, uris)) },
                 )
             }
             composable(TopLevelDestination.DOCUMENTS.route) {

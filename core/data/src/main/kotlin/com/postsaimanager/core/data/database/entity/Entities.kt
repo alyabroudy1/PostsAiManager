@@ -63,6 +63,10 @@ data class DocumentEntity(
     val actionItems: String? = null,
     /** JSON list of profile ids; null: not checked yet. See [com.postsaimanager.core.model.Document.concernedProfileIds]. */
     val concernedProfileIds: String? = null,
+    /** See [com.postsaimanager.core.model.Document.sourceHash]. Added in v21. */
+    val sourceHash: String? = null,
+    /** See [com.postsaimanager.core.model.Document.originalFilePath]. Added in v21. */
+    val originalFilePath: String? = null,
 )
 
 @Entity(

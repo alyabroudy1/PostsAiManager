@@ -122,16 +122,21 @@ class DocumentRepositoryImpl @Inject constructor(
                     is PamResult.Success -> result.data
                     is PamResult.Error -> return@withContext result
                 }
+                // An imported PDF's original is kept beside the pages, so deleting the document's folder deletes it too.
+                val kept = document.originalFilePath?.let { pageImageStore.storeOriginal(document.id, it) }
                 documentDao.insertDocumentWithPages(
-                    document = mapper.toEntity(document),
+                    document = mapper.toEntity(document.copy(originalFilePath = kept)),
                     pages = stored.map(mapper::pageToEntity),
                 )
-                PamResult.Success(document)
+                PamResult.Success(document.copy(originalFilePath = kept))
             } catch (e: Exception) {
                 pageImageStore.deleteDocumentImages(document.id)
                 PamResult.Error(PamError.DatabaseError(cause = e))
             }
         }
+
+    override suspend fun findBySourceHash(hash: String): Document? =
+        withContext(ioDispatcher) { documentDao.findBySourceHash(hash)?.let(mapper::toDomain) }
 
     override suspend fun updateDocument(document: Document): PamResult<Unit> =
         withContext(ioDispatcher) {

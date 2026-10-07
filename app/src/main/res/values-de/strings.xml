@@ -10,4 +10,38 @@
     <string name="form_someone_else">Jemand anderes</string>
     <string name="form_me">Ich</string>
     <string name="form_person_name_question">Wie heißt die Person?</string>
+
+    <!-- PDFs und Bilder importieren (Bestätigungsblatt beim Teilen, bei „Öffnen mit“ oder über den Import-Button auf der Startseite) -->
+    <string name="import_add">Zu meinen Briefen hinzufügen</string>
+    <string name="import_cancel">Abbrechen</string>
+    <string name="import_close">Schließen</string>
+    <string name="import_reading">Deine Dateien werden gelesen…</string>
+    <string name="import_adding">Deine Briefe werden hinzugefügt…</string>
+    <string name="import_continue_background">Im Hintergrund fortfahren</string>
+    <string name="import_failed_all">Keine dieser Dateien konnte hinzugefügt werden.</string>
+    <string name="import_each_image_separate">Jedes Bild ist ein eigenes Dokument</string>
+    <plurals name="import_group_images">
+        <item quantity="one">%d Bild</item>
+        <item quantity="other">%d Bilder</item>
+    </plurals>
+    <plurals name="import_pages">
+        <item quantity="one">%d Seite</item>
+        <item quantity="other">%d Seiten</item>
+    </plurals>
+    <string name="import_duplicate">Du hast diese Datei am %1$s hinzugefügt</string>
+    <string name="import_duplicate_group">Du hast diese Dateien am %1$s hinzugefügt</string>
+    <string name="import_add_again">Trotzdem noch einmal hinzufügen</string>
+    <string name="import_password_title">%1$s ist passwortgeschützt</string>
+    <string name="import_password_label">Passwort</string>
+    <string name="import_unlock">Entsperren</string>
+    <string name="import_wrong_password">Dieses Passwort hat nicht funktioniert. Versuche es noch einmal.</string>
+    <string name="import_thumbnail_description">Vorschau der ersten Seite</string>
+    <string name="import_problem_not_supported">%1$s ist weder ein PDF noch ein Bild, das diese App lesen kann.</string>
+    <string name="import_problem_too_large">%1$s ist größer als %2$d MB.</string>
+    <string name="import_problem_too_many_pages">%1$s hat %2$d Seiten. Ein PDF darf hier höchstens %3$d Seiten haben.</string>
+    <string name="import_problem_password_unsupported">%1$s ist passwortgeschützt. Diese Android-Version kann es nicht öffnen: Teile eine ungeschützte Kopie.</string>
+    <string name="import_problem_password_required">%1$s braucht sein Passwort.</string>
+    <string name="import_problem_wrong_password">Das Passwort für %1$s hat nicht funktioniert.</string>
+    <string name="import_problem_broken">%1$s ist beschädigt und kann nicht gelesen werden.</string>
+    <string name="import_problem_unreadable">%1$s konnte nicht geöffnet werden. Teile die Datei noch einmal.</string>
 </resources>

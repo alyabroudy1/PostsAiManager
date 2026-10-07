@@ -10,4 +10,46 @@
     <string name="form_someone_else">شخص آخر غير مذكور</string>
     <string name="form_me">أنا</string>
     <string name="form_person_name_question">ما اسم الشخص؟</string>
+
+    <!-- استيراد ملفات PDF والصور (ورقة التأكيد عند المشاركة أو «فتح باستخدام» أو زر الاستيراد في الشاشة الرئيسية) -->
+    <string name="import_add">أضف إلى رسائلي</string>
+    <string name="import_cancel">إلغاء</string>
+    <string name="import_close">إغلاق</string>
+    <string name="import_reading">جارٍ قراءة ملفاتك…</string>
+    <string name="import_adding">جارٍ إضافة رسائلك…</string>
+    <string name="import_continue_background">المتابعة في الخلفية</string>
+    <string name="import_failed_all">تعذّرت إضافة أي من هذه الملفات.</string>
+    <string name="import_each_image_separate">كل صورة مستند منفصل</string>
+    <plurals name="import_group_images">
+        <item quantity="zero">%d صورة</item>
+        <item quantity="one">%d صورة</item>
+        <item quantity="two">صورتان</item>
+        <item quantity="few">%d صور</item>
+        <item quantity="many">%d صورة</item>
+        <item quantity="other">%d صورة</item>
+    </plurals>
+    <plurals name="import_pages">
+        <item quantity="zero">%d صفحة</item>
+        <item quantity="one">%d صفحة</item>
+        <item quantity="two">صفحتان</item>
+        <item quantity="few">%d صفحات</item>
+        <item quantity="many">%d صفحة</item>
+        <item quantity="other">%d صفحة</item>
+    </plurals>
+    <string name="import_duplicate">أضفت هذا الملف في %1$s</string>
+    <string name="import_duplicate_group">أضفت هذه الملفات في %1$s</string>
+    <string name="import_add_again">أضفه مرة أخرى على أي حال</string>
+    <string name="import_password_title">%1$s محمي بكلمة مرور</string>
+    <string name="import_password_label">كلمة المرور</string>
+    <string name="import_unlock">فتح</string>
+    <string name="import_wrong_password">لم تنجح كلمة المرور هذه. حاول مرة أخرى.</string>
+    <string name="import_thumbnail_description">معاينة الصفحة الأولى</string>
+    <string name="import_problem_not_supported">%1$s ليس ملف PDF ولا صورة يستطيع هذا التطبيق قراءتها.</string>
+    <string name="import_problem_too_large">%1$s أكبر من %2$d ميغابايت.</string>
+    <string name="import_problem_too_many_pages">%1$s يحتوي على %2$d صفحة. يمكن أن يحتوي ملف PDF هنا على %3$d صفحة كحد أقصى.</string>
+    <string name="import_problem_password_unsupported">%1$s محمي بكلمة مرور. لا يستطيع إصدار Android هذا فتحه: شارك نسخة غير محمية.</string>
+    <string name="import_problem_password_required">%1$s يحتاج إلى كلمة المرور.</string>
+    <string name="import_problem_wrong_password">لم تنجح كلمة المرور الخاصة بـ %1$s.</string>
+    <string name="import_problem_broken">%1$s تالف ولا يمكن قراءته.</string>
+    <string name="import_problem_unreadable">تعذّر فتح %1$s. حاول مشاركته مرة أخرى.</string>
 </resources>

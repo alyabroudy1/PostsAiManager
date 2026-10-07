@@ -69,4 +69,10 @@
     <string name="section_all_details">Alle Details (%1$d)</string>
     <string name="pages_zoom_page">Seite %1$d im Vollbild öffnen</string>
     <string name="pages_zoom_hint">Zoom</string>
+
+    <!-- Das Original-PDF, das ein importiertes Dokument behält -->
+    <string name="action_open_original">Original öffnen</string>
+    <string name="action_share_original">Original teilen</string>
+    <string name="original_unavailable">Die Originaldatei ist nicht verfügbar.</string>
+    <string name="no_app_for_pdf">Keine App zum Öffnen von PDFs gefunden</string>
 </resources>
