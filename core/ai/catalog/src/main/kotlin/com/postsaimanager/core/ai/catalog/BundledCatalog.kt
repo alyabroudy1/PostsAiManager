@@ -53,6 +53,9 @@ object BundledCatalog {
     /** Gemma 4 is Apache 2.0 (https://ai.google.dev/gemma/docs/gemma_4_license), unlike Gemma 1-3's own terms of use. */
     private const val GEMMA4_LICENSE = "Apache-2.0"
 
+    /** The window of the Gemma 4 LiteRT-LM entries (the engine fixes it when it starts). */
+    private const val LITERT_CONTEXT_TOKENS = 8192
+
     /**
      * The chat sampling of the Gemma 4 LiteRT-LM entries: the AI Edge Gallery's topK 64 and topP 0.95, with a LOW temperature. The
      * Gallery's 1.0 suits open chat, but this chat copies figures out of letters and writes tool calls, and on the phone Gemma 4
@@ -210,8 +213,11 @@ object BundledCatalog {
             sizeBytes = 2_588_147_712L,
             // The file plus the engine's working memory; an estimate, like the others.
             minAvailableRamBytes = 4 * GB,
-            // The window the engine starts with: the Gallery's default is 4000 tokens, and the llama.cpp chat runs at 4096 too.
-            contextTokens = 4096,
+            // The window the engine starts with. The Gallery's default is 4000 tokens, but here the system prompt carries the letter
+            // and the skills, a skill's text comes back as a tool result, and Arabic costs about a token per character: at 4096 a
+            // calendar request failed on the phone with "Prefill input length exceeds available state entries (remaining
+            // capacity: 499)". The model supports far more; 8192 keeps the engine's memory modest.
+            contextTokens = LITERT_CONTEXT_TOKENS,
             license = GEMMA4_LICENSE,
             downloadUrl = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/" +
                 "resolve/$GEMMA4_E2B_LITERT_REV/gemma-4-E2B-it.litertlm",
@@ -239,7 +245,7 @@ object BundledCatalog {
             quantization = "LiteRT-LM",
             sizeBytes = 3_659_530_240L,
             minAvailableRamBytes = 6 * GB,
-            contextTokens = 4096,
+            contextTokens = LITERT_CONTEXT_TOKENS,
             license = GEMMA4_LICENSE,
             downloadUrl = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/" +
                 "resolve/$GEMMA4_E4B_LITERT_REV/gemma-4-E4B-it.litertlm",

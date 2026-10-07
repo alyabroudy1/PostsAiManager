@@ -97,8 +97,11 @@ class CatalogActiveModelProvider @Inject constructor(
         }
         val device = liteRtDevice(model)
         val overrides = inferenceSettingsRepository.overrides.first()
-        val defaults = InferenceConfig.defaults(device, model.contextTokens, cpuTopology.coreMaxFreqsKHz())
-            .copy(contextTokens = model.contextTokens)
+        // The catalogue's window, not the one recorded when the file was installed: a model installed before the window was
+        // raised must not stay on the old one.
+        val window = descriptorOf(model)?.contextTokens ?: model.contextTokens
+        val defaults = InferenceConfig.defaults(device, window, cpuTopology.coreMaxFreqsKHz())
+            .copy(contextTokens = window)
         return defaults.applying(overrides, device, backendSpec(model))
             .copy(runtime = ModelRuntime.LITERT_LM, supportsTools = declaresTools(model), modelSampling = descriptorOf(model)?.sampling)
     }
@@ -130,7 +133,7 @@ class CatalogActiveModelProvider @Inject constructor(
         // A LiteRT-LM model runs on the backend its config resolves to (GPU unless blocked), which llama.cpp's own defaults know
         // nothing about: the accelerator control must show what the engine really uses, not llama.cpp's CPU default.
         val defaults = if (model?.runtime == ModelRuntime.LITERT_LM) {
-            baseDefaults.copy(accelerator = configFor(model).accelerator)
+            configFor(model).let { baseDefaults.copy(accelerator = it.accelerator, contextTokens = it.contextTokens) }
         } else {
             baseDefaults
         }

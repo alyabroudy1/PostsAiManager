@@ -93,8 +93,11 @@ class CatalogLiteRtConfigTest {
     fun `window does not follow free memory`() = runTest {
         val low = provider(liteRtModel(), availableRamBytes = 1L * 1024 * 1024 * 1024).activeModelConfig().contextTokens
         val high = provider(liteRtModel(), availableRamBytes = 6L * 1024 * 1024 * 1024).activeModelConfig().contextTokens
-        assertThat(low).isEqualTo(4096)
-        assertThat(high).isEqualTo(4096)
+        // The entry's 8192, although the installed record (made when the window was 4096) still says 4096.
+        assertThat(low).isEqualTo(8192)
+        assertThat(high).isEqualTo(8192)
+        // An import has no entry: the window recorded when it was installed.
+        assertThat(provider(liteRtModel(descriptorId = null)).activeModelConfig().contextTokens).isEqualTo(4096)
     }
 
     @Test

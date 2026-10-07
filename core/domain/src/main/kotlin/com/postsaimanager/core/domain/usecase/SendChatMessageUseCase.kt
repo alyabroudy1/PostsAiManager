@@ -356,7 +356,7 @@ class SendChatMessageUseCase @Inject constructor(
         // Cheap to call on every send, same as `engine.load` above: a no-op when this
         // conversation's session is already primed and valid.
         primeMutex.withLock {
-            engine.ensureChatSession(conversationId, grounding, buildHistory(priorTurns, contextTokens, grounding))
+            engine.ensureChatSession(conversationId, grounding, buildHistory(priorTurns, historyWindow(config, contextTokens), grounding))
         }
 
         // 4.1/4.2: fold retrieved passages into *this turn's* text only — never into
@@ -653,10 +653,18 @@ class SendChatMessageUseCase @Inject constructor(
             engine.ensureChatSession(
                 conversationId,
                 chatContext.text,
-                buildHistory(priorTurns, contextTokens, chatContext.text),
+                buildHistory(priorTurns, historyWindow(config, contextTokens), chatContext.text),
             )
         }
     }
+
+    /**
+     * The window the history is budgeted against. A reply with the Agent Skills tools needs room the plain chat does not: the skills
+     * in the system prompt, the tool schemas, a skill's text coming back as a tool result and the call itself. Without that
+     * reserve a calendar request failed on the phone with "Prefill input length exceeds available state entries".
+     */
+    private fun historyWindow(config: com.postsaimanager.core.model.InferenceConfig, contextTokens: Int): Int =
+        if (ChatToolsPolicy.enabledFor(config)) (contextTokens - TOOLS_RESERVE_TOKENS).coerceAtLeast(BuildChatContextUseCase.MIN_CONTEXT_TOKENS) else contextTokens
 
     /** See [primeConversation]. */
     private val primeMutex = Mutex()
@@ -847,6 +855,9 @@ class SendChatMessageUseCase @Inject constructor(
          * its size is cheap insurance against a pathological conversation.
          */
         const val MAX_HISTORY_TURNS = 20
+
+        /** Tokens kept free of history for the tools' prompt, schemas, a loaded skill and the call (see [historyWindow]). */
+        const val TOOLS_RESERVE_TOKENS = 2000
 
         /**
          * When [buildHistory]'s token budget is exceeded, oldest turns are dropped down to
