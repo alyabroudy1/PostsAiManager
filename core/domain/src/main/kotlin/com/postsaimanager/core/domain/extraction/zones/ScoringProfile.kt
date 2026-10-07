@@ -173,9 +173,16 @@ object ScoringDescriptions {
 
     const val HOUSEHOLD = "the name of a family or household (several people living together)"
 
-    /** The scoring name of the extras batch: the threshold and the statement ([EXTRA]) of a value no slot or party took. */
+    /**
+     * The scoring name of the key-slot batch (the stored slot values scored for whether the reader needs them). It keeps the name of the
+     * extras batch it replaced: the recordings hold their scores under it, and a profile's `extras` threshold is still read from there.
+     */
     const val EXTRAS_ASK = "extras"
 
+    /**
+     * The statement the retired scored extras were asked under. No reading asks it any more (the facts beyond the read fields are
+     * generated, see `KeyInfoWriter`); it stays so the recordings, which hold those questions, still replay and the tools that read them compile.
+     */
     const val EXTRA = "an important fact of this letter that the reader may need again (an identifier, a number to call, a date or an amount " +
         "that matters), other than the letter's main amount, due date, IBAN, reference or customer number"
 
@@ -215,6 +222,12 @@ object ScoringDescriptions {
     /** At most this many stored slot values are scored for key information in one reading: the batch stays small. */
     const val MAX_KEY_SLOT_SCORES = 15
 
-    /** The key information is at most this many rows: extras and stored slot values together, best score first. */
+    /** At most this many read (stored) slot values are marked as key information, best score first. */
     const val MAX_KEY_INFO = 4
+
+    /**
+     * The "Key information" section shows at most this many rows: the marked slot values first, then the generated facts
+     * (`KeyInfoFormat.MAX_FACTS`), so it stays short whatever is stored. The rest stay under "All details".
+     */
+    const val MAX_KEY_INFO_SHOWN = 8
 }

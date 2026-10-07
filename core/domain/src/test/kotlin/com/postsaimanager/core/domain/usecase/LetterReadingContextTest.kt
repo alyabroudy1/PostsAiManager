@@ -59,6 +59,28 @@ class LetterReadingContextTest {
     }
 
     @Test
+    fun `the generated key information is listed as label and value after the answers, within the line cap, and for a letter with nothing else`() {
+        val facts = listOf(
+            field("x:zahlungsziel", "Zahlungsziel", "30 Tage netto"),
+            field("x:المرجع", "المرجع", "REF-5521"),
+            // A label the verifier replaced by its key (a collision) and a value the person ignored are not stated.
+            field("x:amount", "x:amount", "9,00 EUR"),
+            field("x:ignored", "Notiz", "gestrichen", deleted = true),
+        )
+        val alone = LetterReadingContext.section(emptyList(), facts)
+        assertThat(alone).contains("- Zahlungsziel: 30 Tage netto")
+        assertThat(alone).contains("- المرجع: REF-5521")
+        assertThat(alone).doesNotContain("9,00 EUR")
+        assertThat(alone).doesNotContain("gestrichen")
+
+        // The action lines come first, and the whole section keeps its cap.
+        val withAction = LetterReadingContext.section(listOf(pay), fields + facts).lines()
+        assertThat(withAction.indexOfFirst { it.contains("pay an amount") }).isLessThan(withAction.indexOfFirst { it.contains("Zahlungsziel") })
+        val many = (1..12).map { field("x:fact_$it", "Fact $it", "value $it") }
+        assertThat(LetterReadingContext.section(emptyList(), many).lines().count { it.startsWith("- ") }).isEqualTo(8)
+    }
+
+    @Test
     fun `the dates and amounts the reading gave a meaning are listed with it, an appointment beside a payment`() {
         val read = listOf(
             field("due_date", "Deadline", "15.10.2026", ExtractedFieldType.DEADLINE).copy(role = "meaning:APPOINTMENT"),

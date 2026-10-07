@@ -525,6 +525,10 @@ internal class ZoneReplay(private val recording: Recording, private val scoring:
      * The one question that is SCRIPTED instead ([scriptedMisses]) is the summary's: its text is the facts the reading decided, so a replay
      * under a profile that decides one fact differently from the recorded run asks a question the recording cannot hold. It is answered as the
      * template summary (what the writer gives when it gets no answer), and listed; nothing a metric reads depends on it.
+     *
+     * The key-information ask (`KeyInfoWriter`, extraction-v2-15) is scripted the same way: no recording holds that generation (recording it
+     * is a device run, which is not planned), so it is answered as "no more facts" and the replay's extras are none. It replaces the scored
+     * extras, which the recordings do hold and which the replay no longer asks.
      */
     fun requireComplete() {
         val hard = misses.filterNot { it in scriptedMisses }
@@ -532,8 +536,8 @@ internal class ZoneReplay(private val recording: Recording, private val scoring:
         error("the recording ${recording.key}.${recording.variant} has no answer for: ${hard.joinToString("; ")}; record it again on the device")
     }
 
-    /** The summary asks the recording could not answer (see [requireComplete]): replayed as the template summary. */
-    val scriptedMisses: List<String> get() = misses.filter { it.startsWith("ask «FACTS") }
+    /** The summary asks and the key-information ask the recording could not answer (see [requireComplete]): the template summary, and no extra facts. */
+    val scriptedMisses: List<String> get() = misses.filter { it.startsWith("ask «FACTS") || it.startsWith("ask «READ FIELDS") }
 
     /** The party and slot questions the recording never held, replayed as "not recorded" (see [ReplayPromptSession.unrecorded]). */
     val unrecorded: List<String> get() = reading?.unrecorded.orEmpty()

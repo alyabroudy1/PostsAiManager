@@ -11,6 +11,7 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.domain.extraction.actions.ActionKindReader
+import com.postsaimanager.core.domain.extraction.text.KeyInfoWriter
 import com.postsaimanager.core.domain.extraction.text.SummaryFacts
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.domain.extraction.v2.AnswerReader
@@ -330,11 +331,10 @@ class ZoneScoringInterpreter(
                 val budget = openBody(setup, zones, request.established) ?: return EnrichmentOutcome.Failed("the model could not read the letter")
                 LetterSession(setup, zones, budget).also { letter = it }
             }
-            // The family's hint says what matters in this kind of document: it steers which facts are kept as the key information
-            // (the extras); the model still decides, code only verifies.
+            // The family's hint says what matters in this kind of document: it steers which read fields are marked as key information;
+            // the model still decides, code only verifies. The facts beyond the read fields are written later ([KeyInfoWriter]).
             val hint = (request.documentTypeId?.let { schema.family(it) } ?: schema.abstain)?.hint
-            val picks = pickExtras(open.setup, request.takenIds, hint, request.slots)
-            val picked = picks.extras
+            val keySlots = pickKeySlots(hint, request.slots)
             // A profile that keeps the topics out of the first stage scores them here, still in the body session.
             val lateTopics = if (topicsInFirstStage || request.topics.isNotEmpty()) null else classifier().topics(tail)
             // What the reader has to do is scored too, in the same body session: a kind is chosen from the catalogue, nothing is written.
@@ -345,23 +345,25 @@ class ZoneScoringInterpreter(
                 return EnrichmentOutcome.Done(
                     Enrichment(
                         language = null, extras = emptyList(), text = null, textError = "the model could not read the letter again", topics = lateTopics,
-                        actions = actions, keySlots = picks.keySlots,
+                        actions = actions, keySlots = keySlots,
                     ),
                 )
             }
             val language = ask(QuestionnairePrompt.language())?.let { AnswerReader.language(it) }
-            val extras = nameExtras(open.setup, picked)
             val text = ZoneFreeText.write(includeSummary = false) { q -> ask(q) }
             val written = (text as? TextOutcome.Written)?.text
             // The summary rests on verified facts only: the subject line counts as one when it is printed in the letter.
             val subject = written?.subject?.takeIf { QuoteVerifier.verifyCopiedLine(it, request.ocrText) != null }
             val facts = SummaryFacts.of(request.documentTypeId ?: schema.abstain?.id.orEmpty(), request.facts, subject)
             val summary = SummaryWriter(FramedSession()).write(facts, request.ocrText, language)
+            // The open key information: one more generation in the same session (the letter is still the prefix), shown the read fields so
+            // it does not repeat them. Every value is checked against the letter; a failure leaves none.
+            val extras = KeyInfoWriter(FramedSession("text:keyinfo")).write(readFields(request), request.ocrText, language)
             return EnrichmentOutcome.Done(
                 Enrichment(
                     language = language, extras = extras, text = written,
                     textError = (text as? TextOutcome.Failed)?.reason, summary = summary, topics = lateTopics, actions = actions,
-                    keySlots = picks.keySlots,
+                    keySlots = keySlots,
                 ),
             )
         } catch (e: Abort) {
@@ -427,64 +429,29 @@ class ZoneScoringInterpreter(
         s.slots.forEach { (k, v) -> traceLines += "final slot $k id=${v.id ?: v.ids.joinToString(",")} in=${v.id?.let(::where).orEmpty()} conf=${v.confidence}" }
     }
 
-    /** A value picked as an extra: the candidate and the score that picked it. */
-    private class Picked(val candidate: Candidate, val score: Double)
-
     /**
-     * Decides the extras: values of the extras zones that no slot or party took and that the model scores as an important fact of
-     * the letter ([ScoringDescriptions.EXTRA]), the best [StructuredGrammar.MAX_EXTRAS] above the `extras` threshold. A score, as
-     * for every other value. Names are never offered: the parties were scored already, and the names the extractor finds that are
-     * not a party are mostly labels and fragments of lines ("Fällig am", "Betrag €"). A failed scoring leaves no extras.
+     * Marks which of the stored (read) slot values the reader needs, given the family's hint: scored in the body session, the best
+     * [ScoringDescriptions.MAX_KEY_INFO] above the `keyslots` threshold. These are read fields, ordered for the "Key information" section;
+     * the facts that are NOT read fields are the generated ones ([KeyInfoWriter]), so the scored extras (values picked from the page by a
+     * lean Yes and named by one ask each) no longer exist. Null when none were scored, so stored marks stay.
      */
-    private suspend fun pickExtras(setup: ZoneSetup, taken: Set<String>, hint: String?, slots: List<TicketSlot>): Picks {
-        val zoned = setup.zoned
-        val zones = setup.plan.zones(QuestionNames.EXTRAS_SCORED).filter { zoned.hasText(it) }
-        // Never key information: a value of a table's row (a position, a price: the table is read as a whole, its totals are slots), and a
-        // value found by shape alone with nothing printed beside it that names it (a signature fragment, a serial): the model's lean Yes
-        // cannot give such a value a meaning, however it is worded.
-        val cands = if (zones.isEmpty()) emptyList() else zoned.candidatesIn(zones).rows.map { it.candidate }.filter {
-            it.id !in taken && it.kind != CandidateKind.NAME && !zoned.isTableCell(it) && !(it.attrs["shape"] != null && zoned.printedLabel(it) == null)
-        }
-        // The stored slot values ride in the same batch (one decode of the shared block): does the reader need this one, given the hint.
+    private suspend fun pickKeySlots(hint: String?, slots: List<TicketSlot>): List<KeySlot>? {
         val asked = slots.take(ScoringDescriptions.MAX_KEY_SLOT_SCORES)
-        if (cands.isEmpty() && asked.isEmpty()) return Picks(emptyList(), null)
-        val block = if (cands.isEmpty()) "" else block(setup, zones)
-        val scores = scoreBatch(
-            ScoringDescriptions.EXTRAS_ASK, block,
-            cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), zoned.context(it), ScoringDescriptions.extra(hint)) } +
-                asked.map { ZonePrompt.keySlotQuestion(it.label, it.value, hint) },
-        ) ?: return Picks(emptyList(), null)
-        val threshold = profile.threshold(ScoringDescriptions.EXTRAS_ASK)
+        if (asked.isEmpty()) return null
+        // The batch keeps its recorded name, so a replay finds the questions it holds.
+        val scores = scoreBatch(ScoringDescriptions.EXTRAS_ASK, "", asked.map { ZonePrompt.keySlotQuestion(it.label, it.value, hint) }) ?: return null
         val slotThreshold = profile.threshold(ScoringDescriptions.KEY_SLOTS_ASK)
-        // The key information is ONE short list: the extras and the stored slot values that scored Yes compete by score, and only the
-        // best MAX_KEY_INFO of them are kept, so the section stays short whatever a small model leaned. The rest stay under "All details".
-        val pool = cands.indices.filter { scores[it] > threshold }.map { Choice(extra = it, slot = null, score = scores[it]) } +
-            asked.indices.filter { scores[cands.size + it] > slotThreshold }.map { Choice(extra = null, slot = it, score = scores[cands.size + it]) }
-        val kept = pool.sortedByDescending { it.score }.take(ScoringDescriptions.MAX_KEY_INFO)
-        val extras = kept.filter { it.extra != null }.map { Picked(cands[it.extra!!], it.score) }
-        val keySlots = kept.filter { it.slot != null }.map { KeySlot(asked[it.slot!!].key, it.score.toFloat()) }
-        return Picks(extras, if (asked.isEmpty()) null else keySlots)
+        return asked.indices.filter { scores[it] > slotThreshold }.sortedByDescending { scores[it] }
+            .take(ScoringDescriptions.MAX_KEY_INFO).map { KeySlot(asked[it].key, scores[it].toFloat()) }
     }
-
-    /** One candidate for the key information: an extra (index into the offered candidates) or a stored slot (index into the asked slots), and its score. */
-    private class Choice(val extra: Int?, val slot: Int?, val score: Double)
-
-    /** What the extras batch decided: the extras picked, and the stored slots picked as key information (null when none were scored). */
-    private class Picks(val extras: List<Picked>, val keySlots: List<KeySlot>?)
 
     /**
-     * Names each picked extra with one short constrained ask: the words the letter prints next to it. The value is the candidate
-     * itself: the model names it and cannot change it, and the verifier treats the extra as it does any other (an id already used, a
-     * weak kind, a duplicate by label). The key is the candidate's own kind (`reference`, `amount`, `date`, `phone` ...): a
-     * coarse grouping that code can state from the value's shape, where a 0.8B model's own key was the format's placeholder every
-     * time. A failed naming leaves that extra out.
+     * The read fields as (label, value): what the first stage verified (the sender, the addressee, the amount ...) and the stored slot
+     * values, as the key-information step shows them to the model and checks its facts against.
      */
-    private suspend fun nameExtras(setup: ZoneSetup, picked: List<Picked>): List<RawExtra> = picked.mapNotNull { p ->
-        val c = p.candidate
-        val label = ask(ZonePrompt.extraName(c.raw.replace('\n', ' '), setup.zoned.context(c)))?.let { AnswerReader.line(it) }?.trim()?.takeIf { it.isNotEmpty() }
-            ?: return@mapNotNull null
-        RawExtra(label = label, key = c.kind.name.lowercase(), id = c.id, value = "", confidence = confidenceOf(p.score, null, 1).first)
-    }
+    private fun readFields(request: EnrichmentRequest): List<Pair<String, String>> =
+        (request.slots.map { it.label to it.value } + request.facts.entries.map { (role, value) -> role to value })
+            .filter { it.second.isNotBlank() }.distinctBy { it.second.trim() }
 
     /** The zones a question is about, each with its hint and (unless the session's prefix holds it) its text, and the glimpse when asked for. No candidates: nothing is offered as an option. */
     private fun block(setup: ZoneSetup, zones: List<LetterZone>): String {

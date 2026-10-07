@@ -19,9 +19,10 @@ class ExtractorVersionTest {
     }
 
     @Test
-    @DisplayName("the universal-questions extractor is extraction-v2-14, and a document the previous one read is outdated")
+    @DisplayName("the open-key-information extractor is extraction-v2-15, and a document the previous one read is outdated")
     fun keyInfoVersion() {
-        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-14")
+        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-15")
+        assertThat(ExtractorVersion.isOutdated("extraction-v2-14")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-13")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-12")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-11")).isTrue()

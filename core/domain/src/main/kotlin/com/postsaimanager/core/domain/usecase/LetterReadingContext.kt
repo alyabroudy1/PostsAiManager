@@ -60,13 +60,19 @@ object LetterReadingContext {
             }
         }
 
+        // The key information the reading listed for this document (label: value, the label as written), after the answers above and within
+        // the same cap: each value was checked against the letter's text, and nothing here ranks one fact over another.
+        val keyInfo = live.filter { it.isExtra && it.id !in covered }.mapNotNull { field ->
+            field.fieldName.trim().takeIf { it.isNotEmpty() && !it.startsWith(ExtractedData.EXTRA_KEY_PREFIX) }?.let { "- $it: ${field.fieldValue.trim()}" }
+        }
+
         val contactLines = contactLines(contacts)
-        if (lines.isEmpty() && contactLines.isEmpty()) return ""
+        if (lines.isEmpty() && keyInfo.isEmpty() && contactLines.isEmpty()) return ""
         return buildString {
             appendLine()
             appendLine("## What was read from this letter")
             appendLine("The app already read this letter; these are its answers.")
-            lines.take(MAX_LINES).forEach { appendLine(it) }
+            (lines + keyInfo).take(MAX_LINES).forEach { appendLine(it) }
             contactLines.forEach { appendLine(it) }
         }
     }

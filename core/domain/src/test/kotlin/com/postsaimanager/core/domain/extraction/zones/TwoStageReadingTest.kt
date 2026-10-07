@@ -6,6 +6,7 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.extraction.actions.ActionKinds
 import com.postsaimanager.core.domain.extraction.actions.ActionQuestions
+import com.postsaimanager.core.domain.extraction.text.KeyInfoFormat
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
@@ -38,7 +39,6 @@ class TwoStageReadingTest {
                 c.contains("«1.284,50 €»") && c.contains("the main amount") -> 5.0
                 c.contains("«Musterfirma GmbH»") && c.contains("the sender") -> 5.0
                 c.contains("«Erika Mustermann»") && c.contains("the addressee") -> 5.0
-                c.contains(ScoringDescriptions.EXTRA) -> 2.0
                 // The stored slot values: the amount matters most to this reader, the date of the letter a little, the rest nothing.
                 c.contains(KEY_SLOT_ASK) && c.contains("«Amount: 1.284,50 €»") -> 4.0
                 c.contains(KEY_SLOT_ASK) && c.contains("«Document Date:") -> 1.0
@@ -52,7 +52,8 @@ class TwoStageReadingTest {
         responder = { q, _ ->
             when {
                 q.contains("BCP-47") -> "de"
-                q.contains("What does the letter call this value?") -> "\"Gegenstand\""
+                // The key information: one fact the letter prints and the read fields do not hold, one it never printed, one the reading holds.
+                q.contains("READ FIELDS") -> "BIC: COBADEFFXXX\nLeistungszeitraum: September 2026\nKundennummer: KD-99999\nGesamt: 1.284,50 €"
                 // The summary writer is given the verified facts; a model that keeps to them writes a sentence the gate accepts.
                 q.contains("FACTS (verified") -> "\"Musterfirma GmbH verlangt 1.284,50 € von Erika Mustermann.\""
                 else -> "\"text\""
@@ -103,7 +104,15 @@ class TwoStageReadingTest {
         val later = session()
         val second = run(ExtractionV2Pipeline.Stages.SECOND, later, ticket)
         assertThat(second.language).isEqualTo("de")
-        assertThat(second.extras).isNotEmpty()
+        // The key information: the facts the letter prints that no read field holds, labelled as the model wrote them. The one it never
+        // printed (a customer number with other digits) and the one the reading already holds (the amount) are dropped.
+        assertThat(second.extras.map { it.label to it.value.value }).containsExactly("BIC" to "COBADEFFXXX", "Leistungszeitraum" to "September 2026").inOrder()
+        // They are quotes of the letter, never a candidate the model could have chosen.
+        assertThat(second.extras.all { it.value.candidateId == null }).isTrue()
+        // The reading's own fields were shown to the model, so it does not repeat them.
+        val keyInfoAsk = later.asks.single { it.question.contains("READ FIELDS") }
+        assertThat(keyInfoAsk.question).contains("Amount: 1.284,50 €")
+        assertThat(keyInfoAsk.grammar).isEqualTo(KeyInfoFormat.grammar())
         // The summary is the writer's: the model's sentences, accepted by the gate against the ticket's verified facts.
         assertThat(second.summary?.origin).isEqualTo(com.postsaimanager.core.model.SummarySource.MODEL)
         assertThat(second.summary?.text).contains("1.284,50")
@@ -112,20 +121,15 @@ class TwoStageReadingTest {
         // The first stage's slots and parties are not repeated.
         assertThat(second.slots).isEmpty()
         assertThat(second.parties.all).isEmpty()
-        // Only the extras were scored (no type, no party, no slot), in the body session the first stage left (what it established is in
-        // its prefix), and the text was written in the writing session that follows.
-        // (and the stored slot values, in the same batch: see the key-slot tests).
-        assertThat(later.scored.flatten().all { it.contains(ScoringDescriptions.EXTRA) || it.contains(KEY_SLOT_ASK) || ActionQuestions.isActionQuestion(it) }).isTrue()
+        // Only the stored slot values and the actions were scored (no type, no party, no slot, no extra), in the body session the first
+        // stage left (what it established is in its prefix), and the text and the key information were written in the writing session
+        // that follows: one generation for the key information, in the same session as the summary (the letter is not read again).
+        assertThat(later.scored.flatten().all { it.contains(KEY_SLOT_ASK) || ActionQuestions.isActionQuestion(it) }).isTrue()
         assertThat(later.opens).hasSize(2)
         assertThat(later.opens.first()).contains("ESTABLISHED FROM THE HEADER OF THE LETTER")
         assertThat(later.opens.first()).contains(ticket.established)
         assertThat(ticket.established).isNotEmpty()
-        // A value the first stage took is never an extra.
-        val offered = com.postsaimanager.core.domain.extraction.v2.Prepared(letter.pages).offered
-        val takenRaw = ticket.takenIds.mapNotNull { offered.get(it)?.raw?.replace('\n', ' ') }
-        assertThat(takenRaw).isNotEmpty()
-        val scoredRaw = later.scored.flatten().filter { it.contains("Is «") }.map { it.substringAfter("Is «").substringBefore("»") }
-        assertThat(scoredRaw.intersect(takenRaw.toSet())).isEmpty()
+        assertThat(later.asks.count { it.question.contains("READ FIELDS") }).isEqualTo(1)
     }
 
     @Test
@@ -171,14 +175,13 @@ class TwoStageReadingTest {
         assertThat(slotQuestions).hasSize(ticket.slots.size)
         assertThat(slotQuestions.all { it.contains(hint) }).isTrue()
         assertThat(slotQuestions.any { it.endsWith(ZonePrompt.keySlotQuestion("Amount", "1.284,50 €", hint)) }).isTrue()
-        // The extras ride in that same batch (one scored call), and the slot questions come after them.
-        assertThat(batch.any { it.contains(ScoringDescriptions.EXTRA) }).isTrue()
-        assertThat(batch.indexOfFirst { it.contains(KEY_SLOT_ASK) }).isGreaterThan(batch.indexOfLast { it.contains(ScoringDescriptions.EXTRA) })
-        // Only what the model scored above the threshold (0.0 by default) is picked, best first.
-        // The key information is one short list: the extras (each scored 2.0) and the slot values compete by score, at most four in all, so
-        // the amount (4.0) stays and the date of the letter (1.0) is out-ranked.
-        assertThat(second.keySlots!!.map { it.key }).containsExactly("total")
-        assertThat(second.extras.size + second.keySlots!!.size).isAtMost(ScoringDescriptions.MAX_KEY_INFO)
+        // Nothing but the slot values is in that batch: the scored extras are gone (the facts beyond the read fields are generated).
+        assertThat(batch).hasSize(ticket.slots.size)
+        assertThat(batch.none { it.contains(ScoringDescriptions.EXTRA) }).isTrue()
+        // Only what the model scored above the threshold (0.0 by default) is picked, best first, at most MAX_KEY_INFO: the amount (4.0)
+        // and the date of the letter (1.0) are above it.
+        assertThat(second.keySlots!!.map { it.key }).containsExactly("total", "letter_date").inOrder()
+        assertThat(second.keySlots!!.size).isAtMost(ScoringDescriptions.MAX_KEY_INFO)
         assertThat(second.keySlots!!.map { it.score }).isInOrder(Comparator.reverseOrder<Float>())
         // The adapter hands them to what the data layer stores.
         assertThat(ExtractionV2Adapter().adapt(second).keySlots).isEqualTo(second.keySlots)

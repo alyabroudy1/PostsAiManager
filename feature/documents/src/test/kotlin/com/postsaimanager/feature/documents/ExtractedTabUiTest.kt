@@ -476,6 +476,23 @@ class ExtractedTabUiTest {
     }
 
     @Test
+    fun `the generated key information shows each fact as its label and value, the label as the model wrote it, in any language`() {
+        val generated = invoiceRows() + listOf(
+            row("g1", "x:zahlungsziel", "30 Tage netto", name = "Zahlungsziel"),
+            row("g2", "x:المرجع", "REF-5521", name = "المرجع"),
+        )
+        showTab(invoice(), generated)
+
+        scrollTo("30 Tage netto")
+        compose.onNodeWithText("Zahlungsziel").assertIsDisplayed()
+        compose.onNodeWithText("30 Tage netto").assertIsDisplayed()
+        scrollTo("REF-5521")
+        compose.onNodeWithText("المرجع").assertIsDisplayed()
+        compose.onNodeWithText("REF-5521").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Copy Zahlungsziel").assertIsDisplayed()
+    }
+
+    @Test
     fun `the overflow menu of a detail row has confirm, edit and ignore, after All details is opened`() {
         showTab(invoice(), invoiceRows())
 

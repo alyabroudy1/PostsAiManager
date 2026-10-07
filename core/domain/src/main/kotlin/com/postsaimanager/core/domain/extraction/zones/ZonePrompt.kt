@@ -92,29 +92,6 @@ ANSWERS. Every answer is short and has exactly the shape the question asks for. 
         g.after?.let { (zone, text) -> append("CONTEXT ONLY, the zone just below (").append(zone.tag).append(", not part of this question): ").append(text).append('\n') }
     }
 
-    /**
-     * What the letter calls a value the scoring picked as an extra: the printed words that name it. The value is the candidate
-     * itself, so nothing here can change it; the model only names it. (A key was asked for as well and a 0.8B model answered
-     * the format's own placeholder every time, so the key is left to the verifier's own fallback.)
-     */
-    fun extraName(candidate: String, context: ZonedLetter.Context?): Question {
-        val ctx = listOfNotNull(
-            context?.line?.takeIf { it.isNotBlank() }?.let { "it is printed on the line «$it»" },
-            context?.above?.takeIf { it.isNotBlank() }?.let { "the line above it is «$it»" },
-        )
-        val where = if (ctx.isEmpty()) "" else ": ${ctx.joinToString(", ")}"
-        return Question(
-            "extra:name",
-            "QUESTION: The value «$candidate» is an important fact of this letter$where. What does the letter call this value? " +
-                "Copy the printed words that name it (not the value itself).\n" +
-                "ANSWER FORMAT: the printed words in double quotes",
-            QuestionGrammars.line(),
-            NAME_TOKENS,
-        )
-    }
-
-    private const val NAME_TOKENS = 40
-
     /** A statement of what a slot or a role is, for the scoring interpreter's question. */
     fun scoringQuestion(candidate: String, context: ZonedLetter.Context?, what: String, label: String? = null): String =
         scoringHead(candidate, context, label) + scoringAsk(what)
