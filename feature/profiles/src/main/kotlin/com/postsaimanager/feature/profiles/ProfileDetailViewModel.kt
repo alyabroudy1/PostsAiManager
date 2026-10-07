@@ -7,6 +7,7 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.result.map
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
+import com.postsaimanager.core.domain.contacts.ConfirmContactUseCase
 import com.postsaimanager.core.domain.contacts.DeleteContactUseCase
 import com.postsaimanager.core.domain.contacts.MergeContactsUseCase
 import com.postsaimanager.core.domain.contacts.MoveContactUseCase
@@ -62,6 +63,7 @@ class ProfileDetailViewModel @Inject constructor(
     private val mergeContacts: MergeContactsUseCase,
     private val moveContact: MoveContactUseCase,
     private val deleteContact: DeleteContactUseCase,
+    private val confirmContact: ConfirmContactUseCase,
     private val externalFlowGuard: ExternalFlowGuard,
 ) : ViewModel() {
 
@@ -235,6 +237,9 @@ class ProfileDetailViewModel @Inject constructor(
 
     /** Deletes the contact; the letters stay. */
     fun removeContact(contactId: String) = changeContact { deleteContact(contactId) }
+
+    /** The contact marked "to check" is right: the letters' contact fields that name it are confirmed, which clears the mark. */
+    fun confirmContact(contactId: String) = changeContact { confirmContact.invoke(contactId) }
 
     private fun changeContact(change: suspend () -> PamResult<Unit>) {
         viewModelScope.launch {

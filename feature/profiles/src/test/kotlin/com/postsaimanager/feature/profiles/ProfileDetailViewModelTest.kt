@@ -10,7 +10,9 @@ import com.postsaimanager.core.domain.form.RememberDetailUseCase
 import com.postsaimanager.core.model.FactSource
 import com.postsaimanager.core.model.ProfileFact
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
+import com.postsaimanager.core.domain.contacts.ConfirmContactUseCase
 import com.postsaimanager.core.domain.contacts.DeleteContactUseCase
+import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.domain.contacts.MergeContactsUseCase
 import com.postsaimanager.core.domain.contacts.MoveContactUseCase
 import com.postsaimanager.core.domain.contacts.ObserveOrganisationContactsUseCase
@@ -53,6 +55,7 @@ class ProfileDetailViewModelTest {
         MergeContactsUseCase(contacts),
         MoveContactUseCase(contacts, profiles),
         DeleteContactUseCase(contacts),
+        ConfirmContactUseCase(contacts, FakeDocumentRepository()),
         guard,
     )
 
@@ -291,7 +294,8 @@ class ProfileDetailViewModelTest {
             SavedStateHandle(mapOf(ProfileDetailViewModel.ARG_PROFILE_ID to "jc", ProfileDetailViewModel.ARG_CONTACT_ID to "c1")),
             profiles, SetHouseholdRoleUseCase(profiles), ObserveOrganisationContactsUseCase(contacts), ObserveSavedDetailsUseCase(facts),
             RememberDetailUseCase(profiles, facts), ForgetDetailUseCase(facts), UpdateContactUseCase(contacts), SetContactActiveUseCase(contacts),
-            MergeContactsUseCase(contacts), MoveContactUseCase(contacts, profiles), DeleteContactUseCase(contacts), guard,
+            MergeContactsUseCase(contacts), MoveContactUseCase(contacts, profiles), DeleteContactUseCase(contacts),
+            ConfirmContactUseCase(contacts, FakeDocumentRepository()), guard,
         )
 
         vm.uiState.test {

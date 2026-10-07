@@ -28,6 +28,30 @@ interface ContactDao {
     )
     fun observeForDocument(documentId: String): Flow<List<ContactPersonEntity>>
 
+    /**
+     * The contacts of [organisationId] that were made from a reading nobody has looked at and that was not sure ([bar]): a letter
+     * linked to the contact has a machine "contact" field with the contact's name, unreviewed, below [bar], and no letter has that
+     * name confirmed, edited, typed by the user or read with confidence at or above [bar]. Confirming the field clears it.
+     */
+    @Query(
+        """
+        SELECT c.id FROM contact_persons c
+        WHERE c.organisationId = :organisationId
+        AND EXISTS (
+            SELECT 1 FROM document_contacts dc INNER JOIN extracted_data e ON e.documentId = dc.documentId
+            WHERE dc.contactId = c.id AND e.slotKey = 'contact' AND LOWER(TRIM(e.fieldValue)) = LOWER(TRIM(c.name))
+            AND e.source = 'MACHINE' AND e.reviewState = 'UNREVIEWED' AND e.deletedByUser = 0 AND e.confidence < :bar
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM document_contacts dc INNER JOIN extracted_data e ON e.documentId = dc.documentId
+            WHERE dc.contactId = c.id AND e.slotKey = 'contact' AND LOWER(TRIM(e.fieldValue)) = LOWER(TRIM(c.name))
+            AND e.deletedByUser = 0
+            AND (e.source = 'USER' OR e.reviewState IN ('CONFIRMED', 'EDITED') OR e.confidence >= :bar)
+        )
+        """,
+    )
+    fun observeToCheck(organisationId: String, bar: Float): Flow<List<String>>
+
     @Query("SELECT organisationId, COUNT(*) AS count FROM contact_persons GROUP BY organisationId")
     fun observeCounts(): Flow<List<ContactCountRow>>
 

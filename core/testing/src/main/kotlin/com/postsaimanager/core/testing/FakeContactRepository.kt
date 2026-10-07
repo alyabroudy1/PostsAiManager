@@ -26,6 +26,13 @@ class FakeContactRepository : ContactRepository {
     override fun observeContactsForDocument(documentId: String): Flow<List<ContactPerson>> =
         contacts.map { list -> list.filter { c -> links.any { it.first == c.id && it.second == documentId } } }
 
+    /** The ids [observeContactsToCheck] reports; the real repository derives them from the letters' contact fields. */
+    val toCheck = MutableStateFlow<Set<String>>(emptySet())
+
+    override fun observeContactsToCheck(organisationId: String): Flow<Set<String>> = toCheck
+
+    override suspend fun documentIdsOf(contactId: String): List<String> = links.filter { it.first == contactId }.map { it.second }
+
     override fun observeContactCounts(): Flow<Map<String, Int>> =
         contacts.map { list -> list.groupingBy { it.organisationId }.eachCount() }
 

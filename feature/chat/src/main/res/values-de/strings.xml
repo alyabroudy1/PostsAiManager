@@ -68,6 +68,18 @@
     <string name="action_field_text">Text der Erinnerung</string>
     <string name="action_flag_not_found">Im Brief nicht gefunden — bitte prüfen</string>
     <string name="action_flag_not_found_values">Im Brief nicht gefunden: %1$s — bitte prüfen</string>
+    <plurals name="action_flag_unsaid_days">
+        <item quantity="one">Zeit prüfen: Du hast nicht %1$d Tag gesagt</item>
+        <item quantity="other">Zeit prüfen: Du hast nicht %1$d Tage gesagt</item>
+    </plurals>
+    <plurals name="action_flag_unsaid_hours">
+        <item quantity="one">Zeit prüfen: Du hast nicht %1$d Stunde gesagt</item>
+        <item quantity="other">Zeit prüfen: Du hast nicht %1$d Stunden gesagt</item>
+    </plurals>
+    <plurals name="action_flag_unsaid_minutes">
+        <item quantity="one">Zeit prüfen: Du hast nicht %1$d Minute gesagt</item>
+        <item quantity="other">Zeit prüfen: Du hast nicht %1$d Minuten gesagt</item>
+    </plurals>
     <string name="action_flag_edited">Von dir geändert</string>
     <string name="action_error_required">Pflichtfeld</string>
     <string name="action_error_email">Keine gültige E-Mail-Adresse</string>
@@ -88,6 +100,16 @@
     <string name="action_understood_in">In %1$s · %2$s</string>
     <string name="action_understood_today">Heute · %1$s</string>
     <string name="action_understood_tomorrow">Morgen · %1$s</string>
+    <string name="action_compact_opened">✓ %1$s · %2$s</string>
+    <string name="action_compact_opened_plain">✓ %1$s</string>
+    <string name="action_when_today">Heute %1$s</string>
+    <string name="action_when_tomorrow">Morgen %1$s</string>
+    <string name="action_show_details">Details anzeigen</string>
+    <string name="action_hide_details">Details ausblenden</string>
+    <plurals name="action_waiting_pill">
+        <item quantity="one">%1$d Aktion wartet</item>
+        <item quantity="other">%1$d Aktionen warten</item>
+    </plurals>
     <plurals name="action_understood_days">
         <item quantity="one">%1$d Tag</item>
         <item quantity="other">%1$d Tagen</item>

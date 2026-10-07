@@ -11,7 +11,7 @@ import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.ContactPerson
-import com.postsaimanager.core.model.DocumentUnderstanding
+import com.postsaimanager.core.domain.extraction.v2.ConfidenceCombiner
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileKind
@@ -125,10 +125,17 @@ class LinkSenderContactUseCase @Inject constructor(
 
     private fun String?.clean(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
 
+    /**
+     * A contact inside an already resolved sender organisation is low impact (it is listed on the organisation page, where the user
+     * edits or deletes it), so a machine reading links at the field's own acceptance level (MEDIUM), not at the higher bar for
+     * auto-creating a profile. Such a contact is shown as "to check" until the letter's field is confirmed.
+     */
+    private val ACCEPT_CONFIDENCE = ConfidenceCombiner.MEDIUM
+
     private fun isLiveContact(row: ExtractedData): Boolean =
         row.slotKey == UnderstandingToFields.SLOT_CONTACT && row.fieldValue.isNotBlank() && !row.deletedByUser &&
             row.reviewState != ReviewState.IGNORED &&
-            (row.source == ValueSource.USER || row.confidence >= DocumentUnderstanding.AUTO_LINK_CONFIDENCE)
+            (row.source == ValueSource.USER || row.confidence >= ACCEPT_CONFIDENCE)
 }
 
 /** A short excerpt of a letter around a name, so the same-person question has the signature's surroundings. Structure only: no word is interpreted. */

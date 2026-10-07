@@ -14,6 +14,7 @@ import com.postsaimanager.core.data.database.entity.DocumentContactEntity
 import com.postsaimanager.core.domain.document.normaliseEntityName
 import com.postsaimanager.core.domain.repository.ContactRepository
 import com.postsaimanager.core.model.ContactPerson
+import com.postsaimanager.core.model.DocumentUnderstanding
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -34,6 +35,11 @@ class ContactRepositoryImpl @Inject constructor(
 
     override fun observeContactsForDocument(documentId: String): Flow<List<ContactPerson>> =
         contactDao.observeForDocument(documentId).map { rows -> rows.map(::toDomain) }.flowOn(ioDispatcher)
+
+    override fun observeContactsToCheck(organisationId: String): Flow<Set<String>> =
+        contactDao.observeToCheck(organisationId, DocumentUnderstanding.AUTO_LINK_CONFIDENCE).map { it.toSet() }.flowOn(ioDispatcher)
+
+    override suspend fun documentIdsOf(contactId: String): List<String> = withContext(ioDispatcher) { contactDao.documentIdsOf(contactId) }
 
     override fun observeContactCounts(): Flow<Map<String, Int>> =
         contactDao.observeCounts().map { rows -> rows.associate { it.organisationId to it.count } }.flowOn(ioDispatcher)

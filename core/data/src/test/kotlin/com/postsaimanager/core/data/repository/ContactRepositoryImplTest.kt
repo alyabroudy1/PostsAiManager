@@ -153,4 +153,56 @@ class ContactRepositoryImplTest {
         assertThat(contacts.observeContactsForDocument("d1").first()).isEmpty()
         assertThat(contacts.observeContactsForDocument("d3").first()).isEmpty()
     }
+
+    // ---- "to check": a contact made from a reading that was not sure and that nobody confirmed ----
+
+    private suspend fun contactField(
+        documentId: String,
+        name: String,
+        confidence: Float,
+        source: String = "MACHINE",
+        reviewState: String = "UNREVIEWED",
+    ) = db.documentDao().insertExtractedData(
+        listOf(
+            com.postsaimanager.core.data.database.entity.ExtractedDataEntity(
+                id = "f-$documentId", documentId = documentId, fieldName = "Contact Person", fieldValue = name, fieldType = "PERSON_NAME",
+                confidence = confidence, pageNumber = null, source = source, slotKey = "contact", reviewState = reviewState,
+            ),
+        ),
+    )
+
+    private suspend fun linked(documentId: String) {
+        contacts.addContact(contact("c1").copy(name = "Frau Beispiel"))
+        contacts.linkContactToDocument("c1", documentId)
+    }
+
+    @Test
+    fun `a contact from an unreviewed MEDIUM reading is to check`(): Unit = runBlocking {
+        linked("d1")
+        contactField("d1", "Frau Beispiel", confidence = 0.7f)
+
+        assertThat(contacts.observeContactsToCheck("jc").first()).containsExactly("c1")
+    }
+
+    @Test
+    fun `a contact from a confident reading, a typed or a confirmed field is not to check`(): Unit = runBlocking {
+        linked("d1")
+
+        contactField("d1", "Frau Beispiel", confidence = 0.9f)
+        assertThat(contacts.observeContactsToCheck("jc").first()).isEmpty()
+
+        contactField("d1", "Frau Beispiel", confidence = 0.7f, source = "USER", reviewState = "CONFIRMED")
+        assertThat(contacts.observeContactsToCheck("jc").first()).isEmpty()
+    }
+
+    @Test
+    fun `confirming the field clears the mark`(): Unit = runBlocking {
+        linked("d1")
+        contactField("d1", "Frau Beispiel", confidence = 0.7f)
+        assertThat(contacts.observeContactsToCheck("jc").first()).containsExactly("c1")
+
+        contactField("d1", "Frau Beispiel", confidence = 0.7f, source = "USER", reviewState = "CONFIRMED")
+
+        assertThat(contacts.observeContactsToCheck("jc").first()).isEmpty()
+    }
 }

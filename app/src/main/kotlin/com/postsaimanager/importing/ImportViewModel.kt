@@ -3,6 +3,7 @@ package com.postsaimanager.importing
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.util.UuidGenerator
+import com.postsaimanager.core.domain.document.RestoreDocumentUseCase
 import com.postsaimanager.core.domain.importing.FindImportedDuplicateUseCase
 import com.postsaimanager.core.domain.importing.ImportGroup
 import com.postsaimanager.core.domain.importing.ImportGrouping
@@ -82,10 +83,12 @@ class ImportViewModel @Inject constructor(
     private val pageImages: PageImageSource,
     private val queue: ImportQueue,
     private val findDuplicate: FindImportedDuplicateUseCase,
+    private val restoreDocument: RestoreDocumentUseCase,
 ) : ViewModel() {
 
     private val batchId = UuidGenerator.generate()
     private var started = false
+    private var opening = false
     private val passwords = mutableMapOf<String, String>()
     private val thumbnails = mutableMapOf<String, String>()
     private val duplicates = mutableMapOf<String, ImportedDuplicate?>()
@@ -127,6 +130,21 @@ class ImportViewModel @Inject constructor(
     fun setAddAgain(group: ImportGroup, add: Boolean) {
         if (add) addAgain += group.sourceHash else addAgain -= group.sourceHash
         viewModelScope.launch { refreshRows() }
+    }
+
+    /**
+     * "Open it" on a file added before: nothing is imported, the temporary copies go, and the activity opens that document. One that
+     * sits in Recently deleted ("Restore") is brought back first, so what opens is a document in the list.
+     */
+    fun openExisting(row: ImportRow) {
+        val duplicate = row.duplicate ?: return
+        if (_state.value.stage != ImportStage.REVIEW || opening) return
+        opening = true
+        viewModelScope.launch {
+            if (duplicate.isTrashed) restoreDocument(duplicate.documentId)
+            discardBatch()
+            _state.update { it.copy(target = ImportTarget.OpenDocument(duplicate.documentId)) }
+        }
     }
 
     fun unlock(fileId: String, password: String) {
