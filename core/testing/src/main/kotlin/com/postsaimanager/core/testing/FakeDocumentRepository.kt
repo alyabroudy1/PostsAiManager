@@ -47,6 +47,12 @@ class FakeDocumentRepository : DocumentRepository {
         pages.value = pages.value + (documentId to items.toList())
     }
 
+    /** Documents as an import leaves them: each with its one page (a document without pages is a cut-short import). */
+    fun seedImported(vararg items: Document) {
+        seed(*items)
+        items.forEach { seedPages(it.id, DocumentPage(id = "${it.id}-p1", documentId = it.id, pageNumber = 1, imagePath = "file:///p1.jpg")) }
+    }
+
     fun clear() {
         documents.value = emptyList()
     }
@@ -70,7 +76,7 @@ class FakeDocumentRepository : DocumentRepository {
         }
 
     override suspend fun findBySourceHash(hash: String): Document? =
-        documents.value.filter { it.sourceHash == hash && !it.isTrashed }.minByOrNull { it.createdAt }
+        documents.value.filter { it.sourceHash == hash }.sortedWith(compareBy({ it.isTrashed }, { it.createdAt })).firstOrNull()
 
     override suspend fun getDocumentById(id: String): PamResult<Document> = guard {
         documents.value.firstOrNull { it.id == id }

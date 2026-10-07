@@ -39,6 +39,11 @@
     <string name="import_duplicate">أضفت هذا الملف في %1$s</string>
     <string name="import_duplicate_group">أضفت هذه الملفات في %1$s</string>
     <string name="import_add_again">أضفه مرة أخرى على أي حال</string>
+    <string name="import_open_existing">افتحه</string>
+    <string name="import_duplicate_deleted">حذفت هذا الملف في %1$s. هل تريد استعادته؟</string>
+    <string name="import_duplicate_deleted_group">حذفت هذه الملفات في %1$s. هل تريد استعادتها؟</string>
+    <string name="import_restore_open">استعادة</string>
+    <string name="import_add_as_new">أضفه كجديد</string>
     <string name="import_password_title">%1$s محمي بكلمة مرور</string>
     <string name="import_password_label">كلمة المرور</string>
     <string name="import_unlock">فتح</string>

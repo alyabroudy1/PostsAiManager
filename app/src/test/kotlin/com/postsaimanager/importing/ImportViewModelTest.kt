@@ -1,6 +1,8 @@
 package com.postsaimanager.importing
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.document.RestoreDocumentUseCase
 import com.postsaimanager.core.domain.importing.FindImportedDuplicateUseCase
 import com.postsaimanager.core.domain.importing.ImportProblem
 import com.postsaimanager.core.domain.importing.ImportResult
@@ -15,6 +17,7 @@ import com.postsaimanager.core.testing.testDocument
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.time.Clock
@@ -31,7 +34,7 @@ class ImportViewModelTest {
     private val repository = FakeDocumentRepository()
     private val clock = Clock.fixed(Instant.parse("2026-10-07T10:00:00Z"), ZoneOffset.UTC)
 
-    private fun viewModel() = ImportViewModel(source, queue, FindImportedDuplicateUseCase(repository, clock)).also {
+    private fun viewModel() = ImportViewModel(source, queue, FindImportedDuplicateUseCase(repository, clock), RestoreDocumentUseCase(repository)).also {
         it.cleanupScope = CoroutineScope(Dispatchers.Unconfined)
     }
 
@@ -137,7 +140,7 @@ class ImportViewModelTest {
     @Test
     fun `a file added before is flagged with its day and left out until added again`() {
         val oct5 = Instant.parse("2026-10-05T09:30:00Z").toEpochMilli()
-        repository.seed(testDocument(id = "old", createdAt = oct5).copy(sourceHash = "same-hash"))
+        repository.seedImported(testDocument(id = "old", createdAt = oct5).copy(sourceHash = "same-hash"))
         stagePdf(pdf, sha = "same-hash")
         val vm = viewModel()
         vm.start(listOf(pdf))
@@ -157,7 +160,7 @@ class ImportViewModelTest {
 
     @Test
     fun `a duplicate does not stop the new files in the same share`() {
-        repository.seed(testDocument(id = "old").copy(sourceHash = "same-hash"))
+        repository.seedImported(testDocument(id = "old").copy(sourceHash = "same-hash"))
         stagePdf(pdf, sha = "same-hash")
         val vm = viewModel()
         vm.start(listOf(pdf, img1))
@@ -165,6 +168,55 @@ class ImportViewModelTest {
         assertThat(vm.state.value.rows.map { it.included }).containsExactly(false, true).inOrder()
         vm.confirm()
         assertThat(queue.submitted.single().groups.map { g -> g.files.map { it.id } }).containsExactly(listOf("one.jpg"))
+    }
+
+    @Test
+    fun `Open it on a file added before opens that document and imports nothing`() {
+        repository.seedImported(testDocument(id = "old").copy(sourceHash = "same-hash"))
+        stagePdf(pdf, sha = "same-hash")
+        val vm = viewModel()
+        vm.start(listOf(pdf))
+
+        vm.openExisting(vm.state.value.rows.single())
+
+        assertThat(vm.state.value.target).isEqualTo(ImportTarget.OpenDocument("old"))
+        assertThat(queue.submitted).isEmpty()
+        assertThat(source.discarded).hasSize(1)
+    }
+
+    @Test
+    fun `a deleted file is offered with the day it was deleted, and Restore brings it back and opens it`() = runTest {
+        val oct5 = Instant.parse("2026-10-05T09:30:00Z").toEpochMilli()
+        val oct6 = Instant.parse("2026-10-06T09:30:00Z").toEpochMilli()
+        repository.seedImported(testDocument(id = "gone", createdAt = oct5, deletedAt = oct6).copy(sourceHash = "same-hash"))
+        stagePdf(pdf, sha = "same-hash")
+        val vm = viewModel()
+        vm.start(listOf(pdf))
+
+        val row = vm.state.value.rows.single()
+        assertThat(row.duplicate?.isTrashed).isTrue()
+        assertThat(row.duplicate?.deletedOn).isEqualTo(LocalDate.of(2026, 10, 6))
+        assertThat(row.included).isFalse()
+
+        vm.openExisting(row)
+
+        assertThat(repository.getDocumentById("gone").let { (it as PamResult.Success).data.isTrashed }).isFalse()
+        assertThat(vm.state.value.target).isEqualTo(ImportTarget.OpenDocument("gone"))
+        assertThat(queue.submitted).isEmpty()
+    }
+
+    @Test
+    fun `Add as new on a deleted file imports it again and leaves the deleted one in the trash`() = runTest {
+        repository.seedImported(testDocument(id = "gone", createdAt = 1, deletedAt = 2).copy(sourceHash = "same-hash"))
+        stagePdf(pdf, sha = "same-hash")
+        val vm = viewModel()
+        vm.start(listOf(pdf))
+
+        vm.setAddAgain(vm.state.value.rows.single().group, true)
+        vm.confirm()
+
+        assertThat(queue.submitted.single().groups).hasSize(1)
+        assertThat((repository.getDocumentById("gone") as PamResult.Success).data.isTrashed).isTrue()
     }
 
     @Test
