@@ -288,8 +288,12 @@ class SendChatMessageUseCase @Inject constructor(
         // never re-primes — to decide whether this turn needs a retrieval pass at all. The
         // DB reads this does are cheap (Room, no model call); see the class KDoc,
         // "Retrieval-augmented grounding".
+        com.postsaimanager.core.common.util.TimingLog.at("use case: db + model path done, building context")
         val chatContext = systemPrompt?.let { ChatGrounding(it, retrievalMode = false) }
             ?: buildChatContext(documentId, config.contextTokens)
+        com.postsaimanager.core.common.util.TimingLog.at(
+            "context built: grounding=${chatContext.text.length} chars retrievalMode=${chatContext.retrievalMode} contextTokens=${config.contextTokens}",
+        )
 
         emit(ChatTurn.PreparingModel(reason = if (engine.isBusy) BUSY_REASON else null))
 
@@ -349,6 +353,7 @@ class SendChatMessageUseCase @Inject constructor(
         // the last send), which is the one thing that can invalidate a previously-primed
         // session. This is the ground truth for whether `ensureChatSession` below is about
         // to re-prime.
+        com.postsaimanager.core.common.util.TimingLog.at("load + retrieval done (retrieved=${retrieved?.chunks?.size})")
         val needsPriming = !engine.isChatSessionPrimed(conversationId)
         val contextTokens = when (val state = engine.state.value) {
             is ModelLoadState.Ready -> state.config.contextTokens
@@ -375,6 +380,7 @@ class SendChatMessageUseCase @Inject constructor(
         primeMutex.withLock {
             engine.ensureChatSession(conversationId, grounding, buildHistory(priorTurns, historyWindow(config, contextTokens), grounding))
         }
+        com.postsaimanager.core.common.util.TimingLog.at("ensureChatSession done (needsPriming=$needsPriming, prior turns=${priorTurns.size})")
 
         // 4.1/4.2: fold retrieved passages into *this turn's* text only — never into
         // `grounding` above, which must stay stable across turns. `sentText` is what the
@@ -435,11 +441,17 @@ class SendChatMessageUseCase @Inject constructor(
             val tools = ChatToolsPolicy.requestFor(config, documentId, sources.map { it.chunk.documentId })
             // The picture goes to a model that can look at it; any other model answers the words alone.
             val images = if (ChatImagePolicy.enabledFor(config)) turnImages else emptyList()
+            com.postsaimanager.core.common.util.TimingLog.at("BEFORE ENGINE: sending ${sentText.length} chars, tools=${tools != null}")
+            var tokensSeen = 0
             engine.sendChatMessage(
                 sentText,
                 ChatReplyBudget.request(effort, contextTokens, config.modelSampling).copy(tools = tools, imagePaths = images),
             )
-                .collect { token -> apply(parser.consume(token)).forEach { emit(it) } }
+                .collect { token ->
+                    if (tokensSeen++ == 0) com.postsaimanager.core.common.util.TimingLog.at("app: first token received")
+                    apply(parser.consume(token)).forEach { emit(it) }
+                }
+            com.postsaimanager.core.common.util.TimingLog.at("app: stream finished ($tokensSeen tokens, ${answerBuilder.length} chars)")
             apply(parser.finish()).forEach { emit(it) }
         } catch (e: kotlinx.coroutines.CancellationException) {
             // The user stopped generation. Whatever was produced is still worth keeping —
