@@ -115,6 +115,19 @@ class AgentToolsTest {
     }
 
     @Test
+    fun `every run_intent call is logged by its intent name, the clock included`() {
+        val lines = mutableListOf<String>()
+        val logged = AgentToolCalls(catalog, context, now = { now }, log = { lines += it })
+        startReply()
+
+        logged.runIntent("get_current_date_and_time", "{}")
+        logged.runIntent("send_email", emailJson)
+
+        assertThat(lines.any { it.contains("get_current_date_and_time") }).isTrue()
+        assertThat(lines.any { it.contains("send_email") }).isTrue()
+    }
+
+    @Test
     fun `the letter of the reply travels with the action, and none is none`() {
         startReply(documentId = null)
 

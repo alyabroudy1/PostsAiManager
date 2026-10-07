@@ -72,7 +72,10 @@ internal class AgentToolCalls(
             }
             is ActionParse.Parsed -> when (parsed.action) {
                 // Answered at once: it changes nothing and shares nothing, so there is no card.
-                AgentAction.GetDateTime -> mapOf("action" to name, "result" to ActionDateTime.forModel(now()))
+                AgentAction.GetDateTime -> {
+                    log("run_intent \"$name\" answered with the clock")
+                    mapOf("action" to name, "result" to ActionDateTime.forModel(now()))
+                }
                 else -> {
                     log("run_intent \"$name\" proposed")
                     context.propose(name, parameters)
