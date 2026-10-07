@@ -105,6 +105,21 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** The tag of the divider above the messages the assistant still reads, for tests. */
+internal const val CONTEXT_DIVIDER_TAG = "contextDivider"
+
+/** A quiet line between the older messages (shown, but not read by the assistant) and the ones it still reads. */
+@Composable
+internal fun ContextDivider(modifier: Modifier = Modifier) {
+    Text(
+        text = stringResource(R.string.chat_context_divider),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp).testTag(CONTEXT_DIVIDER_TAG),
+    )
+}
+
 /** Slack (px) for "is the last item basically fully visible" — avoids flicker at the edge. */
 private const val BOTTOM_SLACK_PX = 24
 
@@ -418,8 +433,15 @@ fun ChatScreen(
             val thinking = uiState.thinkingText.isNotEmpty() || uiState.isThinkingActive
             // One list for everything, newest first (the list is reversed: index 0 is the bottom). Each action card sits right under
             // the reply that proposed it and scrolls with it; a card whose reply is not stored yet sits under the live reply.
-            val entries = remember(uiState.messages, actionCards, uiState.error != null, live, thinking) {
-                ChatTimeline.build(uiState.messages, actionCards, error = uiState.error != null, live = live, thinking = thinking)
+            val entries = remember(uiState.messages, actionCards, uiState.error != null, live, thinking, uiState.contextStartMessageId) {
+                ChatTimeline.build(
+                    uiState.messages,
+                    actionCards,
+                    error = uiState.error != null,
+                    live = live,
+                    thinking = thinking,
+                    contextStartId = uiState.contextStartMessageId,
+                )
             }
             // 5.1: regenerate is offered only on the LATEST assistant reply — a finished one, not the live streaming bubble
             // (a separate row, never part of `uiState.messages` until it is persisted and reloaded).
@@ -481,6 +503,8 @@ fun ChatScreen(
                                 )
                             } ?: TypingIndicator()
                         }
+
+                    TimelineEntry.ContextDivider -> ContextDivider()
 
                     TimelineEntry.Thinking ->
                         MessageBodyThinking(

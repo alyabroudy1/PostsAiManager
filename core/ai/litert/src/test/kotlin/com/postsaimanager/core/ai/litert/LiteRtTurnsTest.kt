@@ -145,6 +145,24 @@ class LiteRtTurnsTest {
     }
 
     @Test
+    @DisplayName("a conversation built again as a new session (new day, restart on the CPU) keeps only the last exchange")
+    fun `last exchange is the newest question and its reply`() {
+        val skill = ToolExchange("load_skill", "{}", "{}")
+        val turns = listOf(
+            LiteRtTurn(true, "q1"), LiteRtTurn(false, "a1"),
+            LiteRtTurn(true, "q2"), LiteRtTurn(false, "a2", listOf(skill)),
+        )
+
+        val tail = LiteRtTurns.lastExchange(turns)
+
+        assertThat(tail.map { it.text }).containsExactly("q2", "a2").inOrder()
+        // The calls of that reply stay with it: the engine replays them (a loaded skill's text as the one-line stub).
+        assertThat(tail.last().tools).containsExactly(skill)
+        assertThat(LiteRtTurns.lastExchange(emptyList())).isEmpty()
+        assertThat(LiteRtTurns.lastExchange(listOf(LiteRtTurn(true, "q")))).isEmpty()
+    }
+
+    @Test
     fun `the rebuild budget is a share of the window in characters`() {
         assertThat(LiteRtTurns.rebuildBudgetChars(8192)).isEqualTo((8192 * 0.4).toInt() * 3)
     }

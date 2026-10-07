@@ -482,6 +482,12 @@ class SendChatMessageUseCaseTest {
             ),
         )
         conversations.addMessage(
+            AiMessage(id = "u0", conversationId = "conv-1", role = MessageRole.USER, content = "Hello", createdAt = now - 2),
+        )
+        conversations.addMessage(
+            AiMessage(id = "a0", conversationId = "conv-1", role = MessageRole.ASSISTANT, content = "Hi, how can I help?", createdAt = now - 1),
+        )
+        conversations.addMessage(
             AiMessage(
                 id = "u1",
                 conversationId = "conv-1",
@@ -504,9 +510,10 @@ class SendChatMessageUseCaseTest {
         engine.response = "Sunny today."
         sendChatMessage("conv-1", documentId = null, text = "and tomorrow?").toList()
 
+        // The stopped reply is not replayed; the last FINISHED exchange is what the conversation continues from.
         val history = engine.lastSessionHistory
         assertThat(history.map { it.content }).doesNotContain("It's rain")
-        assertThat(history.map { it.content }).contains("What's the weather?")
+        assertThat(history.map { it.content }).containsExactly("Hello", "Hi, how can I help?").inOrder()
     }
 
     // ── 3.4 / 3.5: session priming visibility and the grounding-skip it enables ──
@@ -603,14 +610,14 @@ class SendChatMessageUseCaseTest {
                 createdAt = now,
             ),
         )
-        // Six 200-character turns = 1200 characters of eligible history, comfortably over the
+        // Twelve 200-character turns = 2400 characters of eligible history, far over the
         // budget above (768 chars total, minus the standalone grounding prompt's own length).
-        repeat(6) { i ->
+        repeat(12) { i ->
             conversations.addMessage(
                 AiMessage(
-                    id = "u$i",
+                    id = "m$i",
                     conversationId = "conv-1",
-                    role = MessageRole.USER,
+                    role = if (i % 2 == 0) MessageRole.USER else MessageRole.ASSISTANT,
                     content = "turn$i:" + "x".repeat(193),
                     createdAt = now + i,
                 ),
@@ -632,12 +639,9 @@ class SendChatMessageUseCaseTest {
 
         // Never exceeds the budget...
         assertThat(totalChars).isAtMost(historyBudgetChars)
-        // ...oldest turns are the ones dropped...
-        assertThat(history.map { it.content }).doesNotContain("turn0:" + "x".repeat(193))
-        assertThat(history.map { it.content }).contains("turn5:" + "x".repeat(193))
-        // ...and at least one turn survives — the cut keeps recent context, it does not empty
-        // history outright.
-        assertThat(history).isNotEmpty()
+        // ...only the last exchange is replayed, whatever the budget would have allowed...
+        assertThat(history.map { it.content })
+            .containsExactly("turn10:" + "x".repeat(193), "turn11:" + "x".repeat(193)).inOrder()
     }
 
     @Test
@@ -665,10 +669,13 @@ class SendChatMessageUseCaseTest {
                 createdAt = now,
             ),
         )
+        conversations.addMessage(
+            AiMessage(id = "a1", conversationId = "conv-1", role = MessageRole.ASSISTANT, content = "A short answer", createdAt = now + 1),
+        )
 
         sendChatMessage("conv-1", documentId = null, text = "another short question").toList()
 
-        assertThat(engine.lastSessionHistory.map { it.content }).contains("A short question")
+        assertThat(engine.lastSessionHistory.map { it.content }).containsExactly("A short question", "A short answer").inOrder()
     }
 
     // ── 4.1/4.2: retrieval-augmented grounding ──

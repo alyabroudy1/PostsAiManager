@@ -17,6 +17,8 @@ import com.postsaimanager.core.domain.skills.ToolSteps
 import com.postsaimanager.core.domain.usecase.AttachChatImageUseCase
 import com.postsaimanager.core.domain.usecase.ChatErrorAction
 import com.postsaimanager.core.domain.usecase.ChatImageSupportUseCase
+import com.postsaimanager.core.domain.usecase.ChatSessionTracker
+import com.postsaimanager.core.domain.usecase.ContinuityTail
 import com.postsaimanager.core.domain.usecase.ChatTurn
 import com.postsaimanager.core.domain.usecase.StartNewChatUseCase
 import com.postsaimanager.feature.chat.skills.JsSkillRelay
@@ -48,6 +50,7 @@ import com.postsaimanager.core.model.ThinkingEffort
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -85,6 +88,8 @@ class ChatViewModel @Inject constructor(
     private val chatImageSupport: ChatImageSupportUseCase,
     private val jsSkillRelay: JsSkillRelay,
     private val formFillingFlag: FormFillingFlag = FormFillingFlag.ON,
+    /** Which chats have a live session: this screen is a visit that ends when it is left or idle for 10 minutes. */
+    private val sessions: ChatSessionTracker = ChatSessionTracker(),
 ) : ViewModel() {
 
     private val _preview = MutableStateFlow<CitationPreviewState?>(null)
@@ -315,8 +320,41 @@ class ChatViewModel @Inject constructor(
      */
     fun startWarmUp() {
         if (warmUpJob?.isActive == true) return
-        warmUpJob = viewModelScope.launch { primeConversation() }
+        warmUpJob = viewModelScope.launch {
+            try {
+                primeConversation()
+            } finally {
+                scheduleSessionIdleEnd()
+            }
+        }
     }
+
+    /** The idle check of the session: one wake-up, [ChatSessionTracker.idleMs] after the last activity this screen noticed. */
+    private var idleJob: Job? = null
+
+    /**
+     * Starts the idle clock again. A session that nothing touches for 10 minutes ends (the engine's conversation is then built from
+     * the card and the last exchange by the next send), and the divider moves to where the model's context will start. Called after
+     * each activity of this screen (the warm-up, a send, a finished reply); the tracker owns the rule, this only wakes up.
+     */
+    private fun scheduleSessionIdleEnd() {
+        idleJob?.cancel()
+        val wait = sessions.idleInMs(conversationId) ?: return
+        idleJob = viewModelScope.launch {
+            delay(wait)
+            if (sessions.endIfIdle(conversationId)) {
+                contextStartId = ContinuityTail.select(rawMessages).firstOrNull()?.id
+                _uiState.update { it.copy(contextStartMessageId = contextStartId) }
+            }
+        }
+    }
+
+    /** The stored messages as the repository last emitted them, for the divider. */
+    private var rawMessages: List<com.postsaimanager.core.model.AiMessage> = emptyList()
+
+    /** The first message of the continuity tail when the model's context was last (re)built; null before the first load or without a tail. */
+    private var contextStartId: String? = null
+    private var contextStartKnown = false
 
     /**
      * Stops the pre-warm: the screen left the foreground, or the chat is closing. The engine stops what it can; a prefill that is
@@ -374,7 +412,14 @@ class ChatViewModel @Inject constructor(
                         sources = pickVisibleSources(message.content, sources),
                     )
                 }
-                _uiState.update { it.copy(messages = chatMessages) }
+                rawMessages = messages
+                // The model's context starts at the last exchange the first time the chat shows; a live session then only grows
+                // below that line (see scheduleSessionIdleEnd for when it moves).
+                if (!contextStartKnown) {
+                    contextStartKnown = true
+                    contextStartId = ContinuityTail.select(messages).firstOrNull()?.id
+                }
+                _uiState.update { it.copy(messages = chatMessages, contextStartMessageId = contextStartId) }
             }
         }
     }
@@ -543,10 +588,17 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             val cleared = startNewChat(conversationId)
             lastSentText = null
+            if (cleared) {
+                // Nothing before the next message: no tail, no divider; the session is gone without an end event.
+                idleJob?.cancel()
+                contextStartId = null
+                contextStartKnown = true
+            }
             _uiState.update {
                 if (cleared) {
                     it.copy(
                         messages = emptyList(),
+                        contextStartMessageId = null,
                         isProcessing = false,
                         streamingText = "",
                         thinkingText = "",
@@ -655,7 +707,8 @@ class ChatViewModel @Inject constructor(
                     )
                 }
 
-            is ChatTurn.Complete ->
+            is ChatTurn.Complete -> {
+                scheduleSessionIdleEnd()
                 // History reloads from the repository, so clear the streaming
                 // buffer to avoid showing the reply twice.
                 _uiState.update {
@@ -667,6 +720,7 @@ class ChatViewModel @Inject constructor(
                         statusText = null,
                     )
                 }
+            }
 
             is ChatTurn.Failed -> {
                 // The reason is kept in the log (no letter content): "sometimes it fails" is only fixable with it.
@@ -780,6 +834,9 @@ class ChatViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        // Leaving the chat ends the visit: the next send (or the next open) builds the conversation from the card and the last exchange.
+        idleJob?.cancel()
+        sessions.leave(conversationId)
         stopWarmUp()
         generationJob?.cancel()
         super.onCleared()
@@ -854,6 +911,11 @@ data class ChatUiState(
      * of `followBottom`.
      */
     val lastSentAt: Long = 0L,
+    /**
+     * The first message the model reads when its conversation is built from the transcript (the start of the continuity tail); the
+     * list shows a quiet divider above it when there are older messages. Null for no tail.
+     */
+    val contextStartMessageId: String? = null,
 ) {
     /**
      * True while the chat is stuck behind a document being read: either the pre-warm found

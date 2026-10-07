@@ -171,4 +171,7 @@
     <string name="chat_new_chat_confirm">Delete and start new</string>
     <string name="chat_new_chat_cancel">Cancel</string>
     <string name="chat_error_new_chat_failed">The chat could not be cleared. Please try again.</string>
+
+    <!-- The quiet line in the chat above the messages the assistant still reads -->
+    <string name="chat_context_divider">Earlier messages — the assistant keeps notes, not the full chat</string>
 </resources>

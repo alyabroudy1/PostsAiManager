@@ -86,6 +86,8 @@ class BuildChatContextUseCase @Inject constructor(
         documentId: String?,
         contextTokens: Int,
         reservedForReply: Int = DEFAULT_REPLY_RESERVE,
+        /** The document-memory section ([BuildModelContextUseCase] renders it, capped); empty in the first release of the memory. */
+        documentMemory: String = "",
     ): ChatGrounding {
         if (documentId == null) return standaloneGrounding()
 
@@ -117,7 +119,7 @@ class BuildChatContextUseCase @Inject constructor(
         val parties = buildProfiles(profiles)
         val instructions = INSTRUCTIONS
 
-        val fixedCost = header.length + read.length + fields.length + parties.length + instructions.length
+        val fixedCost = header.length + read.length + fields.length + parties.length + documentMemory.length + instructions.length
         val remainingForOcr = budgetChars - fixedCost
 
         val fullOcrText = pages.mapNotNull { it.ocrText }.joinToString("\n\n")
@@ -144,7 +146,7 @@ class BuildChatContextUseCase @Inject constructor(
                     TRUNCATION_NOTE
         }
 
-        return ChatGrounding(header + read + fields + parties + ocrSection + instructions, retrievalMode)
+        return ChatGrounding(header + read + fields + parties + ocrSection + documentMemory + instructions, retrievalMode)
     }
 
     /**

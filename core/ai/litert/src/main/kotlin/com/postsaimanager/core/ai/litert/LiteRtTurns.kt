@@ -75,6 +75,19 @@ internal object LiteRtTurns {
         return kept.toList()
     }
 
+    /**
+     * The last exchange of [turns]: the newest model turn and the user turn before it, nothing older. What a conversation that is
+     * built again (a new day, a restart of the engine after a GPU failure) continues from, the same rule the app applies to a
+     * conversation it builds from the stored transcript (`ContinuityTail`): the model reads the document, not the old chat.
+     */
+    fun lastExchange(turns: List<LiteRtTurn>): List<LiteRtTurn> {
+        val reply = turns.indexOfLast { !it.fromUser }
+        if (reply < 1) return emptyList()
+        val question = turns.subList(0, reply).indexOfLast { it.fromUser }
+        if (question < 0) return emptyList()
+        return listOf(turns[question], turns[reply])
+    }
+
     /** The budget [compact] works to for a window of [windowTokens]. */
     fun rebuildBudgetChars(windowTokens: Int): Int = (windowTokens * REBUILD_WINDOW_SHARE).toInt() * CHARS_PER_TOKEN
 }
