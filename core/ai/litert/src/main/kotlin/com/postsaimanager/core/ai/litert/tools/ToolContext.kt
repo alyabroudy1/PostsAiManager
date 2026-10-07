@@ -21,6 +21,7 @@
 package com.postsaimanager.core.ai.litert.tools
 
 import com.postsaimanager.core.domain.ai.ToolActionCall
+import com.postsaimanager.core.domain.skills.JsSkillRequest
 import com.postsaimanager.core.model.ToolExchange
 
 /**
@@ -40,6 +41,9 @@ internal class ToolContext {
     @Volatile
     private var exchangeSink: (ToolExchange) -> Unit = {}
 
+    @Volatile
+    private var jsSink: (JsSkillRequest) -> Unit = {}
+
     private val proposed = mutableSetOf<Pair<String, String>>()
 
     /** Every call of the reply in flight (or the last one) with its result, oldest first: what the conversation replays next time. */
@@ -50,10 +54,16 @@ internal class ToolContext {
      * with the result it got (for the app to store with the reply).
      */
     @Synchronized
-    fun bind(documentId: String?, sink: (ToolActionCall) -> Unit, onExchange: (ToolExchange) -> Unit = {}) {
+    fun bind(
+        documentId: String?,
+        sink: (ToolActionCall) -> Unit,
+        onExchange: (ToolExchange) -> Unit = {},
+        onRunJs: (JsSkillRequest) -> Unit = {},
+    ) {
         this.documentId = documentId
         this.sink = sink
         this.exchangeSink = onExchange
+        this.jsSink = onRunJs
         proposed.clear()
         exchanges.clear()
     }
@@ -64,8 +74,12 @@ internal class ToolContext {
         documentId = null
         sink = {}
         exchangeSink = {}
+        jsSink = {}
         proposed.clear()
     }
+
+    /** Asks the app to run a script ([JsSkillRequest]); the answer comes back through the engine's [JsBroker]. */
+    fun requestJs(request: JsSkillRequest) = jsSink(request)
 
     /** Notes one call and its result. */
     @Synchronized

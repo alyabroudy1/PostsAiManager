@@ -23,8 +23,11 @@ import android.util.Log
 import com.google.ai.edge.litertlm.ToolProvider
 import com.google.ai.edge.litertlm.tool
 import com.postsaimanager.core.ai.litert.tools.AgentToolCalls
+import com.postsaimanager.core.ai.litert.tools.JsBroker
 import com.postsaimanager.core.ai.litert.tools.LoadSkillTool
 import com.postsaimanager.core.ai.litert.tools.RunIntentTool
+import com.postsaimanager.core.ai.litert.tools.RunJsTool
+import com.postsaimanager.core.domain.skills.JsSkillRequest
 import com.postsaimanager.core.ai.litert.tools.ToolContext
 import com.postsaimanager.core.domain.ai.ToolActionCall
 import com.postsaimanager.core.domain.skills.ChatToolsPrompt
@@ -40,12 +43,16 @@ import com.postsaimanager.core.model.ToolExchange
 internal class LiteRtToolKit(private val skills: SkillCatalog) {
 
     private val context = ToolContext()
+    private val js = JsBroker()
 
     /** The tools as LiteRT-LM's conversation config takes them (the Gallery's `getLiteRtToolProviders`). */
     val providers: List<ToolProvider> by lazy {
-        val calls = AgentToolCalls(skills, context, log = { Log.i("PamTools", it) })
-        listOf(tool(LoadSkillTool(calls)), tool(RunIntentTool(calls)))
+        val calls = AgentToolCalls(skills, context, log = { Log.i("PamTools", it) }, js = js)
+        listOf(tool(LoadSkillTool(calls)), tool(RunIntentTool(calls)), tool(RunJsTool(calls)))
     }
+
+    /** The answer of the script of request [id], which the app process ran; wakes the `run_js` call waiting for it. */
+    fun deliverJsResult(id: String, result: String) = js.deliver(id, result)
 
     /**
      * The skills section of the system prompt, or null when no skill is bundled (then the model gets no tools: nothing would
@@ -57,12 +64,19 @@ internal class LiteRtToolKit(private val skills: SkillCatalog) {
     }
 
     /** Starts a reply about [documentId]; every proposed action goes to [onAction]. */
-    fun bind(documentId: String?, onAction: (ToolActionCall) -> Unit, onExchange: (ToolExchange) -> Unit = {}) =
-        context.bind(documentId, onAction, onExchange)
+    fun bind(
+        documentId: String?,
+        onAction: (ToolActionCall) -> Unit,
+        onExchange: (ToolExchange) -> Unit = {},
+        onRunJs: (JsSkillRequest) -> Unit = {},
+    ) = context.bind(documentId, onAction, onExchange, onRunJs)
 
     /** The calls the reply made (the last reply's, after [release]) with the results the model got. */
     fun exchanges(): List<ToolExchange> = context.exchanges()
 
     /** Ends the reply. */
-    fun release() = context.release()
+    fun release() {
+        context.release()
+        js.cancelAll()
+    }
 }

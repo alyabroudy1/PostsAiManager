@@ -64,6 +64,11 @@
 -dontwarn com.google.gson.**
 -keep class com.google.gson.** { *; }
 
+# JS skills: the offline WebView calls back into `AiEdgeGallery.onResultReady` (an @JavascriptInterface method) by name.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
 # Release logging: strip verbose/debug/info logs (they carry document ids and timings).
 # Warnings and errors stay.
 -assumenosideeffects class android.util.Log {
