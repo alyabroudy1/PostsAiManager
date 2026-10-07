@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Der Verlauf eines Profils und der Block „Gehört zu“ eines Briefs. -->
+    <string name="timeline_title">Verlauf</string>
+    <string name="timeline_other">Sonstiges</string>
+    <string name="timeline_empty">Noch nichts im Verlauf. Briefe erscheinen hier nach Datum, sobald sie gelesen sind.</string>
+    <plurals name="timeline_letters">
+        <item quantity="one">%d Brief</item>
+        <item quantity="other">%d Briefe</item>
+    </plurals>
+    <string name="timeline_latest">%1$s · %2$s</string>
+    <string name="timeline_case_from">Von %1$s</string>
+    <string name="timeline_case_for">Für %1$s</string>
+    <string name="timeline_status_open">Offen</string>
+    <string name="timeline_status_approved">Bewilligt</string>
+    <string name="timeline_status_rejected">Abgelehnt</string>
+    <string name="timeline_status_closed">Abgeschlossen</string>
+    <string name="timeline_status_description">Stand: %1$s</string>
+    <string name="timeline_case_menu">Optionen für diesen Vorgang</string>
+    <string name="timeline_rename">Umbenennen</string>
+    <string name="timeline_rename_title">Vorgang umbenennen</string>
+    <string name="timeline_rename_label">Name</string>
+    <string name="timeline_rename_save">Speichern</string>
+    <string name="timeline_rename_cancel">Abbrechen</string>
+    <string name="timeline_show_all">Alle anzeigen (%1$d)</string>
+    <string name="timeline_show_less">Weniger anzeigen</string>
+    <string name="timeline_expand">Ereignisse anzeigen</string>
+    <string name="timeline_collapse">Ereignisse ausblenden</string>
+    <string name="timeline_open_letter">Brief öffnen</string>
+    <string name="timeline_source_letter">Brief</string>
+    <string name="timeline_source_action">Von Ihnen in der App erledigt</string>
+    <string name="timeline_source_system">Von der App vermerkt</string>
+    <string name="timeline_source_user">Von Ihnen geschrieben</string>
+    <string name="timeline_part_of">Gehört zu: %1$s</string>
+    <string name="timeline_part_of_open">Diesen Vorgang im Verlauf anzeigen</string>
+    <string name="timeline_this_letter">Dieser Brief</string>
+    <string name="timeline_history_show">Frühere und spätere Briefe anzeigen</string>
+    <string name="timeline_history_hide">Frühere und spätere Briefe ausblenden</string>
+</resources>

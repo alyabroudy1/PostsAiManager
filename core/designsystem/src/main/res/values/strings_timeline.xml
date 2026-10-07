@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The timeline of a profile and the "Part of" block of a letter. -->
+    <string name="timeline_title">Timeline</string>
+    <string name="timeline_other">Other</string>
+    <string name="timeline_empty">Nothing on the timeline yet. Letters appear here, by date, once they are read.</string>
+    <plurals name="timeline_letters">
+        <item quantity="one">%d letter</item>
+        <item quantity="other">%d letters</item>
+    </plurals>
+    <string name="timeline_latest">%1$s · %2$s</string>
+    <string name="timeline_case_from">From %1$s</string>
+    <string name="timeline_case_for">For %1$s</string>
+    <string name="timeline_status_open">Open</string>
+    <string name="timeline_status_approved">Approved</string>
+    <string name="timeline_status_rejected">Rejected</string>
+    <string name="timeline_status_closed">Closed</string>
+    <string name="timeline_status_description">Status: %1$s</string>
+    <string name="timeline_case_menu">Options for this matter</string>
+    <string name="timeline_rename">Rename</string>
+    <string name="timeline_rename_title">Rename this matter</string>
+    <string name="timeline_rename_label">Name</string>
+    <string name="timeline_rename_save">Save</string>
+    <string name="timeline_rename_cancel">Cancel</string>
+    <string name="timeline_show_all">Show all (%1$d)</string>
+    <string name="timeline_show_less">Show less</string>
+    <string name="timeline_expand">Show the events</string>
+    <string name="timeline_collapse">Hide the events</string>
+    <string name="timeline_open_letter">Open the letter</string>
+    <string name="timeline_source_letter">Letter</string>
+    <string name="timeline_source_action">Something you did in the app</string>
+    <string name="timeline_source_system">Noted by the app</string>
+    <string name="timeline_source_user">Written by you</string>
+    <string name="timeline_part_of">Part of: %1$s</string>
+    <string name="timeline_part_of_open">Show this matter on the timeline</string>
+    <string name="timeline_this_letter">This letter</string>
+    <string name="timeline_history_show">Show the earlier and later letters</string>
+    <string name="timeline_history_hide">Hide the earlier and later letters</string>
+</resources>

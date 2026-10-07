@@ -17,6 +17,16 @@ import com.postsaimanager.core.domain.contacts.SetContactActiveUseCase
 import com.postsaimanager.core.domain.contacts.SetHouseholdRoleUseCase
 import com.postsaimanager.core.domain.contacts.UpdateContactUseCase
 import com.postsaimanager.core.model.ContactPerson
+import com.postsaimanager.core.designsystem.component.TimelineCaseInput
+import com.postsaimanager.core.designsystem.component.TimelinePresenter
+import com.postsaimanager.core.designsystem.component.TimelineUi
+import com.postsaimanager.core.domain.timeline.ObserveTimelineForOrganisationUseCase
+import com.postsaimanager.core.domain.timeline.ObserveTimelineForPersonUseCase
+import com.postsaimanager.core.domain.timeline.RenameCaseUseCase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import com.postsaimanager.core.domain.form.ForgetDetailUseCase
 import com.postsaimanager.core.domain.form.FormDataKeys
 import com.postsaimanager.core.domain.form.ObserveSavedDetailsUseCase
@@ -65,10 +75,16 @@ class ProfileDetailViewModel @Inject constructor(
     private val deleteContact: DeleteContactUseCase,
     private val confirmContact: ConfirmContactUseCase,
     private val externalFlowGuard: ExternalFlowGuard,
+    private val observePersonTimeline: ObserveTimelineForPersonUseCase,
+    private val observeOrganisationTimeline: ObserveTimelineForOrganisationUseCase,
+    private val renameCase: RenameCaseUseCase,
 ) : ViewModel() {
 
     /** The contact the organisation page was opened for (the letter's contact chip): scrolled into view once. */
     private val focusContactId: String? = savedState.get<String>(ARG_CONTACT_ID)?.takeIf { it.isNotBlank() }
+
+    /** The matter the page was opened for (a letter's "Part of" row): starts expanded. */
+    private val focusCaseId: String? = savedState.get<String>(ARG_CASE_ID)?.takeIf { it.isNotBlank() }
 
     private val requestedId: String = savedState.get<String>(ARG_PROFILE_ID) ?: NEW
     private val isNew = requestedId == NEW
@@ -111,7 +127,31 @@ class ProfileDetailViewModel @Inject constructor(
         .combine(profiles.getProfilesByKind(ProfileKind.ORGANISATION)) { state, organisations ->
             state.copy(otherOrganisations = organisations.filter { it.id != profileId }.sortedBy { it.name.lowercase() })
         }
+        .combine(timeline()) { state, timeline -> state.copy(timeline = timeline, focusCaseId = focusCaseId) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProfileDetailUiState(isNew = isNew))
+
+    /**
+     * This profile's timeline as the screen draws it: a person's (or Me's) matters, or for an organisation the matters of every
+     * household person. The profile's kind picks the use case; names come from the profile list.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun timeline(): Flow<TimelineUi> {
+        if (isNew) return flowOf(TimelineUi.EMPTY)
+        return profiles.getProfiles().flatMapLatest { all ->
+            val organisation = all.firstOrNull { it.id == profileId }?.kind == ProfileKind.ORGANISATION
+            val names = all.associate { it.id to it.name }
+            val source = if (organisation) observeOrganisationTimeline(profileId) else observePersonTimeline(profileId)
+            source.map { timeline ->
+                TimelinePresenter.present(
+                    cases = timeline.cases.map { TimelineCaseInput(it.case, it.events) },
+                    looseEvents = timeline.looseEvents,
+                    organisationName = names::get,
+                    personName = names::get,
+                    forOrganisation = organisation,
+                )
+            }
+        }
+    }
 
     init {
         if (isNew) {
@@ -221,6 +261,11 @@ class ProfileDetailViewModel @Inject constructor(
         _removed.value = null
     }
 
+    /** The user renamed a matter on the timeline; the status stays derived. */
+    fun rename(caseId: String, title: String) {
+        viewModelScope.launch { renameCase(caseId, title) }
+    }
+
     // ── Contacts of an organisation: each change is one small use case ──
 
     /** Saves the edited details of a contact; what is typed is the contact's value from then on. */
@@ -278,6 +323,9 @@ class ProfileDetailViewModel @Inject constructor(
         /** Optional: the contact to scroll to on an organisation page (set when arriving from a letter's contact chip). */
         const val ARG_CONTACT_ID = "contactId"
 
+        /** Optional: the matter to open expanded on the timeline (set when arriving from a letter's "Part of" row). */
+        const val ARG_CASE_ID = "caseId"
+
         /** Optional, for a new person: the household role the editor opens with (`SELF` from the household card); a member when absent. */
         const val ARG_ROLE = "role"
 
@@ -309,6 +357,10 @@ data class ProfileDetailUiState(
     val focusContactId: String? = null,
     /** The other organisation profiles a contact can be moved to. */
     val otherOrganisations: List<Profile> = emptyList(),
+    /** The timeline of a stored profile: matters first, then the plain events. */
+    val timeline: TimelineUi = TimelineUi.EMPTY,
+    /** The matter the page was opened for: starts expanded. */
+    val focusCaseId: String? = null,
 ) {
     val canSave: Boolean get() = draft?.name?.isNotBlank() == true
 }

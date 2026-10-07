@@ -16,6 +16,11 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.designsystem.component.TimelineCaseUi
+import com.postsaimanager.core.designsystem.component.TimelineEventUi
+import com.postsaimanager.core.designsystem.component.TimelineUi
+import com.postsaimanager.core.model.CaseStatus
+import com.postsaimanager.core.model.EventSource
 import com.postsaimanager.core.domain.form.FormDataKeys
 import com.postsaimanager.core.model.FactSource
 import com.postsaimanager.core.model.Profile
@@ -63,6 +68,8 @@ class ProfileDetailUiTest {
         otherOrganisations: List<Profile> = emptyList(),
         contactActions: ContactActions = ContactActions(),
         focusContactId: String? = null,
+        timeline: TimelineUi = TimelineUi.EMPTY,
+        focusCaseId: String? = null,
     ) {
         draft = draft.copy(name = name)
         compose.setContent {
@@ -72,7 +79,10 @@ class ProfileDetailUiTest {
                     state = ProfileDetailUiState(
                         draft = draft, loaded = true, facts = facts, isNew = isNew, selfTaken = selfTaken, selfLocked = selfLocked,
                         contacts = contacts, otherOrganisations = otherOrganisations, focusContactId = focusContactId,
+                        timeline = timeline, focusCaseId = focusCaseId,
                     ),
+                    onOpenDocument = { openedDocuments += it },
+                    onRenameCase = { id, title -> renamedCases += id to title },
                     availableKeys = FormDataKeys.ALL.filter { it.profileColumn == null && it.id !in facts.map { f -> f.key } },
                     snackbarHostState = SnackbarHostState(),
                     onNavigateBack = {},
@@ -85,6 +95,47 @@ class ProfileDetailUiTest {
                 )
             }
         }
+    }
+
+    private val openedDocuments = mutableListOf<String>()
+    private val renamedCases = mutableListOf<Pair<String, String>>()
+
+    private val mariasTimeline = TimelineUi(
+        cases = listOf(
+            TimelineCaseUi(
+                caseId = "k1", title = "Bürgergeld", status = CaseStatus.REJECTED, letterCount = 3, organisationName = "Jobcenter",
+                personNames = emptyList(),
+                events = listOf(
+                    TimelineEventUi("e3", "d3", "rejection", 200L * 86_400_000L, "Abgelehnt", EventSource.DOCUMENT),
+                    TimelineEventUi("e2", "d2", "approval", 110L * 86_400_000L, "Bewilligt", EventSource.DOCUMENT),
+                    TimelineEventUi("e1", "d1", "application_filed", 100L * 86_400_000L, "Antrag", EventSource.DOCUMENT),
+                ),
+            ),
+        ),
+    )
+
+    @Test
+    fun `a household member's page opens with the timeline and a tap on an event opens its letter`() {
+        show(timeline = mariasTimeline, focusCaseId = "k1")
+
+        compose.onNodeWithText("Timeline").assertIsDisplayed()
+        compose.onNodeWithText("From Jobcenter").assertIsDisplayed()
+        compose.onNodeWithText("3 letters").assertIsDisplayed()
+        compose.onNodeWithTag("timeline_event_e2").performClick()
+
+        assertThat(openedDocuments).containsExactly("d2")
+    }
+
+    @Test
+    fun `a household member without letters sees the empty timeline`() {
+        show()
+        compose.onNodeWithTag("timeline_empty").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a new person has no timeline section`() {
+        show(isNew = true)
+        compose.onNodeWithTag("timeline_section").assertDoesNotExist()
     }
 
     @Test

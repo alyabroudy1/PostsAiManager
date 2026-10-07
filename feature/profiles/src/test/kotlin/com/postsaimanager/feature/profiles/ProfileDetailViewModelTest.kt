@@ -25,7 +25,14 @@ import com.postsaimanager.core.model.HouseholdRole
 import com.postsaimanager.core.model.ProfileKind
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.Relationship
+import com.postsaimanager.core.domain.timeline.ObserveTimelineForOrganisationUseCase
+import com.postsaimanager.core.domain.timeline.ObserveTimelineForPersonUseCase
+import com.postsaimanager.core.domain.timeline.RenameCaseUseCase
+import com.postsaimanager.core.model.Case
+import com.postsaimanager.core.model.CaseStatus
+import com.postsaimanager.core.model.ProfileEvent
 import com.postsaimanager.core.testing.FakeContactRepository
+import com.postsaimanager.core.testing.FakeEventRepository
 import com.postsaimanager.core.testing.FakeProfileFactRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.MainDispatcherExtension
@@ -41,9 +48,16 @@ class ProfileDetailViewModelTest {
     private val profiles = FakeProfileRepository()
     private val facts = FakeProfileFactRepository()
     private val contacts = FakeContactRepository()
+    private val events = FakeEventRepository()
 
-    private fun viewModel(id: String, role: String? = null) = ProfileDetailViewModel(
-        SavedStateHandle(listOfNotNull(ProfileDetailViewModel.ARG_PROFILE_ID to id, role?.let { ProfileDetailViewModel.ARG_ROLE to it }).toMap()),
+    private fun viewModel(id: String, role: String? = null, caseId: String? = null) = ProfileDetailViewModel(
+        SavedStateHandle(
+            listOfNotNull(
+                ProfileDetailViewModel.ARG_PROFILE_ID to id,
+                role?.let { ProfileDetailViewModel.ARG_ROLE to it },
+                caseId?.let { ProfileDetailViewModel.ARG_CASE_ID to it },
+            ).toMap(),
+        ),
         profiles,
         SetHouseholdRoleUseCase(profiles),
         ObserveOrganisationContactsUseCase(contacts),
@@ -57,6 +71,9 @@ class ProfileDetailViewModelTest {
         DeleteContactUseCase(contacts),
         ConfirmContactUseCase(contacts, FakeDocumentRepository()),
         guard,
+        ObserveTimelineForPersonUseCase(events),
+        ObserveTimelineForOrganisationUseCase(events),
+        RenameCaseUseCase(events),
     )
 
     private val guard = mockk<ExternalFlowGuard>(relaxed = true)
@@ -296,6 +313,7 @@ class ProfileDetailViewModelTest {
             RememberDetailUseCase(profiles, facts), ForgetDetailUseCase(facts), UpdateContactUseCase(contacts), SetContactActiveUseCase(contacts),
             MergeContactsUseCase(contacts), MoveContactUseCase(contacts, profiles), DeleteContactUseCase(contacts),
             ConfirmContactUseCase(contacts, FakeDocumentRepository()), guard,
+            ObserveTimelineForPersonUseCase(events), ObserveTimelineForOrganisationUseCase(events), RenameCaseUseCase(events),
         )
 
         vm.uiState.test {
@@ -304,6 +322,87 @@ class ProfileDetailViewModelTest {
         }
         viewModel("jc").uiState.test {
             assertThat(expectMostRecentItem().focusContactId).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    private fun event(id: String, doc: String, kind: String, day: Long, caseId: String?, persons: List<String>, title: String = "T-$id") = ProfileEvent(
+        id = id, documentId = doc, kind = kind, eventDate = day * 86_400_000L, recordedAt = day, title = title,
+        personProfileIds = persons, organisationProfileId = "jc", caseId = caseId,
+    )
+
+    private fun seedMariaCase() {
+        profiles.seed(
+            testProfile(id = "maria", name = "Maria", type = ProfileType.FAMILY_MEMBER),
+            testProfile(id = "jc", name = "Jobcenter", type = ProfileType.AUTHORITY),
+        )
+        events.seedCases(Case("k1", "jc", "Bürgergeld", status = CaseStatus.REJECTED, createdAt = 1))
+        events.seedEvents(
+            event("e1", "d1", "application_filed", 100, "k1", listOf("maria"), title = "Bürgergeld"),
+            event("e2", "d2", "approval", 110, "k1", listOf("maria")),
+            event("e3", "d3", "rejection", 200, "k1", listOf("maria")),
+        )
+    }
+
+    @Test
+    fun `a person's timeline is the matters of their letters with the sender named`() = runTest {
+        seedMariaCase()
+
+        viewModel("maria").uiState.test {
+            val timeline = expectMostRecentItem().timeline
+            assertThat(timeline.cases).hasSize(1)
+            val card = timeline.cases.single()
+            assertThat(card.organisationName).isEqualTo("Jobcenter")
+            assertThat(card.letterCount).isEqualTo(3)
+            assertThat(card.status).isEqualTo(CaseStatus.REJECTED)
+            assertThat(card.latest.kindId).isEqualTo("rejection")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `an organisation's timeline names the persons on each matter`() = runTest {
+        seedMariaCase()
+
+        viewModel("jc").uiState.test {
+            val card = expectMostRecentItem().timeline.cases.single()
+            assertThat(card.personNames).containsExactly("Maria")
+            assertThat(card.organisationName).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a lone information letter is a plain event, not a card`() = runTest {
+        profiles.seed(testProfile(id = "maria", name = "Maria", type = ProfileType.FAMILY_MEMBER), testProfile(id = "jc", name = "Jobcenter"))
+        events.seedCases(Case("k2", "jc", "Info", createdAt = 1))
+        events.seedEvents(event("e9", "d9", "information", 50, "k2", listOf("maria"), title = "Info"))
+
+        viewModel("maria").uiState.test {
+            val timeline = expectMostRecentItem().timeline
+            assertThat(timeline.cases).isEmpty()
+            assertThat(timeline.other.map { it.id }).containsExactly("e9")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `renaming a matter is stored and the status stays derived`() = runTest {
+        seedMariaCase()
+        val vm = viewModel("maria")
+
+        vm.rename("k1", "  Bürgergeld 2026  ")
+
+        assertThat(events.allCases.single().title).isEqualTo("Bürgergeld 2026")
+        assertThat(events.allCases.single().status).isEqualTo(CaseStatus.REJECTED)
+    }
+
+    @Test
+    fun `the matter a letter's row opened the page for is the focus`() = runTest {
+        seedMariaCase()
+
+        viewModel("maria", caseId = "k1").uiState.test {
+            assertThat(expectMostRecentItem().focusCaseId).isEqualTo("k1")
             cancelAndIgnoreRemainingEvents()
         }
     }

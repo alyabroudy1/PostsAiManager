@@ -56,6 +56,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalConfiguration
+import com.postsaimanager.core.designsystem.component.TimelineSection
+import com.postsaimanager.core.domain.timeline.EventKinds
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
@@ -76,6 +79,8 @@ import java.time.format.DateTimeParseException
 fun ProfileDetailScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A timeline event was tapped: opens its letter. */
+    onOpenDocument: (documentId: String) -> Unit = {},
     viewModel: ProfileDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -111,6 +116,8 @@ fun ProfileDetailScreen(
         onRelationship = viewModel::setRelationship,
         onSave = viewModel::save,
         detailActions = SavedDetailActions(save = viewModel::saveDetail, delete = viewModel::deleteDetail),
+        onOpenDocument = onOpenDocument,
+        onRenameCase = viewModel::rename,
         contactActions = ContactActions(
             save = viewModel::saveContact,
             setActive = viewModel::setContactActive,
@@ -152,8 +159,12 @@ fun ProfileDetailContent(
     detailActions: SavedDetailActions,
     modifier: Modifier = Modifier,
     contactActions: ContactActions = ContactActions(),
+    onOpenDocument: (documentId: String) -> Unit = {},
+    onRenameCase: (caseId: String, title: String) -> Unit = { _, _ -> },
 ) {
     val draft = state.draft
+    val language = LocalConfiguration.current.locales[0]?.language
+    val kindLabel = remember(language) { { id: String -> EventKinds.DEFAULT.byId(id).label(language) } }
     val scrollState = rememberScrollState()
     // Opened from a letter's contact chip: scroll once to that contact's row (its position is reported when laid out).
     var viewportTop by remember { mutableFloatStateOf(0f) }
@@ -199,6 +210,18 @@ fun ProfileDetailContent(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                // The diary comes first: what the user opens a person or an organisation for. A stored person outside the household
+                // with nothing on the timeline has no use for the empty section.
+                if (!state.isNew && (!state.timeline.isEmpty || draft.isManaged || draft.kind == ProfileKind.ORGANISATION)) {
+                    TimelineSection(
+                        timeline = state.timeline,
+                        kindLabel = kindLabel,
+                        onOpenDocument = onOpenDocument,
+                        onRenameCase = onRenameCase,
+                        focusCaseId = state.focusCaseId,
+                    )
+                    HorizontalDivider()
+                }
                 OutlinedTextField(
                     value = draft.name,
                     onValueChange = { v -> onUpdate { it.copy(name = v) } },

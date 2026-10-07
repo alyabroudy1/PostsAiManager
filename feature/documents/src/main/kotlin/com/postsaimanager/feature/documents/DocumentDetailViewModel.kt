@@ -9,6 +9,9 @@ import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.contacts.LetterContacts
 import com.postsaimanager.core.domain.contacts.LoadLetterContactsUseCase
+import com.postsaimanager.core.designsystem.component.DocumentCaseUi
+import com.postsaimanager.core.designsystem.component.TimelinePresenter
+import com.postsaimanager.core.domain.timeline.ObserveCaseForDocumentUseCase
 import com.postsaimanager.core.domain.document.ChangeDocumentFamilyUseCase
 import com.postsaimanager.core.domain.document.DocumentDetailUiState
 import com.postsaimanager.core.domain.document.DocumentExporter
@@ -64,6 +67,7 @@ class DocumentDetailViewModel @Inject constructor(
     installedModels: InstalledModelsRepository,
     profileRepository: ProfileRepository,
     loadLetterContacts: LoadLetterContactsUseCase,
+    observeCase: ObserveCaseForDocumentUseCase,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
@@ -123,6 +127,15 @@ class DocumentDetailViewModel @Inject constructor(
     val letterContacts: StateFlow<LetterContacts> = loadLetterContacts.observe(documentId)
         .catch { emit(LetterContacts()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LetterContacts())
+
+    /**
+     * The matter this letter is part of, for the "Part of" row; null while it belongs to none, or to one that is only this letter
+     * (see [TimelinePresenter.isPlainEvent]).
+     */
+    val caseRow: StateFlow<DocumentCaseUi?> = observeCase(documentId)
+        .map { found -> found?.let { TimelinePresenter.documentCase(documentId, it.case, it.events) } }
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Guards the auto-enqueue below so opening a `NEW` document does not re-enqueue on
      * every recomposition — `enqueue` is idempotent via `ExistingWorkPolicy.KEEP` anyway,
