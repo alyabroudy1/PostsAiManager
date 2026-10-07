@@ -1,4 +1,17 @@
 // Top-level build file
+
+// The R8 that AGP 8.7.3 bundles predates Kotlin 2.4 metadata (release builds print "error parsing kotlin metadata" for every class).
+// A newer R8 on the buildscript classpath is the documented way to use another one; the version is in the catalogue.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath(libs.android.r8)
+    }
+}
+
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false

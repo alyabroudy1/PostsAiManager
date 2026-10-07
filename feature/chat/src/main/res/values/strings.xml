@@ -81,6 +81,9 @@
     <string name="action_status_opened_event">Opened in your calendar</string>
     <string name="action_status_reminder_set">Reminder set</string>
     <string name="action_status_cancelled">Cancelled</string>
+    <string name="action_restore">Restore</string>
+    <string name="action_do_again">Do again</string>
+    <string name="action_done_at">Done, %1$s</string>
     <string name="action_failed">That did not work. Check the fields, or try again.</string>
 
     <!-- Debug builds only: a menu to try the action cards before the model proposes any -->

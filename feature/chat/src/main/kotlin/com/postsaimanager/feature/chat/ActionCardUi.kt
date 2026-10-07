@@ -16,6 +16,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -28,6 +29,8 @@ import com.postsaimanager.core.domain.skills.AgentAction
 import com.postsaimanager.core.domain.skills.FieldCheck
 import com.postsaimanager.core.domain.skills.FieldStatus
 import com.postsaimanager.core.domain.skills.InvalidReason
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 /** The words of an action card: one place that maps the domain's fields, verdicts and kinds to string resources. */
 internal object ActionCardTexts {
@@ -73,7 +76,8 @@ internal object ActionCardTexts {
 
 /**
  * The card of a proposed action: every field with the grounding flag of its value, and Open / Edit / Cancel. Nothing runs until
- * Open. Edit turns the fields into text fields; Open and Cancel are final and leave the card showing its last state.
+ * Open. Edit turns the fields into text fields; Open and Cancel end the card, which then offers Do again (an opened card: a fresh
+ * pending copy) or Restore (a cancelled one: pending again with its last values).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -84,6 +88,8 @@ internal fun ActionCard(
     onCancel: () -> Unit,
     onChange: (ActionField, String) -> Unit,
     modifier: Modifier = Modifier,
+    onRestore: () -> Unit = {},
+    onDoAgain: () -> Unit = {},
 ) {
     val pending = state.status == ActionCardStatus.PENDING
     Card(
@@ -105,20 +111,31 @@ internal fun ActionCard(
             }
 
             when {
-                state.status == ActionCardStatus.OPENED ->
+                state.status == ActionCardStatus.OPENED -> {
                     Text(
                         stringResource(ActionCardTexts.openedStatus(state.action)),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.testTag("actionStatus"),
                     )
-                state.status == ActionCardStatus.CANCELLED ->
+                    state.doneAt?.let { at ->
+                        Text(
+                            stringResource(R.string.action_done_at, remember(at) { at.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)) }),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(onClick = onDoAgain, modifier = Modifier.testTag("actionDoAgain")) { Text(stringResource(R.string.action_do_again)) }
+                }
+                state.status == ActionCardStatus.CANCELLED -> {
                     Text(
                         stringResource(R.string.action_status_cancelled),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.testTag("actionStatus"),
                     )
+                    TextButton(onClick = onRestore, modifier = Modifier.testTag("actionRestore")) { Text(stringResource(R.string.action_restore)) }
+                }
                 else -> {
                     if (state.openFailed) {
                         Text(stringResource(R.string.action_failed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
