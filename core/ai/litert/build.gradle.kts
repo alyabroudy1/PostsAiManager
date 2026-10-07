@@ -17,12 +17,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = libs.versions.jvmTarget.get()
-        // LiteRT-LM 0.18.0 is compiled with Kotlin 2.4, whose metadata this project's Kotlin 2.1 compiler refuses by default.
-        // The flag is set here and nowhere else, and no LiteRT-LM type appears in this module's public API, so no other module
-        // ever compiles against that metadata. (Its minSdk is 24, below ours; it needs nothing newer from the toolchain.)
-        freeCompilerArgs += "-Xskip-metadata-version-check"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget(libs.versions.jvmTarget.get()))
+        }
     }
 
     packaging {
