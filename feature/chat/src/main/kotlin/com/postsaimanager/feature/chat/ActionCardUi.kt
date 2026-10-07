@@ -19,18 +19,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.postsaimanager.core.designsystem.component.byContentDirection
+import com.postsaimanager.core.domain.skills.ActionDateTime
 import com.postsaimanager.core.domain.skills.ActionField
 import com.postsaimanager.core.domain.skills.ActionForm
+import com.postsaimanager.core.domain.skills.ReminderOffset
 import com.postsaimanager.core.domain.skills.AgentAction
 import com.postsaimanager.core.domain.skills.FieldCheck
 import com.postsaimanager.core.domain.skills.FieldStatus
 import com.postsaimanager.core.domain.skills.InvalidReason
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.util.Locale
 
 /** The words of an action card: one place that maps the domain's fields, verdicts and kinds to string resources. */
 internal object ActionCardTexts {
@@ -106,7 +110,7 @@ internal fun ActionCard(
                 if (pending && state.editing) {
                     ActionFieldEditor(field, value, state, onChange)
                 } else {
-                    ActionFieldRow(field, value, state.checkOf(field))
+                    ActionFieldRow(field, value, state.checkOf(field), understood = field.takeIf { it == ActionField.AT }?.let { state.understoodTime(value) })
                 }
             }
 
@@ -154,9 +158,18 @@ internal fun ActionCard(
 }
 
 @Composable
-private fun ActionFieldRow(field: ActionField, value: String, check: FieldCheck?) {
+private fun ActionFieldRow(field: ActionField, value: String, check: FieldCheck?, understood: UnderstoodTime? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.testTag("actionRow_${field.name}")) {
         Text(stringResource(ActionCardTexts.label(field)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // What the model's relative time was understood as, so a misheard "in 2 minutes" is seen at once.
+        understood?.let {
+            Text(
+                understoodText(it),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.testTag("actionUnderstood"),
+            )
+        }
         // The body can be long: a preview of it, the whole text is in Edit.
         Text(
             value,
@@ -165,6 +178,35 @@ private fun ActionFieldRow(field: ActionField, value: String, check: FieldCheck?
             overflow = TextOverflow.Ellipsis,
         )
         CheckLine(check)
+    }
+}
+
+/** A reminder's relative time as the model stated it, with the time of day it came to (`HH:mm`). */
+internal data class UnderstoodTime(val offset: ReminderOffset, val timeOfDay: String)
+
+/** The relative time the card's reminder was made from, while its time is still the model's own: none once the user edited it. */
+internal fun ActionCardState.understoodTime(shownValue: String): UnderstoodTime? {
+    val reminder = action as? AgentAction.ScheduleReminder ?: return null
+    val offset = reminder.offset ?: return null
+    if (ActionField.AT in edited || shownValue != ActionDateTime.format(reminder.at)) return null
+    return UnderstoodTime(offset, String.format(Locale.ROOT, "%02d:%02d", reminder.at.hour, reminder.at.minute))
+}
+
+/** "In 2 hours · 18:01", "Tomorrow · 09:00", "In 3 days · 09:00". */
+@Composable
+private fun understoodText(understood: UnderstoodTime): String {
+    val (offset, time) = understood.offset to understood.timeOfDay
+    return when {
+        offset.atTime && offset.days == 0 -> stringResource(R.string.action_understood_today, time)
+        offset.atTime && offset.days == 1 -> stringResource(R.string.action_understood_tomorrow, time)
+        else -> {
+            val parts = buildList {
+                if (offset.days > 0) add(pluralStringResource(R.plurals.action_understood_days, offset.days, offset.days))
+                if (offset.hours > 0) add(pluralStringResource(R.plurals.action_understood_hours, offset.hours, offset.hours))
+                if (offset.minutes > 0) add(pluralStringResource(R.plurals.action_understood_minutes, offset.minutes, offset.minutes))
+            }
+            stringResource(R.string.action_understood_in, parts.joinToString(" "), time)
+        }
     }
 }
 

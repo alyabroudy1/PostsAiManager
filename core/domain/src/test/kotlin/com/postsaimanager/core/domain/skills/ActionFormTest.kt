@@ -80,6 +80,15 @@ class ActionFormTest {
         assertThat(action.documentId).isEqualTo("d1")
     }
 
+    @Test
+    fun `what the model said about a reminder's time lasts only until the user changes the time`() {
+        val said = ReminderOffset(days = 0, hours = 2, minutes = 0, atTime = false)
+        val offsetReminder = AgentAction.ScheduleReminder(start, "Pay", "d1", said)
+
+        assertThat((built(offsetReminder, mapOf(ActionField.TEXT to "Pay it")) as AgentAction.ScheduleReminder).offset).isEqualTo(said)
+        assertThat((built(offsetReminder, mapOf(ActionField.AT to "2026-11-06 10:00")) as AgentAction.ScheduleReminder).offset).isNull()
+    }
+
     // ── the intents these actions become ──
 
     @Test

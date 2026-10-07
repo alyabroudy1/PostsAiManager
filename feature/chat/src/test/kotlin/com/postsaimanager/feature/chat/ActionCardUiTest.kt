@@ -2,6 +2,7 @@ package com.postsaimanager.feature.chat
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -15,6 +16,7 @@ import com.postsaimanager.core.domain.skills.FieldCheck
 import com.postsaimanager.core.domain.skills.FieldStatus
 import com.postsaimanager.core.domain.skills.InvalidReason
 import com.postsaimanager.core.domain.skills.ProposedAction
+import com.postsaimanager.core.domain.skills.ReminderOffset
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -190,5 +192,22 @@ class ActionCardUiTest {
         compose.onNodeWithText("2026-11-02 09:00").assertIsDisplayed()
         compose.onNodeWithText("Pay 123,45 EUR").assertIsDisplayed()
         compose.onNodeWithText("Reminder set").assertIsDisplayed()
+        compose.onNodeWithTag("actionUnderstood").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a reminder made from an offset shows what was understood next to the time`() {
+        val at = LocalDateTime.of(2026, 10, 7, 18, 1)
+        show(card(action = AgentAction.ScheduleReminder(at, "Pay", "d1", ReminderOffset(0, 2, 0, atTime = false)), checks = emptyMap()))
+
+        compose.onNodeWithTag("actionUnderstood").assertTextEquals("In 2 hours · 18:01")
+    }
+
+    @Test
+    fun `a reminder for a day at a time of day says today or tomorrow`() {
+        val tomorrow = AgentAction.ScheduleReminder(LocalDateTime.of(2026, 10, 8, 9, 0), "Pay", "d1", ReminderOffset(1, 0, 0, atTime = true))
+        show(card(action = tomorrow, checks = emptyMap()))
+
+        compose.onNodeWithTag("actionUnderstood").assertTextEquals("Tomorrow · 09:00")
     }
 }

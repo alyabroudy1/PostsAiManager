@@ -57,9 +57,10 @@ class AgentToolsTest {
 
         assertThat(emitted).containsExactly(ToolActionCall("send_email", emailJson, "doc-1"))
         assertThat(result["status"]).isEqualTo(AgentToolCalls.PROPOSED)
-        // The truth about the state: a card to confirm, nothing done yet (so the model's summary cannot claim it was done).
-        assertThat(result["status"]).contains("Shown to the user as a card to confirm")
-        assertThat(result["status"]).contains("nothing has been done yet")
+        // The truth about the state, and what to say: not done yet, a card to confirm (so the summary cannot claim it was done).
+        assertThat(result["status"]).startsWith("Not done yet")
+        assertThat(result["status"]).contains("waits for their confirmation")
+        assertThat(result["status"]).contains("Tell the user in one sentence that you prepared it")
         assertThat(result).doesNotContainKey("error")
     }
 
@@ -128,6 +129,19 @@ class AgentToolsTest {
     }
 
     @Test
+    fun `a proposed reminder logs the parameters the model sent and the time they became`() {
+        val lines = mutableListOf<String>()
+        val logged = AgentToolCalls(catalog, context, now = { now }, log = { lines += it })
+        startReply()
+
+        logged.runIntent("schedule_notification", """{"message":"Pay","in_days":1,"hour":9,"minute":0}""")
+
+        val line = lines.single { it.contains("schedule_notification") }
+        assertThat(line).contains("\"in_days\":1")
+        assertThat(line).contains("2026-10-08T09:00")
+    }
+
+    @Test
     fun `the letter of the reply travels with the action, and none is none`() {
         startReply(documentId = null)
 
@@ -185,7 +199,7 @@ class AgentToolsTest {
         assertThat(recorded[0].argumentsJson).isEqualTo("""{"skill_name":"send-email"}""")
         assertThat(recorded[0].resultJson).contains("skill_instructions")
         assertThat(recorded[1].argumentsJson).contains("\"intent\":\"send_email\"")
-        assertThat(recorded[1].resultJson).contains("nothing has been done yet")
+        assertThat(recorded[1].resultJson).contains("Not done yet")
         // The app is told as they happen, in the same order.
         assertThat(told).isEqualTo(recorded)
     }

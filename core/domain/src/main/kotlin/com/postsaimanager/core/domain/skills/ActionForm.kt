@@ -67,7 +67,8 @@ object ActionForm {
                 val at = time(ActionField.AT)
                 val message = required(ActionField.TEXT)
                 if (requireFuture && at != null && !at.isAfter(now)) errors[ActionField.AT] = InvalidReason.IN_THE_PAST
-                at?.let { AgentAction.ScheduleReminder(at = it, text = message, documentId = template.documentId) }
+                // What the model said ("in 2 hours") describes the time only while the user has not changed it.
+                at?.let { AgentAction.ScheduleReminder(at = it, text = message, documentId = template.documentId, offset = if (it == template.at) template.offset else null) }
             }
             AgentAction.GetDateTime -> AgentAction.GetDateTime
         }
