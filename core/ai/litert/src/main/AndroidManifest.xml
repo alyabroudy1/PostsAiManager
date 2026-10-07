@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!--
+            LiteRT-LM's GPU backend loads the phone's own OpenCL driver. An app targeting Android 12+ may only open
+            vendor native libraries it declares, so without these the engine starts and the first reply fails with
+            "Can not find OpenCL library on this device". Optional (required=false): a phone without them runs on the CPU.
+            The same list as the AI Edge Gallery's manifest, limited to what the GPU and CPU backends use.
+        -->
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
+        <uses-native-library android:name="libcdsprpc.so" android:required="false" />
+    </application>
+</manifest>
