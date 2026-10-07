@@ -119,8 +119,10 @@ fun ChatScreen(
     onSourceClick: (ChatSource) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ChatViewModel = hiltViewModel(),
+    actionCardsViewModel: ActionCardsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val actionCards by actionCardsViewModel.cards.collectAsStateWithLifecycle()
     val modelSheetState by viewModel.modelSheetState.collectAsStateWithLifecycle()
     val suggestedQuestions by viewModel.suggestedQuestions.collectAsStateWithLifecycle()
     val preview by viewModel.preview.collectAsStateWithLifecycle()
@@ -191,6 +193,11 @@ fun ChatScreen(
         }
     }
 
+    // A card that just arrived is brought into view, unless the user is reading further up.
+    LaunchedEffect(actionCards.size) {
+        if (actionCards.isNotEmpty() && followBottom) listState.scrollToItem(0)
+    }
+
     // Defect 2: sending a message must ALWAYS snap the transcript to the bottom, even if the
     // user had scrolled away to read older messages — a person who just tapped Send wants to
     // see what they sent, full stop. Keyed on `uiState.lastSentAt` (a ViewModel-owned send
@@ -247,6 +254,12 @@ fun ChatScreen(
                 title = if (documentId != null) "Document Chat" else "AI Assistant",
                 onNavigateBack = onNavigateBack,
                 actions = {
+                    // Debug builds only: try an action card before the model proposes any.
+                    DebugActionMenu(
+                        onPropose = { action ->
+                            actionCardsViewModel.propose(action, userMessages = uiState.messages.filter { it.isUser }.map { it.text })
+                        },
+                    )
                     ModelHeaderChip(
                         state = modelSheetState,
                         onClick = { showModelSheet = true },
@@ -286,7 +299,7 @@ fun ChatScreen(
         },
         modifier = modifier.imePadding(),
     ) { innerPadding ->
-        if (uiState.messages.isEmpty()) {
+        if (uiState.messages.isEmpty() && actionCards.isEmpty()) {
             // Welcome state
             Column(
                 modifier = Modifier
@@ -402,6 +415,17 @@ fun ChatScreen(
                                 durationMs = uiState.thinkingDurationMs,
                             )
                         }
+                    }
+
+                    // The actions a skill proposed, newest first like everything here: nothing runs until the user taps Open.
+                    items(actionCards.asReversed(), key = { "action-${it.id}" }) { card ->
+                        ActionCard(
+                            state = card,
+                            onOpen = { actionCardsViewModel.open(card.id) },
+                            onEdit = { actionCardsViewModel.startEditing(card.id) },
+                            onCancel = { actionCardsViewModel.cancel(card.id) },
+                            onChange = { field, text -> actionCardsViewModel.changeField(card.id, field, text) },
+                        )
                     }
 
                     // 5.1: regenerate is offered only on the LATEST assistant reply — a

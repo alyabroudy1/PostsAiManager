@@ -13,7 +13,11 @@ import com.postsaimanager.core.domain.form.PersonDataSource
 import com.postsaimanager.core.domain.repository.ProfileFactRepository
 import com.postsaimanager.core.data.repository.TimelineRepositoryImpl
 import com.postsaimanager.core.data.repository.UserPreferencesRepositoryImpl
+import com.postsaimanager.core.data.skills.AssetSkillCatalog
+import com.postsaimanager.core.data.skills.WorkManagerReminderScheduler
 import com.postsaimanager.core.data.util.PdfGenerator
+import com.postsaimanager.core.domain.skills.ReminderScheduler
+import com.postsaimanager.core.domain.skills.SkillCatalog
 import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.repository.ConversationRepository
@@ -80,4 +84,14 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindDocumentExporter(impl: PdfGenerator): DocumentExporter
+
+    // ── Agent skills: the bundled skills, and the app's one reminder scheduler ──
+
+    @Binds
+    @Singleton
+    abstract fun bindSkillCatalog(impl: AssetSkillCatalog): SkillCatalog
+
+    @Binds
+    @Singleton
+    abstract fun bindReminderScheduler(impl: WorkManagerReminderScheduler): ReminderScheduler
 }

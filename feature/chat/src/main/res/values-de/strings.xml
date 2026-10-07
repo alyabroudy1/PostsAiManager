@@ -52,4 +52,40 @@
     <string name="search_model_hint">Antworten können ihre Quellen zeigen, sobald das Suchmodell installiert ist</string>
     <string name="search_model_hint_install">Installieren</string>
     <string name="search_model_hint_dismiss">Hinweis schließen</string>
+
+    <!-- Aktionskarten: was ein Skill vorschlägt (E-Mail, Kalendereintrag, Erinnerung); erst „Öffnen“ löst etwas aus -->
+    <string name="action_card_email_title">E-Mail-Entwurf</string>
+    <string name="action_card_event_title">Kalendereintrag</string>
+    <string name="action_card_reminder_title">Erinnerung</string>
+    <string name="action_field_to">An</string>
+    <string name="action_field_subject">Betreff</string>
+    <string name="action_field_body">Nachricht</string>
+    <string name="action_field_title">Titel</string>
+    <string name="action_field_start">Beginn</string>
+    <string name="action_field_end">Ende</string>
+    <string name="action_field_description">Notizen</string>
+    <string name="action_field_at">Erinnere mich am</string>
+    <string name="action_field_text">Text der Erinnerung</string>
+    <string name="action_flag_not_found">Im Brief nicht gefunden — bitte prüfen</string>
+    <string name="action_flag_not_found_values">Im Brief nicht gefunden: %1$s — bitte prüfen</string>
+    <string name="action_flag_edited">Von dir geändert</string>
+    <string name="action_error_required">Pflichtfeld</string>
+    <string name="action_error_email">Keine gültige E-Mail-Adresse</string>
+    <string name="action_error_date_time">Bitte in der Form 2026-11-05 14:30</string>
+    <string name="action_error_end_before_start">Das Ende liegt vor dem Beginn</string>
+    <string name="action_error_past">Dieser Zeitpunkt ist schon vorbei</string>
+    <string name="action_open">Öffnen</string>
+    <string name="action_edit">Bearbeiten</string>
+    <string name="action_cancel">Abbrechen</string>
+    <string name="action_status_opened_email">In deiner Mail-App geöffnet</string>
+    <string name="action_status_opened_event">In deinem Kalender geöffnet</string>
+    <string name="action_status_reminder_set">Erinnerung gesetzt</string>
+    <string name="action_status_cancelled">Abgebrochen</string>
+    <string name="action_failed">Das hat nicht geklappt. Prüfe die Felder oder versuche es noch einmal.</string>
+
+    <!-- Nur Debug-Builds: ein Menü, um die Aktionskarten auszuprobieren, bevor das Modell welche vorschlägt -->
+    <string name="debug_menu_description">Debug-Menü</string>
+    <string name="debug_test_email_action">Agent-Aktion testen: E-Mail</string>
+    <string name="debug_test_event_action">Agent-Aktion testen: Kalender</string>
+    <string name="debug_test_reminder_action">Agent-Aktion testen: Erinnerung</string>
 </resources>

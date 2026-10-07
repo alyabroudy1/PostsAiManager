@@ -52,4 +52,40 @@
     <string name="search_model_hint">Answers can show their sources once the search model is installed</string>
     <string name="search_model_hint_install">Install</string>
     <string name="search_model_hint_dismiss">Dismiss hint</string>
+
+    <!-- Action cards: what a skill proposes (email, calendar event, reminder); nothing happens until Open -->
+    <string name="action_card_email_title">Email draft</string>
+    <string name="action_card_event_title">Calendar event</string>
+    <string name="action_card_reminder_title">Reminder</string>
+    <string name="action_field_to">To</string>
+    <string name="action_field_subject">Subject</string>
+    <string name="action_field_body">Message</string>
+    <string name="action_field_title">Title</string>
+    <string name="action_field_start">Starts</string>
+    <string name="action_field_end">Ends</string>
+    <string name="action_field_description">Notes</string>
+    <string name="action_field_at">Remind me at</string>
+    <string name="action_field_text">Reminder text</string>
+    <string name="action_flag_not_found">Not found in the letter — check</string>
+    <string name="action_flag_not_found_values">Not found in the letter: %1$s — check</string>
+    <string name="action_flag_edited">Edited by you</string>
+    <string name="action_error_required">Required</string>
+    <string name="action_error_email">Not a valid email address</string>
+    <string name="action_error_date_time">Use the form 2026-11-05 14:30</string>
+    <string name="action_error_end_before_start">The end is before the start</string>
+    <string name="action_error_past">This time has already passed</string>
+    <string name="action_open">Open</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_status_opened_email">Opened in your mail app</string>
+    <string name="action_status_opened_event">Opened in your calendar</string>
+    <string name="action_status_reminder_set">Reminder set</string>
+    <string name="action_status_cancelled">Cancelled</string>
+    <string name="action_failed">That did not work. Check the fields, or try again.</string>
+
+    <!-- Debug builds only: a menu to try the action cards before the model proposes any -->
+    <string name="debug_menu_description">Debug menu</string>
+    <string name="debug_test_email_action">Test agent action: email</string>
+    <string name="debug_test_event_action">Test agent action: calendar</string>
+    <string name="debug_test_reminder_action">Test agent action: reminder</string>
 </resources>

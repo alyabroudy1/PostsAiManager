@@ -12,4 +12,10 @@
     <string name="processing_notification_analysing">Analysing…</string>
     <string name="processing_notification_matching">Matching profiles…</string>
     <string name="processing_notification_indexing">Indexing for search…</string>
+
+    <!-- Reminders the user confirmed on an action card (en, de, ar). -->
+    <string name="reminder_channel_name">Reminders</string>
+    <string name="reminder_channel_description">Reminders you set for your letters, such as before a deadline.</string>
+    <string name="reminder_notification_title">Reminder</string>
+    <string name="reminder_notification_discreet">You have a reminder</string>
 </resources>

@@ -1,0 +1,7 @@
+<resources>
+    <!-- التذكيرات التي أكدها المستخدم على بطاقة الإجراء. -->
+    <string name="reminder_channel_name">التذكيرات</string>
+    <string name="reminder_channel_description">تذكيرات تضعها لرسائلك، مثل التذكير قبل موعد نهائي.</string>
+    <string name="reminder_notification_title">تذكير</string>
+    <string name="reminder_notification_discreet">لديك تذكير</string>
+</resources>
