@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -231,10 +232,13 @@ fun SettingsScreen(
             onDismissRequest = { showOpenSourceDialog = false },
             title = { Text(stringResource(R.string.settings_open_source_title)) },
             text = {
-                Text(
-                    stringResource(R.string.settings_address_data_attribution),
+                Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
-                )
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(stringResource(R.string.settings_address_data_attribution))
+                    Text(stringResource(R.string.settings_skills_attribution))
+                }
             },
             confirmButton = {
                 TextButton(onClick = { showOpenSourceDialog = false }) { Text(stringResource(R.string.settings_ok)) }

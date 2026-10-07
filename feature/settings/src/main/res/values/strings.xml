@@ -23,6 +23,7 @@
 
     <!-- The attribution CC-BY-4.0 asks for; the same text as AddressFormats.ATTRIBUTION in :core:domain. For Settings > About. -->
     <string name="settings_open_source_title">Open-source data</string>
-    <string name="settings_open_source_subtitle">Address data licensed under CC BY 4.0</string>
+    <string name="settings_open_source_subtitle">Address data (CC BY 4.0) and agent skills (Apache 2.0)</string>
+    <string name="settings_skills_attribution">The agent skills (the SKILL.md format, the send-email skill, the way skills are read and the e-mail, calendar and reminder actions) are adapted from Google AI Edge Gallery (https://github.com/google-ai-edge/gallery), Copyright 2026 Google LLC, licensed under the Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0). The adapted files are marked as modified.</string>
     <string name="settings_address_data_attribution">Address formats are derived from the Google libaddressinput address data (https://github.com/google/libaddressinput), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Only the postcode patterns, the order of the parts, the required parts and country names of a few countries are kept, adapted.</string>
 </resources>

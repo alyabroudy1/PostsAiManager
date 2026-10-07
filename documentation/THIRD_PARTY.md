@@ -18,3 +18,24 @@ This file records data (not libraries) the app ships under a licence that asks f
   - the string resource `settings_address_data_attribution` in `feature/settings/src/main/res/values/strings.xml`, the same text, for
     a Settings > About screen.
 - **Shown in the app:** Settings > About > "Open-source data" opens a dialog with `settings_address_data_attribution`.
+
+## Google AI Edge Gallery: Agent Skills (Apache License 2.0)
+
+- **What:** code and skill text adapted from the Gallery, <https://github.com/google-ai-edge/gallery>, Copyright 2026 Google LLC
+  (v1.0.20, `Android/src/app/src/main/java/com/google/ai/edge/gallery/`). The design is the Gallery's: a skill is a folder with a
+  `SKILL.md`; the model calls `load_skill`, then `run_intent`; intents are executed by the app. See
+  [agent-skills.md](agent-skills.md).
+- **Files adapted (each keeps Google's licence header and a "Modified by PostsAiManager" line):**
+  - `core/domain/.../skills/SkillParser.kt` and `Skill.kt`, from `skills/SkillManager.kt` (`convertSkillMdToProto`,
+    `matchesSkillName`, `getSelectedSkillsNamesAndDescriptions`) and `skills/SkillExtensions.kt`;
+  - `core/domain/.../skills/AgentActionParser.kt` and `AgentIntentSpecs.kt`, and `app/.../agent/AndroidAgentActionExecutor.kt`, from
+    `intents/IntentHandler.kt` (`send_email`, `create_calendar_event`, `schedule_notification`, `get_current_date_and_time`);
+  - `core/data/.../skills/AssetSkillCatalog.kt`, from `SkillManager.loadBuiltInSkills`;
+  - `app/src/main/assets/skills/send-email/SKILL.md`, from `skills/built-in/send-email/SKILL.md`; the `create-calendar-event` and
+    `schedule-reminder` skills follow the Gallery's SKILL.md style and intent contracts.
+- **Changes:** pure Kotlin instead of protos, Hilt and Moshi; bundled skills only (no URLs, no remote lists, no JavaScript skills);
+  the e-mail intent is `ACTION_SENDTO` with `mailto:` and every action waits for the user's confirmation; reminders use the app's own
+  scheduler.
+- **Where the attribution lives:** the headers of the files above; the string resource `settings_skills_attribution` in
+  `feature/settings/src/main/res/values/` (en, de, ar).
+- **Shown in the app:** Settings > About > "Open-source data" shows it under the address data text.
