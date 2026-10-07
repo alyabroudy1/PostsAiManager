@@ -1,5 +1,8 @@
 [versions]
 onnxruntime = "1.24.3"
+# LiteRT-LM (Google AI Edge's on-device LLM runtime, the one the AI Edge Gallery ships). Built with Kotlin 2.4 metadata, which this
+# project's Kotlin 2.1 reads only with -Xskip-metadata-version-check, set in :core:ai:litert alone (see its build file).
+litertlm = "0.18.0"
 # Core
 agp = "8.7.3"
 kotlin = "2.1.0"
@@ -77,7 +80,9 @@ biometric = "1.1.0"
 material = "1.12.0"
 
 [libraries]
-onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
+litertlm-android = { group = "com.google.ai.edge.litertlm", name = "litertlm-android", version.ref = "litertlm" }
+kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
+onnxruntime-android ={ group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 # Compose BOM
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 compose-ui = { group = "androidx.compose.ui", name = "ui" }

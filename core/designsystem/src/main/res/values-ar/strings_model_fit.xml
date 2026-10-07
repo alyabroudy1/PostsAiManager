@@ -10,5 +10,8 @@
     <string name="device_class_1">فئة الجهاز: مبتدئة</string>
     <string name="device_class_2">فئة الجهاز: متوسطة</string>
     <string name="device_class_3">فئة الجهاز: عالية</string>
+    <!-- المحرّك الذي يشغّل النموذج: نسخة LiteRT-LM تستخدم وحدة الرسوميات، ونسخة GGUF تعمل عبر llama.cpp على المعالج. -->
+    <string name="model_runtime_litert">المحرّك: LiteRT-LM، يستخدم وحدة الرسوميات إن وُجدت في الهاتف (للمحادثة فقط)</string>
+    <string name="model_runtime_llama_cpp">المحرّك: llama.cpp، يعمل على المعالج (للمحادثة وقراءة الرسائل)</string>
     <string name="model_fit_not_32bit">غير موصى به: معالج هذا الهاتف غير مدعوم</string>
 </resources>

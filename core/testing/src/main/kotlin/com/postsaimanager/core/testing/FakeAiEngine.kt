@@ -202,6 +202,8 @@ class FakeAiEngine(
     override suspend fun unload() {
         isReady = false
         sessionConversationId = null
+        // Like the real engines (ModelLoadCoordinator.unload): an unloaded engine is Idle.
+        _state.value = ModelLoadState.Idle
     }
 
     /** Overridable so a test can exercise GPU-aware resolution without a device. */

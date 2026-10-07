@@ -162,6 +162,8 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:ai:core"))
     implementation(project(":core:domain"))
+    // LiteRT-LM chat engine (the Gallery's), hosted in the :inference process next to llama.cpp.
+    implementation(project(":core:ai:litert"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

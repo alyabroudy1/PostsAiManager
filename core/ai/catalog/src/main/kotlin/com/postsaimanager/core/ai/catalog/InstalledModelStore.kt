@@ -41,11 +41,14 @@ data class InstalledIndex(
      * The model that reads documents: one the user chose explicitly for reading, else the catalog's reader model
      * ([readerDescriptorId], the one the extraction profile is tuned on) whenever it is installed, whatever the chat model is, else
      * the chat model. Reading with another model than the preferred one is a far better outcome than not reading at all.
+     *
+     * Only a model whose runtime can read documents (llama.cpp: reading needs token scoring and KV prefix reuse) is ever the
+     * reader: a LiteRT-LM chat model is skipped, even when it was set as the reading model or is the chat model.
      */
     fun readerModel(readerDescriptorId: String = BundledCatalog.READER_MODEL_ID): InstalledModel? =
-        models.firstOrNull { it.id == extractionModelId }
-            ?: models.firstOrNull { it.descriptorId == readerDescriptorId }
-            ?: chatModel()
+        models.firstOrNull { it.id == extractionModelId && it.runtime.canReadDocuments }
+            ?: models.firstOrNull { it.descriptorId == readerDescriptorId && it.runtime.canReadDocuments }
+            ?: chatModel()?.takeIf { it.runtime.canReadDocuments }
 
     /**
      * This index with every side-loaded model that is really a catalog model (same hash and size) tied to its descriptor: the migration

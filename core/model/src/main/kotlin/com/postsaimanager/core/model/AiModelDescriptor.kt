@@ -62,6 +62,8 @@ data class AiModelDescriptor(
     val preselectable: Boolean = false,
     /** How much slower this model answers than the reader, shown beside it. */
     val speedHint: SpeedHint = SpeedHint.NORMAL,
+    /** Which runtime loads the file. Defaulted so every manifest and entry written before LiteRT-LM existed stays llama.cpp. */
+    val runtime: ModelRuntime = ModelRuntime.LLAMA_CPP,
 ) {
     /**
      * A model may only be downloaded when both a URL **and** an integrity hash are known.
@@ -100,6 +102,11 @@ data class InstalledModel(
     val contextTokens: Int,
     val source: ModelSource,
     val installedAt: Long,
+    /**
+     * The runtime that loads this file. Defaulted so an `installed.json` written before LiteRT-LM existed (every entry llama.cpp)
+     * still reads; a catalogue install takes it from its descriptor, an import from the format of the file.
+     */
+    val runtime: ModelRuntime = ModelRuntime.LLAMA_CPP,
 )
 
 @Serializable

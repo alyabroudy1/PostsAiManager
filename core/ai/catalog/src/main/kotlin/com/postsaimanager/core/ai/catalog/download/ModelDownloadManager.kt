@@ -47,7 +47,7 @@ class ModelDownloadManager @Inject constructor(
 
     /** Models land in app-private storage; nothing else may read them. */
     fun destinationFor(descriptor: AiModelDescriptor): File =
-        File(File(context.filesDir, MODELS_DIR).apply { mkdirs() }, "${descriptor.id}.gguf")
+        File(File(context.filesDir, MODELS_DIR).apply { mkdirs() }, "${descriptor.id}.${descriptor.runtime.fileExtension}")
 
     /**
      * @param allowMetered opt-in to mobile data. Defaults to false — a 2 GB download on a

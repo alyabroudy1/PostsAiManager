@@ -41,6 +41,7 @@ import com.postsaimanager.core.ai.catalog.download.ModelDownloadStatus
 import com.postsaimanager.core.ai.embed.install.InstallStatus
 import com.postsaimanager.core.designsystem.component.ChatModelFitBadge
 import com.postsaimanager.core.designsystem.component.deviceTierLabel
+import com.postsaimanager.core.designsystem.component.ModelRuntimeNote
 import com.postsaimanager.core.designsystem.component.ModelSpeedHint
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.model.ChatModelFit
@@ -237,6 +238,7 @@ private fun InstalledCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            ModelRuntimeNote(entry.descriptor.runtime)
             ModelSpeedHint(entry.descriptor.speedHint)
             chatFit?.let { ChatModelFitBadge(it) }
             if (entry.isFormModel && showFormFillingNote) {
@@ -265,7 +267,8 @@ private fun InstalledCard(
                         Text("Use for chat")
                     }
                 }
-                if (!entry.isExtractionModel) {
+                // Reading letters needs llama.cpp (token scoring, prefix reuse): a model of another runtime only chats.
+                if (!entry.isExtractionModel && entry.descriptor.runtime.canReadDocuments) {
                     OutlinedButton(onClick = { entry.installed?.let { onSetExtraction(it.id) } }) {
                         Text("Use for reading")
                     }
@@ -301,6 +304,7 @@ private fun AvailableCard(entry: CatalogEntry, chatFit: ChatModelFit?, viewModel
             entry.descriptor.description?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium)
             }
+            ModelRuntimeNote(entry.descriptor.runtime)
             ModelSpeedHint(entry.descriptor.speedHint)
             chatFit?.let { ChatModelFitBadge(it) }
 

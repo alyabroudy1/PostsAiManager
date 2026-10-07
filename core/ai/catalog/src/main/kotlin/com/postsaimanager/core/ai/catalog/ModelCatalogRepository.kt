@@ -111,6 +111,7 @@ class ModelCatalogRepository @Inject constructor(
                 contextTokens = descriptor.contextTokens,
                 source = com.postsaimanager.core.model.ModelSource.CATALOG,
                 installedAt = System.currentTimeMillis(),
+                runtime = descriptor.runtime,
             ),
         )
     }

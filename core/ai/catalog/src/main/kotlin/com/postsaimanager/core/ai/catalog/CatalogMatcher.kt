@@ -18,6 +18,6 @@ object CatalogMatcher {
     fun adopt(model: InstalledModel, catalog: List<AiModelDescriptor> = BundledCatalog.models): InstalledModel {
         if (model.descriptorId != null) return model
         val match = descriptorFor(model.sha256, model.sizeBytes, catalog) ?: return model
-        return model.copy(descriptorId = match.id)
+        return model.copy(descriptorId = match.id, runtime = match.runtime)
     }
 }

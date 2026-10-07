@@ -33,6 +33,7 @@ import javax.inject.Singleton
 class InferenceMemoryPressureObserver @Inject constructor(
     @ApplicationContext private val context: Context,
     private val engine: RemoteAiEngine,
+    private val liteRtEngine: RemoteLiteRtChatEngine,
     @Dispatcher(PamDispatcher.DEFAULT) private val defaultDispatcher: CoroutineDispatcher,
 ) : ComponentCallbacks2 {
 
@@ -48,7 +49,10 @@ class InferenceMemoryPressureObserver @Inject constructor(
             level == ComponentCallbacks2.TRIM_MEMORY_COMPLETE
         ) {
             Log.w(TAG, "onTrimMemory($level) — unloading the AI model if idle")
-            scope.launch { engine.onTrimMemory() }
+            scope.launch {
+                engine.onTrimMemory()
+                liteRtEngine.onTrimMemory()
+            }
         }
     }
 

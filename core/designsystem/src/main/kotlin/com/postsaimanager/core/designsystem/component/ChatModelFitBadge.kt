@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import com.postsaimanager.core.designsystem.R
 import com.postsaimanager.core.model.ChatModelFit
 import com.postsaimanager.core.model.DeviceTier
+import com.postsaimanager.core.model.ModelRuntime
 import com.postsaimanager.core.model.NotRecommendedReason
 import com.postsaimanager.core.model.SpeedHint
 import java.util.Locale
@@ -46,6 +47,19 @@ fun ModelSpeedHint(hint: SpeedHint, modifier: Modifier = Modifier) {
         SpeedHint.NORMAL -> return
         SpeedHint.SLOWER -> stringResource(R.string.model_speed_slower)
         SpeedHint.MUCH_SLOWER -> stringResource(R.string.model_speed_much_slower)
+    }
+    Text(text = text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = modifier)
+}
+
+/**
+ * Which engine runs a model, so two builds of one model (Gemma 4 as a LiteRT-LM file on the GPU, and as a GGUF file on
+ * llama.cpp) are told apart on the Models screen and in first-run setup. From the catalogue's data.
+ */
+@Composable
+fun ModelRuntimeNote(runtime: ModelRuntime, modifier: Modifier = Modifier) {
+    val text = when (runtime) {
+        ModelRuntime.LITERT_LM -> stringResource(R.string.model_runtime_litert)
+        ModelRuntime.LLAMA_CPP -> stringResource(R.string.model_runtime_llama_cpp)
     }
     Text(text = text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = modifier)
 }

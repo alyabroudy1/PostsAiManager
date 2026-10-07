@@ -1,7 +1,7 @@
 package com.postsaimanager.core.domain.usecase
 
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
-import com.postsaimanager.core.domain.ai.AiEngine
+import com.postsaimanager.core.domain.ai.ChatEngine
 import com.postsaimanager.core.domain.repository.InstalledModelsRepository
 import com.postsaimanager.core.model.InstalledModelSummary
 import kotlinx.coroutines.flow.Flow
@@ -34,12 +34,12 @@ class SelectActiveModelUseCase @Inject constructor(
  *
  * Selecting a different model in the chat header sheet should visibly move the header from
  * "Ready" to "Loading…" to "Ready" on the *new* model, not sit still until the user types.
- * [AiEngine.load] already no-ops or does the cheapest reload the scope calls for (see
+ * [ChatEngine.load] already no-ops or does the cheapest reload the scope calls for (see
  * `InferenceConfig.requiresReload` / `ModelLoadCoordinator`), so calling it eagerly here
  * costs nothing when nothing actually changed.
  */
 class PreloadActiveModelUseCase @Inject constructor(
-    private val engine: AiEngine,
+    private val engine: ChatEngine,
     private val activeModelProvider: ActiveModelProvider,
 ) {
     suspend operator fun invoke() {

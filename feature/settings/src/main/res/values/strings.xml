@@ -22,7 +22,9 @@
     <string name="settings_not_now">Not now</string>
 
     <!-- The attribution CC-BY-4.0 asks for; the same text as AddressFormats.ATTRIBUTION in :core:domain. For Settings > About. -->
-    <string name="settings_open_source_title">Open-source data</string>
-    <string name="settings_open_source_subtitle">Address data licensed under CC BY 4.0</string>
+    <string name="settings_open_source_title">Open-source software and data</string>
+    <string name="settings_open_source_subtitle">Address data (CC BY 4.0), Google AI Edge Gallery and LiteRT-LM (Apache 2.0)</string>
+    <!-- Apache 2.0 asks for credit and for changed files to be marked; documentation/THIRD_PARTY.md has the same text. -->
+    <string name="settings_litert_attribution">The Gemma 4 chat engine is LiteRT-LM (https://github.com/google-ai-edge/LiteRT-LM), and its integration is adapted from the Google AI Edge Gallery (https://github.com/google-ai-edge/gallery), Copyright Google LLC, both licensed under the Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0). The adapted files are marked as modified.</string>
     <string name="settings_address_data_attribution">Address formats are derived from the Google libaddressinput address data (https://github.com/google/libaddressinput), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Only the postcode patterns, the order of the parts, the required parts and country names of a few countries are kept, adapted.</string>
 </resources>

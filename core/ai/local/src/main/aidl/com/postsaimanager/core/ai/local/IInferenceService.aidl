@@ -129,4 +129,53 @@ interface IInferenceService {
      * cross the same AIDL boundary as everything else here.
      */
     String lastLoadDevices();
+
+    // ── LiteRT-LM (the AI Edge Gallery's engine): chat only ───────────────────────────────────────────────
+    // Hosted by the same process as llama.cpp, and only one of the two holds a model at a time: loading one
+    // frees the other. Every call that touches the model runs on the service's single inference thread.
+
+    /**
+     * Loads a `.litertlm` model, freeing the resident llama.cpp model first. Returns the accelerator the
+     * engine started on (`"GPU"` or `"CPU"`; a GPU request falls back to the CPU), or null when it did not load.
+     */
+    String loadLiteRtModel(String modelPath, in InferenceConfigParcel config);
+
+    /** True when a LiteRT-LM model is resident. */
+    boolean isLiteRtReady();
+
+    /** Opens (or re-primes) the chat session of [conversationId] — see `LiteRtChatEngine.ensureChatSession`. */
+    boolean openLiteRtSession(String conversationId, String systemPrompt, in String[] roles, in String[] contents);
+
+    /** True when the session of [conversationId] is open and valid. */
+    boolean isLiteRtSessionPrimed(String conversationId);
+
+    /**
+     * Begins one chat reply and streams it to [callback]. Holds the inference thread until the reply is over, so a
+     * llama.cpp call queued behind it (background reading) waits.
+     */
+    boolean sendLiteRtMessage(
+        String userText,
+        int maxTokens,
+        float temperature,
+        int topK,
+        float topP,
+        ITokenCallback callback);
+
+    /** Stops the LiteRT-LM reply in flight, if any. Not queued: it must reach a running reply. */
+    void cancelLiteRt();
+
+    /** True when the last LiteRT-LM reply stopped at its token cap. */
+    boolean lastLiteRtReplyHitLimit();
+
+    /** Records the finished reply in the session's history. */
+    void commitLiteRtReply(String answer);
+
+    /** Drops an interrupted reply from the session without recording it. */
+    void discardLiteRtReply();
+
+    /** Drops the chat session. */
+    void resetLiteRtSession();
+
+    /** Frees the LiteRT-LM model. */
+    void unloadLiteRt();
 }

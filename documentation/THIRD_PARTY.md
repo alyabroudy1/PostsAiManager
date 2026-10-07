@@ -11,6 +11,21 @@ This file records data (not libraries) the app ships under a licence that asks f
   Shown as "Apache-2.0" in Settings > Models (`AiModelDescriptor.license`). Earlier Gemma generations (the Gemma 3 entries in
   `CuratedRepos`) remain under the Gemma Terms of Use.
 
+- **Gemma 4 E2B / E4B, LiteRT-LM builds** (`BundledCatalog`, `litert-community/gemma-4-E2B-it-litert-lm` and `…E4B…`, pinned to the
+  Gallery allowlist's commit): Apache License 2.0 (the Hugging Face cards say `license: apache-2.0`).
+
+## Google AI Edge Gallery and LiteRT-LM (Apache License 2.0)
+
+- **What:** the Gemma 4 chat engine. `:core:ai:litert` runs the LiteRT-LM runtime (`com.google.ai.edge.litertlm:litertlm-android`,
+  <https://github.com/google-ai-edge/LiteRT-LM>, Copyright Google LLC) and contains code adapted from the Google AI Edge Gallery
+  (<https://github.com/google-ai-edge/gallery>, v1.0.20, Copyright Google LLC):
+  `LlmModelHelper.kt` (from `runtime/LlmModelHelper.kt`) and `LlmChatModelHelper.kt` (from `ui/llmchat/LlmChatModelHelper.kt`).
+- **Licence:** Apache License 2.0, <https://www.apache.org/licenses/LICENSE-2.0>. The Google copyright and licence headers are kept in
+  the adapted files, and each carries a "Modified by PostsAiManager" note saying what was removed (Firebase, the metrics tracker,
+  benchmarking, speculative decoding, image and audio input, the Gallery's Model/Task types) and what was added (the GPU-to-CPU
+  fallback, the instance handle).
+- **Shown in the app:** Settings > About > "Open-source software and data" (`settings_litert_attribution`).
+
 ## Google libaddressinput address metadata (CC BY 4.0)
 
 - **What:** `core/domain/src/main/resources/address/formats.json`, the per-country address formats (postcode pattern, the order of

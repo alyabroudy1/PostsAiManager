@@ -1,10 +1,6 @@
 package com.postsaimanager.core.ai.local
 
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
-import android.os.IBinder
 import android.util.Log
 import com.postsaimanager.core.common.dispatcher.Dispatcher
 import com.postsaimanager.core.common.dispatcher.PamDispatcher
@@ -19,6 +15,7 @@ import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
+import com.postsaimanager.core.model.ModelRuntime
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
@@ -65,12 +62,13 @@ import kotlin.coroutines.resume
  */
 @Singleton
 class RemoteAiEngine @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @ApplicationContext context: Context,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
+    /** The binding, the call mutex and the resident-runtime record, shared with the LiteRT-LM engine. */
+    private val connection: InferenceConnection = InferenceConnection(context),
 ) : AiEngine, PromptSession {
 
-    @Volatile
-    private var service: IInferenceService? = null
+    private val service: IInferenceService? get() = connection.service
 
     /**
      * Which conversation's chat session is currently primed in the `:inference` process's
@@ -109,7 +107,7 @@ class RemoteAiEngine @Inject constructor(
      * `InferenceService`'s blocking, single-threaded `executor` cannot run a load concurrently
      * with an in-flight generation on the native side regardless — see its class KDoc.
      */
-    private val engineMutex = Mutex()
+    private val engineMutex: Mutex get() = connection.engineMutex
 
     override suspend fun isChatSessionPrimed(conversationId: String): Boolean =
         sessionConversationId == conversationId
@@ -139,6 +137,8 @@ class RemoteAiEngine @Inject constructor(
                 // A model load recreates the llama_context, taking the KV cache — and any
                 // primed chat session — with it, whether or not the load itself succeeded.
                 sessionConversationId = null
+                // The service frees a LiteRT-LM model before it loads this one.
+                connection.resident = if (ok) ModelRuntime.LLAMA_CPP else null
                 if (!ok) {
                     return@withContext PamResult.Error(
                         PamError.ModelNotLoaded(
@@ -167,7 +167,11 @@ class RemoteAiEngine @Inject constructor(
 
         override suspend fun unloadModel() = withContext(ioDispatcher) {
             sessionConversationId = null
-            runCatching { service?.unloadModel() }
+            // Only llama.cpp's own model: a LiteRT-LM one is that engine's to free (a fullLoad here is about to replace it anyway).
+            if (connection.resident != ModelRuntime.LITERT_LM) {
+                runCatching { service?.unloadModel() }
+                connection.resident = null
+            }
             Unit
         }
 
@@ -185,13 +189,14 @@ class RemoteAiEngine @Inject constructor(
 
     override val isBusy: Boolean get() = engineMutex.isLocked
 
-    private val _crashEvents = MutableSharedFlow<InferenceCrash>(extraBufferCapacity = 4)
-    override val crashEvents: SharedFlow<InferenceCrash> = _crashEvents.asSharedFlow()
+    override val crashEvents: SharedFlow<InferenceCrash> get() = connection.crashes
 
-    private val deathRecipient = IBinder.DeathRecipient {
-        // The whole point of the boundary: observe the crash instead of dying with it.
-        Log.e(TAG, "inference process died")
-        service = null
+    private fun onInferenceProcessDied(heldBy: ModelRuntime?) {
+        // The boundary did its job: observe the crash instead of dying with it.
+        sessionConversationId = null
+        // A LiteRT-LM model was the one resident: that engine reports its own crash, and this engine's next load finds nothing
+        // resident (`isActuallyLoaded`) and loads again. Reporting a failure here would blame llama.cpp's model for it.
+        if (heldBy == ModelRuntime.LITERT_LM) return
         val generation = coordinator.currentGeneration()
         // Captured *before* reportExternalFailure, which is keyed off the same
         // lastRequested the coordinator would otherwise replay unchanged — this is what a
@@ -211,80 +216,15 @@ class RemoteAiEngine @Inject constructor(
         )
         // Nothing to report if no model was ever requested — there is no config a
         // listener could act on.
-        snapshot?.let { (modelId, config) -> _crashEvents.tryEmit(InferenceCrash(modelId, config)) }
+        snapshot?.let { (modelId, config) -> connection.reportCrash(InferenceCrash(modelId, config)) }
     }
 
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            service = IInferenceService.Stub.asInterface(binder)
-            runCatching { binder?.linkToDeath(deathRecipient, 0) }
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-            service = null
-        }
+    init {
+        connection.onDeath(::onInferenceProcessDied)
     }
 
-    /**
-     * Binds `:inference`, or returns the already-bound service.
-     *
-     * Bounded by [CONNECT_TIMEOUT_MS]: without it, a `:inference` that dies during its own
-     * `Application.onCreate` (or never starts at all — low memory, a `SecurityException`
-     * some OEMs throw for background service starts) leaves [onServiceConnected] never
-     * called, and this call — and every caller awaiting it: `engine.load` from
-     * `AiExtractionUseCase` or chat's `ChatViewModel.sendMessage` — would otherwise suspend
-     * forever. [onBindingDied]/[onNullBinding] are the two documented callbacks for exactly
-     * that failure mode and resolve immediately when the platform reports them; the timeout
-     * is the backstop for whatever neither one catches.
-     */
-    private suspend fun connect(): IInferenceService? {
-        service?.let { return it }
-        val remote = withTimeoutOrNull(CONNECT_TIMEOUT_MS) {
-            suspendCancellableCoroutine<IInferenceService?> { continuation ->
-                val once = object : ServiceConnection {
-                    override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-                        connection.onServiceConnected(name, binder)
-                        if (continuation.isActive) continuation.resume(service)
-                    }
-
-                    override fun onServiceDisconnected(name: ComponentName?) {
-                        connection.onServiceDisconnected(name)
-                    }
-
-                    // Called when the platform gives up on ever restoring this binding — the
-                    // process hosting the service died before (or instead of) connecting, and
-                    // will not be revived automatically the way onServiceDisconnected's crash
-                    // recovery is. Unbind so a later connect() starts a clean bind rather than
-                    // layering a second registration onto a dead one.
-                    override fun onBindingDied(name: ComponentName?) {
-                        Log.e(TAG, "connect: binding to :inference died before it connected")
-                        runCatching { context.unbindService(this) }
-                        if (continuation.isActive) continuation.resume(null)
-                    }
-
-                    override fun onNullBinding(name: ComponentName?) {
-                        Log.e(TAG, "connect: :inference returned a null binder")
-                        runCatching { context.unbindService(this) }
-                        if (continuation.isActive) continuation.resume(null)
-                    }
-                }
-                val intent = Intent(context, InferenceService::class.java)
-                val bound = context.bindService(intent, once, Context.BIND_AUTO_CREATE)
-                if (!bound) {
-                    if (continuation.isActive) continuation.resume(null)
-                    return@suspendCancellableCoroutine
-                }
-                // Covers both a normal coroutine cancellation and the withTimeoutOrNull above
-                // firing: either way, a bind that never resolved must not stay registered
-                // waiting for a connection nothing is listening for any more.
-                continuation.invokeOnCancellation { runCatching { context.unbindService(once) } }
-            }
-        }
-        if (remote == null && service == null) {
-            Log.e(TAG, "connect: timed out after ${CONNECT_TIMEOUT_MS}ms waiting for :inference")
-        }
-        return remote
-    }
+    /** Binds `:inference`, or returns the already-bound service — see [InferenceConnection.connect]. */
+    private suspend fun connect(): IInferenceService? = connection.connect()
 
     private fun capabilitiesOf(remote: IInferenceService, modelId: String, config: InferenceConfig) =
         AiCapabilities(
@@ -760,15 +700,5 @@ class RemoteAiEngine @Inject constructor(
 
     private companion object {
         const val TAG = "RemoteAiEngine"
-
-        /**
-         * How long [connect] waits for `:inference` to bind before giving up and returning
-         * `null` — see [connect]'s KDoc for what this backstops. Generous rather than tight:
-         * a cold `:inference` process start (process fork, classloading, the whole app's
-         * `Hilt` graph for that process, this Application's `onCreate`) is itself part of
-         * what is being waited on, and this only exists to catch "never happens", not to
-         * shave latency off "happens, just slowly".
-         */
-        const val CONNECT_TIMEOUT_MS = 20_000L
     }
 }

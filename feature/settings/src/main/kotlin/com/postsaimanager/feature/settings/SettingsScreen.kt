@@ -232,7 +232,8 @@ fun SettingsScreen(
             title = { Text(stringResource(R.string.settings_open_source_title)) },
             text = {
                 Text(
-                    stringResource(R.string.settings_address_data_attribution),
+                    stringResource(R.string.settings_address_data_attribution) + "\n\n" +
+                        stringResource(R.string.settings_litert_attribution),
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                 )
             },

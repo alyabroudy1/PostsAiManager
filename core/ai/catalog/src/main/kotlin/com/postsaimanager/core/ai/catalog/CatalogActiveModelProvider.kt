@@ -12,6 +12,7 @@ import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.InferenceOverrides
 import com.postsaimanager.core.model.InstalledModel
 import com.postsaimanager.core.model.ModelLoadState
+import com.postsaimanager.core.model.ModelRuntime
 import com.postsaimanager.core.model.applying
 import com.postsaimanager.core.model.inferenceConfigSchema
 import com.postsaimanager.core.model.withGpuBlocked
@@ -57,7 +58,8 @@ class CatalogActiveModelProvider @Inject constructor(
      */
     private fun formModel(): InstalledModel? =
         ModelProfiles.FORM_AGENT_MODELS.firstNotNullOfOrNull { id -> installedStore.models().firstOrNull { it.descriptorId == id } }
-            ?: installedStore.activeModel()
+            ?: installedStore.activeModel()?.takeIf { it.runtime.canReadDocuments }
+            ?: installedStore.extractionModel()
 
     override suspend fun formModelPath(): String? {
         installedStore.reconcile()
@@ -67,8 +69,7 @@ class CatalogActiveModelProvider @Inject constructor(
     override suspend fun formModelId(): String? = formModel()?.descriptorId
 
     override suspend fun formModelConfig(): InferenceConfig {
-        val model = formModel()
-        return effectiveConfig(model?.contextTokens ?: DEFAULT_CONTEXT_TOKENS, backendSpec(model), model?.filePath)
+        return configFor(formModel())
     }
 
     /**
@@ -79,18 +80,41 @@ class CatalogActiveModelProvider @Inject constructor(
      * [applying].
      */
     override suspend fun extractionModelConfig(): InferenceConfig {
-        val model = installedStore.extractionModel()
-        return effectiveConfig(model?.contextTokens ?: DEFAULT_CONTEXT_TOKENS, backendSpec(model), model?.filePath)
+        return configFor(installedStore.extractionModel())
     }
 
-    override suspend fun activeModelConfig(): InferenceConfig {
-        val model = installedStore.activeModel()
-        return effectiveConfig(model?.contextTokens ?: DEFAULT_CONTEXT_TOKENS, backendSpec(model), model?.filePath)
+    override suspend fun activeModelConfig(): InferenceConfig = configFor(installedStore.activeModel())
+
+    /**
+     * The config [model] loads with, for its runtime. llama.cpp models are sized to what the device can afford
+     * ([effectiveConfig]). A LiteRT-LM model keeps the window its catalogue entry names (the engine fixes it at start, so a
+     * window that followed free memory would restart a GPU engine for nothing), and runs on the accelerator its entry prefers
+     * ([liteRtDevice]).
+     */
+    private suspend fun configFor(model: InstalledModel?): InferenceConfig {
+        if (model?.runtime != ModelRuntime.LITERT_LM) {
+            return effectiveConfig(model?.contextTokens ?: DEFAULT_CONTEXT_TOKENS, backendSpec(model), model?.filePath)
+        }
+        val device = liteRtDevice(model)
+        val overrides = inferenceSettingsRepository.overrides.first()
+        val defaults = InferenceConfig.defaults(device, model.contextTokens, cpuTopology.coreMaxFreqsKHz())
+            .copy(contextTokens = model.contextTokens)
+        return defaults.applying(overrides, device, backendSpec(model)).copy(runtime = ModelRuntime.LITERT_LM)
+    }
+
+    /**
+     * The device as a LiteRT-LM model sees it: it brings its own GPU backend (not llama.cpp's Vulkan one, which a default build
+     * does not have), so GPU is on offer unless this model has crashed on it before; the engine falls back to the CPU itself when
+     * the GPU engine cannot start.
+     */
+    private suspend fun liteRtDevice(model: InstalledModel): DeviceCapability {
+        val accelerators = if (isGpuBlocked(model.filePath)) setOf(Accelerator.CPU) else setOf(Accelerator.CPU, Accelerator.GPU)
+        return deviceCapability.current().copy(accelerators = accelerators)
     }
 
     override suspend fun activeModelSchema(): List<ConfigSpec> {
-        val device = deviceCapability.current()
         val model = installedStore.activeModel()
+        val device = if (model?.runtime == ModelRuntime.LITERT_LM) liteRtDevice(model) else deviceCapability.current()
         val defaults = InferenceConfig.defaults(
             device,
             model?.contextTokens ?: DEFAULT_CONTEXT_TOKENS,
@@ -187,7 +211,8 @@ class CatalogActiveModelProvider @Inject constructor(
     private fun backendSpec(model: InstalledModel?): BackendSpec =
         model?.descriptorId
             ?.let { id -> BundledCatalog.models.firstOrNull { it.id == id }?.backendSpec }
-            ?: BackendSpec()
+            // A LiteRT-LM file with no catalogue entry (an import) still has the engine's own GPU backend to try.
+            ?: if (model?.runtime == ModelRuntime.LITERT_LM) BackendSpec(listOf(Accelerator.GPU, Accelerator.CPU)) else BackendSpec()
 
     private companion object {
         const val DEFAULT_CONTEXT_TOKENS = 4096

@@ -9,6 +9,7 @@ import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.domain.ai.AiRequest
+import com.postsaimanager.core.domain.ai.ChatEngine
 import com.postsaimanager.core.domain.ai.StreamSegment
 import com.postsaimanager.core.domain.ai.ThinkingStreamParser
 import com.postsaimanager.core.domain.repository.ConversationRepository
@@ -170,7 +171,7 @@ enum class ChatErrorAction {
  */
 class SendChatMessageUseCase @Inject constructor(
     private val conversationRepository: ConversationRepository,
-    private val engine: AiEngine,
+    private val engine: ChatEngine,
     private val activeModelProvider: ActiveModelProvider,
     private val buildChatContext: BuildChatContextUseCase,
     private val retrieveChunks: RetrieveChunksUseCase,
@@ -371,7 +372,9 @@ class SendChatMessageUseCase @Inject constructor(
 
         // With thinking on, the engine starts the reply inside an already-open `<think>` block
         // (see llama_jni.cpp's sendChatMessage), so the stream never carries the opening tag.
-        val parser = ThinkingStreamParser(startInThinking = thinkingEffort != ThinkingEffort.OFF)
+        // Read after `engine.load`, which picked the engine: one that cannot hand a reasoning trace back separately is asked for none.
+        val effort = if (engine.supportsThinking) thinkingEffort else ThinkingEffort.OFF
+        val parser = ThinkingStreamParser(startInThinking = effort != ThinkingEffort.OFF)
         val thinkingBuilder = StringBuilder()
         val answerBuilder = StringBuilder()
         var thinkingStartNanos: Long? = null
@@ -409,7 +412,7 @@ class SendChatMessageUseCase @Inject constructor(
             // session's own history plus `sentText`; only the sampling/thinking fields
             // matter. `sentText` is `text` with any retrieved passages prefixed (4.1/4.2) —
             // see the class KDoc's "Retrieval-augmented grounding".
-            engine.sendChatMessage(sentText, ChatReplyBudget.request(thinkingEffort, contextTokens))
+            engine.sendChatMessage(sentText, ChatReplyBudget.request(effort, contextTokens))
                 .collect { token -> apply(parser.consume(token)).forEach { emit(it) } }
             apply(parser.finish()).forEach { emit(it) }
         } catch (e: kotlinx.coroutines.CancellationException) {

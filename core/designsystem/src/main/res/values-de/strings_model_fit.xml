@@ -10,5 +10,8 @@
     <string name="device_class_1">Gerätekategorie: Einsteiger</string>
     <string name="device_class_2">Gerätekategorie: Mittelklasse</string>
     <string name="device_class_3">Gerätekategorie: Oberklasse</string>
+    <!-- Welche Engine ein Modell ausführt: die LiteRT-LM-Variante nutzt die GPU, die GGUF-Variante llama.cpp auf dem Prozessor. -->
+    <string name="model_runtime_litert">Engine: LiteRT-LM, nutzt die GPU, wenn das Handy eine hat (nur Chat)</string>
+    <string name="model_runtime_llama_cpp">Engine: llama.cpp, läuft auf dem Prozessor (Chat und Lesen der Briefe)</string>
     <string name="model_fit_not_32bit">Nicht empfohlen: der Prozessor dieses Handys wird nicht unterstützt</string>
 </resources>

@@ -4,7 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.common.result.PamResult
-import com.postsaimanager.core.domain.ai.AiEngine
+import com.postsaimanager.core.domain.ai.ChatEngine
 import com.postsaimanager.core.domain.form.agent.FormChatLog
 import com.postsaimanager.core.domain.form.agent.FormFillAgent
 import com.postsaimanager.core.domain.form.agent.FormRoute
@@ -62,7 +62,7 @@ class ChatViewModel @Inject constructor(
     private val sendChatMessage: SendChatMessageUseCase,
     private val conversationRepository: ConversationRepository,
     private val documentRepository: DocumentRepository,
-    private val engine: AiEngine,
+    private val engine: ChatEngine,
     private val observeInstalledModels: ObserveInstalledModelsUseCase,
     private val selectActiveModel: SelectActiveModelUseCase,
     private val observeInferenceSettings: ObserveInferenceSettingsUseCase,

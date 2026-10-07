@@ -4,6 +4,7 @@ import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.AiModelDescriptor
 import com.postsaimanager.core.model.BackendSpec
 import com.postsaimanager.core.model.ModelRole
+import com.postsaimanager.core.model.ModelRuntime
 import com.postsaimanager.core.model.SpeedHint
 
 /**
@@ -56,6 +57,10 @@ object BundledCatalog {
     private const val QWEN35_4B_REV = "e87f176479d0855a907a41277aca2f8ee7a09523"
     private const val GEMMA4_E2B_REV = "675cff42a74c774d6cb76f76d8eacb49b48c9b93"
     private const val GEMMA4_E4B_REV = "4b4a2c1d584be7264f87aac328a1bc739ce81b6c"
+
+    // The AI Edge Gallery's allowlist (v1.0.20) pins for its Gemma 4 `.litertlm` files.
+    private const val GEMMA4_E2B_LITERT_REV = "6e5c4f1e395deb959c494953478fa5cec4b8008f"
+    private const val GEMMA4_E4B_LITERT_REV = "28299f30ee4d43294517a4ac93abd6163412f07f"
 
     val models: List<AiModelDescriptor> = listOf(
         AiModelDescriptor(
@@ -182,6 +187,58 @@ object BundledCatalog {
             recommendedRamGb = 16.0,
             approxRamUseGb = 6.0,
             speedHint = SpeedHint.MUCH_SLOWER,
+        ),
+        // ── LiteRT-LM builds of Gemma 4: the models of Google's AI Edge Gallery, run by the same engine (LiteRT-LM), chat only. ──
+        // The pins are the Gallery's own allowlist (v1.0.20) `commitHash`, and the sizes and hashes are the Hugging Face LFS
+        // values of exactly that revision. They chat on the GPU where the phone has one (the CPU otherwise); reading letters stays
+        // on llama.cpp, so these are never the reader. The GGUF builds above remain: same model family, the llama.cpp engine.
+        AiModelDescriptor(
+            id = "gemma-4-e2b-it-litertlm",
+            name = "Gemma 4 E2B · fast (GPU)",
+            family = "Gemma",
+            parameterCount = "E2B",
+            quantization = "LiteRT-LM",
+            sizeBytes = 2_588_147_712L,
+            // The file plus the engine's working memory; an estimate, like the others.
+            minAvailableRamBytes = 4 * GB,
+            // The window the engine starts with: the Gallery's default is 4000 tokens, and the llama.cpp chat runs at 4096 too.
+            contextTokens = 4096,
+            license = GEMMA4_LICENSE,
+            downloadUrl = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/" +
+                "resolve/$GEMMA4_E2B_LITERT_REV/gemma-4-E2B-it.litertlm",
+            sha256 = "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
+            supportsTools = false,
+            description = "Google's own LiteRT-LM build of Gemma 4, the one in the AI Edge Gallery. Chats on the phone's GPU " +
+                "when it has one. It only chats: your letters are still read by the reader model.",
+            backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            // The Gallery's own memory requirement (minDeviceMemoryInGb).
+            minRamGb = 8.0,
+            recommendedRamGb = 8.0,
+            // The file plus the engine's working memory (an estimate; information only).
+            approxRamUseGb = 3.5,
+            runtime = ModelRuntime.LITERT_LM,
+        ),
+        AiModelDescriptor(
+            id = "gemma-4-e4b-it-litertlm",
+            name = "Gemma 4 E4B · fast (GPU)",
+            family = "Gemma",
+            parameterCount = "E4B",
+            quantization = "LiteRT-LM",
+            sizeBytes = 3_659_530_240L,
+            minAvailableRamBytes = 6 * GB,
+            contextTokens = 4096,
+            license = GEMMA4_LICENSE,
+            downloadUrl = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/" +
+                "resolve/$GEMMA4_E4B_LITERT_REV/gemma-4-E4B-it.litertlm",
+            sha256 = "0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0",
+            supportsTools = false,
+            description = "The larger LiteRT-LM build of Gemma 4, from the AI Edge Gallery. Better answers, on a high-end " +
+                "phone. It only chats: your letters are still read by the reader model.",
+            backendSpec = BackendSpec(accelerators = listOf(Accelerator.GPU, Accelerator.CPU)),
+            minRamGb = 12.0,
+            recommendedRamGb = 12.0,
+            approxRamUseGb = 5.0,
+            runtime = ModelRuntime.LITERT_LM,
         ),
     )
 

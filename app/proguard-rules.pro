@@ -42,6 +42,17 @@
 -keepclasseswithmembernames,includedescriptorclasses class * { native <methods>; }
 -keep class com.postsaimanager.core.ai.local.** { *; }
 
+# LiteRT-LM (the Gallery's engine): liblitertlm_jni.so looks up its Kotlin classes, fields and methods by name (the engine,
+# conversation, message callbacks, configs, tool types), and its tool layer reads Kotlin metadata by reflection, so R8 must neither
+# rename nor strip any of them. The AAR ships no consumer rules of its own.
+-keep class com.google.ai.edge.litertlm.** { *; }
+-dontwarn com.google.ai.edge.litertlm.**
+-keep class com.postsaimanager.core.ai.litert.** { *; }
+# Gson (a LiteRT-LM dependency) builds its JSON model of Message/Tool types by reflection.
+-keepattributes Signature
+-dontwarn com.google.gson.**
+-keep class com.google.gson.** { *; }
+
 # Release logging: strip verbose/debug/info logs (they carry document ids and timings).
 # Warnings and errors stay.
 -assumenosideeffects class android.util.Log {

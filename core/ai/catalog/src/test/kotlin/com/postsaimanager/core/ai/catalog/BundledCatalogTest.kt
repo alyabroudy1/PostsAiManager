@@ -2,6 +2,7 @@ package com.postsaimanager.core.ai.catalog
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
+import com.postsaimanager.core.model.ModelRuntime
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -19,7 +20,8 @@ class BundledCatalogTest {
     @Test
     @DisplayName("every catalogue model has a reading profile, so none silently falls back to the single call")
     fun `every catalogue model id has a model profile`() {
-        BundledCatalog.models.forEach { model ->
+        // Only a model that can read documents is ever read with; a chat-only runtime's model has no reading profile.
+        BundledCatalog.models.filter { it.runtime.canReadDocuments }.forEach { model ->
             assertThat(ModelProfiles.isKnown(model.id)).isTrue()
             assertThat(ModelProfiles.of(model.id).modelId).isEqualTo(model.id)
         }
@@ -70,9 +72,57 @@ class BundledCatalogTest {
     fun `preselectable models and speed hints`() {
         val preselectable = BundledCatalog.models.filter { it.preselectable }.map { it.id }
         assertThat(preselectable).containsExactly("qwen3.5-0.8b-q4_k_m", "qwen3.5-2b-q4_k_m")
-        BundledCatalog.models.filterNot { it.preselectable }.forEach {
+        // The speed note compares with the llama.cpp reader; a model on another runtime is not slower than it for the same reason.
+        BundledCatalog.models.filter { it.runtime == ModelRuntime.LLAMA_CPP }.filterNot { it.preselectable }.forEach {
             assertThat(it.speedHint).isEqualTo(com.postsaimanager.core.model.SpeedHint.MUCH_SLOWER)
         }
+    }
+
+    @Test
+    @DisplayName("Gemma 4 on LiteRT-LM: pinned to the Gallery allowlist's revisions, with the Hugging Face hash and size, chat only")
+    fun `litert entries carry every pinned field`() {
+        val litert = BundledCatalog.models.filter { it.runtime == ModelRuntime.LITERT_LM }
+        assertThat(litert.map { it.id }).containsExactly("gemma-4-e2b-it-litertlm", "gemma-4-e4b-it-litertlm")
+
+        val e2b = litert.first { it.parameterCount == "E2B" }
+        assertThat(e2b.downloadUrl).isEqualTo(
+            "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/" +
+                "6e5c4f1e395deb959c494953478fa5cec4b8008f/gemma-4-E2B-it.litertlm",
+        )
+        assertThat(e2b.sha256).isEqualTo("181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c")
+        assertThat(e2b.sizeBytes).isEqualTo(2_588_147_712L)
+        assertThat(e2b.minRamGb).isEqualTo(8.0)
+
+        val e4b = litert.first { it.parameterCount == "E4B" }
+        assertThat(e4b.downloadUrl).isEqualTo(
+            "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/" +
+                "28299f30ee4d43294517a4ac93abd6163412f07f/gemma-4-E4B-it.litertlm",
+        )
+        assertThat(e4b.sha256).isEqualTo("0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0")
+        assertThat(e4b.sizeBytes).isEqualTo(3_659_530_240L)
+        assertThat(e4b.minRamGb).isEqualTo(12.0)
+
+        litert.forEach { model ->
+            assertThat(model.isInstallable).isTrue()
+            assertThat(model.downloadUrl).endsWith(".litertlm")
+            assertThat(model.license).isEqualTo("Apache-2.0")
+            // The GPU first, the CPU as the fallback: the engine's own order.
+            assertThat(model.backendSpec.accelerators)
+                .containsExactly(com.postsaimanager.core.model.Accelerator.GPU, com.postsaimanager.core.model.Accelerator.CPU)
+                .inOrder()
+            // It only chats: it is never the model that reads letters.
+            assertThat(model.role).isEqualTo(com.postsaimanager.core.model.ModelRole.CHAT)
+            assertThat(model.recommendedForExtraction).isFalse()
+            assertThat(model.runtime.canReadDocuments).isFalse()
+        }
+    }
+
+    @Test
+    @DisplayName("the GGUF Gemma 4 builds stay, next to the LiteRT-LM ones, on llama.cpp")
+    fun `gguf gemma entries are kept`() {
+        val gguf = BundledCatalog.models.filter { it.family == "Gemma" && it.runtime == ModelRuntime.LLAMA_CPP }
+        assertThat(gguf.map { it.id }).containsExactly("gemma-4-e2b-it-qat-q4_0", "gemma-4-e4b-it-qat-q4_0")
+        gguf.forEach { assertThat(it.downloadUrl).endsWith(".gguf") }
     }
 
     @Test
@@ -110,7 +160,7 @@ class BundledCatalogTest {
             assertThat(model.sizeBytes).isGreaterThan(100L * 1024 * 1024)
             // Rounded values (400 MB exactly) mean someone estimated rather than reading
             // the file listing, and the downloader uses this to report progress.
-            assertThat(model.sizeBytes % (1024L * 1024L)).isNotEqualTo(0L)
+            assertThat(model.sizeBytes % 1_000_000L).isNotEqualTo(0L)
         }
     }
 

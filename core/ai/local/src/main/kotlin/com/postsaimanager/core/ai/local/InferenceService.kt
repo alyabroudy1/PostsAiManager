@@ -6,13 +6,31 @@ import android.content.Intent
 import android.os.IBinder
 import android.os.RemoteException
 import android.util.Log
+import com.postsaimanager.core.ai.litert.LiteRtChatEngine
+import com.postsaimanager.core.domain.ai.AiChatMessage
+import com.postsaimanager.core.domain.ai.AiChatRole
+import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.model.Accelerator
+import com.postsaimanager.core.model.ModelLoadState
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Hosts llama.cpp in the `:inference` process.
+ * Hosts llama.cpp and LiteRT-LM in the `:inference` process.
+ *
+ * Two runtimes, one resident model: loading a model in one frees the other's, so the phone never holds both (the memory budget
+ * is one model's, and reading a letter with llama.cpp after a LiteRT-LM chat simply loads the reader again). llama.cpp does
+ * everything; LiteRT-LM (the AI Edge Gallery's engine) only chats. Both run on the one [executor] thread, so a chat reply
+ * streaming on LiteRT-LM holds it and background reading waits behind it.
  *
  * Everything native happens on the far side of a process boundary, so a C++ abort — which
  * spike Q3 measured killing the whole app — takes only this process with it. The user
@@ -33,6 +51,13 @@ class InferenceService : Service() {
     private var handle: Long = 0L
     private val cancelled = AtomicBoolean(false)
 
+    /** The LiteRT-LM chat engine; created with the service, holds no model until a `.litertlm` file is loaded. */
+    private val liteRt = LiteRtChatEngine()
+    private val liteRtScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Volatile
+    private var liteRtReply: Job? = null
+
     private val binder = object : IInferenceService.Stub() {
 
         override fun loadModel(modelPath: String?, config: InferenceConfigParcel?): Boolean {
@@ -45,6 +70,7 @@ class InferenceService : Service() {
                 // ones are allocated, never after — never two resident models at once.
                 // loadModel() in llama_jni.cpp guards this too (defense in depth), but the
                 // Kotlin-side free is what makes it happen even before that JNI call starts.
+                freeLiteRt()
                 freeHandle()
                 handle = LlamaNative.loadModel(
                     modelPath = modelPath,
@@ -280,6 +306,117 @@ class InferenceService : Service() {
 
         override fun lastLoadDevices(): String =
             submit { LlamaNative.lastLoadDevices() } ?: "none"
+
+        // ── LiteRT-LM ────────────────────────────────────────────────────────────────────────────────
+
+        override fun loadLiteRtModel(modelPath: String?, config: InferenceConfigParcel?): String? {
+            if (modelPath == null || config == null) return null
+            return submit {
+                if (!File(modelPath).exists()) return@submit null
+                // One resident model: the llama.cpp one goes before the LiteRT-LM engine starts.
+                freeHandle()
+                val result = runBlocking { liteRt.load(modelPath, config.toInferenceConfig()) }
+                if (result is com.postsaimanager.core.common.result.PamResult.Error) {
+                    Log.e(TAG, "LiteRT-LM load failed: ${result.error.userMessage}")
+                    null
+                } else {
+                    (liteRt.accelerator ?: Accelerator.CPU).name
+                }
+            }
+        }
+
+        override fun isLiteRtReady(): Boolean = liteRt.state.value is ModelLoadState.Ready
+
+        override fun openLiteRtSession(
+            conversationId: String?,
+            systemPrompt: String?,
+            roles: Array<out String>?,
+            contents: Array<out String>?,
+        ): Boolean {
+            if (conversationId == null || roles == null || contents == null || !isLiteRtReady()) return false
+            val history = roles.indices.map { AiChatMessage(roleOf(roles[it]), contents[it]) }
+            return submit {
+                runBlocking {
+                    liteRt.ensureChatSession(conversationId, systemPrompt.orEmpty(), history)
+                    liteRt.isChatSessionPrimed(conversationId)
+                }
+            } ?: false
+        }
+
+        override fun isLiteRtSessionPrimed(conversationId: String?): Boolean {
+            if (conversationId == null) return false
+            return runBlocking { liteRt.isChatSessionPrimed(conversationId) }
+        }
+
+        override fun sendLiteRtMessage(
+            userText: String?,
+            maxTokens: Int,
+            temperature: Float,
+            topK: Int,
+            topP: Float,
+            callback: ITokenCallback?,
+        ): Boolean {
+            if (userText == null || callback == null || !isLiteRtReady()) return false
+            val request = AiRequest(
+                prompt = "",
+                maxTokens = maxTokens,
+                temperature = temperature,
+                topK = topK,
+                topP = topP,
+            )
+            // Queued behind whatever the thread is doing, then holds the thread until the reply is over: tokens arrive through the
+            // oneway callback, and a llama.cpp call (background reading) queued behind this reply waits for it.
+            executor.execute {
+                val reply = liteRtScope.launch {
+                    try {
+                        liteRt.sendChatMessage(userText, request).collect { callback.onToken(it) }
+                        callback.onComplete()
+                    } catch (e: CancellationException) {
+                        // Stopped by cancelLiteRt: the client that asked for it is not waiting for a completion.
+                        throw e
+                    } catch (e: RemoteException) {
+                        Log.w(TAG, "client disconnected during a LiteRT-LM reply", e)
+                    } catch (e: Throwable) {
+                        Log.e(TAG, "LiteRT-LM reply failed", e)
+                        runCatching { callback.onError(e.message ?: "Generation failed.") }
+                    }
+                }
+                liteRtReply = reply
+                runBlocking { reply.join() }
+            }
+            return true
+        }
+
+        override fun cancelLiteRt() {
+            liteRtReply?.cancel()
+        }
+
+        override fun lastLiteRtReplyHitLimit(): Boolean = runBlocking { liteRt.lastReplyHitLimit() }
+
+        override fun commitLiteRtReply(answer: String?) {
+            if (answer == null) return
+            submit { runBlocking { liteRt.commitChatReply(answer) } }
+        }
+
+        override fun discardLiteRtReply() {
+            submit { runBlocking { liteRt.discardPendingReply() } }
+        }
+
+        override fun resetLiteRtSession() {
+            submit { runBlocking { liteRt.resetChatSession() } }
+        }
+
+        override fun unloadLiteRt() {
+            submit { freeLiteRt() }
+        }
+    }
+
+    private fun roleOf(wireName: String): AiChatRole =
+        AiChatRole.entries.firstOrNull { it.wireName == wireName } ?: AiChatRole.USER
+
+    /** Frees the LiteRT-LM model, if one is resident. Runs on the inference thread. */
+    private fun freeLiteRt() {
+        runBlocking { liteRt.unload() }
     }
 
     /** Runs [block] on the inference thread and waits — binder calls are already off-main. */
@@ -312,12 +449,19 @@ class InferenceService : Service() {
             level == ComponentCallbacks2.TRIM_MEMORY_COMPLETE
         ) {
             Log.w(TAG, "onTrimMemory($level) — freeing the resident model")
-            submit { freeHandle() }
+            submit {
+                freeHandle()
+                freeLiteRt()
+            }
         }
     }
 
     override fun onDestroy() {
-        submit { freeHandle() }
+        liteRtScope.cancel()
+        submit {
+            freeHandle()
+            freeLiteRt()
+        }
         executor.shutdown()
         super.onDestroy()
     }

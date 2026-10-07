@@ -10,6 +10,7 @@ import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.model.InstalledModel
+import com.postsaimanager.core.model.ModelRuntime
 import com.postsaimanager.core.model.ModelSource
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
@@ -53,17 +54,42 @@ class ModelImporter @Inject constructor(
         val declaredSize = querySize(uri)
 
         // Header check first — a 2 GB copy that ends in "this was not a model" is a
-        // terrible experience, and rejecting costs 24 bytes.
-        val validation = runCatching {
-            context.contentResolver.openInputStream(uri)?.use(GgufReader::validate)
+        // terrible experience, and rejecting costs a few bytes. The file says what it is (its magic): a LiteRT-LM model is
+        // recognised first, anything else is checked as a GGUF.
+        val liteRtLm = runCatching {
+            context.contentResolver.openInputStream(uri)?.use(LiteRtLmReader::validate)
         }.getOrNull() ?: return@withContext PamResult.Error(
             PamError.FileNotFound("Could not open the selected file."),
         )
+        when (liteRtLm) {
+            is LiteRtLmValidation.UnsupportedVersion -> return@withContext PamResult.Error(
+                PamError.InferenceError(
+                    "This LiteRT-LM file uses format version ${liteRtLm.header.major}.${liteRtLm.header.minor}, which this " +
+                        "app does not support.",
+                ),
+            )
+            is LiteRtLmValidation.Truncated -> return@withContext PamResult.Error(
+                PamError.InferenceError("The file is incomplete or empty."),
+            )
+            is LiteRtLmValidation.Valid, is LiteRtLmValidation.NotLiteRtLm -> Unit
+        }
+        val runtime = if (liteRtLm is LiteRtLmValidation.Valid) ModelRuntime.LITERT_LM else ModelRuntime.LLAMA_CPP
+
+        val validation = if (runtime == ModelRuntime.LITERT_LM) {
+            null
+        } else {
+            runCatching {
+                context.contentResolver.openInputStream(uri)?.use(GgufReader::validate)
+            }.getOrNull() ?: return@withContext PamResult.Error(
+                PamError.FileNotFound("Could not open the selected file."),
+            )
+        }
 
         when (validation) {
+            null -> Unit
             is GgufValidation.NotGguf -> return@withContext PamResult.Error(
                 PamError.InferenceError(
-                    "That file is not a GGUF model. Models usually end in .gguf.",
+                    "That file is not a model this app can use. Models end in .gguf or .litertlm.",
                 ),
             )
             is GgufValidation.UnsupportedVersion -> return@withContext PamResult.Error(
@@ -82,7 +108,7 @@ class ModelImporter @Inject constructor(
         }
 
         val modelsDir = File(context.filesDir, MODELS_DIR).apply { mkdirs() }
-        val target = File(modelsDir, sanitize(displayName))
+        val target = File(modelsDir, sanitize(displayName, runtime.fileExtension))
         val partial = File(modelsDir, target.name + ".importing")
 
         try {
@@ -128,6 +154,7 @@ class ModelImporter @Inject constructor(
                 contextTokens = DEFAULT_CONTEXT_TOKENS,
                 source = ModelSource.IMPORTED,
                 installedAt = System.currentTimeMillis(),
+                runtime = runtime,
             ))
             installedStore.add(model)
             PamResult.Success(model)
@@ -155,11 +182,11 @@ class ModelImporter @Inject constructor(
     }.getOrNull()
 
     /** Strips path separators so a hostile display name cannot escape the models directory. */
-    private fun sanitize(name: String): String {
+    private fun sanitize(name: String, extension: String): String {
         val cleaned = name.substringAfterLast('/').substringAfterLast('\\')
             .replace(Regex("[^A-Za-z0-9._-]"), "_")
             .take(120)
-        return if (cleaned.endsWith(".gguf")) cleaned else "$cleaned.gguf"
+        return if (cleaned.endsWith(".$extension")) cleaned else "$cleaned.$extension"
     }
 
     private companion object {

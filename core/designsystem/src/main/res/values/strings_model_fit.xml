@@ -10,5 +10,8 @@
     <string name="device_class_1">Device class: entry-level</string>
     <string name="device_class_2">Device class: mid-range</string>
     <string name="device_class_3">Device class: high-end</string>
+    <!-- Which engine runs a model: the LiteRT-LM build uses the phone's GPU, the GGUF build llama.cpp on the processor. -->
+    <string name="model_runtime_litert">Engine: LiteRT-LM, uses the GPU when the phone has one (chat only)</string>
+    <string name="model_runtime_llama_cpp">Engine: llama.cpp, runs on the processor (chat and reading letters)</string>
     <string name="model_fit_not_32bit">Not recommended: this phone\'s processor is not supported</string>
 </resources>

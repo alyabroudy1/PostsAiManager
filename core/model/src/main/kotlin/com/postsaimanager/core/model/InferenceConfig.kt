@@ -28,6 +28,8 @@ data class InferenceConfig(
     /** Layers offloaded to the accelerator. -1 = all, 0 = none (the only valid value on CPU). */
     val gpuLayers: Int = 0,
     val sampling: SamplingConfig = SamplingConfig(),
+    /** The runtime that loads the model; the chat engine router picks the engine from it. */
+    val runtime: ModelRuntime = ModelRuntime.LLAMA_CPP,
 ) {
 
     /**
@@ -42,7 +44,8 @@ data class InferenceConfig(
      * layers it offloads — needs a full reload, hence [MODEL].
      */
     fun requiresReload(other: InferenceConfig): ReloadScope = when {
-        useMmap != other.useMmap ||
+        runtime != other.runtime ||
+            useMmap != other.useMmap ||
             useMlock != other.useMlock ||
             accelerator != other.accelerator ||
             gpuLayers != other.gpuLayers -> ReloadScope.MODEL
