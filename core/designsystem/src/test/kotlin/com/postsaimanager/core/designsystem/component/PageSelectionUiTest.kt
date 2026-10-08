@@ -20,6 +20,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
+import androidx.compose.ui.test.pinch
+import androidx.compose.ui.test.doubleClick
+import androidx.compose.ui.test.click
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.model.DocumentPreview
@@ -106,7 +109,117 @@ class PageSelectionUiTest {
         assertThat(viewport.scale).isEqualTo(1f)
     }
 
+    @Test
+    fun `a two-finger pinch zooms the page in and a double tap zooms back to fit`() {
+        val viewport = PageViewport()
+        showZoomablePage(viewport)
+        compose.onNodeWithTag(PAGE_TEST_TAG).performTouchInput {
+            pinch(
+                Offset(centerX - 40f, centerY), Offset(centerX - 160f, centerY),
+                Offset(centerX + 40f, centerY), Offset(centerX + 160f, centerY),
+                durationMillis = 200,
+            )
+        }
+        compose.waitForIdle()
+        assertThat(viewport.scale).isGreaterThan(1.5f)
+        assertThat(viewport.zooming).isFalse()
+
+        compose.onNodeWithTag(PAGE_TEST_TAG).performTouchInput { doubleClick(Offset(10f, 10f)) }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
+        assertThat(viewport.scale).isEqualTo(1f)
+        assertThat(viewport.offset).isEqualTo(Offset.Zero)
+    }
+
+    // ---- zoom by layout: the text is where it looks ----
+
+    private fun showZoomablePage(viewport: PageViewport, selection: PageSelection = PageSelection()) {
+        compose.setContent {
+            CompositionLocalProvider(LocalAssumedPageImageSize provides imageSize) {
+                Box(Modifier.size(400.dp, 600.dp)) { ZoomablePage(page = page, description = "page", viewport = viewport, selection = selection) }
+            }
+        }
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun `at 2_5x with a pan a text item's window position is the visually scaled one, because the layout is scaled`() {
+        val viewport = PageViewport()
+        showZoomablePage(viewport)
+        val text = compose.onNodeWithText("Musterfirma Rechnung", useUnmergedTree = true)
+        val before = text.fetchSemanticsNode().positionInWindow
+        val boxPx = viewport.box
+        val centre = Offset(boxPx.width / 2f, boxPx.height / 2f)
+        val pageOrigin = compose.onNodeWithTag(PAGE_TEST_TAG).fetchSemanticsNode().positionInWindow
+
+        compose.runOnIdle {
+            viewport.scale = 2.5f
+            viewport.offset = Offset(-100f, -60f)
+        }
+        compose.waitForIdle()
+
+        val after = text.fetchSemanticsNode().positionInWindow
+        // Zoom about the box's centre, then the pan: p' = centre + (p - centre) * scale + offset (in the box's own coordinates).
+        val local = before - pageOrigin
+        val expected = pageOrigin + centre + (local - centre) * 2.5f + Offset(-100f, -60f)
+        assertThat(after.x).isWithin(3f).of(expected.x)
+        assertThat(after.y).isWithin(3f).of(expected.y)
+        assertThat(after.x).isNotWithin(10f).of(before.x)
+    }
+
+    @Test
+    fun `a long press on a zoomed word starts a selection without a crash`() {
+        val viewport = PageViewport()
+        val selection = PageSelection()
+        showZoomablePage(viewport, selection)
+        compose.runOnIdle {
+            viewport.scale = 2.5f
+            viewport.offset = Offset(-100f, -60f)
+        }
+        compose.waitForIdle()
+        val bounds = compose.onNodeWithText("Musterfirma Rechnung", useUnmergedTree = true).fetchSemanticsNode().boundsInWindow
+        val pageOrigin = compose.onNodeWithTag(PAGE_TEST_TAG).fetchSemanticsNode().positionInWindow
+
+        compose.onNodeWithTag(PAGE_TEST_TAG).performTouchInput {
+            down(Offset(bounds.left + bounds.width * 0.2f, bounds.center.y) - pageOrigin)
+            advanceEventTime(1_000)
+            up()
+        }
+        compose.waitForIdle()
+        // Reaching here means the long press found laid-out text in real coordinates and did not throw.
+    }
+
     // ---- Back and the selection's state ----
+
+    @Test
+    fun `a tap on the page clears a selection`() {
+        val viewport = PageViewport()
+        val selection = PageSelection()
+        showZoomablePage(viewport, selection)
+        compose.runOnIdle { selection.active = true }
+        compose.onNodeWithTag(PAGE_TEST_TAG).performTouchInput { click(Offset(10f, 10f)) }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
+        assertThat(selection.active).isFalse()
+    }
+
+    @Test
+    fun `a pinch drops the text layer and a selection, and it comes back when the fingers lift`() {
+        val viewport = PageViewport()
+        val selection = PageSelection()
+        showZoomablePage(viewport, selection)
+        compose.runOnIdle { selection.active = true }
+        compose.onNodeWithTag(PAGE_TEST_TAG).performTouchInput {
+            pinch(
+                Offset(centerX - 40f, centerY), Offset(centerX - 160f, centerY),
+                Offset(centerX + 40f, centerY), Offset(centerX + 160f, centerY),
+                durationMillis = 200,
+            )
+        }
+        compose.waitForIdle()
+        assertThat(selection.active).isFalse()
+        compose.onNodeWithText("Musterfirma Rechnung", useUnmergedTree = true).assertExists()
+    }
 
     private var closes = 0
 
