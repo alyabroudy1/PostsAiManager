@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.extraction.gemma
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterLayoutAnalyzer
+import com.postsaimanager.core.domain.extraction.text.SummaryGate
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.domain.extraction.v2.DocDirection
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
@@ -16,6 +17,7 @@ import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.OcrBlock
 import kotlinx.coroutines.CancellationException
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 /** What a Gemma reading gave: the understanding in the pipeline's own type, or why the old reading has to run instead. */
@@ -49,6 +51,7 @@ class GemmaReadingUseCase @Inject constructor(
 ) {
 
     private val adapter = ExtractionV2Adapter()
+    private val summaryGate = SummaryGate()
 
     /**
      * @param pages the OCR blocks of every page, page 1 first (empty lists for a page the OCR read nothing of)
@@ -59,10 +62,11 @@ class GemmaReadingUseCase @Inject constructor(
         imagePaths: List<String>,
         pageAspect: Float? = null,
         forcedFamily: String? = null,
+        onSummary: (suspend (String) -> Unit)? = null,
     ): GemmaReadingOutcome = try {
         val layout = LetterLayoutAnalyzer.analyze(pages)
         val lines = GemmaLetterBuilder.linesOf(layout)
-        if (lines.isEmpty()) imageOnly(imagePaths, forcedFamily) else fromText(pages, layout, lines.map { it.text }, imagePaths, pageAspect, forcedFamily)
+        if (lines.isEmpty()) imageOnly(imagePaths, forcedFamily) else fromText(pages, layout, lines.map { it.text }, imagePaths, pageAspect, forcedFamily, onSummary)
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
@@ -76,7 +80,20 @@ class GemmaReadingUseCase @Inject constructor(
         imagePaths: List<String>,
         pageAspect: Float?,
         forcedFamily: String?,
+        onSummary: (suspend (String) -> Unit)?,
     ): GemmaReadingOutcome {
+        // The reader's first turn is a short summary: checked by the summary gate against the letter's text (the facts are not read yet), and
+        // handed on at once when it passes, so the document shows what it is about while the rest is still being read. A rejected one is
+        // dropped; the text step then writes the summary as it did before.
+        val summaryStored = AtomicBoolean(false)
+        val early: (suspend (String) -> Unit)? = onSummary?.let { sink ->
+            { text ->
+                val verdict = summaryGate.check(text, layout.plainText(), emptyList())
+                if (verdict is SummaryGate.Verdict.Accepted && verdict.text.length <= MAX_EARLY_SUMMARY_CHARS && summaryStored.compareAndSet(false, true)) {
+                    sink(verdict.text)
+                }
+            }
+        }
         // ML Kit's models are downloaded on demand: until they are there, the shape candidates are all there is.
         val spans = runCatching { entities.annotate(lineTexts) }.getOrNull()
         val source = MergedCandidateSource(ExtractorCandidateSource(), spans.orEmpty())
@@ -84,6 +101,7 @@ class GemmaReadingUseCase @Inject constructor(
             reader, imagePaths,
             addressLines = { source.lastMerged?.addressLines.orEmpty() },
             letterDate = { source.lastMerged?.set?.letterDate },
+            onSummary = early,
         )
         val pipeline = ExtractionV2Pipeline(layoutReader = LayoutReader { layout }, candidateSource = source)
         val window = activeModel.activeModelConfig().contextTokens
@@ -100,7 +118,7 @@ class GemmaReadingUseCase @Inject constructor(
         val read = result.copy(
             actions = GemmaActionBinder.bind(verified.actions, result), composedTitle = title,
             event = verified.eventKind?.let { EventReading(it) },
-            enrichment = EnrichmentTicket(oneGo = true, paid = verified.paid?.id),
+            enrichment = EnrichmentTicket(oneGo = true, paid = verified.paid?.id, summaryDone = summaryStored.get()),
         )
         val merged = source.lastMerged
         // The header comes first: the data layer logs it always, so a trial reading is told apart from the usual one in the log.
@@ -134,6 +152,11 @@ class GemmaReadingUseCase @Inject constructor(
             adapter.adapt(result),
             "picture only: slots=${result.slots.size} parties=${result.parties.all.size} extras=${result.extras.size} dropped=${result.diagnostics.rejections.size}",
         )
+    }
+
+    private companion object {
+        /** The first turn is asked for at most this many characters; one far over it is not the short summary that was asked. */
+        const val MAX_EARLY_SUMMARY_CHARS = 240
     }
 
     /** The decided fields as counts and keys: what the log shows next to the engine's timing, never a word of the letter. */

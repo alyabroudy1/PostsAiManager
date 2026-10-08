@@ -18,6 +18,11 @@ class GemmaReaderRequest(
     val imagePaths: List<String>,
     /** The category as a phrase ("a bill or an invoice"): context for the answer, never a switch. */
     val forcedCategory: String? = null,
+    /**
+     * Asked for, the reader starts with a short plain-text summary of the letter and hands it here the moment it is written, while the
+     * structured answer is still being generated (never for a letter with no text: nothing could verify the summary).
+     */
+    val onSummary: (suspend (String) -> Unit)? = null,
 )
 
 sealed interface GemmaReaderOutcome {
@@ -61,16 +66,24 @@ class ChatEngineGemmaReader @Inject constructor(
 
         val imageOnly = request.letter.isImageOnly
         val schema = GemmaSchema.build(request.letter)
-        val prompt = GemmaPrompt.user(request.letter, forcedCategory = request.forcedCategory, maxChars = promptChars(config.contextTokens, images.size))
+        val maxChars = promptChars(config.contextTokens, images.size)
+        // With a summary wanted first, one conversation holds two turns: the letter and the summary question, then the field guide.
+        val turns = if (request.onSummary != null && !imageOnly) {
+            GemmaPrompt.turns(request.letter, forcedCategory = request.forcedCategory, maxChars = maxChars)
+        } else {
+            null
+        }
+        val prompt = turns?.second ?: GemmaPrompt.user(request.letter, forcedCategory = request.forcedCategory, maxChars = maxChars)
         val structured = StructuredRequest(
-            system = GemmaPrompt.system(imageOnly), prompt = prompt, schema = schema, imagePaths = images,
+            system = GemmaPrompt.system(imageOnly, summaryFirst = turns != null), prompt = prompt, schema = schema, imagePaths = images,
             maxTokens = ANSWER_TOKENS.coerceAtMost((config.contextTokens / 2).coerceAtLeast(MIN_ANSWER_TOKENS)),
             timeoutMs = TIMEOUT_MS,
+            leadPrompt = turns?.first, onLead = turns?.let { request.onSummary },
         )
         // The service enforces the timeout itself; this one only keeps a binder call that never returns from holding the reading.
         val json = withTimeoutOrNull(TIMEOUT_MS + GRACE_MS) { engine.generateStructured(structured) }
             ?: return GemmaReaderOutcome.Unavailable("no answer (the model is busy, the run failed or it took longer than ${TIMEOUT_MS / MS_PER_S} s)")
-        return GemmaReaderOutcome.Answered(json, schema, prompt, (System.nanoTime() - started) / NANOS_PER_MS, images.isNotEmpty())
+        return GemmaReaderOutcome.Answered(json, schema, (turns?.first?.let { "$it\n---\n" } ?: "") + prompt,(System.nanoTime() - started) / NANOS_PER_MS, images.isNotEmpty())
     }
 
     /** The characters of lines and candidates the window holds next to the picture, the instructions and the answer. */

@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.ai.StructuredRequest
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.sync.Mutex
@@ -26,10 +27,15 @@ class RemoteGenerateStructuredTest {
         maxTokens = 900, temperature = 0.1f, topK = 20, timeoutMs = 120_000L,
     )
 
-    private fun call(remote: IInferenceService? = service) = RemoteGenerateStructured(mutex, { remote }, UnconfinedTestDispatcher())
+    private fun call(remote: IInferenceService? = service) = RemoteGenerateStructured(
+        mutex, { remote }, UnconfinedTestDispatcher(),
+        newLead = { onText ->
+            mockk<ILeadCallback>().also { every { it.onLead(any()) } answers { onText(firstArg()) } }
+        },
+    )
 
     private fun io.mockk.MockKMatcherScope.anyCall() =
-        service.generateLiteRtStructured(any(), any(), any(), any(), any(), any(), any(), any())
+        service.generateLiteRtStructured(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
 
     @Test
     @DisplayName("the texts, the schema, the picture paths and the sampling cross the boundary and the answer comes back")
@@ -41,10 +47,39 @@ class RemoteGenerateStructuredTest {
         assertThat(answer).isEqualTo("{\"category\":\"bill\"}")
         verify(exactly = 1) {
             service.generateLiteRtStructured(
-                "the system", "the prompt", "{\"type\":\"object\"}", match { it.toList() == listOf("/files/p1.jpg") }, 900, 0.1f, 20, 120_000L,
+                "the system", "the prompt", "{\"type\":\"object\"}", match { it.toList() == listOf("/files/p1.jpg") }, 900, 0.1f, 20, 120_000L, null, null,
             )
         }
         assertThat(mutex.isLocked).isFalse()
+    }
+
+    @Test
+    @DisplayName("with a lead prompt the first turn's text comes back over the callback while the call runs, and reaches the request's listener")
+    fun `lead text is handed on`() = runTest {
+        val heard = mutableListOf<String>()
+        val led = request.copy(leadPrompt = "the lead", onLead = { heard += it })
+        val callback = slot<ILeadCallback>()
+        every {
+            service.generateLiteRtStructured(any(), any(), any(), any(), any(), any(), any(), any(), "the lead", capture(callback))
+        } answers {
+            callback.captured.onLead("A short summary.")
+            "{\"c\":1}"
+        }
+
+        val answer = call()(led)
+
+        assertThat(answer).isEqualTo("{\"c\":1}")
+        assertThat(heard).containsExactly("A short summary.")
+    }
+
+    @Test
+    @DisplayName("without a listener no callback is sent, even when a lead prompt is set")
+    fun `no listener no callback`() = runTest {
+        every { anyCall() } returns "{}"
+
+        call()(request.copy(leadPrompt = "the lead"))
+
+        verify { service.generateLiteRtStructured(any(), any(), any(), any(), any(), any(), any(), any(), "the lead", null) }
     }
 
     @Test

@@ -146,6 +146,21 @@ class GemmaTextWriterTest {
     }
 
     @Test
+    @DisplayName("when the first turn wrote the summary, only the key facts are asked and no summary is stored from this step")
+    fun `facts only`() {
+        val generator = ScriptedGenerator(listOf("""{"k":[{"l":"Telefon","v":"0800 555 0199"}]}"""))
+
+        val out = write(generator, request().let { GemmaTextRequest(it.ocrText, it.facts, it.knownValues, it.languageCode, it.paid, writeSummary = false) }) as GemmaTextOutcome.Written
+
+        assertThat(out.summaryAsked).isFalse()
+        assertThat(out.keyInfo.map { it.label to it.value }).containsExactly("Telefon" to "0800 555 0199")
+        assertThat(generator.prompts.single()).doesNotContain("one or two sentences")
+        val schema = Json.parseToJsonElement(generator.schemas.single()).jsonObject
+        assertThat(schema["properties"]!!.jsonObject.keys).containsExactly("k")
+        assertThat(schema["required"].toString()).doesNotContain("\"s\"")
+    }
+
+    @Test
     @DisplayName("the summary is capped at 160 characters in the prompt and the schema, and the token budget leaves room, so the JSON is never cut off")
     fun `summary cap and token budget`() {
         val generator = ScriptedGenerator(listOf(answerJson(good)))

@@ -203,6 +203,25 @@ class DocumentProcessingPipelineGemmaTrialTest {
     }
 
     @Test
+    @DisplayName("the summary the reader's first turn hands over is stored on the document at once, before the reading is stored")
+    fun `the early summary is stored at once`() = runTest(dispatcher) {
+        val stored = mutableListOf<String?>()
+        coEvery { documentDao.update(any()) } answers { stored += firstArg<DocumentEntity>().summary }
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding {
+                // At this moment nothing of the reading is stored yet.
+                request.onSummary!!.invoke("Early summary.")
+                assertThat(stored.last()).isEqualTo("Early summary.")
+                return gemma.copy(summary = "", summarySource = null)
+            }
+        }
+
+        pipeline(trial).processDocument("doc-1")
+
+        assertThat(stored).contains("Early summary.")
+    }
+
+    @Test
     @DisplayName("a Gemma reading writes the document's timeline event from the kind it decided, and announces the letter")
     fun `a gemma reading writes the timeline event`() = runTest(dispatcher) {
         val trial = object : GemmaTrialReading {

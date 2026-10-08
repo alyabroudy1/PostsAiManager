@@ -19,8 +19,18 @@ object GemmaPrompt {
     const val MAX_CHARS = 9_000
     const val MIN_CHARS = 3_000
 
-    fun system(imageOnly: Boolean): String = buildString {
-        append("You read one letter and answer with JSON only, in the short keys and codes the field list below explains. ")
+    /** What the reader is asked first when it starts with a summary: free text, written before anything else so it can be shown at once. */
+    const val SUMMARY_ASK = "\nFIRST, before anything else, and in plain text (not JSON): write a short summary of this document, one or two sentences of at most " +
+        "${GemmaTextWriter.MAX_SUMMARY_CHARS} characters, in the language the document is written in, saying what it is about and what it asks of its reader, if anything. " +
+        "Use only what the letter says. Answer with the summary only.\n"
+
+    /** The two messages of a reading that starts with a summary: [first] is the letter and the question for the summary, [second] the field guide. */
+    class Turns(val first: String, val second: String)
+
+    fun system(imageOnly: Boolean, summaryFirst: Boolean = false): String = buildString {
+        if (summaryFirst) append("You read one letter. When you are asked for a summary, answer in plain text; after that you answer with JSON only. ")
+        else append("You read one letter and answer with JSON only. ")
+        append("The JSON uses the short keys and codes the field list below explains. ")
         if (imageOnly) {
             append("You see the letter as a picture and nothing else: copy names and values exactly as printed; leave a text empty when you cannot read it. ")
         } else {
@@ -33,6 +43,20 @@ object GemmaPrompt {
     }
 
     fun user(letter: GemmaLetter, vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT, forcedCategory: String? = null, maxChars: Int = MAX_CHARS): String {
+        val (head, tail) = parts(letter, vocab, forcedCategory, maxChars)
+        return head + tail
+    }
+
+    /**
+     * The same text as two messages for one conversation: the letter and the question for a short plain-text summary first (so the model
+     * has read the letter, and the picture, once, and the summary can be shown at once), then the field guide whose answer is the JSON.
+     */
+    fun turns(letter: GemmaLetter, vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT, forcedCategory: String? = null, maxChars: Int = MAX_CHARS): Turns {
+        val (head, tail) = parts(letter, vocab, forcedCategory, maxChars)
+        return Turns(first = head + SUMMARY_ASK, second = "Now the details of the same letter.\n" + tail.trimStart('\n'))
+    }
+
+    private fun parts(letter: GemmaLetter, vocab: GemmaVocabulary, forcedCategory: String?, maxChars: Int): Pair<String, String> {
         val head = buildString {
             if (letter.isImageOnly) {
                 append("Read the picture of the letter.\n")
@@ -56,7 +80,7 @@ object GemmaPrompt {
         }
         // The lines are what is cut when the text is too long: the instructions after them always stay.
         val room = (maxChars - tail.length).coerceAtLeast(MIN_HEAD_CHARS)
-        return (if (head.length > room) head.take(room) + "\n" else head) + tail
+        return (if (head.length > room) head.take(room) + "\n" else head) to tail
     }
 
     private fun guide(imageOnly: Boolean, vocab: GemmaVocabulary): String = buildString {

@@ -76,6 +76,8 @@ internal class GemmaTextStage(
                 knownValues = EnrichmentTicketRebuilder.rebuild(domainDoc, storedFields).takenValues,
                 languageCode = doc.language,
                 paid = PaidState.of(ticket?.paid),
+                // The reading's first turn stored a verified summary already: only the key facts are asked (the summary is the fallback).
+                writeSummary = ticket?.summaryDone != true,
             ),
             oneGo = oneGo,
         )
@@ -114,10 +116,14 @@ internal class GemmaTextStage(
         // Re-read right before the write: the document may have been trashed or edited while the model was writing. A summary a person
         // wrote is never replaced (the policy).
         val latest = documentDao.getById(documentId)?.takeIf { it.deletedAt == null } ?: return GemmaTextStageResult.Gone
-        val summary = DocumentUnderstanding(
-            summary = written.summary.text.orEmpty(), summarySource = written.summary.origin,
-            summaryCode = written.summary.code, summaryArgs = written.summary.args,
-        )
+        val summary = if (written.summaryAsked) {
+            DocumentUnderstanding(
+                summary = written.summary.text.orEmpty(), summarySource = written.summary.origin,
+                summaryCode = written.summary.code, summaryArgs = written.summary.args,
+            )
+        } else {
+            DocumentUnderstanding()
+        }
         val updated = ReprocessOverwritePolicy.applySummary(documentMapper.toDomain(latest), summary).copy(enrichmentPending = false)
         documentDao.update(documentMapper.toEntity(updated).copy(syncStatus = latest.syncStatus))
         Log.i(TAG, "gemma texts stored for $documentId: summary=${written.summary.origin} keyInfo=${written.keyInfo.size}")

@@ -245,6 +245,8 @@ internal object LlmChatModelHelper : LlmModelHelper {
         schema: String,
         maxTokens: Int,
         timeoutMs: Long,
+        leadPrompt: String?,
+        onLead: ((String) -> Unit)?,
     ): String? =
         try {
             lastBenchmark = ""
@@ -275,14 +277,29 @@ internal object LlmChatModelHelper : LlmModelHelper {
                 timeoutMs,
             )
             try {
+                val thinkingOff = mapOf<String, Any>("enable_thinking" to false)
                 val contents = mutableListOf<Content>()
                 for (image in images) contents.add(Content.ImageBytes(image))
-                contents.add(Content.Text(prompt))
-                val answer = conversation.sendMessage(
-                    Contents.of(contents),
-                    extraContext = mapOf<String, Any>("enable_thinking" to false),
-                    responseFormat = ResponseFormat.json(schema),
-                ).toString()
+                val answer = if (leadPrompt == null) {
+                    contents.add(Content.Text(prompt))
+                    conversation.sendMessage(
+                        Contents.of(contents),
+                        extraContext = thinkingOff,
+                        responseFormat = ResponseFormat.json(schema),
+                    ).toString()
+                } else {
+                    // Two turns in one conversation (the letter and the pictures are prefilled once): the first is answered in free text, with
+                    // no response format (the conversation was created with enableResponseFormat, but a format applies per message), and is
+                    // handed on at once; the second one is the constrained JSON, and its cache holds everything of the first.
+                    contents.add(Content.Text(leadPrompt))
+                    val lead = conversation.sendMessage(Contents.of(contents), extraContext = thinkingOff).toString().trim()
+                    if (lead.isNotEmpty()) runCatching { onLead?.invoke(lead) }
+                    conversation.sendMessage(
+                        Contents.of(prompt),
+                        extraContext = thinkingOff,
+                        responseFormat = ResponseFormat.json(schema),
+                    ).toString()
+                }
                 // Read before the conversation is closed; the engine puts it on its one timing line.
                 lastBenchmark = benchmarkLine(instance)
                 answer.takeIf { it.isNotBlank() }

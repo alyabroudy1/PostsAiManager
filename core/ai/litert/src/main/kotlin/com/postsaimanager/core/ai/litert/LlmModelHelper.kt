@@ -108,6 +108,9 @@ internal interface LlmModelHelper {
      * `ConversationConfig.enableResponseFormat` and `ResponseFormat.json`), thinking off. The instance must have been started with
      * [LlmModelConfig.supportImage] when [images] is not empty. A generation still running after [timeoutMs] is cancelled. Null
      * when the engine failed, timed out or said nothing; the default says the runtime cannot constrain its output.
+     *
+     * With a [leadPrompt] the conversation has two turns: the pictures and [leadPrompt] first, answered in free text and handed to
+     * [onLead] at once; then [prompt], whose constrained answer is the result (the format is set per message).
      */
     fun generateStructured(
         instance: LlmModelInstance,
@@ -118,6 +121,8 @@ internal interface LlmModelHelper {
         schema: String,
         maxTokens: Int,
         timeoutMs: Long,
+        leadPrompt: String? = null,
+        onLead: ((String) -> Unit)? = null,
     ): String? = null
 
     /** The engine's own prefill and decode counters of the last [generateStructured], as a line for the timing log; empty when it had none. */

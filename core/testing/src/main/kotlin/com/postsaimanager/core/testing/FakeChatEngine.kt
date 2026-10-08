@@ -112,8 +112,12 @@ class FakeChatEngine(
     var structuredAnswer: String? = null
     val structuredRequests = mutableListOf<StructuredRequest>()
 
+    /** What the first turn of a two-turn request answers (handed to the request's listener before the structured answer); null: nothing. */
+    var leadAnswer: String? = null
+
     override suspend fun generateStructured(request: StructuredRequest): String? {
         structuredRequests += request
+        if (request.leadPrompt != null) leadAnswer?.let { request.onLead?.invoke(it) }
         return structuredAnswer
     }
 

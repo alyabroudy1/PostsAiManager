@@ -14,6 +14,22 @@ class GemmaPromptTest {
     private val prompt = GemmaPrompt.user(mini.letter)
 
     @Test
+    @DisplayName("the two turns split the same text: the letter and the summary question, then the field guide")
+    fun `turns`() {
+        val turns = GemmaPrompt.turns(mini.letter)
+
+        assertThat(turns.first).contains("LINES (id")
+        assertThat(turns.first).endsWith(GemmaPrompt.SUMMARY_ASK)
+        assertThat(turns.first).doesNotContain("ANSWER: one JSON object")
+        assertThat(turns.second).startsWith("Now the details")
+        assertThat(turns.second).contains("ANSWER: one JSON object")
+        assertThat(turns.second).doesNotContain("LINES (id")
+        assertThat(GemmaPrompt.SUMMARY_ASK).contains("at most 160 characters")
+        assertThat(GemmaPrompt.system(imageOnly = false, summaryFirst = true)).contains("plain text")
+        assertThat(GemmaPrompt.system(imageOnly = false)).doesNotContain("plain text")
+    }
+
+    @Test
     @DisplayName("asking the reader anything includes attending an appointment, so an appointment reminder is answered yes")
     fun `asks reader explanation`() {
         assertThat(prompt).contains("attend or be present at an appointment, bring something, pay, reply, send or sign")

@@ -111,6 +111,39 @@ class GemmaTextStageTest {
     }
 
     @Test
+    @DisplayName("a summary the reading's first turn stored is kept: the step asks only for the key facts and writes no summary over it")
+    fun `summary done`() = runBlocking {
+        coEvery { documentDao.getById("doc-1") } returns doc(summary = "The first turn's summary.")
+        coEvery { gemma.writeTexts(any()) } returns GemmaTextsOutcome.Done(
+            GemmaTextOutcome.Written(
+                SummaryWriter.templateOf(SummaryFacts("receipt")), listOf(KeyInfoVerifier.Kept("Bon-Nr", "4711")), 12L, emptyList(), summaryAsked = false,
+            ),
+        )
+        val request = slot<GemmaTextsRequest>()
+        val updated = slot<DocumentEntity>()
+
+        assertThat(stage.run("doc-1", ticket.copy(summaryDone = true))).isSameInstanceAs(GemmaTextStageResult.Stored)
+
+        coVerify { gemma.writeTexts(capture(request)) }
+        assertThat(request.captured.text.writeSummary).isFalse()
+        coVerify { documentDao.update(capture(updated)) }
+        assertThat(updated.captured.summary).isEqualTo("The first turn's summary.")
+        assertThat(updated.captured.enrichmentPending).isFalse()
+    }
+
+    @Test
+    @DisplayName("without a first-turn summary the step writes it, as the fallback")
+    fun `summary asked as fallback`() = runBlocking {
+        coEvery { gemma.writeTexts(any()) } returns written()
+        val request = slot<GemmaTextsRequest>()
+
+        stage.run("doc-1", ticket)
+
+        coVerify { gemma.writeTexts(capture(request)) }
+        assertThat(request.captured.text.writeSummary).isTrue()
+    }
+
+    @Test
     @DisplayName("a template summary (no sentence passed its check) settles the summary as well")
     fun `template`() = runBlocking {
         coEvery { gemma.writeTexts(any()) } returns written(SummaryWriter.templateOf(SummaryFacts("receipt")))

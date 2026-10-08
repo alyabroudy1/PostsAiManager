@@ -135,6 +135,8 @@ data class RecognisedFact(
  *   the reader's own text step writes. False for a staged reading, whose second stage decides more.
  * @property paid the reader's answer to "has it been paid already?" (a `PaidState` id) for a one-go reading, so the summary is written
  *   knowing it; null when the reading did not say.
+ * @property summaryDone the reading's first turn wrote a verified summary that is stored already: the text step then asks only for the
+ *   key facts. False when no summary was written (the step writes it, as the fallback).
  */
 @Serializable
 data class EnrichmentTicket(
@@ -148,6 +150,7 @@ data class EnrichmentTicket(
     val userFamily: String? = null,
     val oneGo: Boolean = false,
     val paid: String? = null,
+    val summaryDone: Boolean = false,
 )
 
 /**

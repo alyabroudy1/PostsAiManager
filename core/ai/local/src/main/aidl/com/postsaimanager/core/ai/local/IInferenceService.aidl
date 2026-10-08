@@ -3,6 +3,7 @@ package com.postsaimanager.core.ai.local;
 import com.postsaimanager.core.ai.local.InferenceConfigParcel;
 import com.postsaimanager.core.ai.local.ITokenCallback;
 import com.postsaimanager.core.ai.local.ILiteRtReplyCallback;
+import com.postsaimanager.core.ai.local.ILeadCallback;
 
 /**
  * Inference running in a separate process.
@@ -218,8 +219,12 @@ interface IInferenceService {
      * [imagePaths] (files only: no picture bytes cross the binder), generated outside the chat session (see
      * `LiteRtChatEngine.generateStructured`). Not queued, like [generateLiteRtOnce]: null at once when a reply or a warm-up is in flight,
      * when no LiteRT-LM model is resident, when the generation failed or ran past [timeoutMs]. Blocking while it generates.
+     *
+     * With a [leadPrompt] the conversation has two turns: the first message (the pictures and [leadPrompt]) is answered in free text,
+     * which goes to [leadCallback] the moment it is complete; then [prompt] is asked in the same conversation and its constrained
+     * answer is returned. Without one, [prompt] alone carries the pictures. [leadCallback] may be null.
      */
-    String generateLiteRtStructured(String system, String prompt, String schema, in String[] imagePaths, int maxTokens, float temperature, int topK, long timeoutMs);
+    String generateLiteRtStructured(String system, String prompt, String schema, in String[] imagePaths, int maxTokens, float temperature, int topK, long timeoutMs, String leadPrompt, ILeadCallback leadCallback);
 
     /** Frees the LiteRT-LM model. */
     void unloadLiteRt();

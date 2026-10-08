@@ -296,6 +296,49 @@ class GemmaReadingUseCaseTest {
         assertThat(u.entities.all { it.confidence < 0.75f }).isTrue()
     }
 
+    /** A reader whose first turn writes [summary] (when asked for one) before its structured answer, as the engine does. */
+    private fun summaryFirst(summary: String) = ScriptedReader { r ->
+        runBlocking { r.onSummary?.invoke(summary) }
+        GemmaReaderOutcome.Answered(goodAnswer(r.letter), GemmaSchema.build(r.letter), "", ms = 1L, usedImage = r.imagePaths.isNotEmpty())
+    }
+
+    @Test
+    @DisplayName("the first turn's summary is checked against the letter and handed on at once, and the ticket says it is done")
+    fun `a verified summary is handed on`() {
+        val heard = mutableListOf<String>()
+        val summary = "Ein Mobilfunkanbieter mahnt eine offene Rechnung an und verlangt 64,98 € zur Begleichung."
+        val reader = summaryFirst(summary)
+
+        val outcome = runBlocking { useCase(reader)(pages, listOf("/p1.png"), pageAspect = 0.707f, onSummary = { heard += it }) } as GemmaReadingOutcome.Read
+
+        assertThat(heard).containsExactly(summary)
+        assertThat(reader.requests.single().onSummary).isNotNull()
+        assertThat(outcome.understanding.enrichment?.summaryDone).isTrue()
+    }
+
+    @Test
+    @DisplayName("a first-turn summary with a number the letter does not hold is dropped: nothing is handed on and the text step writes it")
+    fun `an invented summary is dropped`() {
+        val heard = mutableListOf<String>()
+
+        val outcome = runBlocking {
+            useCase(summaryFirst("Die Zahlung von 999,99 € ist sofort fällig."))(pages, listOf("/p1.png"), pageAspect = 0.707f, onSummary = { heard += it })
+        } as GemmaReadingOutcome.Read
+
+        assertThat(heard).isEmpty()
+        assertThat(outcome.understanding.enrichment?.summaryDone).isFalse()
+    }
+
+    @Test
+    @DisplayName("without a listener the reader is not asked for a first-turn summary")
+    fun `no listener no summary turn`() {
+        val reader = summaryFirst("Nordlicht Mobilfunk GmbH erinnert an die Zahlung von 64,98 €.")
+
+        read(reader)
+
+        assertThat(reader.requests.single().onSummary).isNull()
+    }
+
     @Test
     @DisplayName("a page with no text and no picture cannot be read by the trial")
     fun `nothing to read`() {

@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -640,9 +641,18 @@ class LiteRtChatEngine internal constructor(
                 temperature = request.temperature,
                 supportImage = live.supportsImage,
             )
+            // The first turn's text (the summary) is handed on the moment it is written; its time since the start is the time-to-summary.
+            var leadMs = -1L
+            val onLead: ((String) -> Unit)? = request.onLead?.let { sink ->
+                { text ->
+                    leadMs = (System.nanoTime() - started) / 1_000_000
+                    runBlocking { sink(text) }
+                }
+            }
             val answer = withContext(Dispatchers.IO) {
                 helper.generateStructured(
                     live, modelConfig, request.system, request.prompt, images, request.schema, request.maxTokens, request.timeoutMs,
+                    request.leadPrompt, onLead,
                 )
             }
             conversationSampling = null
@@ -651,6 +661,7 @@ class LiteRtChatEngine internal constructor(
             TimingLog.log(
                 "reader: structured answer total=${(System.nanoTime() - started) / 1_000_000}ms backend=${live.accelerator} " +
                     "image=${if (images.isNotEmpty()) "yes(${images.size})" else "no"} json=${answer?.length ?: -1} chars " +
+                    "${if (request.leadPrompt != null) "lead=${if (leadMs >= 0) "${leadMs}ms" else "none"} " else ""}" +
                     helper.lastBenchmark.ifBlank { "bench: none" },
             )
             return answer

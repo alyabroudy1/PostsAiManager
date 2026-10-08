@@ -39,6 +39,34 @@ class ChatEngineGemmaReaderTest {
     }
 
     @Test
+    @DisplayName("asked for a summary first, the request has two turns (the letter with the summary question, then the field guide) and hands the first answer on")
+    fun `two turns`() {
+        val heard = mutableListOf<String>()
+        engine.leadAnswer = "A short summary."
+
+        read(GemmaReaderRequest(letter, listOf("/p1.png"), onSummary = { heard += it }))
+
+        val request = engine.structuredRequests.single()
+        assertThat(request.leadPrompt).contains("L1 |")
+        assertThat(request.leadPrompt).contains("plain text")
+        assertThat(request.leadPrompt).doesNotContain("ANSWER: one JSON object")
+        assertThat(request.prompt).contains("ANSWER: one JSON object")
+        assertThat(request.prompt).doesNotContain("L1 |")
+        assertThat(request.system).contains("plain text")
+        assertThat(heard).containsExactly("A short summary.")
+    }
+
+    @Test
+    @DisplayName("not asked for a summary, or a picture-only letter, the request is the one message as before")
+    fun `one turn`() {
+        read()
+        read(GemmaReaderRequest(GemmaLetter(emptyList(), emptyList()), listOf("/p1.png"), onSummary = {}))
+
+        assertThat(engine.structuredRequests.map { it.leadPrompt }).containsExactly(null, null)
+        assertThat(engine.structuredRequests.map { it.onLead }).containsExactly(null, null)
+    }
+
+    @Test
     @DisplayName("the text of the lines is cut to what the window holds next to the picture, the field guide after it always stays")
     fun `prompt fits the window`() {
         provider.contextTokens = 2048

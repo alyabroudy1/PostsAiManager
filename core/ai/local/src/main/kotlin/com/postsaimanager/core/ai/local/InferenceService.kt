@@ -524,13 +524,20 @@ class InferenceService : Service() {
             temperature: Float,
             topK: Int,
             timeoutMs: Long,
+            leadPrompt: String?,
+            leadCallback: ILeadCallback?,
         ): String? {
             if (system == null || prompt == null || schema == null || !isLiteRtReady()) return null
             // Quiet work, as generateLiteRtOnce: skipped, never queued behind a reply or a warm-up.
             if (liteRtReply?.isActive == true || liteRtWarmUp?.isActive == true) return null
+            val onLead: (suspend (String) -> Unit)? =
+                if (leadCallback == null) null else { text -> runCatching { leadCallback.onLead(text) } }
             val request = StructuredRequest(
                 system = system, prompt = prompt, schema = schema, imagePaths = imagePaths?.toList().orEmpty(),
                 maxTokens = maxTokens, temperature = temperature, topK = topK, timeoutMs = timeoutMs,
+                leadPrompt = leadPrompt,
+                // The first turn's text goes straight back over the (oneway) callback; a dead app process only loses it.
+                onLead = onLead,
             )
             return submit { runBlocking { liteRt.generateStructured(request) } }
         }

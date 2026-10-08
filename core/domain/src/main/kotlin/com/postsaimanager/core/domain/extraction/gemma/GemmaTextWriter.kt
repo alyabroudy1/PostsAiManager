@@ -37,12 +37,21 @@ class GemmaTextRequest(
     val languageCode: String?,
     /** The reader's answer to "has it been paid already?", so the summary never asks for a payment that was made. */
     val paid: PaidState?,
+    /** False when the summary was written already (the reading's first turn): only the key facts are asked. */
+    val writeSummary: Boolean = true,
 )
 
 sealed interface GemmaTextOutcome {
 
     /** [summary] always exists (the model's sentences, or the template when none passed its check); [keyInfo] may be empty. */
-    class Written(val summary: SummaryResult, val keyInfo: List<KeyInfoVerifier.Kept>, val ms: Long, val notes: List<String>) : GemmaTextOutcome
+    class Written(
+        val summary: SummaryResult,
+        val keyInfo: List<KeyInfoVerifier.Kept>,
+        val ms: Long,
+        val notes: List<String>,
+        /** False when no summary was asked ([GemmaTextRequest.writeSummary]): [summary] is then only the template and is not to be stored. */
+        val summaryAsked: Boolean = true,
+    ) : GemmaTextOutcome
 
     /** The step could not run (no model, busy, failed or too slow): nothing was written, and it is asked again later. */
     class Unavailable(val reason: String) : GemmaTextOutcome
@@ -73,7 +82,7 @@ class GemmaTextWriter @Inject constructor(
     suspend fun write(request: GemmaTextRequest): GemmaTextOutcome {
         val started = System.nanoTime()
         val notes = mutableListOf<String>()
-        val schema = schema()
+        val schema = schema(request.writeSummary)
         var keyInfo: List<KeyInfoVerifier.Kept>? = null
         for (attempt in 0 until SummaryWriter.MAX_ASKS) {
             val answer = generator.generate(SYSTEM, prompt(request, antiCopy = attempt > 0), schema, MAX_TOKENS)
@@ -92,6 +101,10 @@ class GemmaTextWriter @Inject constructor(
                     if (it.size < facts.size) notes += "${facts.size - it.size} key fact(s) dropped: not in the letter, a repeat of a read value, or over the limit"
                 }
             }
+            // The summary was written by the reading's first turn: only the key facts were asked, and nothing of a summary is stored here.
+            if (!request.writeSummary) {
+                return GemmaTextOutcome.Written(SummaryWriter.templateOf(request.facts), keyInfo.orEmpty(), msSince(started), notes, summaryAsked = false)
+            }
             when (val verdict = gate.check(parsed.first, request.ocrText, request.facts.values() + request.knownValues)) {
                 is SummaryGate.Verdict.Accepted ->
                     return GemmaTextOutcome.Written(SummaryResult(verdict.text, SummarySource.MODEL, null, emptyList()), keyInfo.orEmpty(), msSince(started), notes)
@@ -108,25 +121,28 @@ class GemmaTextWriter @Inject constructor(
         if (entries.isEmpty()) append("- none\n")
         entries.forEach { (role, value) -> append("- ").append(role).append(": ").append(value).append('\n') }
         request.paid?.let { append("\nPAYMENT: ").append(it.sentence).append(".\n") }
-        append("\nANSWER the JSON object with two keys.\n")
-        append("- ${KEY_SUMMARY}: one or two sentences, at most ${SummaryWriter.MAX_WORDS} words and at most $MAX_SUMMARY_CHARS characters, saying what the reader must know or do. Use only the facts and the letter. ")
-        append(request.languageCode?.trim()?.takeIf { it.isNotEmpty() }?.let { "Write in the language with the code \"$it\". " } ?: "Write it in the letter's own language. ")
-        if (request.paid == PaidState.ALREADY_PAID) append("The document says everything is already paid: never ask the reader to pay. ")
-        if (antiCopy) append("Do not copy any line of the letter; put it in your own words. ")
-        append('\n')
+        append(if (request.writeSummary) "\nANSWER the JSON object with two keys.\n" else "\nANSWER the JSON object with one key.\n")
+        if (request.writeSummary) {
+            append("- ${KEY_SUMMARY}: one or two sentences, at most ${SummaryWriter.MAX_WORDS} words and at most $MAX_SUMMARY_CHARS characters, saying what the reader must know or do. Use only the facts and the letter. ")
+            append(request.languageCode?.trim()?.takeIf { it.isNotEmpty() }?.let { "Write in the language with the code \"$it\". " } ?: "Write it in the letter's own language. ")
+            if (request.paid == PaidState.ALREADY_PAID) append("The document says everything is already paid: never ask the reader to pay. ")
+            if (antiCopy) append("Do not copy any line of the letter; put it in your own words. ")
+            append('\n')
+        }
         append("- ${KEY_FACTS}: up to $MAX_FACTS other facts a person would need from THIS document that are not among the facts above, ")
         append("each {${KEY_LABEL}: a label of one to four words without digits or full stops, ${KEY_VALUE}: the value copied exactly as printed}. ")
         append("An empty list when there is nothing more.")
     }
 
-    private fun schema(): String = buildJsonObject {
+    private fun schema(withSummary: Boolean): String = buildJsonObject {
         put("type", "object")
         put(
             "properties",
             JsonObject(
-                linkedMapOf<String, JsonElement>(
-                    KEY_SUMMARY to buildJsonObject { put("type", "string"); put("maxLength", MAX_SUMMARY_CHARS) },
-                    KEY_FACTS to buildJsonObject {
+                linkedMapOf<String, JsonElement>().apply {
+                    if (withSummary) put(KEY_SUMMARY, buildJsonObject { put("type", "string"); put("maxLength", MAX_SUMMARY_CHARS) })
+                    put(
+                    KEY_FACTS, buildJsonObject {
                         put("type", "array")
                         put("maxItems", MAX_FACTS)
                         put(
@@ -145,10 +161,11 @@ class GemmaTextWriter @Inject constructor(
                             },
                         )
                     },
-                ),
+                    )
+                },
             ),
         )
-        putJsonArray("required") { add(JsonPrimitive(KEY_SUMMARY)); add(JsonPrimitive(KEY_FACTS)) }
+        putJsonArray("required") { if (withSummary) add(JsonPrimitive(KEY_SUMMARY)); add(JsonPrimitive(KEY_FACTS)) }
         put("additionalProperties", false)
     }.toString()
 
@@ -162,8 +179,8 @@ class GemmaTextWriter @Inject constructor(
 
     private fun msSince(started: Long) = (System.nanoTime() - started) / NANOS_PER_MS
 
-    private companion object {
-        const val SYSTEM = "You write two short texts about one letter and answer with JSON only. Never invent a name, a number or a date: use what the letter and the facts say."
+    companion object {
+        private const val SYSTEM = "You write two short texts about one letter and answer with JSON only. Never invent a name, a number or a date: use what the letter and the facts say."
         const val KEY_SUMMARY = "s"
         const val KEY_FACTS = "k"
         const val KEY_LABEL = "l"

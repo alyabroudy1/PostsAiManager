@@ -8,6 +8,10 @@ package com.postsaimanager.core.domain.ai
  * @property imagePaths files of the pictures that go in front of [prompt] (paths only: no picture bytes cross the process boundary);
  *   the engine starts its vision encoder when there is one
  * @property timeoutMs the engine stops the generation when it takes longer than this, and answers null
+ * @property leadPrompt when set, the conversation has two turns: this first message (with the pictures) is answered in free text, which
+ *   goes to [onLead] at once; then [prompt] is asked in the same conversation (nothing is prefilled twice) and its answer, constrained
+ *   to [schema], is the result. When null the one message [prompt] carries the pictures and its answer is the result.
+ * @property onLead receives the free-text answer of the first turn the moment it is complete, while the second turn still runs
  */
 data class StructuredRequest(
     val system: String,
@@ -19,6 +23,8 @@ data class StructuredRequest(
     val topK: Int = DEFAULT_TOP_K,
     val topP: Float = DEFAULT_TOP_P,
     val timeoutMs: Long = DEFAULT_TIMEOUT_MS,
+    val leadPrompt: String? = null,
+    val onLead: (suspend (String) -> Unit)? = null,
 ) {
     companion object {
         const val DEFAULT_MAX_TOKENS = 1024

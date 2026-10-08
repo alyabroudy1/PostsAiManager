@@ -17,6 +17,8 @@ class GemmaTrialRequest(
     val pageAspect: Float?,
     val forcedFamily: String?,
     val reprocess: Boolean,
+    /** Called with the verified summary the moment the reader's first turn has written it, long before the reading is finished. */
+    val onSummary: (suspend (String) -> Unit)? = null,
 )
 
 /**

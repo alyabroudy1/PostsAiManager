@@ -44,6 +44,8 @@ import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.DocumentUnderstanding
+import com.postsaimanager.core.model.SummarySource
+import com.postsaimanager.core.common.util.TimingLog
 import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.ExtractionResult
 import com.postsaimanager.core.model.FactKind
@@ -332,8 +334,12 @@ class DocumentProcessingPipeline @Inject constructor(
                     ?.takeIf { it.width > 0 && it.height > 0 }?.let { it.width.toFloat() / it.height }
                 // The trial first (off by default, and then null at once): a Gemma reading in the same output type, or null when the
                 // trial is off, Gemma is not installed, busy, failed or too slow, and the reading below runs as it always did.
+                val readStarted = System.nanoTime()
                 val trialReading = gemmaTrial.read(
                     GemmaTrialRequest(
+                        // The reader's first turn is a short summary: stored on the document the moment it passes the gate, so the list and
+                        // the detail page show what the document is about while the structured reading is still being generated.
+                        onSummary = { text -> storeEarlySummary(documentId, text, readStarted) },
                         documentId = documentId,
                         pages = ocrByPage.map { (_, result) -> result?.blocks.orEmpty() },
                         pageImagePaths = ocrByPage.map { (page, _) -> page.imagePath },
@@ -685,6 +691,25 @@ class DocumentProcessingPipeline @Inject constructor(
      *
      * Each step is wrapped on its own: a document is complete without them, so one failing is logged and never stops the next.
      */
+    /**
+     * Stores the summary the Gemma reader wrote as its first turn, ahead of the rest of the reading ([ReprocessOverwritePolicy]: a summary
+     * a person wrote is never replaced). Re-read from the database right before the write, so nothing else stored meanwhile is lost. The
+     * reading's own stored result (written later from a fresh read of the row) keeps it. Never fails the reading.
+     */
+    private suspend fun storeEarlySummary(documentId: String, text: String, startedNanos: Long) {
+        try {
+            val doc = documentDao.getById(documentId)?.takeIf { it.deletedAt == null } ?: return
+            val summary = DocumentUnderstanding(summary = text, summarySource = SummarySource.MODEL)
+            val updated = ReprocessOverwritePolicy.applySummary(documentMapper.toDomain(doc), summary)
+            documentDao.update(documentMapper.toEntity(updated).copy(syncStatus = doc.syncStatus))
+            TimingLog.log("reader: $documentId summary stored time-to-summary=${msSince(startedNanos)}ms")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "early summary of $documentId not stored: ${e.javaClass.simpleName}")
+        }
+    }
+
     private suspend fun afterReading(documentId: String, read: DocumentUnderstanding, staged: Boolean) {
         val linkStarted = System.nanoTime()
         runCatching { entityProfileLinker.process(documentId, read) }
