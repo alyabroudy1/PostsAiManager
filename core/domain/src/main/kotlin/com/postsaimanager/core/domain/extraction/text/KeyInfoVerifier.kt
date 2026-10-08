@@ -7,7 +7,8 @@ import com.postsaimanager.core.domain.extraction.v2.QuoteVerifier
  * and the labels are kept as the model wrote them (they are shown, never interpreted).
  *
  * A fact is dropped when
- * - its label or value is empty;
+ * - its label or value is empty, or the label is not a label by shape ([KeyInfoFormat.isLabelShape]: 1..4 words, at most 30 characters, no
+ *   digit, no sentence punctuation), so a sentence fragment never becomes one;
  * - its value is not in the letter: [QuoteVerifier] (the same check every quoted value passes, folded for case, spacing, punctuation,
  *   accents and Arabic spelling variants), a one-word value only exactly, and every digit run of the value must occur in the letter, so
  *   an amount, date or number the model changed by a digit is not "roughly there";
@@ -35,6 +36,7 @@ class KeyInfoVerifier {
             val label = fact.label.trim()
             val value = fact.value.trim()
             if (label.isEmpty() || value.isEmpty()) continue
+            if (!KeyInfoFormat.isLabelShape(label)) continue
             if (!grounded(value, ocrText, letterDigits)) continue
             if (!taken.add(key(value))) continue
             kept += Kept(label, value)

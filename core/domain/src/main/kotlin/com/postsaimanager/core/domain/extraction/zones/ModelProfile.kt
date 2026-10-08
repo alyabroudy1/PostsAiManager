@@ -131,6 +131,10 @@ object ModelProfiles {
                 ) + ExtractionSchema.DEFAULT.allSlots.filter { it.kind == SlotKind.REFERENCE || it.kind == SlotKind.REFERENCE_LIST || it.isOptionalValue() }
                     .map { QuestionNames.slot(it.json) }
                 ).associateWith { 0.0 },
+            // A party's best candidates are asked once more whether they are a field label or a heading ("Ansprechpartnerin", "Leistung"):
+            // dropped when that beats a made-up name by this margin. A cautious, unfitted 2.0 log-odds (a real name must not be dropped);
+            // the per-ask trace lines of a debug build hold the scores to fit it from normal use.
+            fieldLabelMargin = 2.0,
             // The meaning of a date or an amount ("what does this date mean?") is read against the same kind of baseline; every margin is the
             // unfitted 0.0 (defaultMeaningMargin) until a device recording holds the baseline scores.
             // Fitted on the 137 scored answers of the 16 letters (ConfidenceCalibrationTest). HIGH: a margin of 0.2 over the runner-up

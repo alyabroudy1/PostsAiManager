@@ -35,6 +35,15 @@ class KeyInfoVerifierTest {
     }
 
     @Test
+    fun `a label that is a sentence fragment is dropped even when its value is in the letter`() {
+        assertThat(verify("3. The letter indicates that the new 1.0" to "01.01.2027")).isEmpty()
+        assertThat(verify("Der Vertrag beginnt am 01.01.2027" to "01.01.2027")).isEmpty()
+        assertThat(verify("Eins zwei drei vier fünf" to "01.01.2027")).isEmpty()
+        assertThat(verify("Beginn." to "01.01.2027")).isEmpty()
+        assertThat(verify("Vertragsbeginn" to "01.01.2027")).hasSize(1)
+    }
+
+    @Test
     fun `an empty value or label is dropped`() {
         assertThat(verify("Leer" to "", "" to "1EMH0012345678", "  " to "01.01.2027")).isEmpty()
     }
@@ -57,7 +66,7 @@ class KeyInfoVerifierTest {
     @Test
     fun `no more than the most facts are kept`() {
         val big = "x".repeat(1) + (1..20).joinToString("\n") { "Z$it" }
-        val many = (1..20).map { KeyInfoFormat.Fact("L$it", "Z$it") }
+        val many = (1..20).map { KeyInfoFormat.Fact("Label ${'a' + it}", "Z$it") }
         val kept = KeyInfoVerifier().verify(many, big, emptyList())
         assertThat(kept).hasSize(KeyInfoFormat.MAX_FACTS)
     }

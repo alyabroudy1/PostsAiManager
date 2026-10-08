@@ -19,9 +19,10 @@ class ExtractorVersionTest {
     }
 
     @Test
-    @DisplayName("the timeline-event extractor is extraction-v2-17, and a document the previous one read is outdated")
+    @DisplayName("the tiered-cascade extractor is extraction-v2-18, and a document the previous one read is outdated")
     fun typeLabelVersion() {
-        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-17")
+        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-18")
+        assertThat(ExtractorVersion.isOutdated("extraction-v2-17")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-16")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-15")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-14")).isTrue()

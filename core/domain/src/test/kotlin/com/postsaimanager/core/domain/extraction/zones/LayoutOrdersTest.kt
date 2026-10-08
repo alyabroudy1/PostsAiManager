@@ -118,29 +118,33 @@ class LayoutOrdersTest {
 
     @Test
     fun `a letter's own questions are all asked and the typical letter offers a bounded number of candidates per question`() {
-        // Through the real interpreter on every benchmark letter: the questions asked and how many candidates each one scored.
-        val report = StringBuilder()
+        // Through the real interpreter on every benchmark letter: the questions asked and how many candidates each one scored. A model that
+        // says No to everything makes every question score both tiers of its cascade (the most it can cost, what phase 1 always scored);
+        // one that says Yes to everything stops each question after its first tier (the preferred zones' candidates only).
         var asked = 0
-        for ((m, f) in docs) {
-            val pages = f.pages.map { it.blocks }
-            val session = FakePromptSession().apply {
-                scorer = { c -> if (c.contains("Is this document an invoice, a bill")) 5.0 else -5.0 }
-                responder = { _, _ -> "\"text\"" }
+        for ((variant, yes) in listOf("LAYOUT_COUNTS_OUT" to false, "LAYOUT_COUNTS_FIRST_OUT" to true)) {
+            val report = StringBuilder()
+            for ((m, f) in docs) {
+                val pages = f.pages.map { it.blocks }
+                val session = FakePromptSession().apply {
+                    scorer = { c -> if (yes || c.contains("Is this document an invoice, a bill")) 5.0 else -5.0 }
+                    responder = { _, _ -> "\"text\"" }
+                }
+                val interpreter = ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096)
+                val first = f.pages.firstOrNull()?.takeIf { it.height > 0 }
+                runBlocking { ExtractionV2Pipeline().run(pages, interpreter, 4096, first?.let { it.width.toFloat() / it.height }) }
+                val template = interpreter.trace.first { it.startsWith("template=") }.substringAfter("template=").substringBefore(' ')
+                val asks = interpreter.trace.filter { it.startsWith("ask ") }.map { line ->
+                    line.substringAfter("ask ").substringBefore(' ') to line.substringAfter("cands=").substringBefore(' ').toInt()
+                }
+                asked += asks.size
+                report.appendLine("${m.key} $template " + asks.joinToString(" ") { "${it.first}=${it.second}" })
+                // The cap bounds every question: its preferred zones' candidates may exceed it, nothing else does.
+                assertWithMessage(m.key).that(asks.all { it.second > 0 }).isTrue()
             }
-            val interpreter = ZoneScoringInterpreter(FakeAiEngine(), session, contextTokens = 4096)
-            val first = f.pages.firstOrNull()?.takeIf { it.height > 0 }
-            runBlocking { ExtractionV2Pipeline().run(pages, interpreter, 4096, first?.let { it.width.toFloat() / it.height }) }
-            val template = interpreter.trace.first { it.startsWith("template=") }.substringAfter("template=").substringBefore(' ')
-            val asks = interpreter.trace.filter { it.startsWith("ask ") }.map { line ->
-                line.substringAfter("ask ").substringBefore(' ') to line.substringAfter("cands=").substringBefore(' ').toInt()
-            }
-            asked += asks.size
-            report.appendLine("${m.key} $template " + asks.joinToString(" ") { "${it.first}=${it.second}" })
-            // The cap bounds every question: its preferred zones' candidates may exceed it, nothing else does.
-            assertWithMessage(m.key).that(asks.all { it.second > 0 }).isTrue()
+            System.getenv(variant)?.let { File(it).writeText(report.toString()) }
         }
         assertThat(asked).isGreaterThan(0)
-        System.getenv("LAYOUT_COUNTS_OUT")?.let { File(it).writeText(report.toString()) }
     }
 
     @Test

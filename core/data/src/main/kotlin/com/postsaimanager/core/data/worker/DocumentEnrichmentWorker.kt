@@ -3,10 +3,13 @@ package com.postsaimanager.core.data.worker
 import android.content.Context
 import android.util.Log
 import androidx.hilt.work.HiltWorker
+import androidx.work.BackoffPolicy
 import androidx.work.CoroutineWorker
 import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.postsaimanager.core.common.result.PamResult
@@ -17,6 +20,7 @@ import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.EnrichmentTicket
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
 
 /**
@@ -24,8 +28,8 @@ import kotlinx.serialization.json.Json
  * questions, written after the first stage's result (family, parties, amounts, dates, addresses) is already stored and shown.
  *
  * Quiet like [ReprocessDocumentWorker]: no notification and no status (the document stays EXTRACTED), no retry of its own. It is
- * one unique work per document ([workName]), it never starts while a scan is queued or being read (it asks WorkManager to try again
- * later), and a new scan cancels it (`DocumentProcessingPipeline.enqueue`); the pipeline keeps the ticket and schedules it again once
+ * one unique work per document ([workName]), it never starts while a scan is queued or being read (it queues itself again after a short
+ * fixed delay, [RETRY_DELAY_SECONDS]), and a new scan cancels it (`DocumentProcessingPipeline.enqueue`); the pipeline keeps the ticket and schedules it again once
  * the scan's first stage is stored.
  *
  * The ticket travels as one JSON value ([KEY_TICKET]). Work queued without one (see [DocumentProcessor.enqueueEnrichment]) runs with a
@@ -44,14 +48,14 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
         val documentId = inputData.getString(KEY_DOCUMENT_ID) ?: return Result.failure()
         val ticket = ticketOf(inputData)
 
-        // A scan goes first: come back later (WorkManager's own backoff decides when).
+        // A scan goes first: come back shortly (a fixed short delay, never WorkManager's exponential backoff, which grew to hours).
         val scansInFlight = documentDao.getByStatus(DocumentStatus.QUEUED.name).isNotEmpty() ||
             documentDao.getByStatus(DocumentStatus.PROCESSING.name).isNotEmpty()
-        if (scansInFlight) return Result.retry()
+        if (scansInFlight) return tryAgainSoon(documentId)
 
         // Quiet work must not replace the chat model between two chat messages (the next message would reload it and read the whole
-        // conversation again): wait for the chat to be idle, and come back later when it is not. Nothing is dropped.
-        if (!chatActivity.awaitIdle()) return Result.retry()
+        // conversation again): wait for the chat to be idle, and come back shortly when it is not. Nothing is dropped.
+        if (!chatActivity.awaitIdle()) return tryAgainSoon(documentId)
 
         // The same quiet background queue also carries "who is this letter for or about?" (see [peopleRequest]).
         if (inputData.getBoolean(KEY_PEOPLE_CHECK, false)) {
@@ -73,8 +77,32 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
         }
     }
 
+    /**
+     * Blocked by a scan or a chat: this run ends and the same work is queued again after [RETRY_DELAY_SECONDS], appended to this one's own
+     * unique name (so a `KEEP` or `REPLACE` of the pipeline still finds it). The wait is the same every time: `Result.retry()` would
+     * have WorkManager double it up to five hours, and with Doze the second stage then sat unwritten ("Summary coming...") for hours.
+     */
+    private fun tryAgainSoon(documentId: String): Result {
+        val people = inputData.getBoolean(KEY_PEOPLE_CHECK, false)
+        val name = if (people) peopleWorkName(documentId) else workName(documentId)
+        WorkManager.getInstance(applicationContext).enqueueUniqueWork(name, ExistingWorkPolicy.APPEND_OR_REPLACE, again(inputData, people))
+        return Result.success()
+    }
+
     companion object {
         private const val TAG_LOG = "EnrichmentWorker"
+
+        /** How long a blocked second stage waits before it looks again: short and the same every time. */
+        const val RETRY_DELAY_SECONDS = 60L
+
+        /** The next attempt of a blocked work: the same input, the same tag, queued to start after [RETRY_DELAY_SECONDS]. */
+        internal fun again(input: Data, people: Boolean): OneTimeWorkRequest =
+            OneTimeWorkRequestBuilder<DocumentEnrichmentWorker>()
+                .setInputData(input)
+                .setInitialDelay(RETRY_DELAY_SECONDS, TimeUnit.SECONDS)
+                .setBackoffCriteria(BackoffPolicy.LINEAR, RETRY_DELAY_SECONDS, TimeUnit.SECONDS)
+                .addTag(if (people) PEOPLE_TAG else TAG)
+                .build()
         const val KEY_DOCUMENT_ID = "documentId"
 
         /** The whole [EnrichmentTicket] as JSON; absent for a second stage whose ticket is rebuilt. */

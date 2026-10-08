@@ -96,6 +96,13 @@ import java.util.Locale
  * a made-up name, reference, date or amount asked the same way by its margin ([ScoringProfile.baselineMargins]). What a kept date or amount
  * means is then scored once per value ([ValueMeaningReader]) and attached to the slot that holds it.
  *
+ * The layout orders and never gates, as a CASCADE: the party questions, the date slots and the references score the candidates printed in the
+ * zones they prefer first ([ZonePlan.tiers]), and the other zones' candidates only when none of those is taken (above the question's
+ * threshold and its baseline plus margin). A name printed elsewhere on the page can therefore never outvote one in the preferred zones, a
+ * sender printed outside them is still found, and a first tier that is taken costs fewer scored candidates. What a date means can veto the
+ * slot that holds it ([MeaningVerdict]), and a party's best candidates are asked once whether they are a field label ([fieldLabels]). Every
+ * question leaves one trace line (tier, counts, baseline, the winner's text; [traceAsk]).
+ *
  * What needs writing is asked in the same open body session, each ask with its own small grammar: the letter's language
  * (BCP-47, one short ask), the naming of each extra ([extras]: which values no slot or party took is decided by score, the
  * words the letter prints next to it and an english key are written), the subject line and the suggested questions
@@ -452,19 +459,50 @@ class ZoneScoringInterpreter(
         traceLines += "zones $zones"
     }
 
-    /** One scored question: how many candidates on which zones, the pick with its zones, kind and score, and the runner-up's score. */
-    private fun traceAsk(setup: ZoneSetup, name: String, zones: List<LetterZone>, cands: List<Candidate>, scores: List<Double>, best: Int?) {
+    /**
+     * One line per scored question, for fitting the margins from normal use (the pipeline logs it under `DocProcessing` in a debuggable
+     * build only, because it carries the winner's text, cut to [TRACE_TEXT_CHARS] characters): the question, the zones, how many candidates
+     * were scored and in which tier the winner was (`first` is the first tier's share), the pick with its zones, kind and score, the
+     * runner-up's score, the content-free baseline and the threshold the pick had to beat, and the winner's text.
+     */
+    private fun traceAsk(setup: ZoneSetup, name: String, zones: List<LetterZone>, read: Scoring, threshold: Double, baseline: Double?, best: Int?) {
         val asked = zones.joinToString("+") { it.tag }
+        val base = baseline?.let { String.format(Locale.ROOT, "%+.2f", it) } ?: "-"
+        val floor = String.format(Locale.ROOT, "%+.2f", threshold)
         if (best == null) {
-            traceLines += "ask $name zones=$asked cands=${cands.size} pick=none"
+            traceLines += "ask $name zones=$asked cands=${read.cands.size} first=${read.firstCount} tier=${read.tier} pick=none baseline=$base floor=$floor"
             return
         }
-        val second = scores.indices.filter { it != best }.maxOfOrNull { scores[it] }
-        val c = cands[best]
+        val second = read.scores.indices.filter { it != best }.maxOfOrNull { read.scores[it] }
+        val c = read.cands[best]
+        val text = c.raw.replace('\n', ' ').trim().let { if (it.length > TRACE_TEXT_CHARS) it.take(TRACE_TEXT_CHARS - 1) + "…" else it }
         traceLines += String.format(
-            Locale.ROOT, "ask %s zones=%s cands=%d pick=%s kind=%s in=%s best=%+.2f second=%s", name, asked, cands.size, c.id, c.kind.name,
-            setup.zoned.zonesOfCandidate(c.id).joinToString("+") { it.tag }, scores[best], second?.let { String.format(Locale.ROOT, "%+.2f", it) } ?: "-",
+            Locale.ROOT, "ask %s zones=%s cands=%d first=%d tier=%d pick=%s kind=%s in=%s best=%+.2f second=%s baseline=%s floor=%s text=«%s»",
+            name, asked, read.cands.size, read.firstCount, read.tierOf(best), c.id, c.kind.name,
+            setup.zoned.zonesOfCandidate(c.id).joinToString("+") { it.tag }, read.scores[best], second?.let { String.format(Locale.ROOT, "%+.2f", it) } ?: "-",
+            base, floor, text,
         )
+    }
+
+    /**
+     * The candidates (from index [from] on) that are a field label or a heading rather than a party, found by one scored batch over the
+     * question's own zone block: the [MAX_LABEL_CHECKS] best-scored candidates above [threshold] and a made-up name, each asked "is this a field
+     * label or a heading, not a person or an organisation?". A candidate is a label only when it beats the made-up name by
+     * [ScoringProfile.fieldLabelMargin]; a profile with no margin never asks. The model scores, the margin decides: no word is looked at.
+     */
+    private suspend fun fieldLabels(
+        setup: ZoneSetup, name: String, block: String, cands: List<Candidate>, scores: List<Double>, from: Int, threshold: Double,
+        allowed: (Candidate) -> Boolean,
+    ): Set<Int> {
+        val margin = profile.fieldLabelMargin ?: return emptySet()
+        val top = scores.indices.filter { it >= from && scores[it] > threshold && allowed(cands[it]) }.sortedByDescending { scores[it] }.take(MAX_LABEL_CHECKS)
+        if (top.isEmpty()) return emptySet()
+        val statement = ScoringDescriptions.FIELD_LABEL
+        val questions = top.map { ZonePrompt.scoringQuestion(cands[it].raw.replace('\n', ' '), setup.zoned.context(cands[it]), statement) } +
+            ZonePrompt.scoringQuestion(ScoringDescriptions.PARTY_BASELINE_NAME, null, statement)
+        val answers = scoreBatch("label:$name", block, questions) ?: return emptySet()
+        val floor = answers.last() + margin
+        return top.indices.filter { answers[it] > floor }.map { top[it] }.toSet()
     }
 
     private fun traceFinal(setup: ZoneSetup, s: State) {
@@ -630,7 +668,21 @@ class ZoneScoringInterpreter(
         val name: String, val zones: List<LetterZone>, val cands: List<Candidate>, val what: String, val labelled: Boolean = false,
         /** The made-up value its content-free baseline is asked about ([ScoringDescriptions.BASELINE_PROBES]); null for a question that has none. */
         val probe: String? = null,
+        /**
+         * The cascade (see [ZonePlan.tiers]): [cands] are the first tier, the candidates of the preferred zones, scored first; [rest] are the
+         * other zones' candidates, scored only when no first-tier candidate beats what the question needs. Empty for a question with no
+         * second tier, and for one whose preferred zones hold no candidate (then [cands] is already everything and [tier] is 2).
+         */
+        val rest: List<Candidate> = emptyList(),
+        /** The tier [cands] belong to: 1 the preferred zones, 2 the other zones (nothing was printed in a preferred one), 0 not tiered. */
+        val tier: Int = 0,
     )
+
+    /** What one question scored: the candidates and scores of every tier that was scored, and how many of them are the first tier's. */
+    private class Scoring(val cands: List<Candidate>, val scores: List<Double>, val firstCount: Int, val tier: Int) {
+        /** The tier the candidate at [index] was scored in (0 for a question with no tiers). */
+        fun tierOf(index: Int): Int = if (tier == 0) 0 else if (index < firstCount) tier else 2
+    }
 
     /**
      * Whether [slot] may be none for this document (see [ScoringProfile.isOptional]). The type is not known while the slots are read, so no
@@ -684,9 +736,29 @@ class ZoneScoringInterpreter(
         // A name that is a cell of a table (a column header such as "Einzelpreis € Gesamt €", a position) is never a party or a person:
         // by where it is printed, not by any word.
         val names = zoned.offered.rows.map { it.candidate }.filter { it.kind == CandidateKind.NAME && !zoned.isTableCell(it) }
-        val cands = setup.plan.offer(names, preferred, fallback)
-        if (cands.isEmpty()) return null
-        return Ask(name, askedZones(setup, preferred, fallback, cands), cands, ScoringDescriptions.ofRole(name), probe = ScoringDescriptions.PARTY_BASELINE_NAME)
+        val tiers = setup.plan.tiers(names, preferred, fallback)
+        val all = tiers.first + tiers.rest
+        if (all.isEmpty()) return null
+        // The zones the prompt shows are those of every candidate (the first tier's block is also the second tier's, so the prefix is reused).
+        return tiered(name, askedZones(setup, preferred, fallback, all), tiers, ScoringDescriptions.ofRole(name), probe = ScoringDescriptions.PARTY_BASELINE_NAME)
+    }
+
+    /** An [Ask] over [tiers]: the first tier alone when there is one (the rest waits), else the rest as the only tier. */
+    private fun tiered(name: String, zones: List<LetterZone>, tiers: ZonePlan.Tiers, what: String, labelled: Boolean = false, probe: String? = null): Ask =
+        if (tiers.first.isEmpty()) {
+            Ask(name, zones, tiers.rest, what, labelled, probe, tier = 2)
+        } else {
+            Ask(name, zones, tiers.first, what, labelled, probe, rest = tiers.rest, tier = 1)
+        }
+
+    /**
+     * Whether the slot question [slot] is a cascade: its candidates are scored in tiers, the preferred zones' first ([ZonePlan.tiers]).
+     * The dates and the references: a value of those kinds printed in a zone where the template expects it is not to be outvoted by one
+     * from anywhere on the page (the due date by the period start, the letter date by the due date).
+     */
+    private fun cascades(slot: SlotKey): Boolean = when (slot.kind) {
+        SlotKind.DATE, SlotKind.DEADLINE, SlotKind.REFERENCE, SlotKind.REFERENCE_LIST -> true
+        else -> false
     }
 
     /**
@@ -705,10 +777,18 @@ class ZoneScoringInterpreter(
         fun offered(rows: List<Candidate>) = rows.filter {
             it.kind in slot.kind.candidates && !(isReference && (isFooterShape(zoned, it) || (optional(slot) && it.attrs["shape"] != null)))
         }
-        val cands = setup.plan.offer(offered(zoned.offered.rows.map { it.candidate }), preferred)
+        val rows = offered(zoned.offered.rows.map { it.candidate })
+        val labelled = isReference && optional(slot)
+        if (cascades(slot)) {
+            val tiers = setup.plan.tiers(rows, preferred)
+            val all = tiers.first + tiers.rest
+            if (all.isEmpty()) return null
+            return tiered(name, askedZones(setup, preferred, emptyList(), all), tiers, ScoringDescriptions.ofSlot(slot), labelled, baselineProbe(slot, isReference))
+        }
+        val cands = setup.plan.offer(rows, preferred)
         if (cands.isEmpty()) return null
         return Ask(
-            name, askedZones(setup, preferred, emptyList(), cands), cands, ScoringDescriptions.ofSlot(slot), labelled = isReference && optional(slot),
+            name, askedZones(setup, preferred, emptyList(), cands), cands, ScoringDescriptions.ofSlot(slot), labelled = labelled,
             probe = baselineProbe(slot, isReference),
         )
     }
@@ -728,10 +808,44 @@ class ZoneScoringInterpreter(
 
     /** The scores of [ask]'s candidates: the ones [prescore] computed, else scored now as a batch under [block]. */
     private suspend fun scored(setup: ZoneSetup, ask: Ask, block: String): List<Double>? =
-        prescored.remove(ask.name) ?: scoreBatch(
-            ask.name, block,
-            ask.cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), setup.zoned.context(it), ask.what, if (ask.labelled) setup.zoned.printedLabel(it) else null) },
-        )
+        prescored.remove(ask.name) ?: scoreBatch(ask.name, block, questionsOf(setup, ask, ask.cands))
+
+    private fun questionsOf(setup: ZoneSetup, ask: Ask, cands: List<Candidate>): List<String> =
+        cands.map { ZonePrompt.scoringQuestion(it.raw.replace('\n', ' '), setup.zoned.context(it), ask.what, if (ask.labelled) setup.zoned.printedLabel(it) else null) }
+
+    /**
+     * The cascade of [ask]: its first tier is scored ([first], by [scored]); when no candidate of it is [taken] above [threshold] (the
+     * question's threshold, raised to its content-free baseline plus margin), the other zones' candidates ([Ask.rest]) are scored too, in
+     * the same zone block, and the answer is chosen among both tiers. When a first-tier candidate is taken the rest is never scored, so a
+     * candidate from another zone can neither outvote it nor cost anything. A scoring the engine failed leaves the first tier alone.
+     */
+    private suspend fun cascade(
+        setup: ZoneSetup, ask: Ask, block: String, first: List<Double>, threshold: Double, taken: (Candidate) -> Boolean = { true },
+        /** The indices (from [from] on) of the candidates that are not what is asked for at all: a field label (see [fieldLabels]). */
+        vet: suspend (cands: List<Candidate>, scores: List<Double>, from: Int) -> Set<Int> = { _, _, _ -> emptySet() },
+    ): Scoring {
+        var cands = ask.cands
+        var scores = first
+        var firstCount = cands.size
+        fun drop(gone: Set<Int>) {
+            if (gone.isEmpty()) return
+            firstCount -= gone.count { it < firstCount }
+            cands = cands.filterIndexed { i, _ -> i !in gone }
+            scores = scores.filterIndexed { i, _ -> i !in gone }
+        }
+        drop(vet(cands, scores, 0))
+        val passes = scores.indices.any { scores[it] > threshold && taken(cands[it]) }
+        if (ask.rest.isNotEmpty() && !passes) {
+            val more = scoreBatch(ask.name, block, questionsOf(setup, ask, ask.rest))
+            if (more != null) {
+                val from = cands.size
+                cands = cands + ask.rest
+                scores = scores + more
+                drop(vet(cands, scores, from))
+            }
+        }
+        return Scoring(cands, scores, firstCount, ask.tier)
+    }
 
     /**
      * Scores ahead the questions that share a zone block and the same candidates (the reference slots of a letter, its date slots...) as
@@ -789,16 +903,21 @@ class ZoneScoringInterpreter(
     private suspend fun party(setup: ZoneSetup, s: State, name: String, role: PartyRole): Boolean {
         val ask = partyAsk(setup, name) ?: return false
         val zones = ask.zones
-        val cands = ask.cands
         val block = block(setup, zones)
-        val scores = scored(setup, ask, block) ?: return true
+        val first = scored(setup, ask, block) ?: return true
         // "None of these" is an answer: a name is taken only when it also beats a made-up name asked the same way over the same zones, so the
         // threshold of the question is raised to that level (the decoder, which re-decides from the scores, then abstains the same way).
         val threshold = maxOf(profile.threshold(name), baselineFloor(ask) ?: Double.NEGATIVE_INFINITY)
+        // The cascade: the other zones' names are scored only when no name of the preferred zones is taken (the sender is not also the addressee).
+        val allowedName = { c: Candidate -> role == PartyRole.SENDER || c.id != s.senderId }
+        val read = cascade(setup, ask, block, first, threshold, allowedName) { cands, scores, from -> fieldLabels(setup, name, block, cands, scores, from, threshold, allowedName) }
+        val cands = read.cands
+        val scores = read.scores
+        if (cands.isEmpty()) return true
         collect(name, cands, scores, role = role, slot = null, block = block, threshold = threshold)
         val allowed = scores.indices.filter { role == PartyRole.SENDER || cands[it].id != s.senderId }
         val ranked = allowed.sortedByDescending { scores[it] }
-        traceAsk(setup, name, zones, cands, scores, ranked.firstOrNull())
+        traceAsk(setup, name, zones, read, threshold, baselines[name], ranked.firstOrNull())
         val best = ranked.firstOrNull() ?: return true
         if (scores[best] <= threshold) return true
         val (confidence, note) = confidenceOf(scores[best], ranked.getOrNull(1)?.let { scores[it] }, ranked.size)
@@ -885,15 +1004,18 @@ class ZoneScoringInterpreter(
         val ask = slotAsk(setup, slot) ?: return false
         val name = ask.name
         val asked = ask.zones
-        val cands = ask.cands
         val block = block(setup, asked)
-        val scores = scored(setup, ask, block) ?: return true
+        val first = scored(setup, ask, block) ?: return true
         // "None" is an answer for a reference too: it is taken only when it beats a made-up reference over the same zones by the margin.
         val threshold = maxOf(slotThreshold(name, slot), baselineFloor(ask) ?: Double.NEGATIVE_INFINITY)
+        // The cascade: the other zones' candidates are scored only when no candidate of the zones the template places the slot on is taken.
+        val read = cascade(setup, ask, block, first, threshold)
+        val cands = read.cands
+        val scores = read.scores
         if (slot.kind != SlotKind.REFERENCE_LIST) collect(name, cands, scores, role = null, slot = slot, block = block, threshold = threshold)
         val order = scores.indices.sortedByDescending { scores[it] }
         val best = order.first()
-        traceAsk(setup, name, asked, cands, scores, best)
+        traceAsk(setup, name, asked, read, threshold, baselines[name], best)
         if (scores[best] <= threshold) return true
         val (confidence, note) = confidenceOf(scores[best], order.getOrNull(1)?.let { scores[it] }, order.size)
         s.slots[slot.json] = if (slot.kind == SlotKind.REFERENCE_LIST) {
@@ -944,7 +1066,18 @@ class ZoneScoringInterpreter(
         }
         if (targets.isEmpty()) return
         val meanings = ValueMeaningReader({ name, shared, questions -> scoreBatch(name, shared, questions) }, profile, trace = { traceLines += it }).read(targets)
-        for ((key, meaning) in meanings) s.slots[key]?.let { s.slots[key] = it.copy(meaning = meaning.id) }
+        val slotsByKey = scored.mapNotNull { it.slot }.associateBy { it.json }
+        for ((key, meaning) in meanings) {
+            val slot = slotsByKey[key]
+            // What the value means decides whether it may stay in the slot: a due-date slot holding "the first day of a period", or a
+            // letter-date slot holding "the date by which the reader must pay", is empty (the value is not given to another slot by a rule).
+            if (slot != null && MeaningVerdict.contradicts(slot, meaning)) {
+                traceLines += "meaning $key -> ${meaning.id} contradicts the slot: the slot is left empty"
+                s.slots.remove(key)
+                continue
+            }
+            s.slots[key]?.let { s.slots[key] = it.copy(meaning = meaning.id) }
+        }
     }
 
     // ── decoding ──
@@ -1091,6 +1224,10 @@ class ZoneScoringInterpreter(
 
         /** The runner-up candidates kept per scored question (the Edit sheet's chips). */
         private const val MAX_ALTERNATIVES = 3
+
+        /** How many of a question's best names are asked whether they are a field label, and how much of the winner's text a trace line shows. */
+        private const val MAX_LABEL_CHECKS = 2
+        private const val TRACE_TEXT_CHARS = 40
         private const val MAX_FAILURES = 3
         private const val MAX_OPEN_ATTEMPTS = 3
         private const val FAILED_RAW_CHARS = 300

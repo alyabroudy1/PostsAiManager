@@ -11,6 +11,7 @@ import com.postsaimanager.core.domain.extraction.v2.Letters
 import com.postsaimanager.core.domain.extraction.v2.MeaningKind
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.Slots
+import com.postsaimanager.core.domain.extraction.v2.ValueMeaning
 import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
 import com.postsaimanager.core.testing.FakeAiEngine
 import com.postsaimanager.core.testing.FakePromptSession
@@ -121,12 +122,14 @@ class UniversalQuestionsTest {
     private val appointment = ValueMeanings.DEFAULT.byId("APPOINTMENT")!!
     private val totalDue = ValueMeanings.DEFAULT.byId("TOTAL_DUE")!!
 
-    private fun meaningScores(baseline: Double = -5.0): (String) -> Double = { c ->
+    private val dueMeaning = ValueMeanings.DEFAULT.byId("DUE_DATE")!!
+
+    private fun meaningScores(baseline: Double = -5.0, dateMeaning: ValueMeaning = dueMeaning): (String) -> Double = { c ->
         when {
             c.contains("«${ScoringDescriptions.DATE_BASELINE_VALUE}»") || c.contains("«${ScoringDescriptions.AMOUNT_BASELINE_VALUE}»") -> baseline
             says("15.10.2026", dueStatement)(c) -> 5.0
             says("1.284,50 €", "the main amount")(c) -> 5.0
-            says("15.10.2026", appointment.description)(c) -> 5.0
+            says("15.10.2026", dateMeaning.description)(c) -> 5.0
             says("1.284,50 €", totalDue.description)(c) -> 5.0
             else -> -5.0
         }
@@ -140,13 +143,22 @@ class UniversalQuestionsTest {
         assertThat(due.normalized).isEqualTo("2026-10-15")
         assertThat(due.role).isEqualTo("DUE_DATE")
         // ... and the meaning the reading found for that value is attached to it, not a second value.
-        assertThat(due.meaning).isEqualTo("APPOINTMENT")
+        assertThat(due.meaning).isEqualTo("DUE_DATE")
         assertThat(result.slots.entries.first { it.key.json == "total" }.value.meaning).isEqualTo("TOTAL_DUE")
         assertThat(result.slots.entries.firstOrNull { it.key.json == "letter_date" }?.value?.meaning).isNull()
         // Stored in the field's role, in a namespace a slot's own role cannot be in.
         val fields = ExtractionV2Adapter().adapt(result).facts.filter { it.provenance?.slotKey == "due_date" }
-        assertThat(fields.single().provenance?.role).isEqualTo("meaning:APPOINTMENT")
-        assertThat(ValueMeanings.fromRole(fields.single().provenance?.role)?.id).isEqualTo("APPOINTMENT")
+        assertThat(fields.single().provenance?.role).isEqualTo("meaning:DUE_DATE")
+        assertThat(ValueMeanings.fromRole(fields.single().provenance?.role)?.id).isEqualTo("DUE_DATE")
+    }
+
+    @Test
+    fun `a date whose meaning contradicts the due-date slot leaves the slot empty`() {
+        // The model chose 15.10.2026 for the due date but says it is an appointment: the meaning vetoes the binding (the slot is empty and
+        // no rule gives the date to another slot); the amounts are untouched.
+        val (result, _) = run(Letters.invoice, ScoringProfile(), meaningScores(dateMeaning = appointment))
+        assertThat(result.slots.keys.map { it.json }).doesNotContain("due_date")
+        assertThat(result.slots.entries.first { it.key.json == "total" }.value.meaning).isEqualTo("TOTAL_DUE")
     }
 
     @Test
