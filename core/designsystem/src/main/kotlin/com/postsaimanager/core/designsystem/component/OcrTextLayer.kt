@@ -24,10 +24,9 @@ import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,27 +44,30 @@ private const val GLYPH_SHARE = 0.8f
  * scanned page with an OCR text layer.
  *
  * Each line is a transparent `Text` sitting on its recognised box: the font is sized from the box's height and stretched
- * horizontally ([graphicsLayer] `scaleX`) so the glyphs span the box's width, which puts every character close to where it is on the
- * paper. All lines share ONE [SelectionContainer], and are emitted in reading order. Must be placed inside the page's zoom layer, so
- * the selection follows the image.
+ * horizontally (the style's `scaleX`, part of the text's own layout) so the glyphs span the box's width, which puts every character
+ * close to where it is on the paper. All lines share ONE [SelectionContainer], and are emitted in reading order.
  *
- * @param fit the page's fit inside this layer's box (unzoomed pixels)
+ * Everything here is in REAL (already zoomed) coordinates: the page is zoomed by layout (see [ZoomablePage]), [fit] is the fit in the
+ * zoomed box, and nothing is drawn through a transform, so the selection's handles, magnifier and toolbar are placed where the text is.
+ *
+ * @param fit the page's fit inside this layer's (zoomed) box, in pixels
  */
 @Composable
-internal fun OcrTextLayer(lines: List<PageTextLine>, fit: FittedPage, selection: PageSelection, viewport: PageViewport = PageViewport()) {
+internal fun OcrTextLayer(lines: List<PageTextLine>, fit: FittedPage, selection: PageSelection) {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val primary = MaterialTheme.colorScheme.primary
     val colors = remember(primary) { TextSelectionColors(handleColor = primary, backgroundColor = primary.copy(alpha = 0.35f)) }
     val platformToolbar = LocalTextToolbar.current
-    val toolbar = remember(platformToolbar, selection, viewport) { TrackingTextToolbar(platformToolbar, selection, viewport::toolbarRect) }
+    val toolbar = remember(platformToolbar, selection) { TrackingTextToolbar(platformToolbar, selection) }
     // Only lines that can be selected are composed: a blank text or a sub-pixel box would register a selectable with nothing to select.
     val shown = remember(lines, fit) { selectableLines(lines, fit) }
     CompositionLocalProvider(LocalTextSelectionColors provides colors, LocalTextToolbar provides toolbar) {
         // A new key replaces the container, which is how a selection is cleared. The colours are part of the key because they key every
         // text's selection controller: a controller replaced under a text that keeps its measured layout never gets the layout again
         // (Compose hands it over only when the layout changes), and a long-press then finds no selectable ("SelectionLayout must not be empty").
-        key(selection.generation, colors, shown.size) {
+        // The zoom is part of the key too: a new scale lays every text out afresh, so the press guard starts over with it.
+        key(selection.generation, colors, shown.size, fit.shownWidth) {
         val laidOut = remember { LaidOutCount(shown.size) }
         SelectionContainer {
             Box(Modifier.fillMaxSize().then(laidOut.guard())) {
@@ -84,19 +86,18 @@ internal fun OcrTextLayer(lines: List<PageTextLine>, fit: FittedPage, selection:
                     val naturalWidth = remember(line.text, style) {
                         measurer.measure(line.text, style, softWrap = false, maxLines = 1).size.width.coerceAtLeast(1)
                     }
+                    val stretched = remember(style, widthPx, naturalWidth) {
+                        style.copy(textGeometricTransform = TextGeometricTransform(scaleX = (widthPx / naturalWidth).coerceAtLeast(0.01f)))
+                    }
                     Text(
                         text = line.text,
-                        style = style,
+                        style = stretched,
                         softWrap = false,
                         maxLines = 1,
                         overflow = TextOverflow.Visible,
                         onTextLayout = { laidOut.reported(id) },
                         modifier = Modifier
                             .offset { IntOffset(fit.left(line.bounds).roundToInt(), fit.top(line.bounds).roundToInt()) }
-                            .graphicsLayer {
-                                transformOrigin = TransformOrigin(0f, 0f)
-                                scaleX = widthPx / naturalWidth
-                            }
                             .wrapContentSize(Alignment.TopStart, unbounded = true),
                     )
                   }

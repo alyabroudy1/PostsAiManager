@@ -23,13 +23,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
@@ -67,24 +68,16 @@ internal class PageViewport {
     var box by mutableStateOf(IntSize.Zero)
     var imageSize by mutableStateOf(Size.Zero)
 
-    /** Where the page's (unzoomed) box starts in the window. */
-    var rootOrigin by mutableStateOf(Offset.Zero)
+    /** True while a pinch is changing [scale]; the text layer is not laid out then (see [ZoomablePage]). */
+    var zooming by mutableStateOf(false)
 
     /**
-     * Where a selection rect is on screen. Compose reports it in the text layer's layout coordinates moved only by the layer's
-     * transformed origin `p` (the zoom is a scale about the box's centre, then the pan), so a point `p + d` really lies at `p + d * scale`.
+     * The page layer's fit inside its zoomed box (the box times [scale]: the page is zoomed by layout, so this is real window
+     * geometry), or null until the image's size is known.
      */
-    fun toolbarRect(rect: Rect): Rect {
-        if (scale == 1f && offset == Offset.Zero) return rect
-        val centre = Offset(box.width / 2f, box.height / 2f)
-        val p = rootOrigin + centre * (1f - scale) + offset
-        return Rect(p + (rect.topLeft - p) * scale, p + (rect.bottomRight - p) * scale)
-    }
-
-    /** The page layer's fit inside the box, or null until the image's size is known. */
     fun fitted(): FittedPage? =
         if (imageSize.width > 0f && imageSize.height > 0f && box.width > 0 && box.height > 0) {
-            FittedPage(box.width.toFloat(), box.height.toFloat(), imageSize.width, imageSize.height)
+            FittedPage(box.width * scale, box.height * scale, imageSize.width, imageSize.height)
         } else null
 
     fun clamp(o: Offset, s: Float): Offset {
@@ -122,6 +115,7 @@ internal fun Modifier.pageGestures(viewport: PageViewport, onTap: () -> Unit = {
             awaitFirstDown(requireUnconsumed = false)
             var slopPassed = false
             var drift = Offset.Zero
+            try {
             do {
                 val event = awaitPointerEvent(PointerEventPass.Main)
                 val fingers = event.changes.count { it.pressed }
@@ -141,12 +135,17 @@ internal fun Modifier.pageGestures(viewport: PageViewport, onTap: () -> Unit = {
                         val focus = centroid - Offset(viewport.box.width / 2f, viewport.box.height / 2f)
                         val newScale = (viewport.scale * zoom).coerceIn(1f, MAX_ZOOM)
                         val moved = focus + pan - (focus - viewport.offset) * (newScale / viewport.scale)
+                        if (newScale != viewport.scale) viewport.zooming = true
                         viewport.scale = newScale
                         viewport.offset = if (newScale <= 1f) Offset.Zero else viewport.clamp(moved, newScale)
                         event.changes.forEach { if (it.positionChanged()) it.consume() }
                     }
                 }
             } while (event.changes.any { it.pressed })
+            } finally {
+                // The pinch is over: the text layer is laid out again, at the final scale.
+                viewport.zooming = false
+            }
         }
     }
 
@@ -154,8 +153,15 @@ internal fun Modifier.pageGestures(viewport: PageViewport, onTap: () -> Unit = {
  * One page image with pinch-zoom, pan and double-tap zoom, the cited passage marked, and its text selectable by the platform's own
  * text selection through an invisible [OcrTextLayer].
  *
- * The image, its marker and the text layer share one `graphicsLayer`, so they stay glued together at any zoom; the gestures are
- * [pageGestures]. Back, or a tap on the page, clears a selection first.
+ * The page is zoomed by LAYOUT, not by a `graphicsLayer`: [zoomedLayout] measures the content at the box's size times the scale and
+ * places it at the pan, so the image, its marker and the text layer are all laid out at their real window coordinates. A
+ * `graphicsLayer` only transforms drawing; the selection's handles, magnifier, toolbar and hit testing are placed from layout
+ * coordinates and would stay where the unzoomed text is.
+ *
+ * The text layer holds a lot of text, so it is not re-laid out on every pinch frame: only the image and marker follow the fingers
+ * (cheap), the text layer is left out while a pinch changes the scale (so nothing can be selected mid-pinch, and a selection is
+ * dropped) and comes back, laid out at the final scale, when the fingers lift. Panning only moves the placement, so the text
+ * layer stays. The gestures are [pageGestures]. Back, or a tap on the page, clears a selection first.
  */
 @Composable
 internal fun ZoomablePage(
@@ -180,20 +186,10 @@ internal fun ZoomablePage(
             .fillMaxSize()
             .clipToBounds()
             .onSizeChanged { viewport.box = it }
-            .onGloballyPositioned { viewport.rootOrigin = it.positionInRoot() }
             .testTag(PAGE_TEST_TAG)
             .pageGestures(viewport, onTap = { if (selection.active) selection.clear() }),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = viewport.scale
-                    scaleY = viewport.scale
-                    translationX = viewport.offset.x
-                    translationY = viewport.offset.y
-                },
-        ) {
+        Box(modifier = Modifier.zoomedLayout(viewport)) {
             AsyncImage(
                 model = request,
                 contentDescription = null,
@@ -219,8 +215,33 @@ internal fun ZoomablePage(
                 }
             }
             val fit = viewport.fitted()
-            if (fit != null && lines.isNotEmpty()) OcrTextLayer(lines, fit, selection, viewport)
+            if (fit != null && lines.isNotEmpty() && !viewport.zooming) OcrTextLayer(lines, fit, selection)
         }
+    }
+    // A pinch drops the selection: its handles would be at the old scale.
+    LaunchedEffect(viewport.zooming) { if (viewport.zooming) selection.clear() }
+}
+
+/**
+ * Lays the content out at the incoming size times the viewport's scale, placed where the zoom about the box's centre followed by the
+ * pan puts it (the parent clips). The scale is read in measure, the pan in placement only, so a pan never re-measures. Absolute
+ * [place], not `placeRelative`: the pan is in screen pixels whatever the layout direction.
+ */
+private fun Modifier.zoomedLayout(viewport: PageViewport): Modifier = layout { measurable, constraints ->
+    val scale = viewport.scale
+    val width = constraints.maxWidth
+    val height = constraints.maxHeight
+    val placeable = measurable.measure(
+        Constraints.fixed((width * scale).roundToInt().coerceAtLeast(1), (height * scale).roundToInt().coerceAtLeast(1)),
+    )
+    layout(width, height) {
+        val offset = viewport.offset
+        placeable.place(
+            IntOffset(
+                (width * (1f - scale) / 2f + offset.x).roundToInt(),
+                (height * (1f - scale) / 2f + offset.y).roundToInt(),
+            ),
+        )
     }
 }
 

@@ -66,22 +66,17 @@ class OcrTextLayerTest {
     }
 
     @Test
-    fun `the toolbar rect follows the zoomed text, and is untouched when not zoomed`() {
+    fun `the fit follows the zoom, so the text layer is laid out at the zoomed size`() {
         val viewport = PageViewport()
         viewport.box = androidx.compose.ui.unit.IntSize(400, 600)
-        viewport.rootOrigin = androidx.compose.ui.geometry.Offset(0f, 100f)
-        val rect = androidx.compose.ui.geometry.Rect(-380f, -380f, -300f, -350f)
-        assertThat(viewport.toolbarRect(rect)).isEqualTo(rect)
-
+        viewport.imageSize = androidx.compose.ui.geometry.Size(1000f, 1000f)
+        assertThat(viewport.fitted()!!.shownWidth).isEqualTo(400f)
         viewport.scale = 2.5f
-        viewport.offset = androidx.compose.ui.geometry.Offset(-100f, -50f)
-
-        // The reported rect is moved by the transformed origin p = (-400, -400) only; the zoomed text is p + (rect - p) * 2.5.
-        assertThat(viewport.toolbarRect(rect)).isEqualTo(androidx.compose.ui.geometry.Rect(-350f, -350f, -150f, -275f))
+        assertThat(viewport.fitted()!!.shownWidth).isEqualTo(1000f)
     }
 
     @Test
-    fun `the tracking toolbar shows the platform bar at the mapped rect`() {
+    fun `the tracking toolbar shows the platform bar at the rect Compose reports`() {
         var shown: androidx.compose.ui.geometry.Rect? = null
         val delegate = object : androidx.compose.ui.platform.TextToolbar {
             override val status = androidx.compose.ui.platform.TextToolbarStatus.Hidden
@@ -95,11 +90,11 @@ class OcrTextLayerTest {
             override fun hide() = Unit
         }
         val selection = PageSelection()
-        val toolbar = TrackingTextToolbar(delegate, selection) { it.translate(5f, 5f) }
+        val toolbar = TrackingTextToolbar(delegate, selection)
 
         toolbar.showMenu(androidx.compose.ui.geometry.Rect(0f, 0f, 10f, 10f), null, null, null, null)
 
-        assertThat(shown).isEqualTo(androidx.compose.ui.geometry.Rect(5f, 5f, 15f, 15f))
+        assertThat(shown).isEqualTo(androidx.compose.ui.geometry.Rect(0f, 0f, 10f, 10f))
         assertThat(selection.active).isTrue()
     }
 

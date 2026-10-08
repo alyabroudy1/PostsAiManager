@@ -36,14 +36,12 @@ internal class PageSelection {
 /**
  * Passes everything to the platform's [delegate] toolbar and tells [selection] whether a selection is showing.
  *
- * The rect Compose hands to [showMenu] is the selection in the text layer's own layout coordinates, moved by the layer's (transformed)
- * origin only: it knows nothing of the page's zoom, so at 2.5x the bar would sit where the text is at fit size. [mapRect] puts it where
- * the zoomed text is on screen ([PageViewport.toolbarRect]); the handles are drawn by Compose inside the transformed layer and need nothing.
+ * The rect Compose hands to [showMenu] is already where the text is on screen: the page is zoomed by layout, so the text layer's
+ * coordinates are the window's and nothing needs mapping.
  */
 internal class TrackingTextToolbar(
     private val delegate: TextToolbar,
     private val selection: PageSelection,
-    private val mapRect: (Rect) -> Rect = { it },
 ) : TextToolbar {
     override val status: TextToolbarStatus get() = delegate.status
 
@@ -55,7 +53,7 @@ internal class TrackingTextToolbar(
         onSelectAllRequested: (() -> Unit)?,
     ) {
         selection.active = true
-        delegate.showMenu(mapRect(rect), onCopyRequested, onPasteRequested, onCutRequested, onSelectAllRequested)
+        delegate.showMenu(rect, onCopyRequested, onPasteRequested, onCutRequested, onSelectAllRequested)
     }
 
     override fun hide() {
