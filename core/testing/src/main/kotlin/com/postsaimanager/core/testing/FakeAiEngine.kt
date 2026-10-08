@@ -271,6 +271,15 @@ class FakeActiveModelProvider(
             supportsImages = supportsImages,
         )
 
+    /** The accelerator the reading config asks for; null means the chat's own (the app's default). */
+    var readingAccelerator: Accelerator? = null
+
+    override suspend fun readingModelConfig(): InferenceConfig {
+        val chat = activeModelConfig()
+        val reading = readingAccelerator ?: return chat
+        return chat.copy(accelerator = reading, gpuLayers = if (reading == Accelerator.GPU) -1 else 0)
+    }
+
     override suspend fun extractionModelPath(): String? = extractionPath ?: path
     override suspend fun extractionModelConfig(): InferenceConfig =
         InferenceConfig.defaults(device, contextTokens).copy(

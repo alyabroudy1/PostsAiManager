@@ -151,6 +151,12 @@ abstract class DataModule {
 
     @Binds
     @Singleton
+    abstract fun bindReadingAcceleratorSetting(
+        impl: com.postsaimanager.core.data.gemma.SharedPreferencesReadingAcceleratorSetting,
+    ): com.postsaimanager.core.domain.ai.ReadingAcceleratorSetting
+
+    @Binds
+    @Singleton
     abstract fun bindGemmaTrialReading(impl: GemmaTrialReader): GemmaTrialReading
 
     @Binds

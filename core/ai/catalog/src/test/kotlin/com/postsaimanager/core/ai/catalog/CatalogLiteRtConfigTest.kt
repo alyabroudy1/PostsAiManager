@@ -8,6 +8,7 @@ import com.postsaimanager.core.model.ModelRuntime
 import com.postsaimanager.core.model.ModelSource
 import com.postsaimanager.core.testing.FakeAiEngine
 import com.postsaimanager.core.testing.FakeInferenceSettingsRepository
+import com.postsaimanager.core.testing.FakeReadingAcceleratorSetting
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -51,13 +52,42 @@ class CatalogLiteRtConfigTest {
         model: InstalledModel,
         settings: FakeInferenceSettingsRepository = FakeInferenceSettingsRepository(),
         availableRamBytes: Long = 6L * 1024 * 1024 * 1024,
+        reading: FakeReadingAcceleratorSetting = FakeReadingAcceleratorSetting(),
     ): CatalogActiveModelProvider {
         val store = mockk<InstalledModelStore> {
             coEvery { reconcile() } returns Unit
             every { activeModel() } returns model
             every { extractionModel() } returns null
         }
-        return CatalogActiveModelProvider(store, device(availableRamBytes), settings, FakeAiEngine(), CpuTopology())
+        return CatalogActiveModelProvider(store, device(availableRamBytes), settings, FakeAiEngine(), CpuTopology(), reading)
+    }
+
+    @Test
+    @DisplayName("reading config: by default (CPU) it is the chat's own config, so nothing reloads between a reading and a chat")
+    fun `reading config defaults to the chat config`() = runTest {
+        val provider = provider(liteRtModel())
+
+        assertThat(provider.readingModelConfig()).isEqualTo(provider.activeModelConfig())
+    }
+
+    @Test
+    @DisplayName("reading config: GPU chosen for the reading gives the GPU config while the chat's stays the CPU one")
+    fun `reading on gpu chat on cpu`() = runTest {
+        val provider = provider(liteRtModel(), reading = FakeReadingAcceleratorSetting(Accelerator.GPU))
+
+        assertThat(provider.readingModelConfig().accelerator).isEqualTo(Accelerator.GPU)
+        assertThat(provider.activeModelConfig().accelerator).isEqualTo(Accelerator.CPU)
+        assertThat(provider.readingModelConfig().contextTokens).isEqualTo(provider.activeModelConfig().contextTokens)
+    }
+
+    @Test
+    @DisplayName("reading config: a model that crashed on the GPU keeps reading on the CPU whatever the setting says")
+    fun `a gpu block holds for reading`() = runTest {
+        val settings = FakeInferenceSettingsRepository()
+        settings.blockGpu("/models/gemma.litertlm")
+        val provider = provider(liteRtModel(), settings, reading = FakeReadingAcceleratorSetting(Accelerator.GPU))
+
+        assertThat(provider.readingModelConfig().accelerator).isEqualTo(Accelerator.CPU)
     }
 
     @Test

@@ -157,6 +157,7 @@ class LiteRtChatEngine internal constructor(
             return@withLock PamResult.Success(capabilities(modelPath, config))
         }
 
+        val previous = current?.second?.accelerator
         release()
         val startedAt = System.nanoTime()
         _state.value = ModelLoadState.Loading(modelPath, startedAt)
@@ -177,6 +178,11 @@ class LiteRtChatEngine internal constructor(
             )
             loaded = modelPath to config
             _state.value = ModelLoadState.Ready(modelPath, config, (System.nanoTime() - startedAt) / 1_000_000, instance?.accelerator)
+            // Every real (re)load, whichever use asked for it: the reading/chat backend switches show up here (previous = null: first load).
+            TimingLog.log(
+                "engine: loaded on ${instance?.accelerator} (asked ${config.accelerator}, previous ${previous ?: "none"}) " +
+                    "in ${(System.nanoTime() - startedAt) / 1_000_000}ms",
+            )
             PamResult.Success(capabilities(modelPath, config))
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e

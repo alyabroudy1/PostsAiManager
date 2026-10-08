@@ -267,6 +267,13 @@ interface ActiveModelProvider {
     suspend fun extractionModelConfig(): InferenceConfig
 
     /**
+     * The config a document READING loads the chat model with: [activeModelConfig] with the accelerator of the "Reading" setting
+     * ([ReadingAcceleratorSetting], CPU by default, so by default it is the chat's own config and nothing reloads). Chat keeps
+     * [activeModelConfig]; [loadForUse] reloads the engine when the two differ.
+     */
+    suspend fun readingModelConfig(): InferenceConfig = activeModelConfig()
+
+    /**
      * The catalogue id of the extraction model (`AiModelDescriptor.id`), which picks its reading strategy
      * (`ModelProfiles`); null when unknown or side-loaded, and the strategy that needs no measurement is used.
      */

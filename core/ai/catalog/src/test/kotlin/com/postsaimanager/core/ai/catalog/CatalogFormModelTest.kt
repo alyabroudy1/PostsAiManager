@@ -7,6 +7,7 @@ import com.postsaimanager.core.model.InstalledModel
 import com.postsaimanager.core.model.ModelSource
 import com.postsaimanager.core.testing.FakeAiEngine
 import com.postsaimanager.core.testing.FakeInferenceSettingsRepository
+import com.postsaimanager.core.testing.FakeReadingAcceleratorSetting
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -36,7 +37,7 @@ class CatalogFormModelTest {
             totalRamBytes = 8L shl 30, availableRamBytes = 4L shl 30, freeStorageBytes = 8L shl 30,
             supportedAbis = listOf("arm64-v8a"), accelerators = setOf(Accelerator.CPU),
         )
-        return CatalogActiveModelProvider(store, device, FakeInferenceSettingsRepository(), FakeAiEngine(), CpuTopology())
+        return CatalogActiveModelProvider(store, device, FakeInferenceSettingsRepository(), FakeAiEngine(), CpuTopology(), FakeReadingAcceleratorSetting())
     }
 
     @Test
