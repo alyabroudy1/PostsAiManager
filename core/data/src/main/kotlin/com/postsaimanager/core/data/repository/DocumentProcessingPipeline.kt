@@ -43,6 +43,7 @@ import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.ExtractionResult
 import com.postsaimanager.core.model.FactKind
@@ -495,48 +496,8 @@ class DocumentProcessingPipeline @Inject constructor(
                     )
                 }
 
-                // Step 5b: Turn what the model recognised into profiles and links.
-                //
-                // Only possible when the model ran — the pattern extractor never produces
-                // RecognisedEntity values, so understanding.data.entities would be empty
-                // anyway. Wrapped the same way indexing is: a document the user scanned is
-                // complete without this, so a failure here is logged and the document
-                // proceeds exactly as if no entities had been found.
-                // Not on a background reprocess: profiles and their proposals ("is this the same
-                // person?") are questions for the user, and an update nobody asked for must not
-                // raise new ones. What the merge flags is all a reprocess surfaces.
-                val linkStarted = System.nanoTime()
-                if (understanding is PamResult.Success && usedModel && !reprocess) {
-                    runCatching {
-                        // Organisations are linked and created automatically; the pipeline raises no "is this you?" questions.
-                        entityProfileLinker.process(documentId, understanding.data)
-                    }.onSuccess { outcome ->
-                        Log.i(TIMING_TAG, "$documentId profile linking ms=${msSince(linkStarted)}")
-                        Log.i(
-                            TAG,
-                            "profiles for $documentId linked=${outcome.linked} " +
-                                "created=${outcome.created} " +
-                                "dismissed=${outcome.ignoredAsDismissed}",
-                        )
-                    }.onFailure { e ->
-                        // A cancellation (REPLACE, delete-cancel, system stop) must propagate
-                        // to the outer scope like any other cancellation — swallowing it here
-                        // via runCatching would let the pipeline carry on as if entity linking
-                        // had merely failed, instead of the whole run being torn down. See the
-                        // outer catch block's doc on the same rule.
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        Log.w(TAG, "entity linking failed for $documentId: ${e.message}")
-                    }
-                }
-
-                // 5c: Who the letter is for or about (the managed people) is the model's reading of the whole letter, asked in the background
-                // once this reading is stored (see [decideConcernedPeople]); on a re-read too, so the decision follows the new text.
-                if (understanding is PamResult.Success && usedModel) {
-                    runCatching { enqueuePeopleCheck(documentId) }.onFailure { e ->
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        Log.w(TAG, "people check not queued for $documentId: ${e.message}")
-                    }
-                }
+                // The profile linking, the contact, the organisation's suggestions, the people check and the timeline event follow the
+                // stored reading in one place for every reading that succeeds (see [afterReading], called below once the title is stored).
 
                 // 5.4: whether this run had to cut the document's layout to fit the
                 // extraction budget — only meaningful when the model actually ran; the
@@ -596,17 +557,9 @@ class DocumentProcessingPipeline @Inject constructor(
                             ),
                         ).copy(syncStatus = doc.syncStatus),
                     )
-                    // A one-go reading (Gemma) decided the timeline's event kind in the same call; a staged reading's second stage does, in
-                    // [enrichDocument]. Written after the title is stored (the event's title is the document's) and replacing the document's
-                    // earlier DOCUMENT events. Never fails the reading.
-                    if (usedModel && !staged) {
-                        read?.event?.let { reading ->
-                            runCatching { recordEvents.get()(documentId, reading) }.onFailure { e ->
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                Log.w(TAG, "timeline events failed for $documentId: ${e.message}")
-                            }
-                        }
-                    }
+                    // Everything that follows a reading, the same for a scan and a re-read, Gemma's and the old one (the title is stored by now:
+                    // the timeline event's title is the document's). Never fails the reading.
+                    if (usedModel && read != null) afterReading(documentId, read, staged)
                 }
 
                 // Step 6: Mark as extracted (a reprocess never left it, so nothing to write).
@@ -707,6 +660,50 @@ class DocumentProcessingPipeline @Inject constructor(
                 val detail = e.message ?: "Pipeline failed"
                 failDocument(documentId, REASON_ERROR, detail, reprocess)
                 PamResult.Error(PamError.ExtractionFailed(detail = detail, cause = e))
+            }
+        }
+    }
+
+    // ── after a reading ──
+
+    /**
+     * Everything that follows a stored reading the model made, in one place, so no way of reading can skip a step: a scan, an import, a
+     * re-read a person asked for, a quiet background re-read, Gemma's reading and the staged one alike.
+     *
+     * 1. The profile linking ([EntityProfileLinker]): the sender organisation, then the contact person (attached to it) and the
+     *    organisation's suggested details. Organisations are linked and created automatically; it raises no "is this you?" question, which
+     *    is why a re-read nobody asked for may run it too.
+     * 2. The people check, queued in the background: who the letter is for or about is the model's reading of the whole letter, and a
+     *    re-read renews the decision with the new text.
+     * 3. The timeline event, when the reading itself decided it (a one-go reading; a staged reading's second stage does it in
+     *    [enrichDocument]). It is written last: it names the sender organisation and the contact, and replaces the document's earlier events.
+     *
+     * Each step is wrapped on its own: a document is complete without them, so one failing is logged and never stops the next.
+     */
+    private suspend fun afterReading(documentId: String, read: DocumentUnderstanding, staged: Boolean) {
+        val linkStarted = System.nanoTime()
+        runCatching { entityProfileLinker.process(documentId, read) }
+            .onSuccess { outcome ->
+                Log.i(TIMING_TAG, "$documentId profile linking ms=${msSince(linkStarted)}")
+                Log.i(TAG, "profiles for $documentId linked=${outcome.linked} created=${outcome.created} dismissed=${outcome.ignoredAsDismissed}")
+            }
+            .onFailure { e ->
+                // A cancellation (REPLACE, delete-cancel, system stop) must propagate like any other cancellation.
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Log.w(TAG, "entity linking failed for $documentId: ${e.message}")
+            }
+
+        runCatching { enqueuePeopleCheck(documentId) }.onFailure { e ->
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Log.w(TAG, "people check not queued for $documentId: ${e.message}")
+        }
+
+        if (!staged) {
+            read.event?.let { reading ->
+                runCatching { recordEvents.get()(documentId, reading) }.onFailure { e ->
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Log.w(TAG, "timeline events failed for $documentId: ${e.message}")
+                }
             }
         }
     }

@@ -81,6 +81,7 @@ class DocumentProcessingPipelineGemmaTrialTest {
         actionItems = listOf(ActionItem("pay", mapOf("amount" to "total"))),
     )
 
+    private val linker = mockk<EntityProfileLinker>(relaxed = true)
     private val recordEvents = mockk<RecordDocumentEventsUseCase>(relaxed = true)
     private val recordEventsLazy = mockk<dagger.Lazy<RecordDocumentEventsUseCase>>().also { every { it.get() } returns recordEvents }
     private val announce = mockk<AnnounceUnderstoodLetterUseCase>(relaxed = true)
@@ -94,7 +95,7 @@ class DocumentProcessingPipelineGemmaTrialTest {
         },
         mergeExtraction = MergeExtractionUseCase(),
         aiExtraction = aiExtraction,
-        entityProfileLinker = mockk<EntityProfileLinker>(relaxed = true),
+        entityProfileLinker = linker,
         concernedPeopleDecision = mockk(relaxed = true),
         recordEvents = recordEventsLazy,
         syncEventLinks = mockk(relaxed = true),
@@ -206,6 +207,33 @@ class DocumentProcessingPipelineGemmaTrialTest {
 
         coVerify(exactly = 1) { recordEvents("doc-1", EventReading("payment_demand"), any()) }
         coVerify(exactly = 1) { announce("doc-1") }
+    }
+
+    @Test
+    @DisplayName("a Gemma reading is followed by the profile linking (contact, suggestions), the people check and the event, on a scan and on a quiet re-read")
+    fun `the steps after a reading run for every gemma reading`() = runTest(dispatcher) {
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding = gemma.copy(event = EventReading("application_filed"))
+        }
+
+        pipeline(trial).processDocument("doc-1")
+        pipeline(trial).processDocument("doc-1", reprocess = true)
+
+        coVerify(exactly = 2) { linker.process("doc-1", any()) }
+        coVerify(exactly = 2) { recordEvents("doc-1", EventReading("application_filed"), any()) }
+        verify(exactly = 2) {
+            workManager.enqueueUniqueWork(DocumentEnrichmentWorker.peopleWorkName("doc-1"), any<ExistingWorkPolicy>(), any<OneTimeWorkRequest>())
+        }
+    }
+
+    @Test
+    @DisplayName("a reading no model made (only found values) runs no after-reading step")
+    fun `found values alone run no step`() = runTest(dispatcher) {
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(old.copy(modelUsed = false))
+
+        pipeline().processDocument("doc-1")
+
+        coVerify(exactly = 0) { linker.process(any(), any()) }
     }
 
     @Test

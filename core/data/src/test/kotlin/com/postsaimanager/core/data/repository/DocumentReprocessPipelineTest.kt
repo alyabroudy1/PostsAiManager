@@ -167,9 +167,9 @@ class DocumentReprocessPipelineTest {
 
         // The document never leaves EXTRACTED: no PROCESSING, no re-write of the status.
         coVerify(exactly = 0) { documentDao.updateStatus(any(), any(), any()) }
-        // No progress for the UI to show, and no profile proposals to ask the user about.
+        // No progress for the UI to show. The steps after a reading run as for any reading (the linker raises no question to ask the user).
         assertThat(pipeline.processingState.first()).isEqualTo(ProcessingState.Idle)
-        coVerify(exactly = 0) { entityProfileLinker.process(any(), any()) }
+        coVerify(exactly = 1) { entityProfileLinker.process("doc-1", any()) }
 
         // One timeline event, as a code and its two versions rather than English text.
         val event = timeline.recorded.single()
