@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.gemma
 
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
+import com.postsaimanager.core.domain.extraction.candidates.BlockKey
 import com.postsaimanager.core.domain.extraction.candidates.LabelValuePairs
 import com.postsaimanager.core.domain.extraction.layout.AvatarGlyph
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
@@ -114,7 +115,23 @@ class GemmaReadingUseCase @Inject constructor(
             letterDate = { source.lastMerged?.set?.letterDate },
             onSummary = early,
             keepOpenAs = keepOpenAs,
-            labelPairs = { runCatching { LabelValuePairs.of(AvatarGlyph.strip(pages), BlockZones.of(AvatarGlyph.strip(pages), layout)) }.getOrDefault(emptyList()) },
+            labelPairs = {
+                // In reading order: the label/value layout reads a block's lines one after the other, the OCR returns the blocks in any order.
+                runCatching {
+                    val ordered = BlockZones.inReadingOrder(AvatarGlyph.strip(pages), layout)
+                    LabelValuePairs.of(ordered, BlockZones.of(ordered, layout))
+                }.getOrDefault(emptyList())
+            },
+            ocrDump = {
+                val stripped = AvatarGlyph.strip(pages)
+                val zones = runCatching { BlockZones.of(stripped, layout) }.getOrDefault(emptyMap())
+                stripped.flatMapIndexed { pi, blocks ->
+                    blocks.mapIndexed { bi, b ->
+                        "ocr p${pi + 1} b$bi [${b.bounds.left}, ${b.bounds.top}, ${b.bounds.right}, ${b.bounds.bottom}] zone=${zones[BlockKey(pi + 1, bi)]} " +
+                            "text=" + b.text.replace("\n", "<NL>")
+                    }
+                }
+            },
         )
         // The Gemma path's own verification: the checked reading ([GemmaReadingVerifier], in the interpreter) mapped as it is, with no
         // second pass of the scoring reading's caps over an answer the model gave with the page in view.

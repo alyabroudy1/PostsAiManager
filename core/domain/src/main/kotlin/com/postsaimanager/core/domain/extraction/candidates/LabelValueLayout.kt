@@ -44,7 +44,7 @@ internal object LabelValueLayout {
         return (stacked + sideBySide).distinctBy { it.page to it.label }
     }
 
-    /** The lines of [ctx] that are the label of a label/value pair. */
+    /** The lines of [ctx] that are the label of a label/value pair. [ctx]'s lines must be in reading order (see [LabelValuePairs.of]). */
     fun labelLines(ctx: ExtractionContext): Set<SourceLine> {
         val labels = HashSet<SourceLine>()
         val seen = HashSet<SourceLine>()
@@ -62,7 +62,14 @@ internal object LabelValueLayout {
     }
 
     /** The label lines of one [run]: see the class comment. Empty when the run is no label/value layout. */
-    internal fun labelsOf(run: List<SourceLine>): Set<SourceLine> {
+    internal fun labelsOf(fullRun: List<SourceLine>): Set<SourceLine> {
+        // A value that wraps ("nadine.beispiel@jobcenter-" over "musterstadt.example", one block) is one value, not a value then a label.
+        val run = fullRun.filterIndexed { i, line ->
+            val before = fullRun.getOrNull(i - 1)
+            // (the shape of one: the line above breaks at a hyphen and holds a value, and this one is a single token, the rest of it.)
+            !(before != null && before.nextInBlock && before.blockIndex == line.blockIndex && before.text.trimEnd().endsWith('-') &&
+                valueShaped(before.text) && line.text.none { it.isWhitespace() })
+        }
         val words = run.map { wordShaped(it.text) }
         val values = run.map { valueShaped(it.text) }
         // A pair is word-shaped over value-shaped AND followed by another word-shaped line (or the end of the run): a name over a street

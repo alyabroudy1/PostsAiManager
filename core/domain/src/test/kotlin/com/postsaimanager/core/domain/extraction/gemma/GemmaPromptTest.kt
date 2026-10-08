@@ -67,7 +67,7 @@ class GemmaPromptTest {
 
         assertThat(fields.indexOf("- a:")).isLessThan(fields.indexOf("- p:"))
         assertThat(fields.indexOf("- p:")).isLessThan(fields.indexOf("- c:"))
-        assertThat(fields.indexOf("- c:")).isLessThan(fields.indexOf("- r:"))
+        assertThat(fields.indexOf("- c:")).isLessThan(fields.indexOf("- sender:"))
         assertThat(fields).contains("asks nothing")
     }
 

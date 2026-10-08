@@ -36,7 +36,7 @@ class GemmaSchemaTest {
     @DisplayName("every field is required, with one-letter keys, and nothing else may be added")
     fun `all fields required`() {
         val required = schema["required"]!!.jsonArray.map { it.jsonPrimitive.content }
-        assertThat(required).containsExactly("a", "p", "c", "r", "d", "m", "t", "f", "k", "e", "l", "n").inOrder()
+        assertThat(required).containsExactly("a", "p", "c", "sender", "addressee", "contact", "subjectPerson", "d", "m", "t", "f", "k", "e", "l", "n").inOrder()
         assertThat(schema["additionalProperties"]!!.jsonPrimitive.content).isEqualTo("false")
     }
 
@@ -72,15 +72,17 @@ class GemmaSchemaTest {
     }
 
     @Test
-    @DisplayName("the parties are a list of entries (who, a name candidate or a line of this letter, a kind), empty when nobody exists")
+    @DisplayName("each role (sender, addressee, contact, subject person) is a required field: a name candidate or a line of this letter or none, and a kind")
     fun `party ids are the letter's`() {
-        assertThat(property("r")["maxItems"]!!.jsonPrimitive.content).isEqualTo("4")
-        val ids = itemEnum("r", "i")
-        assertThat(ids).containsAtLeast("M1", "M2", "M3", "L1", "L9", "none")
-        assertThat(ids).doesNotContain("D1")
-        assertThat(ids).doesNotContain("A1")
-        assertThat(itemEnum("r", "w")).containsExactlyElementsIn(vocab.partyRoleCodes.codes)
-        assertThat(itemEnum("r", "k")).containsExactlyElementsIn(vocab.partyKindCodes.codes)
+        for (role in GemmaSchema.PARTIES) {
+            val inner = property(role)["properties"]!!.jsonObject
+            val ids = enumOf(inner["i"]!!.jsonObject)
+            assertThat(ids).containsAtLeast("M1", "M2", "M3", "L1", "L9", "none")
+            assertThat(ids).doesNotContain("D1")
+            assertThat(ids).doesNotContain("A1")
+            assertThat(enumOf(inner["k"]!!.jsonObject)).containsExactlyElementsIn(vocab.partyKindCodes.codes)
+            assertThat(property(role)["required"]!!.jsonArray.map { it.jsonPrimitive.content }).containsExactly("i", "k")
+        }
     }
 
     @Test

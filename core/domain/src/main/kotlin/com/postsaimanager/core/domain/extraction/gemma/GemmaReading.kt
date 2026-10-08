@@ -74,12 +74,16 @@ object GemmaReadingParser {
             return Parsed.Bad("the answer is not a JSON object: ${e.message?.take(80)}")
         }
         // One entry per party that exists: the first of a role is the party (a model that lists a role twice has said the same thing twice).
-        val parties = root.items(Field.PARTIES).mapNotNull { o ->
+        val listed = root.items(Field.PARTIES).mapNotNull { o ->
             val role = vocab.partyRoleCodes.idOf(o.str(Item.WHO)) ?: return@mapNotNull null
             role to GemmaParty(
                 id = o.str(Item.ID), text = o.str(Item.NAME), kind = vocab.partyKindCodes.idOf(o.str(Item.KIND)),
             )
         }.distinctBy { it.first }.toMap()
+        // A letter with text lines answers one field per role ({id, kind}, see [GemmaSchema]); a picture-only answer is the list above.
+        val parties = listed + GemmaSchema.PARTIES.mapNotNull { role ->
+            (root[role] as? JsonObject)?.let { o -> role to GemmaParty(id = o.str(Item.ID), kind = vocab.partyKindCodes.idOf(o.str(Item.KIND))) }
+        }.toMap()
         return Parsed.Ok(
             GemmaReading(
                 asksReader = when (root.str(Field.ASKS_READER)?.lowercase()) {

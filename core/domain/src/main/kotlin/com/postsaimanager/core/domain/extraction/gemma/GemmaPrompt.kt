@@ -82,7 +82,7 @@ object GemmaPrompt {
                     if (l.tags.isNotEmpty()) append("  [").append(l.tags.joinToString(",")).append(']')
                     append('\n')
                 }
-                append("\nCANDIDATES (id | kind | printed | label near it | line; = is the whole line, =id is the same as that candidate):\n")
+                append("\nCANDIDATES (id | kind | printed | label near it | line | zone of the line; = is the whole line, =id is the same as that candidate):\n")
                 val seen = HashMap<String, String>()
                 letter.candidates.forEach { c ->
                     val earlier = seen.putIfAbsent("${c.kind}:${c.raw}", c.id)
@@ -93,7 +93,7 @@ object GemmaPrompt {
                         else -> c.raw
                     }
                     append(c.id).append(" | ").append(kindWord(c.kind)).append(" | ").append(printed).append(" | ").append(c.label).append(" | ")
-                        .append(c.lineId.orEmpty()).append('\n')
+                        .append(c.lineId.orEmpty()).append(" | ").append(c.lineId?.let(letter::line)?.zone.orEmpty()).append('\n')
                 }
             }
         }
@@ -120,7 +120,9 @@ object GemmaPrompt {
             append("- ${Field.DATES}, ${Field.AMOUNTS}: entries {${Item.VALUE}: the value as printed (a date as yyyy-MM-dd, an amount as 1234.50 EUR), ${Item.MEANING}: the code of what it means}.\n")
             append("- ${Field.REFERENCES}: entries {${Item.VALUE}: each number as printed, ${Item.KIND}: the code of its kind (the account is the iban kind)}.\n")
         } else {
-            append("- ${Field.PARTIES}: one entry for each of the sender, the addressee and the contact, and one for any other party that exists: {${Item.WHO}: who, ${Item.ID}: a name candidate id or a line id, or \"${GemmaVocabulary.NONE}\" when the letter has no such party, ${Item.KIND}: its kind code}.\n")
+            append("- ${GemmaSchema.SENDER}: who wrote and sent the letter. ${GemmaSchema.ADDRESSEE}: to whom it is addressed. " +
+                "${GemmaSchema.CONTACT}: the person to contact at the sender. ${GemmaSchema.SUBJECT_PERSON}: the person it is about, when that is not the addressee. " +
+                "Each is {${Item.ID}: a name candidate id or a line id, or \"${GemmaVocabulary.NONE}\" when the letter has no such party, ${Item.KIND}: its kind code}.\n")
             append("- ${Field.DATES}, ${Field.AMOUNTS}: entries {${Item.ID}: the candidate, ${Item.MEANING}: the code of what it means}. " +
                 "Take the meaning from the letter's own words next to the value (the label); a value the letter does not describe, such as a line of a table, " +
                 "a unit price or a part of a total, is the \"none of these\" code. Only one date can be the date of the letter.\n")

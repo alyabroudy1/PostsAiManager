@@ -37,6 +37,22 @@ class ExtractorCandidateSource : CandidateSource {
  */
 object BlockZones {
 
+    /**
+     * The blocks of each page in the layout's reading order (the OCR returns them in any order: an information block's lines can be
+     * scattered between the letter's other blocks). A block takes the place of its first line in the layout; one the layout has no
+     * line for goes last, in its own order.
+     */
+    fun inReadingOrder(pages: List<List<OcrBlock>>, layout: LetterLayout): List<List<OcrBlock>> = pages.mapIndexed { pi, blocks ->
+        val lines = layout.page(pi + 1)?.lines.orEmpty()
+        blocks.withIndex().sortedWith(
+            compareBy({ (_, block) ->
+                val first = com.postsaimanager.core.domain.extraction.candidates.OcrText.normalizeChars(block.text).lines().map { it.trim() }.firstOrNull { it.isNotEmpty() }
+                lines.withIndex().filter { (_, l) -> l.text == first && abs(l.bounds.top - block.bounds.top) < TOLERANCE && abs(l.bounds.left - block.bounds.left) < TOLERANCE }
+                    .minOfOrNull { it.index } ?: Int.MAX_VALUE
+            }, { it.index }),
+        ).map { it.value }
+    }
+
     fun of(pages: List<List<OcrBlock>>, layout: LetterLayout): Map<BlockKey, BlockZone> {
         val out = HashMap<BlockKey, BlockZone>()
         for ((pi, blocks) in pages.withIndex()) {

@@ -104,10 +104,12 @@ object GemmaLetterBuilder {
             val value = pair.value?.let { v -> plain.drop(i + 1).firstOrNull { it.page == line.page && same(v, it.text) }?.id }
             line.copy(isLabel = true, valueLineId = value)
         }
+        val labelIds = lines.filter { it.isLabel }.map { it.id }.toSet()
         val candidates = offered.rows.map { row ->
             val c = row.candidate
             GemmaCandidate(c.id, c.kind, c.raw.trim(), c.normalized, c.label.ifBlank { row.nearLabels.firstOrNull().orEmpty() }, lineIdOf(c, source, lines.size))
-        }
+            // A label is no name: its line is not offered as a name candidate either (the value below it is the name).
+        }.filterNot { it.kind == CandidateKind.NAME && it.lineId in labelIds }
         return GemmaLetter(lines, candidates)
     }
 

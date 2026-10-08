@@ -41,6 +41,7 @@ class GemmaDocumentInterpreter(
     private val onSummary: (suspend (String) -> Unit)? = null,
     private val keepOpenAs: String? = null,
     private val labelPairs: () -> List<LabelValuePair> = { emptyList() },
+    private val ocrDump: () -> List<String> = { emptyList() },
 ) : DocumentInterpreter {
 
     override val name: String = "gemma-reader"
@@ -67,6 +68,7 @@ class GemmaDocumentInterpreter(
         val layout = request.layout ?: return failed("the reader needs the letter's layout")
         val letter = GemmaLetterBuilder.build(layout, request.offered, addressLines(), labelPairs())
         if (letter.isImageOnly) return failed("the letter has no text lines")
+        lines += ocrDump() // debug only: the OCR blocks with their boxes (to turn a device letter into a test fixture)
         val category = request.forcedFamily?.let(schema::categoryOf)?.phrase
 
         val answered = when (val outcome = reader.read(GemmaReaderRequest(letter, imagePaths, category, onSummary, keepOpenAs))) {
