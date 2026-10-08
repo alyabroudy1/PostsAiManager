@@ -113,7 +113,7 @@ class GemmaDocumentInterpreter(
     /** The party that was decided: its candidate id (or "line" for a printed line) and the text, for the debug log. */
     private fun party(v: VerifiedReading, role: PartyRole, letter: GemmaLetter): String =
         v.parties.firstOrNull { it.role == role }?.let { p ->
-            (p.candidateId ?: "line") + "='" + (p.candidateId?.let { letter.candidate(it)?.raw } ?: p.quote).orEmpty().take(40) + "'"
+            (p.candidateId ?: "line") + "='" + (p.candidateId?.let { letter.candidate(it)?.raw } ?: p.quote).orEmpty().take(40) + "'/" + p.kind.name.lowercase()
         } ?: "none"
 
     private fun failed(reason: String): InterpretationOutcome {

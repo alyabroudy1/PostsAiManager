@@ -99,6 +99,26 @@ class EntityProfileLinkerTest {
         relation: String = "",
     ) = RecognisedEntity(name = name, kind = kind, role = role, relation = relation, confidence = confidence)
 
+    @Test
+    @DisplayName("a profile an earlier reading made as a person follows a newer reading that says it is an organisation, unless the user edited it")
+    fun `machine person becomes the organisation the newest reading says`() = runTest {
+        val sender = entity("Jobcenter Musterstadt", EntityKind.AUTHORITY, EntityRole.SENDER)
+        // Made by a reading as a person (created = modified), and one the user edited since (modified later).
+        profileRepository.seed(
+            testProfile(id = "machine", name = "Jobcenter Musterstadt", type = ProfileType.PERSON)
+                .copy(sourceDocumentId = "doc-1", sourceEntityName = "jobcenter musterstadt", createdAt = 5L, modifiedAt = 5L),
+            testProfile(id = "edited", name = "Amt Beispiel", type = ProfileType.PERSON)
+                .copy(sourceDocumentId = "doc-2", sourceEntityName = "amt beispiel", createdAt = 5L, modifiedAt = 9L),
+        )
+
+        linker.process("doc-1", DocumentUnderstanding(entities = listOf(sender)))
+        linker.process("doc-2", DocumentUnderstanding(entities = listOf(entity("Amt Beispiel", EntityKind.AUTHORITY, EntityRole.SENDER))))
+
+        assertThat(profiles().single { it.id == "machine" }.kind).isEqualTo(ProfileKind.ORGANISATION)
+        assertThat(profiles().single { it.id == "edited" }.kind).isEqualTo(ProfileKind.PERSON)
+        assertThat(profileRepository.links).contains(Triple("machine", "doc-1", ProfileRole.SENDER))
+    }
+
     private suspend fun profiles() = profileRepository.getProfiles().first()
 
     private fun jobcenterLetter(vararg extra: RecognisedEntity) = DocumentUnderstanding(

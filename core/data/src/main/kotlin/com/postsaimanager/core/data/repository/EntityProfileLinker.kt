@@ -19,6 +19,7 @@ import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileKind
 import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.model.RecognisedEntity
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -80,6 +81,7 @@ class EntityProfileLinker @Inject constructor(
 
             val key = normaliseEntityName(entity.name)
             val dismissed = dismissedEntityDao.isDismissed(documentId, key)
+            if (!dismissed) promoteMachinePerson(entity, key)
             // A contact person is not matched against profiles: it belongs to the organisation, not to the list of profiles.
             val match = if (dismissed || entity.role == EntityRole.SENDER_CONTACT) null else findMatch(entity)
 
@@ -158,6 +160,27 @@ class EntityProfileLinker @Inject constructor(
             throw e
         } catch (e: Exception) {
             log(Log.WARN, "earlier sender not unlinked for $documentId: ${e.javaClass.simpleName}")
+        }
+    }
+
+    /**
+     * A profile an earlier reading made as a person for this very name (machine-created from a document and never edited since:
+     * its modification time is still its creation time) follows the newest reading when that says the name is an organisation. A
+     * profile the user touched, a household person or one the user made by hand is never changed.
+     */
+    private suspend fun promoteMachinePerson(entity: RecognisedEntity, key: String) {
+        if (!isOrganisation(entity.kind) || entity.role == EntityRole.SENDER_CONTACT) return
+        try {
+            val stale = profileRepository.getProfiles().first().firstOrNull {
+                it.kind == ProfileKind.PERSON && it.householdRole == null && it.sourceDocumentId != null &&
+                    it.sourceEntityName == key && it.modifiedAt == it.createdAt
+            } ?: return
+            profileRepository.updateProfile(stale.copy(kind = ProfileKind.ORGANISATION, organization = entity.name))
+            log(Log.INFO, "profile ${stale.id} was read as a person once and is an organisation now")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log(Log.WARN, "profile kind not updated: ${e.javaClass.simpleName}")
         }
     }
 
