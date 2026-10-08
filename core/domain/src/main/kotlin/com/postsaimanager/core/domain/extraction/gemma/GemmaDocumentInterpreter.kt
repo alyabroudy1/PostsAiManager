@@ -35,6 +35,8 @@ class GemmaDocumentInterpreter(
     private val schema: ExtractionSchema = ExtractionSchema.DEFAULT,
     private val verifier: GemmaReadingVerifier = GemmaReadingVerifier(),
     private val mapper: GemmaReadingMapper = GemmaReadingMapper(),
+    private val addressReader: GemmaAddresses = GemmaAddresses(),
+    private val found: GemmaFoundValues = GemmaFoundValues(),
 ) : DocumentInterpreter {
 
     override val name: String = "gemma-reader"
@@ -78,6 +80,16 @@ class GemmaDocumentInterpreter(
         val verified = verifier.verify(reading, letter, request.offered, layout.plainText(), letterDate())
         decision = GemmaDecision(verified)
         val mapped = mapper.map(verified, verified.language, request.direction, request.forcedFamily)
+        // What code found and the answer lacks (the addresses, the letter's own date), added apart from the mapping (see GemmaFoundValues).
+        val addresses = try {
+            addressReader.read(layout, request.offered, verified)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            lines += "addresses not read: ${e.javaClass.simpleName}"
+            null
+        }
+        val raw = found.apply(mapped.raw, addresses, found.candidateOf(letter, request.offered))
 
         lines += "gemma decided category=${verified.category} sender=${party(verified, PartyRole.SENDER)} " +
             "addressee=${party(verified, PartyRole.ADDRESSEE)} contact=${party(verified, PartyRole.CONTACT)} " +
@@ -85,7 +97,7 @@ class GemmaDocumentInterpreter(
             "actions=[${verified.actions.joinToString(",") { it.kind }}] name=${verified.name != null} paid=${verified.paid?.id} " +
             "dropped=${verified.drops.size}"
         verified.drops.forEach { lines += "gemma dropped: $it" }
-        return InterpretationOutcome.Answered(mapped.raw, answered.json, answered.prompt, answered.schema)
+        return InterpretationOutcome.Answered(raw,answered.json, answered.prompt, answered.schema)
     }
 
     /** The id the party was named by (a candidate id or a line's quote marker), never the printed text. */

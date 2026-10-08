@@ -14,6 +14,7 @@ import com.postsaimanager.core.domain.document.contacts.SameContactQuestion
 import com.postsaimanager.core.domain.form.BaselineScores
 import com.postsaimanager.core.domain.organisation.DecideDetailOwnerUseCase
 import com.postsaimanager.core.domain.organisation.DetailOwnerProfile
+import com.postsaimanager.core.domain.organisation.ReplaceStaleSenderUseCase
 import com.postsaimanager.core.domain.organisation.SuggestOrganisationDetailsUseCase
 import com.postsaimanager.core.domain.usecase.EntityLinkingUseCase
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
@@ -73,6 +74,7 @@ class EntityProfileLinkerTest {
                 DecideDetailOwnerUseCase(FakeDetailOwnerQuestion(), DetailOwnerProfile()),
             )
         },
+        dagger.Lazy { ReplaceStaleSenderUseCase(profileRepository, contacts, documents) },
     )
 
     init {
@@ -160,6 +162,65 @@ class EntityProfileLinkerTest {
 
             assertThat(profiles().none { it.name == "Layla" }).isTrue()
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    @Nested
+    @DisplayName("A letter read again with another sender")
+    inner class SenderChanged {
+
+        @Test
+        @DisplayName("the organisation an earlier reading took for the sender, and its contact, lose this letter; the new one gets the contact")
+        fun `an earlier wrong sender is replaced`() = runTest {
+            // The first reading took a label for the sender: its organisation and the contact are linked to the letter.
+            storeContact("doc-1", "Frau Müller")
+            linker.process(
+                "doc-1",
+                DocumentUnderstanding(
+                    entities = listOf(
+                        entity("Ansprechpartnerin", EntityKind.AUTHORITY, EntityRole.SENDER),
+                        entity("Frau Müller", EntityKind.PERSON, EntityRole.SENDER_CONTACT),
+                    ),
+                ),
+            )
+            val label = profiles().single { it.organization == "Ansprechpartnerin" }
+            assertThat(contacts.observeContactsForDocument("doc-1").first()).hasSize(1)
+
+            // The better reading names the real sender.
+            val outcome = linker.process("doc-1", jobcenterLetter())
+
+            val jobcenter = profiles().single { it.organization == "Jobcenter Berlin Mitte" }
+            val senders = profileRepository.links.filter { it.second == "doc-1" && it.third == ProfileRole.SENDER }.map { it.first }
+            assertThat(senders).containsExactly(jobcenter.id)
+            assertThat(senders).doesNotContain(label.id)
+            // The contact now belongs to the real organisation, and the letter has only that one.
+            assertThat(contacts.observeContactsForDocument("doc-1").first().map { it.organisationId }).containsExactly(jobcenter.id)
+            assertThat(outcome.contact).isInstanceOf(ContactLinkOutcome.Created::class.java)
+        }
+    }
+
+    @Test
+    @DisplayName("a sender the user set on the letter survives a re-read: no other sender is linked, nothing is unlinked")
+    fun `the user-set sender survives a re-read`() = runTest {
+        linker.process(
+            "doc-1",
+            DocumentUnderstanding(entities = listOf(entity("Ansprechpartnerin", EntityKind.AUTHORITY, EntityRole.SENDER))),
+        )
+        val chosen = profiles().single { it.organization == "Ansprechpartnerin" }
+        documents.seedExtracted(
+            "doc-1",
+            ExtractedData(
+                id = "sender-doc-1", documentId = "doc-1", fieldName = UnderstandingToFields.SENDER_ORGANISATION,
+                fieldValue = "Ansprechpartnerin", fieldType = ExtractedFieldType.ORGANIZATION, confidence = 1f,
+                source = com.postsaimanager.core.model.ValueSource.USER, slotKey = UnderstandingToFields.SLOT_SENDER,
+            ),
+        )
+
+        linker.process("doc-1", jobcenterLetter())
+
+        val senders = profileRepository.links.filter { it.second == "doc-1" && it.third == ProfileRole.SENDER }.map { it.first }
+        assertThat(senders).containsExactly(chosen.id)
+        assertThat(profiles().none { it.organization == "Jobcenter Berlin Mitte" }).isTrue()
     }
 
     // ═══════════════════════════════════════════════════════════

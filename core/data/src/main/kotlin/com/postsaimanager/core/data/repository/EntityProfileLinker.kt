@@ -8,6 +8,7 @@ import com.postsaimanager.core.data.database.entity.DismissedEntityEntity
 import com.postsaimanager.core.domain.contacts.ContactLinkOutcome
 import com.postsaimanager.core.domain.contacts.LinkSenderContactUseCase
 import com.postsaimanager.core.domain.document.normaliseEntityName
+import com.postsaimanager.core.domain.organisation.ReplaceStaleSenderUseCase
 import com.postsaimanager.core.domain.organisation.SuggestOrganisationDetailsUseCase
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.domain.usecase.EntityLinkingUseCase
@@ -16,6 +17,7 @@ import com.postsaimanager.core.model.EntityKind
 import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileKind
+import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.model.RecognisedEntity
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -49,6 +51,8 @@ class EntityProfileLinker @Inject constructor(
     private val linkSenderContact: dagger.Lazy<LinkSenderContactUseCase>,
     // Lazy for the same reason: whose a phone number is, is also a question to the model.
     private val suggestOrganisationDetails: dagger.Lazy<SuggestOrganisationDetailsUseCase>,
+    // Lazy for the same reason: it reads the letter's stored fields through the document repository.
+    private val replaceStaleSenderUseCase: dagger.Lazy<ReplaceStaleSenderUseCase>,
 ) {
 
     data class Outcome(
@@ -68,6 +72,11 @@ class EntityProfileLinker @Inject constructor(
 
         for (entity in understanding.entities) {
             if (entity.name.isBlank()) continue
+            // A sender the person set or confirmed is never replaced or added to by a reading.
+            if (entity.role == EntityRole.SENDER && replaceStaleSenderUseCase.get().senderIsUsers(documentId)) {
+                ignored++
+                continue
+            }
 
             val key = normaliseEntityName(entity.name)
             val dismissed = dismissedEntityDao.isDismissed(documentId, key)
@@ -88,11 +97,18 @@ class EntityProfileLinker @Inject constructor(
                     val result = profileRepository.linkProfileToDocument(
                         action.profileId, documentId, action.role,
                     )
-                    if (result is PamResult.Success) linked++
+                    if (result is PamResult.Success) {
+                        linked++
+                        settleSender(documentId, entity, action.role, action.profileId)
+                    }
                 }
 
                 is EntityLinkingUseCase.Action.Create -> {
-                    if (createAndLink(documentId, key, action)) created++
+                    val profileId = createAndLink(documentId, key, action)
+                    if (profileId != null) {
+                        created++
+                        settleSender(documentId, entity, action.role, profileId)
+                    }
                 }
 
                 is EntityLinkingUseCase.Action.Propose -> Unit
@@ -107,6 +123,7 @@ class EntityProfileLinker @Inject constructor(
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
+            log(Log.WARN, "contact linking failed for $documentId: ${e.javaClass.simpleName}")
             null
         }
 
@@ -114,14 +131,39 @@ class EntityProfileLinker @Inject constructor(
         // organisation's profile as suggestions, and the contact person's own phone or e-mail goes to the contact. The sender is linked
         // by now, so this is the one place it can be done; a failure leaves the reading as it was.
         try {
-            suggestOrganisationDetails.get()(documentId)
+            val offered = suggestOrganisationDetails.get()(documentId)
+            log(
+                Log.DEBUG,
+                "suggestions for $documentId: offered=${offered.offered} contactFilled=${offered.contactFilled} skipped=${offered.skipped}",
+            )
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Unit
+            log(Log.WARN, "organisation suggestions failed for $documentId: ${e.javaClass.simpleName}")
         }
 
         return Outcome(linked, created, ignored, contact)
+    }
+
+    /**
+     * The reading settled [profileId] as the letter's sender organisation: an organisation an earlier reading linked as the sender of the
+     * same letter stops being it ([ReplaceStaleSenderUseCase]), so the contact and the suggestions below go to the right one.
+     */
+    private suspend fun settleSender(documentId: String, entity: RecognisedEntity, role: ProfileRole, profileId: String) {
+        if (role != ProfileRole.SENDER || !isOrganisation(entity.kind)) return
+        try {
+            val replaced = replaceStaleSenderUseCase.get()(documentId, profileId)
+            if (replaced > 0) log(Log.INFO, "sender of $documentId: $replaced earlier sender organisation(s) unlinked")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log(Log.WARN, "earlier sender not unlinked for $documentId: ${e.javaClass.simpleName}")
+        }
+    }
+
+    /** android.util.Log is not available in a JVM unit test. */
+    private fun log(priority: Int, text: String) {
+        runCatching { Log.println(priority, TAG, text) }
     }
 
     /** The scores of the same-person question, ids and numbers only (no name), at debug level. */
@@ -163,7 +205,7 @@ class EntityProfileLinker @Inject constructor(
         documentId: String,
         entityKey: String,
         action: EntityLinkingUseCase.Action.Create,
-    ): Boolean {
+    ): String? {
         val now = System.currentTimeMillis()
         val profile = Profile(
             id = UuidGenerator.generate(),
@@ -177,9 +219,9 @@ class EntityProfileLinker @Inject constructor(
         )
 
         val result = profileRepository.createProfile(profile)
-        if (result !is PamResult.Success) return false
+        if (result !is PamResult.Success) return null
         profileRepository.linkProfileToDocument(profile.id, documentId, action.role)
-        return true
+        return profile.id
     }
 
     /**
