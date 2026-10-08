@@ -22,9 +22,10 @@ data class StructuredRequest(
     val schema: String,
     val imagePaths: List<String> = emptyList(),
     val maxTokens: Int = DEFAULT_MAX_TOKENS,
-    val temperature: Float = DEFAULT_TEMPERATURE,
-    val topK: Int = DEFAULT_TOP_K,
-    val topP: Float = DEFAULT_TOP_P,
+    // Greedy by default ([samplingFor] STRUCTURED): every constrained call is a structured request.
+    val temperature: Float = samplingFor(SamplingPurpose.STRUCTURED).temperature,
+    val topK: Int = samplingFor(SamplingPurpose.STRUCTURED).topK,
+    val topP: Float = samplingFor(SamplingPurpose.STRUCTURED).topP,
     val timeoutMs: Long = DEFAULT_TIMEOUT_MS,
     val leadPrompt: String? = null,
     val onLead: (suspend (String) -> Unit)? = null,
@@ -32,9 +33,6 @@ data class StructuredRequest(
 ) {
     companion object {
         const val DEFAULT_MAX_TOKENS = 1024
-        const val DEFAULT_TEMPERATURE = 0.1f
-        const val DEFAULT_TOP_K = 20
-        const val DEFAULT_TOP_P = 0.9f
         const val DEFAULT_TIMEOUT_MS = 120_000L
     }
 }

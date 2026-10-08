@@ -2,6 +2,8 @@ package com.postsaimanager.core.domain.memory
 
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.SamplingPurpose
+import com.postsaimanager.core.domain.ai.samplingFor
 import com.postsaimanager.core.model.ModelLoadState
 import javax.inject.Inject
 
@@ -35,11 +37,12 @@ class ChatEngineSessionNoteGenerator @Inject constructor(
         if (!isAvailable()) return null
         return engine.generateOnce(
             system,
-            AiRequest(prompt = prompt, maxTokens = SessionNotesFormat.MAX_TOKENS, temperature = TEMPERATURE, topK = 1, thinkingEnabled = false),
+            AiRequest(
+                prompt = prompt, maxTokens = SessionNotesFormat.MAX_TOKENS, temperature = sampling.temperature, topK = sampling.topK,
+                topP = sampling.topP, thinkingEnabled = false,
+            ),
         )
     }
 
-    private companion object {
-        const val TEMPERATURE = 0.1f
-    }
+    private val sampling = samplingFor(SamplingPurpose.STRUCTURED)
 }

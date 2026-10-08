@@ -4,6 +4,8 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.ChatEngine
 import com.postsaimanager.core.domain.ai.ChatImagePolicy
+import com.postsaimanager.core.domain.ai.ModelUse
+import com.postsaimanager.core.domain.ai.loadForUse
 import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.model.ModelRuntime
 import kotlinx.coroutines.withTimeoutOrNull
@@ -63,12 +65,14 @@ class ChatEngineGemmaReader @Inject constructor(
     override suspend fun read(request: GemmaReaderRequest): GemmaReaderOutcome {
         val started = System.nanoTime()
         val path = activeModel.activeModelPath() ?: return GemmaReaderOutcome.Unavailable("no chat model is installed")
-        val config = activeModel.activeModelConfig()
+        val config = activeModel.readingModelConfig()
         if (config.runtime != ModelRuntime.LITERT_LM) return GemmaReaderOutcome.Unavailable("the chat model is not a LiteRT-LM model")
         val images = if (ChatImagePolicy.enabledFor(config)) request.imagePaths else emptyList()
         if (request.letter.isImageOnly && images.isEmpty()) return GemmaReaderOutcome.Unavailable("no text and no picture the model can take")
 
-        if (engine.load(path, config) is PamResult.Error) return GemmaReaderOutcome.Unavailable("the chat model could not be loaded")
+        if (engine.loadForUse(ModelUse.READING, path, config) is PamResult.Error) {
+            return GemmaReaderOutcome.Unavailable("the chat model could not be loaded")
+        }
 
         val imageOnly = request.letter.isImageOnly
         val schema = GemmaSchema.build(request.letter)

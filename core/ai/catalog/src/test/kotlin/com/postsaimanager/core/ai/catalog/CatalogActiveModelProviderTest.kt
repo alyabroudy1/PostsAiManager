@@ -9,6 +9,7 @@ import com.postsaimanager.core.model.InstalledModel
 import com.postsaimanager.core.model.ModelSource
 import com.postsaimanager.core.testing.FakeAiEngine
 import com.postsaimanager.core.testing.FakeInferenceSettingsRepository
+import com.postsaimanager.core.testing.FakeReadingAcceleratorSetting
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -65,7 +66,7 @@ class CatalogActiveModelProviderTest {
     }
 
     private fun provider(deviceCapability: DeviceCapabilityChecker) =
-        CatalogActiveModelProvider(installedStore, deviceCapability, settings, engine, CpuTopology())
+        CatalogActiveModelProvider(installedStore, deviceCapability, settings, engine, CpuTopology(), FakeReadingAcceleratorSetting())
 
     /** Fluctuates the RAM tier around the 1.5 GB `affordableContext` threshold on demand. */
     private fun flakyDeviceCapability(availableRamBytesSequence: List<Long>): DeviceCapabilityChecker {

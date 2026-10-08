@@ -3,6 +3,8 @@ package com.postsaimanager.core.domain.extraction.gemma
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.ModelUse
+import com.postsaimanager.core.domain.ai.loadForUse
 import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.domain.extraction.text.KeyInfoFormat
 import com.postsaimanager.core.domain.extraction.text.KeyInfoVerifier
@@ -209,9 +211,9 @@ class ChatEngineGemmaTextGenerator @Inject constructor(
 
     override suspend fun generate(system: String, prompt: String, schema: String, maxTokens: Int): String? {
         val path = activeModel.activeModelPath() ?: return null
-        val config = activeModel.activeModelConfig()
+        val config = activeModel.readingModelConfig()
         if (config.runtime != ModelRuntime.LITERT_LM) return null
-        if (engine.load(path, config) is PamResult.Error) return null
+        if (engine.loadForUse(ModelUse.READING, path, config) is PamResult.Error) return null
         val request = StructuredRequest(system = system, prompt = prompt, schema = schema, maxTokens = maxTokens, timeoutMs = TIMEOUT_MS)
         return withTimeoutOrNull(TIMEOUT_MS + GRACE_MS) { engine.generateStructured(request) }
     }

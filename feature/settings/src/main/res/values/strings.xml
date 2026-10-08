@@ -3,6 +3,8 @@
     <string name="settings_debug_section">Debug</string>
     <string name="settings_gemma_trial_title">Reader: Gemma (default) / Qwen scorer (old)</string>
     <string name="settings_gemma_trial_subtitle">On: Gemma reads every letter with the page picture, and the old Qwen scorer reads when Gemma cannot. Off: the old Qwen scorer reads</string>
+    <string name="settings_reading_accelerator_title">Reading: CPU / GPU</string>
+    <string name="settings_reading_accelerator_subtitle">On: the model reads letters on the GPU (faster to start, the chat reloads it on the CPU when you chat). Off: the CPU, like the chat</string>
     <!-- Settings added in Phase 1 (background updates, App lock). English only for now; the same
          names in values-de and values-ar localise them. -->
     <string name="settings_reading_finished_title">Reading finished</string>

@@ -211,6 +211,15 @@ fun SettingsScreen(
                     checked = trialOn,
                     onCheckedChange = gemmaTrial::setEnabled,
                 )
+                val readingAccelerator: ReadingAcceleratorViewModel = hiltViewModel()
+                val readingOnGpu by readingAccelerator.onGpu.collectAsStateWithLifecycle()
+                SettingsSwitchItem(
+                    icon = PamIcons.AiModel,
+                    title = stringResource(R.string.settings_reading_accelerator_title),
+                    subtitle = stringResource(R.string.settings_reading_accelerator_subtitle),
+                    checked = readingOnGpu,
+                    onCheckedChange = readingAccelerator::setOnGpu,
+                )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }
 

@@ -2,6 +2,7 @@ package com.postsaimanager.core.ai.catalog
 
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.AiEngine
+import com.postsaimanager.core.domain.ai.ReadingAcceleratorSetting
 import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
 import com.postsaimanager.core.domain.repository.InferenceSettingsRepository
 import com.postsaimanager.core.model.Accelerator
@@ -16,6 +17,8 @@ import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.model.ModelRuntime
 import com.postsaimanager.core.model.applying
 import com.postsaimanager.core.model.inferenceConfigSchema
+import com.postsaimanager.core.model.resolveAccelerator
+import com.postsaimanager.core.model.resolveGpuLayers
 import com.postsaimanager.core.model.withGpuBlocked
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -34,6 +37,7 @@ class CatalogActiveModelProvider @Inject constructor(
     private val inferenceSettingsRepository: InferenceSettingsRepository,
     private val aiEngine: AiEngine,
     private val cpuTopology: CpuTopology,
+    private val readingAccelerator: ReadingAcceleratorSetting,
 ) : ActiveModelProvider {
 
     override suspend fun activeModelPath(): String? {
@@ -85,6 +89,20 @@ class CatalogActiveModelProvider @Inject constructor(
     }
 
     override suspend fun activeModelConfig(): InferenceConfig = configFor(installedStore.activeModel())
+
+    /**
+     * The chat model's config with the reading accelerator ([readingAccelerator]) in place of the chat's. Only a LiteRT-LM model has
+     * the setting (the others keep their config). The accelerator resolves as the chat's does, so a GPU the model or this device
+     * cannot use (or this model crashed on) quietly stays CPU.
+     */
+    override suspend fun readingModelConfig(): InferenceConfig {
+        val model = installedStore.activeModel()
+        val chat = configFor(model)
+        if (model?.runtime != ModelRuntime.LITERT_LM) return chat
+        val spec = backendSpec(model)
+        val accelerator = resolveAccelerator(readingAccelerator.current(), liteRtDevice(model).accelerators, spec)
+        return chat.copy(accelerator = accelerator, gpuLayers = resolveGpuLayers(accelerator, spec))
+    }
 
     /**
      * The config [model] loads with, for its runtime. llama.cpp models are sized to what the device can afford
