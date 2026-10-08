@@ -77,6 +77,10 @@ class GemmaDocumentInterpreter(
         lines += "gemma input lines=${letter.lines.size} candidates=${letter.candidates.size} image=${if (answered.usedImage) "yes" else "no"} " +
             "json=${answered.json.length} chars prompt=${answered.prompt.length} chars schema=${answered.schema.length} chars"
 
+        lines += "gemma party choices: " + GemmaSchema.partyIds(letter).joinToString(" ") { id ->
+            letter.line(id)?.let { "$id[${it.zone}]=${it.text.take(40)}" } ?: letter.candidates.firstOrNull { it.id == id }?.let { "$id=${it.raw.take(40)}" } ?: id
+        } + " | labels: " + letter.lines.filter { it.isLabel }.joinToString(" ") { "${it.id}=${it.text.take(30)}" }
+
         val reading = when (val parsed = GemmaReadingParser.parse(answered.json)) {
             is GemmaReadingParser.Parsed.Ok -> parsed.reading
             is GemmaReadingParser.Parsed.Bad -> return InterpretationOutcome.Failed(parsed.reason, answered.json.take(FAILED_RAW_CHARS), answered.prompt, answered.schema)
