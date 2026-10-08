@@ -223,8 +223,21 @@ interface IInferenceService {
      * With a [leadPrompt] the conversation has two turns: the first message (the pictures and [leadPrompt]) is answered in free text,
      * which goes to [leadCallback] the moment it is complete; then [prompt] is asked in the same conversation and its constrained
      * answer is returned. Without one, [prompt] alone carries the pictures. [leadCallback] may be null.
+     *
+     * With a [keepOpenAs] key (a document's id) the conversation stays open after a good answer for [continueLiteRtStructured]; null
+     * closes it as before.
      */
-    String generateLiteRtStructured(String system, String prompt, String schema, in String[] imagePaths, int maxTokens, float temperature, int topK, long timeoutMs, String leadPrompt, ILeadCallback leadCallback);
+    String generateLiteRtStructured(String system, String prompt, String schema, in String[] imagePaths, int maxTokens, float temperature, int topK, long timeoutMs, String leadPrompt, ILeadCallback leadCallback, String keepOpenAs);
+
+    /**
+     * A follow-up question in the conversation [generateLiteRtStructured] kept open under [key] (`LiteRtChatEngine.continueStructured`):
+     * only [prompt] is read, the answer is constrained to [schema]. Not queued, like [generateLiteRtStructured]; null at once when a reply
+     * or a warm-up is in flight, or when that conversation is gone, or the generation failed or ran past [timeoutMs].
+     */
+    String continueLiteRtStructured(String key, String prompt, String schema, long timeoutMs);
+
+    /** Closes the conversation kept open under [key] (a no-op when there is none). */
+    void closeLiteRtStructured(String key);
 
     /** Frees the LiteRT-LM model. */
     void unloadLiteRt();

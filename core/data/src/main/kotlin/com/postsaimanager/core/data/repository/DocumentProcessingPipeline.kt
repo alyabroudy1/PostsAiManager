@@ -27,6 +27,7 @@ import com.postsaimanager.core.domain.document.EnrichmentRetryPolicy
 import com.postsaimanager.core.domain.document.EnrichmentTicketRebuilder
 import com.postsaimanager.core.domain.document.KeySlotMarker
 import com.postsaimanager.core.domain.document.ReprocessOverwritePolicy
+import com.postsaimanager.core.domain.document.followup.FollowUpQuestions
 import com.postsaimanager.core.domain.document.people.DecideConcernedPeopleUseCase
 import com.postsaimanager.core.domain.reading.AnnounceUnderstoodLetterUseCase
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialReading
@@ -104,6 +105,8 @@ class DocumentProcessingPipeline @Inject constructor(
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
     // The "Gemma reads the letter" trial: asked first for a reading, and null (the reading below, unchanged) while the trial is off.
     private val gemmaTrial: GemmaTrialReading = GemmaTrialReading.NONE,
+    // Lazy: the questions reach the document repository, which needs this processor. Only [FollowUpQuestions.finish] is called from here.
+    private val followUps: dagger.Lazy<FollowUpQuestions> = dagger.Lazy { FollowUpQuestions.NONE },
 ) : DocumentProcessor {
     private val _processingState = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     override val processingState: Flow<ProcessingState> = _processingState.asStateFlow()
@@ -570,7 +573,8 @@ class DocumentProcessingPipeline @Inject constructor(
                     )
                     // Everything that follows a reading, the same for a scan and a re-read, Gemma's and the old one (the title is stored by now:
                     // the timeline event's title is the document's). Never fails the reading.
-                    if (usedModel && read != null) afterReading(documentId, read, staged)
+                    // Gemma's conversation is still open when it read the letter: the after-reading questions are turns in it.
+                    if (usedModel && read != null) afterReading(documentId, read, staged, readerConversationOpen = trialReading != null)
                 }
 
                 // Step 6: Mark as extracted (a reprocess never left it, so nothing to write).
@@ -710,7 +714,25 @@ class DocumentProcessingPipeline @Inject constructor(
         }
     }
 
-    private suspend fun afterReading(documentId: String, read: DocumentUnderstanding, staged: Boolean) {
+    /**
+     * With [readerConversationOpen] (Gemma read the letter) its conversation stays open through the steps below, so the questions they ask
+     * (the contact, whose a phone number is, the people check, the matter) are follow-up turns in it with the letter already read; it is
+     * closed when the last is done. The people check then runs here, inside the reading's lock, in place of the queued job that would
+     * find the conversation gone; when it cannot be answered it is queued as before and asked again later.
+     */
+    private suspend fun afterReading(documentId: String, read: DocumentUnderstanding, staged: Boolean, readerConversationOpen: Boolean = false) {
+        try {
+            afterReadingSteps(documentId, read, staged, readerConversationOpen)
+        } finally {
+            if (readerConversationOpen) {
+                withContext(kotlinx.coroutines.NonCancellable) {
+                    runCatching { followUps.get().finish(documentId) }.onFailure { Log.w(TAG, "follow-up conversation of $documentId not closed: ${it.message}") }
+                }
+            }
+        }
+    }
+
+    private suspend fun afterReadingSteps(documentId: String, read: DocumentUnderstanding, staged: Boolean, readerConversationOpen: Boolean) {
         val linkStarted = System.nanoTime()
         runCatching { entityProfileLinker.process(documentId, read) }
             .onSuccess { outcome ->
@@ -723,9 +745,14 @@ class DocumentProcessingPipeline @Inject constructor(
                 Log.w(TAG, "entity linking failed for $documentId: ${e.message}")
             }
 
-        runCatching { enqueuePeopleCheck(documentId) }.onFailure { e ->
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            Log.w(TAG, "people check not queued for $documentId: ${e.message}")
+        val askedInReader = readerConversationOpen && runCatching { decidePeople(documentId) }
+            .onFailure { e -> if (e is kotlinx.coroutines.CancellationException) throw e }
+            .getOrNull() is PamResult.Success
+        if (!askedInReader) {
+            runCatching { enqueuePeopleCheck(documentId) }.onFailure { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Log.w(TAG, "people check not queued for $documentId: ${e.message}")
+            }
         }
 
         if (!staged) {
@@ -771,7 +798,10 @@ class DocumentProcessingPipeline @Inject constructor(
         Unit
     }
 
-    override suspend fun decideConcernedPeople(documentId: String): PamResult<Unit> = processingMutex.withLock {
+    override suspend fun decideConcernedPeople(documentId: String): PamResult<Unit> = processingMutex.withLock { decidePeople(documentId) }
+
+    /** The people check itself, for a caller that holds [processingMutex] already (a reading's [afterReading]) or takes it ([decideConcernedPeople]). */
+    private suspend fun decidePeople(documentId: String): PamResult<Unit> =
         withContext(ioDispatcher) {
             try {
                 val doc = documentDao.getById(documentId)
@@ -797,7 +827,6 @@ class DocumentProcessingPipeline @Inject constructor(
                 PamResult.Error(PamError.ExtractionFailed(detail = "Concerned people: ${e.message}", cause = e))
             }
         }
-    }
 
     private fun publishEnriching() {
         _enriching.value = pendingEnrichment.keys.toSet() + pendingRebuild

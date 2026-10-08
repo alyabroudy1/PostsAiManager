@@ -63,10 +63,11 @@ class GemmaReadingUseCase @Inject constructor(
         pageAspect: Float? = null,
         forcedFamily: String? = null,
         onSummary: (suspend (String) -> Unit)? = null,
+        keepOpenAs: String? = null,
     ): GemmaReadingOutcome = try {
         val layout = LetterLayoutAnalyzer.analyze(pages)
         val lines = GemmaLetterBuilder.linesOf(layout)
-        if (lines.isEmpty()) imageOnly(imagePaths, forcedFamily) else fromText(pages, layout, lines.map { it.text }, imagePaths, pageAspect, forcedFamily, onSummary)
+        if (lines.isEmpty()) imageOnly(imagePaths, forcedFamily) else fromText(pages, layout, lines.map { it.text }, imagePaths, pageAspect, forcedFamily, onSummary, keepOpenAs)
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
@@ -81,6 +82,7 @@ class GemmaReadingUseCase @Inject constructor(
         pageAspect: Float?,
         forcedFamily: String?,
         onSummary: (suspend (String) -> Unit)?,
+        keepOpenAs: String?,
     ): GemmaReadingOutcome {
         // The reader's first turn is a short summary: checked by the summary gate against the letter's text (the facts are not read yet), and
         // handed on at once when it passes, so the document shows what it is about while the rest is still being read. A rejected one is
@@ -102,6 +104,7 @@ class GemmaReadingUseCase @Inject constructor(
             addressLines = { source.lastMerged?.addressLines.orEmpty() },
             letterDate = { source.lastMerged?.set?.letterDate },
             onSummary = early,
+            keepOpenAs = keepOpenAs,
         )
         val pipeline = ExtractionV2Pipeline(layoutReader = LayoutReader { layout }, candidateSource = source)
         val window = activeModel.activeModelConfig().contextTokens

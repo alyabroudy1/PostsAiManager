@@ -4,6 +4,7 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.form.BaselineScores
 import com.postsaimanager.core.domain.form.BaselineYesNo
+import com.postsaimanager.core.domain.document.followup.FollowUpQuestions
 import com.postsaimanager.core.domain.form.PromptFraming
 import dagger.Binds
 import dagger.Module
@@ -63,35 +64,24 @@ data class SameMatterDecision(
 
 /**
  * Decides whether a letter with no reference in common with a matter is nevertheless part of one of the organisation's matters. The model
- * decides ([SameMatter]); code only verifies: each matter (the most recent ones) is scored against a made-up distractor, and one wins only
- * when it beats the distractor by the margin, the best one winning. Nothing to ask, or nobody beating the margin, is a new matter. An
- * error (nothing decided) when no model can answer.
+ * decides ([FollowUpQuestions]: a Gemma follow-up turn choosing a matter or none, or the Qwen scorer's margin over a made-up distractor);
+ * code only verifies: only the most recent matters are asked about. Nothing to ask, or nobody chosen, is a new matter. An error (nothing
+ * decided, left pending) when no model can answer.
  */
 class DecideSameMatterUseCase @Inject constructor(
-    private val sameMatter: SameMatter,
+    private val followUps: FollowUpQuestions,
     private val profile: SameMatterProfile,
 ) {
 
     suspend operator fun invoke(
+        documentId: String,
         organisation: String,
         event: NewMatterEvent,
         candidates: List<MatterCandidate>,
     ): PamResult<SameMatterDecision> {
         val asked = candidates.take(profile.maxCandidates)
         if (asked.isEmpty()) return PamResult.Success(SameMatterDecision(null, emptyList(), null, profile.margin))
-        val scores = when (val answer = sameMatter.score(SameMatterQuestion(organisation, event, asked))) {
-            is PamResult.Error -> return answer
-            is PamResult.Success -> answer.data
-        }
-        val best = scores.beating(profile.margin).maxByOrNull { scores.candidates[it] }
-        return PamResult.Success(
-            SameMatterDecision(
-                matchedId = best?.let { asked[it].id },
-                asked = asked.mapIndexed { i, c -> c.id to scores.candidates[i] },
-                baseline = scores.baseline,
-                margin = profile.margin,
-            ),
-        )
+        return followUps.sameMatter(documentId, SameMatterQuestion(organisation, event, asked))
     }
 }
 

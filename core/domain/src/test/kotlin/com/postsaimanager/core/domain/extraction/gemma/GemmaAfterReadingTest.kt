@@ -32,6 +32,7 @@ import com.postsaimanager.core.testing.FakeDetailOwnerQuestion
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.FakeProfileSuggestionRepository
+import com.postsaimanager.core.testing.scoringFollowUps
 import com.postsaimanager.core.testing.testDocument
 import com.postsaimanager.core.testing.testProfile
 import kotlinx.coroutines.flow.first
@@ -126,7 +127,7 @@ class GemmaAfterReadingTest {
         val fields = readAndStore("DUE_DATE")
 
         assertThat(fields.filter { it.slotKey == UnderstandingToFields.SLOT_CONTACT }.map { it.fieldValue }).containsExactly("Nadine Beispiel")
-        val link = LinkSenderContactUseCase(documents, profiles, contacts, DecideSameContactUseCase(SameContactYes(), SameContactProfile()))
+        val link = LinkSenderContactUseCase(documents, profiles, contacts, DecideSameContactUseCase(scoringFollowUps(sameContact = SameContactYes()), SameContactProfile()))
         val outcome = link("d1")
 
         assertThat(outcome).isInstanceOf(ContactLinkOutcome.Created::class.java)
@@ -138,7 +139,7 @@ class GemmaAfterReadingTest {
     fun `organisation details are suggested`() = runBlocking {
         val fields = readAndStore("DUE_DATE")
         owner.organisationValues = setOf("0123 456-701", "nadine.beispiel@jobcenter-musterstadt.example")
-        val suggest = SuggestOrganisationDetailsUseCase(documents, profiles, contacts, suggestions, DecideDetailOwnerUseCase(owner, DetailOwnerProfile()))
+        val suggest = SuggestOrganisationDetailsUseCase(documents, profiles, contacts, suggestions, DecideDetailOwnerUseCase(scoringFollowUps(detailOwner = owner)))
 
         val outcome = suggest("d1")
 

@@ -38,6 +38,7 @@ class GemmaDocumentInterpreter(
     private val addressReader: GemmaAddresses = GemmaAddresses(),
     private val found: GemmaFoundValues = GemmaFoundValues(),
     private val onSummary: (suspend (String) -> Unit)? = null,
+    private val keepOpenAs: String? = null,
 ) : DocumentInterpreter {
 
     override val name: String = "gemma-reader"
@@ -66,7 +67,7 @@ class GemmaDocumentInterpreter(
         if (letter.isImageOnly) return failed("the letter has no text lines")
         val category = request.forcedFamily?.let(schema::categoryOf)?.phrase
 
-        val answered = when (val outcome = reader.read(GemmaReaderRequest(letter, imagePaths, category, onSummary))) {
+        val answered = when (val outcome = reader.read(GemmaReaderRequest(letter, imagePaths, category, onSummary, keepOpenAs))) {
             is GemmaReaderOutcome.Unavailable -> return failed(outcome.reason)
             is GemmaReaderOutcome.Answered -> outcome
         }

@@ -12,6 +12,7 @@ import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
+import com.postsaimanager.core.testing.scoringFollowUps
 import com.postsaimanager.core.testing.testDocument
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -39,7 +40,7 @@ class DecideConcernedPeopleUseCaseTest {
     private val documents = FakeDocumentRepository()
     private val concerned = FakeConcerned()
     private val processor = mockk<DocumentProcessor>(relaxed = true)
-    private val decide = DecideConcernedPeopleUseCase(profiles, documents, concerned)
+    private val decide = DecideConcernedPeopleUseCase(profiles, documents, scoringFollowUps(concerned = concerned))
 
     private fun profile(id: String, name: String, type: ProfileType = ProfileType.FAMILY_MEMBER) =
         Profile(id = id, kind = type.kind, householdRole = type.householdRole, name = name, createdAt = 0L, modifiedAt = 0L)

@@ -1,5 +1,6 @@
 package com.postsaimanager.core.ai.local
 
+import com.postsaimanager.core.domain.ai.FollowUpRequest
 import com.postsaimanager.core.domain.ai.StructuredRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -39,12 +40,50 @@ internal class RemoteGenerateStructured(
                 try {
                     remote.generateLiteRtStructured(
                         request.system, request.prompt, request.schema, request.imagePaths.toTypedArray(),
-                        request.maxTokens, request.temperature, request.topK, request.timeoutMs, request.leadPrompt, lead,
+                        request.maxTokens, request.temperature, request.topK, request.timeoutMs, request.leadPrompt, lead, request.keepOpenAs,
                     )
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     null
+                }
+            }
+        } finally {
+            mutex.unlock()
+        }
+    }
+
+    /** A follow-up question in the conversation kept open under [FollowUpRequest.key]: skipped like [invoke]; null when it is gone. */
+    suspend fun continueWith(request: FollowUpRequest): String? {
+        if (!mutex.tryLock()) return null
+        try {
+            return withContext(ioDispatcher) {
+                val remote = service() ?: return@withContext null
+                try {
+                    remote.continueLiteRtStructured(request.key, request.prompt, request.schema, request.timeoutMs)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        } finally {
+            mutex.unlock()
+        }
+    }
+
+    /** Closes the conversation kept open under [key]; skipped when another caller holds the model (its own conversation replaces it). */
+    suspend fun close(key: String) {
+        if (!mutex.tryLock()) return
+        try {
+            withContext(ioDispatcher) {
+                val remote = service() ?: return@withContext
+                try {
+                    remote.closeLiteRtStructured(key)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // A service that died took its conversation with it.
                 }
             }
         } finally {

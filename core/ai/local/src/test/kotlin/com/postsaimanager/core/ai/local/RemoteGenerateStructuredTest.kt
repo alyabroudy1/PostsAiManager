@@ -35,7 +35,7 @@ class RemoteGenerateStructuredTest {
     )
 
     private fun io.mockk.MockKMatcherScope.anyCall() =
-        service.generateLiteRtStructured(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        service.generateLiteRtStructured(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
 
     @Test
     @DisplayName("the texts, the schema, the picture paths and the sampling cross the boundary and the answer comes back")
@@ -47,7 +47,7 @@ class RemoteGenerateStructuredTest {
         assertThat(answer).isEqualTo("{\"category\":\"bill\"}")
         verify(exactly = 1) {
             service.generateLiteRtStructured(
-                "the system", "the prompt", "{\"type\":\"object\"}", match { it.toList() == listOf("/files/p1.jpg") }, 900, 0.1f, 20, 120_000L, null, null,
+                "the system", "the prompt", "{\"type\":\"object\"}", match { it.toList() == listOf("/files/p1.jpg") }, 900, 0.1f, 20, 120_000L, null, null, null,
             )
         }
         assertThat(mutex.isLocked).isFalse()
@@ -60,7 +60,7 @@ class RemoteGenerateStructuredTest {
         val led = request.copy(leadPrompt = "the lead", onLead = { heard += it })
         val callback = slot<ILeadCallback>()
         every {
-            service.generateLiteRtStructured(any(), any(), any(), any(), any(), any(), any(), any(), "the lead", capture(callback))
+            service.generateLiteRtStructured(any(), any(), any(), any(), any(), any(), any(), any(), "the lead", capture(callback), any())
         } answers {
             callback.captured.onLead("A short summary.")
             "{\"c\":1}"
@@ -79,7 +79,7 @@ class RemoteGenerateStructuredTest {
 
         call()(request.copy(leadPrompt = "the lead"))
 
-        verify { service.generateLiteRtStructured(any(), any(), any(), any(), any(), any(), any(), any(), "the lead", null) }
+        verify { service.generateLiteRtStructured(any(), any(), any(), any(), any(), any(), any(), any(), "the lead", null, null) }
     }
 
     @Test
