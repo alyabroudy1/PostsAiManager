@@ -76,8 +76,9 @@ internal class GemmaTextStage(
                 knownValues = EnrichmentTicketRebuilder.rebuild(domainDoc, storedFields).takenValues,
                 languageCode = doc.language,
                 paid = PaidState.of(ticket?.paid),
-                // The reading's first turn stored a verified summary already: only the key facts are asked (the summary is the fallback).
-                writeSummary = ticket?.summaryDone != true,
+                // Only the key facts are asked, always: the summary is the reading's first turn (trimmed to the one length limit and checked),
+                // and a summary field in this answer's schema ran to the token cap on the device (pass 28); the template is the fallback.
+                writeSummary = false,
             ),
             oneGo = oneGo,
         )

@@ -132,15 +132,15 @@ class GemmaTextStageTest {
     }
 
     @Test
-    @DisplayName("without a first-turn summary the step writes it, as the fallback")
-    fun `summary asked as fallback`() = runBlocking {
+    @DisplayName("the step asks for the key facts only, whatever the first turn gave: a summary field in its schema ran to the token cap")
+    fun `summary never asked`() = runBlocking {
         coEvery { gemma.writeTexts(any()) } returns written()
         val request = slot<GemmaTextsRequest>()
 
         stage.run("doc-1", ticket)
 
         coVerify { gemma.writeTexts(capture(request)) }
-        assertThat(request.captured.text.writeSummary).isTrue()
+        assertThat(request.captured.text.writeSummary).isFalse()
     }
 
     @Test

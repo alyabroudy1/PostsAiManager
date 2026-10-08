@@ -13,5 +13,5 @@ object SummaryLimits {
     const val MAX_TOKENS = MAX_CHARS * 2 / 5 + 20
 
     /** An answer longer than this many times [MAX_CHARS] is a runaway, not a summary that is a little long: it is refused, not trimmed. */
-    const val RUNAWAY_FACTOR = 3
+    const val RUNAWAY_FACTOR = 6
 }

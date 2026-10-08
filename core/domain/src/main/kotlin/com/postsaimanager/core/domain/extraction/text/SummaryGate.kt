@@ -37,8 +37,8 @@ class SummaryGate {
     fun check(answer: String, ocrText: String, verifiedValues: List<String>): Verdict {
         val full = answer.trim().replace(WHITESPACE, " ")
         if (full.isEmpty()) return Verdict.Rejected(Reason.EMPTY)
-        // A summary a little over the limit that ends at a sentence boundary is cut to its last whole sentence within the limit; a runaway
-        // or one with no sentence end inside the limit is refused.
+        // A summary over the limit (the model writes three sentences when it is asked for one) is cut to its last whole sentence within the
+        // limit; one with no sentence end inside the limit is refused. Only an endless text (the model looping) is refused outright.
         val text = if (full.length <= SummaryLimits.MAX_CHARS) full else {
             if (full.length > SummaryLimits.MAX_CHARS * SummaryLimits.RUNAWAY_FACTOR) return Verdict.Rejected(Reason.TOO_LONG)
             trimToSentence(full) ?: return Verdict.Rejected(Reason.TOO_LONG)

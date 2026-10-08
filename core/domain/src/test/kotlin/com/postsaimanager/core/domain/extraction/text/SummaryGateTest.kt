@@ -159,10 +159,20 @@ class SummaryGateTest {
     }
 
     @Test
+    fun `a summary of four sentences well over the limit, as the model writes it when asked for one, is cut to the first`() {
+        val first = "Das Jobcenter Musterstadt bestätigt, dass der Antrag auf Bürgergeld am 01.09.2026 eingegangen ist."
+        val more = " Es wird gebeten, bis zum 01.09.2026 keine weiteren Unterlagen nachzureichen, solange kein Schreiben des Jobcenters dazu auffordert."
+        val answer = first + more.repeat(4)
+        assertThat(answer.length).isGreaterThan(SummaryLimits.MAX_CHARS * 3)
+
+        assertThat(verdictOf(answer, DeviceLetters.jobcenterText)).isEqualTo(SummaryGate.Verdict.Accepted(first))
+    }
+
+    @Test
     fun `an over-long summary with no sentence end inside the limit, or a runaway, is still rejected`() {
         assertThat(reason("Das Jobcenter Musterstadt bestätigt, dass der Antrag ".repeat(6), DeviceLetters.jobcenterText, emptyList()))
             .isEqualTo(SummaryGate.Reason.TOO_LONG)
-        assertThat(reason("Der Antrag ist eingegangen. ".repeat(40), DeviceLetters.jobcenterText, emptyList())).isEqualTo(SummaryGate.Reason.TOO_LONG)
+        assertThat(reason("Der Antrag ist eingegangen. ".repeat(80), DeviceLetters.jobcenterText, emptyList())).isEqualTo(SummaryGate.Reason.TOO_LONG)
     }
 
     @Test

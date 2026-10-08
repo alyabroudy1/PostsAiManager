@@ -171,8 +171,8 @@ object FollowUpPrompts {
                             buildJsonObject {
                                 put("type", "array")
                                 put("items", choice)
+                                // No "uniqueItems": the engine's schema compiler (LLGuidance) does not implement it and refuses the whole schema.
                                 put("maxItems", options.size)
-                                put("uniqueItems", true)
                             },
                         )
                     } else {
