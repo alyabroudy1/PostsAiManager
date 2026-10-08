@@ -143,4 +143,11 @@ private class InMemoryProfileDao : ProfileDao {
     override suspend fun insertLink(link: DocumentProfileLinkEntity) = Unit
     override suspend fun deleteLink(docId: String, profileId: String) = Unit
     override fun observeProfilesForDocument(documentId: String): Flow<List<ProfileWithRole>> = emptyFlow()
+    override suspend fun moveDocumentLinks(fromId: String, toId: String) = Unit
+    override suspend fun moveContacts(fromId: String, toId: String) = Unit
+    override suspend fun moveEvents(fromId: String, toId: String) = Unit
+    override suspend fun moveCases(fromId: String, toId: String) = Unit
+    override suspend fun moveSuggestions(fromId: String, toId: String) = Unit
+    override suspend fun moveNotes(fromId: String, toId: String) = Unit
+    override suspend fun moveReferences(fromId: String, toId: String) = Unit
 }

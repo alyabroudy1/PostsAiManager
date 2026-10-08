@@ -102,6 +102,19 @@ class FakeProfileRepository : ProfileRepository {
         return PamResult.Success(Unit)
     }
 
+    /** Profiles folded by [mergeProfiles] as (keepId, mergedId). */
+    val merged = mutableListOf<Pair<String, String>>()
+
+    override suspend fun mergeProfiles(keepId: String, mergedId: String): PamResult<Unit> {
+        failWith?.let { return PamResult.Error(it) }
+        merged += keepId to mergedId
+        val moved = links.filter { it.first == mergedId }.map { Triple(keepId, it.second, it.third) }
+        links.removeAll { it.first == mergedId }
+        moved.filter { m -> links.none { it.first == m.first && it.second == m.second } }.forEach { links += it }
+        profiles.value = profiles.value.filterNot { it.id == mergedId }
+        return PamResult.Success(Unit)
+    }
+
     override suspend fun linkProfileToDocument(
         profileId: String,
         documentId: String,

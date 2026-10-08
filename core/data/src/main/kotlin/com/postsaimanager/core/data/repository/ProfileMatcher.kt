@@ -41,7 +41,10 @@ class ProfileMatcher @Inject constructor(
         // Score EVERY candidate and take the highest. Taking `similar.first()` before any
         // scoring meant the "best match" was whatever order Room happened to return — a
         // perfect match further down the list was silently ignored.
+        // A tie goes to the oldest profile (maxBy keeps the first of equals), not to Room's order, so two readings
+        // of one name keep finding the same profile.
         val best = candidates
+            .sortedWith(compareBy<Profile> { it.createdAt }.thenBy { it.id })
             .map { it to calculateMatchConfidence(it, name, organization, email) }
             .maxByOrNull { it.second }
 

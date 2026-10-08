@@ -14,6 +14,7 @@ import com.postsaimanager.core.domain.document.contacts.SameContactQuestion
 import com.postsaimanager.core.domain.form.BaselineScores
 import com.postsaimanager.core.domain.organisation.DecideDetailOwnerUseCase
 import com.postsaimanager.core.domain.organisation.DetailOwnerProfile
+import com.postsaimanager.core.domain.organisation.MergeDuplicateOrganisationsUseCase
 import com.postsaimanager.core.domain.organisation.ReplaceStaleSenderUseCase
 import com.postsaimanager.core.domain.organisation.SuggestOrganisationDetailsUseCase
 import com.postsaimanager.core.domain.usecase.EntityLinkingUseCase
@@ -76,6 +77,7 @@ class EntityProfileLinkerTest {
             )
         },
         dagger.Lazy { ReplaceStaleSenderUseCase(profileRepository, contacts, documents) },
+        MergeDuplicateOrganisationsUseCase(profileRepository),
     )
 
     init {
@@ -117,6 +119,39 @@ class EntityProfileLinkerTest {
         assertThat(profiles().single { it.id == "machine" }.kind).isEqualTo(ProfileKind.ORGANISATION)
         assertThat(profiles().single { it.id == "edited" }.kind).isEqualTo(ProfileKind.PERSON)
         assertThat(profileRepository.links).contains(Triple("machine", "doc-1", ProfileRole.SENDER))
+    }
+
+    @Test
+    @DisplayName("promotion plus linking yields ONE organisation, even when an older organisation of the same name exists")
+    fun `a promoted person and an existing organisation of the same name end as one profile`() = runTest {
+        profileRepository.seed(
+            testProfile(id = "person", name = "Jobcenter Musterstadt", type = ProfileType.PERSON)
+                .copy(sourceDocumentId = "doc-1", sourceEntityName = "jobcenter musterstadt", createdAt = 5L, modifiedAt = 5L),
+            testProfile(id = "org", name = "Jobcenter Musterstadt", organization = "Jobcenter Musterstadt", type = ProfileType.AUTHORITY)
+                .copy(sourceDocumentId = "doc-2", sourceEntityName = "jobcenter musterstadt", createdAt = 9L, modifiedAt = 9L),
+        )
+
+        linker.process("doc-1", DocumentUnderstanding(entities = listOf(entity("Jobcenter Musterstadt", EntityKind.AUTHORITY, EntityRole.SENDER))))
+
+        val organisations = profiles().filter { it.kind == ProfileKind.ORGANISATION }
+        assertThat(organisations.map { it.id }).containsExactly("person")
+        assertThat(profileRepository.links).contains(Triple("person", "doc-1", ProfileRole.SENDER))
+    }
+
+    @Test
+    @DisplayName("an organisation the user edited is never merged into another")
+    fun `an edited organisation is not merged`() = runTest {
+        profileRepository.seed(
+            testProfile(id = "old", name = "Amt Beispiel", organization = "Amt Beispiel")
+                .copy(sourceDocumentId = "doc-1", sourceEntityName = "amt beispiel", createdAt = 5L, modifiedAt = 5L),
+            testProfile(id = "edited", name = "Amt Beispiel", organization = "Amt Beispiel")
+                .copy(sourceDocumentId = "doc-2", sourceEntityName = "amt beispiel", createdAt = 9L, modifiedAt = 12L),
+        )
+
+        linker.process("doc-1", DocumentUnderstanding(entities = listOf(entity("Amt Beispiel", EntityKind.AUTHORITY, EntityRole.SENDER))))
+
+        assertThat(profiles().map { it.id }).containsExactly("old", "edited")
+        assertThat(profileRepository.merged).isEmpty()
     }
 
     private suspend fun profiles() = profileRepository.getProfiles().first()

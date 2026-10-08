@@ -138,6 +138,58 @@ class LinkSenderContactUseCaseTest {
     }
 
     @Test
+    fun `a re-read replaces a machine-made contact no other letter names, and it stays gone`() = runTest {
+        documents.seedExtracted("d1", contactField("d1", "Ansprechpartnerin"))
+        senderIs("d1")
+        link("d1")
+        documents.seedExtracted("d1", contactField("d1", "Frau Nadine Beispiel"))
+
+        val outcome = link("d1")
+
+        assertThat(outcome).isInstanceOf(ContactLinkOutcome.Created::class.java)
+        assertThat(contactsOfJobcenter().map { it.name }).containsExactly("Frau Nadine Beispiel")
+        assertThat(contacts.observeContactsForDocument("d1").first().map { it.name }).containsExactly("Frau Nadine Beispiel")
+        // The deletion's tombstone: reading the label as a contact again does not bring it back.
+        assertThat(contacts.isRemovedFromDocument("d1", "Ansprechpartnerin")).isTrue()
+    }
+
+    @Test
+    fun `a stale contact another letter also names is only unlinked from this one`() = runTest {
+        documents.seedExtracted("d1", contactField("d1", "Frau Müller"))
+        senderIs("d1")
+        link("d1")
+        documents.seedExtracted("d2", contactField("d2", "Frau Müller"))
+        senderIs("d2")
+        same.sameAs = setOf("Frau Müller")
+        link("d2")
+        documents.seedExtracted("d1", contactField("d1", "Frau Nadine Beispiel"))
+        same.sameAs = emptySet()
+
+        link("d1")
+
+        assertThat(contactsOfJobcenter().map { it.name }).containsExactly("Frau Müller", "Frau Nadine Beispiel")
+        assertThat(contacts.observeContactsForDocument("d1").first().map { it.name }).containsExactly("Frau Nadine Beispiel")
+        assertThat(contacts.observeContactsForDocument("d2").first().map { it.name }).containsExactly("Frau Müller")
+    }
+
+    @Test
+    fun `a contact the person confirmed on another letter is never replaced`() = runTest {
+        documents.seedExtracted("d1", contactField("d1", "Frau Müller"))
+        senderIs("d1")
+        link("d1")
+        documents.seedExtracted("d2", contactField("d2", "Frau Müller").copy(reviewState = ReviewState.CONFIRMED))
+        senderIs("d2")
+        same.sameAs = setOf("Frau Müller")
+        link("d2")
+        documents.seedExtracted("d1", contactField("d1", "Frau Nadine Beispiel"))
+        same.sameAs = emptySet()
+
+        assertThat(link("d1")).isEqualTo(ContactLinkOutcome.NothingToLink)
+
+        assertThat(contacts.observeContactsForDocument("d1").first().map { it.name }).containsExactly("Frau Müller")
+    }
+
+    @Test
     fun `N Beispiel on the third letter is matched to Nadine by the decision and updates her`() = runTest {
         documents.seedExtracted("d1", contactField("d1", "Frau Nadine Beispiel"))
         senderIs("d1")

@@ -72,7 +72,11 @@ class LinkSenderContactUseCase @Inject constructor(
     /** Links [read] to [documentId]'s sender organisation. [fallbackExcerpt] is used when the contact's name is not found in the letter's text. */
     suspend fun link(documentId: String, read: ReadContact, fallbackExcerpt: String? = null): ContactLinkOutcome {
         if (read.name.isBlank()) return ContactLinkOutcome.NothingToLink
-        if (contacts.observeContactsForDocument(documentId).first().isNotEmpty()) return ContactLinkOutcome.NothingToLink
+        // A letter has one contact. A contact linked by an earlier reading that names someone else is replaced when it is machine-made
+        // (a label read as a contact, say); one the person confirmed, edited or typed keeps the letter, and so does the same person.
+        val linked = contacts.observeContactsForDocument(documentId).first()
+        val stale = linked.filterNot { it.name.trim().equals(read.name.trim(), ignoreCase = true) }
+        if (linked.size != stale.size || stale.any { !isMachineMade(it) }) return ContactLinkOutcome.NothingToLink
         if (contacts.isRemovedFromDocument(documentId, read.name)) return ContactLinkOutcome.NothingToLink
 
         val organisation = senderOrganisation(documentId) ?: return ContactLinkOutcome.Pending(PendingReason.SENDER_UNRESOLVED)
@@ -95,6 +99,7 @@ class LinkSenderContactUseCase @Inject constructor(
             contacts.updateContact(seen(existing, read, seenAt))
             contacts.linkContactToDocument(existing.id, documentId)
             if (typedByUser) confirmLetterField(documentId, read.name)
+            dropStale(documentId, stale, keepId = existing.id)
             ContactLinkOutcome.Matched(existing.id, decision)
         } else {
             val created = ContactPerson(
@@ -103,7 +108,38 @@ class LinkSenderContactUseCase @Inject constructor(
             )
             contacts.addContact(created)
             contacts.linkContactToDocument(created.id, documentId)
+            dropStale(documentId, stale, keepId = created.id)
             ContactLinkOutcome.Created(created.id, decision)
+        }
+    }
+
+    /**
+     * The letter's contact is [keepId] now: each earlier machine-made contact leaves the letter, and is deleted when no other letter
+     * names it (the deletion's tombstone keeps it from coming back for this letter).
+     */
+    private suspend fun dropStale(documentId: String, stale: List<ContactPerson>, keepId: String) {
+        for (old in stale.filter { it.id != keepId }) {
+            if (contacts.documentIdsOf(old.id).any { it != documentId }) {
+                contacts.unlinkContactFromDocument(old.id, documentId)
+            } else {
+                contacts.deleteContact(old.id)
+            }
+        }
+    }
+
+    /**
+     * Linked to a letter by a reading, and no letter's field for it was typed, confirmed or edited by the person. A contact no letter is
+     * linked to was typed by the user.
+     */
+    private suspend fun isMachineMade(contact: ContactPerson): Boolean {
+        val letters = contacts.documentIdsOf(contact.id)
+        if (letters.isEmpty()) return false
+        return letters.none { id ->
+            documents.observeExtractedData(id).first().any {
+                it.slotKey == UnderstandingToFields.SLOT_CONTACT && !it.deletedByUser &&
+                    it.fieldValue.trim().equals(contact.name.trim(), ignoreCase = true) &&
+                    (it.source == ValueSource.USER || it.reviewState == ReviewState.CONFIRMED || it.reviewState == ReviewState.EDITED)
+            }
         }
     }
 

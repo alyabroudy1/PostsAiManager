@@ -21,6 +21,14 @@ interface ProfileRepository {
     suspend fun createProfile(profile: Profile): PamResult<Profile>
     suspend fun updateProfile(profile: Profile): PamResult<Unit>
     suspend fun deleteProfile(id: String): PamResult<Unit>
+
+    /**
+     * Folds [mergedId] into [keepId]: its document links, contacts, events, matters, suggestions, notes and references move to
+     * [keepId] (where [keepId] already has the same link or suggestion, its own stays), then [mergedId] is deleted WITHOUT a
+     * tombstone (the entity it came from is the one [keepId] stands for).
+     */
+    suspend fun mergeProfiles(keepId: String, mergedId: String): PamResult<Unit>
+
     suspend fun linkProfileToDocument(
         profileId: String,
         documentId: String,

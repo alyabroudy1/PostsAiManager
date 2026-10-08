@@ -8,6 +8,7 @@ import com.postsaimanager.core.data.database.entity.DismissedEntityEntity
 import com.postsaimanager.core.domain.contacts.ContactLinkOutcome
 import com.postsaimanager.core.domain.contacts.LinkSenderContactUseCase
 import com.postsaimanager.core.domain.document.normaliseEntityName
+import com.postsaimanager.core.domain.organisation.MergeDuplicateOrganisationsUseCase
 import com.postsaimanager.core.domain.organisation.ReplaceStaleSenderUseCase
 import com.postsaimanager.core.domain.organisation.SuggestOrganisationDetailsUseCase
 import com.postsaimanager.core.domain.repository.ProfileRepository
@@ -54,6 +55,7 @@ class EntityProfileLinker @Inject constructor(
     private val suggestOrganisationDetails: dagger.Lazy<SuggestOrganisationDetailsUseCase>,
     // Lazy for the same reason: it reads the letter's stored fields through the document repository.
     private val replaceStaleSenderUseCase: dagger.Lazy<ReplaceStaleSenderUseCase>,
+    private val mergeDuplicateOrganisations: MergeDuplicateOrganisationsUseCase,
 ) {
 
     data class Outcome(
@@ -117,6 +119,10 @@ class EntityProfileLinker @Inject constructor(
             }
         }
 
+        // Two machine-made organisations for one name (an older reading's, and this one's) are one: folded before the contact and the
+        // suggestions look for "the" sender organisation.
+        mergeDuplicates(understanding)
+
         // The contact person waits on the letter (its stored "Contact Person" field) until the sender organisation is linked: this is the
         // one place a sender link is confirmed, so the contact is attached here, after it. Without a resolved sender it stays waiting, and
         // the next run that confirms the sender attaches it.
@@ -160,6 +166,22 @@ class EntityProfileLinker @Inject constructor(
             throw e
         } catch (e: Exception) {
             log(Log.WARN, "earlier sender not unlinked for $documentId: ${e.javaClass.simpleName}")
+        }
+    }
+
+    private suspend fun mergeDuplicates(understanding: DocumentUnderstanding) {
+        val keys = understanding.entities
+            .filter { it.name.isNotBlank() && isOrganisation(it.kind) && it.role != EntityRole.SENDER_CONTACT }
+            .map { normaliseEntityName(it.name) }.distinct()
+        for (key in keys) {
+            try {
+                val merged = mergeDuplicateOrganisations(key)
+                if (merged > 0) log(Log.INFO, "$merged duplicate organisation profile(s) merged into the older one")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log(Log.WARN, "duplicate organisations not merged: ${e.javaClass.simpleName}")
+            }
         }
     }
 

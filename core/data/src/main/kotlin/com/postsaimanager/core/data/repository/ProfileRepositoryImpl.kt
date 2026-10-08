@@ -110,6 +110,23 @@ class ProfileRepositoryImpl @Inject constructor(
         } catch (e: Exception) { PamResult.Error(PamError.DatabaseError(cause = e)) }
     }
 
+    override suspend fun mergeProfiles(keepId: String, mergedId: String): PamResult<Unit> = withContext(ioDispatcher) {
+        try {
+            if (keepId == mergedId) return@withContext PamResult.Success(Unit)
+            // Everything moves first; the row goes last, so a failure half way leaves a duplicate (harmless), never a loss.
+            profileDao.moveDocumentLinks(mergedId, keepId)
+            profileDao.moveContacts(mergedId, keepId)
+            profileDao.moveEvents(mergedId, keepId)
+            profileDao.moveCases(mergedId, keepId)
+            profileDao.moveSuggestions(mergedId, keepId)
+            profileDao.moveNotes(mergedId, keepId)
+            profileDao.moveReferences(mergedId, keepId)
+            // No tombstone: the entity is not refused, it is the same one as the profile kept.
+            profileDao.deleteById(mergedId)
+            PamResult.Success(Unit)
+        } catch (e: Exception) { PamResult.Error(PamError.DatabaseError(cause = e)) }
+    }
+
     override suspend fun linkProfileToDocument(
         profileId: String, documentId: String, role: ProfileRole,
     ): PamResult<Unit> = withContext(ioDispatcher) {

@@ -73,6 +73,31 @@ interface ProfileDao {
         WHERE dpl.documentId = :documentId
     """)
     fun observeProfilesForDocument(documentId: String): Flow<List<ProfileWithRole>>
+
+    // ── Merging one organisation into another (see ProfileRepositoryImpl.mergeProfiles) ──
+
+    /** Points the documents of [fromId] at [toId]; a document already linked to [toId] keeps that one link. */
+    @Query("UPDATE OR IGNORE document_profile_links SET profileId = :toId WHERE profileId = :fromId")
+    suspend fun moveDocumentLinks(fromId: String, toId: String)
+
+    @Query("UPDATE contact_persons SET organisationId = :toId WHERE organisationId = :fromId")
+    suspend fun moveContacts(fromId: String, toId: String)
+
+    @Query("UPDATE profile_events SET organisationProfileId = :toId WHERE organisationProfileId = :fromId")
+    suspend fun moveEvents(fromId: String, toId: String)
+
+    @Query("UPDATE cases SET organisationProfileId = :toId WHERE organisationProfileId = :fromId")
+    suspend fun moveCases(fromId: String, toId: String)
+
+    /** A suggestion the target already has for the same field and value stays as it is (the first offer wins). */
+    @Query("UPDATE OR IGNORE profile_suggestions SET profileId = :toId WHERE profileId = :fromId")
+    suspend fun moveSuggestions(fromId: String, toId: String)
+
+    @Query("UPDATE document_notes SET profileId = :toId WHERE profileId = :fromId")
+    suspend fun moveNotes(fromId: String, toId: String)
+
+    @Query("UPDATE organisation_references SET organisationId = :toId WHERE organisationId = :fromId")
+    suspend fun moveReferences(fromId: String, toId: String)
 }
 
 data class ProfileWithRole(
