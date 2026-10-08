@@ -64,6 +64,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -102,6 +103,7 @@ import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.ProcessingStage
 import com.postsaimanager.core.model.ProcessingState
+import com.postsaimanager.core.model.ReadingStage
 import com.postsaimanager.core.model.TimelineEvent
 import com.postsaimanager.core.model.TimelineEventType
 import java.io.File
@@ -150,6 +152,11 @@ fun DocumentDetailScreen(
     val pagesContext by viewModel.pagesContext.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val processingState by viewModel.processingProgress.collectAsStateWithLifecycle()
+    // While this screen is showing, a "Letter understood" notification about this letter would only repeat what the person sees.
+    DisposableEffect(viewModel) {
+        viewModel.onScreenShown()
+        onDispose { viewModel.onScreenHidden() }
+    }
     val summaryComing by viewModel.summaryComing.collectAsStateWithLifecycle()
     val pendingConfirmAllUndo by viewModel.pendingConfirmAllUndo.collectAsStateWithLifecycle()
     val fieldPreview by viewModel.fieldPreview.collectAsStateWithLifecycle()
@@ -430,6 +437,9 @@ private fun DocumentDetailContent(
             processingState is ProcessingState.Running && processingState.documentId == state.document.id ->
                 ProcessingBanner(processingState)
             state.document.status == DocumentStatus.QUEUED -> QueuedBanner()
+            // The first stage is stored and shown below (parties, dates, amounts); the second is still being written.
+            state.document.status == DocumentStatus.EXTRACTED && state.document.readingStage == ReadingStage.FIELDS_READY ->
+                StillUnderstandingHint()
             state.document.status == DocumentStatus.FAILED ->
                 FailedBanner(
                     // Latest, not first: a document can be reprocessed after a first failure,
@@ -596,6 +606,20 @@ private fun ProcessingBanner(state: ProcessingState.Running) {
         } else {
             LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
         }
+    }
+}
+
+/** A slim hint under the header while only the first stage is stored: what is shown is real, and more is coming. */
+@Composable
+private fun StillUnderstandingHint() {
+    Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text(
+            stringResource(R.string.detail_still_understanding),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
     }
 }
 

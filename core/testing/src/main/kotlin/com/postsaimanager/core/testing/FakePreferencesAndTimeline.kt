@@ -68,6 +68,9 @@ class FakeUserPreferencesRepository(
 
     override suspend fun setHouseholdPromptDismissed(dismissed: Boolean) =
         update { it.copy(householdPromptDismissed = dismissed) }
+
+    override suspend fun setReadingFinishedNotifications(enabled: Boolean) =
+        update { it.copy(readingFinishedNotifications = enabled) }
 }
 
 /** In-memory [InferenceSettingsRepository], the same shape as the DataStore-backed one. */

@@ -4,6 +4,9 @@
     <string name="page_preview_select_text_unavailable">لا يوجد نص قابل للتحديد في هذه الصفحة</string>
 
     <!-- صف في قائمة المستندات: شارات الأشخاص وتاريخ الاستحقاق. -->
+    <string name="doc_row_step_reading_text">جارٍ قراءة النص…</string>
+    <string name="doc_row_step_reading_details">جارٍ قراءة التفاصيل…</string>
+    <string name="doc_row_step_almost_done">اكتمل تقريبًا…</string>
     <string name="doc_row_due">الاستحقاق %1$s</string>
     <string name="doc_row_due_today">مستحق اليوم</string>
     <string name="doc_row_due_tomorrow">مستحق غدًا</string>

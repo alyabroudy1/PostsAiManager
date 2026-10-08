@@ -27,6 +27,13 @@ data class DocumentListItem(
      * name a kind: the neutral "Document").
      */
     val typeId: String? = null,
+    /** The step of an unfinished reading the row names; null once the letter is understood (or for a letter read before steps existed). */
+    val readingStep: ReadingStep? = null,
+    /**
+     * The sender, shown as the title while the reading is unfinished and the stored title is still the app's default ("Scanned 1
+     * page"); null when the stored title is shown.
+     */
+    val provisionalTitle: String? = null,
 ) {
     val id: String get() = document.id
 }

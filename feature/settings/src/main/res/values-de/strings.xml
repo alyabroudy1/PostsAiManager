@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_reading_finished_title">Lesen abgeschlossen</string>
+    <string name="settings_reading_finished_subtitle">Leise Benachrichtigung, wenn ein Brief verstanden wurde. Auf dem Sperrbildschirm erscheint kein Inhalt</string>
     <string name="settings_skills_attribution">Die Agent-Skills (das SKILL.md-Format, der Skill „send-email“, die Art, Skills zu lesen, und die Aktionen für E-Mail, Kalender und Erinnerung) sind aus Google AI Edge Gallery (https://github.com/google-ai-edge/gallery) übernommen und angepasst, Copyright 2026 Google LLC, lizenziert unter der Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0). Die angepassten Dateien sind als geändert gekennzeichnet.</string>
 </resources>

@@ -97,6 +97,8 @@ data class Document(
      * At creation the use case passes where the file is now (a temporary copy); the repository moves it and stores the final location.
      */
     val originalFilePath: String? = null,
+    /** How far the current reading has got; null for a letter read before this existed or re-read quietly. See [ReadingStage]. */
+    val readingStage: ReadingStage? = null,
 ) {
     val isTrashed: Boolean get() = deletedAt != null
 

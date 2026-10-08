@@ -113,6 +113,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { userPreferencesRepository.setDefaultLanguage(language) }
     }
 
+    /** The "Reading finished" switch: whether a notification says that a letter has been understood. */
+    fun setReadingFinishedNotifications(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setReadingFinishedNotifications(enabled) }
+    }
+
     /** The "Deadline reminders" switch: stores it, and schedules or cancels the deadline reminders through the one scheduler. */
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch { setDeadlineReminders(enabled) }

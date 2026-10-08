@@ -134,6 +134,20 @@ class SettingsViewModelTest {
         assertThat(repo.current.updateOlderLettersAutomatically).isFalse()
     }
 
+    @Test
+    fun `the Reading finished switch is on by default, round-trips, and leaves the deadline reminders alone`() = runTest {
+        assertThat(repo.current.readingFinishedNotifications).isTrue()
+
+        val vm = viewModel()
+        vm.setReadingFinishedNotifications(false)
+        assertThat(repo.current.readingFinishedNotifications).isFalse()
+        assertThat(repo.current.notificationsEnabled).isTrue()
+        coVerify(exactly = 0) { reminders.cancelDeadlines() }
+
+        vm.setReadingFinishedNotifications(true)
+        assertThat(repo.current.readingFinishedNotifications).isTrue()
+    }
+
     @Nested
     @DisplayName("app lock toggle")
     inner class AppLockToggle {

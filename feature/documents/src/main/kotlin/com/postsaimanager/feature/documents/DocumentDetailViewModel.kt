@@ -18,6 +18,7 @@ import com.postsaimanager.core.domain.document.DocumentExporter
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.GetDocumentDetailUseCase
 import com.postsaimanager.core.domain.document.ReadAgainAsFamilyUseCase
+import com.postsaimanager.core.domain.reading.ViewingState
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.InstalledModelsRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
@@ -68,9 +69,16 @@ class DocumentDetailViewModel @Inject constructor(
     profileRepository: ProfileRepository,
     loadLetterContacts: LoadLetterContactsUseCase,
     observeCase: ObserveCaseForDocumentUseCase,
+    private val viewing: ViewingState,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
+
+    /** The screen is showing: no "Letter understood" notification for this letter while the person is looking at it. */
+    fun onScreenShown() = viewing.documentOpened(documentId)
+
+    /** The screen left the composition (balanced with [onScreenShown]). */
+    fun onScreenHidden() = viewing.documentClosed(documentId)
 
     private var externalFlow: ExternalFlowToken? = null
 

@@ -94,7 +94,7 @@ fun DocumentListRow(
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = documentDisplayTitle(item.document),
+                        text = item.provisionalTitle ?: documentDisplayTitle(item.document),
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -220,6 +220,15 @@ private fun MetaChips(item: DocumentListItem) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        // The step of a reading that is not finished, in plain words (no percentage): the row already shows what is known so far.
+        item.readingStep?.let { step ->
+            Text(
+                text = stringResource(ReadingStepLabels.of(step)),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(vertical = 2.dp),
+            )
+        }
         if (item.openActionCount > 0) ActionBadge()
         DateChip(item.dateChip)
         (item.status as? DocumentListStatus.NeedsReview)?.let { review ->

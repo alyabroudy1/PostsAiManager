@@ -126,4 +126,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindReminderScheduler(impl: WorkManagerReminderScheduler): ReminderScheduler
+
+    @Binds
+    @Singleton
+    abstract fun bindReadingFinishedNotifier(
+        impl: com.postsaimanager.core.data.worker.ReadingFinishedNotificationCenter,
+    ): com.postsaimanager.core.domain.reading.ReadingFinishedNotifier
 }

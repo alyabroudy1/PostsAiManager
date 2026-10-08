@@ -1,4 +1,21 @@
 <resources>
+    <!-- إشعار «تم فهم الرسالة». -->
+    <string name="reading_finished_channel_name">اكتملت القراءة</string>
+    <string name="reading_finished_channel_description">تنبيه هادئ عند قراءة رسالة وفهمها في الخلفية.</string>
+    <string name="reading_finished_title">تم فهم الرسالة</string>
+    <plurals name="reading_finished_group_title">
+        <item quantity="zero">لم تُفهم أي رسالة</item>
+        <item quantity="one">تم فهم رسالة واحدة</item>
+        <item quantity="two">تم فهم رسالتين</item>
+        <item quantity="few">تم فهم %1$d رسائل</item>
+        <item quantity="many">تم فهم %1$d رسالة</item>
+        <item quantity="other">تم فهم %1$d رسالة</item>
+    </plurals>
+    <string name="reading_finished_public">تم فهم رسالة</string>
+    <string name="reading_finished_due">الاستحقاق %1$s</string>
+    <string name="reading_finished_more">+%1$d أخرى</string>
+    <string name="reading_finished_group_hidden">افتح التطبيق لعرضها</string>
+
     <!-- التذكيرات التي أكدها المستخدم على بطاقة الإجراء. -->
     <string name="reminder_channel_name">التذكيرات</string>
     <string name="reminder_channel_description">تذكيرات تضعها لرسائلك، مثل التذكير قبل موعد نهائي.</string>
