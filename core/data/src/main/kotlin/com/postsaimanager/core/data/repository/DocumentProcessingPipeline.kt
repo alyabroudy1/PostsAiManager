@@ -27,6 +27,8 @@ import com.postsaimanager.core.domain.document.EnrichmentTicketRebuilder
 import com.postsaimanager.core.domain.document.KeySlotMarker
 import com.postsaimanager.core.domain.document.ReprocessOverwritePolicy
 import com.postsaimanager.core.domain.document.people.DecideConcernedPeopleUseCase
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialReading
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialRequest
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
@@ -94,6 +96,8 @@ class DocumentProcessingPipeline @Inject constructor(
     private val timelineRepository: TimelineRepository,
     @ApplicationContext private val appContext: Context,
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
+    // The "Gemma reads the letter" trial: asked first for a reading, and null (the reading below, unchanged) while the trial is off.
+    private val gemmaTrial: GemmaTrialReading = GemmaTrialReading.NONE,
 ) : DocumentProcessor {
     private val _processingState = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     override val processingState: Flow<ProcessingState> = _processingState.asStateFlow()
@@ -306,15 +310,30 @@ class DocumentProcessingPipeline @Inject constructor(
                 // result is only the values code found, marked "found" and low confidence,
                 // with no guessed roles (ExtractionV2Adapter is their single owner).
                 val allBlocks = ocrResults.flatMap { it.blocks }
-                val understanding = aiExtraction(
+                val pageAspect = pages.minByOrNull { it.pageNumber }
+                    ?.takeIf { it.width > 0 && it.height > 0 }?.let { it.width.toFloat() / it.height }
+                // The trial first (off by default, and then null at once): a Gemma reading in the same output type, or null when the
+                // trial is off, Gemma is not installed, busy, failed or too slow, and the reading below runs as it always did.
+                val trialReading = gemmaTrial.read(
+                    GemmaTrialRequest(
+                        documentId = documentId,
+                        pages = ocrByPage.map { (_, result) -> result?.blocks.orEmpty() },
+                        pageImagePaths = ocrByPage.map { (page, _) -> page.imagePath },
+                        pageAspect = pageAspect,
+                        forcedFamily = chosenFamily,
+                        reprocess = reprocess,
+                    ),
+                )
+                val understanding = if (trialReading != null) {
+                    PamResult.Success(trialReading)
+                } else aiExtraction(
                     allBlocks,
                     // 5.4: lets AiExtractionUseCase turn a character-budget cut into a page
                     // estimate — `ocrResults` is already page-ordered, matching how
                     // `allBlocks` was concatenated above.
                     pageBlockCounts = ocrResults.map { it.blocks.size },
                     // Page 1's image shape, as the benchmark always gave it, for the layout template match.
-                    pageAspect = pages.minByOrNull { it.pageNumber }
-                        ?.takeIf { it.width > 0 && it.height > 0 }?.let { it.width.toFloat() / it.height },
+                    pageAspect = pageAspect,
                     traceContent = traceContentFor(documentId),
                     // What a person needs to see first: the type, the parties, the amounts and dates. The language, the extras and the
                     // free text follow as the second stage, in the background, once this is stored.
@@ -514,7 +533,11 @@ class DocumentProcessingPipeline @Inject constructor(
                             updated, read, forcedFamily?.takeIf { ExtractionSchema.DEFAULT.family(it) != null }, provisional = staged,
                         )
                         updated = ReprocessOverwritePolicy.applyTitle(updated, read, provisional = staged)
-                        if (!staged) updated = ReprocessOverwritePolicy.applySummary(updated, read)
+                        if (!staged) {
+                            updated = ReprocessOverwritePolicy.applySummary(updated, read)
+                            // A one-go reading (the Gemma trial) chose the actions in the same call; a staged reading's second stage does.
+                            updated = ReprocessOverwritePolicy.applyActions(updated, read)
+                        }
                     }
                     documentDao.update(
                         documentMapper.toEntity(

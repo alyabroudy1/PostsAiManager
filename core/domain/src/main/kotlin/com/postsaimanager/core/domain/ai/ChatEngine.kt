@@ -129,6 +129,14 @@ interface ChatEngine {
      */
     suspend fun generateOnce(system: String, request: AiRequest): String? = null
 
+    /**
+     * One answer constrained to [request]'s JSON schema, with its pictures, on the resident model ("Gemma reads the letter"): like
+     * [generateOnce] it never loads a model and is skipped (null) when another caller holds the model, and the open chat session is
+     * not touched. Null as well when the runtime cannot constrain its output (llama.cpp), when no model is resident, when the
+     * generation failed or ran past [StructuredRequest.timeoutMs].
+     */
+    suspend fun generateStructured(request: StructuredRequest): String? = null
+
     /** Appends [answer] (thinking-stripped) to the open session's history. */
     suspend fun commitChatReply(answer: String)
 

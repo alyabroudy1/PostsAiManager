@@ -13,6 +13,7 @@ import com.postsaimanager.core.domain.ai.ToolActionWire
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.domain.ai.AiRequest
+import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.ModelLoadState
 import com.postsaimanager.core.model.ToolTrace
@@ -512,6 +513,26 @@ class InferenceService : Service() {
             if (liteRtReply?.isActive == true || liteRtWarmUp?.isActive == true) return null
             val request = AiRequest(prompt = prompt, maxTokens = maxTokens, temperature = temperature, topK = topK, thinkingEnabled = false)
             return submit { runBlocking { liteRt.generateOnce(system, request) } }
+        }
+
+        override fun generateLiteRtStructured(
+            system: String?,
+            prompt: String?,
+            schema: String?,
+            imagePaths: Array<out String>?,
+            maxTokens: Int,
+            temperature: Float,
+            topK: Int,
+            timeoutMs: Long,
+        ): String? {
+            if (system == null || prompt == null || schema == null || !isLiteRtReady()) return null
+            // Quiet work, as generateLiteRtOnce: skipped, never queued behind a reply or a warm-up.
+            if (liteRtReply?.isActive == true || liteRtWarmUp?.isActive == true) return null
+            val request = StructuredRequest(
+                system = system, prompt = prompt, schema = schema, imagePaths = imagePaths?.toList().orEmpty(),
+                maxTokens = maxTokens, temperature = temperature, topK = topK, timeoutMs = timeoutMs,
+            )
+            return submit { runBlocking { liteRt.generateStructured(request) } }
         }
 
         override fun unloadLiteRt() {

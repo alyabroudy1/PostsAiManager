@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.ai.AiCapabilities
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
 import kotlinx.coroutines.flow.Flow
@@ -103,6 +104,15 @@ class FakeChatEngine(
     }
 
     override suspend fun lastReplyHitLimit(): Boolean = hitLimit
+
+    /** What [generateStructured] answers (null: skipped because the model is busy, or a failed generation), and every request that reached it. */
+    var structuredAnswer: String? = null
+    val structuredRequests = mutableListOf<StructuredRequest>()
+
+    override suspend fun generateStructured(request: StructuredRequest): String? {
+        structuredRequests += request
+        return structuredAnswer
+    }
 
     override suspend fun commitChatReply(answer: String) {
         committed += answer

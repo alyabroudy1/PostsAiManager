@@ -735,6 +735,42 @@ The strategy is evaluated offline first: benchmark recordings hold the model's r
 decoders and family sets are re-decided in the JVM in seconds, and the device is only needed when new scores are required.
 See [08-extraction-optimization-roadmap.md](08-extraction-optimization-roadmap.md).
 
+### 12.12 The "Gemma reads the letter" trial (off by default)
+
+A trial of direction A of `plans/18-research-extraction.md`: the chat model (LiteRT-LM Gemma 4) reads a letter in one schema-constrained
+call instead of the zone scorer. **Off** in debug and release builds alike (`GemmaReaderTrial`, preferences `gemma_reader_trial`); only a
+debug build offers a way to turn it on: a switch in Settings > Debug, and "Read again with Gemma (trial)" on a document's Extracted tab.
+While it is off, `DocumentProcessingPipeline` asks `GemmaTrialReading` first, gets null at once and runs the reading above unchanged.
+
+- **Input** (`GemmaLetterBuilder`, `GemmaPrompt`): the OCR lines with ids `L1..Ln` (zone and position as context), the candidates with their
+  own ids (`M` names, `D` dates, `A` amounts, `I` accounts, `N` references, `T` phones, `E` e-mails; `K...` for a value only ML Kit found),
+  each linked to its line, and the first two page pictures (the chat's scaled copies, by file path over AIDL).
+- **ML Kit Entity Extraction** (`EntityAnnotator`, `MlKitEntityAnnotator`, `EntityCandidateMerger`): dates and times, money, IBAN, phone,
+  e-mail and address spans for German, English and Arabic, merged next to the shape candidates (it only adds; an address only tags its
+  lines). Its models are downloaded on demand; until one is on the phone it is not used and the reading goes on with the shape candidates.
+- **Output** (`GemmaSchema`, built per letter): `ConversationConfig(enableResponseFormat = true)` and `ResponseFormat.json(schema)` of
+  LiteRT-LM 0.18, thinking off, low temperature. The party ids enum only this letter's name candidates and lines; the dates, amounts and
+  references enum only its candidates of that kind; the words (meanings, action kinds, categories, kinds of reference) come from the
+  registries (`ValueMeanings`, `ActionKinds`, `DocCategory`, the schema's reference slots). Free text: a name of at most 60 characters,
+  a short summary, up to six key facts of a label (at most 30 characters) and a value.
+- **Code verifies** (`GemmaReadingVerifier`, then the pipeline's own `SelectionVerifier`): every id exists and is of the right kind; the
+  sender is never the addressee; a date is a real calendar date and a due date is not before the letter's date; an amount parses; an
+  account is an IBAN with a right checksum; the name, the summary and the key facts are grounded in the letter
+  (`DocumentNameVerifier`, `SummaryGate`, `KeyInfoVerifier`). What fails is dropped, the field stays empty and the reason is in the trace.
+- **Same output types:** the result is a `RawInterpretation` (meanings stored with their slots through `MeaningSlots`), then the usual
+  verifier and `ExtractionV2Adapter`, so the list, the Extracted tab, the contacts and the chat read it unchanged. The actions are bound to
+  the stored slots (`GemmaActionBinder`) and stored with the reading (it is one stage: no second stage, no timeline event of the letter).
+- **A page the OCR could not read (Arabic, a blurred photo):** with no line to point at, the trial reads from the picture alone
+  (`GemmaImageOnly`). Names and values are then free strings the code cannot ground in any text: every value is stored below the review
+  line with a note saying so ("to check"), and only what code can still refute is dropped (a date that is not a calendar date, an amount
+  that does not parse, an account with a wrong checksum).
+- **Fallback:** Gemma not installed or not a LiteRT-LM model, the model busy (a chat reply or another reading holds it: never queued),
+  a failed or unusable answer, or no answer in 120 s (the service cancels the generation): the usual reading runs. A document is never
+  left unread, and a quiet background re-read is never the trial's.
+- **Logs for the comparison:** the engine's one `PamTiming` line (total, backend, picture yes or no, the JSON's length, prefill and
+  decode tokens and rates), a `PamTiming` line per document, and a `DocProcessing` line of the fields decided and dropped (counts and
+  keys, never a word of the letter).
+
 ## 12. Importing PDFs and images
 
 A PDF or an image becomes a document through the scan path: `ImportFilesUseCase` turns the files into page images and hands them to

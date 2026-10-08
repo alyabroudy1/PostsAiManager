@@ -163,6 +163,8 @@ internal fun ExtractedTab(
     onContactClick: (organisationId: String, contactId: String) -> Unit = { _, _ -> },
     onCall: (phone: String) -> Unit = {},
     onEmail: (address: String) -> Unit = {},
+    /** The debug action "Read again with Gemma (trial)"; null (a release build) offers nothing. */
+    onReadAgainWithGemma: (() -> Unit)? = null,
 ) {
     // Kept across a rotation: the row being edited is stored as its id and resolved from the data, so the sheet shows the latest row.
     var editingFieldId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -196,6 +198,12 @@ internal fun ExtractedTab(
             ) {
                 item(key = "reread") {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                        if (onReadAgainWithGemma != null) {
+                            OutlinedButton(onClick = onReadAgainWithGemma, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
+                                Text(stringResource(R.string.debug_read_again_with_gemma), style = MaterialTheme.typography.labelSmall)
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
                         OutlinedButton(onClick = onReprocess, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
                             Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))

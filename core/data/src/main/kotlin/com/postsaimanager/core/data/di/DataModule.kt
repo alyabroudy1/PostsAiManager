@@ -1,5 +1,13 @@
 package com.postsaimanager.core.data.di
 
+import com.postsaimanager.core.data.gemma.GemmaTrialReader
+import com.postsaimanager.core.data.gemma.MlKitEntityAnnotator
+import com.postsaimanager.core.data.gemma.SharedPreferencesGemmaReaderTrial
+import com.postsaimanager.core.domain.extraction.gemma.ChatEngineGemmaReader
+import com.postsaimanager.core.domain.extraction.gemma.EntityAnnotator
+import com.postsaimanager.core.domain.extraction.gemma.GemmaDocumentReader
+import com.postsaimanager.core.domain.extraction.gemma.GemmaReaderTrial
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialReading
 import com.postsaimanager.core.data.repository.ContactRepositoryImpl
 import com.postsaimanager.core.data.repository.EventRepositoryImpl
 import com.postsaimanager.core.domain.repository.EventRepository
@@ -126,4 +134,22 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindReminderScheduler(impl: WorkManagerReminderScheduler): ReminderScheduler
+
+    // ── "Gemma reads the letter" (the trial; off by default) ──
+
+    @Binds
+    @Singleton
+    abstract fun bindGemmaReaderTrial(impl: SharedPreferencesGemmaReaderTrial): GemmaReaderTrial
+
+    @Binds
+    @Singleton
+    abstract fun bindGemmaTrialReading(impl: GemmaTrialReader): GemmaTrialReading
+
+    @Binds
+    @Singleton
+    abstract fun bindEntityAnnotator(impl: MlKitEntityAnnotator): EntityAnnotator
+
+    @Binds
+    @Singleton
+    abstract fun bindGemmaDocumentReader(impl: ChatEngineGemmaReader): GemmaDocumentReader
 }

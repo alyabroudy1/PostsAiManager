@@ -91,3 +91,19 @@ how they work: [agent-skills.md](agent-skills.md), "Chat pieces".
 | The Gallery's reset session (`ChatViewModel` clear history + `LlmChatViewModel.resetSession`) | `StartNewChatUseCase`, `ChatViewModel.newChat` | the document's conversation is deleted (not archived) and the model's conversation dropped |
 
 Not taken: their whole `ChatView`/`ChatViewModel`/model manager, MCP, Firebase, remote skill URLs, benchmark screens, audio.
+
+## ML Kit Entity Extraction (ML Kit Terms of Service)
+
+The "Gemma reads the letter" trial (`plans/18-research-extraction.md`, direction A; off by default, switched on only in a debug build).
+
+- **What:** `com.google.mlkit:entity-extraction:16.0.0-beta6`, used by `MlKitEntityAnnotator` (`:core:data`) as a second source of
+  candidates next to the ones code finds by shape: dates and times, money, IBAN, phone, e-mail and address spans of a letter, for
+  German, English and Arabic. It only adds candidates; the model decides what each one means.
+- **Licence:** the ML Kit Terms of Service, <https://developers.google.com/ml-kit/terms> (the licence the library's own POM names). It is
+  a free-to-use, closed-source SDK under Google's own terms, not an open-source licence (the same terms as the ML Kit text recognition
+  the app already ships). The library is beta (16.0.0-beta6) and says so. Read the terms again before a release build keeps the trial.
+- **Size:** about 8.4 MB of library (the AAR of beta6 is 8,365,645 bytes; the research's 5.6 MB was an older figure), added to the APK
+  for every build type. The language models are not in the APK: ML Kit downloads one per language (German, English, Arabic) on demand
+  the first time it is asked, a few megabytes each, and caches it. While a model is not on the phone, it is not used and the reading
+  goes on with the shape candidates alone.
+- **Privacy:** only the model files are downloaded; the letter's text never leaves the phone.

@@ -94,6 +94,8 @@ class RoutingChatEngine(
 
     override suspend fun generateOnce(system: String, request: AiRequest): String? = active().generateOnce(system, request)
 
+    override suspend fun generateStructured(request: StructuredRequest): String? = active().generateStructured(request)
+
     override suspend fun commitChatReply(answer: String) = active().commitChatReply(answer)
 
     override suspend fun discardPendingReply() = active().discardPendingReply()

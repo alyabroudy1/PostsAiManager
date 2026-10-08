@@ -9,6 +9,7 @@ import com.postsaimanager.core.domain.ai.AiCapabilities
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.domain.ai.ToolActionCall
 import com.postsaimanager.core.domain.skills.JsSkillRequest
 import com.postsaimanager.core.domain.skills.SkillCatalog
@@ -604,6 +605,54 @@ class LiteRtChatEngine internal constructor(
             // The live conversation is closed: whatever builds it next is a new session (the card and the last exchange), never a
             // replay of the whole visit that just ended. The app also drops the session when a new one begins, with the fresh notes.
             restartFromPlan = true
+            return answer
+        } finally {
+            mutex.unlock()
+        }
+    }
+
+    /**
+     * "Gemma reads the letter": one answer constrained to the request's JSON schema ([LlmModelHelper.generateStructured]), with the
+     * letter's pictures. Taken only when nothing else holds the model, as [generateOnce]; the chat's session is left as that one leaves
+     * it. A request with pictures restarts the engine with its vision encoder once ([withVision]), which stays until the model is loaded
+     * again. The timing log gets one line (the milliseconds, the pictures, the length of the answer) next to the engine's own counters.
+     */
+    override suspend fun generateStructured(request: StructuredRequest): String? {
+        if (!mutex.tryLock()) return null
+        try {
+            var live = instance ?: return null
+            val config = loaded?.second ?: return null
+            val images = request.imagePaths.mapNotNull { path -> runCatching { File(path).readBytes() }.getOrNull() }
+            val started = System.nanoTime()
+            if (images.isNotEmpty()) {
+                live = try {
+                    withContext(Dispatchers.IO) { withVision(live) }
+                } catch (e: Exception) {
+                    return null
+                }
+            }
+            val modelConfig = LlmModelConfig(
+                modelPath = loaded?.first.orEmpty(),
+                accelerator = live.accelerator,
+                maxTokens = config.contextTokens,
+                topK = request.topK,
+                topP = request.topP,
+                temperature = request.temperature,
+                supportImage = live.supportsImage,
+            )
+            val answer = withContext(Dispatchers.IO) {
+                helper.generateStructured(
+                    live, modelConfig, request.system, request.prompt, images, request.schema, request.maxTokens, request.timeoutMs,
+                )
+            }
+            conversationSampling = null
+            restartFromPlan = true
+            // The one timing line of a reading: the total, where it ran, the pictures, the JSON's length and the engine's own counters.
+            TimingLog.log(
+                "reader: structured answer total=${(System.nanoTime() - started) / 1_000_000}ms backend=${live.accelerator} " +
+                    "image=${if (images.isNotEmpty()) "yes(${images.size})" else "no"} json=${answer?.length ?: -1} chars " +
+                    helper.lastBenchmark.ifBlank { "bench: none" },
+            )
             return answer
         } finally {
             mutex.unlock()
