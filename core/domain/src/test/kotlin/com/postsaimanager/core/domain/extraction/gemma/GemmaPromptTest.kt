@@ -82,8 +82,8 @@ class GemmaPromptTest {
     @Test
     @DisplayName("the keys and codes are explained once: who, kinds of party, and every list's codes with their words")
     fun `codes are explained`() {
-        assertThat(prompt).contains("WHO")
-        GemmaSchema.PARTIES.forEach { assertThat(prompt).contains("${vocab.partyRoleCodes.codeOf(it)} = $it") }
+        assertThat(prompt).contains("sender: who wrote and sent the letter")
+        assertThat(prompt).contains("contact: the person to contact at the sender")
         vocab.partyKinds.forEach { assertThat(prompt).contains("${vocab.partyKindCodes.codeOf(it)} = $it") }
         vocab.referenceKinds.forEach { assertThat(prompt).contains("${vocab.referenceKindCodes.codeOf(it)} = $it") }
         vocab.actionKinds.forEach { assertThat(prompt).contains("- ${vocab.actionKindCodes.codeOf(it.id)}: ${it.task}") }

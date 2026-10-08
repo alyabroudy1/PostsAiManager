@@ -36,9 +36,9 @@ class GemmaPromptSizeTest {
 
     private companion object {
         /** Before the diet this letter's prompt was 9206 characters (system 806, letter turn 2526, guide turn 5874); now 7.4k. */
-        const val BUDGET_CHARS = 8_000
+        const val BUDGET_CHARS = 8_600
 
-        /** The letter turn was 2526 characters. */
-        const val LETTER_TURN_BUDGET_CHARS = 2_000
+        /** The letter turn was 2526 characters (the zone word of each candidate's line is the one column added since). */
+        const val LETTER_TURN_BUDGET_CHARS = 2_200
     }
 }

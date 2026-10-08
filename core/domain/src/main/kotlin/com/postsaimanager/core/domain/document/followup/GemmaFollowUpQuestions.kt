@@ -14,6 +14,7 @@ import com.postsaimanager.core.domain.document.contacts.SameContactQuestion
 import com.postsaimanager.core.domain.document.list.PartyNames
 import com.postsaimanager.core.domain.document.people.ConcernedPeopleProfile
 import com.postsaimanager.core.domain.form.SubjectCandidate
+import com.postsaimanager.core.domain.form.SuggestSubject
 import com.postsaimanager.core.domain.organisation.DetailOwner
 import com.postsaimanager.core.domain.organisation.DetailOwnerProfile
 import com.postsaimanager.core.domain.organisation.DetailQuestion
@@ -55,17 +56,33 @@ class GemmaFollowUpQuestions @Inject constructor(
         if (listed.isEmpty()) return PamResult.Success(emptySet())
         // The members whose whole name the letter prints: shown to the model as evidence only; the choice stays the model's.
         val printed = listed.filter { PartyNames.printsFullName(letter, it.name) }.map { it.profileId }.toSet()
-        val ask = FollowUpPrompts.concerned(listed, peopleProfile.baselineName, printed, read)
-        // Debug: the exact question and schema the model is asked (invented letters only).
-        log.answered(documentId, "concerned people ask", "prompt=${ask.prompt.replace('\n', '|')} schema=${ask.schema}")
-        val json = when (val answer = converse(documentId, ask) { letter.take(peopleProfile.maxLetterChars) }) {
-            is PamResult.Error -> return answer
-            is PamResult.Success -> answer.data
+        // One yes/no question per person, the model deciding each; then the same question for a made-up person as the calibration.
+        suspend fun asks(name: String, relation: String?, printedInFull: Boolean): PamResult<Boolean> {
+            val ask = FollowUpPrompts.concernedPerson(name, relation, printedInFull, read)
+            val json = when (val answer = converse(documentId, ask) { letter.take(peopleProfile.maxLetterChars) }) {
+                is PamResult.Error -> return answer
+                is PamResult.Success -> answer.data
+            }
+            val chosen = FollowUpPrompts.choice(json, ask) ?: return unusable()
+            // Debug: each question and its answer (invented letters only).
+            log.answered(documentId, "concerned people ask", "prompt=${ask.prompt.replace('\n', '|')} answer=$chosen")
+            return PamResult.Success(chosen == FollowUpPrompts.YES)
         }
-        val chosen = FollowUpPrompts.choices(json, ask) ?: return unusable()
-        val ids = FollowUpPrompts.matchedAll(chosen, ask).map { listed[ask.candidateIds.indexOf(it)].profileId }
-        log.answered(documentId, "concerned people", "offered=${ask.candidateIds.size} printedInFull=${printed.size} answer=$chosen kept=${ids.size}")
-        return PamResult.Success(ids.toSet())
+        val yes = LinkedHashSet<String>()
+        for (member in listed) {
+            when (val a = asks(member.name, SuggestSubject.relation(member), member.profileId in printed)) {
+                is PamResult.Error -> return a
+                is PamResult.Success -> if (a.data) yes += member.profileId
+            }
+        }
+        val decoyYes = when (val a = asks(peopleProfile.baselineName, null, false)) {
+            is PamResult.Error -> return a
+            is PamResult.Success -> a.data
+        }
+        // A model that says yes for somebody who cannot be in the letter is not answering reliably: nobody is kept.
+        val ids = if (decoyYes) emptySet() else yes
+        log.answered(documentId, "concerned people", "offered=${listed.size} printedInFull=${printed.size} yes=${yes.size} madeUpAnsweredYes=$decoyYes kept=${ids.size}")
+        return PamResult.Success(ids)
     }
 
     override suspend fun sameContact(documentId: String, question: SameContactQuestion): PamResult<SameContactDecision> {

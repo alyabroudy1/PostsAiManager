@@ -140,8 +140,11 @@ object GemmaPrompt {
             append("- ${Field.KEY_INFO}: up to ${GemmaSchema.MAX_KEY_INFO} other facts the reader needs, entries {${Item.LABEL}: a label of at most four words, ${Item.VALUE}: the value copied as printed}.\n")
         }
         append("\n")
-        codes("WHO (${Item.WHO})", vocab.partyRoleCodes, GemmaSchema.PARTIES)
-        codes("KIND OF PARTY", vocab.partyKindCodes, vocab.partyKinds)
+        if (imageOnly) codes("WHO (${Item.WHO})", vocab.partyRoleCodes, GemmaSchema.PARTIES)
+        codes("KIND OF PARTY (${Item.KIND})", vocab.partyKindCodes, vocab.partyKinds)
+        // What the kinds mean, so an office is never filed as a human being (guidance; the model still decides).
+        append("  person = a human being; authority = an office, agency, institution or other organisation that is not a business; ")
+        append("company = a business; other = none of these. The name of an office or a business is never a person.\n")
         append("DATE MEANINGS:\n")
         vocab.dateMeanings.forEach { append("- ").append(vocab.dateMeaningCodes.codeOf(it.id)).append(": ").append(it.description).append('\n') }
         append("- ").append(vocab.dateMeaningCodes.codeOf(GemmaVocabulary.OTHER)).append(": none of these\n")

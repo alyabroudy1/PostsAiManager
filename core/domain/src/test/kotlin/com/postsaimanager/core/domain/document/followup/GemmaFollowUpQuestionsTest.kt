@@ -103,6 +103,11 @@ class GemmaFollowUpQuestionsTest {
         engine.followUpResponder = { json }
     }
 
+    /** The per-person yes/no question: "yes" for the named people only (the made-up one is asked the same way). */
+    private fun yesFor(vararg names: String) {
+        engine.followUpResponder = { req -> """{"answer":"${if (names.any { "ABOUT $it (" in req.prompt }) "yes" else "no"}"}""" }
+    }
+
     private val contactQuestion get() = SameContactQuestion(read, "Jobcenter Musterstadt", null, listOf(nadine, schmidt))
 
     @Test
@@ -150,16 +155,16 @@ class GemmaFollowUpQuestionsTest {
     }
 
     @Test
-    @DisplayName("a multiple choice that includes the made-up candidate names nobody")
+    @DisplayName("the people check asks each person yes or no, and a yes for the made-up person keeps nobody")
     fun `made-up candidate in the people check names nobody`() = runTest {
         theReaderReads()
         val maria = SubjectCandidate("maria", "Maria Mustermann")
 
-        answers("""{"answers":["P1","Z"]}""")
+        answers("""{"answer":"yes"}""") // yes for everybody, the made-up person too: not reliable
         val guessing = (gemma.concernedPeople("d1", letter, listOf(maria)) as PamResult.Success).data
-        answers("""{"answers":["P1"]}""")
+        yesFor("Maria Mustermann")
         val sure = (gemma.concernedPeople("d1", letter, listOf(maria)) as PamResult.Success).data
-        answers("""{"answers":["none"]}""")
+        answers("""{"answer":"no"}""")
         val nobody = (gemma.concernedPeople("d1", letter, listOf(maria)) as PamResult.Success).data
 
         assertThat(guessing).isEmpty()
@@ -168,24 +173,29 @@ class GemmaFollowUpQuestionsTest {
     }
 
     @Test
-    @DisplayName("the question states which members' exact names the letter prints, describes the made-up option as unrelated, and the answer is logged")
+    @DisplayName("each question names the person with the relationship, states whether the letter prints the exact name, carries the reading's parties, and is logged with its answer")
     fun `the addressee's exact name is stated and chosen`() = runTest {
         theReaderReads()
         val recording = RecordingLog()
         val withLog = GemmaFollowUpQuestions(
             engine, provider, documents, ConcernedPeopleProfile(), SameContactProfile(), DetailOwnerProfile(), SameMatterProfile(), recording,
         )
-        answers("""{"answers":["P1"]}""")
+        yesFor("Maria Mustermann")
 
         val child = SubjectCandidate("maria", "Maria Mustermann", com.postsaimanager.core.model.Relationship.CHILD)
-        val chosen = (withLog.concernedPeople("d1", letter, listOf(child)) as PamResult.Success).data
+        val chosen = (withLog.concernedPeople("d1", letter, listOf(child), ReadParties("Jobcenter Musterstadt", "Maria Mustermann")) as PamResult.Success).data
 
         assertThat(chosen).containsExactly("maria")
-        assertThat(engine.followUpRequests.last().prompt).contains("the letter prints this exact name")
-        assertThat(engine.followUpRequests.last().prompt).contains("nothing to do with this household")
-        // The question and its schema are logged first (debug), then the answer.
-        assertThat(recording.answers.first()).contains("prompt=")
-        assertThat(recording.answers.last()).contains("answer=[P1]")
+        val asked = engine.followUpRequests.map { it.prompt }
+        assertThat(asked).hasSize(2) // Maria, then the made-up person
+        assertThat(asked[0]).contains("ABOUT Maria Mustermann (the user's child)")
+        assertThat(asked[0]).contains("The letter prints this exact name.")
+        assertThat(asked[0]).contains("addressed to Maria Mustermann; it was sent by Jobcenter Musterstadt")
+        assertThat(asked[1]).contains("ABOUT Zoltan Quillfeather (a person)")
+        assertThat(engine.followUpRequests.map { it.schema }.distinct().single()).contains("\"yes\"")
+        // Each question is logged with its answer, then the verdict.
+        assertThat(recording.answers.filter { it.contains("answer=") && it.contains("prompt=") }).hasSize(2)
+        assertThat(recording.answers.last()).contains("yes=1 madeUpAnsweredYes=false kept=1")
     }
 
     @Test
@@ -213,12 +223,13 @@ class GemmaFollowUpQuestionsTest {
     @Test
     @DisplayName("the people check of a letter whose conversation is gone (the backfill) opens a fresh one with the passed text")
     fun `people check backfill`() = runTest {
-        engine.structuredResponder = { """{"answers":["P1"]}""" }
+        engine.structuredResponder = { req -> """{"answer":"${if ("ABOUT Maria Mustermann (" in req.prompt) "yes" else "no"}"}""" }
+        yesFor("Maria Mustermann")
 
         val result = gemma.concernedPeople("d1", "Rechnung fuer Maria Mustermann", listOf(SubjectCandidate("maria", "Maria Mustermann")))
 
         assertThat((result as PamResult.Success).data).containsExactly("maria")
-        assertThat(engine.structuredRequests.single().prompt).contains("Rechnung fuer Maria Mustermann")
+        assertThat(engine.structuredRequests.first().prompt).contains("Rechnung fuer Maria Mustermann")
     }
 
     @Test
@@ -483,7 +494,7 @@ class GemmaFollowUpQuestionsTest {
     fun `maria is concerned`() = runTest {
         theReaderReads()
         profiles.seed(managed("maria", "Maria Mustermann"), managed("stranger", "Hans Meier"))
-        answers("""{"answers":["P1"]}""")
+        yesFor("Maria Mustermann")
         val decide = DecideConcernedPeopleUseCase(profiles, documents, gemma)
 
         val result = decide("d1", letter)
@@ -491,8 +502,8 @@ class GemmaFollowUpQuestionsTest {
         assertThat((result as PamResult.Success).data).containsExactly("maria")
         assertThat((documents.getDocumentById("d1") as PamResult.Success).data.concernedProfileIds).containsExactly("maria")
         // Only the person the letter names was offered.
-        assertThat(engine.followUpRequests.single().prompt).contains("Maria Mustermann")
-        assertThat(engine.followUpRequests.single().prompt).doesNotContain("Hans Meier")
+        assertThat(engine.followUpRequests.first().prompt).contains("Maria Mustermann")
+        assertThat(engine.followUpRequests.none { it.prompt.contains("Hans Meier") }).isTrue()
     }
 
     @Test

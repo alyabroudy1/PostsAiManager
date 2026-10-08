@@ -56,13 +56,18 @@ object FollowUpPrompts {
     private const val KEY_ANSWER = "answer"
     private const val KEY_ANSWERS = "answers"
 
-    /** Which of [members] the letter is for or about (several may be). */
-    fun concerned(
-        members: List<SubjectCandidate>, decoyName: String, printedInFull: Set<String> = emptySet(), read: ReadParties = ReadParties.NONE,
-    ): FollowUpAsk {
-        val ids = members.indices.map { "P${it + 1}" }
+    const val YES = "yes"
+    const val NO = "no"
+
+    /**
+     * One yes/no question about one person: is the letter for or about them? Asked once per household member and once for a made-up
+     * person (the calibration: a model that says yes for somebody who cannot be in the letter is not answering reliably). [relation]
+     * is how the person is described (null for the made-up one), [printedInFull] a fact code can see, stated as such.
+     */
+    fun concernedPerson(name: String, relation: String?, printedInFull: Boolean, read: ReadParties = ReadParties.NONE): FollowUpAsk {
         val prompt = buildString {
-            append("Question about the letter above: is it FOR or ABOUT any of these people (addressed to them, or concerning them)?\n")
+            append("Question about the letter above: is this letter FOR or ABOUT ").append(name)
+            append(" (").append(relation ?: "a person").append(")? It is, when it is addressed to them or concerns them.\n")
             // Facts from this very conversation: what the model itself read as the parties of the letter. The decision stays the model's.
             if (!read.addressee.isNullOrBlank() || !read.sender.isNullOrBlank()) {
                 append("In your reading of this letter")
@@ -70,17 +75,27 @@ object FollowUpPrompts {
                 read.sender?.takeIf { it.isNotBlank() }?.let { append(if (read.addressee.isNullOrBlank()) ": " else "; ").append("it was sent by ").append(it) }
                 append(".\n")
             }
-            append("People it may be for or about:")
-            // A fact code can see, stated as such (never the decision): the letter prints this person's whole name.
-            members.forEachIndexed { i, m ->
-                append("\n${ids[i]}: ${m.name} (${SuggestSubject.relation(m)})")
-                if (m.profileId in printedInFull) append(" - the letter prints this exact name")
-            }
-            append("\n$DECOY: $decoyName (a made-up person who has nothing to do with this household or this letter)")
-            append("\nAnswer with the id of every person the letter is for or about. A person counts only when the letter itself names them or ")
-            append("clearly refers to them. Answer [\"$NONE\"] when it is about none of them.")
+            if (printedInFull) append("The letter prints this exact name.\n")
+            append("Answer $YES or $NO.")
         }
-        return FollowUpAsk(prompt, schema(ids, multiple = true), ids, multiple = true)
+        val schema = buildJsonObject {
+            put("type", "object")
+            put(
+                "properties",
+                buildJsonObject {
+                    put(
+                        KEY_ANSWER,
+                        buildJsonObject {
+                            put("type", "string")
+                            putJsonArray("enum") { listOf(YES, NO).forEach { add(JsonPrimitive(it)) } }
+                        },
+                    )
+                },
+            )
+            putJsonArray("required") { add(JsonPrimitive(KEY_ANSWER)) }
+            put("additionalProperties", false)
+        }.toString()
+        return FollowUpAsk(prompt, schema, listOf(YES, NO), multiple = false)
     }
 
     /** Whether the contact of the letter is one of the known contacts. */

@@ -4,14 +4,13 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.document.followup.FollowUpPrompts
 import com.postsaimanager.core.domain.document.followup.ReadParties
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
+import com.postsaimanager.core.domain.extraction.layout.LetterLayoutAnalyzer
 import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
-import com.postsaimanager.core.domain.form.SubjectCandidate
-import com.postsaimanager.core.model.Relationship
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
-/** A party the model named by a line is the name candidate on that line; the people question carries the reading's own answer. */
+/** A party the model named by a line is the name candidate on that line; the people question and the field guide carry their evidence. */
 class GemmaPartyCandidateTest {
 
     private val letter = GemmaLetter(
@@ -38,17 +37,31 @@ class GemmaPartyCandidateTest {
     }
 
     @Test
-    @DisplayName("the people question names each person with the relationship and tells the model what its own reading found")
+    @DisplayName("the people question is one yes/no per person, with the relationship and what the model's own reading found")
     fun `people question carries the reading`() {
-        val ask = FollowUpPrompts.concerned(
-            listOf(SubjectCandidate("maria", "Maria Mustermann", Relationship.CHILD)), "Zoe Zufall", setOf("maria"),
-            ReadParties(sender = "Jobcenter Musterstadt", addressee = "Maria Mustermann"),
+        val ask = FollowUpPrompts.concernedPerson(
+            "Maria Mustermann", "the user's child", true, ReadParties(sender = "Jobcenter Musterstadt", addressee = "Maria Mustermann"),
         )
 
-        assertThat(ask.prompt).contains("P1: Maria Mustermann (the user's child)")
+        assertThat(ask.prompt).contains("FOR or ABOUT Maria Mustermann (the user's child)")
         assertThat(ask.prompt).contains("addressed to Maria Mustermann; it was sent by Jobcenter Musterstadt")
-        assertThat(ask.prompt).contains("FOR or ABOUT")
-        assertThat(ask.prompt).contains("Z: Zoe Zufall")
-        assertThat(ask.candidateIds).containsExactly("P1")
+        assertThat(ask.prompt).contains("Answer yes or no.")
+        assertThat(ask.candidateIds).containsExactly("yes", "no")
+        assertThat(ask.schema).contains("\"enum\":[\"yes\",\"no\"]")
+    }
+
+    @Test
+    @DisplayName("on the device letter the field guide explains the kinds of party and each candidate carries the zone word of its line")
+    fun `kind guide and zone word`() {
+        val layout = LetterLayoutAnalyzer.analyze(listOf(DeviceLetters.jobcenterBlocks))
+        val built = GemmaLetterBuilder.build(layout, OfferedCandidates(emptyList()))
+        val head = built.lines.first { it.text == "Jobcenter Musterstadt" }
+        val prompt = GemmaPrompt.user(
+            GemmaLetter(built.lines, listOf(GemmaCandidate("M2", CandidateKind.NAME, "Jobcenter Musterstadt", "Jobcenter Musterstadt", "", head.id))),
+        )
+
+        assertThat(prompt).contains("person = a human being")
+        assertThat(prompt).contains("The name of an office or a business is never a person.")
+        assertThat(prompt).contains("M2 | name | = |  | ${head.id} | letterhead")
     }
 }
