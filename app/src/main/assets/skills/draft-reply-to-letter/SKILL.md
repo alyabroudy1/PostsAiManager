@@ -1,6 +1,6 @@
 ---
 name: draft-reply-to-letter
-description: Write a reply email to the sender of the letter being discussed, in the letter's language, when the user asks to answer, respond to or reply to a letter.
+description: Use only when the user explicitly asks to answer, respond to or reply to the letter being discussed. Writes a reply email to the letter's sender, in the letter's language. Never for a question about a letter.
 ---
 
 # Draft a reply to the letter

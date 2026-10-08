@@ -199,6 +199,23 @@ class AiExtractionUseCaseTest {
         }
 
         @Test
+        fun `a reader that is installed but did not read is owed, with no reader installed nothing is owed`() = runTest {
+            engine.loadFailsWith = PamResult.Error(PamError.ModelNotLoaded("test"))
+            assertThat((extract(blocks, pageBlockCounts = counts) as PamResult.Success).data.readerUnavailable).isTrue()
+
+            engine.loadFailsWith = null
+            val installed = models.path
+            models.path = null
+            assertThat((extract(blocks, pageBlockCounts = counts) as PamResult.Success).data.readerUnavailable).isFalse()
+
+            models.path = installed
+            scripted()
+            val read = (extract(blocks, pageBlockCounts = counts) as PamResult.Success).data
+            assertThat(read.modelUsed).isTrue()
+            assertThat(read.readerUnavailable).isFalse()
+        }
+
+        @Test
         fun `a dead engine reports rather than throwing and gives the found values`() = runTest {
             engine.failWith = IllegalStateException("native crash")
             assertFoundOnly((extract(blocks, pageBlockCounts = counts) as PamResult.Success).data)

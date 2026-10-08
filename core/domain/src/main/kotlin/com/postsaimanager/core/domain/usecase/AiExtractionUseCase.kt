@@ -110,7 +110,11 @@ class AiExtractionUseCase @Inject constructor(
             "t extraction total (load, pipeline, adapter) ms=${(System.nanoTime() - started) / NANOS_PER_MS}",
         )
         // The reading's trace: the header first (the data layer logs it always), then the structure, then the timings.
-        val understanding = adapted.copy(readingTrace = listOf(header) + adapted.readingTrace + timings)
+        val understanding = adapted.copy(
+            readingTrace = listOf(header) + adapted.readingTrace + timings,
+            // A reader is installed yet did not read: the reading is owed (see [DocumentUnderstanding.readerUnavailable]).
+            readerUnavailable = readerPath != null && !adapted.modelUsed,
+        )
         val truncation = understanding.inputTruncation
         return PamResult.Success(
             if (truncation != null && pageBlockCounts.isEmpty()) {

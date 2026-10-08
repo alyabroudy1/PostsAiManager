@@ -215,6 +215,13 @@ data class DocumentUnderstanding(
     val modelUsed: Boolean = true,
 
     /**
+     * True when a reader model is installed but did not read the document ([modelUsed] is false): its session was lost, the chat
+     * model replaced it mid-reading, or it was refused because a chat was active. The reading is owed, not done: it is run again later
+     * instead of being completed with the values found by code. False when no reader model is installed at all.
+     */
+    val readerUnavailable: Boolean = false,
+
+    /**
      * What the reading did, as structure only (which interpreter, which layout template, zone and candidate
      * counts, the ids and scores chosen): never a word of the letter. For diagnostics; the data layer logs it
      * in a debug build and nothing stores it.

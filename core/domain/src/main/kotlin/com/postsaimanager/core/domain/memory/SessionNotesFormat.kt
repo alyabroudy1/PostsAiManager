@@ -44,15 +44,26 @@ object SessionNotesFormat {
      * The question: the conversation (newest part, within [MAX_TRANSCRIPT_CHARS]), the notes already kept (so they are not repeated),
      * and the instruction. The wording is the plan's: durable facts or decisions that matter for this document later.
      */
-    fun prompt(turns: List<Turn>, existingNotes: List<String>, about: String = ABOUT_DOCUMENT): String = buildString {
+    fun prompt(
+        turns: List<Turn>,
+        existingNotes: List<String>,
+        about: String = ABOUT_DOCUMENT,
+        actionNotes: List<String> = emptyList(),
+    ): String = buildString {
         append("CONVERSATION:\n")
         append(transcript(turns))
         append("\n\nNOTES ALREADY KEPT (do not repeat them):\n")
         if (existingNotes.isEmpty()) append("- none\n") else existingNotes.forEach { append("- ").append(it).append('\n') }
+        if (actionNotes.isNotEmpty()) {
+            append("\nACTIONS ALREADY RECORDED (the app wrote these when the user confirmed them; never restate them):\n")
+            actionNotes.forEach { append("- ").append(it).append('\n') }
+        }
         append("\nQUESTION: List up to ").append(MAX_NOTES)
-        append(" durable facts or decisions from this conversation that matter for ").append(about).append(" later (for example what the user said ")
-        append("they did or decided). One note per line, at most ").append(MAX_NOTE_CHARS).append(" characters each, in the language ")
-        append("the user wrote in. Answer ").append(NONE).append(" if nothing.")
+        append(" durable facts or decisions from this conversation that matter for ").append(about).append(" later. ")
+        append("First look for what the USER stated about their own situation or decisions: something they already paid, booked, ")
+        append("sent or arranged, or something they decided to do. Do not write what the assistant did or offered (reminders, ")
+        append("calendar entries, drafts): those are recorded already. One note per line, at most ").append(MAX_NOTE_CHARS)
+        append(" characters each, in the language the user wrote in. Answer ").append(NONE).append(" if nothing.")
     }
 
     private fun transcript(turns: List<Turn>): String {

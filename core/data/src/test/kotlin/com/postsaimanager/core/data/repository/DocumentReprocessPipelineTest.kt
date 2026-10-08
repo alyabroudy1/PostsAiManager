@@ -16,6 +16,8 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
+import com.postsaimanager.core.common.result.PamError
+import com.postsaimanager.core.data.worker.ReaderRetry
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.DocumentType
 import com.postsaimanager.core.model.FamilySource
@@ -514,6 +516,40 @@ class DocumentReprocessPipelineTest {
         } finally {
             io.mockk.unmockkObject(androidx.work.WorkManager.Companion)
         }
+    }
+
+    @Test
+    @DisplayName("a re-read whose reader model was unavailable changes nothing, records no failure and asks to be run again")
+    fun unavailableReaderOnReprocessAsksAgain() = runTest(dispatcher) {
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns
+            PamResult.Success(understanding(modelUsed = false).copy(readerUnavailable = true))
+
+        val result = pipeline.processDocument("doc-1", reprocess = true)
+
+        val error = (result as PamResult.Error).error
+        assertThat(error).isInstanceOf(PamError.ModelNotLoaded::class.java)
+        assertThat((error as PamError.ModelNotLoaded).modelName).isEqualTo(READER_MODEL_NAME)
+        coVerify(exactly = 0) { documentDao.update(any()) }
+        coVerify(exactly = 0) { documentDao.insertExtractedData(any()) }
+        assertThat(timeline.recorded).isEmpty()
+    }
+
+    @Test
+    @DisplayName("a first reading whose reader model was lost goes back to the queue, not to a degraded completion")
+    fun unavailableReaderOnFirstReadingIsQueuedAgain() = runTest(dispatcher) {
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns
+            PamResult.Success(understanding(modelUsed = false).copy(readerUnavailable = true))
+
+        val result = pipeline.processDocument("doc-1")
+
+        val error = (result as PamResult.Error).error
+        assertThat(error).isInstanceOf(PamError.ModelNotLoaded::class.java)
+        assertThat(ReaderRetry.shouldRetry(error, runAttemptCount = 0)).isTrue()
+        // Back in the queue (not FAILED, not EXTRACTED), nothing stored from the degraded reading.
+        coVerify { documentDao.updateStatus("doc-1", DocumentStatus.QUEUED.name, any()) }
+        coVerify(exactly = 0) { documentDao.updateStatus("doc-1", DocumentStatus.FAILED.name, any()) }
+        coVerify(exactly = 0) { documentDao.insertExtractedData(any()) }
+        assertThat(timeline.recorded.map { it.code }).doesNotContain(TimelineCodes.PROCESSING_FAILED)
     }
 
     @Test

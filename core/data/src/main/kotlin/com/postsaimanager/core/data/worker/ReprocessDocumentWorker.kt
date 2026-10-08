@@ -62,7 +62,10 @@ class ReprocessDocumentWorker @AssistedInject constructor(
 
         return when (val result = documentProcessor.processDocument(documentId, reprocess = true)) {
             is PamResult.Success -> Result.success()
-            is PamResult.Error -> {
+            // The reader model was unavailable (lost, or a chat was active): nothing was changed or recorded, read it again later.
+            is PamResult.Error -> if (ReaderRetry.shouldRetry(result.error, runAttemptCount)) {
+                Result.retry()
+            } else {
                 // The pipeline kept the old data and status, logged and recorded why.
                 Log.w(TAG, "reprocess failed for $documentId: ${result.error.userMessage}")
                 Result.failure()
@@ -119,7 +122,7 @@ class ReprocessDocumentWorker @AssistedInject constructor(
         )
 
         private fun request(documentId: String, constraints: Constraints, name: String): OneTimeWorkRequest =
-            OneTimeWorkRequestBuilder<ReprocessDocumentWorker>()
+            ReaderRetry.backoff(OneTimeWorkRequestBuilder<ReprocessDocumentWorker>())
                 .setInputData(workDataOf(KEY_DOCUMENT_ID to documentId))
                 .setConstraints(constraints)
                 .addTag(name)
