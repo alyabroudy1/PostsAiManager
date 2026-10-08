@@ -84,7 +84,8 @@ class ChatEngineGemmaReader @Inject constructor(
         const val TIMEOUT_MS = 120_000L
 
         private const val GRACE_MS = 15_000L
-        private const val ANSWER_TOKENS = 1_024
+        /** The short answer ([GemmaSchema]) is about 150 tokens; this is the ceiling that stops a runaway one. */
+        private const val ANSWER_TOKENS = 512
         private const val MIN_ANSWER_TOKENS = 256
 
         /** The system text, the field guide and the registries' sentences. */

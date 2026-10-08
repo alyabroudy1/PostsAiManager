@@ -3,7 +3,6 @@ package com.postsaimanager.core.domain.extraction.gemma
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterLayoutAnalyzer
-import com.postsaimanager.core.domain.extraction.text.SummaryResult
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.domain.extraction.v2.DocDirection
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
@@ -13,9 +12,9 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Result
 import com.postsaimanager.core.domain.extraction.v2.ExtractorCandidateSource
 import com.postsaimanager.core.domain.extraction.v2.LayoutReader
 import com.postsaimanager.core.model.DocumentUnderstanding
+import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.OcrBlock
-import com.postsaimanager.core.model.SummarySource
 import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
@@ -94,12 +93,14 @@ class GemmaReadingUseCase @Inject constructor(
             return GemmaReadingOutcome.Unavailable(result.diagnostics.modelError ?: "the reader gave no usable answer")
         }
         val verified = decision.verified
-        val summary = verified.summary?.let { SummaryResult(it, SummarySource.MODEL, null, emptyList()) }
         val title = TitleComposer.compose(result.documentType?.id, result.parties.sender?.name, verified.name, result.freeText.subject?.value)
         // The timeline's event is the reader's own answer (a kind of the event registry, asked in the same call); its title is the document's.
+        // The summary and the key facts are not in this answer: the ticket owes them to the text step ([GemmaTextWriter]), which writes them
+        // once this reading is stored, knowing whether the document was paid already.
         val read = result.copy(
-            summary = summary, actions = GemmaActionBinder.bind(verified.actions, result), composedTitle = title,
+            actions = GemmaActionBinder.bind(verified.actions, result), composedTitle = title,
             event = verified.eventKind?.let { EventReading(it) },
+            enrichment = EnrichmentTicket(oneGo = true, paid = verified.paid?.id),
         )
         val merged = source.lastMerged
         // The header comes first: the data layer logs it always, so a trial reading is told apart from the usual one in the log.
@@ -140,6 +141,6 @@ class GemmaReadingUseCase @Inject constructor(
         "category=${result.documentType?.id} language=${result.language} sender=${result.parties.sender != null} " +
             "addressees=${result.parties.allAddressees.size} contact=${result.parties.contact != null} " +
             "slots=[${result.slots.keys.joinToString(",") { it.json }}] extras=${result.extras.size} " +
-            "actions=[${result.actions.orEmpty().joinToString(",") { it.kind }}] name=${verified.name != null} summary=${verified.summary != null} " +
+            "actions=[${result.actions.orEmpty().joinToString(",") { it.kind }}] name=${verified.name != null} paid=${verified.paid?.id} " +
             "dropped=${verified.drops.size} needsReview=${result.needsReview}"
 }

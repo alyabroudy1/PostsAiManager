@@ -48,7 +48,7 @@ class ChatEngineGemmaReaderTest {
 
         val prompt = engine.structuredRequests.single().prompt
         assertThat(prompt.length).isAtMost(GemmaPrompt.MAX_CHARS)
-        assertThat(prompt).contains("FIELDS (answer them in this order):")
+        assertThat(prompt).contains("ANSWER: one JSON object")
         assertThat(prompt).contains("DATE MEANINGS:")
     }
 
@@ -79,7 +79,9 @@ class ChatEngineGemmaReaderTest {
     fun `image only`() {
         val outcome = read(GemmaReaderRequest(GemmaLetter(emptyList(), emptyList()), listOf("/p1.png"))) as GemmaReaderOutcome.Answered
 
-        assertThat(outcome.schema).contains("\"name\"")
+        // Names as printed ("n"), the summary ("s") and the key facts ("y"): nothing for a second step to write them from.
+        assertThat(outcome.schema).contains("\"n\"")
+        assertThat(outcome.schema).contains("\"s\"")
         assertThat(engine.structuredRequests.single().system).contains("picture")
     }
 

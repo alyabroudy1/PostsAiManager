@@ -23,6 +23,8 @@ import com.postsaimanager.core.model.DocumentType
 import com.postsaimanager.core.model.FamilySource
 import com.postsaimanager.core.model.FieldProvenance
 import com.postsaimanager.core.model.OcrBlock
+import com.postsaimanager.core.model.OcrLine
+import com.postsaimanager.core.model.OcrWord
 import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.model.TextBounds
@@ -177,18 +179,42 @@ class DocumentReprocessPipelineTest {
         assertThat(event.args).containsExactly("entity-extractor-1", ExtractorVersion.CURRENT).inOrder()
     }
 
-    private val storedBlock = OcrBlock("Rechnung 64,98 EUR", TextBounds(0.1f, 0.1f, 0.9f, 0.2f), 0.9f)
+    /** A stored block as pages are stored now: lines, and the boxes of their words (the elements ML Kit returns). */
+    private val storedBlock = OcrBlock(
+        "Rechnung 64,98 EUR", TextBounds(0.1f, 0.1f, 0.9f, 0.2f), 0.9f,
+        lines = listOf(
+            OcrLine(
+                "Rechnung 64,98 EUR", TextBounds(0.1f, 0.1f, 0.9f, 0.2f),
+                listOf(OcrWord("Rechnung", TextBounds(0.1f, 0.1f, 0.4f, 0.2f)), OcrWord("64,98", TextBounds(0.5f, 0.1f, 0.7f, 0.2f)), OcrWord("EUR", TextBounds(0.75f, 0.1f, 0.9f, 0.2f))),
+            ),
+        ),
+    )
 
-    private fun storedPage(number: Int, withBlocks: Boolean = true) = DocumentPageEntity(
+    /** A block as pages were stored before the words' boxes were kept. */
+    private val blockWithoutWords = OcrBlock("Rechnung 64,98 EUR", TextBounds(0.1f, 0.1f, 0.9f, 0.2f), 0.9f)
+
+    private fun storedPage(number: Int, withBlocks: Boolean = true, block: OcrBlock = storedBlock) = DocumentPageEntity(
         id = "p$number", documentId = "doc-1", pageNumber = number, imagePath = "/p$number.jpg",
         processedPath = null, ocrText = "Rechnung 64,98 EUR", ocrConfidence = 0.8f,
         ocrBlocks = if (withBlocks) {
-            Json.encodeToString(ListSerializer(OcrBlock.serializer()), listOf(storedBlock))
+            Json.encodeToString(ListSerializer(OcrBlock.serializer()), listOf(block))
         } else {
             null
         },
         width = 10, height = 10,
     )
+
+    @Test
+    @DisplayName("a reprocess reads the images again when the stored pages have no word boxes (they are stored with them from then on)")
+    fun reprocessReadsAgainWhenWordBoxesAreMissing() = runTest(dispatcher) {
+        coEvery { documentDao.getPages("doc-1") } returns listOf(storedPage(1, block = blockWithoutWords))
+        coEvery { aiExtraction(any(), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(understanding())
+
+        pipeline.processDocument("doc-1", reprocess = true)
+
+        coVerify(exactly = 1) { ocrService.recognizeText(any()) }
+        coVerify { documentDao.insertPages(any()) }
+    }
 
     @Test
     @DisplayName("a reprocess reuses the stored OCR when every page has it, and does not read an image")

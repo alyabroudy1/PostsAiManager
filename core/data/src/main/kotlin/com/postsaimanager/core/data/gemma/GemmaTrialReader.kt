@@ -6,6 +6,10 @@ import com.postsaimanager.core.domain.ai.ChatImageStore
 import com.postsaimanager.core.domain.extraction.gemma.GemmaReaderTrial
 import com.postsaimanager.core.domain.extraction.gemma.GemmaReadingOutcome
 import com.postsaimanager.core.domain.extraction.gemma.GemmaReadingUseCase
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextOutcome
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextWriter
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextsOutcome
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextsRequest
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialReading
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialRequest
 import com.postsaimanager.core.domain.extraction.gemma.shouldRead
@@ -27,7 +31,30 @@ class GemmaTrialReader @Inject constructor(
     private val trial: GemmaReaderTrial,
     private val reading: GemmaReadingUseCase,
     private val images: ChatImageStore,
+    private val texts: GemmaTextWriter,
 ) : GemmaTrialReading {
+
+    /**
+     * The second step: the summary and the key facts of a stored Gemma reading ([GemmaTextWriter]). Written for a reading whose own ticket
+     * says Gemma read it, and for one whose ticket was lost while Gemma is the chosen reader; not for a document the old reader read.
+     * The log gets one `PamTiming` line (the milliseconds, what was kept) and never a word of the letter.
+     */
+    override suspend fun writeTexts(request: GemmaTextsRequest): GemmaTextsOutcome {
+        if (!request.oneGo && !trial.isEnabled()) return GemmaTextsOutcome.NotGemma
+        return when (val outcome = texts.write(request.text)) {
+            is GemmaTextOutcome.Written -> {
+                TimingLog.log(
+                    "reader: ${request.documentId} gemma texts total=${outcome.ms}ms summary=${outcome.summary.origin} keyInfo=${outcome.keyInfo.size}",
+                )
+                outcome.notes.forEach { Log.i(TAG, "gemma texts ${request.documentId}: $it") }
+                GemmaTextsOutcome.Done(outcome)
+            }
+            is GemmaTextOutcome.Unavailable -> {
+                TimingLog.log("reader: ${request.documentId} gemma texts unavailable: ${outcome.reason}")
+                GemmaTextsOutcome.Done(outcome)
+            }
+        }
+    }
 
     override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding? {
         // Gemma is the default reader; only the debug switch "Qwen scorer (old)" leaves the reading to the old pipeline. A quiet background
