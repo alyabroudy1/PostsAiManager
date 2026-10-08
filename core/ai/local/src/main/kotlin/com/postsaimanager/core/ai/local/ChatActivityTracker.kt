@@ -1,9 +1,7 @@
 package com.postsaimanager.core.ai.local
 
 import com.postsaimanager.core.domain.ai.ChatActivityGate
-import com.postsaimanager.core.model.ModelRuntime
 import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * When the chat last used the model: a chat opens or primes its session, sends a message, or finishes a reply. The chat counts as
@@ -32,15 +30,17 @@ class ChatActivityTracker(
 }
 
 /**
- * [ChatActivityGate] over the shared [InferenceConnection]: the chat is active while the resident model is a LiteRT-LM chat model
- * and the chat used it within the idle window. With another model (or none) resident there is nothing to protect. This is what
- * "background reading waits for chat" (see [RemoteLiteRtChatEngine]) extends to the quiet jobs that would replace the chat model
- * between two messages.
+ * [ChatActivityGate] over the shared chat activity: the chat is active while any chat session, whatever the runtime of its model
+ * (LiteRT-LM or llama.cpp), used the model within the idle window. This is what "background reading waits for chat" (see
+ * [RemoteLiteRtChatEngine], [RemoteAiEngine]) extends to the quiet jobs that would replace the chat model between two messages.
+ * Both engines touch the same [ChatActivityTracker] (it lives on the [InferenceConnection] they share).
  */
-@Singleton
-class InferenceChatActivityGate @Inject constructor(
-    private val connection: InferenceConnection,
+class InferenceChatActivityGate(
+    private val tracker: ChatActivityTracker,
 ) : ChatActivityGate {
 
-    override fun isChatActive(): Boolean = connection.resident == ModelRuntime.LITERT_LM && connection.chatActivity.isRecent()
+    @Inject
+    constructor(connection: InferenceConnection) : this(connection.chatActivity)
+
+    override fun isChatActive(): Boolean = tracker.isRecent()
 }

@@ -168,6 +168,8 @@
     <string name="chat_new_chat_confirm">Löschen und neu beginnen</string>
     <string name="chat_new_chat_cancel">Abbrechen</string>
     <string name="chat_error_new_chat_failed">Der Chat konnte nicht geleert werden. Bitte versuchen Sie es erneut.</string>
+    <string name="chat_error_model_cannot_chat">Dieses Modell kann nicht chatten. Wählen Sie unter KI-Modelle ein Chat-Modell.</string>
+    <string name="chat_error_open_ai_models">KI-Modelle</string>
 
     <!-- The quiet line in the chat above the messages the assistant still reads -->
     <string name="chat_context_divider">Frühere Nachrichten — der Assistent merkt sich Notizen, nicht den ganzen Chat</string>

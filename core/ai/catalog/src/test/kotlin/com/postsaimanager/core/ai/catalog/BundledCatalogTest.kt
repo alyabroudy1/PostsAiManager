@@ -79,6 +79,26 @@ class BundledCatalogTest {
     }
 
     @Test
+    @DisplayName("no two catalogue entries share a name, so every picker tells them apart; the GGUF Gemma reads, the LiteRT one chats")
+    fun `names are distinct and roles are data`() {
+        val names = BundledCatalog.models.map { it.name }
+        assertThat(names).containsNoDuplicates()
+
+        BundledCatalog.models.filter { it.family == "Gemma" && it.runtime == ModelRuntime.LLAMA_CPP }.forEach {
+            assertThat(it.name).endsWith("· Reading")
+            assertThat(it.supportsChat).isFalse()
+        }
+        BundledCatalog.models.filter { it.runtime == ModelRuntime.LITERT_LM }.forEach {
+            assertThat(it.name).endsWith("· Chat")
+            assertThat(it.supportsChat).isTrue()
+        }
+        assertThat(BundledCatalog.models.first { it.id == "gemma-4-e2b-it-qat-q4_0" }.name).isEqualTo("Gemma 4 E2B · Reading")
+        assertThat(BundledCatalog.models.first { it.id == "gemma-4-e2b-it-litertlm" }.name).isEqualTo("Gemma 4 E2B · Chat")
+        // The reader and the Qwen chat models keep chatting.
+        assertThat(BundledCatalog.models.filter { it.family == "Qwen" }.all { it.supportsChat }).isTrue()
+    }
+
+    @Test
     @DisplayName("Gemma 4 on LiteRT-LM: pinned to the Gallery allowlist's revisions, with the Hugging Face hash and size, chat only")
     fun `litert entries carry every pinned field`() {
         val litert = BundledCatalog.models.filter { it.runtime == ModelRuntime.LITERT_LM }

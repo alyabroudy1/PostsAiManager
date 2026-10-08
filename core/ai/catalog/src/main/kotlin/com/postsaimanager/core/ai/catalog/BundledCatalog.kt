@@ -152,7 +152,10 @@ object BundledCatalog {
         ),
         AiModelDescriptor(
             id = "gemma-4-e2b-it-qat-q4_0",
-            name = "Gemma 4 E2B",
+            // The same model family has a LiteRT-LM build that chats; the suffix tells the two apart in every list.
+            name = "Gemma 4 E2B · Reading",
+            // Its llama.cpp chat template does not render (the device log: "model has no chat template"): it reads, it does not chat.
+            supportsChat = false,
             family = "Gemma",
             parameterCount = "E2B",
             quantization = "Q4_0 (QAT)",
@@ -180,7 +183,9 @@ object BundledCatalog {
         ),
         AiModelDescriptor(
             id = "gemma-4-e4b-it-qat-q4_0",
-            name = "Gemma 4 E4B",
+            name = "Gemma 4 E4B · Reading",
+            // Same GGUF build family as the E2B above, with the same chat template.
+            supportsChat = false,
             family = "Gemma",
             parameterCount = "E4B",
             quantization = "Q4_0 (QAT)",
@@ -208,8 +213,9 @@ object BundledCatalog {
         // on llama.cpp, so these are never the reader. The GGUF builds above remain: same model family, the llama.cpp engine.
         AiModelDescriptor(
             id = "gemma-4-e2b-it-litertlm",
-            // No backend in the name: the chat header and the model sheet show the one that is actually running.
-            name = "Gemma 4 E2B",
+            // No backend in the name: the chat header and the model sheet show the one that is actually running. The suffix
+            // tells it from the GGUF build of the same model, which reads but cannot chat.
+            name = "Gemma 4 E2B · Chat",
             family = "Gemma",
             parameterCount = "E2B",
             quantization = "LiteRT-LM",
@@ -244,7 +250,7 @@ object BundledCatalog {
         ),
         AiModelDescriptor(
             id = "gemma-4-e4b-it-litertlm",
-            name = "Gemma 4 E4B",
+            name = "Gemma 4 E4B · Chat",
             family = "Gemma",
             parameterCount = "E4B",
             quantization = "LiteRT-LM",

@@ -12,6 +12,7 @@ import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.InferenceCrash
 import com.postsaimanager.core.domain.ai.PromptSession
+import com.postsaimanager.core.domain.ai.ReadingModel
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
@@ -70,14 +71,8 @@ class RemoteAiEngine @Inject constructor(
 
     private val service: IInferenceService? get() = connection.service
 
-    /**
-     * Which conversation's chat session is currently primed in the `:inference` process's
-     * KV cache, or null when none is (nothing opened yet, or the most recent generation was
-     * a one-shot [generate] call — e.g. `AiExtractionUseCase` — or the KV cache was
-     * invalidated by a reload/unload). See [ensureChatSession].
-     */
-    @Volatile
-    private var sessionConversationId: String? = null
+    // Which conversation's chat session is primed in the `:inference` process's KV cache is [chatSession]'s to say (declared after
+    // the coordinator it reads): none after a one-shot [generate] (e.g. `AiExtractionUseCase`), a reading's [open], or a reload.
 
     /**
      * Serialises every call that touches the native context on the app-process side of the
@@ -110,7 +105,7 @@ class RemoteAiEngine @Inject constructor(
     private val engineMutex: Mutex get() = connection.engineMutex
 
     override suspend fun isChatSessionPrimed(conversationId: String): Boolean =
-        sessionConversationId == conversationId
+        chatSession.isPrimed(conversationId)
 
     // Every method below crosses the binder to the `:inference` process and blocks the
     // calling thread until the far side replies — `loadModel` in particular can take
@@ -122,7 +117,7 @@ class RemoteAiEngine @Inject constructor(
     // here, a cold-start model load freezes the whole UI (composer, scrolling, everything)
     // for the entire load: this was defect 1's root cause. Wrapping it here, once, is what
     // makes every caller correct without each of them having to remember to dispatch.
-    private val ops = object : ModelLoadOps {
+    private val ops: ModelLoadOps = object : ModelLoadOps {
         override suspend fun loadModel(modelId: String, config: InferenceConfig): PamResult<AiCapabilities> =
             withContext(ioDispatcher) {
                 val remote = connect() ?: return@withContext PamResult.Error(
@@ -136,7 +131,7 @@ class RemoteAiEngine @Inject constructor(
                 }.getOrDefault(false)
                 // A model load recreates the llama_context, taking the KV cache — and any
                 // primed chat session — with it, whether or not the load itself succeeded.
-                sessionConversationId = null
+                chatSession.invalidate()
                 // The service frees a LiteRT-LM model before it loads this one.
                 connection.resident = if (ok) ModelRuntime.LLAMA_CPP else null
                 if (!ok) {
@@ -158,7 +153,7 @@ class RemoteAiEngine @Inject constructor(
                 val ok = runCatching { remote.recreateContext(InferenceConfigParcel.from(config)) }
                     .getOrDefault(false)
                 // Same reasoning as loadModel(): a fresh llama_context has an empty KV cache.
-                sessionConversationId = null
+                chatSession.invalidate()
                 if (!ok) {
                     return@withContext PamResult.Error(PamError.ModelNotLoaded("Could not apply the new settings."))
                 }
@@ -166,7 +161,7 @@ class RemoteAiEngine @Inject constructor(
             }
 
         override suspend fun unloadModel() = withContext(ioDispatcher) {
-            sessionConversationId = null
+            chatSession.clear()
             // Only llama.cpp's own model: a LiteRT-LM one is that engine's to free (a fullLoad here is about to replace it anyway).
             if (connection.resident != ModelRuntime.LITERT_LM) {
                 runCatching { service?.unloadModel() }
@@ -180,7 +175,23 @@ class RemoteAiEngine @Inject constructor(
         }
     }
 
-    private val coordinator = ModelLoadCoordinator(ops)
+    private val coordinator: ModelLoadCoordinator = ModelLoadCoordinator(ops)
+
+    /** The primed chat conversation, and what it takes to prime it again when a read took the cache over. */
+    private val chatSession: LlamaChatSession = LlamaChatSession(
+        remote = { connection.connect() },
+        residentModel = { (coordinator.state.value as? ModelLoadState.Ready)?.let { it.modelId to it.config } },
+        loadModel = { path, config -> coordinator.load(path, config) },
+    )
+
+    /** Keeps a reading run on the reader model: loads it again when a chat-model load replaced it. */
+    private val readerGuard: ReaderModelGuard = ReaderModelGuard(
+        chatGate = InferenceChatActivityGate(connection.chatActivity),
+        isResident = { path ->
+            connection.resident == ModelRuntime.LLAMA_CPP && (coordinator.state.value as? ModelLoadState.Ready)?.modelId == path
+        },
+        load = { path, config -> coordinator.load(path, config) },
+    )
 
     override val state: StateFlow<ModelLoadState> = coordinator.state
 
@@ -193,7 +204,7 @@ class RemoteAiEngine @Inject constructor(
 
     private fun onInferenceProcessDied(heldBy: ModelRuntime?) {
         // The boundary did its job: observe the crash instead of dying with it.
-        sessionConversationId = null
+        chatSession.clear()
         // A LiteRT-LM model was the one resident: that engine reports its own crash, and this engine's next load finds nothing
         // resident (`isActuallyLoaded`) and loads again. Reporting a failure here would blame llama.cpp's model for it.
         if (heldBy == ModelRuntime.LITERT_LM) return
@@ -232,7 +243,17 @@ class RemoteAiEngine @Inject constructor(
             contextTokens = config.contextTokens,
             modelName = File(modelId).nameWithoutExtension,
             hasNativeChatTemplate = runCatching { remote.hasNativeChatTemplate() }.getOrDefault(false),
+            canChat = chatTemplateRenders(remote),
         )
+
+    /**
+     * Probes, right after a load, whether the model's chat template renders a one-message history through the same native path
+     * a chat turn uses ([IInferenceService.formatChat]). A model without a template, or one whose template fails to apply (the
+     * Gemma 4 GGUF), returns nothing there, and its chat turns would fail later with an unhelpful "could not be started".
+     * A probe that itself fails (the binder) says "can chat": the load result, not this, reports a dead service.
+     */
+    private fun chatTemplateRenders(remote: IInferenceService): Boolean =
+        runCatching { !remote.formatChat(arrayOf("user"), arrayOf("Hello"), true).isNullOrBlank() }.getOrDefault(true)
 
     override suspend fun load(
         modelPath: String,
@@ -256,7 +277,7 @@ class RemoteAiEngine @Inject constructor(
         // primed chat session with it. Marking it gone here (rather than only after a
         // reload) is what makes the *next* chat turn re-prime instead of silently decoding
         // a diff against a cache that no longer holds what it thinks it holds.
-        sessionConversationId = null
+        chatSession.invalidate()
 
         // A previous crash (binder death moves the coordinator to Failed), or a
         // memory-pressure unload in the :inference process, can leave nothing actually
@@ -358,7 +379,9 @@ class RemoteAiEngine @Inject constructor(
         systemPrompt: String,
         history: List<AiChatMessage>,
     ): Boolean {
-        if (sessionConversationId == conversationId) return false
+        // A chat used the model (the person opened or is using it): quiet jobs wait for it, whatever the runtime.
+        connection.chatActivity.touch()
+        if (chatSession.isPrimed(conversationId)) return false
 
         // Held for both AIDL calls below (openChatSession + primeChatSession) — without this,
         // an extraction generate() queued on InferenceService's executor between the two could
@@ -366,26 +389,10 @@ class RemoteAiEngine @Inject constructor(
         // context that had just been wiped out from under it. See engineMutex's doc.
         return engineMutex.withLock {
             withContext(ioDispatcher) {
-                // Re-checked under the lock: a second caller (prime-on-open racing a send)
+                // Re-checked under the lock (inside primeLocked): a second caller (prime-on-open racing a send)
                 // that passed the unlocked check above while the first was still priming must
                 // join that prime rather than decode the whole conversation a second time.
-                if (sessionConversationId == conversationId) return@withContext false
-                val remote = connect() ?: return@withContext false
-                val opened = runCatching { remote.openChatSession(systemPrompt) }.getOrDefault(false)
-                if (!opened) return@withContext false
-
-                if (history.isNotEmpty()) {
-                    val primed = runCatching {
-                        remote.primeChatSession(
-                            history.map { it.role.wireName }.toTypedArray(),
-                            history.map { it.content }.toTypedArray(),
-                        )
-                    }.getOrDefault(false)
-                    if (!primed) return@withContext false
-                }
-                sessionConversationId = conversationId
-                Log.i(TAG, "ensureChatSession: primed conversation with ${history.size} prior turns")
-                true
+                chatSession.primeLocked(conversationId, systemPrompt, history)
             }
         }
     }
@@ -396,8 +403,18 @@ class RemoteAiEngine @Inject constructor(
     private fun sendChatMessageFlow(userText: String, request: AiRequest): Flow<String> = callbackFlow {
         // See the note in generate() — this producer block otherwise inherits the
         // collector's (often Main) dispatcher.
+        connection.chatActivity.touch()
         val remote = withContext(ioDispatcher) { connect() } ?: run {
             close(IllegalStateException("The AI engine is not running."))
+            return@callbackFlow
+        }
+
+        // This producer runs under [engineMutex] (see sendChatMessage), the same lock `ensureChatSession` and a reading's `open`
+        // take. A reading may have taken the session over in the gap between `ensureChatSession` and here: check, under this
+        // same lock, that it is still this conversation's, and prime it again before sending rather than failing the turn.
+        val stillOurs = withContext(ioDispatcher) { chatSession.ensureStillOursLocked(userText) }
+        if (!stillOurs) {
+            close(IllegalStateException("The chat session could not be restored. Please try again."))
             return@callbackFlow
         }
 
@@ -413,11 +430,13 @@ class RemoteAiEngine @Inject constructor(
 
             override fun onComplete() {
                 logGenerationTiming(genStartNanos, tokenCount, "sendChatMessage")
+                connection.chatActivity.touch()
                 close()
             }
 
             override fun onError(message: String?) {
                 logGenerationTiming(genStartNanos, tokenCount, "sendChatMessage")
+                connection.chatActivity.touch()
                 close(IllegalStateException(message ?: "Generation failed."))
             }
         }
@@ -465,6 +484,8 @@ class RemoteAiEngine @Inject constructor(
 
     override suspend fun commitChatReply(answer: String) = engineMutex.withLock {
         withContext(ioDispatcher) {
+            connection.chatActivity.touch()
+            chatSession.onCommitted(answer)
             val remote = service ?: return@withContext
             runCatching { remote.commitChatReply(answer) }
             Unit
@@ -478,6 +499,8 @@ class RemoteAiEngine @Inject constructor(
      */
     override suspend fun discardPendingReply() = engineMutex.withLock {
         withContext(ioDispatcher) {
+            connection.chatActivity.touch()
+            chatSession.onDiscarded()
             val remote = service ?: return@withContext
             runCatching { remote.discardPendingReply() }
             Unit
@@ -486,7 +509,7 @@ class RemoteAiEngine @Inject constructor(
 
     override suspend fun resetChatSession() = engineMutex.withLock {
         withContext(ioDispatcher) {
-            sessionConversationId = null
+            chatSession.clear()
             val remote = service ?: return@withContext
             runCatching { remote.resetChatSession() }
             Unit
@@ -507,17 +530,26 @@ class RemoteAiEngine @Inject constructor(
      * Each call below takes [engineMutex] for its own duration only, so a chat turn can run between two
      * questions of one session; see [PromptSession]'s KDoc for what that costs (one re-read of the prefix).
      */
-    override suspend fun open(prefix: String): PamResult<Int> = engineMutex.withLock {
-        withContext(ioDispatcher) { openLocked(prefix) }
+    override suspend fun open(prefix: String): PamResult<Int> {
+        // A reading run says which model it reads with ([ReadingModel]). If a chat-model load replaced it since, it is loaded
+        // again here, before the lock is taken: waiting for an active chat to be idle must not hold the lock that chat needs.
+        val reading = coroutineContext[ReadingModel]
+        (readerGuard.open(reading) as? PamResult.Error)?.let { return it }
+        return engineMutex.withLock {
+            withContext(ioDispatcher) { openLocked(prefix) }
+        }
     }
 
     private suspend fun openLocked(prefix: String): PamResult<Int> {
         val remote = connect() ?: return PamResult.Error(PamError.ModelNotLoaded("Could not reach the AI engine."))
+        // Checked again inside the lock (a chat-model load may have slipped in since the check above, and a lost prefix is
+        // repaired through here): the reading never scores on the resident chat model.
+        (readerGuard.reopen(coroutineContext[ReadingModel]) as? PamResult.Error)?.let { return it }
         if (!remote.isReady && coordinator.ensureLoaded().let { it == null || it is PamResult.Error }) {
             return PamResult.Error(PamError.ModelNotLoaded("No model is loaded."))
         }
         // Reading the prefix takes the KV cache over from any primed chat session, like a one-shot generate().
-        sessionConversationId = null
+        chatSession.invalidate()
         val tokens = runCatching { remote.promptOpen(prefix) }.getOrDefault(-1)
         return when {
             tokens >= 0 -> {

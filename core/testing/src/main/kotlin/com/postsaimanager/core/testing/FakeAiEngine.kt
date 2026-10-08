@@ -108,9 +108,12 @@ class FakeAiEngine(
         // whatever `state` happened to hold before.
         _state.value = ModelLoadState.Ready(modelPath, config, loadDurationMs = 0L)
         return PamResult.Success(
-            AiCapabilities(true, config.contextTokens, "fake", hasNativeChatTemplate = true),
+            AiCapabilities(true, config.contextTokens, "fake", hasNativeChatTemplate = true, canChat = canChat),
         )
     }
+
+    /** What a load reports as [AiCapabilities.canChat]: false plays a model whose chat template does not render. */
+    var canChat: Boolean = true
 
     override fun generate(request: AiRequest): Flow<String> = flow {
         lastRequest = request

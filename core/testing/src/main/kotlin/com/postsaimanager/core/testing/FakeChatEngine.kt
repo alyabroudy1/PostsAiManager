@@ -67,8 +67,11 @@ class FakeChatEngine(
         if (loaded != modelPath to config) sessionId = null
         loaded = modelPath to config
         _state.value = ModelLoadState.Ready(modelPath, config, loadDurationMs = 0L)
-        PamResult.Success(AiCapabilities(supportsGrammar = false, contextTokens = config.contextTokens, modelName = name))
+        PamResult.Success(AiCapabilities(supportsGrammar = false, contextTokens = config.contextTokens, modelName = name, canChat = canChat))
     }
+
+    /** What the next [load] reports as [AiCapabilities.canChat]: false plays a model whose chat template does not render. */
+    var canChat: Boolean = true
 
     override suspend fun ensureChatSession(
         conversationId: String,

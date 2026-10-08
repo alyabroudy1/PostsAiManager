@@ -183,6 +183,12 @@ data class AiCapabilities(
      * engine falls back to ChatML, which may be wrong for that model — worth surfacing.
      */
     val hasNativeChatTemplate: Boolean = false,
+    /**
+     * False when the engine probed the model right after loading it and its chat template does not render (a one-message history
+     * came back empty): the model cannot chat, whatever the catalogue says. True for an engine that does not probe (it chats) and
+     * for a model that rendered. A model that cannot chat may still read letters.
+     */
+    val canChat: Boolean = true,
     /** The accelerator the engine says it started on (a requested GPU may have fallen back to the CPU); null when it does not say. */
     val runningAccelerator: Accelerator? = null,
 )

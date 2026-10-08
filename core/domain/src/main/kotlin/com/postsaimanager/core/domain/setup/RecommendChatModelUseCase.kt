@@ -35,7 +35,7 @@ class RecommendChatModelUseCase @Inject constructor() {
         storageHeadroomBytes: Long = DEFAULT_STORAGE_HEADROOM_BYTES,
     ): ChatModelRecommendation {
         val reader = catalog.first { it.role == ModelRole.READER_AND_CHAT }
-        val options = catalog.map { model ->
+        val options = catalog.filter { it.supportsChat }.map { model ->
             val download = downloadBytes(model, reader, installedIds, searchModelBytes)
             ChatModelOption(model, fitOf(model, device, download, storageHeadroomBytes), download)
         }

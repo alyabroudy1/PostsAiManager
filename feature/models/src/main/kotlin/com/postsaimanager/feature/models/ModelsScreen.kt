@@ -262,7 +262,7 @@ private fun InstalledCard(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!entry.isActive) {
+                if (!entry.isActive && entry.descriptor.supportsChat) {
                     Button(onClick = { entry.installed?.let { onSetActive(it.id) } }) {
                         Text("Use for chat")
                     }

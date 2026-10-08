@@ -894,6 +894,11 @@ private fun ChatErrorCard(
                     Text("Get an AI model")
                 }
             }
+            if (error.action == ChatErrorAction.CHOOSE_CHAT_MODEL) {
+                FilledTonalButton(onClick = onManageModelsClick) {
+                    Text(stringResource(R.string.chat_error_open_ai_models))
+                }
+            }
             Row {
                 // Whatever was already produced stays in the transcript as its own
                 // message — this only re-sends the user's text, exactly what failed.

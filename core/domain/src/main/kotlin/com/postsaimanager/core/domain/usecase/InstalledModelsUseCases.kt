@@ -14,12 +14,17 @@ data class InstalledModelsUiState(
     val activeModelId: String?,
 )
 
-/** Streams installed models and the active one — see [InstalledModelsRepository]. */
+/**
+ * Streams the installed models that can chat, and the active one — see [InstalledModelsRepository]. A model that cannot chat
+ * ([InstalledModelSummary.supportsChat], e.g. a reading-only build) is not offered in the chat model picker.
+ */
 class ObserveInstalledModelsUseCase @Inject constructor(
     private val repository: InstalledModelsRepository,
 ) {
     operator fun invoke(): Flow<InstalledModelsUiState> =
-        combine(repository.installed, repository.activeModelId, ::InstalledModelsUiState)
+        combine(repository.installed, repository.activeModelId) { models, activeId ->
+            InstalledModelsUiState(models.filter { it.supportsChat }, activeId)
+        }
 }
 
 /** Sets which installed model chats. The next message loads it — see [PreloadActiveModelUseCase]. */

@@ -731,7 +731,7 @@ class ChatViewModel @Inject constructor(
                         streamingText = "",
                         isThinkingActive = false,
                         statusText = null,
-                        error = ChatError(turn.message, turn.action),
+                        error = chatErrorOf(turn),
                     )
                 }
             }
@@ -933,6 +933,13 @@ data class ChatError(
     val action: ChatErrorAction?,
     /** The app's own wording of the failure (a string resource); when set it is shown instead of [message]. */
     @androidx.annotation.StringRes val messageRes: Int? = null,
+)
+
+/** The error the chat shows for a failed turn; a model that cannot chat gets the app's own translated wording and a way out. */
+internal fun chatErrorOf(turn: ChatTurn.Failed): ChatError = ChatError(
+    message = turn.message,
+    action = turn.action,
+    messageRes = if (turn.action == ChatErrorAction.CHOOSE_CHAT_MODEL) R.string.chat_error_model_cannot_chat else null,
 )
 
 /** A page of the current letter the user can attach to a message as a picture. */
