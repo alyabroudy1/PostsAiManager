@@ -43,6 +43,9 @@ object GemmaSchema {
     const val MAX_NAME_CHARS = 60
     const val MAX_PARTY_TEXT_CHARS = 80
     const val MAX_PARTIES = 4
+
+    /** The sender, the addressee and the contact: each answered with an id or "none". */
+    const val REQUIRED_PARTIES = 3
     const val MAX_DATES = 6
     const val MAX_AMOUNTS = 4
     const val MAX_REFERENCES = 5
@@ -132,6 +135,8 @@ object GemmaSchema {
             Field.PARTIES to list(
                 MAX_PARTIES, false,
                 objectOf(Item.WHO to enumOf(vocab.partyRoleCodes.codes), Item.ID to enumOf(parties), Item.KIND to enumOf(vocab.partyKindCodes.codes)),
+                // The sender, the addressee and the contact each get an entry (an id or "none"): a decision, never a silent skip.
+                min = REQUIRED_PARTIES,
             ),
             Field.DATES to list(
                 MAX_DATES, dates.isEmpty(),
@@ -195,9 +200,10 @@ object GemmaSchema {
     }
 
     /** A list of [item]s with at most [max] entries; none at all when the letter has nothing to point at ([empty]). */
-    private fun list(max: Int, empty: Boolean, item: JsonElement): JsonObject = buildJsonObject {
+    private fun list(max: Int, empty: Boolean, item: JsonElement, min: Int = 0): JsonObject = buildJsonObject {
         put("type", "array")
         put("items", item)
+        if (min > 0 && !empty) put("minItems", min)
         put("maxItems", if (empty) 0 else max)
     }
 
