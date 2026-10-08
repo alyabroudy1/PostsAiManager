@@ -34,7 +34,7 @@ class ScoringFollowUpQuestions @Inject constructor(
     private val sameMatterProfile: SameMatterProfile,
 ) : FollowUpQuestions {
 
-    override suspend fun concernedPeople(documentId: String, letter: String, members: List<SubjectCandidate>): PamResult<Set<String>> =
+    override suspend fun concernedPeople(documentId: String, letter: String, members: List<SubjectCandidate>, read: ReadParties): PamResult<Set<String>> =
         concerned.decide(letter, members)
 
     override suspend fun sameContact(documentId: String, question: SameContactQuestion): PamResult<SameContactDecision> {

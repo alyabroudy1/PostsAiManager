@@ -183,7 +183,9 @@ class GemmaFollowUpQuestionsTest {
         assertThat(chosen).containsExactly("maria")
         assertThat(engine.followUpRequests.last().prompt).contains("the letter prints this exact name")
         assertThat(engine.followUpRequests.last().prompt).contains("nothing to do with this household")
-        assertThat(recording.answers.single()).contains("answer=[P1]")
+        // The question and its schema are logged first (debug), then the answer.
+        assertThat(recording.answers.first()).contains("prompt=")
+        assertThat(recording.answers.last()).contains("answer=[P1]")
     }
 
     @Test

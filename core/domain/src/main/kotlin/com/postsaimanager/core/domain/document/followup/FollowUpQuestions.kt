@@ -11,6 +11,16 @@ import com.postsaimanager.core.domain.timeline.SameMatterDecision
 import com.postsaimanager.core.domain.timeline.SameMatterQuestion
 
 /**
+ * What the reading of the letter decided about its parties (their printed texts), told back to the model as the evidence of its own
+ * earlier answer: facts from the same conversation, the decision of the question stays the model's.
+ */
+data class ReadParties(val sender: String? = null, val addressee: String? = null) {
+    companion object {
+        val NONE = ReadParties()
+    }
+}
+
+/**
  * The questions asked of the model after a letter is read: the one place the four of them reach it. A port so the decisions
  * ([com.postsaimanager.core.domain.document.people.DecideConcernedPeopleUseCase], [com.postsaimanager.core.domain.document.contacts.DecideSameContactUseCase],
  * [com.postsaimanager.core.domain.organisation.DecideDetailOwnerUseCase], [com.postsaimanager.core.domain.timeline.DecideSameMatterUseCase])
@@ -29,7 +39,9 @@ interface FollowUpQuestions {
      * Which of [members] the letter is for or about, as profile ids; empty when it is about none of them. [members] are the people
      * whose name the letter mentions, never everybody; the answer is always a subset of them.
      */
-    suspend fun concernedPeople(documentId: String, letter: String, members: List<SubjectCandidate>): PamResult<Set<String>>
+    suspend fun concernedPeople(
+        documentId: String, letter: String, members: List<SubjectCandidate>, read: ReadParties = ReadParties.NONE,
+    ): PamResult<Set<String>>
 
     /** Whether the contact in [question] is one of its candidates (the matched id), or a new person. */
     suspend fun sameContact(documentId: String, question: SameContactQuestion): PamResult<SameContactDecision>
@@ -48,7 +60,7 @@ interface FollowUpQuestions {
         val NONE: FollowUpQuestions = object : FollowUpQuestions {
             private fun <T> none(): PamResult<T> = PamResult.Error(PamError.ExtractionFailed(detail = "No follow-up questions"))
 
-            override suspend fun concernedPeople(documentId: String, letter: String, members: List<SubjectCandidate>) = none<Set<String>>()
+            override suspend fun concernedPeople(documentId: String, letter: String, members: List<SubjectCandidate>, read: ReadParties) = none<Set<String>>()
 
             override suspend fun sameContact(documentId: String, question: SameContactQuestion) = none<SameContactDecision>()
 

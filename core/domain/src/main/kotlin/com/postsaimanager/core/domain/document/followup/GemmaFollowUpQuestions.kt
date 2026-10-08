@@ -50,12 +50,14 @@ class GemmaFollowUpQuestions @Inject constructor(
     private val log: AfterReadingLog = AfterReadingLog.SILENT,
 ) : FollowUpQuestions {
 
-    override suspend fun concernedPeople(documentId: String, letter: String, members: List<SubjectCandidate>): PamResult<Set<String>> {
+    override suspend fun concernedPeople(documentId: String, letter: String, members: List<SubjectCandidate>, read: ReadParties): PamResult<Set<String>> {
         val listed = members.take(peopleProfile.maxMembers)
         if (listed.isEmpty()) return PamResult.Success(emptySet())
         // The members whose whole name the letter prints: shown to the model as evidence only; the choice stays the model's.
         val printed = listed.filter { PartyNames.printsFullName(letter, it.name) }.map { it.profileId }.toSet()
-        val ask = FollowUpPrompts.concerned(listed, peopleProfile.baselineName, printed)
+        val ask = FollowUpPrompts.concerned(listed, peopleProfile.baselineName, printed, read)
+        // Debug: the exact question and schema the model is asked (invented letters only).
+        log.answered(documentId, "concerned people ask", "prompt=${ask.prompt.replace('\n', '|')} schema=${ask.schema}")
         val json = when (val answer = converse(documentId, ask) { letter.take(peopleProfile.maxLetterChars) }) {
             is PamResult.Error -> return answer
             is PamResult.Success -> answer.data

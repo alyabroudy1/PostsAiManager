@@ -172,6 +172,11 @@ class GemmaReadingVerifier(
                 chosen
             }
             val text = line.text.trim()
+            // A line that is a name candidate's whole text is that candidate (linking, contacts and suggestions work from candidates).
+            letter.candidatesOf(CandidateKind.NAME).firstOrNull { it.lineId == line.id && it.raw.trim() == text }?.let { named ->
+                drops.adjust("${role.name}: line ${line.id} is the name candidate ${named.id}, which was taken")
+                return VerifiedParty(role, kind, named.id, null)
+            }
             val party = VerifiedParty(role, kind, null, text)
             if (QuoteVerifier.verify(text, ocrText) == null) {
                 val reason = "${role.name}: line $id is not found in the letter's text"

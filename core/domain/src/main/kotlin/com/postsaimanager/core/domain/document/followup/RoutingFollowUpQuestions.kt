@@ -35,8 +35,8 @@ class RoutingFollowUpQuestions @Inject constructor(
     private val log: AfterReadingLog,
 ) : FollowUpQuestions {
 
-    override suspend fun concernedPeople(documentId: String, letter: String, members: List<SubjectCandidate>): PamResult<Set<String>> =
-        reported(documentId, "concerned people") { it.concernedPeople(documentId, letter, members) }
+    override suspend fun concernedPeople(documentId: String, letter: String, members: List<SubjectCandidate>, read: ReadParties): PamResult<Set<String>> =
+        reported(documentId, "concerned people") { it.concernedPeople(documentId, letter, members, read) }
 
     override suspend fun sameContact(documentId: String, question: SameContactQuestion): PamResult<SameContactDecision> =
         reported(documentId, "same contact") { it.sameContact(documentId, question) }

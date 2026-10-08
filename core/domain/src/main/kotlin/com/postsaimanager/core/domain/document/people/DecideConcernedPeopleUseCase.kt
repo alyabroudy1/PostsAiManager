@@ -2,6 +2,8 @@ package com.postsaimanager.core.domain.document.people
 
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.document.followup.FollowUpQuestions
+import com.postsaimanager.core.domain.document.followup.ReadParties
+import com.postsaimanager.core.domain.document.list.PartyFields
 import com.postsaimanager.core.domain.document.list.PartyNames
 import com.postsaimanager.core.domain.form.SubjectCandidate
 import com.postsaimanager.core.domain.repository.DocumentRepository
@@ -34,7 +36,10 @@ class DecideConcernedPeopleUseCase @Inject constructor(
         val named = if (candidates.isEmpty()) {
             emptySet()
         } else {
-            when (val answer = followUps.concernedPeople(documentId, letter,candidates.map { SubjectCandidate(it.id, it.name, it.relationship, it.isSelf) })) {
+            // What the reading itself decided about the parties: the model's own earlier answer, put back in front of it as evidence.
+            val fields = runCatching { documents.observeExtractedData(documentId).first() }.getOrDefault(emptyList())
+            val read = ReadParties(PartyFields.sender(fields)?.fieldValue, PartyFields.addressee(fields)?.fieldValue)
+            when (val answer = followUps.concernedPeople(documentId, letter, candidates.map { SubjectCandidate(it.id, it.name, it.relationship, it.isSelf) }, read)) {
                 is PamResult.Error -> return answer
                 is PamResult.Success -> answer.data
             }

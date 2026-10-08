@@ -101,8 +101,8 @@ class GemmaDocumentInterpreter(
         }
         val raw = found.apply(mapped.raw, addresses, found.candidateOf(letter, request.offered))
 
-        lines += "gemma decided category=${verified.category} sender=${party(verified, PartyRole.SENDER)} " +
-            "addressee=${party(verified, PartyRole.ADDRESSEE)} contact=${party(verified, PartyRole.CONTACT)} " +
+        lines += "gemma decided category=${verified.category} sender=${party(verified, PartyRole.SENDER, letter)} " +
+            "addressee=${party(verified, PartyRole.ADDRESSEE, letter)} contact=${party(verified, PartyRole.CONTACT, letter)} " +
             "dates=${verified.dates.size} amounts=${verified.amounts.size} references=${verified.references.size} " +
             "actions=[${verified.actions.joinToString(",") { it.kind }}] name=${verified.name != null} paid=${verified.paid?.id} " +
             "dropped=${verified.drops.size}"
@@ -110,9 +110,11 @@ class GemmaDocumentInterpreter(
         return InterpretationOutcome.Answered(raw,answered.json, answered.prompt, answered.schema)
     }
 
-    /** The id the party was named by (a candidate id or a line's quote marker), never the printed text. */
-    private fun party(v: VerifiedReading, role: PartyRole): String =
-        v.parties.firstOrNull { it.role == role }?.let { it.candidateId ?: "line" } ?: "none"
+    /** The party that was decided: its candidate id (or "line" for a printed line) and the text, for the debug log. */
+    private fun party(v: VerifiedReading, role: PartyRole, letter: GemmaLetter): String =
+        v.parties.firstOrNull { it.role == role }?.let { p ->
+            (p.candidateId ?: "line") + "='" + (p.candidateId?.let { letter.candidate(it)?.raw } ?: p.quote).orEmpty().take(40) + "'"
+        } ?: "none"
 
     private fun failed(reason: String): InterpretationOutcome {
         lines += "gemma unavailable: $reason"

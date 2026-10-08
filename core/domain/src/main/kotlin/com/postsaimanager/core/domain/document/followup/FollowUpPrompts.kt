@@ -57,10 +57,19 @@ object FollowUpPrompts {
     private const val KEY_ANSWERS = "answers"
 
     /** Which of [members] the letter is for or about (several may be). */
-    fun concerned(members: List<SubjectCandidate>, decoyName: String, printedInFull: Set<String> = emptySet()): FollowUpAsk {
+    fun concerned(
+        members: List<SubjectCandidate>, decoyName: String, printedInFull: Set<String> = emptySet(), read: ReadParties = ReadParties.NONE,
+    ): FollowUpAsk {
         val ids = members.indices.map { "P${it + 1}" }
         val prompt = buildString {
-            append("Question about the letter above: whom is it for or about?\n")
+            append("Question about the letter above: is it FOR or ABOUT any of these people (addressed to them, or concerning them)?\n")
+            // Facts from this very conversation: what the model itself read as the parties of the letter. The decision stays the model's.
+            if (!read.addressee.isNullOrBlank() || !read.sender.isNullOrBlank()) {
+                append("In your reading of this letter")
+                read.addressee?.takeIf { it.isNotBlank() }?.let { append(": it is addressed to ").append(it) }
+                read.sender?.takeIf { it.isNotBlank() }?.let { append(if (read.addressee.isNullOrBlank()) ": " else "; ").append("it was sent by ").append(it) }
+                append(".\n")
+            }
             append("People it may be for or about:")
             // A fact code can see, stated as such (never the decision): the letter prints this person's whole name.
             members.forEachIndexed { i, m ->
