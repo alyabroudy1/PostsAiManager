@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.v2.Letters
 import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.EntityRole
+import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.ModelRuntime
 import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.testing.FakeActiveModelProvider
@@ -47,6 +48,7 @@ class GemmaReadingUseCaseTest {
                 ),
                 "actions" to arr(obj("kind" to str("pay"), "dateId" to str("none"), "amountId" to str(total))),
                 "category" to str("bill"),
+                "eventKind" to str("payment_reminder"),
                 "name" to str("Mahnung Mobilfunkrechnung"),
                 "summary" to str("Der Anbieter fordert 64,98 € und verlangt die Zahlung innerhalb von 14 Tagen."),
                 "keyInfo" to arr(obj("label" to str("Kundennummer"), "value" to str("4402917"))),
@@ -75,6 +77,46 @@ class GemmaReadingUseCaseTest {
         // The fee is a slot of the family, the key fact an open value under the model's own label.
         assertThat(u.facts.any { it.label == "Fee" }).isTrue()
         assertThat(u.facts.first { it.label == "Kundennummer" }.value).isEqualTo("4402917")
+    }
+
+    @Test
+    @DisplayName("the timeline event comes from the reading itself: the kind the model chose from the registry, in the same call")
+    fun `the timeline event`() {
+        val u = readGood().understanding
+
+        assertThat(u.event).isEqualTo(EventReading("payment_reminder"))
+        // A one-go reading has no second stage that would write it.
+        assertThat(u.enrichment).isNull()
+    }
+
+    @Test
+    @DisplayName("a kind the registry does not know is no event, and an answer with no kind writes none")
+    fun `no event for an unknown kind`() {
+        val unknown = read(ScriptedReader.answering { l -> goodAnswer(l).replace("payment_reminder", "party") }) as GemmaReadingOutcome.Read
+        assertThat(unknown.understanding.event).isNull()
+    }
+
+    @Test
+    @DisplayName("a letter the model says asks nothing of its reader (a receipt) has no invented pay action, though it listed one")
+    fun `a receipt has no actions`() {
+        val receipt = read(
+            ScriptedReader.answering { l ->
+                val total = l.idOf(CandidateKind.AMOUNT, "64,98")
+                answer(
+                    mapOf(
+                        "asksReader" to str("no"),
+                        "category" to str("receipt"),
+                        "amounts" to arr(value(total, "other")),
+                        "actions" to arr(obj("kind" to str("pay"), "dateId" to str("none"), "amountId" to str(total))),
+                        "eventKind" to str("information"),
+                    ),
+                )
+            },
+        ) as GemmaReadingOutcome.Read
+
+        assertThat(receipt.understanding.actionItems.orEmpty()).isEmpty()
+        assertThat(receipt.understanding.documentType).isEqualTo("receipt")
+        assertThat(receipt.understanding.readingTrace.any { it.startsWith("gemma dropped:") && it.contains("asks nothing") }).isTrue()
     }
 
     @Test

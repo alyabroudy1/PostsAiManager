@@ -32,10 +32,33 @@ class GemmaSchemaTest {
     fun `all fields required`() {
         val required = schema["required"]!!.jsonArray.map { it.jsonPrimitive.content }
         assertThat(required).containsExactly(
-            "sender", "addressee", "contact", "subjectPerson", "dates", "amounts", "references", "actions",
-            "category", "language", "name", "summary", "keyInfo",
+            "asksReader", "category", "sender", "addressee", "contact", "subjectPerson", "dates", "amounts", "references", "actions",
+            "eventKind", "language", "name", "summary", "keyInfo",
         )
         assertThat(schema["additionalProperties"]!!.jsonPrimitive.content).isEqualTo("false")
+    }
+
+    @Test
+    @DisplayName("asksReader is decided first and the category right after it, so the category is informed by it (the order is the model's order of writing)")
+    fun `asks reader first then category`() {
+        val order = schema["properties"]!!.jsonObject.keys.toList()
+        assertThat(order.take(2)).containsExactly("asksReader", "category").inOrder()
+        assertThat(schema["required"]!!.jsonArray.map { it.jsonPrimitive.content }.take(2)).containsExactly("asksReader", "category").inOrder()
+        assertThat(enumOf(property("asksReader"))).containsExactly("no", "yes")
+    }
+
+    @Test
+    @DisplayName("the picture-only schema asks the same two questions first")
+    fun `image only asks reader first`() {
+        val s = Json.parseToJsonElement(GemmaSchema.build(GemmaLetter(emptyList(), emptyList()))).jsonObject
+        assertThat(s["properties"]!!.jsonObject.keys.take(2)).containsExactly("asksReader", "category").inOrder()
+    }
+
+    @Test
+    @DisplayName("the event kind is one of the timeline registry's scored kinds, or information")
+    fun `event kind`() {
+        assertThat(enumOf(property("eventKind")))
+            .containsExactlyElementsIn(com.postsaimanager.core.domain.timeline.EventKinds.DEFAULT.scored.map { it.id } + "information")
     }
 
     @Test
@@ -109,6 +132,6 @@ class GemmaSchemaTest {
 
         assertThat(dates["value"]!!.jsonObject["type"]!!.jsonPrimitive.content).isEqualTo("string")
         assertThat(props["sender"]!!.jsonObject["properties"]!!.jsonObject.keys).containsExactly("name", "kind")
-        assertThat(s["required"] as JsonArray).hasSize(13)
+        assertThat(s["required"] as JsonArray).hasSize(15)
     }
 }

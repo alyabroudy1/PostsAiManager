@@ -11,15 +11,15 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * The debug switch of the "Gemma reads the letter" trial (off by default): while it is on, every new reading is Gemma's, and the usual
- * reading runs when Gemma cannot read. Settings shows the switch in a debug build only.
+ * The debug switch "Reader: Gemma (default) / Qwen scorer (old)": on (the default), every reading is Gemma's and the old reading runs only
+ * when Gemma cannot read; off, the old Qwen scorer reads. Settings shows the switch in a debug build only.
  */
 @HiltViewModel
 class GemmaTrialViewModel @Inject constructor(
     private val trial: GemmaReaderTrial,
 ) : ViewModel() {
 
-    val enabled: StateFlow<Boolean> = trial.enabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
+    val enabled: StateFlow<Boolean> = trial.enabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), true)
 
     fun setEnabled(enabled: Boolean) {
         viewModelScope.launch { trial.setEnabled(enabled) }

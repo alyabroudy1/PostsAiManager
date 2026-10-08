@@ -19,6 +19,22 @@ internal object IdentifierFinder : CandidateFinder {
     private val NUMERIC_DATE = Regex("^\\d{1,2}\\.\\d{1,2}\\.\\d{2,4}$")
     private val YEAR_MONTH = Regex("^\\d{4}-\\d{2}(-\\d{2})?$")
     private val DIGIT_GROUPS = Regex("^\\d+([./-]\\d+){3,}$")
+    private val YEAR_PAIR = Regex("^(\\d{4})[/-](\\d{4})$")
+
+    private const val FIRST_YEAR = 1900
+    private const val LAST_YEAR = 2100
+    private const val MAX_PERIOD_YEARS = 10
+
+    /**
+     * "dddd/dddd" (or "dddd-dddd") whose two parts are both plausible years, the second after the first and at most [MAX_PERIOD_YEARS] later,
+     * is a period ("2025/2026", a billing or school year), not an identifier. A shape rule: no word near it is read.
+     */
+    internal fun isYearRange(token: String): Boolean {
+        val m = YEAR_PAIR.matchEntire(token) ?: return false
+        val from = m.groupValues[1].toInt()
+        val to = m.groupValues[2].toInt()
+        return from in FIRST_YEAR..LAST_YEAR && to in FIRST_YEAR..LAST_YEAR && to > from && to - from <= MAX_PERIOD_YEARS
+    }
 
     override fun find(ctx: ExtractionContext): List<Draft> {
         val out = ArrayList<Draft>()
@@ -58,7 +74,7 @@ internal object IdentifierFinder : CandidateFinder {
         if (!pureDigits && !hasLetter && !hasSeparator) return false
         // decimals, times, dates and year-month pairs are values of their own
         if (DECIMAL.matches(token) || CLOCK.matches(token)) return false
-        if (NUMERIC_DATE.matches(token) || YEAR_MONTH.matches(token)) return false
+        if (NUMERIC_DATE.matches(token) || YEAR_MONTH.matches(token) || isYearRange(token)) return false
         // a token of only separators between digit groups, such as a phone number, is not one identifier
         if (!hasLetter && DIGIT_GROUPS.matches(token)) return false
         return true

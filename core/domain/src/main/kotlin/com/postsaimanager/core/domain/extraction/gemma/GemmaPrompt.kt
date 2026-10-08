@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.extraction.gemma
 
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.gemma.GemmaSchema.Field
+import com.postsaimanager.core.domain.timeline.EventKinds
 import java.util.Locale
 
 /**
@@ -58,20 +59,26 @@ object GemmaPrompt {
     }
 
     private fun guide(imageOnly: Boolean, vocab: GemmaVocabulary): String = buildString {
-        append("FIELDS:\n")
+        append("FIELDS (answer them in this order):\n")
+        append("- ${Field.ASKS_READER}: ${GemmaVocabulary.YES} or ${GemmaVocabulary.NO}: does this document ask its reader to do anything " +
+            "(pay, reply, send something, attend, object)? A document that only informs or confirms, such as proof of a payment already " +
+            "made or a reminder of a date, asks nothing: answer ${GemmaVocabulary.NO}, and then ${Field.ACTIONS} is empty.\n")
+        append("- ${Field.CATEGORY}: what the document is, decided with that answer in mind.\n")
         if (imageOnly) {
             append("- sender, addressee, contact, subjectPerson: the name as printed, with its kind (person, authority, company, other); empty name when there is none.\n")
             append("- dates, amounts: each value as printed (a date as yyyy-MM-dd, an amount as 1234.50 EUR) with what it means.\n")
             append("- references: each number as printed with its kind (iban, or the kind of number it is).\n")
         } else {
             append("- ${Field.SENDER}, ${Field.ADDRESSEE}, ${Field.CONTACT}, ${Field.SUBJECT_PERSON}: a name candidate id or a line id, with its kind (person, authority, company, other).\n")
-            append("- ${Field.DATES}, ${Field.AMOUNTS}: the candidates that matter, each with what it means.\n")
+            append("- ${Field.DATES}, ${Field.AMOUNTS}: the candidates that matter, each with what it means. Take the meaning from the letter's own words " +
+                "next to the value (the label column of the candidates); a value the letter does not describe, such as a line of a table, a unit " +
+                "price or a part of a total, means ${GemmaVocabulary.OTHER}. Only one value can be the amount to pay and only one the date of the letter.\n")
             append("- ${Field.REFERENCES}: reference numbers and the account to pay to, each with its kind.\n")
         }
         append("- ${Field.ACTIONS}: what the letter asks of its reader, with the date and the amount it is for. " +
             "The list may be empty, and it should be empty unless the letter itself asks the reader to do something; " +
             "a letter that only informs asks for nothing, and a date that is not a deadline or an appointment is not an action's date.\n")
-        append("- ${Field.CATEGORY}: what the document is.\n")
+        append("- ${Field.EVENT_KIND}: what this document reports for the timeline of its matter; ${EventKinds.INFORMATION} when none of the kinds fits.\n")
         append("- ${Field.LANGUAGE}: the language the document is written in, as a short code.\n")
         append("- ${Field.NAME}: a short name of this document in its own language, at most ${GemmaSchema.MAX_NAME_CHARS} characters.\n")
         append("- ${Field.SUMMARY}: one or two sentences in the letter's language: what it says and what the reader must do.\n")
@@ -85,8 +92,11 @@ object GemmaPrompt {
         append("ACTION KINDS:\n")
         vocab.actionKinds.forEach { append("- ").append(it.id).append(": ").append(it.task).append('\n') }
         append("CATEGORIES:\n")
-        vocab.categories.forEach { append("- ").append(it.id).append(": ").append(it.phrase).append('\n') }
+        vocab.categories.forEach { append("- ").append(it.id).append(": ").append(it.promptLine).append('\n') }
         append("- ").append(GemmaVocabulary.DOCUMENT_CATEGORY).append(": none of these\n")
+        append("EVENT KINDS (the letter ...):\n")
+        vocab.eventKinds.scored.forEach { append("- ").append(it.id).append(": ").append(it.description).append('\n') }
+        append("- ").append(EventKinds.INFORMATION).append(": none of these\n")
     }
 
     private fun position(l: GemmaLine) = String.format(Locale.ROOT, "p%d x%.2f y%.2f", l.page, l.x, l.y)

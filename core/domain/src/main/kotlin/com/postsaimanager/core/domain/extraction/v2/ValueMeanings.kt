@@ -23,8 +23,10 @@ enum class MeaningKind {
  * @property kind whether it is a meaning of a date or of an amount
  * @property description one English phrase saying what the value is, a content description for the scoring question
  *   ("Is «30.11.2026» ... <description>?") and for the chat's grounding; a model prompt, not UI text
+ * @property exclusive whether a document has only one value with this meaning (the amount to pay, the date of the letter): a reader that
+ *   gives it to two values has made one of them wrong, and the first it listed keeps it ([com.postsaimanager.core.domain.extraction.gemma.GemmaReadingVerifier])
  */
-data class ValueMeaning(val id: String, val kind: MeaningKind, val description: String)
+data class ValueMeaning(val id: String, val kind: MeaningKind, val description: String, val exclusive: Boolean = false)
 
 /**
  * What a date or an amount of a document can mean, as data: a short list per kind. The reading scores each date and each amount it
@@ -56,12 +58,12 @@ class ValueMeanings(val all: List<ValueMeaning>) {
                 ValueMeaning("DEADLINE", MeaningKind.DATE, "the last date on which the reader can cancel, object or reply"),
                 ValueMeaning("PERIOD_START", MeaningKind.DATE, "the first day of a period this document covers"),
                 ValueMeaning("PERIOD_END", MeaningKind.DATE, "the last day of a period this document covers"),
-                ValueMeaning("LETTER_DATE", MeaningKind.DATE, "the date on which this document was written or issued"),
+                ValueMeaning("LETTER_DATE", MeaningKind.DATE, "the date on which this document was written or issued", exclusive = true),
                 ValueMeaning("BIRTH_DATE", MeaningKind.DATE, "a person's date of birth"),
-                ValueMeaning("TOTAL_DUE", MeaningKind.AMOUNT, "the amount the reader has to pay"),
+                ValueMeaning("TOTAL_DUE", MeaningKind.AMOUNT, "the amount the reader has to pay", exclusive = true),
                 ValueMeaning("CREDIT", MeaningKind.AMOUNT, "an amount credited or refunded to the reader"),
                 ValueMeaning("PREMIUM", MeaningKind.AMOUNT, "an insurance premium or a regular contribution"),
-                ValueMeaning("INVOICE_TOTAL", MeaningKind.AMOUNT, "the total of an invoice"),
+                ValueMeaning("INVOICE_TOTAL", MeaningKind.AMOUNT, "the total of an invoice", exclusive = true),
                 ValueMeaning("FEE", MeaningKind.AMOUNT, "a fee or a surcharge"),
             ),
         )

@@ -16,12 +16,15 @@ import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.data.worker.DocumentEnrichmentWorker
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialReading
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialRequest
+import com.postsaimanager.core.domain.reading.AnnounceUnderstoodLetterUseCase
+import com.postsaimanager.core.domain.timeline.RecordDocumentEventsUseCase
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
 import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.DocumentUnderstanding
+import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.FactKind
 import com.postsaimanager.core.model.FieldProvenance
 import com.postsaimanager.core.model.OcrBlock
@@ -78,6 +81,11 @@ class DocumentProcessingPipelineGemmaTrialTest {
         actionItems = listOf(ActionItem("pay", mapOf("amount" to "total"))),
     )
 
+    private val recordEvents = mockk<RecordDocumentEventsUseCase>(relaxed = true)
+    private val recordEventsLazy = mockk<dagger.Lazy<RecordDocumentEventsUseCase>>().also { every { it.get() } returns recordEvents }
+    private val announce = mockk<AnnounceUnderstoodLetterUseCase>(relaxed = true)
+    private val announceLazy = mockk<dagger.Lazy<AnnounceUnderstoodLetterUseCase>>().also { every { it.get() } returns announce }
+
     private fun pipeline(trial: GemmaTrialReading = GemmaTrialReading.NONE) = DocumentProcessingPipeline(
         ocrService = ocrService,
         indexDocument = mockk<IndexDocumentUseCase>().also {
@@ -88,9 +96,9 @@ class DocumentProcessingPipelineGemmaTrialTest {
         aiExtraction = aiExtraction,
         entityProfileLinker = mockk<EntityProfileLinker>(relaxed = true),
         concernedPeopleDecision = mockk(relaxed = true),
-        recordEvents = mockk(relaxed = true),
+        recordEvents = recordEventsLazy,
         syncEventLinks = mockk(relaxed = true),
-        announceUnderstood = mockk(relaxed = true),
+        announceUnderstood = announceLazy,
         fieldRevisionDao = mockk<FieldRevisionDao>(relaxed = true),
         documentMapper = mapper,
         documentDao = documentDao,
@@ -185,5 +193,38 @@ class DocumentProcessingPipelineGemmaTrialTest {
         assertThat(seen.captured.pageImagePaths).containsExactly("/p1.jpg")
         assertThat(seen.captured.reprocess).isFalse()
         assertThat(seen.captured.pageAspect).isEqualTo(0.5f)
+    }
+
+    @Test
+    @DisplayName("a Gemma reading writes the document's timeline event from the kind it decided, and announces the letter")
+    fun `a gemma reading writes the timeline event`() = runTest(dispatcher) {
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding = gemma.copy(event = EventReading("payment_demand"))
+        }
+
+        pipeline(trial).processDocument("doc-1")
+
+        coVerify(exactly = 1) { recordEvents("doc-1", EventReading("payment_demand"), any()) }
+        coVerify(exactly = 1) { announce("doc-1") }
+    }
+
+    @Test
+    @DisplayName("a reading that names no event kind writes no event")
+    fun `no event kind writes nothing`() = runTest(dispatcher) {
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding = gemma
+        }
+
+        pipeline(trial).processDocument("doc-1")
+
+        coVerify(exactly = 0) { recordEvents(any(), any(), any()) }
+    }
+
+    @Test
+    @DisplayName("the old reading's first stage writes no event (its second stage does)")
+    fun `the old path writes the event in its second stage`() = runTest(dispatcher) {
+        pipeline().processDocument("doc-1")
+
+        coVerify(exactly = 0) { recordEvents(any(), any(), any()) }
     }
 }

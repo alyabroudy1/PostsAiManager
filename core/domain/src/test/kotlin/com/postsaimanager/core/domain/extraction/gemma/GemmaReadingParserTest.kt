@@ -9,6 +9,16 @@ class GemmaReadingParserTest {
     private fun ok(text: String) = (GemmaReadingParser.parse(text) as GemmaReadingParser.Parsed.Ok).reading
 
     @Test
+    @DisplayName("asksReader is read as yes, no or not given, and the event kind as the model wrote it")
+    fun `asks reader and event kind`() {
+        assertThat(ok(answer(mapOf("asksReader" to str("yes")))).asksReader).isTrue()
+        assertThat(ok(answer(mapOf("asksReader" to str("NO")))).asksReader).isFalse()
+        assertThat(ok(answer(mapOf("asksReader" to str("maybe")))).asksReader).isNull()
+        assertThat(ok("{}").asksReader).isNull()
+        assertThat(ok(answer(mapOf("eventKind" to str("approval")))).eventKind).isEqualTo("approval")
+    }
+
+    @Test
     @DisplayName("a full answer is read into its fields")
     fun `full answer`() {
         val json = answer(

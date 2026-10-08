@@ -72,7 +72,8 @@ class GemmaReadingMapperTest {
 
         assertThat(raw.slots.keys).containsExactly("letter_date", "total", "fee")
         assertThat(raw.extras.map { it.id }).containsExactly("D2", "D3")
-        assertThat(raw.extras.map { it.label }).containsExactly("birth date", "letter date")
+        // D3 claimed the letter's date too: the verifier left it with the first (D1) and kept D3 as an open value with no meaning.
+        assertThat(raw.extras.map { it.label }).containsExactly("birth date", "date")
     }
 
     @Test

@@ -62,7 +62,8 @@ object LetterLayoutAnalyzer {
 
     /** One list of blocks per page, in page order. */
     fun analyze(pages: List<List<OcrBlock>>): LetterLayout {
-        val work = pages.mapIndexed { i, blocks -> toLines(blocks, i + 1) }
+        // An avatar glyph in front of a name is no part of the letter's text (see [AvatarGlyph]); the candidate source strips it the same way.
+        val work = AvatarGlyph.strip(pages).mapIndexed { i, blocks -> toLines(blocks, i + 1) }
         for (lines in work) if (isRightToLeft(lines)) lines.forEach { it.mirror = true }
         flagNoise(work)
         work.firstOrNull()?.let(::alignCroppedTop)

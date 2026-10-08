@@ -596,6 +596,17 @@ class DocumentProcessingPipeline @Inject constructor(
                             ),
                         ).copy(syncStatus = doc.syncStatus),
                     )
+                    // A one-go reading (Gemma) decided the timeline's event kind in the same call; a staged reading's second stage does, in
+                    // [enrichDocument]. Written after the title is stored (the event's title is the document's) and replacing the document's
+                    // earlier DOCUMENT events. Never fails the reading.
+                    if (usedModel && !staged) {
+                        read?.event?.let { reading ->
+                            runCatching { recordEvents.get()(documentId, reading) }.onFailure { e ->
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                Log.w(TAG, "timeline events failed for $documentId: ${e.message}")
+                            }
+                        }
+                    }
                 }
 
                 // Step 6: Mark as extracted (a reprocess never left it, so nothing to write).
@@ -631,6 +642,13 @@ class DocumentProcessingPipeline @Inject constructor(
 
                 // The result is stored and (for a scan) shown as EXTRACTED: now the second stage, in the background.
                 read?.enrichment?.let { scheduleEnrichment(documentId, it) }
+                // A one-go reading has no second stage to announce it: a letter a person is waiting for is announced now (a quiet re-read never).
+                if (usedModel && !staged && !reprocess) {
+                    runCatching { announceUnderstood.get()(documentId) }.onFailure { e ->
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        Log.w(TAG, "announcement failed for $documentId: ${e.message}")
+                    }
+                }
 
                 // Step 7: Make it searchable.
                 //

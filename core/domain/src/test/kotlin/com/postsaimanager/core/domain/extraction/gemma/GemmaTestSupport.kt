@@ -51,6 +51,7 @@ internal fun value(id: String, meaning: String) = obj("candidateId" to str(id), 
 /** A full answer with every field present; [overrides] replace fields of it. */
 internal fun answer(overrides: Map<String, JsonElement> = emptyMap()): String {
     val base = mutableMapOf<String, JsonElement>(
+        "asksReader" to str("yes"), "eventKind" to str("information"),
         "sender" to party("none"), "addressee" to party("none"), "contact" to party("none"), "subjectPerson" to party("none"),
         "dates" to arr(), "amounts" to arr(), "references" to arr(), "actions" to arr(),
         "category" to str("document"), "language" to str("de"), "name" to str(""), "summary" to str(""), "keyInfo" to arr(),

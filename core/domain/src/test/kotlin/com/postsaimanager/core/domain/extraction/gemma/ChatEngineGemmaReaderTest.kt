@@ -48,7 +48,7 @@ class ChatEngineGemmaReaderTest {
 
         val prompt = engine.structuredRequests.single().prompt
         assertThat(prompt.length).isAtMost(GemmaPrompt.MAX_CHARS)
-        assertThat(prompt).contains("FIELDS:")
+        assertThat(prompt).contains("FIELDS (answer them in this order):")
         assertThat(prompt).contains("DATE MEANINGS:")
     }
 
