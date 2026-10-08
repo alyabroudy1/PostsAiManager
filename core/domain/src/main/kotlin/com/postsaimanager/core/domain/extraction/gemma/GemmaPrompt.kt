@@ -4,12 +4,15 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.gemma.GemmaSchema.Field
 import com.postsaimanager.core.domain.extraction.gemma.GemmaSchema.Item
 import com.postsaimanager.core.domain.timeline.EventKinds
-import java.util.Locale
 
 /**
  * The text the reader is given: what it is to do, the letter's lines with their ids, the candidates with theirs, and what each key and
  * each code of the answer means (taken from the registries, so a new meaning brings its own sentence). The answer's shape is the schema's;
  * the prompt explains its one-letter keys and its short codes once, and says what the fields are for.
+ *
+ * It is short on purpose (the phone reads it at 60 to 85 tokens a second): a line carries no position (the picture shows the layout),
+ * its zone is written once for the lines that share it, a candidate's printed text is not repeated when it is the whole line it sits on
+ * (or an earlier candidate's), each code is explained by one phrase, and the amount to pay is one field, not a claim on every amount.
  *
  * The instructions are English (the letter may be in any language) and say nothing about a country, a language or a kind of letter.
  */
@@ -61,15 +64,34 @@ object GemmaPrompt {
             if (letter.isImageOnly) {
                 append("Read the picture of the letter.\n")
             } else {
-                append("LINES (id | zone | position on the page | text):\n")
+                append("LINES (id text; a [zone] line says where the next lines are on the page, a [page] line starts a page):\n")
+                var page = 0
+                var zone = ""
                 letter.lines.forEach { l ->
-                    append(l.id).append(" | ").append(l.zone).append(" | ").append(position(l)).append(" | ").append(l.text)
+                    if (l.page != page) {
+                        page = l.page
+                        zone = ""
+                        if (page > 1) append("[page ").append(page).append("]\n")
+                    }
+                    if (l.zone != zone) {
+                        zone = l.zone
+                        append('[').append(zone).append("]\n")
+                    }
+                    append(l.id).append(' ').append(l.text)
                     if (l.tags.isNotEmpty()) append("  [").append(l.tags.joinToString(",")).append(']')
                     append('\n')
                 }
-                append("\nCANDIDATES (id | kind | printed | label near it | line):\n")
+                append("\nCANDIDATES (id | kind | printed | label near it | line; = is the whole line, =id is the same as that candidate):\n")
+                val seen = HashMap<String, String>()
                 letter.candidates.forEach { c ->
-                    append(c.id).append(" | ").append(kindWord(c.kind)).append(" | ").append(c.raw).append(" | ").append(c.label).append(" | ")
+                    val earlier = seen.putIfAbsent("${c.kind}:${c.raw}", c.id)
+                    val whole = c.lineId?.let(letter::line)?.text?.trim() == c.raw
+                    val printed = when {
+                        earlier != null -> "=$earlier"
+                        whole -> "="
+                        else -> c.raw
+                    }
+                    append(c.id).append(" | ").append(kindWord(c.kind)).append(" | ").append(printed).append(" | ").append(c.label).append(" | ")
                         .append(c.lineId.orEmpty()).append('\n')
                 }
             }
@@ -84,67 +106,62 @@ object GemmaPrompt {
     }
 
     private fun guide(imageOnly: Boolean, vocab: GemmaVocabulary): String = buildString {
-        append("ANSWER: one JSON object with these keys, in this order. A list holds only what exists: an empty list is [] and no entry is ever written for nobody.\n")
-        append("- ${Field.ASKS_READER}: ${GemmaVocabulary.YES} or ${GemmaVocabulary.NO}: does this document ask its reader to do anything at all? " +
-            "It is ${GemmaVocabulary.YES} when the reader is asked to attend or be present at an appointment, bring something, pay, reply, send or sign. " +
-            "A reminder of an appointment the reader must attend is ${GemmaVocabulary.YES}. " +
-            "A document that only informs, such as proof of a payment already made, asks nothing: answer ${GemmaVocabulary.NO}, and then ${Field.ACTIONS} is empty.\n")
-        append("- ${Field.PAID}: has what the document is about been paid already? Answer with one of:\n")
+        append("ANSWER: one JSON object, these keys in this order. A list holds only what exists: [] when nothing, never an entry for nobody.\n")
+        append("- ${Field.ASKS_READER}: ${GemmaVocabulary.YES} or ${GemmaVocabulary.NO}: does the document ask its reader to do anything? " +
+            "${GemmaVocabulary.YES} when the reader is asked to attend or be present at an appointment, bring something, pay, reply, send or sign (a reminder of an appointment to attend too). " +
+            "A document that only informs or proves a payment already made asks nothing: ${GemmaVocabulary.NO}, and ${Field.ACTIONS} is then empty.\n")
+        append("- ${Field.PAID}: has what the document is about been paid already? One of:\n")
         PaidState.entries.forEach { append("    ").append(it.id).append(": ").append(it.sentence).append('\n') }
-        append("  A payment that was made (a till slip, a receipt, a confirmation of payment, a debit already taken) is ${PaidState.ALREADY_PAID.id}, " +
-            "and then there is nothing to pay: no pay action and no amount to pay.\n")
-        append("- ${Field.CATEGORY}: the code of what the document is, decided with the two answers above in mind.\n")
+        append("  A till slip, a receipt or a debit already taken is ${PaidState.ALREADY_PAID.id}: nothing to pay.\n")
+        append("- ${Field.CATEGORY}: the code of what the document is.\n")
         if (imageOnly) {
             append("- ${Field.PARTIES}: one entry per party that exists: {${Item.WHO}: who, ${Item.NAME}: the name as printed, ${Item.KIND}: its kind code}.\n")
             append("- ${Field.DATES}, ${Field.AMOUNTS}: entries {${Item.VALUE}: the value as printed (a date as yyyy-MM-dd, an amount as 1234.50 EUR), ${Item.MEANING}: the code of what it means}.\n")
             append("- ${Field.REFERENCES}: entries {${Item.VALUE}: each number as printed, ${Item.KIND}: the code of its kind (the account is the iban kind)}.\n")
         } else {
             append("- ${Field.PARTIES}: one entry per party that exists: {${Item.WHO}: who, ${Item.ID}: a name candidate id or a line id, ${Item.KIND}: its kind code}.\n")
-            append("- ${Field.DATES}, ${Field.AMOUNTS}: entries {${Item.ID}: the candidate that matters, ${Item.MEANING}: the code of what it means}. " +
-                "Take the meaning from the letter's own words next to the value (the label column of the candidates); a value the letter does " +
-                "not describe, such as a line of a table, a unit price or a part of a total, means the code of \"none of these\". " +
-                "Only one value can be the amount to pay and only one the date of the letter.\n")
+            append("- ${Field.DATES}, ${Field.AMOUNTS}: entries {${Item.ID}: the candidate, ${Item.MEANING}: the code of what it means}. " +
+                "Take the meaning from the letter's own words next to the value (the label); a value the letter does not describe, such as a line of a table, " +
+                "a unit price or a part of a total, is the \"none of these\" code. Only one date can be the date of the letter.\n")
+            append("- ${Field.TO_PAY}: the one amount candidate the reader has to pay, or \"${GemmaVocabulary.NONE}\" when the letter asks for no payment.\n")
             append("- ${Field.REFERENCES}: entries {${Item.ID}: a reference number or the account to pay to, ${Item.KIND}: the code of its kind}.\n")
         }
         append("- ${Field.ACTIONS}: what the letter asks of its reader, entries {${Item.KIND}: the action code" +
-            (if (imageOnly) "" else ", ${Item.DATE_ID}: the date it is for, ${Item.AMOUNT_ID}: the amount it is for, or \"none\"") + "}. " +
-            "The list may be empty, and it should be empty unless the letter itself asks the reader to do something; " +
-            "a letter that only informs asks for nothing, and a date that is not a deadline or an appointment is not an action's date.\n")
-        append("- ${Field.EVENT_KIND}: the code of what this document reports for the timeline of its matter; the code of \"none of these\" when no kind fits.\n")
+            (if (imageOnly) "" else ", ${Item.DATE_ID}: its date, ${Item.AMOUNT_ID}: its amount, or \"none\"") + "}. " +
+            "Empty unless the letter itself asks the reader to do something; a date that is no deadline or appointment is no action's date.\n")
+        append("- ${Field.EVENT_KIND}: the code of what the document reports for the timeline of its matter.\n")
         append("- ${Field.LANGUAGE}: the language the document is written in, as a short code.\n")
         append("- ${Field.NAME}: a short name of this document in its own language, at most ${GemmaSchema.MAX_NAME_CHARS} characters.\n")
         if (imageOnly) {
             append("- ${Field.SUMMARY}: one or two sentences in the letter's language: what it says and what the reader must do.\n")
             append("- ${Field.KEY_INFO}: up to ${GemmaSchema.MAX_KEY_INFO} other facts the reader needs, entries {${Item.LABEL}: a label of at most four words, ${Item.VALUE}: the value copied as printed}.\n")
         }
-        append("\nWHO (${Item.WHO}):\n")
-        GemmaSchema.PARTIES.forEach { append("- ").append(vocab.partyRoleCodes.codeOf(it)).append(": ").append(it).append('\n') }
+        append("\n")
+        codes("WHO (${Item.WHO})", vocab.partyRoleCodes, GemmaSchema.PARTIES)
         codes("KIND OF PARTY", vocab.partyKindCodes, vocab.partyKinds)
         append("DATE MEANINGS:\n")
-        vocab.dateMeanings.forEach { append("- ").append(vocab.dateMeaningCodes.codeOf(it.id)).append(" = ").append(it.id).append(": ").append(it.description).append('\n') }
+        vocab.dateMeanings.forEach { append("- ").append(vocab.dateMeaningCodes.codeOf(it.id)).append(": ").append(it.description).append('\n') }
         append("- ").append(vocab.dateMeaningCodes.codeOf(GemmaVocabulary.OTHER)).append(": none of these\n")
         append("AMOUNT MEANINGS:\n")
-        vocab.amountMeanings.forEach { append("- ").append(vocab.amountMeaningCodes.codeOf(it.id)).append(" = ").append(it.id).append(": ").append(it.description).append('\n') }
+        (if (imageOnly) vocab.amountMeanings else vocab.listedAmountMeanings).forEach {
+            append("- ").append(vocab.amountMeaningCodes.codeOf(it.id)).append(": ").append(it.description).append('\n')
+        }
         append("- ").append(vocab.amountMeaningCodes.codeOf(GemmaVocabulary.OTHER)).append(": none of these\n")
-        append("KIND OF REFERENCE:\n")
-        vocab.referenceKinds.forEach { append("- ").append(vocab.referenceKindCodes.codeOf(it)).append(" = ").append(it).append('\n') }
+        codes("KIND OF REFERENCE", vocab.referenceKindCodes, vocab.referenceKinds)
         append("ACTIONS:\n")
-        vocab.actionKinds.forEach { append("- ").append(vocab.actionKindCodes.codeOf(it.id)).append(" = ").append(it.id).append(": ").append(it.task).append('\n') }
+        vocab.actionKinds.forEach { append("- ").append(vocab.actionKindCodes.codeOf(it.id)).append(": ").append(it.task).append('\n') }
         append("CATEGORIES:\n")
-        vocab.categories.forEach { append("- ").append(vocab.categoryCodes.codeOf(it.id)).append(" = ").append(it.id).append(": ").append(it.promptLine).append('\n') }
+        vocab.categories.forEach { append("- ").append(vocab.categoryCodes.codeOf(it.id)).append(": ").append(it.promptLine).append('\n') }
         append("- ").append(vocab.categoryCodes.codeOf(GemmaVocabulary.DOCUMENT_CATEGORY)).append(": none of these\n")
         append("EVENT KINDS (the letter ...):\n")
-        vocab.eventKinds.scored.forEach { append("- ").append(vocab.eventKindCodes.codeOf(it.id)).append(" = ").append(it.id).append(": ").append(it.description).append('\n') }
+        vocab.eventKinds.scored.forEach { append("- ").append(vocab.eventKindCodes.codeOf(it.id)).append(": ").append(it.description).append('\n') }
         append("- ").append(vocab.eventKindCodes.codeOf(EventKinds.INFORMATION)).append(": none of these\n")
     }
 
-    /** One list of codes with the word each stands for, under [title]. */
+    /** One list of codes with the word each stands for, on one line under [title] (a word needs no sentence). */
     private fun StringBuilder.codes(title: String, book: CodeBook, ids: List<String>) {
-        append(title).append(":\n")
-        ids.forEach { append("- ").append(book.codeOf(it)).append(" = ").append(it).append('\n') }
+        append(title).append(": ").append(ids.joinToString(", ") { "${book.codeOf(it)} = $it" }).append('\n')
     }
-
-    private fun position(l: GemmaLine) = String.format(Locale.ROOT, "p%d x%.2f y%.2f", l.page, l.x, l.y)
 
     private fun kindWord(kind: CandidateKind) = kind.name.lowercase()
 

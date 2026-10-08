@@ -93,7 +93,7 @@ class RecordDocumentEventsUseCase @Inject constructor(
             id = UuidGenerator.generate(),
             documentId = documentId,
             kind = kind.id,
-            eventDate = EventDateResolver.resolve(kind, fields, document.createdAt, clock.zone),
+            eventDate = EventDateResolver.resolve(kind, fields, document.createdAt, clock.zone, earlierEventDate = previous.firstOrNull()?.eventDate),
             recordedAt = now,
             title = reading.title?.takeIf { it.isNotBlank() } ?: document.title,
             personProfileIds = resolved.personProfileIds,
@@ -102,7 +102,7 @@ class RecordDocumentEventsUseCase @Inject constructor(
             source = EventSource.DOCUMENT,
         )
         val caseId = resolved.organisationProfileId?.let { organisation ->
-            caseFor(organisation, resolved.organisationName, event, kind, ReferenceKeys.of(fields), previous.firstOrNull()?.caseId, now)
+            caseFor(organisation, resolved.organisationName, event, kind, ReferenceKeys.of(fields), previous.firstOrNull(), now)
         }
         events.replaceDocumentEvents(documentId, listOf(event.copy(caseId = caseId)))
         (previous.mapNotNull { it.caseId } + listOfNotNull(caseId)).distinct().forEach { refresh(it) }
@@ -115,16 +115,21 @@ class RecordDocumentEventsUseCase @Inject constructor(
         event: ProfileEvent,
         kind: EventKind,
         keys: Set<String>,
-        previousCaseId: String?,
+        previous: ProfileEvent?,
         now: Long,
     ): String {
         val cases = events.casesOfOrganisation(organisationId)
         val byReference = cases.filter { c -> c.referenceKeys.any { it in keys } }.maxByOrNull { it.createdAt }
         val existing = byReference
-            ?: cases.firstOrNull { it.id == previousCaseId }
+            ?: cases.firstOrNull { it.id == previous?.caseId }
             ?: askSameMatter(cases, organisationName, event, kind)
         if (existing != null) {
-            if (!existing.referenceKeys.containsAll(keys)) events.saveCase(existing.copy(referenceKeys = existing.referenceKeys + keys))
+            // A matter still titled as this letter's own earlier event was (nobody renamed it) follows the title the letter has now: a
+            // re-read that names the sender better (the avatar letter no longer in front of it) must not leave the old name on the matter.
+            val title = event.title.takeIf { previous != null && existing.title == previous.title && it.isNotBlank() } ?: existing.title
+            if (!existing.referenceKeys.containsAll(keys) || title != existing.title) {
+                events.saveCase(existing.copy(referenceKeys = existing.referenceKeys + keys, title = title))
+            }
             return existing.id
         }
         val created = Case(

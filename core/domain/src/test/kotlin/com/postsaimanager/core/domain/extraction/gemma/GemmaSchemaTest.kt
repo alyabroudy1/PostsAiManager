@@ -36,7 +36,7 @@ class GemmaSchemaTest {
     @DisplayName("every field is required, with one-letter keys, and nothing else may be added")
     fun `all fields required`() {
         val required = schema["required"]!!.jsonArray.map { it.jsonPrimitive.content }
-        assertThat(required).containsExactly("a", "p", "c", "r", "d", "m", "f", "k", "e", "l", "n").inOrder()
+        assertThat(required).containsExactly("a", "p", "c", "r", "d", "m", "t", "f", "k", "e", "l", "n").inOrder()
         assertThat(schema["additionalProperties"]!!.jsonPrimitive.content).isEqualTo("false")
     }
 
@@ -90,8 +90,19 @@ class GemmaSchemaTest {
         assertThat(itemEnum("m", "i")).containsExactly("A1", "A2", "A3")
         assertThat(itemEnum("d", "m"))
             .containsExactlyElementsIn(codesOf(vocab.dateMeaningCodes, ValueMeanings.DEFAULT.of(MeaningKind.DATE).map { it.id } + "other"))
+        // The amount to pay is not a meaning of an amount in the list: it is the one field "t".
         assertThat(itemEnum("m", "m"))
-            .containsExactlyElementsIn(codesOf(vocab.amountMeaningCodes, ValueMeanings.DEFAULT.of(MeaningKind.AMOUNT).map { it.id } + "other"))
+            .containsExactlyElementsIn(codesOf(vocab.amountMeaningCodes, ValueMeanings.DEFAULT.of(MeaningKind.AMOUNT).map { it.id }.filter { it != "TOTAL_DUE" } + "other"))
+        assertThat(itemEnum("m", "m")).doesNotContain(vocab.amountMeaningCodes.codeOf("TOTAL_DUE"))
+    }
+
+    @Test
+    @DisplayName("the amount to pay is one field: one of the letter's amount candidates, or none")
+    fun `to pay is one field`() {
+        assertThat(enumOf(property("t"))).containsExactly("A1", "A2", "A3", "none")
+        val noAmounts = GemmaLetter(mini.letter.lines, mini.letter.candidates.filter { it.kind != CandidateKind.AMOUNT })
+        val s = Json.parseToJsonElement(GemmaSchema.build(noAmounts)).jsonObject["properties"]!!.jsonObject["t"]!!.jsonObject
+        assertThat(enumOf(s)).containsExactly("none")
     }
 
     @Test
@@ -117,10 +128,10 @@ class GemmaSchemaTest {
     }
 
     @Test
-    @DisplayName("the lists are as short as the letter allows: dates and amounts at most 6, references at most 5, actions at most 3")
+    @DisplayName("the lists are as short as the letter allows: dates at most 6, amounts at most 4, references at most 5, actions at most 3")
     fun `lists are short`() {
         assertThat(property("d")["maxItems"]!!.jsonPrimitive.content).isEqualTo("6")
-        assertThat(property("m")["maxItems"]!!.jsonPrimitive.content).isEqualTo("6")
+        assertThat(property("m")["maxItems"]!!.jsonPrimitive.content).isEqualTo("4")
         assertThat(property("f")["maxItems"]!!.jsonPrimitive.content).isEqualTo("5")
         assertThat(property("k")["maxItems"]!!.jsonPrimitive.content).isEqualTo("3")
     }
@@ -148,7 +159,7 @@ class GemmaSchemaTest {
                 "paid" to str("to_pay"),
                 "sender" to party("M1", "company"), "addressee" to party("M2"),
                 "dates" to arr(value("D1", "LETTER_DATE"), value("D2", "DUE_DATE")),
-                "amounts" to arr(value("A1", "TOTAL_DUE")),
+                "amounts" to arr(value("A2", "FEE")), "toPay" to str("A1"),
                 "references" to arr(obj("candidateId" to str("N1"), "kind" to str("customer_no")), obj("candidateId" to str("I1"), "kind" to str("iban"))),
                 "actions" to arr(obj("kind" to str("pay"), "dateId" to str("D2"), "amountId" to str("A1"))),
                 "category" to str("bill"), "eventKind" to str("payment_reminder"), "name" to str("Zahlungserinnerung Rechnung"),
@@ -179,5 +190,7 @@ class GemmaSchemaTest {
         assertThat(dates["v"]!!.jsonObject["type"]!!.jsonPrimitive.content).isEqualTo("string")
         assertThat(props["r"]!!.jsonObject["items"]!!.jsonObject["properties"]!!.jsonObject.keys).containsExactly("w", "n", "k").inOrder()
         assertThat(s["required"]!!.jsonArray).hasSize(13)
+        // The picture-only answer has no candidate to point at, so no field of its own for the amount to pay.
+        assertThat(props.keys).doesNotContain("t")
     }
 }

@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.text
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.gemma.DeviceLetters
 import org.junit.jupiter.api.Test
 
 class SummaryGateTest {
@@ -91,6 +92,51 @@ class SummaryGateTest {
         val wrapped = "Musterfirma GmbH\nWir können Ihnen die Positionen in Rechnung\nstellen, die in der nachstehenden Tabelle\nenthalten sind.\nRechnung RE-2026-0815"
         assertThat(reason(sentence, whole, emptyList())).isEqualTo(SummaryGate.Reason.COPIED)
         assertThat(reason(sentence, wrapped, emptyList())).isEqualTo(SummaryGate.Reason.COPIED)
+    }
+
+    // ── a short letter's faithful summary is no copy (the early summary was lost to this) ──
+
+    private fun verdictOf(answer: String, text: String) = gate.check(answer, text, emptyList())
+
+    @Test
+    fun `a faithful summary of the Jobcenter letter is accepted though it shares most of its words with the letter`() {
+        val answer = "Das Jobcenter Musterstadt bestätigt, dass der Antrag auf Bürgergeld am 01.09.2026 eingegangen ist."
+
+        assertThat(verdictOf(answer, DeviceLetters.jobcenterText)).isInstanceOf(SummaryGate.Verdict.Accepted::class.java)
+        assertThat(gate.copiedShare(answer, DeviceLetters.jobcenterText)).isLessThan(SummaryGate.COPY_SHARE)
+    }
+
+    @Test
+    fun `a faithful summary of the short Zahnarzt message and of the Markt receipt is accepted`() {
+        assertThat(verdictOf("Die Zahnarztpraxis erinnert an Ihren Termin am 14.10.2026 um 10:30 Uhr und bittet, die Versichertenkarte mitzubringen.", DeviceLetters.zahnarztText))
+            .isInstanceOf(SummaryGate.Verdict.Accepted::class.java)
+        assertThat(verdictOf("Kartenzahlung bei Markt Beispiel über 14,18 EUR, der Einkauf ist bezahlt.", DeviceLetters.marktText))
+            .isInstanceOf(SummaryGate.Verdict.Accepted::class.java)
+    }
+
+    @Test
+    fun `copying is long verbatim runs - the letter's own sentences repeated are rejected for each of the three letters`() {
+        val zahnarzt = "Terminerinnerung: Ihr Termin ist am 14.10.2026 um 10:30 Uhr. Bitte Versichertenkarte mitbringen."
+        val jobcenter = "wir bestätigen, dass Ihr Antrag auf Bürgergeld am 01.09.2026 bei uns eingegangen ist."
+        val markt = "Brot 2,50 EUR Milch 1,20 EUR Käse 10,48 EUR Summe 14,18 EUR"
+
+        assertThat(reason(zahnarzt, DeviceLetters.zahnarztText, emptyList())).isEqualTo(SummaryGate.Reason.COPIED)
+        assertThat(reason(jobcenter, DeviceLetters.jobcenterText, emptyList())).isEqualTo(SummaryGate.Reason.COPIED)
+        assertThat(reason(markt, DeviceLetters.marktText, emptyList())).isEqualTo(SummaryGate.Reason.COPIED)
+    }
+
+    @Test
+    fun `phrases of the letter inside a summary of its own words are not a copy`() {
+        val answer = "Die Praxis schreibt: Bitte Versichertenkarte mitbringen. Absage bis 24 h vorher. Der Termin ist am 14.10.2026 um 10:30 Uhr, " +
+            "danach ist nichts weiter zu tun und es gibt keine Kosten, wenn rechtzeitig abgesagt wird."
+
+        assertThat(gate.copiedShare(answer, DeviceLetters.zahnarztText)).isLessThan(SummaryGate.COPY_SHARE)
+        assertThat(verdictOf(answer, DeviceLetters.zahnarztText)).isInstanceOf(SummaryGate.Verdict.Accepted::class.java)
+    }
+
+    @Test
+    fun `an invented number is still rejected for the receipt`() {
+        assertThat(reason("Kartenzahlung bei Markt Beispiel über 99,00 EUR.", DeviceLetters.marktText, emptyList())).isEqualTo(SummaryGate.Reason.UNVERIFIED_NUMBER)
     }
 
     @Test

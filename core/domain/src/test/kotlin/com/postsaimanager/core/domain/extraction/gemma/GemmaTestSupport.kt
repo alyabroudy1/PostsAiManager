@@ -92,6 +92,7 @@ private fun encoded(readable: Map<String, JsonElement>): JsonObject {
     out["r"] = arr(*parties.toTypedArray())
     out["d"] = arr(*items(readable["dates"]).map { obj(pointer(it), "m" to code(codes.dateMeaningCodes, it.text("meaning"))) }.toTypedArray())
     out["m"] = arr(*items(readable["amounts"]).map { obj(pointer(it), "m" to code(codes.amountMeaningCodes, it.text("meaning"))) }.toTypedArray())
+    readable["toPay"]?.let { out["t"] = it }
     out["f"] = arr(*items(readable["references"]).map { obj(pointer(it), "k" to code(codes.referenceKindCodes, it.text("kind"))) }.toTypedArray())
     out["k"] = arr(
         *items(readable["actions"]).map {

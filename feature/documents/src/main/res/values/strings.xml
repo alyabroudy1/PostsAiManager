@@ -79,6 +79,7 @@
     <string name="copied_to_clipboard">Copied</string>
     <!-- The badge says where the summary came from -->
     <string name="card_ai_summary">AI summary</string>
+    <string name="card_summary_to_check">AI summary (to check)</string>
     <string name="card_summary_from_fields">Summary from the fields</string>
     <string name="card_summary_yours">Your summary</string>
     <string name="card_summary_coming">Summary coming…</string>

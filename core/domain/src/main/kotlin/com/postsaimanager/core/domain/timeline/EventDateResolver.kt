@@ -18,7 +18,8 @@ import java.time.ZoneId
  * meaning.
  *
  * Order: the kind's meanings, best first; then the letter's own date (a date decided as the letter date, or the value of the slot the
- * schema calls the document date); then the day the document was scanned.
+ * schema calls the document date); then, on a re-read, the date the document's event already had; and only then the day the document was
+ * scanned (a letter is never dated by the day it was scanned while anything dates it better).
  */
 object EventDateResolver {
 
@@ -27,6 +28,8 @@ object EventDateResolver {
     /**
      * @param fields the document's stored values (a value the user deleted is ignored; a date the user corrected is read as stored)
      * @param scannedAt epoch millis when the document was added, the last resort
+     * @param earlierEventDate the date this document's event had before this reading (a re-read): the day it was scanned says nothing of
+     *   the letter, so a reading that finds no date of the letter keeps the date the event already had
      * @return epoch millis of the start of the day in [zone]
      */
     fun resolve(
@@ -35,10 +38,12 @@ object EventDateResolver {
         scannedAt: Long,
         zone: ZoneId,
         schema: ExtractionSchema = ExtractionSchema.DEFAULT,
+        earlierEventDate: Long? = null,
     ): Long {
         val live = fields.filterNot { it.deletedByUser }
         val day = (kind.dateMeanings + LETTER_DATE).firstNotNullOfOrNull { meaning -> dateOf(live, meaning) }
             ?: letterDate(live, schema)
+            ?: earlierEventDate?.let { java.time.Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
             ?: java.time.Instant.ofEpochMilli(scannedAt).atZone(zone).toLocalDate()
         return day.atStartOfDay(zone).toInstant().toEpochMilli()
     }

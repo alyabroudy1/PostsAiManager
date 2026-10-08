@@ -14,6 +14,7 @@ import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.data.worker.DocumentEnrichmentWorker
+import com.postsaimanager.core.domain.extraction.gemma.EarlySummary
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTextOutcome
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTextsOutcome
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTextsRequest
@@ -210,7 +211,7 @@ class DocumentProcessingPipelineGemmaTrialTest {
         val trial = object : GemmaTrialReading {
             override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding {
                 // At this moment nothing of the reading is stored yet.
-                request.onSummary!!.invoke("Early summary.")
+                request.onSummary!!.invoke(EarlySummary("Early summary.", checked = true, verdict = "accepted"))
                 assertThat(stored.last()).isEqualTo("Early summary.")
                 return gemma.copy(summary = "", summarySource = null)
             }
@@ -219,6 +220,24 @@ class DocumentProcessingPipelineGemmaTrialTest {
         pipeline(trial).processDocument("doc-1")
 
         assertThat(stored).contains("Early summary.")
+    }
+
+    @Test
+    @DisplayName("a summary the gate refused is stored at once too, as a summary to check: the reading's own result does not lose it")
+    fun `a refused early summary is stored to check`() = runTest(dispatcher) {
+        val sources = mutableListOf<String?>()
+        coEvery { documentDao.update(any()) } answers { sources += firstArg<DocumentEntity>().summarySource }
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding {
+                request.onSummary!!.invoke(EarlySummary("A faithful summary.", checked = false, verdict = "rejected COPIED, stored to check"))
+                assertThat(sources.last()).isEqualTo("MODEL_TO_CHECK")
+                return gemma.copy(summary = "", summarySource = null)
+            }
+        }
+
+        pipeline(trial).processDocument("doc-1")
+
+        assertThat(sources).contains("MODEL_TO_CHECK")
     }
 
     @Test

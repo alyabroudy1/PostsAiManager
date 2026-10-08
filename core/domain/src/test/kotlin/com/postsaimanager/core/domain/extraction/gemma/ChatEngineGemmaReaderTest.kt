@@ -31,7 +31,7 @@ class ChatEngineGemmaReaderTest {
         assertThat(request.schema).isEqualTo(GemmaSchema.build(letter))
         assertThat(outcome.schema).isEqualTo(request.schema)
         assertThat(request.imagePaths).containsExactly("/p1.png", "/p2.png").inOrder()
-        assertThat(request.prompt).contains("L1 |")
+        assertThat(request.prompt).contains("L1 Stadtwerke Beispiel GmbH")
         assertThat(request.prompt).contains("M1 | name | Stadtwerke Beispiel GmbH")
         assertThat(request.system).contains("JSON only")
         assertThat(request.temperature).isAtMost(0.2f)
@@ -47,11 +47,11 @@ class ChatEngineGemmaReaderTest {
         read(GemmaReaderRequest(letter, listOf("/p1.png"), onSummary = { heard += it }))
 
         val request = engine.structuredRequests.single()
-        assertThat(request.leadPrompt).contains("L1 |")
+        assertThat(request.leadPrompt).contains("L1 Stadtwerke Beispiel GmbH")
         assertThat(request.leadPrompt).contains("plain text")
         assertThat(request.leadPrompt).doesNotContain("ANSWER: one JSON object")
         assertThat(request.prompt).contains("ANSWER: one JSON object")
-        assertThat(request.prompt).doesNotContain("L1 |")
+        assertThat(request.prompt).doesNotContain("L1 Stadtwerke")
         assertThat(request.system).contains("plain text")
         assertThat(heard).containsExactly("A short summary.")
     }

@@ -20,6 +20,7 @@ import com.postsaimanager.core.testing.FakeEventRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.testDocument
 import com.postsaimanager.core.testing.testProfile
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -281,5 +282,47 @@ class RecordDocumentEventsUseCaseTest {
         RenameCaseUseCase(events)(id, "   ")
         assertThat(events.getCase(id)!!.title).isEqualTo("Bürgergeld 2026")
         assertThat(events.allCases.single()).isInstanceOf(Case::class.java)
+    }
+
+    // ── a re-read keeps the letter's date and the cleaned title ──
+
+    @Test
+    fun `application filed 1 Sept stays 1 Sept when the re-read gives the date no meaning or no date at all`() = runTest {
+        // First reading: the letter's date has its meaning; the event is dated by it, not by the day the letter was scanned.
+        letter("d1", field("d1", "letter_date", "01.09.2026", "LETTER_DATE"))
+        record("d1", EventReading(EventKinds.APPLICATION_FILED, "Antrag"))
+        assertThat(events.allEvents.single().eventDate).isEqualTo(day(2026, 9, 1))
+
+        // A re-read that decided no meaning for the date: the merge keeps the stored meaning, so the date still dates the event.
+        val stored = documents.observeExtractedData("d1").first()
+        val rewritten = com.postsaimanager.core.domain.usecase.MergeExtractionUseCase().invoke(
+            existing = stored, extracted = listOf(field("d1", "letter_date", "01.09.2026")), engineVersion = "v2", now = 5, newId = { "r$it" },
+        )
+        documents.seedExtracted("d1", *rewritten.toPersist.toTypedArray())
+        record("d1", EventReading(EventKinds.APPLICATION_FILED, "Antrag"))
+        assertThat(events.allEvents.single().eventDate).isEqualTo(day(2026, 9, 1))
+
+        // A re-read that found no date of the letter at all: the event keeps the date it had, never the scan day (1 Oct) or today (7 Oct).
+        documents.seedExtracted("d1")
+        record("d1", EventReading(EventKinds.APPLICATION_FILED, "Antrag"))
+        assertThat(events.allEvents.single().eventDate).isEqualTo(day(2026, 9, 1))
+    }
+
+    @Test
+    fun `the matter follows the letter's cleaned title on a re-read, and a matter somebody renamed keeps its name`() = runTest {
+        letter("d1", title = "Termin · Z Zahnarztpraxis")
+        record("d1", EventReading(EventKinds.APPOINTMENT))
+        assertThat(events.allCases.single().title).isEqualTo("Termin · Z Zahnarztpraxis")
+
+        // Read again: the sender is now the cleaned name, so is the document's title, the event's and the matter's.
+        documents.renameDocument("d1", "Termin · Zahnarztpraxis")
+        record("d1", EventReading(EventKinds.APPOINTMENT))
+        assertThat(events.allEvents.single().title).isEqualTo("Termin · Zahnarztpraxis")
+        assertThat(events.allCases.single().title).isEqualTo("Termin · Zahnarztpraxis")
+
+        RenameCaseUseCase(events)(events.allCases.single().id, "Zahnarzt 2026")
+        documents.renameDocument("d1", "Termin · Zahnarztpraxis Dr. Beispiel")
+        record("d1", EventReading(EventKinds.APPOINTMENT))
+        assertThat(events.allCases.single().title).isEqualTo("Zahnarzt 2026")
     }
 }

@@ -48,39 +48,19 @@ import java.time.ZoneOffset
  */
 class GemmaAfterReadingTest {
 
-    private val letterBlocks: List<OcrBlock> = Din.firstPage(
-        Din.Sender(
-            letterhead = listOf("Jobcenter Musterstadt", "Musterstraße 1", "12345 Musterstadt"),
-            returnLine = "Jobcenter Musterstadt · Musterstraße 1 · 12345 Musterstadt",
-            footer = emptyList(),
-        ),
-        address = listOf("Maria Mustermann", "Beispielweg 2", "12345 Musterstadt"),
-        info = listOf(
-            "BG-Nummer" to "12345BG0007777",
-            "Ansprechpartnerin" to "Frau Nadine Beispiel",
-            "Telefon" to "0123 456-701",
-            "E-Mail" to "nadine.beispiel@jobcenter-musterstadt.example",
-            "Datum" to "01.09.2026",
-        ),
-        subject = "Eingangsbestätigung Ihres Antrags auf Bürgergeld – BG-Nummer 12345BG0007777",
-        body = listOf(
-            "Sehr geehrte Frau Mustermann,",
-            "wir bestätigen, dass Ihr Antrag auf Bürgergeld am 01.09.2026 bei uns eingegangen ist. Wir prüfen Ihren Antrag und melden uns, sobald eine Entscheidung vorliegt.",
-            "Bitte geben Sie bei allen Rückfragen Ihre BG-Nummer an.",
-            "Mit freundlichen Grüßen",
-            "Nadine Beispiel",
-            "Jobcenter Musterstadt",
-        ),
-    )
+    private val letterBlocks: List<OcrBlock> = DeviceLetters.jobcenterBlocks
 
     private val provider = FakeActiveModelProvider(runtime = ModelRuntime.LITERT_LM, supportsImages = true)
 
-    /** What Gemma answered on the phone: the date it saw as a due date (its meaning), the contact it named. */
-    private fun answerOf(l: GemmaLetter, dateMeaning: String): String = answer(
+    /**
+     * What Gemma answered on the phone: the date it saw as a due date (its meaning), the contact it named. With [byLine] the sender and
+     * the contact are named by a line of the letter, not by a name candidate (the way the phone's answers named them).
+     */
+    private fun answerOf(l: GemmaLetter, dateMeaning: String, byLine: Boolean = false): String = answer(
         mapOf(
-            "sender" to party(l.idOf(CandidateKind.NAME, "Jobcenter Musterstadt"), "authority"),
+            "sender" to party(if (byLine) l.lineOf("Jobcenter Musterstadt") else l.idOf(CandidateKind.NAME, "Jobcenter Musterstadt"), "authority"),
             "addressee" to party(l.idOf(CandidateKind.NAME, "Maria Mustermann")),
-            "contact" to party(l.idOf(CandidateKind.NAME, "Nadine Beispiel")),
+            "contact" to party(if (byLine) l.lineOf("Frau Nadine Beispiel") else l.idOf(CandidateKind.NAME, "Nadine Beispiel")),
             "dates" to arr(value(l.idOf(CandidateKind.DATE, "01.09.2026"), dateMeaning)),
             "references" to arr(obj("candidateId" to str(l.idOf(CandidateKind.REFERENCE, "12345BG0007777")), "kind" to str("case_no"))),
             "category" to str("letter"),
@@ -104,8 +84,8 @@ class GemmaAfterReadingTest {
     private val scannedAt = LocalDate.of(2026, 10, 8).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
 
     /** Reads the letter as Gemma and stores what the pipeline would (the fields, the pages' text), with the sender organisation linked. */
-    private fun readAndStore(dateMeaning: String): List<com.postsaimanager.core.model.ExtractedData> = runBlocking {
-        val outcome = GemmaReadingUseCase(ScriptedReader.answering { answerOf(it, dateMeaning) }, EntityAnnotator.NONE, provider)(
+    private fun readAndStore(dateMeaning: String, byLine: Boolean = false): List<com.postsaimanager.core.model.ExtractedData> = runBlocking {
+        val outcome = GemmaReadingUseCase(ScriptedReader.answering { answerOf(it, dateMeaning, byLine) }, EntityAnnotator.NONE, provider)(
             listOf(letterBlocks), listOf("/p1.png"), pageAspect = 0.707f,
         ) as GemmaReadingOutcome.Read
         val understanding = outcome.understanding
@@ -131,6 +111,23 @@ class GemmaAfterReadingTest {
 
         assertThat(outcome).isInstanceOf(ContactLinkOutcome.Created::class.java)
         assertThat(contacts.observeContacts("jc").first().map { it.name }).containsExactly("Nadine Beispiel")
+    }
+
+    @Test
+    @DisplayName("a sender and a contact the model named by a line of the letter are live (at or above the link threshold), and the contact is linked")
+    fun `parties named by a line are live`() = runBlocking {
+        val fields = readAndStore("LETTER_DATE", byLine = true)
+
+        val sender = fields.first { it.slotKey == UnderstandingToFields.SLOT_SENDER }
+        val contact = fields.first { it.slotKey == UnderstandingToFields.SLOT_CONTACT }
+        // The old scoring reading capped a quoted party at 0.6, under the 0.75 the linking needs: nothing was linked.
+        assertThat(sender.confidence).isAtLeast(0.75f)
+        assertThat(contact.confidence).isAtLeast(0.75f)
+        assertThat(contact.fieldValue).contains("Nadine Beispiel")
+
+        val link = LinkSenderContactUseCase(documents, profiles, contacts, DecideSameContactUseCase(SameContactYes(), SameContactProfile()))
+        assertThat(link("d1")).isInstanceOf(ContactLinkOutcome.Created::class.java)
+        assertThat(contacts.observeContacts("jc").first().map { it.name }.single()).contains("Nadine Beispiel")
     }
 
     @Test

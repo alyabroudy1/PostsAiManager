@@ -381,4 +381,66 @@ class GemmaReadingVerifierTest {
         assertThat(verify(GemmaReading(paid = PaidState.ALREADY_PAID, category = "receipt")).category).isEqualTo("receipt")
         assertThat(verify(GemmaReading(paid = PaidState.ALREADY_PAID, category = "bill")).category).isEqualTo("bill")
     }
+
+    // ── the amount to pay is one field ──
+
+    @Test
+    @DisplayName("the amount to pay is the one amount of its own field, with the meaning of the amount to pay, and the list keeps the others")
+    fun `to pay field`() {
+        val v = verify(GemmaReading(toPayId = "A1", amounts = listOf(date("A2", "FEE"))))
+
+        assertThat(v.amounts.map { it.candidate.id to it.meaningId }).containsExactly("A1" to "TOTAL_DUE", "A2" to "FEE").inOrder()
+        assertThat(v.drops).isEmpty()
+    }
+
+    @Test
+    @DisplayName("the field wins over a list entry for the same amount, and no second amount can take the meaning from it")
+    fun `to pay wins over the list`() {
+        val v = verify(GemmaReading(toPayId = "A1", amounts = listOf(date("A1", "FEE"), date("A2", "TOTAL_DUE"))))
+
+        assertThat(v.amounts.map { it.candidate.id to it.meaningId }).containsExactly("A1" to "TOTAL_DUE", "A2" to null).inOrder()
+    }
+
+    @Test
+    @DisplayName("none and no answer give no amount to pay; an id that is no amount of the letter is dropped with its reason")
+    fun `to pay none or wrong`() {
+        assertThat(verify(GemmaReading(toPayId = null, amounts = listOf(date("A2", "FEE")))).amounts.map { it.meaningId }).containsExactly("FEE")
+        val wrong = verify(GemmaReading(toPayId = "D1"))
+        assertThat(wrong.amounts).isEmpty()
+        assertThat(wrong.losses.single()).contains("D1")
+    }
+
+    @Test
+    @DisplayName("for a document the model says is already paid, the amount to pay is the total that was paid")
+    fun `to pay on a receipt`() {
+        val v = verify(GemmaReading(paid = PaidState.ALREADY_PAID, toPayId = "A1"))
+
+        assertThat(v.amounts.single().meaningId).isEqualTo("INVOICE_TOTAL")
+    }
+
+    // ── drops are values to check, never silent ──
+
+    @Test
+    @DisplayName("a value the model chose that a check refused is kept as a value to check, with the reason, and the reading is told what was lost")
+    fun `refused values are to check`() {
+        val v = verify(GemmaReading(dates = listOf(date("D4", "DUE_DATE")), amounts = listOf(date("A3", "FEE")), references = listOf(GemmaValue("I2", meaning = "iban"))))
+
+        assertThat(v.dates).isEmpty()
+        assertThat(v.toCheck.mapNotNull { it.value?.id }).containsExactly("D4", "A3", "I2")
+        assertThat(v.toCheck.all { it.reason.isNotBlank() }).isTrue()
+        assertThat(v.losses).hasSize(3)
+    }
+
+    @Test
+    @DisplayName("a party named by a line the letter does not hold is a party to check; a correction that keeps the value is no loss")
+    fun `ungrounded party is to check, a correction is no loss`() {
+        val line = mini.letter.lineOf("Erika Mustermann")
+        val v = verify(GemmaReading(addressee = GemmaParty(id = line), language = "not a code"), ocrText = "something else entirely")
+
+        assertThat(v.toCheck.single().party?.role).isEqualTo(PartyRole.ADDRESSEE)
+        assertThat(v.toCheck.single().party?.quote).isEqualTo("Erika Mustermann")
+        // The language that is no code is only corrected: it is in the log but is no loss.
+        assertThat(v.drops).hasSize(2)
+        assertThat(v.losses).hasSize(1)
+    }
 }

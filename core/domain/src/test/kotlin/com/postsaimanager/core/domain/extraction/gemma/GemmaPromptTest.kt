@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.gemma
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.v2.DocCategory
 import com.postsaimanager.core.domain.timeline.EventKinds
 import org.junit.jupiter.api.DisplayName
@@ -33,7 +34,7 @@ class GemmaPromptTest {
     @DisplayName("asking the reader anything includes attending an appointment, so an appointment reminder is answered yes")
     fun `asks reader explanation`() {
         assertThat(prompt).contains("attend or be present at an appointment, bring something, pay, reply, send or sign")
-        assertThat(prompt).contains("A reminder of an appointment the reader must attend is yes")
+        assertThat(prompt).contains("a reminder of an appointment to attend too")
     }
 
     @Test
@@ -42,12 +43,12 @@ class GemmaPromptTest {
         DocCategory.DEFAULT.forEach { assertThat(it.description).isNotEmpty() }
 
         DocCategory.DEFAULT.forEach {
-            assertThat(prompt).contains("- ${vocab.categoryCodes.codeOf(it.id)} = ${it.id}: ${it.description}")
+            assertThat(prompt).contains("- ${vocab.categoryCodes.codeOf(it.id)}: ${it.description}")
         }
-        assertThat(prompt).contains("= receipt: a receipt, a till slip or a confirmation of a payment that was already paid")
-        assertThat(prompt).contains("= appointment: a reminder or confirmation of a date to attend")
-        assertThat(prompt).contains("= bill: a request to pay for goods or services")
-        assertThat(prompt).contains("= notice: an official decision or notice")
+        assertThat(prompt).contains(": a receipt, a till slip or a confirmation of a payment that was already paid")
+        assertThat(prompt).contains(": a reminder or confirmation of a date to attend")
+        assertThat(prompt).contains(": a request to pay for goods or services")
+        assertThat(prompt).contains(": an official decision or notice")
         assertThat(prompt).contains("- ${vocab.categoryCodes.codeOf("document")}: none of these")
     }
 
@@ -82,10 +83,11 @@ class GemmaPromptTest {
     @DisplayName("the keys and codes are explained once: who, kinds of party, and every list's codes with their words")
     fun `codes are explained`() {
         assertThat(prompt).contains("WHO")
-        GemmaSchema.PARTIES.forEach { assertThat(prompt).contains("- ${vocab.partyRoleCodes.codeOf(it)}: $it") }
-        vocab.partyKinds.forEach { assertThat(prompt).contains("- ${vocab.partyKindCodes.codeOf(it)} = $it") }
-        vocab.actionKinds.forEach { assertThat(prompt).contains("- ${vocab.actionKindCodes.codeOf(it.id)} = ${it.id}: ${it.task}") }
-        vocab.dateMeanings.forEach { assertThat(prompt).contains("- ${vocab.dateMeaningCodes.codeOf(it.id)} = ${it.id}: ${it.description}") }
+        GemmaSchema.PARTIES.forEach { assertThat(prompt).contains("${vocab.partyRoleCodes.codeOf(it)} = $it") }
+        vocab.partyKinds.forEach { assertThat(prompt).contains("${vocab.partyKindCodes.codeOf(it)} = $it") }
+        vocab.referenceKinds.forEach { assertThat(prompt).contains("${vocab.referenceKindCodes.codeOf(it)} = $it") }
+        vocab.actionKinds.forEach { assertThat(prompt).contains("- ${vocab.actionKindCodes.codeOf(it.id)}: ${it.task}") }
+        vocab.dateMeanings.forEach { assertThat(prompt).contains("- ${vocab.dateMeaningCodes.codeOf(it.id)}: ${it.description}") }
     }
 
     @Test
@@ -102,14 +104,62 @@ class GemmaPromptTest {
     @Test
     @DisplayName("the event kinds come from the timeline registry with their sentences, and information is the answer for none")
     fun `event kinds`() {
-        EventKinds.DEFAULT.scored.forEach { assertThat(prompt).contains("- ${vocab.eventKindCodes.codeOf(it.id)} = ${it.id}: ${it.description}") }
+        EventKinds.DEFAULT.scored.forEach { assertThat(prompt).contains("- ${vocab.eventKindCodes.codeOf(it.id)}: ${it.description}") }
         assertThat(prompt).contains("- ${vocab.eventKindCodes.codeOf("information")}: none of these")
     }
 
     @Test
-    @DisplayName("an amount the letter does not describe is other, and only one amount is the amount to pay")
+    @DisplayName("an amount the letter does not describe is other, and the amount to pay is one field of its own, not a meaning of every amount")
     fun `amount meanings are the letter's`() {
         assertThat(prompt).contains("a unit price")
-        assertThat(prompt).contains("Only one value can be the amount to pay")
+        assertThat(prompt).contains("- t: the one amount candidate the reader has to pay")
+        val meanings = prompt.substringAfter("AMOUNT MEANINGS:").substringBefore("KIND OF REFERENCE")
+        assertThat(meanings).doesNotContain("the amount the reader has to pay")
+        vocab.listedAmountMeanings.forEach { assertThat(meanings).contains("- ${vocab.amountMeaningCodes.codeOf(it.id)}: ${it.description}") }
+        // A picture-only reading has no amount field to point at, so it keeps the meaning in the list.
+        assertThat(GemmaPrompt.user(GemmaLetter(emptyList(), emptyList()))).contains("the amount the reader has to pay")
+    }
+
+    @Test
+    @DisplayName("a line carries no position: its zone is written once for the lines that share it, and a page starts with its own marker")
+    fun `lines have no position column`() {
+        val letter = GemmaLetter(
+            lines = listOf(
+                GemmaLine("L1", 1, "letterhead", 0.12f, 0.05f, "Jobcenter Musterstadt"),
+                GemmaLine("L2", 1, "letterhead", 0.12f, 0.07f, "Musterstraße 1"),
+                GemmaLine("L3", 1, "body", 0.12f, 0.40f, "wir bestätigen"),
+                GemmaLine("L4", 2, "body", 0.12f, 0.10f, "Seite zwei"),
+            ),
+            candidates = emptyList(),
+        )
+
+        val text = GemmaPrompt.user(letter)
+
+        assertThat(text).doesNotContain("x0.12")
+        assertThat(text).doesNotContain("p1 ")
+        assertThat(text).contains("[letterhead]\nL1 Jobcenter Musterstadt\nL2 Musterstraße 1\n[body]\nL3 wir bestätigen\n[page 2]\n[body]\nL4 Seite zwei\n")
+        assertThat(text.split("[letterhead]").size - 1).isEqualTo(1)
+    }
+
+    @Test
+    @DisplayName("a candidate's printed text is not repeated when it is the whole line it sits on, or the same as an earlier candidate")
+    fun `candidate text is deduplicated`() {
+        val letter = GemmaLetter(
+            lines = listOf(
+                GemmaLine("L1", 1, "letterhead", 0f, 0f, "Jobcenter Musterstadt"),
+                GemmaLine("L2", 1, "body", 0f, 0f, "Antrag eingegangen am 01.09.2026"),
+            ),
+            candidates = listOf(
+                GemmaCandidate("M1", CandidateKind.NAME, "Jobcenter Musterstadt", "Jobcenter Musterstadt", "", "L1"),
+                GemmaCandidate("D1", CandidateKind.DATE, "01.09.2026", "2026-09-01", "eingegangen", "L2"),
+                GemmaCandidate("D2", CandidateKind.DATE, "01.09.2026", "2026-09-01", "", "L2"),
+            ),
+        )
+
+        val text = GemmaPrompt.user(letter)
+
+        assertThat(text).contains("M1 | name | = |  | L1")
+        assertThat(text).contains("D1 | date | 01.09.2026 | eingegangen | L2")
+        assertThat(text).contains("D2 | date | =D1 |  | L2")
     }
 }

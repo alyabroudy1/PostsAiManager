@@ -17,9 +17,18 @@ class GemmaTrialRequest(
     val pageAspect: Float?,
     val forcedFamily: String?,
     val reprocess: Boolean,
-    /** Called with the verified summary the moment the reader's first turn has written it, long before the reading is finished. */
-    val onSummary: (suspend (String) -> Unit)? = null,
+    /** Called with the summary the moment the reader's first turn has written it, long before the reading is finished. */
+    val onSummary: (suspend (EarlySummary) -> Unit)? = null,
 )
+
+/**
+ * The summary a reading's first turn wrote, with what the summary gate said of it.
+ *
+ * @property checked the summary passed every check of [com.postsaimanager.core.domain.extraction.text.SummaryGate]; when false it is
+ *   stored as "to check" (never lost: the text step that follows replaces it with a verified one when it can write one)
+ * @property verdict the gate's verdict in words for the log (accepted, or the reason it was not), never a word of the letter
+ */
+class EarlySummary(val text: String, val checked: Boolean, val verdict: String)
 
 /**
  * The seam between the document pipeline and the trial: the pipeline asks it for a reading first, and runs the one it always had when

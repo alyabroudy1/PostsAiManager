@@ -54,6 +54,15 @@ class GemmaVocabulary(
     val partyKindCodes = CodeBook("t", partyKinds)
     val partyRoleCodes = CodeBook("w", GemmaSchema.PARTIES)
 
+    /**
+     * The amount meanings a letter's answer lists per amount: every one but the amount to pay, which has a field of its own
+     * ([GemmaSchema.Field.TO_PAY]) so that one amount, never several, can claim it.
+     */
+    val listedAmountMeanings: List<ValueMeaning> get() = amountMeanings.filter { it.id != TO_PAY_MEANING }
+
+    /** The codes the schema offers for an amount's meaning in a letter with text: all the codes but the amount to pay's. */
+    val listedAmountMeaningCodes: List<String> get() = amountMeaningCodes.codes.filter { it != amountMeaningCodes.codeOf(TO_PAY_MEANING) }
+
     fun category(id: String?): DocCategory? = categories.firstOrNull { it.id == id?.trim()?.lowercase() }
 
     fun actionKind(id: String?): ActionKind? = actionKinds.firstOrNull { it.id == id?.trim() }
@@ -65,6 +74,9 @@ class GemmaVocabulary(
     companion object {
         /** "None of these": the answer of a list the letter does not fit, stored as no meaning, no kind, no value. */
         const val OTHER = "other"
+
+        /** The meaning (registry id) of the one amount the reader has to pay: asked as its own field, not once per amount. */
+        const val TO_PAY_MEANING = "TOTAL_DUE"
 
         /** "There is nobody / nothing for this question". */
         const val NONE = "none"

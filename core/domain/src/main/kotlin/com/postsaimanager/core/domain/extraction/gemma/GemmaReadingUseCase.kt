@@ -35,7 +35,8 @@ sealed interface GemmaReadingOutcome {
  *
  * The pieces, each one small and behind a port: the layout and the shape candidates (the pipeline's own), ML Kit's entities merged
  * into them ([EntityAnnotator], [MergedCandidateSource]), the reader ([GemmaDocumentReader], through [GemmaDocumentInterpreter]), code's
- * checks ([GemmaReadingVerifier], then the pipeline's own [com.postsaimanager.core.domain.extraction.v2.SelectionVerifier]), the
+ * checks (one verification of its own: [GemmaReadingVerifier], mapped by [GemmaResultVerifier]; the scoring reading's
+ * [com.postsaimanager.core.domain.extraction.v2.SelectionVerifier] is not run over a Gemma answer), the
  * actions bound to stored fields ([GemmaActionBinder]) and the same adapter ([ExtractionV2Adapter]).
  *
  * A page the OCR could not read (no line at all) is read from its pictures alone ([GemmaImageOnly]): every value is then marked
@@ -62,7 +63,7 @@ class GemmaReadingUseCase @Inject constructor(
         imagePaths: List<String>,
         pageAspect: Float? = null,
         forcedFamily: String? = null,
-        onSummary: (suspend (String) -> Unit)? = null,
+        onSummary: (suspend (EarlySummary) -> Unit)? = null,
     ): GemmaReadingOutcome = try {
         val layout = LetterLayoutAnalyzer.analyze(pages)
         val lines = GemmaLetterBuilder.linesOf(layout)
@@ -80,17 +81,22 @@ class GemmaReadingUseCase @Inject constructor(
         imagePaths: List<String>,
         pageAspect: Float?,
         forcedFamily: String?,
-        onSummary: (suspend (String) -> Unit)?,
+        onSummary: (suspend (EarlySummary) -> Unit)?,
     ): GemmaReadingOutcome {
         // The reader's first turn is a short summary: checked by the summary gate against the letter's text (the facts are not read yet), and
-        // handed on at once when it passes, so the document shows what it is about while the rest is still being read. A rejected one is
-        // dropped; the text step then writes the summary as it did before.
+        // handed on at once, so the document shows what it is about while the rest is still being read. One that passes is stored as the
+        // model's summary and owes the text step nothing; one the gate refuses is handed on as "to check" with the gate's reason (a
+        // faithful summary must never be lost to a check), and the text step replaces it with a verified one when it can write one.
         val summaryStored = AtomicBoolean(false)
+        val sinkOnce = AtomicBoolean(false)
+        val earlyNote = StringBuilder()
         val early: (suspend (String) -> Unit)? = onSummary?.let { sink ->
             { text ->
-                val verdict = summaryGate.check(text, layout.plainText(), emptyList())
-                if (verdict is SummaryGate.Verdict.Accepted && verdict.text.length <= MAX_EARLY_SUMMARY_CHARS && summaryStored.compareAndSet(false, true)) {
-                    sink(verdict.text)
+                val summary = earlySummary(text, layout.plainText())
+                earlyNote.append("early summary: ${summary?.verdict ?: "not usable"}")
+                if (summary != null && sinkOnce.compareAndSet(false, true)) {
+                    if (summary.checked) summaryStored.set(true)
+                    sink(summary)
                 }
             }
         }
@@ -103,7 +109,12 @@ class GemmaReadingUseCase @Inject constructor(
             letterDate = { source.lastMerged?.set?.letterDate },
             onSummary = early,
         )
-        val pipeline = ExtractionV2Pipeline(layoutReader = LayoutReader { layout }, candidateSource = source)
+        // The Gemma path's own verification: the checked reading ([GemmaReadingVerifier], in the interpreter) mapped as it is, with no
+        // second pass of the scoring reading's caps over an answer the model gave with the page in view.
+        val pipeline = ExtractionV2Pipeline(
+            layoutReader = LayoutReader { layout }, candidateSource = source,
+            verifier = GemmaResultVerifier(reading = { interpreter.decision?.verified }),
+        )
         val window = activeModel.activeModelConfig().contextTokens
         val result = pipeline.run(pages, interpreter, window, pageAspect, DocDirection.INCOMING, forcedFamily = forcedFamily)
         val decision = interpreter.decision
@@ -125,7 +136,7 @@ class GemmaReadingUseCase @Inject constructor(
         val trace = listOf(
             "reader=gemma interpreter=${interpreter.name} window=$window",
             "entities=${if (spans == null) "not available yet (shape candidates only)" else "${spans.size} spans, ${merged?.added ?: 0} candidates added"}",
-        ) + read.diagnostics.trace
+        ) + listOfNotNull(earlyNote.toString().takeIf { it.isNotEmpty() }) + read.diagnostics.trace
         val understanding = adapter.adapt(read.copy(diagnostics = read.diagnostics.copy(trace = trace)))
         return GemmaReadingOutcome.Read(understanding, summaryLine(read, verified))
     }
@@ -154,9 +165,29 @@ class GemmaReadingUseCase @Inject constructor(
         )
     }
 
+    /**
+     * The first turn's text as the summary to hand on, with the gate's verdict; null when there is nothing usable (empty, or a runaway
+     * far past what was asked). A summary the gate accepts, within the asked length, is [EarlySummary.checked]; any other is "to check".
+     */
+    private fun earlySummary(text: String, ocrText: String): EarlySummary? {
+        val oneLine = text.trim().replace(WHITESPACE, " ")
+        return when (val verdict = summaryGate.check(oneLine, ocrText, emptyList())) {
+            is SummaryGate.Verdict.Accepted ->
+                if (verdict.text.length <= MAX_EARLY_SUMMARY_CHARS) EarlySummary(verdict.text, true, "accepted")
+                else EarlySummary(verdict.text, false, "accepted, but ${verdict.text.length} chars is over the ${MAX_EARLY_SUMMARY_CHARS} asked for")
+            is SummaryGate.Verdict.Rejected ->
+                if (verdict.reason == SummaryGate.Reason.EMPTY || oneLine.length > MAX_UNCHECKED_SUMMARY_CHARS) null
+                else EarlySummary(oneLine, false, "rejected ${verdict.reason}, stored to check")
+        }
+    }
+
     private companion object {
         /** The first turn is asked for at most this many characters; one far over it is not the short summary that was asked. */
         const val MAX_EARLY_SUMMARY_CHARS = 240
+
+        /** A summary the gate refused is still stored (to check) unless it is a runaway past this. */
+        const val MAX_UNCHECKED_SUMMARY_CHARS = 600
+        val WHITESPACE = Regex("\\s+")
     }
 
     /** The decided fields as counts and keys: what the log shows next to the engine's timing, never a word of the letter. */
