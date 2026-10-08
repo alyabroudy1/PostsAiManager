@@ -73,6 +73,7 @@ class GemmaDocumentInterpreter(
 
         val answered = when (val outcome = reader.read(GemmaReaderRequest(letter, imagePaths, category, onSummary, keepOpenAs))) {
             is GemmaReaderOutcome.Unavailable -> return failed(outcome.reason)
+            is GemmaReaderOutcome.Stated -> return interpretStated(outcome, request, letter)
             is GemmaReaderOutcome.Answered -> outcome
         }
         lines += "t gemma reader (prefill, decode and the engine's own counters are in the engine's line) ms=${answered.ms}"
@@ -88,6 +89,28 @@ class GemmaDocumentInterpreter(
             is GemmaReadingParser.Parsed.Bad -> return InterpretationOutcome.Failed(parsed.reason, answered.json.take(FAILED_RAW_CHARS), answered.prompt, answered.schema)
         }
         val verified = verifier.verify(reading, letter, request.offered, layout.plainText(), letterDate())
+        return finish(verified, letter, request, layout, answered.json, answered.prompt, answered.schema)
+    }
+
+    /**
+     * The "Questions" reader's answer: parsed by its labels and mapped as it is ([QuestionReadingBuilder]); no check of [GemmaReadingVerifier]
+     * runs over it (the person confirms what is stored).
+     */
+    private suspend fun interpretStated(outcome: GemmaReaderOutcome.Stated, request: InterpretationRequest, letter: GemmaLetter): InterpretationOutcome {
+        val layout = request.layout ?: return failed("the reader needs the letter's layout")
+        lines += "t gemma reader (questions) ms=${outcome.ms}"
+        lines += "gemma input lines=${letter.lines.size} image=${if (outcome.usedImage) "yes" else "no"} answer=${outcome.text.length} chars prompt=${outcome.prompt.length} chars"
+        lines += outcome.notes
+        val answers = QuestionAnswerParser.parse(outcome.text)
+        if (answers.answered.isEmpty()) return InterpretationOutcome.Failed("the answer has none of the asked labels", outcome.text.take(FAILED_RAW_CHARS), outcome.prompt, "")
+        val verified = QuestionReadingBuilder().build(answers, letter, request.offered)
+        return finish(verified, letter, request, layout, outcome.text, outcome.prompt, "")
+    }
+
+    private suspend fun finish(
+        verified: VerifiedReading, letter: GemmaLetter, request: InterpretationRequest, layout: com.postsaimanager.core.domain.extraction.layout.LetterLayout,
+        rawAnswer: String, prompt: String, schemaText: String,
+    ): InterpretationOutcome {
         decision = GemmaDecision(verified)
         val mapped = mapper.map(verified, verified.language, request.direction, request.forcedFamily)
         // What code found and the answer lacks (the addresses, the letter's own date), added apart from the mapping (see GemmaFoundValues).
@@ -107,7 +130,7 @@ class GemmaDocumentInterpreter(
             "actions=[${verified.actions.joinToString(",") { it.kind }}] name=${verified.name != null} paid=${verified.paid?.id} " +
             "dropped=${verified.drops.size}"
         verified.drops.forEach { lines += "gemma dropped: $it" }
-        return InterpretationOutcome.Answered(raw,answered.json, answered.prompt, answered.schema)
+        return InterpretationOutcome.Answered(raw, rawAnswer, prompt, schemaText)
     }
 
     /** The party that was decided: its candidate id (or "line" for a printed line) and the text, for the debug log. */

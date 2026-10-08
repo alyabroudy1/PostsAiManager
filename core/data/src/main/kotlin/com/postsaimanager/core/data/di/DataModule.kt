@@ -172,7 +172,13 @@ abstract class DataModule {
 
     @Binds
     @Singleton
-    abstract fun bindGemmaDocumentReader(impl: ChatEngineGemmaReader): GemmaDocumentReader
+    abstract fun bindGemmaDocumentReader(impl: com.postsaimanager.core.domain.extraction.gemma.StyleSwitchedGemmaReader): GemmaDocumentReader
+
+    @Binds
+    @Singleton
+    abstract fun bindGemmaReaderStyle(
+        impl: com.postsaimanager.core.data.gemma.SharedPreferencesGemmaReaderStyle,
+    ): com.postsaimanager.core.domain.extraction.gemma.GemmaReaderStyle
 
     @Binds
     @Singleton

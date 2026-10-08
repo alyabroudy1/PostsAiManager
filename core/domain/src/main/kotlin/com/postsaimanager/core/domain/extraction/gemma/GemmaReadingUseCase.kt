@@ -171,6 +171,7 @@ class GemmaReadingUseCase @Inject constructor(
         val outcome = reader.read(GemmaReaderRequest(GemmaLetter(emptyList(), emptyList()), imagePaths, category))
         val answered = when (outcome) {
             is GemmaReaderOutcome.Unavailable -> return GemmaReadingOutcome.Unavailable(outcome.reason)
+            is GemmaReaderOutcome.Stated -> return GemmaReadingOutcome.Unavailable("a picture-only letter is read by the JSON reader")
             is GemmaReaderOutcome.Answered -> outcome
         }
         val reading = when (val parsed = GemmaReadingParser.parse(answered.json)) {

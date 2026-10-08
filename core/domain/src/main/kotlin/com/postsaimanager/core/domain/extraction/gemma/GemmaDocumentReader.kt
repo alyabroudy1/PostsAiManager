@@ -1,13 +1,8 @@
 package com.postsaimanager.core.domain.extraction.gemma
 
-import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.ChatEngine
-import com.postsaimanager.core.domain.ai.ChatImagePolicy
-import com.postsaimanager.core.domain.ai.ModelUse
-import com.postsaimanager.core.domain.ai.loadForUse
 import com.postsaimanager.core.domain.ai.StructuredRequest
-import com.postsaimanager.core.model.ModelRuntime
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
@@ -38,6 +33,12 @@ sealed interface GemmaReaderOutcome {
     /** The model's answer, constrained to [schema]; [prompt] and [schema] are what was sent (for the trace and the tests). */
     class Answered(val json: String, val schema: String, val prompt: String, val ms: Long, val usedImage: Boolean) : GemmaReaderOutcome
 
+    /**
+     * The "Questions" reader's answer: the model's free-text reply to the one formatted question ([text], labelled lines), not yet
+     * parsed. [notes] are content-free lines for the trace (what was asked, how long each turn took).
+     */
+    class Stated(val text: String, val prompt: String, val ms: Long, val usedImage: Boolean, val notes: List<String> = emptyList()) : GemmaReaderOutcome
+
     /** The reader could not run: no LiteRT chat model installed, the model busy, the run failed or ran out of time. */
     class Unavailable(val reason: String) : GemmaReaderOutcome
 }
@@ -62,16 +63,13 @@ class ChatEngineGemmaReader @Inject constructor(
     private val activeModel: ActiveModelProvider,
 ) : GemmaDocumentReader {
 
+    private val gate = ReadingModelGate(engine, activeModel)
+
     override suspend fun read(request: GemmaReaderRequest): GemmaReaderOutcome {
         val started = System.nanoTime()
-        val path = activeModel.activeModelPath() ?: return GemmaReaderOutcome.Unavailable("no chat model is installed")
-        val config = activeModel.readingModelConfig()
-        if (config.runtime != ModelRuntime.LITERT_LM) return GemmaReaderOutcome.Unavailable("the chat model is not a LiteRT-LM model")
-        val images = if (ChatImagePolicy.enabledFor(config)) request.imagePaths else emptyList()
-        if (request.letter.isImageOnly && images.isEmpty()) return GemmaReaderOutcome.Unavailable("no text and no picture the model can take")
-
-        if (engine.loadForUse(ModelUse.READING, path, config) is PamResult.Error) {
-            return GemmaReaderOutcome.Unavailable("the chat model could not be loaded")
+        val (config, images) = when (val opened = gate.open(request.imagePaths, request.letter.isImageOnly)) {
+            is ReadingModelGate.Opened.Unavailable -> return GemmaReaderOutcome.Unavailable(opened.reason)
+            is ReadingModelGate.Opened.Ready -> opened.config to opened.images
         }
 
         val imageOnly = request.letter.isImageOnly

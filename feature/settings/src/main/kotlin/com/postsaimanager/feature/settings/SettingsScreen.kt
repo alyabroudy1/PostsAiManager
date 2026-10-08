@@ -211,6 +211,15 @@ fun SettingsScreen(
                     checked = trialOn,
                     onCheckedChange = gemmaTrial::setEnabled,
                 )
+                val readerStyle: GemmaReaderStyleViewModel = hiltViewModel()
+                val questionsOn by readerStyle.questions.collectAsStateWithLifecycle()
+                SettingsSwitchItem(
+                    icon = PamIcons.AiModel,
+                    title = stringResource(R.string.settings_reader_style_title),
+                    subtitle = stringResource(R.string.settings_reader_style_subtitle),
+                    checked = questionsOn,
+                    onCheckedChange = readerStyle::setQuestions,
+                )
                 val readingAccelerator: ReadingAcceleratorViewModel = hiltViewModel()
                 val readingOnGpu by readingAccelerator.onGpu.collectAsStateWithLifecycle()
                 SettingsSwitchItem(

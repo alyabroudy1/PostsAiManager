@@ -4,7 +4,8 @@ package com.postsaimanager.core.domain.ai
  * One schema-constrained answer from the resident chat model (LiteRT-LM `ResponseFormat.json`), as [ChatEngine.generateStructured]
  * takes it: a conversation of its own, thinking off, no tools, closed again after the answer (unless [keepOpenAs] keeps it).
  *
- * @property schema a JSON Schema (as text) the answer is constrained to: the engine can only produce JSON that fits it
+ * @property schema a JSON Schema (as text) the answer is constrained to: the engine can only produce JSON that fits it. Blank: no
+ *   constraint, the last turn is answered in free text (the "Questions" reader style)
  * @property imagePaths files of the pictures that go in front of [prompt] (paths only: no picture bytes cross the process boundary);
  *   the engine starts its vision encoder when there is one
  * @property timeoutMs the engine stops the generation when it takes longer than this, and answers null

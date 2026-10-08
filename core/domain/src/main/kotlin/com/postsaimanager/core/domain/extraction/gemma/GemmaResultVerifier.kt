@@ -54,7 +54,7 @@ class GemmaResultVerifier(
 ) : ResultVerifier {
 
     override fun verify(raw: RawInterpretation, text: RawText?, context: VerificationContext): ExtractionV2Result =
-        Run(schema, raw, context, reading()).execute()
+        reading().let { checked -> Run(schema, raw, context.withExtraCandidates(checked?.synthesized.orEmpty()), checked).execute() }
 
     private class Run(
         private val schema: ExtractionSchema,
@@ -205,6 +205,11 @@ class GemmaResultVerifier(
                 return build(c, rp.confidence, null, emptyList())
             }
             val verified = QuoteVerifier.verify(ref, ctx.ocrText)
+            if (verified == null && checked?.parties?.any { it.stated && it.role.name == rp.role.trim().uppercase() && it.reference == ref } == true) {
+                // The "Questions" reader stores the name as the model wrote it, with a confidence that asks for the person's confirmation.
+                val ai = ConfidenceCombiner.aiScore(rp.confidence)
+                return quoted(ref, ai, FUZZY_QUOTE, false, listOf("stated by the model, not found in the letter's text"), null)
+            }
             if (verified == null) {
                 rejections += "${rp.role}: the name '${ref.take(MAX_LOGGED_CHARS)}' is not in the letter"
                 return null
