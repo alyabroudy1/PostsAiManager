@@ -19,6 +19,16 @@ class ReaderRetryTest {
     }
 
     @Test
+    @DisplayName("a reading that waits for a chat is asked again however often: it is not a failed try")
+    fun waitingForAChatIsNeverGivenUpOn() {
+        val waiting = PamError.ModelNotLoaded(com.postsaimanager.core.data.repository.CHAT_ACTIVE_NAME)
+
+        assertThat(ReaderRetry.isWaitingForChat(waiting)).isTrue()
+        assertThat(ReaderRetry.isWaitingForChat(unavailable)).isFalse()
+        assertThat(ReaderRetry.shouldRetry(waiting, runAttemptCount = ReaderRetry.MAX_ATTEMPTS * 10)).isTrue()
+    }
+
+    @Test
     @DisplayName("any other failure is not retried")
     fun otherErrorsAreNot() {
         assertThat(ReaderRetry.shouldRetry(PamError.ModelNotLoaded("chat"), 0)).isFalse()

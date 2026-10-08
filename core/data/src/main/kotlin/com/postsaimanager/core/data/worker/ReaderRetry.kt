@@ -3,6 +3,7 @@ package com.postsaimanager.core.data.worker
 import androidx.work.BackoffPolicy
 import androidx.work.OneTimeWorkRequest
 import com.postsaimanager.core.common.result.PamError
+import com.postsaimanager.core.data.repository.CHAT_ACTIVE_NAME
 import com.postsaimanager.core.data.repository.READER_MODEL_NAME
 import java.util.concurrent.TimeUnit
 
@@ -23,8 +24,16 @@ internal object ReaderRetry {
     /** True for the error the pipeline returns when a reader model is installed but did not read. */
     fun isReaderUnavailable(error: PamError): Boolean = error is PamError.ModelNotLoaded && error.modelName == READER_MODEL_NAME
 
-    /** True when [error] asks for another run and [runAttemptCount] (0 on the first run) is still below the limit. */
-    fun shouldRetry(error: PamError, runAttemptCount: Int): Boolean = isReaderUnavailable(error) && runAttemptCount < MAX_ATTEMPTS
+    /** True for the error the pipeline returns when a chat session is live: the reading was not tried and waits for the chat to end. */
+    fun isWaitingForChat(error: PamError): Boolean = error is PamError.ModelNotLoaded && error.modelName == CHAT_ACTIVE_NAME
+
+    /**
+     * True when [error] asks for another run: a reader that was unavailable while [runAttemptCount] (0 on the first run) is still
+     * below the limit, or a reading that waits for a chat, which is not a failed try and is asked again however often (a chat session
+     * always ends: the person leaves it or it is idle for 10 minutes).
+     */
+    fun shouldRetry(error: PamError, runAttemptCount: Int): Boolean =
+        isWaitingForChat(error) || (isReaderUnavailable(error) && runAttemptCount < MAX_ATTEMPTS)
 
     /** [builder]'s work, run again after [BACKOFF_SECONDS] each time it asks for a retry. */
     fun backoff(builder: OneTimeWorkRequest.Builder): OneTimeWorkRequest.Builder =

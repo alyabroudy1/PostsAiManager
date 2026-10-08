@@ -24,6 +24,8 @@ internal class SessionNoteDrafter(
      *   drops a note that does
      * @param cardText the read values the notes must not repeat
      * @param about what the notes are about, as the question words it
+     * @param deferIfUnavailable throw [SessionNotesDeferred] instead of answering null when the model could not be used (not resident,
+     *   busy, no answer): the queued write of a session's notes then runs again later instead of losing them
      * @return the verified notes, in order, plus the message id they are grounded in (the last thing the user said), or null when there
      *   is nothing to write
      */
@@ -33,10 +35,12 @@ internal class SessionNoteDrafter(
         cardText: String,
         about: String,
         actionNotes: List<String> = emptyList(),
+        deferIfUnavailable: Boolean = false,
     ): Draft? {
         val userTurns = sessionTurns.filter { it.role == MessageRole.USER && it.content.isNotBlank() }
         // Nothing the user said: nothing to remember, and no reason to wake the model.
-        if (userTurns.isEmpty() || !generator.isAvailable()) return null
+        if (userTurns.isEmpty()) return null
+        if (!generator.isAvailable()) return if (deferIfUnavailable) throw SessionNotesDeferred() else null
 
         val turns = sessionTurns.mapNotNull { message ->
             when (message.role) {
@@ -51,7 +55,7 @@ internal class SessionNoteDrafter(
             throw e
         } catch (e: Exception) {
             null
-        } ?: return null
+        } ?: return if (deferIfUnavailable) throw SessionNotesDeferred() else null
 
         val grounding = userTurns.map { it.content } +
             sessionTurns.flatMap { message -> message.toolTrace.map { it.resultJson } + listOfNotNull(message.toolResult) }
@@ -62,3 +66,6 @@ internal class SessionNoteDrafter(
     /** The verified [notes] and the id of the message they are grounded in. */
     class Draft(val notes: List<String>, val sourceRef: String)
 }
+
+/** The model could not write a session's notes now (not resident, busy, no answer): they are written later, not dropped. */
+class SessionNotesDeferred : Exception("The chat model is not available for the session's notes yet")

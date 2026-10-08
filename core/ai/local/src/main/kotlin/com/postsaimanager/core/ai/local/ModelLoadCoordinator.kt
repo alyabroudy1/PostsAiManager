@@ -77,6 +77,16 @@ internal class ModelLoadCoordinator(
     @Volatile
     private var lastRequested: Pair<String, InferenceConfig>? = null
 
+    /**
+     * Whether [load] of [modelId] with [config] would change what is resident (a different model, a changed config, nothing ready):
+     * the loads that must not cut a running call from under it ([ChatLoadPriority]). A cheap read of the recorded state; whether
+     * the model is really still resident is [load]'s own check.
+     */
+    fun wouldReplaceResident(modelId: String, config: InferenceConfig): Boolean {
+        val current = _state.value
+        return !(current is ModelLoadState.Ready && current.modelId == modelId && current.config.requiresReload(config) == ReloadScope.NONE)
+    }
+
     /** The generation of the most recent state-changing operation issued. */
     fun currentGeneration(): Long = generationCounter.get()
 

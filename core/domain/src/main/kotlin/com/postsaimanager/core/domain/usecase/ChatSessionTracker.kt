@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.usecase
 
+import com.postsaimanager.core.domain.ai.ChatActivityGate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -34,12 +35,17 @@ data class ChatSessionEnded(val conversationId: String, val reason: ChatSessionE
  *
  * [ended] is the hook for what happens at the end of a visit: `SessionNotesCollector` writes the notes of the document memory
  * there. Pure state and a clock, so the rules are unit-tested with a fake clock.
+ *
+ * It is also the one notion of "a chat is active" ([ChatActivityGate]): a chat is active from the moment a session begins (before the
+ * model is even loaded for it) until the session ends, by leaving the screen or after [idleMs] with nothing said. Quiet model work
+ * (a reading, a summary, the notes) waits for that; there is no second, shorter idle clock that could take the model between two
+ * messages of a live visit.
  */
 @Singleton
 class ChatSessionTracker internal constructor(
     private val clock: () -> Long,
     val idleMs: Long,
-) {
+) : ChatActivityGate {
 
     @Inject
     constructor() : this(System::currentTimeMillis, IDLE_MS)
@@ -114,6 +120,13 @@ class ChatSessionTracker internal constructor(
     /** Whether [conversationId] has a live session (not counting idleness that was not noticed yet). */
     @Synchronized
     fun isLive(conversationId: String): Boolean = conversationId in live
+
+    /** True while any chat has a live session that was used within [idleMs] (an idle one that nobody ended yet does not count). */
+    @Synchronized
+    override fun isChatActive(): Boolean {
+        val now = clock()
+        return live.values.any { now - it < idleMs }
+    }
 
     private fun end(conversationId: String, reason: ChatSessionEnd) {
         live.remove(conversationId)

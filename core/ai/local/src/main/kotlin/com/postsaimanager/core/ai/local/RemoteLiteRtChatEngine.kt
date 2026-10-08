@@ -53,8 +53,9 @@ import javax.inject.Singleton
  * - **Background reading waits for a chat answer.** A reply streams under the shared mutex, and on the service's single
  *   inference thread, so a llama.cpp read queued behind it starts when the answer is over. Between two messages the model sits
  *   idle, and a quiet job that took it over then would cost the next message a reload and a full re-read of the conversation
- *   (tens of seconds on a phone CPU), so the chat also counts as active for a while after its last use
- *   ([ChatActivityTracker], read through [InferenceChatActivityGate]); quiet jobs wait for it to end, and are run again, not dropped.
+ *   (tens of seconds on a phone CPU), so the chat counts as active for its whole session ([ChatSessionTracker], the one clock, read
+ *   through [com.postsaimanager.core.domain.ai.ChatActivityGate]); quiet jobs wait for it to end, and are run again, not dropped.
+ * - **The chat's load waits for a reading's call, never cuts it** ([ChatLoadPriority]).
  */
 @Singleton
 class RemoteLiteRtChatEngine @Inject constructor(
@@ -171,8 +172,15 @@ class RemoteLiteRtChatEngine @Inject constructor(
         }
     }
 
-    override suspend fun load(modelPath: String, config: InferenceConfig): PamResult<AiCapabilities> =
-        coordinator.load(modelPath, config.forLiteRt())
+    private val loadPriority = ChatLoadPriority(connection.engineMutex)
+
+    override suspend fun load(modelPath: String, config: InferenceConfig): PamResult<AiCapabilities> {
+        val wanted = config.forLiteRt()
+        // A reading's native call in flight is waited for, never cut (see [ChatLoadPriority]); the other runtime having taken the
+        // model since (a Qwen reading) counts as a replacement too, whatever this coordinator last recorded.
+        val replaces = coordinator.wouldReplaceResident(modelPath, wanted) || connection.resident != ModelRuntime.LITERT_LM
+        return loadPriority.load(replaces) { coordinator.load(modelPath, wanted) }
+    }
 
     /**
      * [config] with every llama.cpp-only setting fixed, so that a change the engine ignores (threads, batch, mmap, flash
@@ -198,7 +206,6 @@ class RemoteLiteRtChatEngine @Inject constructor(
         systemPrompt: String,
         history: List<AiChatMessage>,
     ): Boolean {
-        connection.chatActivity.touch()
         if (isChatSessionPrimed(conversationId)) return false
         // Held across the call: a read must not slip in and replace the model between opening the session and the reply.
         return connection.engineMutex.withLock {
@@ -240,7 +247,6 @@ class RemoteLiteRtChatEngine @Inject constructor(
         // Another caller holds the model (a document being read, a reply in flight): this is never worth queueing behind, nor
         // worth taking the model over for. The first message prepares the conversation itself, as it always did.
         if (connection.engineMutex.isLocked) return
-        connection.chatActivity.touch()
         connection.engineMutex.withLock {
             warmingUp = true
             try {
@@ -288,8 +294,6 @@ class RemoteLiteRtChatEngine @Inject constructor(
             if (withTimeoutOrNull(WARM_UP_TIMEOUT_MS) { finished.await() } == null) {
                 withContext(NonCancellable + ioDispatcher) { runCatching { remote.cancelLiteRtWarmUp() } }
             }
-            // The idle window runs from the end of the work, as after a reply.
-            connection.chatActivity.touch()
         } catch (e: CancellationException) {
             // The user left the chat, or the app went to the background: the service stops what it can of the warm-up.
             withContext(NonCancellable + ioDispatcher) { runCatching { remote.cancelLiteRtWarmUp() } }
@@ -304,7 +308,6 @@ class RemoteLiteRtChatEngine @Inject constructor(
         connection.engineMutex.serialised(replyFlow(userText, request))
 
     private fun replyFlow(userText: String, request: AiRequest): Flow<String> = callbackFlow {
-        connection.chatActivity.touch()
         val remote = withContext(ioDispatcher) { connection.connect() } ?: run {
             close(IllegalStateException("The AI engine is not running."))
             return@callbackFlow
@@ -350,8 +353,6 @@ class RemoteLiteRtChatEngine @Inject constructor(
             }
 
             override fun onComplete() {
-                // The idle window runs from the end of the answer: the person reads it before the next message.
-                connection.chatActivity.touch()
                 logTiming(startedNanos, chunks)
                 close()
             }
