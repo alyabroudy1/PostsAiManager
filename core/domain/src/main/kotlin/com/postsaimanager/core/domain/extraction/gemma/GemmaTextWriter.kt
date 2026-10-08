@@ -105,9 +105,12 @@ class GemmaTextWriter @Inject constructor(
             }
             if (keyInfo == null) {
                 val facts = parsed.second.map { KeyInfoFormat.Fact(it.first, it.second) }
-                keyInfo = keyInfos.verify(facts, request.ocrText, request.facts.values() + request.knownValues).also {
-                    if (it.size < facts.size) notes += "${facts.size - it.size} key fact(s) dropped: not in the letter, a repeat of a read value, or over the limit"
-                }
+                val report = keyInfos.report(facts, request.ocrText, request.facts.values() + request.knownValues)
+                keyInfo = report.kept
+                // The reasons are logged (labels and reason codes only, never a value of the letter): no key facts is either a model that
+                // listed none or facts the verifier dropped, and the log must tell which.
+                notes += "key facts: the model listed ${facts.size}, kept ${report.kept.size}" +
+                    report.dropped.joinToString(prefix = if (report.dropped.isEmpty()) "" else ", dropped [", postfix = if (report.dropped.isEmpty()) "" else "]") { "${it.label}: ${it.reason}" }
             }
             // The summary was written by the reading's first turn: only the key facts were asked, and nothing of a summary is stored here.
             if (!request.writeSummary) {

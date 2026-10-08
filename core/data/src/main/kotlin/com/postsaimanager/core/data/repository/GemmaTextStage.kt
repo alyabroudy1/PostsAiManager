@@ -89,6 +89,7 @@ internal class GemmaTextStage(
                 is GemmaTextOutcome.Written -> o
             }
         }
+        written.notes.forEach { Log.i(TAG, "gemma texts of $documentId: $it") }
 
         // The key facts are open values (extras), stored under the label the model gave them; a label a stored field already has is
         // stored under its identity instead, which is unique by construction (the screen words it).

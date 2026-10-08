@@ -48,6 +48,17 @@ object PartyNames {
     /** [mentions] for a letter given as text. */
     fun mentions(letterText: String, profileName: String): Boolean = mentions(tokenSet(letterText), profileName)
 
+    /**
+     * Whether the letter prints the person's whole name as one unbroken run of tokens (a name of two or more tokens: a lone first name
+     * proves nothing), in the order the profile has it or reversed ("Mustermann, Maria" for "Maria Mustermann"). A stricter check than [mentions].
+     */
+    fun printsFullName(letterText: String, profileName: String): Boolean {
+        val letter = tokens(letterText)
+        val name = tokens(profileName)
+        if (name.size < 2) return false
+        return containsRun(letter, name) || containsRun(letter, name.reversed())
+    }
+
     private const val MIN_TOKEN = 2
 
     private fun tokens(text: String): List<String> =

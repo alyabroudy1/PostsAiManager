@@ -1,7 +1,10 @@
 package com.postsaimanager.core.domain.extraction.gemma
 
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
+import com.postsaimanager.core.domain.extraction.candidates.LabelValuePairs
+import com.postsaimanager.core.domain.extraction.layout.AvatarGlyph
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
+import com.postsaimanager.core.domain.extraction.v2.BlockZones
 import com.postsaimanager.core.domain.extraction.layout.LetterLayoutAnalyzer
 import com.postsaimanager.core.domain.extraction.text.SummaryGate
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
@@ -111,6 +114,7 @@ class GemmaReadingUseCase @Inject constructor(
             letterDate = { source.lastMerged?.set?.letterDate },
             onSummary = early,
             keepOpenAs = keepOpenAs,
+            labelPairs = { runCatching { LabelValuePairs.of(AvatarGlyph.strip(pages), BlockZones.of(AvatarGlyph.strip(pages), layout)) }.getOrDefault(emptyList()) },
         )
         // The Gemma path's own verification: the checked reading ([GemmaReadingVerifier], in the interpreter) mapped as it is, with no
         // second pass of the scoring reading's caps over an answer the model gave with the page in view.

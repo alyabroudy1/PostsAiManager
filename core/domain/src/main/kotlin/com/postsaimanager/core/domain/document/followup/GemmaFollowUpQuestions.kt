@@ -11,6 +11,7 @@ import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.domain.document.contacts.SameContactDecision
 import com.postsaimanager.core.domain.document.contacts.SameContactProfile
 import com.postsaimanager.core.domain.document.contacts.SameContactQuestion
+import com.postsaimanager.core.domain.document.list.PartyNames
 import com.postsaimanager.core.domain.document.people.ConcernedPeopleProfile
 import com.postsaimanager.core.domain.form.SubjectCandidate
 import com.postsaimanager.core.domain.organisation.DetailOwner
@@ -46,18 +47,28 @@ class GemmaFollowUpQuestions @Inject constructor(
     private val contactProfile: SameContactProfile,
     private val detailProfile: DetailOwnerProfile,
     private val matterProfile: SameMatterProfile,
+    private val log: AfterReadingLog = AfterReadingLog.SILENT,
 ) : FollowUpQuestions {
 
     override suspend fun concernedPeople(documentId: String, letter: String, members: List<SubjectCandidate>): PamResult<Set<String>> {
         val listed = members.take(peopleProfile.maxMembers)
         if (listed.isEmpty()) return PamResult.Success(emptySet())
-        val ask = FollowUpPrompts.concerned(listed, peopleProfile.baselineName)
+        // The members whose whole name the letter prints: stated in the question as a fact, and the one thing that keeps a member when
+        // the model also chose the made-up option (a model that picked "a relative" beside the named child was not guessing the child).
+        val printed = listed.filter { PartyNames.printsFullName(letter, it.name) }.map { it.profileId }.toSet()
+        val ask = FollowUpPrompts.concerned(listed, peopleProfile.baselineName, printed)
         val json = when (val answer = converse(documentId, ask) { letter.take(peopleProfile.maxLetterChars) }) {
             is PamResult.Error -> return answer
             is PamResult.Success -> answer.data
         }
         val chosen = FollowUpPrompts.choices(json, ask) ?: return unusable()
-        val ids = FollowUpPrompts.matchedAll(chosen, ask).map { listed[ask.candidateIds.indexOf(it)].profileId }
+        val named = if (FollowUpPrompts.DECOY in chosen) {
+            ask.candidateIds.filter { it in chosen && listed[ask.candidateIds.indexOf(it)].profileId in printed }
+        } else {
+            FollowUpPrompts.matchedAll(chosen, ask)
+        }
+        val ids = named.map { listed[ask.candidateIds.indexOf(it)].profileId }
+        log.answered(documentId, "concerned people", "offered=${ask.candidateIds.size} printedInFull=${printed.size} answer=$chosen kept=${ids.size}")
         return PamResult.Success(ids.toSet())
     }
 

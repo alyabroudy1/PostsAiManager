@@ -68,7 +68,7 @@ class GemmaTextWriterTest {
         val out = write(generator, request(known = listOf("4402917"))) as GemmaTextOutcome.Written
 
         assertThat(out.keyInfo.map { it.label }).containsExactly("Telefon")
-        assertThat(out.notes.any { it.contains("2 key fact") }).isTrue()
+        assertThat(out.notes.any { it.contains("kept 1") && it.contains("Kundennummer: SAME_AS_READ_VALUE") && it.contains("Konto: NOT_IN_LETTER") }).isTrue()
     }
 
     @Test

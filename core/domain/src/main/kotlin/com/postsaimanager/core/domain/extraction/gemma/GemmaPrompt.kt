@@ -24,9 +24,10 @@ object GemmaPrompt {
     const val MIN_CHARS = 3_000
 
     /** What the reader is asked first when it starts with a summary: free text, written before anything else so it can be shown at once. */
-    const val SUMMARY_ASK = "\nFIRST, before anything else, and in plain text (not JSON): write a short summary of this document, one or two sentences of at most " +
-        "${SummaryLimits.MAX_CHARS} characters, in the language the document is written in, saying what it is about and what it asks of its reader, if anything. " +
-        "Use only what the letter says. Answer with the summary only.\n"
+    const val SUMMARY_ASK = "\nFIRST, before anything else, and in plain text (not JSON): write a short summary of this document, exactly ONE or TWO short sentences of at most " +
+        "${SummaryLimits.MAX_CHARS} characters in all, in the language the document is written in, saying what it is about and what it asks of its reader, if anything. " +
+        "This is a hard requirement: about this long, no longer: \"The tax office confirms it received your tax return and asks for no further documents.\" " +
+        "No lists, no details, no second paragraph. Use only what the letter says. Answer with the summary only.\n"
 
     /** The two messages of a reading that starts with a summary: [first] is the letter and the question for the summary, [second] the field guide. */
     class Turns(val first: String, val second: String)
@@ -120,7 +121,7 @@ object GemmaPrompt {
             append("- ${Field.DATES}, ${Field.AMOUNTS}: entries {${Item.VALUE}: the value as printed (a date as yyyy-MM-dd, an amount as 1234.50 EUR), ${Item.MEANING}: the code of what it means}.\n")
             append("- ${Field.REFERENCES}: entries {${Item.VALUE}: each number as printed, ${Item.KIND}: the code of its kind (the account is the iban kind)}.\n")
         } else {
-            append("- ${Field.PARTIES}: one entry per party that exists: {${Item.WHO}: who, ${Item.ID}: a name candidate id or a line id, ${Item.KIND}: its kind code}.\n")
+            append("- ${Field.PARTIES}: one entry per party that exists: {${Item.WHO}: who, ${Item.ID}: a name candidate id (always prefer one), or a line id only when no candidate holds the name, ${Item.KIND}: its kind code}.\n")
             append("- ${Field.DATES}, ${Field.AMOUNTS}: entries {${Item.ID}: the candidate, ${Item.MEANING}: the code of what it means}. " +
                 "Take the meaning from the letter's own words next to the value (the label); a value the letter does not describe, such as a line of a table, " +
                 "a unit price or a part of a total, is the \"none of these\" code. Only one date can be the date of the letter.\n")

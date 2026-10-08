@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.extraction.gemma
 
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
+import com.postsaimanager.core.domain.extraction.candidates.LabelValuePair
 import com.postsaimanager.core.domain.extraction.layout.LayoutLine
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
@@ -11,6 +12,8 @@ import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
  * put it ([zone], the position on its page) and its text. The zone and the position are context for the model, never a rule.
  *
  * @property tags what ML Kit's entity extraction says about the line (`address`): context as well
+ * @property isLabel the layout says this line is the label of a label/value pair ("Ansprechpartnerin" over a name): never a party itself
+ * @property valueLineId the line right below a label that is its value (the party the label announces), when the letter has one
  */
 data class GemmaLine(
     val id: String,
@@ -20,6 +23,8 @@ data class GemmaLine(
     val y: Float,
     val text: String,
     val tags: List<String> = emptyList(),
+    val isLabel: Boolean = false,
+    val valueLineId: String? = null,
 )
 
 /**
@@ -70,10 +75,16 @@ object GemmaLetterBuilder {
 
     /**
      * @param addressLines indexes into [linesOf] of the lines ML Kit's entity extraction says hold an address
+     * @param labelPairs the label/value pairs the layout found ([com.postsaimanager.core.domain.extraction.candidates.LabelValuePairs])
      */
-    fun build(layout: LetterLayout, offered: OfferedCandidates, addressLines: Set<Int> = emptySet()): GemmaLetter {
+    fun build(
+        layout: LetterLayout,
+        offered: OfferedCandidates,
+        addressLines: Set<Int> = emptySet(),
+        labelPairs: List<LabelValuePair> = emptyList(),
+    ): GemmaLetter {
         val source = linesOf(layout)
-        val lines = source.take(MAX_LINES).mapIndexed { i, l ->
+        val plain = source.take(MAX_LINES).mapIndexed { i, l ->
             GemmaLine(
                 id = "L${i + 1}",
                 page = l.page,
@@ -84,12 +95,21 @@ object GemmaLetterBuilder {
                 tags = if (i in addressLines) listOf(TAG_ADDRESS) else emptyList(),
             )
         }
+        val lines = plain.mapIndexed { i, line ->
+            val pair = labelPairs.firstOrNull { it.page == line.page && same(it.label, line.text) } ?: return@mapIndexed line
+            val value = pair.value?.let { v -> plain.drop(i + 1).firstOrNull { it.page == line.page && same(v, it.text) }?.id }
+            line.copy(isLabel = true, valueLineId = value)
+        }
         val candidates = offered.rows.map { row ->
             val c = row.candidate
             GemmaCandidate(c.id, c.kind, c.raw.trim(), c.normalized, c.label.ifBlank { row.nearLabels.firstOrNull().orEmpty() }, lineIdOf(c, source, lines.size))
         }
         return GemmaLetter(lines, candidates)
     }
+
+    private fun same(a: String, b: String) = a.trim().replace(WHITE, " ") == b.trim().replace(WHITE, " ")
+
+    private val WHITE = Regex("\\s+")
 
     /**
      * The line [c] was found on: on its page, the nearest line (to the candidate's box) whose text holds the printed value, or else its

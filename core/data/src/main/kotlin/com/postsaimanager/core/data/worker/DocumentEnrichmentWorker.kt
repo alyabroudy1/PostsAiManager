@@ -63,7 +63,12 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
                 is PamResult.Success -> Result.success()
                 is PamResult.Error -> {
                     Log.w(TAG_LOG, "people check failed for $documentId: ${result.error.userMessage}")
-                    Result.failure()
+                    // The model was busy or gave no answer: not lost, asked again after the usual short wait (bounded). A document that is gone
+                    // or has no text can never be answered.
+                    val attempt = inputData.getInt(KEY_ATTEMPT, 0)
+                    val final = result.error is com.postsaimanager.core.common.result.PamError.FileNotFound ||
+                        result.error is com.postsaimanager.core.common.result.PamError.OcrFailed
+                    if (final || attempt >= MAX_PEOPLE_ATTEMPTS) Result.failure() else tryAgainSoon(documentId, attempt + 1)
                 }
             }
         }
@@ -82,10 +87,11 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
      * unique name (so a `KEEP` or `REPLACE` of the pipeline still finds it). The wait is the same every time: `Result.retry()` would
      * have WorkManager double it up to five hours, and with Doze the second stage then sat unwritten ("Summary coming...") for hours.
      */
-    private fun tryAgainSoon(documentId: String): Result {
+    private fun tryAgainSoon(documentId: String, attempt: Int = 0): Result {
         val people = inputData.getBoolean(KEY_PEOPLE_CHECK, false)
         val name = if (people) peopleWorkName(documentId) else workName(documentId)
-        WorkManager.getInstance(applicationContext).enqueueUniqueWork(name, ExistingWorkPolicy.APPEND_OR_REPLACE, again(inputData, people))
+        val input = if (attempt == 0) inputData else Data.Builder().putAll(inputData).putInt(KEY_ATTEMPT, attempt).build()
+        WorkManager.getInstance(applicationContext).enqueueUniqueWork(name, ExistingWorkPolicy.APPEND_OR_REPLACE, again(input, people))
         return Result.success()
     }
 
@@ -94,6 +100,10 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
 
         /** How long a blocked second stage waits before it looks again: short and the same every time. */
         const val RETRY_DELAY_SECONDS = 60L
+
+        /** How many times a people check the model could not answer is queued again (one wait each) before it is left for the next backfill. */
+        const val MAX_PEOPLE_ATTEMPTS = 20
+        const val KEY_ATTEMPT = "attempt"
 
         /** The next attempt of a blocked work: the same input, the same tag, queued to start after [RETRY_DELAY_SECONDS]. */
         internal fun again(input: Data, people: Boolean): OneTimeWorkRequest =

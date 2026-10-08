@@ -13,6 +13,10 @@ class AndroidAfterReadingLog @Inject constructor() : AfterReadingLog {
         Log.w(TAG, "$question for $documentId is pending (asked again on the next reading): $reason")
     }
 
+    override fun answered(documentId: String, question: String, detail: String) {
+        Log.i(TAG, "$question for $documentId answered: $detail")
+    }
+
     private companion object {
         const val TAG = "AfterReading"
     }

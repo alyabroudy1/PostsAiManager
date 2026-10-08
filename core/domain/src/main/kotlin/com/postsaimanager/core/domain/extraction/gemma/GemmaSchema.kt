@@ -106,9 +106,12 @@ object GemmaSchema {
     fun build(letter: GemmaLetter, vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT): String =
         (if (letter.isImageOnly) imageOnly(vocab) else forLetter(letter, vocab)).toString()
 
-    /** The ids a party may name: the letter's name candidates and every line, then "none". */
+    /**
+     * The ids a party may name: the letter's name candidates first, then the lines (the fallback for a name no candidate holds), then
+     * "none". The label of a label/value pair ("Ansprechpartnerin") is no line to choose: its value is the party.
+     */
     fun partyIds(letter: GemmaLetter): List<String> =
-        letter.candidatesOf(CandidateKind.NAME).map { it.id } + letter.lines.map { it.id } + GemmaVocabulary.NONE
+        letter.candidatesOf(CandidateKind.NAME).map { it.id } + letter.lines.filterNot { it.isLabel }.map { it.id } + GemmaVocabulary.NONE
 
     fun dateIds(letter: GemmaLetter): List<String> = letter.candidatesOf(CandidateKind.DATE, CandidateKind.DATETIME).map { it.id }
 

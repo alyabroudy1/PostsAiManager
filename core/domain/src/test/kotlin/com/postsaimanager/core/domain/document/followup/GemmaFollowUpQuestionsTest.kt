@@ -162,9 +162,39 @@ class GemmaFollowUpQuestionsTest {
         answers("""{"answers":["none"]}""")
         val nobody = (gemma.concernedPeople("d1", letter, listOf(maria)) as PamResult.Success).data
 
-        assertThat(guessing).isEmpty()
+        // The letter prints "Maria Mustermann" in full: choosing the made-up option beside her does not drop her.
+        assertThat(guessing).containsExactly("maria")
         assertThat(sure).containsExactly("maria")
         assertThat(nobody).isEmpty()
+    }
+
+    @Test
+    @DisplayName("a member whose whole name the letter does not print is not kept when the model also chose the made-up candidate")
+    fun `made-up candidate drops a member the letter does not print in full`() = runTest {
+        theReaderReads()
+        answers("""{"answers":["P1","Z"]}""")
+
+        val guessing = (gemma.concernedPeople("d1", letter, listOf(SubjectCandidate("other", "Maria Sonnenschein"))) as PamResult.Success).data
+
+        assertThat(guessing).isEmpty()
+    }
+
+    @Test
+    @DisplayName("the question states which members' exact names the letter prints, and the answer is logged")
+    fun `the addressee's exact name is stated and chosen`() = runTest {
+        theReaderReads()
+        val recording = RecordingLog()
+        val withLog = GemmaFollowUpQuestions(
+            engine, provider, documents, ConcernedPeopleProfile(), SameContactProfile(), DetailOwnerProfile(), SameMatterProfile(), recording,
+        )
+        answers("""{"answers":["P1"]}""")
+
+        val child = SubjectCandidate("maria", "Maria Mustermann", com.postsaimanager.core.model.Relationship.CHILD)
+        val chosen = (withLog.concernedPeople("d1", letter, listOf(child)) as PamResult.Success).data
+
+        assertThat(chosen).containsExactly("maria")
+        assertThat(engine.followUpRequests.last().prompt).contains("the letter prints this exact name")
+        assertThat(recording.answers.single()).contains("answer=[P1]")
     }
 
     @Test
@@ -309,6 +339,10 @@ class GemmaFollowUpQuestionsTest {
 
     private class RecordingLog : AfterReadingLog {
         val lines = mutableListOf<String>()
+        val answers = mutableListOf<String>()
+        override fun answered(documentId: String, question: String, detail: String) {
+            answers += detail
+        }
         override fun pending(documentId: String, question: String, reason: String) {
             lines += "$documentId/$question"
         }

@@ -66,4 +66,14 @@ interface FollowUpQuestions {
 interface AfterReadingLog {
 
     fun pending(documentId: String, question: String, reason: String)
+
+    /** What the model answered to [question] and what was kept of it: option ids only (`P1`, `Z`, `none`), never a word of the letter. */
+    fun answered(documentId: String, question: String, detail: String) {}
+
+    companion object {
+        /** Logs nothing: for a caller that has no log. */
+        val SILENT: AfterReadingLog = object : AfterReadingLog {
+            override fun pending(documentId: String, question: String, reason: String) {}
+        }
+    }
 }

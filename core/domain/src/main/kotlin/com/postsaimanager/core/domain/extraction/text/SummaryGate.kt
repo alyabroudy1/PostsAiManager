@@ -18,12 +18,12 @@ import com.postsaimanager.core.domain.extraction.v2.QuoteVerifier
  *    [COPY_SHARE] of its words: small models copy a line, and a copied line is not a summary. Overlap alone is no copy: a short
  *    letter's faithful summary reuses most of its words.
  *
- * An empty answer and a runaway are rejected; one a little over [SummaryLimits.MAX_CHARS] is trimmed to its last whole sentence.
+ * An empty answer is rejected; one over [SummaryLimits.MAX_CHARS] is trimmed to its last whole sentence, or to its last clause with "…".
  */
 class SummaryGate {
 
     /** Why an answer was rejected. */
-    enum class Reason { EMPTY, TOO_LONG, UNVERIFIED_NUMBER, UNVERIFIED_NAME, COPIED }
+    enum class Reason { EMPTY, UNVERIFIED_NUMBER, UNVERIFIED_NAME, COPIED }
 
     sealed interface Verdict {
         data class Accepted(val text: String) : Verdict
@@ -37,12 +37,10 @@ class SummaryGate {
     fun check(answer: String, ocrText: String, verifiedValues: List<String>): Verdict {
         val full = answer.trim().replace(WHITESPACE, " ")
         if (full.isEmpty()) return Verdict.Rejected(Reason.EMPTY)
-        // A summary over the limit (the model writes three sentences when it is asked for one) is cut to its last whole sentence within the
-        // limit; one with no sentence end inside the limit is refused. Only an endless text (the model looping) is refused outright.
-        val text = if (full.length <= SummaryLimits.MAX_CHARS) full else {
-            if (full.length > SummaryLimits.MAX_CHARS * SummaryLimits.RUNAWAY_FACTOR) return Verdict.Rejected(Reason.TOO_LONG)
-            trimToSentence(full) ?: return Verdict.Rejected(Reason.TOO_LONG)
-        }
+        // A summary over the limit (the model writes a paragraph when it is asked for one sentence) is cut to its last whole sentence within
+        // the limit; when even the first sentence is longer, at the last clause boundary (or word) within it, with an ellipsis. Length alone
+        // never rejects a summary: it is only checked for copying and for facts the letter does not hold.
+        val text = if (full.length <= SummaryLimits.MAX_CHARS) full else trimToSentence(full) ?: trimToClause(full)
         val corpus = ocrText + "\n" + verifiedValues.joinToString("\n")
         unverifiedNumber(text, corpus)?.let { return Verdict.Rejected(Reason.UNVERIFIED_NUMBER, it) }
         unverifiedName(text, corpus)?.let { return Verdict.Rejected(Reason.UNVERIFIED_NAME, it) }
@@ -59,6 +57,23 @@ class SummaryGate {
             if (endsHere && i + 1 <= SummaryLimits.MAX_CHARS) return text.substring(0, i + 1).takeIf { it.length >= MIN_TRIMMED_CHARS }
         }
         return null
+    }
+
+    /**
+     * [text] cut at the last clause boundary (a comma or semicolon, in any script) within [SummaryLimits.MAX_CHARS] - 1, then "…"; with no
+     * boundary far enough in, at the last space; with none, a hard cut. Never empty, never over the limit.
+     */
+    private fun trimToClause(text: String): String {
+        val room = SummaryLimits.MAX_CHARS - 1
+        val window = text.take(room)
+        val clause = window.indexOfLast { it in CLAUSE_MARKS }
+        val space = window.lastIndexOf(' ')
+        val cut = when {
+            clause >= MIN_TRIMMED_CHARS -> clause
+            space >= MIN_TRIMMED_CHARS -> space
+            else -> window.length
+        }
+        return window.substring(0, cut).trimEnd(*CLAUSE_MARKS, ' ') + "…"
     }
 
     // ── numbers ──────────────────────────────────────────────────────────────
@@ -164,6 +179,7 @@ class SummaryGate {
         const val MIN_TRIMMED_CHARS = 30
 
         private val SENTENCE_MARKS = charArrayOf('.', '!', '?', '؟', '。')
+        private val CLAUSE_MARKS = charArrayOf(',', ';', '،', '؛', '、')
 
         private val WHITESPACE = Regex("\\s+")
         private val DIGITS = Regex("\\d+")

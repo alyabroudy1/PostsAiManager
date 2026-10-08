@@ -27,21 +27,40 @@ class KeyInfoVerifier {
      * @param ocrText the letter's text, the grounding reference
      * @param readValues the values the reading already holds (the read fields), whose duplicates are dropped
      */
-    fun verify(facts: List<KeyInfoFormat.Fact>, ocrText: String, readValues: Collection<String>): List<Kept> {
-        val taken = readValues.mapTo(mutableSetOf()) { key(it) }.apply { remove("") }
+    fun verify(facts: List<KeyInfoFormat.Fact>, ocrText: String, readValues: Collection<String>): List<Kept> =
+        report(facts, ocrText, readValues).kept
+
+    /** Why a fact was dropped; logged so a reading with no key facts can be told from a model that listed none. */
+    enum class DropReason { EMPTY, LABEL_SHAPE, NOT_IN_LETTER, SAME_AS_READ_VALUE, SAME_AS_EARLIER_FACT, LIST_FULL }
+
+    /** A fact that was dropped, by its label (never the value: it is a line of the letter) and why. */
+    data class Dropped(val label: String, val reason: DropReason)
+
+    /** What [report] decided: the facts kept, and each dropped one with its reason. */
+    data class Report(val kept: List<Kept>, val dropped: List<Dropped>)
+
+    /** [verify] with the reason of every drop. */
+    fun report(facts: List<KeyInfoFormat.Fact>, ocrText: String, readValues: Collection<String>): Report {
+        val read = readValues.mapTo(mutableSetOf()) { key(it) }.apply { remove("") }
+        val earlier = mutableSetOf<String>()
         val letterDigits = digitRuns(ocrText)
         val kept = mutableListOf<Kept>()
+        val dropped = mutableListOf<Dropped>()
         for (fact in facts) {
-            if (kept.size >= KeyInfoFormat.MAX_FACTS) break
             val label = fact.label.trim()
             val value = fact.value.trim()
-            if (label.isEmpty() || value.isEmpty()) continue
-            if (!KeyInfoFormat.isLabelShape(label)) continue
-            if (!grounded(value, ocrText, letterDigits)) continue
-            if (!taken.add(key(value))) continue
-            kept += Kept(label, value)
+            val reason = when {
+                kept.size >= KeyInfoFormat.MAX_FACTS -> DropReason.LIST_FULL
+                label.isEmpty() || value.isEmpty() -> DropReason.EMPTY
+                !KeyInfoFormat.isLabelShape(label) -> DropReason.LABEL_SHAPE
+                !grounded(value, ocrText, letterDigits) -> DropReason.NOT_IN_LETTER
+                key(value) in read -> DropReason.SAME_AS_READ_VALUE
+                !earlier.add(key(value)) -> DropReason.SAME_AS_EARLIER_FACT
+                else -> null
+            }
+            if (reason == null) kept += Kept(label, value) else dropped += Dropped(label, reason)
         }
-        return kept
+        return Report(kept, dropped)
     }
 
     private fun grounded(value: String, ocrText: String, letterDigits: Set<String>): Boolean {

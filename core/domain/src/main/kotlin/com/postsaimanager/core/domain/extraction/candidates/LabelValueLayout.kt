@@ -26,6 +26,23 @@ internal object LabelValueLayout {
 
     private val WHITE = Regex("\\s+")
 
+    /** Blocks whose left edges are within this step of one another (a fraction of the page width) share a column. */
+    private const val LEFT_EDGE_STEP = 0.02f
+
+    /** Each label line of [ctx] with the line right below it that continues it (its value, when it has one). */
+    fun pairs(ctx: ExtractionContext): List<LabelValuePair> {
+        val stacked = labelLines(ctx).sortedBy { it.order }.map { LabelValuePair(it.page, it.text, ctx.continuation(it)?.text) }
+        // Side by side (an information block printed as two columns, the label left of its value on the same row): word-shaped blocks
+        // with a block to their right, at least two of them sharing one left edge.
+        val sideBySide = ctx.activeLines
+            .filter { it.zone == null && it.block != null && wordShaped(it.text) }
+            .mapNotNull { line -> ctx.rowNeighbour(line, left = false)?.let { line to it } }
+            .groupBy { (line, _) -> line.page to Math.round(line.block!!.bounds.left / LEFT_EDGE_STEP) }
+            .values.filter { it.size >= MIN_PAIRS }.flatten()
+            .map { (line, value) -> LabelValuePair(line.page, line.text, value) }
+        return (stacked + sideBySide).distinctBy { it.page to it.label }
+    }
+
     /** The lines of [ctx] that are the label of a label/value pair. */
     fun labelLines(ctx: ExtractionContext): Set<SourceLine> {
         val labels = HashSet<SourceLine>()
@@ -79,4 +96,14 @@ internal object LabelValueLayout {
     }
 
     private fun dataShaped(t: String): Boolean = t.any { it.isDigit() } || t.contains('@') || t.contains("://") || t.contains("www.", true)
+}
+
+/** A label line of an information block and the line below it that is its value ([value] null when none follows), as printed, on [page]. */
+data class LabelValuePair(val page: Int, val label: String, val value: String?)
+
+/** The label/value pairs of a letter, found by layout alone ([LabelValueLayout]): the reader is told which lines are labels, never names. */
+object LabelValuePairs {
+
+    fun of(pages: List<List<com.postsaimanager.core.model.OcrBlock>>, zones: Map<BlockKey, BlockZone>): List<LabelValuePair> =
+        LabelValueLayout.pairs(ExtractionContext.ofPages(pages, zones))
 }

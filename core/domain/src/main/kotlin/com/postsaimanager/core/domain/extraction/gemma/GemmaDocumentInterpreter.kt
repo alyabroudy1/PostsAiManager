@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.extraction.gemma
 
+import com.postsaimanager.core.domain.extraction.candidates.LabelValuePair
 import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.InterpretationOutcome
@@ -39,6 +40,7 @@ class GemmaDocumentInterpreter(
     private val found: GemmaFoundValues = GemmaFoundValues(),
     private val onSummary: (suspend (String) -> Unit)? = null,
     private val keepOpenAs: String? = null,
+    private val labelPairs: () -> List<LabelValuePair> = { emptyList() },
 ) : DocumentInterpreter {
 
     override val name: String = "gemma-reader"
@@ -63,7 +65,7 @@ class GemmaDocumentInterpreter(
         lines.clear()
         decision = null
         val layout = request.layout ?: return failed("the reader needs the letter's layout")
-        val letter = GemmaLetterBuilder.build(layout, request.offered, addressLines())
+        val letter = GemmaLetterBuilder.build(layout, request.offered, addressLines(), labelPairs())
         if (letter.isImageOnly) return failed("the letter has no text lines")
         val category = request.forcedFamily?.let(schema::categoryOf)?.phrase
 

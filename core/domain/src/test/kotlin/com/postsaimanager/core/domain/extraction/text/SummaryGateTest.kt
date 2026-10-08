@@ -141,9 +141,8 @@ class SummaryGateTest {
     }
 
     @Test
-    fun `an empty or runaway answer is rejected`() {
+    fun `an empty answer is rejected`() {
         assertThat(reason("  ")).isEqualTo(SummaryGate.Reason.EMPTY)
-        assertThat(reason("wort ".repeat(60))).isEqualTo(SummaryGate.Reason.TOO_LONG)
     }
 
     @Test
@@ -169,10 +168,28 @@ class SummaryGateTest {
     }
 
     @Test
-    fun `an over-long summary with no sentence end inside the limit, or a runaway, is still rejected`() {
-        assertThat(reason("Das Jobcenter Musterstadt bestätigt, dass der Antrag ".repeat(6), DeviceLetters.jobcenterText, emptyList()))
-            .isEqualTo(SummaryGate.Reason.TOO_LONG)
-        assertThat(reason("Der Antrag ist eingegangen. ".repeat(80), DeviceLetters.jobcenterText, emptyList())).isEqualTo(SummaryGate.Reason.TOO_LONG)
+    fun `a long first sentence is cut at the last clause boundary with an ellipsis, never rejected for its length`() {
+        val answer = "Das Jobcenter Musterstadt bestätigt, dass der Antrag auf Bürgergeld am 01.09.2026 eingegangen ist, und bittet darum, " +
+            "bei allen Rückfragen die BG-Nummer 12345BG0007777 anzugeben, weil sonst keine Zuordnung möglich ist, und meldet sich später mit der Entscheidung über den Antrag."
+        assertThat(answer.length).isGreaterThan(SummaryLimits.MAX_CHARS)
+
+        val verdict = verdictOf(answer, DeviceLetters.jobcenterText) as SummaryGate.Verdict.Accepted
+
+        assertThat(verdict.text.length).isAtMost(SummaryLimits.MAX_CHARS)
+        assertThat(verdict.text).endsWith("…")
+        assertThat(verdict.text).doesNotContain(",…")
+    }
+
+    @Test
+    fun `an 1100-character German summary is accepted trimmed, not rejected as too long`() {
+        val sentence = "Das Jobcenter Musterstadt bestätigt, dass der Antrag auf Bürgergeld am 01.09.2026 eingegangen ist und geprüft wird. "
+        val answer = (sentence.repeat(10)).trim().take(1100)
+        assertThat(answer.length).isAtLeast(1000)
+
+        val verdict = verdictOf(answer, DeviceLetters.jobcenterText)
+
+        assertThat(verdict).isInstanceOf(SummaryGate.Verdict.Accepted::class.java)
+        assertThat((verdict as SummaryGate.Verdict.Accepted).text.length).isAtMost(SummaryLimits.MAX_CHARS)
     }
 
     @Test

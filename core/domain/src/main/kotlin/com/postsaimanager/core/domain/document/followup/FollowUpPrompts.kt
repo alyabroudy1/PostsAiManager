@@ -57,12 +57,16 @@ object FollowUpPrompts {
     private const val KEY_ANSWERS = "answers"
 
     /** Which of [members] the letter is for or about (several may be). */
-    fun concerned(members: List<SubjectCandidate>, decoyName: String): FollowUpAsk {
+    fun concerned(members: List<SubjectCandidate>, decoyName: String, printedInFull: Set<String> = emptySet()): FollowUpAsk {
         val ids = members.indices.map { "P${it + 1}" }
         val prompt = buildString {
             append("Question about the letter above: whom is it for or about?\n")
             append("People it may be for or about:")
-            members.forEachIndexed { i, m -> append("\n${ids[i]}: ${m.name} (${SuggestSubject.relation(m)})") }
+            // A fact code can see, stated as such (never the decision): the letter prints this person's whole name.
+            members.forEachIndexed { i, m ->
+                append("\n${ids[i]}: ${m.name} (${SuggestSubject.relation(m)})")
+                if (m.profileId in printedInFull) append(" - the letter prints this exact name")
+            }
             append("\n$DECOY: $decoyName (a relative of the user)")
             append("\nAnswer with the id of every person the letter is for or about. A person counts only when the letter itself names them or ")
             append("clearly refers to them. Answer [\"$NONE\"] when it is about none of them.")

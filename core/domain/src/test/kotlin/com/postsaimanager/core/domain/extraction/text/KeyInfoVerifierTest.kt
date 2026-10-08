@@ -64,6 +64,25 @@ class KeyInfoVerifierTest {
     }
 
     @Test
+    fun `the report names the reason of every drop and keeps a new label and value`() {
+        val report = KeyInfoVerifier().report(
+            listOf(
+                KeyInfoFormat.Fact("Zählernummer", "1EMH0012345678"),
+                KeyInfoFormat.Fact("Beginn", "01.01.2027"),
+                KeyInfoFormat.Fact("Ort", "Beispieldorf"),
+                KeyInfoFormat.Fact("Satz mit 3 Ziffern", "KD-40417"),
+            ),
+            ocr, listOf("01.01.2027"),
+        )
+        assertThat(report.kept.map { it.label }).containsExactly("Zählernummer")
+        assertThat(report.dropped.map { it.label to it.reason }).containsExactly(
+            "Beginn" to KeyInfoVerifier.DropReason.SAME_AS_READ_VALUE,
+            "Ort" to KeyInfoVerifier.DropReason.NOT_IN_LETTER,
+            "Satz mit 3 Ziffern" to KeyInfoVerifier.DropReason.LABEL_SHAPE,
+        ).inOrder()
+    }
+
+    @Test
     fun `no more than the most facts are kept`() {
         val big = "x".repeat(1) + (1..20).joinToString("\n") { "Z$it" }
         val many = (1..20).map { KeyInfoFormat.Fact("Label ${'a' + it}", "Z$it") }

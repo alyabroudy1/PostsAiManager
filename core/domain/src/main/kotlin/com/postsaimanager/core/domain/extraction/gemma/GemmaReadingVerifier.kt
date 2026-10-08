@@ -155,7 +155,22 @@ class GemmaReadingVerifier(
                 if (candidate.kind != CandidateKind.NAME) return null.also { drops += "${role.name}: $id is a ${candidate.kind}, not a name" }
                 return VerifiedParty(role, kind, candidate.id, null)
             }
-            val line = letter.line(id) ?: return null.also { drops += "${role.name}: '$id' is neither a candidate nor a line of the letter" }
+            val chosen = letter.line(id) ?: return null.also { drops += "${role.name}: '$id' is neither a candidate nor a line of the letter" }
+            // The label of a label/value pair is no party: the party is what the same block pairs with it (its value line, as a name
+            // candidate, or as the line itself); with no value line the party is dropped.
+            val line = if (chosen.isLabel) {
+                val value = chosen.valueLineId?.let(letter::line)
+                    ?: return null.also { drops += "${role.name}: line $id is a label with no value line" }
+                val named = letter.candidatesOf(CandidateKind.NAME).firstOrNull { it.lineId == value.id }
+                if (named != null) {
+                    drops.adjust("${role.name}: line $id is a label; its value ${named.id} was taken")
+                    return VerifiedParty(role, kind, named.id, null)
+                }
+                drops.adjust("${role.name}: line $id is a label; its value line ${value.id} was taken")
+                value
+            } else {
+                chosen
+            }
             val text = line.text.trim()
             val party = VerifiedParty(role, kind, null, text)
             if (QuoteVerifier.verify(text, ocrText) == null) {
