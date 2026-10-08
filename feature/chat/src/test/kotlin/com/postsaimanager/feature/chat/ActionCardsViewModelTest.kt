@@ -162,6 +162,8 @@ class ActionCardsViewModelTest {
         assertThat(card.hasFlags).isTrue()
         coVerify { propose(email, "d1", listOf("write to them"), now) }
         coVerify(exactly = 0) { confirm(any(), any(), any()) }
+        // A card nobody confirmed is no fact: no action note, so the memory never says it was done.
+        assertThat(notes.snapshot).isEmpty()
     }
 
     @Test

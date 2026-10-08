@@ -1,6 +1,6 @@
 ---
 name: create-calendar-event
-description: Open the calendar with a new event filled in (title, start, end, notes), at a time the user names or for the deadline or appointment of the letter being discussed, when the user asks to put something in their calendar.
+description: Use only when the user explicitly asks to put something in their calendar or to add an event or appointment. Opens the calendar with a new event filled in, at a time the user names or for the deadline or appointment of the letter being discussed. Never for a question about a date.
 time-aware: true
 ---
 

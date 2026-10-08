@@ -6,6 +6,7 @@ import com.postsaimanager.core.domain.skills.AgentIntent
 import com.postsaimanager.core.domain.skills.ActionParse
 import com.postsaimanager.core.domain.skills.Skill
 import com.postsaimanager.core.domain.skills.SkillParseResult
+import com.postsaimanager.core.domain.skills.SkillPrompt
 import com.postsaimanager.core.domain.skills.SkillParser
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -132,9 +133,22 @@ class BundledSkillsTest {
         val reminder = parse(File(root, "schedule-reminder")).instructions
         assertThat(reminder).contains("three days before")
         assertThat(reminder).contains("one self-contained line")
-        assertThat(reminder).contains("naming the sender or subject")
+        assertThat(reminder).contains("Start with the sender's or organisation's name")
+        assertThat(reminder).contains("Pay Stadtwerke Musterstadt")
         assertThat(reminder).contains("Never use pronouns")
         assertThat(parse(File(root, "create-calendar-event")).instructions).contains("without pronouns")
+    }
+
+    @Test
+    fun `every action skill's description says it applies only on an explicit request, and the model's skill list shows it`() {
+        // A plain question ("When is the payment due?") once made the model load the reminder skill: the listed description decides.
+        val skills = folders.map { parse(it) }
+        skills.forEach { skill ->
+            assertThat(skill.description).startsWith("Use only when the user explicitly asks")
+        }
+        val listing = SkillPrompt.namesAndDescriptions(skills)
+        skills.forEach { assertThat(listing).contains("- Description: ${it.description}") }
+        assertThat(listing).contains("explicitly asks to be reminded or to set a reminder or notification")
     }
 
     @Test
