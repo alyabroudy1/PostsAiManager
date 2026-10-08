@@ -11,6 +11,7 @@ import com.postsaimanager.core.data.database.entity.ProfileEventEntity
 import com.postsaimanager.core.domain.repository.EventRepository
 import com.postsaimanager.core.model.Case
 import com.postsaimanager.core.model.CaseStatus
+import com.postsaimanager.core.model.CaseTitleSource
 import com.postsaimanager.core.model.EventSource
 import com.postsaimanager.core.model.ProfileEvent
 import kotlinx.coroutines.CoroutineDispatcher
@@ -96,6 +97,7 @@ class EventRepositoryImpl @Inject constructor(
             CaseEntity(
                 id = case.id, organisationProfileId = case.organisationProfileId, title = case.title,
                 referenceKeys = encodeKeys(case.referenceKeys), status = case.status.name, createdAt = case.createdAt,
+                titleSource = case.titleSource.name,
             ),
         )
     }
@@ -117,6 +119,7 @@ class EventRepositoryImpl @Inject constructor(
     private fun toDomain(row: CaseEntity) = Case(
         id = row.id, organisationProfileId = row.organisationProfileId, title = row.title, referenceKeys = decodeKeys(row.referenceKeys),
         status = runCatching { CaseStatus.valueOf(row.status) }.getOrDefault(CaseStatus.OPEN), createdAt = row.createdAt,
+        titleSource = runCatching { CaseTitleSource.valueOf(row.titleSource) }.getOrDefault(CaseTitleSource.AUTO),
     )
 
     private companion object {

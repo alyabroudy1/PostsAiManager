@@ -252,6 +252,11 @@ internal object LlmChatModelHelper : LlmModelHelper {
         try {
             lastBenchmark = ""
             runCatching { instance.conversation.close() }
+            // The sampling of THIS conversation (every turn of it, the lead summary and the follow-ups included): the log shows what the engine got.
+            Log.i(
+                TAG,
+                "structured conversation: topK=${config.topK} topP=${config.topP} temperature=${config.temperature} maxOutputToken=$maxTokens",
+            )
             val conversation = instance.engine.createConversation(
                 ConversationConfig(
                     samplerConfig = SamplerConfig(

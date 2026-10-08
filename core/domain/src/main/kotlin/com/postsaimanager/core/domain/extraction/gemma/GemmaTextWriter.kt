@@ -4,12 +4,15 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.ChatEngine
 import com.postsaimanager.core.domain.ai.ModelUse
+import com.postsaimanager.core.domain.ai.SamplingPurpose
+import com.postsaimanager.core.domain.ai.samplingFor
 import com.postsaimanager.core.domain.ai.loadForUse
 import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.domain.extraction.text.KeyInfoFormat
 import com.postsaimanager.core.domain.extraction.text.KeyInfoVerifier
 import com.postsaimanager.core.domain.extraction.text.SummaryFacts
 import com.postsaimanager.core.domain.extraction.text.SummaryGate
+import com.postsaimanager.core.domain.extraction.text.SummaryLimits
 import com.postsaimanager.core.domain.extraction.text.SummaryResult
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.model.ModelRuntime
@@ -87,12 +90,15 @@ class GemmaTextWriter @Inject constructor(
         val schema = schema(request.writeSummary)
         var keyInfo: List<KeyInfoVerifier.Kept>? = null
         for (attempt in 0 until SummaryWriter.MAX_ASKS) {
-            val answer = generator.generate(SYSTEM, prompt(request, antiCopy = attempt > 0), schema, MAX_TOKENS)
+            val answer = generator.generate(SYSTEM, prompt(request, antiCopy = attempt > 0), schema, maxTokens(request.writeSummary))
             if (answer == null) {
                 if (attempt == 0) return GemmaTextOutcome.Unavailable("no answer (the model is busy, the run failed or it took too long)")
                 break
             }
-            val parsed = parse(answer)
+            // An answer cut off at the token cap is not lost: the complete facts before the cut are kept (the verifiers check them as usual).
+            val parsed = parse(answer) ?: PartialAnswer.salvage(answer)?.also {
+                notes += "attempt ${attempt + 1}: the answer was cut off; ${it.second.size} complete fact(s) kept"
+            }
             if (parsed == null) {
                 notes += "attempt ${attempt + 1}: the answer could not be read"
                 continue
@@ -125,7 +131,7 @@ class GemmaTextWriter @Inject constructor(
         request.paid?.let { append("\nPAYMENT: ").append(it.sentence).append(".\n") }
         append(if (request.writeSummary) "\nANSWER the JSON object with two keys.\n" else "\nANSWER the JSON object with one key.\n")
         if (request.writeSummary) {
-            append("- ${KEY_SUMMARY}: one or two sentences, at most ${SummaryWriter.MAX_WORDS} words and at most $MAX_SUMMARY_CHARS characters, saying what the reader must know or do. Use only the facts and the letter. ")
+            append("- ${KEY_SUMMARY}: one or two sentences, at most ${SummaryWriter.MAX_WORDS} words and at most ${SummaryLimits.MAX_CHARS} characters, saying what the reader must know or do. Use only the facts and the letter. ")
             append(request.languageCode?.trim()?.takeIf { it.isNotEmpty() }?.let { "Write in the language with the code \"$it\". " } ?: "Write it in the letter's own language. ")
             if (request.paid == PaidState.ALREADY_PAID) append("The document says everything is already paid: never ask the reader to pay. ")
             if (antiCopy) append("Do not copy any line of the letter; put it in your own words. ")
@@ -142,7 +148,7 @@ class GemmaTextWriter @Inject constructor(
             "properties",
             JsonObject(
                 linkedMapOf<String, JsonElement>().apply {
-                    if (withSummary) put(KEY_SUMMARY, buildJsonObject { put("type", "string"); put("maxLength", MAX_SUMMARY_CHARS) })
+                    if (withSummary) put(KEY_SUMMARY, buildJsonObject { put("type", "string"); put("maxLength", SummaryLimits.MAX_CHARS) })
                     put(
                     KEY_FACTS, buildJsonObject {
                         put("type", "array")
@@ -187,13 +193,14 @@ class GemmaTextWriter @Inject constructor(
         const val KEY_FACTS = "k"
         const val KEY_LABEL = "l"
         const val KEY_VALUE = "v"
-        const val MAX_FACTS = 4
+        /** A tight schema: at most this many facts, a label of at most [KeyInfoFormat.MAX_LABEL_CHARS] and a value of at most [KeyInfoFormat.MAX_VALUE_CHARS] characters. */
+        const val MAX_FACTS = KeyInfoFormat.MAX_FACTS
 
-        /** The summary is capped in the schema and the prompt, so the JSON always fits in the token budget (a cut-off answer is unreadable). */
-        const val MAX_SUMMARY_CHARS = 160
+        /** Up to six facts of about 30 tokens each, with room to spare; a looping answer ends here and its complete facts are salvaged. */
+        const val FACTS_TOKENS = 400
 
-        /** Summary (about 50 tokens) and up to four facts (about 25 tokens each), with plenty of room: the answer is never cut off. */
-        const val MAX_TOKENS = 700
+        /** The decode budget of the step: the facts, plus the summary's own budget when the summary is asked too. */
+        fun maxTokens(withSummary: Boolean): Int = FACTS_TOKENS + if (withSummary) SummaryLimits.MAX_TOKENS else 0
         const val MAX_LETTER_CHARS = 6_000
         const val NANOS_PER_MS = 1_000_000L
     }
@@ -214,12 +221,24 @@ class ChatEngineGemmaTextGenerator @Inject constructor(
         val config = activeModel.readingModelConfig()
         if (config.runtime != ModelRuntime.LITERT_LM) return null
         if (engine.loadForUse(ModelUse.READING, path, config) is PamResult.Error) return null
-        val request = StructuredRequest(system = system, prompt = prompt, schema = schema, maxTokens = maxTokens, timeoutMs = TIMEOUT_MS)
-        return withTimeoutOrNull(TIMEOUT_MS + GRACE_MS) { engine.generateStructured(request) }
+        return withTimeoutOrNull(TIMEOUT_MS + GRACE_MS) { engine.generateStructured(gemmaTextRequest(system, prompt, schema, maxTokens)) }
     }
 
     private companion object {
-        const val TIMEOUT_MS = 90_000L
         const val GRACE_MS = 15_000L
     }
+}
+
+private const val TIMEOUT_MS = 90_000L
+
+/**
+ * The text step's one request. The facts and the second summary are written text, not a pick from a list: the normal sampler
+ * ([SamplingPurpose.FREE_TEXT]). Greedy decoding of a long free value loops on a repeated token until the token cap (plan 20, pass 27).
+ */
+internal fun gemmaTextRequest(system: String, prompt: String, schema: String, maxTokens: Int): StructuredRequest {
+    val sampling = samplingFor(SamplingPurpose.FREE_TEXT)
+    return StructuredRequest(
+        system = system, prompt = prompt, schema = schema, maxTokens = maxTokens, timeoutMs = TIMEOUT_MS,
+        temperature = sampling.temperature, topK = sampling.topK, topP = sampling.topP,
+    )
 }

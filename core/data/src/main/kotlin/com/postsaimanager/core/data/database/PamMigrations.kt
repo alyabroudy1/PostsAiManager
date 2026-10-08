@@ -609,6 +609,14 @@ object PamMigrations {
         override fun migrate(db: SupportSQLiteDatabase) = ContactsUxMigration.apply(db)
     }
 
+    /**
+     * v28 (who wrote a matter's title): `cases.titleSource`, `AUTO` for every existing row. See [CaseTitleSourceMigration]. Additive and
+     * idempotent. 1..27 are untouched (27 is installed on phones).
+     */
+    val MIGRATION_27_28 = object : Migration(27, 28) {
+        override fun migrate(db: SupportSQLiteDatabase) = CaseTitleSourceMigration.apply(db)
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -636,5 +644,6 @@ object PamMigrations {
         MIGRATION_24_25,
         MIGRATION_25_26,
         MIGRATION_26_27,
+        MIGRATION_27_28,
     )
 }

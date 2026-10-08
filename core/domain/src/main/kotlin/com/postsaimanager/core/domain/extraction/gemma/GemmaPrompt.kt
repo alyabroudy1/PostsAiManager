@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.gemma
 
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
+import com.postsaimanager.core.domain.extraction.text.SummaryLimits
 import com.postsaimanager.core.domain.extraction.gemma.GemmaSchema.Field
 import com.postsaimanager.core.domain.extraction.gemma.GemmaSchema.Item
 import com.postsaimanager.core.domain.timeline.EventKinds
@@ -24,7 +25,7 @@ object GemmaPrompt {
 
     /** What the reader is asked first when it starts with a summary: free text, written before anything else so it can be shown at once. */
     const val SUMMARY_ASK = "\nFIRST, before anything else, and in plain text (not JSON): write a short summary of this document, one or two sentences of at most " +
-        "${GemmaTextWriter.MAX_SUMMARY_CHARS} characters, in the language the document is written in, saying what it is about and what it asks of its reader, if anything. " +
+        "${SummaryLimits.MAX_CHARS} characters, in the language the document is written in, saying what it is about and what it asks of its reader, if anything. " +
         "Use only what the letter says. Answer with the summary only.\n"
 
     /** The two messages of a reading that starts with a summary: [first] is the letter and the question for the summary, [second] the field guide. */

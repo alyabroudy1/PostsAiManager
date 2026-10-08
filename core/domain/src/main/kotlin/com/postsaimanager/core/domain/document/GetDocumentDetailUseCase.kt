@@ -44,7 +44,7 @@ class GetDocumentDetailUseCase @Inject constructor(
                         document = document,
                         pages = pages,
                         extractedData = extractedData,
-                        timeline = timeline,
+                        timeline = CollapseProcessingLog.collapse(timeline),
                     )
                 }
             }

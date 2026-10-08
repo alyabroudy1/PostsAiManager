@@ -125,7 +125,7 @@ class GemmaReadingUseCase @Inject constructor(
             return GemmaReadingOutcome.Unavailable(result.diagnostics.modelError ?: "the reader gave no usable answer")
         }
         val verified = decision.verified
-        val title = TitleComposer.compose(result.documentType?.id, result.parties.sender?.name, verified.name, result.freeText.subject?.value)
+        val title = TitleComposer.compose(result.documentType?.id, TitleSender.of(result.parties.sender?.name, layout), verified.name, result.freeText.subject?.value)
         // The timeline's event is the reader's own answer (a kind of the event registry, asked in the same call); its title is the document's.
         // The summary and the key facts are not in this answer: the ticket owes them to the text step ([GemmaTextWriter]), which writes them
         // once this reading is stored, knowing whether the document was paid already.
@@ -175,9 +175,9 @@ class GemmaReadingUseCase @Inject constructor(
     private fun earlySummary(text: String, ocrText: String): EarlySummary? {
         val oneLine = text.trim().replace(WHITESPACE, " ")
         return when (val verdict = summaryGate.check(oneLine, ocrText, emptyList())) {
+            // The gate holds the one length limit (SummaryLimits) and trims a summary a little over it to its last whole sentence.
             is SummaryGate.Verdict.Accepted ->
-                if (verdict.text.length <= MAX_EARLY_SUMMARY_CHARS) EarlySummary(verdict.text, true, "accepted")
-                else EarlySummary(verdict.text, false, "accepted, but ${verdict.text.length} chars is over the ${MAX_EARLY_SUMMARY_CHARS} asked for")
+                EarlySummary(verdict.text, true, if (verdict.text.length < oneLine.length) "accepted, trimmed from ${oneLine.length} to ${verdict.text.length} chars" else "accepted")
             is SummaryGate.Verdict.Rejected ->
                 if (verdict.reason == SummaryGate.Reason.EMPTY || oneLine.length > MAX_UNCHECKED_SUMMARY_CHARS) null
                 else EarlySummary(oneLine, false, "rejected ${verdict.reason}, stored to check")
@@ -185,9 +185,6 @@ class GemmaReadingUseCase @Inject constructor(
     }
 
     private companion object {
-        /** The first turn is asked for at most this many characters; one far over it is not the short summary that was asked. */
-        const val MAX_EARLY_SUMMARY_CHARS = 240
-
         /** A summary the gate refused is still stored (to check) unless it is a runaway past this. */
         const val MAX_UNCHECKED_SUMMARY_CHARS = 600
         val WHITESPACE = Regex("\\s+")

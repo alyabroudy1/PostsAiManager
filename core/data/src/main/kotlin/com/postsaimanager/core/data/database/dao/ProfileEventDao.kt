@@ -136,7 +136,8 @@ interface ProfileEventDao {
     @Query("UPDATE cases SET status = :status WHERE id = :caseId")
     suspend fun setCaseStatus(caseId: String, status: String)
 
-    @Query("UPDATE cases SET title = :title WHERE id = :caseId")
+    /** A rename is a person's: the title is then theirs ('USER') and no letter replaces it. */
+    @Query("UPDATE cases SET title = :title, titleSource = 'USER' WHERE id = :caseId")
     suspend fun renameCase(caseId: String, title: String)
 
     @Query("DELETE FROM cases WHERE id = :caseId AND NOT EXISTS (SELECT 1 FROM profile_events WHERE caseId = :caseId)")

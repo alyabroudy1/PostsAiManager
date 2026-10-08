@@ -127,8 +127,9 @@ class SummaryGateTest {
 
     @Test
     fun `phrases of the letter inside a summary of its own words are not a copy`() {
-        val answer = "Die Praxis schreibt: Bitte Versichertenkarte mitbringen. Absage bis 24 h vorher. Der Termin ist am 14.10.2026 um 10:30 Uhr, " +
-            "danach ist nichts weiter zu tun und es gibt keine Kosten, wenn rechtzeitig abgesagt wird."
+        val answer = "Die Praxis schreibt: Bitte Versichertenkarte mitbringen. Absage bis 24 h vorher ist nötig, sonst kann der Termin am 14.10.2026 " +
+            "um 10:30 Uhr verfallen und es entstehen leider unnötige Kosten."
+        assertThat(answer.length).isAtMost(SummaryLimits.MAX_CHARS)
 
         assertThat(gate.copiedShare(answer, DeviceLetters.zahnarztText)).isLessThan(SummaryGate.COPY_SHARE)
         assertThat(verdictOf(answer, DeviceLetters.zahnarztText)).isInstanceOf(SummaryGate.Verdict.Accepted::class.java)
@@ -143,6 +144,32 @@ class SummaryGateTest {
     fun `an empty or runaway answer is rejected`() {
         assertThat(reason("  ")).isEqualTo(SummaryGate.Reason.EMPTY)
         assertThat(reason("wort ".repeat(60))).isEqualTo(SummaryGate.Reason.TOO_LONG)
+    }
+
+    @Test
+    fun `a summary a little over the limit that ends at a sentence boundary is trimmed to its last whole sentence and accepted`() {
+        val first = "Das Jobcenter Musterstadt bestätigt, dass der Antrag auf Bürgergeld am 01.09.2026 eingegangen ist."
+        val second = "Es wird gebeten, bis zum 01.09.2026 keine weiteren Unterlagen nachzureichen, solange kein Schreiben des Jobcenters dazu auffordert."
+        val answer = "$first $second"
+        assertThat(answer.length).isGreaterThan(SummaryLimits.MAX_CHARS)
+
+        val verdict = verdictOf(answer, DeviceLetters.jobcenterText)
+
+        assertThat(verdict).isEqualTo(SummaryGate.Verdict.Accepted(first))
+    }
+
+    @Test
+    fun `an over-long summary with no sentence end inside the limit, or a runaway, is still rejected`() {
+        assertThat(reason("Das Jobcenter Musterstadt bestätigt, dass der Antrag ".repeat(6), DeviceLetters.jobcenterText, emptyList()))
+            .isEqualTo(SummaryGate.Reason.TOO_LONG)
+        assertThat(reason("Der Antrag ist eingegangen. ".repeat(40), DeviceLetters.jobcenterText, emptyList())).isEqualTo(SummaryGate.Reason.TOO_LONG)
+    }
+
+    @Test
+    fun `the prompt's ask, the schema and the gate share one length limit`() {
+        assertThat(SummaryLimits.MAX_CHARS).isIn(160..200)
+        val atLimit = "Das Jobcenter bestätigt den Eingang des Antrags auf Bürgergeld am 01.09.2026. ".repeat(3).trim().take(SummaryLimits.MAX_CHARS)
+        assertThat(atLimit.length).isAtMost(SummaryLimits.MAX_CHARS)
     }
 
     @Test

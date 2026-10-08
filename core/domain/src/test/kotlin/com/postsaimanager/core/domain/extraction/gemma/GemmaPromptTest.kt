@@ -25,7 +25,7 @@ class GemmaPromptTest {
         assertThat(turns.second).startsWith("Now the details")
         assertThat(turns.second).contains("ANSWER: one JSON object")
         assertThat(turns.second).doesNotContain("LINES (id")
-        assertThat(GemmaPrompt.SUMMARY_ASK).contains("at most 160 characters")
+        assertThat(GemmaPrompt.SUMMARY_ASK).contains("at most ${com.postsaimanager.core.domain.extraction.text.SummaryLimits.MAX_CHARS} characters")
         assertThat(GemmaPrompt.system(imageOnly = false, summaryFirst = true)).contains("plain text")
         assertThat(GemmaPrompt.system(imageOnly = false)).doesNotContain("plain text")
     }

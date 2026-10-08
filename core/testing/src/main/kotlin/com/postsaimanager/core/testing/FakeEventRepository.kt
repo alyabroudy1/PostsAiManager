@@ -85,7 +85,7 @@ class FakeEventRepository : EventRepository {
     }
 
     override suspend fun renameCase(caseId: String, title: String) {
-        cases.value = cases.value.map { if (it.id == caseId) it.copy(title = title) else it }
+        cases.value = cases.value.map { if (it.id == caseId) it.copy(title = title, titleSource = com.postsaimanager.core.model.CaseTitleSource.USER) else it }
     }
 
     override suspend fun deleteCaseIfEmpty(caseId: String) {

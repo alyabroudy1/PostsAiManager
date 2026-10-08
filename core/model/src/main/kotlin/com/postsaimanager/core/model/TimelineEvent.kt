@@ -23,6 +23,8 @@ data class TimelineEvent(
     val code: String? = null,
     /** The values the code's sentence needs (counts, field keys), as plain strings. */
     val args: List<String> = emptyList(),
+    /** How many identical log entries this one stands for (never stored: the screen's log collapses them, see `CollapseProcessingLog`). */
+    val repeats: Int = 1,
 )
 
 /** The codes the processing pipeline records. A new one needs a string in the UI, nothing else. */

@@ -1,6 +1,9 @@
 package com.postsaimanager.core.domain.extraction.gemma
 
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.ai.SamplingPurpose
+import com.postsaimanager.core.domain.ai.samplingFor
+import com.postsaimanager.core.domain.extraction.text.SummaryLimits
 import com.postsaimanager.core.domain.extraction.text.SummaryFacts
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.model.SummarySource
@@ -161,15 +164,61 @@ class GemmaTextWriterTest {
     }
 
     @Test
-    @DisplayName("the summary is capped at 160 characters in the prompt and the schema, and the token budget leaves room, so the JSON is never cut off")
+    @DisplayName("the summary length is the one SummaryLimits value in the prompt and the schema, and the budget has room for it")
     fun `summary cap and token budget`() {
         val generator = ScriptedGenerator(listOf(answerJson(good)))
 
         write(generator)
 
-        assertThat(generator.budgets.single()).isAtLeast(700)
-        assertThat(generator.prompts.single()).contains("at most 160 characters")
+        assertThat(generator.budgets.single()).isEqualTo(GemmaTextWriter.maxTokens(withSummary = true))
+        assertThat(generator.prompts.single()).contains("at most ${SummaryLimits.MAX_CHARS} characters")
         val summary = Json.parseToJsonElement(generator.schemas.single()).jsonObject["properties"]!!.jsonObject["s"]!!.jsonObject
-        assertThat(summary["maxLength"].toString()).isEqualTo("160")
+        assertThat(summary["maxLength"].toString()).isEqualTo(SummaryLimits.MAX_CHARS.toString())
+    }
+
+    @Test
+    @DisplayName("the facts-only step has a tight schema (at most 6 facts, label 30, value 80) and a 400-token cap")
+    fun `tight schema and cap`() {
+        val generator = ScriptedGenerator(listOf("""{"k":[]}"""))
+
+        write(generator, GemmaTextRequest(mini.ocrText, facts, emptyList(), "de", null, writeSummary = false))
+
+        assertThat(generator.budgets.single()).isEqualTo(400)
+        val k = Json.parseToJsonElement(generator.schemas.single()).jsonObject["properties"]!!.jsonObject["k"]!!.jsonObject
+        assertThat(k["maxItems"].toString()).isEqualTo("6")
+        val props = k["items"]!!.jsonObject["properties"]!!.jsonObject
+        assertThat(props["l"]!!.jsonObject["maxLength"].toString()).isEqualTo("30")
+        assertThat(props["v"]!!.jsonObject["maxLength"].toString()).isEqualTo("80")
+    }
+
+    @Test
+    @DisplayName("an answer cut off at the token cap keeps the complete facts before the cut and drops the half-written one")
+    fun `cut off answer is salvaged`() {
+        val cut = """{"k":[{"l":"Telefon","v":"0800 555 0199"},{"l":"Zeiten","v":"Mo bis Fr, 8 bis 12 Uhr, Mo bis Fr, 8 bis 12 Uhr, Mo bis Fr, 8 bis 12 Uhr, Mo bis"""
+        val generator = ScriptedGenerator(listOf(cut))
+
+        val out = write(generator, GemmaTextRequest(mini.ocrText, facts, emptyList(), "de", null, writeSummary = false)) as GemmaTextOutcome.Written
+
+        assertThat(out.keyInfo.map { it.label to it.value }).containsExactly("Telefon" to "0800 555 0199")
+        assertThat(out.notes.any { it.contains("cut off") }).isTrue()
+    }
+
+    @Test
+    @DisplayName("a cut-off answer with no complete fact is unreadable, as before")
+    fun `nothing to salvage`() {
+        assertThat(PartialAnswer.salvage("""{"k":[{"l":"Telefon","v":"080""")).isNull()
+        assertThat(PartialAnswer.salvage("no json")).isNull()
+    }
+
+    @Test
+    @DisplayName("the text step is sampled as free text (the normal sampler), not greedy: greedy looped to the cap on two letters")
+    fun `text step is free text sampled`() {
+        val request = gemmaTextRequest("s", "p", "{}", 400)
+        val normal = samplingFor(SamplingPurpose.FREE_TEXT)
+
+        assertThat(request.topK).isEqualTo(normal.topK)
+        assertThat(request.temperature).isEqualTo(normal.temperature)
+        assertThat(request.topP).isEqualTo(normal.topP)
+        assertThat(request.topK).isGreaterThan(1)
     }
 }

@@ -48,7 +48,7 @@ import com.postsaimanager.core.data.database.entity.*
         ProfileEventPersonEntity::class,
         ProfileSuggestionEntity::class,
     ],
-    version = 27,
+    version = 28,
     exportSchema = true,
 )
 abstract class PamDatabase : RoomDatabase() {

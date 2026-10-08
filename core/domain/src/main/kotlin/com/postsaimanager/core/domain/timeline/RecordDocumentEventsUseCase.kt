@@ -7,6 +7,7 @@ import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.EventRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Case
+import com.postsaimanager.core.model.CaseTitleSource
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.EventSource
@@ -129,9 +130,12 @@ class RecordDocumentEventsUseCase @Inject constructor(
                 MatterAnswer.Pending -> return null
             }
         if (existing != null) {
-            // A matter still titled as this letter's own earlier event was (nobody renamed it) follows the title the letter has now: a
-            // re-read that names the sender better (the avatar letter no longer in front of it) must not leave the old name on the matter.
-            val title = event.title.takeIf { previous != null && existing.title == previous.title && it.isNotBlank() } ?: existing.title
+            // A matter nobody renamed (AUTO) follows the title of its latest event: a re-read that names the sender better (the avatar letter
+            // no longer in front of it) must not leave the old name on the matter. A title the user wrote (USER) stays. The latest event is
+            // this letter's unless another letter of the matter is newer.
+            val newerLetter = events.eventsOfCase(existing.id).any { it.documentId != event.documentId && it.eventDate > event.eventDate }
+            val follows = existing.titleSource == CaseTitleSource.AUTO && !newerLetter && event.title.isNotBlank()
+            val title = if (follows) event.title else existing.title
             if (!existing.referenceKeys.containsAll(keys) || title != existing.title) {
                 events.saveCase(existing.copy(referenceKeys = existing.referenceKeys + keys, title = title))
             }

@@ -1106,7 +1106,7 @@ private fun TimelineTab(events: List<TimelineEvent>) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     val (title, description) = timelineLines(event.toText())
-                    Text(title, style = MaterialTheme.typography.titleSmall)
+                    Text(if (event.repeats > 1) "$title ×${event.repeats}" else title, style = MaterialTheme.typography.titleSmall)
                     description?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     Text(event.createdAt.toRelativeTime(older = friendlyDate), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                 }

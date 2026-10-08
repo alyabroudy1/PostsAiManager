@@ -6,6 +6,7 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.form.BaselineScores
 import com.postsaimanager.core.model.Case
 import com.postsaimanager.core.model.CaseStatus
+import com.postsaimanager.core.model.CaseTitleSource
 import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.EventSource
 import com.postsaimanager.core.model.ExtractedData
@@ -142,7 +143,8 @@ class RecordDocumentEventsUseCaseTest {
         // No reference in common, so the model was never asked about d2; for d3 it was (and said no).
         assertThat(same.questions).hasSize(1)
         val matter = events.getCase(byDocument.getValue("d1")!!)!!
-        assertThat(matter.title).isEqualTo("Antrag gestellt")
+        // An AUTO title follows the latest event's title.
+        assertThat(matter.title).isEqualTo("Antrag bewilligt")
         assertThat(matter.referenceKeys).containsExactly("BG3141592")
         assertThat(matter.status).isEqualTo(CaseStatus.APPROVED)
     }
@@ -327,5 +329,22 @@ class RecordDocumentEventsUseCaseTest {
         documents.renameDocument("d1", "Termin · Zahnarztpraxis Dr. Beispiel")
         record("d1", EventReading(EventKinds.APPOINTMENT))
         assertThat(events.allCases.single().title).isEqualTo("Zahnarzt 2026")
+        assertThat(events.allCases.single().titleSource).isEqualTo(CaseTitleSource.USER)
+    }
+
+    @Test
+    fun `an old AUTO matter whose title is not the event's title follows the cleaned title, and a USER matter does not`() = runTest {
+        letter("d1", title = "Termin · Zahnarztpraxis")
+        letter("d2", title = "Neuer Termin")
+        // Matters written by an older build: AUTO (the default), titled with a name the letter no longer has; and one a person named.
+        events.saveCase(Case(id = "old", organisationProfileId = "jc", title = "Appointment reminder · Z Zahnarztpraxis", createdAt = 1))
+        events.saveCase(Case(id = "mine", organisationProfileId = "jc", title = "Meine Akte", createdAt = 2, titleSource = CaseTitleSource.USER))
+        same.sameAs = setOf("Appointment reminder · Z Zahnarztpraxis")
+        record("d1", EventReading(EventKinds.APPOINTMENT))
+        same.sameAs = setOf("Meine Akte")
+        record("d2", EventReading(EventKinds.APPOINTMENT))
+
+        assertThat(events.getCase("old")!!.title).isEqualTo("Termin · Zahnarztpraxis")
+        assertThat(events.getCase("mine")!!.title).isEqualTo("Meine Akte")
     }
 }

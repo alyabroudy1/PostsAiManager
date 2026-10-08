@@ -54,6 +54,11 @@ class ChatEngineGemmaReaderTest {
         assertThat(request.prompt).doesNotContain("L1 Stadtwerke")
         assertThat(request.system).contains("plain text")
         assertThat(heard).containsExactly("A short summary.")
+        // One sampler for the whole conversation (LiteRT samples per conversation): greedy for the summary turn and the JSON turn alike.
+        val greedy = com.postsaimanager.core.domain.ai.samplingFor(com.postsaimanager.core.domain.ai.SamplingPurpose.STRUCTURED)
+        assertThat(request.topK).isEqualTo(greedy.topK)
+        assertThat(request.temperature).isEqualTo(greedy.temperature)
+        assertThat(request.topP).isEqualTo(greedy.topP)
     }
 
     @Test

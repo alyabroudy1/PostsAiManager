@@ -1,5 +1,6 @@
 package com.postsaimanager.core.data.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -28,6 +29,8 @@ data class CaseEntity(
     val referenceKeys: String,
     val status: String,
     val createdAt: Long,
+    /** `AUTO` (generated from the letters, follows them) or `USER` (renamed by a person). Added in v28. */
+    @ColumnInfo(defaultValue = "'AUTO'") val titleSource: String = "AUTO",
 )
 
 /**

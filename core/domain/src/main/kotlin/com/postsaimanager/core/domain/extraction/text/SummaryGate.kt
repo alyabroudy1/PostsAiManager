@@ -18,7 +18,7 @@ import com.postsaimanager.core.domain.extraction.v2.QuoteVerifier
  *    [COPY_SHARE] of its words: small models copy a line, and a copied line is not a summary. Overlap alone is no copy: a short
  *    letter's faithful summary reuses most of its words.
  *
- * An empty answer and one far over the asked length are rejected too.
+ * An empty answer and a runaway are rejected; one a little over [SummaryLimits.MAX_CHARS] is trimmed to its last whole sentence.
  */
 class SummaryGate {
 
@@ -35,14 +35,30 @@ class SummaryGate {
      * @param verifiedValues the verified facts' values (names, amounts, dates, subject) the answer may use
      */
     fun check(answer: String, ocrText: String, verifiedValues: List<String>): Verdict {
-        val text = answer.trim().replace(WHITESPACE, " ")
-        if (text.isEmpty()) return Verdict.Rejected(Reason.EMPTY)
-        if (text.split(' ').size > MAX_WORDS) return Verdict.Rejected(Reason.TOO_LONG)
+        val full = answer.trim().replace(WHITESPACE, " ")
+        if (full.isEmpty()) return Verdict.Rejected(Reason.EMPTY)
+        // A summary a little over the limit that ends at a sentence boundary is cut to its last whole sentence within the limit; a runaway
+        // or one with no sentence end inside the limit is refused.
+        val text = if (full.length <= SummaryLimits.MAX_CHARS) full else {
+            if (full.length > SummaryLimits.MAX_CHARS * SummaryLimits.RUNAWAY_FACTOR) return Verdict.Rejected(Reason.TOO_LONG)
+            trimToSentence(full) ?: return Verdict.Rejected(Reason.TOO_LONG)
+        }
         val corpus = ocrText + "\n" + verifiedValues.joinToString("\n")
         unverifiedNumber(text, corpus)?.let { return Verdict.Rejected(Reason.UNVERIFIED_NUMBER, it) }
         unverifiedName(text, corpus)?.let { return Verdict.Rejected(Reason.UNVERIFIED_NAME, it) }
         if (copiesLetter(text, ocrText)) return Verdict.Rejected(Reason.COPIED)
         return Verdict.Accepted(text)
+    }
+
+    /** [text] up to its last sentence end that lies within [SummaryLimits.MAX_CHARS] (a mark followed by a space or the end); null when none, or too little is left. */
+    private fun trimToSentence(text: String): String? {
+        val window = text.take(SummaryLimits.MAX_CHARS + 1)
+        for (i in window.indices.reversed()) {
+            if (window[i] !in SENTENCE_MARKS) continue
+            val endsHere = i + 1 >= text.length || text[i + 1] == ' '
+            if (endsHere && i + 1 <= SummaryLimits.MAX_CHARS) return text.substring(0, i + 1).takeIf { it.length >= MIN_TRIMMED_CHARS }
+        }
+        return null
     }
 
     // ── numbers ──────────────────────────────────────────────────────────────
@@ -144,8 +160,10 @@ class SummaryGate {
         /** The fewest words in a row, found in the letter in the same order, that count as copied wording. */
         const val MIN_COPY_RUN = 5
 
-        /** The ask says at most 30 words; the gate only refuses a runaway. */
-        const val MAX_WORDS = 45
+        /** A trimmed summary shorter than this is no summary: the answer is refused instead. */
+        const val MIN_TRIMMED_CHARS = 30
+
+        private val SENTENCE_MARKS = charArrayOf('.', '!', '?', '؟', '。')
 
         private val WHITESPACE = Regex("\\s+")
         private val DIGITS = Regex("\\d+")
