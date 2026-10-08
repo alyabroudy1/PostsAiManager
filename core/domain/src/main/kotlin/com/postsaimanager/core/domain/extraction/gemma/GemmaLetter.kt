@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.candidates.LabelValuePair
 import com.postsaimanager.core.domain.extraction.layout.LayoutLine
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
+import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
 
 /**
@@ -96,6 +97,9 @@ object GemmaLetterBuilder {
             )
         }
         val lines = plain.mapIndexed { i, line ->
+            // Only a line of the reference block can be a label: the letterhead, the return line, the address window and the signature
+            // hold the parties, and a label found by text alone must never take one of them out of the choices.
+            if (line.zone != LetterZone.INFO_BLOCK.tag) return@mapIndexed line
             val pair = labelPairs.firstOrNull { it.page == line.page && same(it.label, line.text) } ?: return@mapIndexed line
             val value = pair.value?.let { v -> plain.drop(i + 1).firstOrNull { it.page == line.page && same(v, it.text) }?.id }
             line.copy(isLabel = true, valueLineId = value)

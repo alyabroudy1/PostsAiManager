@@ -36,6 +36,7 @@ internal object LabelValueLayout {
         // with a block to their right, at least two of them sharing one left edge.
         val sideBySide = ctx.activeLines
             .filter { it.zone == null && it.block != null && wordShaped(it.text) }
+            // Which of them are labels is decided by the reader's letter: only lines of the reference block count (GemmaLetterBuilder).
             .mapNotNull { line -> ctx.rowNeighbour(line, left = false)?.let { line to it } }
             .groupBy { (line, _) -> line.page to Math.round(line.block!!.bounds.left / LEFT_EDGE_STEP) }
             .values.filter { it.size >= MIN_PAIRS }.flatten()
