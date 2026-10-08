@@ -109,7 +109,7 @@ class GemmaTextWriter @Inject constructor(
         entries.forEach { (role, value) -> append("- ").append(role).append(": ").append(value).append('\n') }
         request.paid?.let { append("\nPAYMENT: ").append(it.sentence).append(".\n") }
         append("\nANSWER the JSON object with two keys.\n")
-        append("- ${KEY_SUMMARY}: one or two sentences, at most ${SummaryWriter.MAX_WORDS} words, saying what the reader must know or do. Use only the facts and the letter. ")
+        append("- ${KEY_SUMMARY}: one or two sentences, at most ${SummaryWriter.MAX_WORDS} words and at most $MAX_SUMMARY_CHARS characters, saying what the reader must know or do. Use only the facts and the letter. ")
         append(request.languageCode?.trim()?.takeIf { it.isNotEmpty() }?.let { "Write in the language with the code \"$it\". " } ?: "Write it in the letter's own language. ")
         if (request.paid == PaidState.ALREADY_PAID) append("The document says everything is already paid: never ask the reader to pay. ")
         if (antiCopy) append("Do not copy any line of the letter; put it in your own words. ")
@@ -125,7 +125,7 @@ class GemmaTextWriter @Inject constructor(
             "properties",
             JsonObject(
                 linkedMapOf<String, JsonElement>(
-                    KEY_SUMMARY to buildJsonObject { put("type", "string"); put("maxLength", GemmaSchema.MAX_SUMMARY_CHARS) },
+                    KEY_SUMMARY to buildJsonObject { put("type", "string"); put("maxLength", MAX_SUMMARY_CHARS) },
                     KEY_FACTS to buildJsonObject {
                         put("type", "array")
                         put("maxItems", MAX_FACTS)
@@ -170,8 +170,11 @@ class GemmaTextWriter @Inject constructor(
         const val KEY_VALUE = "v"
         const val MAX_FACTS = 4
 
-        /** Summary (about 60 tokens) and up to four facts (about 25 tokens each), with room to spare. */
-        const val MAX_TOKENS = 320
+        /** The summary is capped in the schema and the prompt, so the JSON always fits in the token budget (a cut-off answer is unreadable). */
+        const val MAX_SUMMARY_CHARS = 160
+
+        /** Summary (about 50 tokens) and up to four facts (about 25 tokens each), with plenty of room: the answer is never cut off. */
+        const val MAX_TOKENS = 700
         const val MAX_LETTER_CHARS = 6_000
         const val NANOS_PER_MS = 1_000_000L
     }

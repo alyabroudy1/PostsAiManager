@@ -61,9 +61,10 @@ object GemmaPrompt {
 
     private fun guide(imageOnly: Boolean, vocab: GemmaVocabulary): String = buildString {
         append("ANSWER: one JSON object with these keys, in this order. A list holds only what exists: an empty list is [] and no entry is ever written for nobody.\n")
-        append("- ${Field.ASKS_READER}: ${GemmaVocabulary.YES} or ${GemmaVocabulary.NO}: does this document ask its reader to do anything " +
-            "(pay, reply, send something, attend, object)? A document that only informs or confirms, such as proof of a payment already " +
-            "made or a reminder of a date, asks nothing: answer ${GemmaVocabulary.NO}, and then ${Field.ACTIONS} is empty.\n")
+        append("- ${Field.ASKS_READER}: ${GemmaVocabulary.YES} or ${GemmaVocabulary.NO}: does this document ask its reader to do anything at all? " +
+            "It is ${GemmaVocabulary.YES} when the reader is asked to attend or be present at an appointment, bring something, pay, reply, send or sign. " +
+            "A reminder of an appointment the reader must attend is ${GemmaVocabulary.YES}. " +
+            "A document that only informs, such as proof of a payment already made, asks nothing: answer ${GemmaVocabulary.NO}, and then ${Field.ACTIONS} is empty.\n")
         append("- ${Field.PAID}: has what the document is about been paid already? Answer with one of:\n")
         PaidState.entries.forEach { append("    ").append(it.id).append(": ").append(it.sentence).append('\n') }
         append("  A payment that was made (a till slip, a receipt, a confirmation of payment, a debit already taken) is ${PaidState.ALREADY_PAID.id}, " +

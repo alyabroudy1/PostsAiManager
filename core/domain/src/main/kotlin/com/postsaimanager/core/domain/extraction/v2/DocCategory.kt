@@ -51,7 +51,7 @@ data class DocCategory(val id: String, val phrase: String, val families: List<St
             DocCategory("contract", "a contract or a policy", listOf("contract_policy"), "a contract, a policy or its terms"),
             DocCategory(
                 "appointment", "an appointment or a booking", listOf("appointment_reminder", "medical", "ticket_booking"),
-                "a reminder or confirmation of a date to attend, or of a booking",
+                "a reminder or confirmation of a date to attend, or of a booking; the reader is expected to be there",
             ),
             DocCategory(
                 "message", "a message or a note", listOf("message_note"),

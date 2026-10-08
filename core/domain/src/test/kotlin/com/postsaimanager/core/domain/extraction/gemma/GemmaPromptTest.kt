@@ -14,6 +14,13 @@ class GemmaPromptTest {
     private val prompt = GemmaPrompt.user(mini.letter)
 
     @Test
+    @DisplayName("asking the reader anything includes attending an appointment, so an appointment reminder is answered yes")
+    fun `asks reader explanation`() {
+        assertThat(prompt).contains("attend or be present at an appointment, bring something, pay, reply, send or sign")
+        assertThat(prompt).contains("A reminder of an appointment the reader must attend is yes")
+    }
+
+    @Test
     @DisplayName("every category has a one-line description in the data, and the prompt shows it next to the category's code")
     fun `category descriptions`() {
         DocCategory.DEFAULT.forEach { assertThat(it.description).isNotEmpty() }

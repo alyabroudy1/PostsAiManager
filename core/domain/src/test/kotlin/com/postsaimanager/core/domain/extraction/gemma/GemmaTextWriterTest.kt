@@ -23,8 +23,10 @@ class GemmaTextWriterTest {
     private class ScriptedGenerator(private val answers: List<String?>) : GemmaTextGenerator {
         val prompts = mutableListOf<String>()
         val schemas = mutableListOf<String>()
+        val budgets = mutableListOf<Int>()
         override suspend fun generate(system: String, prompt: String, schema: String, maxTokens: Int): String? {
             prompts += prompt
+            budgets += maxTokens
             schemas += schema
             return answers.getOrNull(prompts.size - 1)
         }
@@ -141,5 +143,18 @@ class GemmaTextWriterTest {
         val schema = Json.parseToJsonElement(generator.schemas.single()).jsonObject
         assertThat(schema["properties"]!!.jsonObject.keys).containsExactly("s", "k").inOrder()
         assertThat(schema["required"].toString()).contains("\"s\"")
+    }
+
+    @Test
+    @DisplayName("the summary is capped at 160 characters in the prompt and the schema, and the token budget leaves room, so the JSON is never cut off")
+    fun `summary cap and token budget`() {
+        val generator = ScriptedGenerator(listOf(answerJson(good)))
+
+        write(generator)
+
+        assertThat(generator.budgets.single()).isAtLeast(700)
+        assertThat(generator.prompts.single()).contains("at most 160 characters")
+        val summary = Json.parseToJsonElement(generator.schemas.single()).jsonObject["properties"]!!.jsonObject["s"]!!.jsonObject
+        assertThat(summary["maxLength"].toString()).isEqualTo("160")
     }
 }
