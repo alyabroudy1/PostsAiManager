@@ -21,8 +21,8 @@ import java.time.LocalDate
  * addressee, a date that does not parse, a due date before the letter's date, an IBAN with a wrong checksum, a name or a fact the letter
  * does not hold), so a wrong answer leaves its field empty instead of reaching the pipeline.
  *
- * Not staged: one call reads everything, the free texts (name, summary, key facts) come with it ([decision]), and
- * [writeText] has nothing left to ask.
+ * Not staged: one call reads everything but the two long free texts, the summary and the key facts, which a second, lower-priority step
+ * writes once the reading is stored ([GemmaTextWriter]); the name comes with the call ([decision]), and [writeText] has nothing left to ask.
  *
  * @param addressLines the lines ML Kit found an address in (context for the reader), read when the reading starts
  * @param letterDate the date of the letter as code found it, read when the reading starts
@@ -82,8 +82,8 @@ class GemmaDocumentInterpreter(
         lines += "gemma decided category=${verified.category} sender=${party(verified, PartyRole.SENDER)} " +
             "addressee=${party(verified, PartyRole.ADDRESSEE)} contact=${party(verified, PartyRole.CONTACT)} " +
             "dates=${verified.dates.size} amounts=${verified.amounts.size} references=${verified.references.size} " +
-            "actions=[${verified.actions.joinToString(",") { it.kind }}] name=${verified.name != null} summary=${verified.summary != null} " +
-            "keyInfo=${verified.keyInfo.size} dropped=${verified.drops.size}"
+            "actions=[${verified.actions.joinToString(",") { it.kind }}] name=${verified.name != null} paid=${verified.paid?.id} " +
+            "dropped=${verified.drops.size}"
         verified.drops.forEach { lines += "gemma dropped: $it" }
         return InterpretationOutcome.Answered(mapped.raw, answered.json, answered.prompt, answered.schema)
     }
@@ -101,7 +101,7 @@ class GemmaDocumentInterpreter(
         TextOutcome.Written(RawText(otherLabel = null, title = null, subject = null, summary = null, questions = emptyList()), "")
 
     private companion object {
-        const val ANSWER_TOKENS = 1_024
+        const val ANSWER_TOKENS = 512
         const val FAILED_RAW_CHARS = 300
     }
 }

@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.extraction.gemma
 
 import com.postsaimanager.core.domain.extraction.gemma.GemmaSchema.Field
+import com.postsaimanager.core.domain.extraction.gemma.GemmaSchema.Item
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -28,6 +29,8 @@ data class GemmaFact(val label: String, val value: String)
 data class GemmaReading(
     /** The answer to "does this document ask its reader to do anything?": true for yes, false for no, null when it was not given. */
     val asksReader: Boolean? = null,
+    /** The answer to "has it been paid already?"; null when it was not given. */
+    val paid: PaidState? = null,
     val sender: GemmaParty? = null,
     val addressee: GemmaParty? = null,
     val contact: GemmaParty? = null,
@@ -41,11 +44,18 @@ data class GemmaReading(
     val eventKind: String? = null,
     val language: String? = null,
     val name: String? = null,
+    /** Only a picture-only answer has these two; for a letter with text they are written by [GemmaTextWriter]. */
     val summary: String? = null,
     val keyInfo: List<GemmaFact> = emptyList(),
 )
 
-/** Reads the model's JSON into a [GemmaReading]; lenient about missing or mistyped members (each simply stays empty). */
+/**
+ * Reads the model's JSON into a [GemmaReading]; lenient about missing or mistyped members (each simply stays empty).
+ *
+ * The answer is short: one-letter keys ([Field], [Item]) and codes for the words of the registries' lists ([CodeBook]); this is the one
+ * place that maps them back to the ids, so everything after it speaks the registries' own ids. A word that is not a code (an id in full)
+ * is read as that id.
+ */
 object GemmaReadingParser {
 
     sealed interface Parsed {
@@ -55,12 +65,19 @@ object GemmaReadingParser {
 
     private val json = Json { isLenient = true; ignoreUnknownKeys = true }
 
-    fun parse(text: String): Parsed {
+    fun parse(text: String, vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT): Parsed {
         val root = try {
             json.parseToJsonElement(text.trim()).jsonObject
         } catch (e: Exception) {
             return Parsed.Bad("the answer is not a JSON object: ${e.message?.take(80)}")
         }
+        // One entry per party that exists: the first of a role is the party (a model that lists a role twice has said the same thing twice).
+        val parties = root.items(Field.PARTIES).mapNotNull { o ->
+            val role = vocab.partyRoleCodes.idOf(o.str(Item.WHO)) ?: return@mapNotNull null
+            role to GemmaParty(
+                id = o.str(Item.ID), text = o.str(Item.NAME), kind = vocab.partyKindCodes.idOf(o.str(Item.KIND)),
+            )
+        }.distinctBy { it.first }.toMap()
         return Parsed.Ok(
             GemmaReading(
                 asksReader = when (root.str(Field.ASKS_READER)?.lowercase()) {
@@ -68,23 +85,24 @@ object GemmaReadingParser {
                     GemmaVocabulary.NO -> false
                     else -> null
                 },
-                sender = root.party(Field.SENDER),
-                addressee = root.party(Field.ADDRESSEE),
-                contact = root.party(Field.CONTACT),
-                subjectPerson = root.party(Field.SUBJECT_PERSON),
-                dates = root.values(Field.DATES),
-                amounts = root.values(Field.AMOUNTS),
-                references = root.values(Field.REFERENCES),
+                paid = PaidState.of(root.str(Field.PAID)),
+                sender = parties[GemmaSchema.SENDER],
+                addressee = parties[GemmaSchema.ADDRESSEE],
+                contact = parties[GemmaSchema.CONTACT],
+                subjectPerson = parties[GemmaSchema.SUBJECT_PERSON],
+                dates = root.values(Field.DATES, vocab.dateMeaningCodes),
+                amounts = root.values(Field.AMOUNTS, vocab.amountMeaningCodes),
+                references = root.values(Field.REFERENCES, vocab.referenceKindCodes, kindKey = true),
                 actions = root.items(Field.ACTIONS).mapNotNull { o ->
-                    GemmaAction(o.str("kind") ?: return@mapNotNull null, o.str("dateId"), o.str("amountId"))
+                    GemmaAction(vocab.actionKindCodes.idOf(o.str(Item.KIND)) ?: return@mapNotNull null, o.str(Item.DATE_ID), o.str(Item.AMOUNT_ID))
                 },
-                category = root.str(Field.CATEGORY),
-                eventKind = root.str(Field.EVENT_KIND),
+                category = vocab.categoryCodes.idOf(root.str(Field.CATEGORY)),
+                eventKind = vocab.eventKindCodes.idOf(root.str(Field.EVENT_KIND)),
                 language = root.str(Field.LANGUAGE),
                 name = root.str(Field.NAME),
                 summary = root.str(Field.SUMMARY),
                 keyInfo = root.items(Field.KEY_INFO).mapNotNull { o ->
-                    GemmaFact(o.str("label") ?: return@mapNotNull null, o.str("value") ?: return@mapNotNull null)
+                    GemmaFact(o.str(Item.LABEL) ?: return@mapNotNull null, o.str(Item.VALUE) ?: return@mapNotNull null)
                 },
             ),
         )
@@ -92,14 +110,15 @@ object GemmaReadingParser {
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() }
 
-    private fun JsonObject.party(key: String): GemmaParty? {
-        val o = this[key] as? JsonObject ?: return null
-        return GemmaParty(id = o.str("id"), text = o.str("name"), kind = o.str("kind"))
-    }
-
     private fun JsonObject.items(key: String): List<JsonObject> =
         ((this[key] as? JsonArray) ?: JsonArray(emptyList())).mapNotNull { it as? JsonObject }
 
-    private fun JsonObject.values(key: String): List<GemmaValue> =
-        items(key).map { GemmaValue(candidateId = it.str("candidateId"), value = it.str("value"), meaning = it.str("meaning") ?: it.str("kind")) }
+    /** The entries of a list of values: the candidate's id (or the printed value of a picture-only answer) and its meaning or kind as an id. */
+    private fun JsonObject.values(key: String, codes: CodeBook, kindKey: Boolean = false): List<GemmaValue> =
+        items(key).map {
+            GemmaValue(
+                candidateId = it.str(Item.ID), value = it.str(Item.VALUE),
+                meaning = codes.idOf(it.str(if (kindKey) Item.KIND else Item.MEANING) ?: it.str(Item.KIND)),
+            )
+        }
 }

@@ -310,29 +310,75 @@ class GemmaReadingVerifierTest {
         assertThat(verify(GemmaReading(name = "Mahnung 2031")).name).isNull()
     }
 
-    @Test
-    @DisplayName("the summary is dropped when it states a number the letter does not hold")
-    fun `summary`() {
-        val good = "Der Anbieter bittet um Zahlung von 64,98 € bis zum 09.10.2026."
-        assertThat(verify(GemmaReading(summary = good)).summary).isEqualTo(good)
-        assertThat(verify(GemmaReading(summary = "Der Anbieter bittet um Zahlung von 99,99 €.")).summary).isNull()
-    }
+    // ── paid: the model's own answers must agree ──
 
     @Test
-    @DisplayName("a key fact stays only when its value is in the letter and is not a value the reading already holds")
-    fun `key info`() {
+    @DisplayName("a document the model says is already paid has no pay action, though it listed one; the other actions stay")
+    fun `already paid drops the pay action`() {
         val v = verify(
             GemmaReading(
-                references = listOf(GemmaValue(candidateId = "N1", meaning = "customer_no")),
-                keyInfo = listOf(
-                    GemmaFact("Telefon", "0800 555 0199"),
-                    GemmaFact("Kundennummer", "4402917"),
-                    GemmaFact("Konto", "DE99 0000 0000 0000 0000 00"),
-                ),
+                asksReader = true,
+                paid = PaidState.ALREADY_PAID,
+                dates = listOf(date("D2", "APPOINTMENT")),
+                amounts = listOf(date("A1", "INVOICE_TOTAL")),
+                actions = listOf(GemmaAction("pay", dateId = "none", amountId = "A1"), GemmaAction("attend", dateId = "D2")),
             ),
         )
 
-        assertThat(v.keyInfo.map { it.label }).containsExactly("Telefon")
-        assertThat(v.drops.last()).contains("2 key fact")
+        assertThat(v.actions.map { it.kind }).containsExactly("attend")
+        assertThat(v.paid).isEqualTo(PaidState.ALREADY_PAID)
+        assertThat(v.drops.any { it.contains("pay") && it.contains("already paid") }).isTrue()
+    }
+
+    @Test
+    @DisplayName("an already paid document has no amount to pay: the amount the model called so becomes the invoice total, the rest is untouched")
+    fun `already paid has no total due`() {
+        val v = verify(GemmaReading(paid = PaidState.ALREADY_PAID, amounts = listOf(date("A1", "TOTAL_DUE"), date("A2", "FEE"))))
+
+        assertThat(v.amounts.map { it.candidate.id to it.meaningId }).containsExactly("A1" to "INVOICE_TOTAL", "A2" to "FEE").inOrder()
+        assertThat(v.drops.single()).contains("TOTAL_DUE")
+    }
+
+    @Test
+    @DisplayName("the invoice total is exclusive: when the model already named another amount the invoice total, the converted one is kept as other")
+    fun `already paid with a total already named`() {
+        val v = verify(GemmaReading(paid = PaidState.ALREADY_PAID, amounts = listOf(date("A2", "INVOICE_TOTAL"), date("A1", "TOTAL_DUE"))))
+
+        assertThat(v.amounts.map { it.candidate.id to it.meaningId }).containsExactly("A2" to "INVOICE_TOTAL", "A1" to null).inOrder()
+    }
+
+    @Test
+    @DisplayName("an already paid document has no date by which to pay: that date is an ordinary date; other date meanings stay")
+    fun `already paid has no due date`() {
+        val v = verify(GemmaReading(paid = PaidState.ALREADY_PAID, dates = listOf(date("D1", "LETTER_DATE"), date("D2", "DUE_DATE"))))
+
+        assertThat(v.dates.map { it.candidate.id to it.meaningId }).containsExactly("D1" to "LETTER_DATE", "D2" to null).inOrder()
+    }
+
+    @Test
+    @DisplayName("a document that is still to pay, one without payment and one with no answer keep their pay action and amount to pay")
+    fun `not paid keeps everything`() {
+        for (paid in listOf(PaidState.TO_PAY, PaidState.NOT_APPLICABLE, null)) {
+            val v = verify(
+                GemmaReading(
+                    paid = paid,
+                    dates = listOf(date("D2", "DUE_DATE")),
+                    amounts = listOf(date("A1", "TOTAL_DUE")),
+                    actions = listOf(GemmaAction("pay", dateId = "D2", amountId = "A1")),
+                ),
+            )
+
+            assertThat(v.actions.map { it.kind }).containsExactly("pay")
+            assertThat(v.amounts.single().meaningId).isEqualTo("TOTAL_DUE")
+            assertThat(v.dates.single().meaningId).isEqualTo("DUE_DATE")
+            assertThat(v.drops).isEmpty()
+        }
+    }
+
+    @Test
+    @DisplayName("already paid does not decide the category: a receipt and a settled bill are both allowed, the model chooses")
+    fun `paid does not decide the category`() {
+        assertThat(verify(GemmaReading(paid = PaidState.ALREADY_PAID, category = "receipt")).category).isEqualTo("receipt")
+        assertThat(verify(GemmaReading(paid = PaidState.ALREADY_PAID, category = "bill")).category).isEqualTo("bill")
     }
 }

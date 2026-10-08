@@ -7,7 +7,6 @@ import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.EntityRole
 import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.ModelRuntime
-import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.testing.FakeActiveModelProvider
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.DisplayName
@@ -30,7 +29,7 @@ class GemmaReadingUseCaseTest {
         runBlocking { useCase(reader, entities)(pages, images, pageAspect = 0.707f, forcedFamily = forced) }
 
     /** What a good reading of the dunning letter answers, with every id taken from the letter the reader is shown. */
-    private fun goodAnswer(l: GemmaLetter): String {
+    private fun goodAnswer(l: GemmaLetter, eventKind: String = "payment_reminder"): String {
         val total = l.idOf(CandidateKind.AMOUNT, "64,98")
         return answer(
             mapOf(
@@ -48,10 +47,9 @@ class GemmaReadingUseCaseTest {
                 ),
                 "actions" to arr(obj("kind" to str("pay"), "dateId" to str("none"), "amountId" to str(total))),
                 "category" to str("bill"),
-                "eventKind" to str("payment_reminder"),
+                "paid" to str("to_pay"),
+                "eventKind" to str(eventKind),
                 "name" to str("Mahnung Mobilfunkrechnung"),
-                "summary" to str("Der Anbieter fordert 64,98 € und verlangt die Zahlung innerhalb von 14 Tagen."),
-                "keyInfo" to arr(obj("label" to str("Kundennummer"), "value" to str("4402917"))),
             ),
         )
     }
@@ -74,9 +72,8 @@ class GemmaReadingUseCaseTest {
         assertThat(u.facts.first { it.label == "Document Date" }.value).contains("25.09.2026")
         assertThat(u.facts.first { it.label == "IBAN" }).isNotNull()
         assertThat(u.facts.first { it.label == "Invoice Number" }.value).contains("2026-08-771204")
-        // The fee is a slot of the family, the key fact an open value under the model's own label.
+        // The fee is a slot of the family. The key facts are not in this answer: the second step writes them.
         assertThat(u.facts.any { it.label == "Fee" }).isTrue()
-        assertThat(u.facts.first { it.label == "Kundennummer" }.value).isEqualTo("4402917")
     }
 
     @Test
@@ -85,15 +82,53 @@ class GemmaReadingUseCaseTest {
         val u = readGood().understanding
 
         assertThat(u.event).isEqualTo(EventReading("payment_reminder"))
-        // A one-go reading has no second stage that would write it.
-        assertThat(u.enrichment).isNull()
     }
 
     @Test
     @DisplayName("a kind the registry does not know is no event, and an answer with no kind writes none")
     fun `no event for an unknown kind`() {
-        val unknown = read(ScriptedReader.answering { l -> goodAnswer(l).replace("payment_reminder", "party") }) as GemmaReadingOutcome.Read
+        val unknown = read(ScriptedReader.answering { l -> goodAnswer(l, eventKind = "party") }) as GemmaReadingOutcome.Read
         assertThat(unknown.understanding.event).isNull()
+    }
+
+    @Test
+    @DisplayName("the reading is complete (one go), and its ticket owes only the summary and the key facts, with what it decided about payment")
+    fun `the ticket owes only the texts`() {
+        val u = readGood().understanding
+
+        val ticket = u.enrichment!!
+        assertThat(ticket.oneGo).isTrue()
+        assertThat(ticket.paid).isEqualTo("to_pay")
+        // No summary in the answer: the second step writes it.
+        assertThat(u.summarySource).isNull()
+        assertThat(u.summary).isEmpty()
+    }
+
+    @Test
+    @DisplayName("the receipt read as a bill: category bill, but the model said it is already paid, so there is no pay action and no amount to pay, and the summary step is told")
+    fun `a paid bill`() {
+        val read = read(
+            ScriptedReader.answering { l ->
+                val total = l.idOf(CandidateKind.AMOUNT, "64,98")
+                answer(
+                    mapOf(
+                        "asksReader" to str("yes"),
+                        "paid" to str("already_paid"),
+                        "category" to str("bill"),
+                        "sender" to party(l.idOf(CandidateKind.NAME, "Nordlicht Mobilfunk GmbH"), "company"),
+                        "amounts" to arr(value(total, "TOTAL_DUE")),
+                        "actions" to arr(obj("kind" to str("pay"), "dateId" to str("none"), "amountId" to str(total))),
+                    ),
+                )
+            },
+        ) as GemmaReadingOutcome.Read
+        val u = read.understanding
+
+        assertThat(u.documentType).isEqualTo("invoice_bill")
+        assertThat(u.actionItems.orEmpty()).isEmpty()
+        assertThat(u.facts.first { it.label == "Amount" }.provenance?.role).isEqualTo("meaning:INVOICE_TOTAL")
+        assertThat(u.enrichment!!.paid).isEqualTo("already_paid")
+        assertThat(u.readingTrace.any { it.startsWith("gemma dropped:") && it.contains("already paid") }).isTrue()
     }
 
     @Test
@@ -129,20 +164,16 @@ class GemmaReadingUseCaseTest {
     }
 
     @Test
-    @DisplayName("the actions are bound to the stored fields the pipeline kept; the name, the summary and the title come with the reading")
-    fun `actions name summary title`() {
+    @DisplayName("the actions are bound to the stored fields the pipeline kept; the name and the title come with the reading")
+    fun `actions name title`() {
         val u = readGood().understanding
 
         val pay = u.actionItems!!.single()
         assertThat(pay).isEqualTo(
             ActionItem("pay", mapOf("amount" to "total", "party" to "sender", "reference" to "invoice_no", "iban" to "iban")),
         )
-        assertThat(u.summarySource).isEqualTo(SummarySource.MODEL)
-        assertThat(u.summary).contains("64,98")
         assertThat(u.title).contains("Mahnung Mobilfunkrechnung")
         assertThat(u.title).contains("Nordlicht Mobilfunk GmbH")
-        // A one-go reading has no second stage to wait for.
-        assertThat(u.enrichment).isNull()
     }
 
     @Test

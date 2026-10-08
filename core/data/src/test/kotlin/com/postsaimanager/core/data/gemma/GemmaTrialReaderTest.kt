@@ -4,7 +4,16 @@ import android.util.Log
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.gemma.GemmaReadingOutcome
 import com.postsaimanager.core.domain.extraction.gemma.GemmaReadingUseCase
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextOutcome
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextRequest
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextWriter
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextsOutcome
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextsRequest
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialRequest
+import com.postsaimanager.core.domain.extraction.gemma.PaidState
+import com.postsaimanager.core.domain.extraction.text.SummaryFacts
+import com.postsaimanager.core.domain.extraction.text.SummaryResult
+import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.TextBounds
@@ -28,7 +37,8 @@ class GemmaTrialReaderTest {
     private val trial = FakeGemmaReaderTrial()
     private val reading = mockk<GemmaReadingUseCase>()
     private val images = FakeChatImageStore()
-    private val reader = GemmaTrialReader(trial, reading, images)
+    private val texts = mockk<GemmaTextWriter>()
+    private val reader = GemmaTrialReader(trial, reading, images, texts)
     private val understanding = DocumentUnderstanding(documentType = "invoice_bill", modelUsed = true)
     private val blocks = listOf(OcrBlock("Rechnung", TextBounds(0.1f, 0.1f, 0.5f, 0.2f), 0.9f))
 
@@ -112,6 +122,42 @@ class GemmaTrialReaderTest {
 
         assertThat(reader.read(request())).isNotNull()
         assertThat(reader.read(request())).isNull()
+    }
+
+    private val textRequest = GemmaTextRequest("Rechnung 64,98 EUR", SummaryFacts("invoice_bill"), emptyList(), "de", PaidState.TO_PAY)
+    private val written = GemmaTextOutcome.Written(SummaryResult("Eine Rechnung.", SummarySource.MODEL, null, emptyList()), emptyList(), 5L, emptyList())
+
+    @Test
+    @DisplayName("the text step writes for a reading Gemma's own ticket owns, whatever the switch says")
+    fun `texts for a ticket`() = runBlocking {
+        trial.setEnabled(false)
+        coEvery { texts.write(any()) } returns written
+
+        val outcome = reader.writeTexts(GemmaTextsRequest("doc-1", textRequest, oneGo = true))
+
+        assertThat((outcome as GemmaTextsOutcome.Done).outcome).isSameInstanceAs(written)
+    }
+
+    @Test
+    @DisplayName("without a ticket the text step writes only while Gemma is the chosen reader; with the old one chosen the usual second stage runs")
+    fun `texts without a ticket`() = runBlocking {
+        coEvery { texts.write(any()) } returns written
+
+        assertThat(reader.writeTexts(GemmaTextsRequest("doc-1", textRequest, oneGo = false))).isInstanceOf(GemmaTextsOutcome.Done::class.java)
+
+        trial.setEnabled(false)
+        assertThat(reader.writeTexts(GemmaTextsRequest("doc-1", textRequest, oneGo = false))).isSameInstanceAs(GemmaTextsOutcome.NotGemma)
+        coVerify(exactly = 1) { texts.write(any()) }
+    }
+
+    @Test
+    @DisplayName("a text step that could not run is reported as unavailable, not as written")
+    fun `texts unavailable`() = runBlocking {
+        coEvery { texts.write(any()) } returns GemmaTextOutcome.Unavailable("no answer")
+
+        val outcome = reader.writeTexts(GemmaTextsRequest("doc-1", textRequest, oneGo = true)) as GemmaTextsOutcome.Done
+
+        assertThat(outcome.outcome).isInstanceOf(GemmaTextOutcome.Unavailable::class.java)
     }
 
     @Test

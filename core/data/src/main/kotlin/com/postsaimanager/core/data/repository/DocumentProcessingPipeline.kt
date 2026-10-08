@@ -107,6 +107,9 @@ class DocumentProcessingPipeline @Inject constructor(
 
     private val workManager get() = WorkManager.getInstance(appContext)
 
+    /** The text step of a Gemma reading (its summary and key facts), which [enrichDocument] runs in place of the staged second stage. */
+    private val gemmaTextStage by lazy { GemmaTextStage(gemmaTrial, documentDao, fieldRevisionDao, documentMapper, mergeExtraction) }
+
     /**
      * The on-device model is single-resident (documentation/07-document-pipeline.md §7): two
      * documents must never run the pipeline at once, or one engine load stomps the other's
@@ -237,7 +240,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 val completedPages = AtomicInteger(0)
                 val ocrStarted = System.nanoTime()
 
-                val storedOcr = if (reprocess) StoredOcr.reuse(pages, documentMapper) else null
+                val storedOcr = if (reprocess) StoredOcr.reuse(pages, documentMapper, requireWordBoxes = true) else null
                 val ocrByPage: List<Pair<DocumentPageEntity, OcrResult?>> = storedOcr ?: coroutineScope {
                     pages.map { page ->
                         async {
@@ -358,7 +361,9 @@ class DocumentProcessingPipeline @Inject constructor(
                 val read = (understanding as? PamResult.Success)?.data
                 read?.let { logReadingTrace(documentId, it.readingTrace) }
                 // The first stage of a staged reading: no extras, no subject, no summary yet (the second stage writes them).
-                val staged = read?.enrichment != null
+                // A one-go reading (Gemma) is not staged: it decided everything but the long texts, so it is complete and stored as such;
+                // its ticket only owes the summary and the key facts, which the text step writes afterwards.
+                val staged = read?.enrichment?.let { !it.oneGo } == true
                 // Something was read: by the model, or (no model) only found by code.
                 val usedV2 = read != null &&
                     (read.entities.isNotEmpty() || read.facts.isNotEmpty() || read.documentType.isNotBlank())
@@ -810,6 +815,28 @@ class DocumentProcessingPipeline @Inject constructor(
                     if (doc == null || doc.deletedAt != null) {
                         finishEnrichment(documentId)
                         return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
+                    }
+                    // A Gemma reading owes only its summary and key facts (one call decided the rest): the text step writes them, from the
+                    // stored text, in place of the staged second stage. A ticket that is not Gemma's, or a lost one while the old reader is
+                    // chosen, falls through to the second stage below.
+                    when (val texts = gemmaTextStage.run(documentId, ticket)) {
+                        GemmaTextStageResult.NotGemma -> Unit
+                        GemmaTextStageResult.Stored -> {
+                            completeReading(documentId)
+                            Log.i(TIMING_TAG, "$documentId TOTAL enrichDocument (gemma texts, inside the lock) ms=${msSince(started)}")
+                            finishEnrichment(documentId)
+                            return@withContext PamResult.Success(Unit)
+                        }
+                        GemmaTextStageResult.Gone -> {
+                            finishEnrichment(documentId)
+                            return@withContext PamResult.Error(PamError.FileNotFound(path = documentId))
+                        }
+                        is GemmaTextStageResult.Failed -> {
+                            Log.w(TAG, "gemma texts of $documentId not written: ${texts.reason}; attempt counted")
+                            settleFailedAttempt(documentId)
+                            finishEnrichment(documentId)
+                            return@withContext PamResult.Error(PamError.ExtractionFailed(detail = texts.reason))
+                        }
                     }
                     // A ticket that was lost is rebuilt from the stored family, topics and fields; a document no model has read has nothing to enrich.
                     val storedFields = documentDao.getExtractedData(documentId).map(documentMapper::extractedDataToDomain)

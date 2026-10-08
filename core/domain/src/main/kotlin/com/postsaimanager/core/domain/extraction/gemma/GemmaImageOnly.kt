@@ -61,7 +61,11 @@ class GemmaImageOnly(
             val ordered = values.sortedBy { v -> MeaningSlots.priority(kind, v.meaning.orEmpty().uppercase()) }
             for (v in ordered) {
                 val printed = v.value?.trim().orEmpty()
-                val meaning = (if (kind == MeaningKind.DATE) vocab.dateMeaning(v.meaning) else vocab.amountMeaning(v.meaning))?.id
+                val meaning = if (kind == MeaningKind.DATE) {
+                    PaidConsistency.dateMeaning(reading.paid, vocab.dateMeaning(v.meaning)?.id)
+                } else {
+                    PaidConsistency.amountMeaning(reading.paid, vocab.amountMeaning(v.meaning)?.id)
+                }
                 val normalized = (if (kind == MeaningKind.DATE) isoDate(printed) else money(printed))
                 if (normalized == null) {
                     rejections += "${kind.name.lowercase()} did not parse"

@@ -6,7 +6,9 @@ import com.postsaimanager.core.data.gemma.SharedPreferencesGemmaReaderTrial
 import com.postsaimanager.core.domain.extraction.gemma.ChatEngineGemmaReader
 import com.postsaimanager.core.domain.extraction.gemma.EntityAnnotator
 import com.postsaimanager.core.domain.extraction.gemma.GemmaDocumentReader
+import com.postsaimanager.core.domain.extraction.gemma.ChatEngineGemmaTextGenerator
 import com.postsaimanager.core.domain.extraction.gemma.GemmaReaderTrial
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextGenerator
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialReading
 import com.postsaimanager.core.data.repository.ContactRepositoryImpl
 import com.postsaimanager.core.data.repository.EventRepositoryImpl
@@ -158,4 +160,8 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindGemmaDocumentReader(impl: ChatEngineGemmaReader): GemmaDocumentReader
+
+    @Binds
+    @Singleton
+    abstract fun bindGemmaTextGenerator(impl: ChatEngineGemmaTextGenerator): GemmaTextGenerator
 }

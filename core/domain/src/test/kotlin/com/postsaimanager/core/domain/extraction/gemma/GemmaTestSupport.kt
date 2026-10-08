@@ -48,16 +48,60 @@ internal fun party(id: String, kind: String = "person") = obj("id" to str(id), "
 
 internal fun value(id: String, meaning: String) = obj("candidateId" to str(id), "meaning" to str(meaning))
 
-/** A full answer with every field present; [overrides] replace fields of it. */
+/**
+ * A full answer, written the way a test reads best (long field names, ids in full) and encoded the way the model writes it (one-letter
+ * keys, the registries' words as codes, only the parties that exist); [overrides] replace fields of the readable form.
+ */
 internal fun answer(overrides: Map<String, JsonElement> = emptyMap()): String {
     val base = mutableMapOf<String, JsonElement>(
-        "asksReader" to str("yes"), "eventKind" to str("information"),
+        "asksReader" to str("yes"), "paid" to str("not_applicable"), "eventKind" to str("information"),
         "sender" to party("none"), "addressee" to party("none"), "contact" to party("none"), "subjectPerson" to party("none"),
         "dates" to arr(), "amounts" to arr(), "references" to arr(), "actions" to arr(),
-        "category" to str("document"), "language" to str("de"), "name" to str(""), "summary" to str(""), "keyInfo" to arr(),
+        "category" to str("document"), "language" to str("de"), "name" to str(""),
     )
     base.putAll(overrides)
-    return JsonObject(base).toString()
+    return encoded(base).toString()
+}
+
+private val codes = GemmaVocabulary.DEFAULT
+
+private fun JsonElement.text(key: String): String? = (this as? JsonObject)?.get(key)?.let { (it as? JsonPrimitive)?.content }
+
+private fun items(e: JsonElement?): List<JsonElement> = (e as? JsonArray)?.toList().orEmpty()
+
+private fun code(book: CodeBook, id: String?): JsonElement = str(id?.let { book.codeOf(it) } ?: id.orEmpty())
+
+private fun encoded(readable: Map<String, JsonElement>): JsonObject {
+    val parties = GemmaSchema.PARTIES.mapNotNull { role ->
+        val p = readable[role]
+        val id = p?.text("id")
+        val name = p?.text("name")
+        when {
+            name != null -> obj("w" to code(codes.partyRoleCodes, role), "n" to str(name), "k" to code(codes.partyKindCodes, p.text("kind")))
+            id == null || id.equals("none", ignoreCase = true) -> null
+            else -> obj("w" to code(codes.partyRoleCodes, role), "i" to str(id), "k" to code(codes.partyKindCodes, p.text("kind")))
+        }
+    }
+
+    /** A value as the answer writes it: the candidate's id, or (a picture-only answer) the value as printed. */
+    fun pointer(e: JsonElement) = e.text("value")?.let { "v" to str(it) } ?: ("i" to str(e.text("candidateId").orEmpty()))
+    val out = linkedMapOf<String, JsonElement>()
+    readable["asksReader"]?.let { out["a"] = it }
+    readable["paid"]?.let { out["p"] = it }
+    readable["category"]?.let { out["c"] = code(codes.categoryCodes, (it as JsonPrimitive).content) }
+    out["r"] = arr(*parties.toTypedArray())
+    out["d"] = arr(*items(readable["dates"]).map { obj(pointer(it), "m" to code(codes.dateMeaningCodes, it.text("meaning"))) }.toTypedArray())
+    out["m"] = arr(*items(readable["amounts"]).map { obj(pointer(it), "m" to code(codes.amountMeaningCodes, it.text("meaning"))) }.toTypedArray())
+    out["f"] = arr(*items(readable["references"]).map { obj(pointer(it), "k" to code(codes.referenceKindCodes, it.text("kind"))) }.toTypedArray())
+    out["k"] = arr(
+        *items(readable["actions"]).map {
+            obj("k" to code(codes.actionKindCodes, it.text("kind")), "d" to str(it.text("dateId") ?: "none"), "a" to str(it.text("amountId") ?: "none"))
+        }.toTypedArray(),
+    )
+    readable["eventKind"]?.let { out["e"] = code(codes.eventKindCodes, (it as JsonPrimitive).content) }
+    readable["language"]?.let { out["l"] = it }
+    readable["name"]?.let { out["n"] = it }
+    return JsonObject(out)
 }
 
 /** A small hand-made letter: its lines and the candidates found in them, as the reader sees it and as the verifier looks them up. */

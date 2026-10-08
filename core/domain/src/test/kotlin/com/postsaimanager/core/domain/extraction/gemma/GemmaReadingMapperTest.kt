@@ -3,7 +3,6 @@ package com.postsaimanager.core.domain.extraction.gemma
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.v2.DocDirection
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
-import com.postsaimanager.core.domain.extraction.v2.StructuredGrammar
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -104,13 +103,10 @@ class GemmaReadingMapperTest {
     }
 
     @Test
-    @DisplayName("key facts are open values with no candidate: a quoted value the verifier finds in the letter again")
-    fun `key info`() {
+    @DisplayName("key facts are no part of the reading: the second step writes them, so a reading maps to none")
+    fun `no key info`() {
         val raw = map(GemmaReading(keyInfo = listOf(GemmaFact("Telefon", "0800 555 0199")))).raw
 
-        val extra = raw.extras.single()
-        assertThat(extra.label).isEqualTo("Telefon")
-        assertThat(extra.id).isEqualTo(StructuredGrammar.NONE)
-        assertThat(extra.value).isEqualTo("0800 555 0199")
+        assertThat(raw.extras).isEmpty()
     }
 }

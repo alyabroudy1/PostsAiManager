@@ -14,8 +14,14 @@ import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.data.worker.DocumentEnrichmentWorker
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextOutcome
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextsOutcome
+import com.postsaimanager.core.domain.extraction.gemma.GemmaTextsRequest
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialReading
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialRequest
+import com.postsaimanager.core.domain.extraction.gemma.PaidState
+import com.postsaimanager.core.domain.extraction.text.SummaryResult
+import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.domain.reading.AnnounceUnderstoodLetterUseCase
 import com.postsaimanager.core.domain.timeline.RecordDocumentEventsUseCase
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
@@ -218,6 +224,82 @@ class DocumentProcessingPipelineGemmaTrialTest {
         pipeline(trial).processDocument("doc-1")
 
         coVerify(exactly = 0) { recordEvents(any(), any(), any()) }
+    }
+
+    private val oneGoReading get() = gemma.copy(summary = "", summarySource = null, enrichment = EnrichmentTicket(oneGo = true, paid = "already_paid"))
+
+    @Test
+    @DisplayName("a one-go Gemma reading is complete when stored (actions, event, announcement) and owes only its summary and key facts, which are queued")
+    fun `a one-go reading owes only the texts`() = runTest(dispatcher) {
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding = oneGoReading.copy(event = EventReading("payment_demand"))
+        }
+        val p = pipeline(trial)
+
+        p.processDocument("doc-1")
+
+        val updated = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(updated)) }
+        val document = mapper.toDomain(updated.captured)
+        assertThat(document.actionItems).containsExactly(ActionItem("pay", mapOf("amount" to "total")))
+        assertThat(document.enrichmentPending).isTrue()
+        coVerify(exactly = 1) { recordEvents("doc-1", EventReading("payment_demand"), any()) }
+        coVerify(exactly = 1) { announce("doc-1") }
+        coVerify { documentDao.updateReadingStage("doc-1", "UNDERSTOOD") }
+        verify(exactly = 1) {
+            workManager.enqueueUniqueWork(DocumentEnrichmentWorker.workName("doc-1"), ExistingWorkPolicy.REPLACE, any<OneTimeWorkRequest>())
+        }
+    }
+
+    private fun extractedDocument() = DocumentEntity(
+        id = "doc-1", title = "Rechnung", status = DocumentStatus.EXTRACTED.name, documentType = null, language = "de", sourceType = "CAMERA",
+        thumbnailPath = null, pageCount = 1, createdAt = 0L, modifiedAt = 0L, extractionType = "receipt", enrichmentPending = true,
+    )
+
+    @Test
+    @DisplayName("the second stage of a one-go reading is the text step: the summary is stored, the old second stage is never asked")
+    fun `enrichment is the text step`() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns extractedDocument()
+        coEvery { documentDao.getPages("doc-1") } returns listOf(page.copy(ocrText = "Rechnung 64,98 EUR"))
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding? = null
+            override suspend fun writeTexts(request: GemmaTextsRequest): GemmaTextsOutcome {
+                assertThat(request.oneGo).isTrue()
+                assertThat(request.text.paid).isEqualTo(PaidState.ALREADY_PAID)
+                return GemmaTextsOutcome.Done(
+                    GemmaTextOutcome.Written(SummaryResult("Beleg über 64,98 EUR.", SummarySource.MODEL, null, emptyList()), emptyList(), 3L, emptyList()),
+                )
+            }
+        }
+
+        val result = pipeline(trial).enrichDocument("doc-1", EnrichmentTicket(oneGo = true, paid = "already_paid"))
+
+        assertThat(result).isInstanceOf(PamResult.Success::class.java)
+        val updated = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(updated)) }
+        assertThat(updated.captured.summary).isEqualTo("Beleg über 64,98 EUR.")
+        assertThat(updated.captured.enrichmentPending).isFalse()
+        coVerify(exactly = 0) { aiExtraction(any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    @DisplayName("a text step that could not run is an error with the attempt counted, and the old second stage is not run in its place")
+    fun `the text step failing counts an attempt`() = runTest(dispatcher) {
+        coEvery { documentDao.getById("doc-1") } returns extractedDocument()
+        coEvery { documentDao.getPages("doc-1") } returns listOf(page.copy(ocrText = "Rechnung 64,98 EUR"))
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding? = null
+            override suspend fun writeTexts(request: GemmaTextsRequest): GemmaTextsOutcome =
+                GemmaTextsOutcome.Done(GemmaTextOutcome.Unavailable("no answer"))
+        }
+
+        val result = pipeline(trial).enrichDocument("doc-1", EnrichmentTicket(oneGo = true))
+
+        assertThat(result).isInstanceOf(PamResult.Error::class.java)
+        coVerify(exactly = 0) { aiExtraction(any(), any(), any(), any(), any(), any(), any()) }
+        val updated = slot<DocumentEntity>()
+        coVerify { documentDao.update(capture(updated)) }
+        assertThat(updated.captured.enrichmentAttempts).isEqualTo(1)
     }
 
     @Test

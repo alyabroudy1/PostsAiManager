@@ -2,7 +2,6 @@ package com.postsaimanager.core.domain.extraction.gemma
 
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
-import com.postsaimanager.core.domain.extraction.text.KeyInfoWriter
 import com.postsaimanager.core.domain.extraction.v2.DocDirection
 import com.postsaimanager.core.domain.extraction.v2.DocFamily
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
@@ -26,7 +25,8 @@ import com.postsaimanager.core.domain.extraction.v2.StructuredGrammar
  * - Each party becomes a [RawParty]: a candidate id, or the printed line as a quote the verifier finds in the text again.
  * - A date or an amount the model gave a meaning goes to the slot [MeaningSlots] names for that meaning (the best of the meanings that
  *   share a slot), with the meaning kept on the value; every other one is an open value under the label printed beside it.
- * - A reference goes to the slot of its kind (the account to `iban`), or is an open value; the key facts are open values too.
+ * - A reference goes to the slot of its kind (the account to `iban`), or is an open value. (The key facts, open values too, come with the
+ *   second step, [GemmaTextWriter].)
  *
  * Nothing here decides what a value means: the model did, and the registries say where the meaning is stored.
  */
@@ -52,9 +52,6 @@ class GemmaReadingMapper(
             } else {
                 extras += extra(r.candidate, r.kind.takeIf { it != GemmaVocabulary.OTHER } ?: r.candidate.kind.name.lowercase())
             }
-        }
-        reading.keyInfo.forEach {
-            extras += RawExtra(label = it.label, key = KeyInfoWriter.KEY, id = StructuredGrammar.NONE, value = it.value, confidence = KeyInfoWriter.CONFIDENCE)
         }
 
         val parties = reading.parties.map { p ->

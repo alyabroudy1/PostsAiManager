@@ -51,6 +51,44 @@ class AvatarGlyphTest {
     }
 
     @Test
+    @DisplayName("the screenshot's layout: a near-square Z element, a gap wider than a word space (but narrower than 1.5 glyph widths), then the name")
+    fun `the device screenshot layout is stripped`() {
+        // A 1080 x 2400 chat screenshot, boxes normalised to the page: the avatar's initial is 0.040 wide and 0.015 high, the name 0.0167
+        // high with 14 characters of 0.0204 each, and the name starts 0.050 after the initial. The earlier rule (a gap of 1.5 glyph
+        // widths = 0.060) did not see this glyph.
+        val avatar = word("Z", 0.060f, 0.040f, top = 0.0505f, height = 0.015f)
+        val name = word("Zahnarztpraxis", 0.150f, 0.2856f, top = 0.050f, height = 0.0167f)
+        val subtitle = word("Terminerinnerung", 0.150f, 0.30f, top = 0.075f, height = 0.0167f)
+        val b = block(line(listOf(avatar, name)), line(listOf(subtitle)))
+
+        val stripped = AvatarGlyph.strip(b)
+
+        assertThat(stripped.text).isEqualTo("Zahnarztpraxis\nTerminerinnerung")
+        assertThat(stripped.lines.first().words.map { it.text }).containsExactly("Zahnarztpraxis")
+        assertThat(stripped.lines.last()).isSameInstanceAs(b.lines.last())
+    }
+
+    @Test
+    @DisplayName("two initials in their own element are an avatar too")
+    fun `two initials`() {
+        val b = block(line(listOf(word("MK", 0.10f, 0.05f, height = 0.02f), word("Praxis", 0.22f, 0.13f))))
+
+        assertThat(AvatarGlyph.strip(b).text).isEqualTo("Praxis")
+    }
+
+    @Test
+    @DisplayName("a narrow capital (a bar or an I), a digit and a bullet are not avatars, whatever the gap")
+    fun `not a near-square letter`() {
+        val bar = block(line(listOf(word("I", 0.10f, 0.004f, height = 0.02f), word("Praxis", 0.25f, 0.13f))))
+        val digit = block(line(listOf(word("1", 0.10f, 0.02f), word("Position", 0.25f, 0.17f))))
+        val bullet = block(line(listOf(word("•", 0.10f, 0.02f), word("Position", 0.25f, 0.17f))))
+
+        assertThat(AvatarGlyph.strip(bar)).isSameInstanceAs(bar)
+        assertThat(AvatarGlyph.strip(digit)).isSameInstanceAs(digit)
+        assertThat(AvatarGlyph.strip(bullet)).isSameInstanceAs(bullet)
+    }
+
+    @Test
     @DisplayName("only that line of a block loses its glyph; the other lines are untouched")
     fun `other lines stay`() {
         val b = block(

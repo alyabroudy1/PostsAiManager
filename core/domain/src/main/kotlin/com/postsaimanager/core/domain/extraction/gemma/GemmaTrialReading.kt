@@ -28,10 +28,32 @@ interface GemmaTrialReading {
 
     suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding?
 
+    /**
+     * The second step of a Gemma reading, after it is stored: the summary and the key facts ([GemmaTextWriter]).
+     * [GemmaTextsOutcome.NotGemma] when the old reader is the one chosen and the reading was not Gemma's.
+     */
+    suspend fun writeTexts(request: GemmaTextsRequest): GemmaTextsOutcome = GemmaTextsOutcome.NotGemma
+
     companion object {
         /** No trial: the pipeline reads as it always did. */
         val NONE: GemmaTrialReading = object : GemmaTrialReading {
             override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding? = null
         }
     }
+}
+
+/**
+ * What the pipeline hands the text step for one stored reading.
+ *
+ * @property oneGo the reading's own ticket says Gemma read it (a one-off "read again with Gemma" included): the step then writes whatever
+ *   the switch says. Without a ticket (it was lost with the process) the step writes only while Gemma is the chosen reader.
+ */
+class GemmaTextsRequest(val documentId: String, val text: GemmaTextRequest, val oneGo: Boolean)
+
+sealed interface GemmaTextsOutcome {
+
+    /** The reading is not Gemma's: the usual second stage writes the texts. */
+    data object NotGemma : GemmaTextsOutcome
+
+    class Done(val outcome: GemmaTextOutcome) : GemmaTextsOutcome
 }

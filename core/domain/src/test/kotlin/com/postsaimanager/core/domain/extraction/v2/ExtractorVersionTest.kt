@@ -19,9 +19,10 @@ class ExtractorVersionTest {
     }
 
     @Test
-    @DisplayName("the extractor is extraction-v2-19 (Gemma is the default reader), and a document the previous one read is outdated")
+    @DisplayName("the extractor is extraction-v2-20 (Gemma's short answer, paid, avatar by elements), and a document the previous one read is outdated")
     fun typeLabelVersion() {
-        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-19")
+        assertThat(ExtractorVersion.CURRENT).isEqualTo("extraction-v2-20")
+        assertThat(ExtractorVersion.isOutdated("extraction-v2-19")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-18")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-17")).isTrue()
         assertThat(ExtractorVersion.isOutdated("extraction-v2-16")).isTrue()

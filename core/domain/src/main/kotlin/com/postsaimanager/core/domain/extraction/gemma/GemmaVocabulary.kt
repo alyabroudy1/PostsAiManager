@@ -41,6 +41,19 @@ class GemmaVocabulary(
 
     val partyKinds: List<String> = PartyKind.entries.map { it.name.lowercase() }
 
+    /**
+     * The words of every list as short codes (see [CodeBook]): the answer is written with the codes, which are cheaper to write than
+     * the ids, and the parser maps them back. The registries stay the owners of the ids; a code is only the id's place in its list.
+     */
+    val categoryCodes = CodeBook("c", categoryIds)
+    val dateMeaningCodes = CodeBook("d", dateMeanings.map { it.id } + OTHER)
+    val amountMeaningCodes = CodeBook("m", amountMeanings.map { it.id } + OTHER)
+    val actionKindCodes = CodeBook("k", actionKinds.map { it.id })
+    val referenceKindCodes = CodeBook("r", referenceKinds)
+    val eventKindCodes = CodeBook("e", eventKindIds)
+    val partyKindCodes = CodeBook("t", partyKinds)
+    val partyRoleCodes = CodeBook("w", GemmaSchema.PARTIES)
+
     fun category(id: String?): DocCategory? = categories.firstOrNull { it.id == id?.trim()?.lowercase() }
 
     fun actionKind(id: String?): ActionKind? = actionKinds.firstOrNull { it.id == id?.trim() }
@@ -67,6 +80,32 @@ class GemmaVocabulary(
         const val IBAN_KIND = "iban"
 
         val DEFAULT = GemmaVocabulary()
+    }
+}
+
+/**
+ * The ids of one registry list as short codes: the first is `<prefix>1`, the next `<prefix>2` and so on, so the model writes one or two
+ * tokens instead of an id such as `INVOICE_TOTAL`. The prompt lists each code with the registry's own sentence for it.
+ *
+ * Data, not words: nothing here knows what an id means; the code is the id's position, built from the registry at start. A word that is
+ * not a code of the book (an id written in full) is read as that id, so an answer in either spelling is understood.
+ */
+class CodeBook(prefix: String, ids: List<String>) {
+
+    private val listed = ids.distinct()
+
+    /** The codes in the list's order. */
+    val codes: List<String> = listed.indices.map { "$prefix${it + 1}" }
+
+    private val idByCode = codes.zip(listed).toMap()
+
+    /** The code of [id], or null when the list does not hold it. */
+    fun codeOf(id: String): String? = listed.indexOf(id).takeIf { it >= 0 }?.let { codes[it] }
+
+    /** The id behind [word] when it is one of the codes; any other word is returned as it was written (it may be an id in full). */
+    fun idOf(word: String?): String? {
+        val w = word?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        return idByCode[w.lowercase()] ?: w
     }
 }
 

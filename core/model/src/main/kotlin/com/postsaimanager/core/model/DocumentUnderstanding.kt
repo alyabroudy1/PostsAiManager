@@ -130,6 +130,11 @@ data class RecognisedFact(
  *   the reader needs them (the key information). Filled from the stored fields when the second stage runs.
  * @property userFamily the category a person said the document is (a family id), or null. It is context for every question of the second
  *   stage and for the name written for the document, and the category is then not decided again: it stays the person's choice.
+ * @property oneGo true for a reading that decided everything but the long free texts in one call (the Gemma reader): its first stage is
+ *   complete, the type, the title, the actions and the event are stored, and what is owed is only the summary and the key facts, which
+ *   the reader's own text step writes. False for a staged reading, whose second stage decides more.
+ * @property paid the reader's answer to "has it been paid already?" (a `PaidState` id) for a one-go reading, so the summary is written
+ *   knowing it; null when the reading did not say.
  */
 @Serializable
 data class EnrichmentTicket(
@@ -141,6 +146,8 @@ data class EnrichmentTicket(
     val takenValues: List<String> = emptyList(),
     val slots: List<TicketSlot> = emptyList(),
     val userFamily: String? = null,
+    val oneGo: Boolean = false,
+    val paid: String? = null,
 )
 
 /**

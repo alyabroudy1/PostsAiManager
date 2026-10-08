@@ -41,7 +41,7 @@ data class DocCategory(val id: String, val phrase: String, val families: List<St
             ),
             DocCategory(
                 "receipt", "a receipt", listOf("receipt", "payment_proof"),
-                "proof of a payment already made: nothing is left to pay",
+                "a receipt, a till slip or a confirmation of a payment that was already paid: nothing is left to pay",
             ),
             DocCategory("form", "a form", listOf("form_application"), "a form or an application, to be filled in or already filled in"),
             DocCategory(

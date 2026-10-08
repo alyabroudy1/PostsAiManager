@@ -4,9 +4,7 @@ import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.candidates.IbanValidator
 import com.postsaimanager.core.domain.extraction.text.DocumentNameVerifier
-import com.postsaimanager.core.domain.extraction.text.KeyInfoFormat
-import com.postsaimanager.core.domain.extraction.text.KeyInfoVerifier
-import com.postsaimanager.core.domain.extraction.text.SummaryGate
+import com.postsaimanager.core.domain.extraction.actions.ActionKinds
 import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
 import com.postsaimanager.core.domain.extraction.v2.PartyKind
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
@@ -41,13 +39,13 @@ class VerifiedReading(
     val category: String,
     val language: String?,
     val name: String?,
-    val summary: String?,
-    val keyInfo: List<KeyInfoVerifier.Kept>,
     val drops: List<String>,
     /** What the letter reports on the timeline: a kind of the event registry, or null when the model named none the registry knows. */
     val eventKind: String? = null,
     /** The model's answer to "does the letter ask its reader to do anything?"; null when it gave none. */
     val asksReader: Boolean? = null,
+    /** The model's answer to "has it been paid already?"; null when it gave none. The summary step is told it. */
+    val paid: PaidState? = null,
 )
 
 /**
@@ -62,14 +60,14 @@ class VerifiedReading(
  * - **Amounts** parse to money and pass their candidate's validation.
  * - **Accounts** are IBAN candidates whose checksum is right, and only they; a contact value (phone, e-mail, BIC) is only "other".
  * - **Actions** keep their kind (a registry id); a date or an amount they point at is kept only when it was kept above.
- * - **Free texts** are grounded in the letter with the verifiers every other text passes: [DocumentNameVerifier] for the name,
- *   [SummaryGate] for the summary (numbers and names must be in the letter, no copied line), [KeyInfoVerifier] for the key facts.
+ * - **Paid.** The answers agree with the model's own "paid" ([PaidConsistency]): a document it says is already paid has no pay action,
+ *   no "amount to pay" and no "pay by" date.
+ * - **The name** is grounded in the letter with [DocumentNameVerifier]. (The summary and the key facts are not part of this answer; the
+ *   second step writes them and checks them with their own verifiers, see [GemmaTextWriter].)
  */
 class GemmaReadingVerifier(
     private val vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT,
     private val names: DocumentNameVerifier = DocumentNameVerifier(),
-    private val summaries: SummaryGate = SummaryGate(),
-    private val keyInfos: KeyInfoVerifier = KeyInfoVerifier(),
 ) {
 
     /**
@@ -102,20 +100,7 @@ class GemmaReadingVerifier(
             names.verify(it, ocrText).also { kept -> if (kept == null) drops += "the document name is not grounded in the letter" }
         }
 
-        val known = parties.mapNotNull { p -> p.candidateId?.let { offered.get(it)?.raw } ?: p.quote } +
-            dates.map { it.candidate.raw } + amounts.map { it.candidate.raw } + references.map { it.candidate.raw }
-        val summary = reading.summary?.takeIf { it.isNotBlank() }?.let { text ->
-            when (val verdict = summaries.check(text, ocrText, known)) {
-                is SummaryGate.Verdict.Accepted -> verdict.text
-                is SummaryGate.Verdict.Rejected -> null.also { drops += "the summary was rejected: ${verdict.reason}" }
-            }
-        }
-
-        val facts = reading.keyInfo.map { KeyInfoFormat.Fact(it.label, it.value) }
-        val keyInfo = keyInfos.verify(facts, ocrText, known).also {
-            if (it.size < facts.size) drops += "${facts.size - it.size} key fact(s) dropped: not in the letter, a repeat of a read value, or over the limit"
-        }
-        return VerifiedReading(parties, dates, amounts, references, actions, category, language, name, summary, keyInfo, drops, eventKind, reading.asksReader)
+        return VerifiedReading(parties, dates, amounts, references, actions, category, language, name, drops, eventKind, reading.asksReader, reading.paid)
     }
 
     // ── parties ──
@@ -170,7 +155,10 @@ class GemmaReadingVerifier(
                 drops += "date ${c.id}: does not parse as a calendar date"
                 continue
             }
-            kept.putIfAbsent(c.id, VerifiedValue(c, vocab.dateMeaning(v.meaning)?.id))
+            val meaning = vocab.dateMeaning(v.meaning)?.id
+            val consistent = PaidConsistency.dateMeaning(reading.paid, meaning)
+            if (consistent != meaning) drops += "date ${c.id}: ${meaning} is no meaning for a document the model said is already paid: kept as other"
+            kept.putIfAbsent(c.id, VerifiedValue(c, consistent))
         }
         // A due date does not come before the date of the letter: the letter's own date as the model named it, else the one code found.
         val letterOn = kept.values.firstOrNull { it.meaningId == LETTER_DATE }?.let { parse(it.candidate) } ?: letterDate
@@ -197,7 +185,10 @@ class GemmaReadingVerifier(
                 drops += "amount ${c.id}: failed its own check"
                 continue
             }
-            kept.putIfAbsent(c.id, VerifiedValue(c, vocab.amountMeaning(v.meaning)?.id))
+            val meaning = vocab.amountMeaning(v.meaning)?.id
+            val consistent = PaidConsistency.amountMeaning(reading.paid, meaning)
+            if (consistent != meaning) drops += "amount ${c.id}: $meaning became $consistent for a document the model said is already paid"
+            kept.putIfAbsent(c.id, VerifiedValue(c, consistent))
         }
         return singleOwners(kept.values.toList(), drops)
     }
@@ -254,6 +245,10 @@ class GemmaReadingVerifier(
                 drops += "action '${a.kind}' is not in the registry"
                 null
             } ?: continue
+            if (!PaidConsistency.keepsAction(reading.paid, kind)) {
+                drops += "action $kind dropped: the model said everything is already paid"
+                continue
+            }
             val kept = a.dateId?.let { id -> dates.firstOrNull { it.candidate.id == id } }
             // The model's own answers must agree: a date it called the letter's date, a period or "other" is not a deadline.
             val meansDeadline = kept == null || kept.meaningId in ACTION_DATE_MEANINGS
