@@ -8,7 +8,11 @@ class FakeChatImageStore(private val unreadable: Set<String> = emptySet()) : Cha
     /** The stored pictures of each conversation, in the order they were imported. */
     val stored = mutableMapOf<String, MutableList<String>>()
 
-    override suspend fun import(conversationId: String, source: String): String? {
+    /** The `longSide` each import asked for, in order (null: the usual size). */
+    val longSides = mutableListOf<Int?>()
+
+    override suspend fun import(conversationId: String, source: String, longSide: Int?): String? {
+        longSides += longSide
         if (source in unreadable) return null
         val list = stored.getOrPut(conversationId) { mutableListOf() }
         return "/chat-attachments/$conversationId/${list.size + 1}.png".also { list += it }

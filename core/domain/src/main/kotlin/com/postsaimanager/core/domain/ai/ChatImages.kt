@@ -23,8 +23,11 @@ interface ChatImageStore {
     /**
      * Copies the picture at [source] (a `content://` or `file://` URI, as the picker or a stored page gives it), scaled to what
      * the model takes, and returns the file it now lives in, or null when it could not be read as a picture.
+     *
+     * @param longSide when set, the picture's long side is scaled down to exactly this many pixels (a page the reader looks at needs
+     *   fewer than a photo a person asks about: the picture's tokens are prefilled at 60 to 85 a second); null keeps the usual size
      */
-    suspend fun import(conversationId: String, source: String): String?
+    suspend fun import(conversationId: String, source: String, longSide: Int? = null): String?
 
     /** Deletes every picture of [conversationId]. Safe to call when there are none. */
     suspend fun deleteAll(conversationId: String)

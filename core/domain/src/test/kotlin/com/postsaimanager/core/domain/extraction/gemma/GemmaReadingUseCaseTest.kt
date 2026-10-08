@@ -305,28 +305,44 @@ class GemmaReadingUseCaseTest {
     @Test
     @DisplayName("the first turn's summary is checked against the letter and handed on at once, and the ticket says it is done")
     fun `a verified summary is handed on`() {
-        val heard = mutableListOf<String>()
+        val heard = mutableListOf<EarlySummary>()
         val summary = "Ein Mobilfunkanbieter mahnt eine offene Rechnung an und verlangt 64,98 € zur Begleichung."
         val reader = summaryFirst(summary)
 
         val outcome = runBlocking { useCase(reader)(pages, listOf("/p1.png"), pageAspect = 0.707f, onSummary = { heard += it }) } as GemmaReadingOutcome.Read
 
-        assertThat(heard).containsExactly(summary)
+        assertThat(heard.map { it.text }).containsExactly(summary)
+        assertThat(heard.single().checked).isTrue()
         assertThat(reader.requests.single().onSummary).isNotNull()
         assertThat(outcome.understanding.enrichment?.summaryDone).isTrue()
     }
 
     @Test
-    @DisplayName("a first-turn summary with a number the letter does not hold is dropped: nothing is handed on and the text step writes it")
-    fun `an invented summary is dropped`() {
-        val heard = mutableListOf<String>()
+    @DisplayName("a first-turn summary with a number the letter does not hold is handed on as to check, with the gate's reason: the text step still owes the summary")
+    fun `an invented summary is stored to check`() {
+        val heard = mutableListOf<EarlySummary>()
 
         val outcome = runBlocking {
             useCase(summaryFirst("Die Zahlung von 999,99 € ist sofort fällig."))(pages, listOf("/p1.png"), pageAspect = 0.707f, onSummary = { heard += it })
         } as GemmaReadingOutcome.Read
 
-        assertThat(heard).isEmpty()
+        assertThat(heard).hasSize(1)
+        assertThat(heard.single().checked).isFalse()
+        assertThat(heard.single().text).isEqualTo("Die Zahlung von 999,99 € ist sofort fällig.")
+        assertThat(heard.single().verdict).contains("UNVERIFIED_NUMBER")
         assertThat(outcome.understanding.enrichment?.summaryDone).isFalse()
+        // The gate's verdict is in the reading's trace, never a word of the letter.
+        assertThat(outcome.understanding.readingTrace.any { it.startsWith("early summary: rejected UNVERIFIED_NUMBER") }).isTrue()
+    }
+
+    @Test
+    @DisplayName("an empty first turn hands nothing on")
+    fun `an empty summary is nothing`() {
+        val heard = mutableListOf<EarlySummary>()
+
+        runBlocking { useCase(summaryFirst("   "))(pages, listOf("/p1.png"), pageAspect = 0.707f, onSummary = { heard += it }) }
+
+        assertThat(heard).isEmpty()
     }
 
     @Test

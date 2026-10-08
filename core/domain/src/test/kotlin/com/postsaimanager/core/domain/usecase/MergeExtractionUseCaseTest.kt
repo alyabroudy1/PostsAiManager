@@ -476,4 +476,43 @@ class MergeExtractionUseCaseTest {
             assertThat(outcome.toPersist.single().fieldName).isEqualTo("Amount")
         }
     }
+
+    @Nested
+    @DisplayName("A meaning an earlier reading decided for a value")
+    inner class DecidedMeanings {
+
+        private fun dated(value: String, role: String?, id: String) =
+            field("Document Date", value, slotKey = "letter_date", id = id).copy(role = role)
+
+        @Test
+        fun `is kept when a re-read decided none for the same value`() {
+            val stored = dated("01.09.2026", "meaning:LETTER_DATE", "row-d")
+            val fresh = dated("01.09.2026", "DOCUMENT", "new-d")
+
+            val outcome = run(listOf(stored), listOf(fresh))
+
+            assertThat(outcome.toPersist.single().role).isEqualTo("meaning:LETTER_DATE")
+        }
+
+        @Test
+        fun `is kept when the re-read gives the value no role at all`() {
+            val outcome = run(listOf(dated("01.09.2026", "meaning:LETTER_DATE", "row-d")), listOf(dated("01.09.2026", null, "new-d")))
+
+            assertThat(outcome.toPersist.single().role).isEqualTo("meaning:LETTER_DATE")
+        }
+
+        @Test
+        fun `is replaced by another meaning the re-read decided`() {
+            val outcome = run(listOf(dated("01.09.2026", "meaning:LETTER_DATE", "row-d")), listOf(dated("01.09.2026", "meaning:DUE_DATE", "new-d")))
+
+            assertThat(outcome.toPersist.single().role).isEqualTo("meaning:DUE_DATE")
+        }
+
+        @Test
+        fun `does not hold for a value that changed`() {
+            val outcome = run(listOf(dated("01.09.2026", "meaning:LETTER_DATE", "row-d")), listOf(dated("05.09.2026", null, "new-d")))
+
+            assertThat(outcome.toPersist.single().role).isNull()
+        }
+    }
 }

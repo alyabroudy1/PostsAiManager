@@ -511,7 +511,7 @@ internal fun SummaryCardView(card: SummaryCard, onEditSummary: () -> Unit) {
                         modifier = Modifier.weight(1f),
                     )
                     // Only a model-written summary is an AI answer; a template or the user's own text is not.
-                    if (card.summarySource == SummarySource.MODEL || card.summarySource == null) {
+                    if (card.summarySource == SummarySource.MODEL || card.summarySource == SummarySource.MODEL_TO_CHECK || card.summarySource == null) {
                         ReportAnswerButton(onClick = { reporting = true }, iconSize = 18)
                     }
                     IconButton(onClick = onEditSummary) {
@@ -538,6 +538,7 @@ internal fun SummaryCardView(card: SummaryCard, onEditSummary: () -> Unit) {
 internal fun summaryBadge(source: SummarySource?): Int = when (source) {
     SummarySource.TEMPLATE -> R.string.card_summary_from_fields
     SummarySource.USER -> R.string.card_summary_yours
+    SummarySource.MODEL_TO_CHECK -> R.string.card_summary_to_check
     SummarySource.MODEL, null -> R.string.card_ai_summary
 }
 

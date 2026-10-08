@@ -14,12 +14,12 @@ import java.time.LocalDate
 /**
  * "Gemma reads the letter" as a [DocumentInterpreter]: the one call that decides the type, who is who and what every value means, in
  * the terms the extraction pipeline already runs on. The pipeline finds the lines and the candidates (the shape finders and ML Kit) and
- * verifies the answer ([com.postsaimanager.core.domain.extraction.v2.SelectionVerifier]) exactly as it does for any other reader; this
- * class only turns the letter into the reader's input and the reader's JSON back into a [com.postsaimanager.core.domain.extraction.v2.RawInterpretation].
+ * builds the result with the Gemma path's own verifier ([GemmaResultVerifier], over the checks below), not the scoring reading's caps;
+ * this class only turns the letter into the reader's input and the reader's JSON back into a [com.postsaimanager.core.domain.extraction.v2.RawInterpretation].
  *
- * In between, [GemmaReadingVerifier] drops what code can show wrong (an id that is not in the letter, a sender that is also the
+ * In between, [GemmaReadingVerifier] checks what code can show wrong (an id that is not in the letter, a sender that is also the
  * addressee, a date that does not parse, a due date before the letter's date, an IBAN with a wrong checksum, a name or a fact the letter
- * does not hold), so a wrong answer leaves its field empty instead of reaching the pipeline.
+ * does not hold): a wrong answer is not kept as it was said, and what the model chose is shown as a value to check, never silently empty.
  *
  * Not staged: one call reads everything but the two long free texts, the summary and the key facts, which a second, lower-priority step
  * writes once the reading is stored ([GemmaTextWriter]); the name comes with the call ([decision]), and [writeText] has nothing left to ask.
@@ -72,7 +72,7 @@ class GemmaDocumentInterpreter(
         }
         lines += "t gemma reader (prefill, decode and the engine's own counters are in the engine's line) ms=${answered.ms}"
         lines += "gemma input lines=${letter.lines.size} candidates=${letter.candidates.size} image=${if (answered.usedImage) "yes" else "no"} " +
-            "json=${answered.json.length} chars"
+            "json=${answered.json.length} chars prompt=${answered.prompt.length} chars schema=${answered.schema.length} chars"
 
         val reading = when (val parsed = GemmaReadingParser.parse(answered.json)) {
             is GemmaReadingParser.Parsed.Ok -> parsed.reading

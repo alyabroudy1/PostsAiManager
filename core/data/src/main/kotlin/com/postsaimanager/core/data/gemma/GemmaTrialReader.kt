@@ -63,7 +63,7 @@ class GemmaTrialReader @Inject constructor(
         val started = System.nanoTime()
         val folder = "$FOLDER_PREFIX${request.documentId}"
         try {
-            val pictures = request.pageImagePaths.take(MAX_PICTURES).mapNotNull { images.import(folder, "file://$it") }
+            val pictures = request.pageImagePaths.take(MAX_PICTURES).mapNotNull { images.import(folder, "file://$it", longSide = PICTURE_LONG_SIDE) }
             return when (val outcome = reading(request.pages, pictures, request.pageAspect, request.forcedFamily, request.onSummary)) {
                 is GemmaReadingOutcome.Read -> {
                     val ms = (System.nanoTime() - started) / NANOS_PER_MS
@@ -86,8 +86,11 @@ class GemmaTrialReader @Inject constructor(
         const val TAG = "DocProcessing"
         const val FOLDER_PREFIX = "gemma-reading-"
 
-        /** Pages shown to the model as pictures: the first two. Every page's text is in the lines. */
-        const val MAX_PICTURES = 2
+        /** Pages shown to the model as pictures: the first one. Every page's text is in the lines; the picture carries the layout. */
+        const val MAX_PICTURES = 1
+
+        /** The long side of the page picture in pixels: a page's layout needs no more, and every picture token is prefilled at 60 to 85 a second. */
+        const val PICTURE_LONG_SIDE = 768
         const val NANOS_PER_MS = 1_000_000L
     }
 }

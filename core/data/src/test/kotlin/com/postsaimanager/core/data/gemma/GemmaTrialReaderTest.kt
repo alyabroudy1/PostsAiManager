@@ -97,7 +97,7 @@ class GemmaTrialReaderTest {
     }
 
     @Test
-    @DisplayName("with Gemma chosen the first two pages go to the reader as pictures and the understanding comes back; the pictures are removed")
+    @DisplayName("with Gemma chosen the first page goes to the reader as one picture of 768 px and the understanding comes back; the picture is removed")
     fun `on reads`() = runBlocking {
         trial.setEnabled(true)
         coEvery { reading(any(), any(), any(), any()) } returns GemmaReadingOutcome.Read(understanding, "category=invoice_bill")
@@ -107,9 +107,10 @@ class GemmaTrialReaderTest {
         assertThat(result).isSameInstanceAs(understanding)
         coVerify {
             reading(
-                match { it.size == 3 }, match { it.size == 2 && it.all { p -> p.startsWith("/chat-attachments/gemma-reading-doc-1/") } }, 0.7f, null,
+                match { it.size == 3 }, match { it.size == 1 && it.all { p -> p.startsWith("/chat-attachments/gemma-reading-doc-1/") } }, 0.7f, null,
             )
         }
+        assertThat(images.longSides).containsExactly(768)
         assertThat(images.stored).isEmpty()
     }
 

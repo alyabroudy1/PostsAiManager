@@ -40,6 +40,12 @@ enum class TitleSource {
 enum class SummarySource {
     MODEL,
 
+    /**
+     * The model's first sentences about the document, shown at once but not through every check (the early summary a reading's first
+     * turn writes). The text step that follows replaces it with a verified one; it stays when that step cannot write one.
+     */
+    MODEL_TO_CHECK,
+
     /** Rendered from string resources out of the verified fields. */
     TEMPLATE,
     USER,

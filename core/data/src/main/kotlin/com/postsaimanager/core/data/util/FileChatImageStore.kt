@@ -68,14 +68,14 @@ class FileChatImageStore @Inject constructor(
 
     private val root: File get() = File(context.filesDir, FOLDER)
 
-    override suspend fun import(conversationId: String, source: String): String? = withContext(ioDispatcher) {
+    override suspend fun import(conversationId: String, source: String, longSide: Int?): String? = withContext(ioDispatcher) {
         runCatching {
             val uri = Uri.parse(source)
             val orientation = context.contentResolver.openInputStream(uri)?.use {
                 ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
             } ?: ExifInterface.ORIENTATION_NORMAL
             val decoded = decode(uri) ?: return@runCatching null
-            val upright = rotate(decoded, orientation)
+            val upright = rotate(decoded, orientation).let { if (longSide != null) scaledTo(it, longSide) else it }
             val folder = File(root, safeName(conversationId)).apply { mkdirs() }
             val file = File(folder, "${UUID.randomUUID()}.png")
             file.outputStream().use { upright.compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -96,6 +96,14 @@ class FileChatImageStore @Inject constructor(
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
         val options = BitmapFactory.Options().apply { inSampleSize = ChatImageSizing.sampleSize(bounds.outWidth, bounds.outHeight) }
         return context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+    }
+
+    /** [bitmap] scaled down so its long side is [side] pixels (never up): the sampled decode above only halves. */
+    private fun scaledTo(bitmap: Bitmap, side: Int): Bitmap {
+        val longest = max(bitmap.width, bitmap.height)
+        if (longest <= side) return bitmap
+        val scale = side.toFloat() / longest
+        return Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).roundToInt().coerceAtLeast(1), (bitmap.height * scale).roundToInt().coerceAtLeast(1), true)
     }
 
     private fun rotate(bitmap: Bitmap, orientation: Int): Bitmap {

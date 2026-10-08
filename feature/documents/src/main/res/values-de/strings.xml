@@ -17,6 +17,7 @@
     <string name="pages_hide_text">Erkannten Text ausblenden</string>
     <string name="pages_text_page">Seite %1$d</string>
     <string name="card_ai_summary">KI-Zusammenfassung</string>
+    <string name="card_summary_to_check">KI-Zusammenfassung (bitte prüfen)</string>
     <string name="card_summary_from_fields">Zusammenfassung aus den Feldern</string>
     <string name="card_summary_yours">Ihre Zusammenfassung</string>
     <!-- The essentials at the top of the Extracted tab -->

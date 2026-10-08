@@ -37,6 +37,8 @@ data class GemmaReading(
     val subjectPerson: GemmaParty? = null,
     val dates: List<GemmaValue> = emptyList(),
     val amounts: List<GemmaValue> = emptyList(),
+    /** The candidate id of the one amount the reader has to pay, or null for "none" (or no answer). */
+    val toPayId: String? = null,
     val references: List<GemmaValue> = emptyList(),
     val actions: List<GemmaAction> = emptyList(),
     val category: String? = null,
@@ -92,6 +94,7 @@ object GemmaReadingParser {
                 subjectPerson = parties[GemmaSchema.SUBJECT_PERSON],
                 dates = root.values(Field.DATES, vocab.dateMeaningCodes),
                 amounts = root.values(Field.AMOUNTS, vocab.amountMeaningCodes),
+                toPayId = root.str(Field.TO_PAY)?.takeUnless { it.equals(GemmaVocabulary.NONE, ignoreCase = true) },
                 references = root.values(Field.REFERENCES, vocab.referenceKindCodes, kindKey = true),
                 actions = root.items(Field.ACTIONS).mapNotNull { o ->
                     GemmaAction(vocab.actionKindCodes.idOf(o.str(Item.KIND)) ?: return@mapNotNull null, o.str(Item.DATE_ID), o.str(Item.AMOUNT_ID))

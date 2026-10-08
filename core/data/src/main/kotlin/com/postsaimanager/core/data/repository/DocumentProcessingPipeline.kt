@@ -29,6 +29,7 @@ import com.postsaimanager.core.domain.document.KeySlotMarker
 import com.postsaimanager.core.domain.document.ReprocessOverwritePolicy
 import com.postsaimanager.core.domain.document.people.DecideConcernedPeopleUseCase
 import com.postsaimanager.core.domain.reading.AnnounceUnderstoodLetterUseCase
+import com.postsaimanager.core.domain.extraction.gemma.EarlySummary
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialReading
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTrialRequest
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
@@ -335,11 +336,16 @@ class DocumentProcessingPipeline @Inject constructor(
                 // The trial first (off by default, and then null at once): a Gemma reading in the same output type, or null when the
                 // trial is off, Gemma is not installed, busy, failed or too slow, and the reading below runs as it always did.
                 val readStarted = System.nanoTime()
+                var earlyArrived = false
                 val trialReading = gemmaTrial.read(
                     GemmaTrialRequest(
-                        // The reader's first turn is a short summary: stored on the document the moment it passes the gate, so the list and
-                        // the detail page show what the document is about while the structured reading is still being generated.
-                        onSummary = { text -> storeEarlySummary(documentId, text, readStarted) },
+                        // The reader's first turn is a short summary: stored on the document the moment it is written (as "to check" when the
+                        // summary gate refused it), so the list and the detail page show what the document is about while the structured
+                        // reading is still being generated.
+                        onSummary = { early ->
+                            earlyArrived = true
+                            storeEarlySummary(documentId, early, readStarted)
+                        },
                         documentId = documentId,
                         pages = ocrByPage.map { (_, result) -> result?.blocks.orEmpty() },
                         pageImagePaths = ocrByPage.map { (page, _) -> page.imagePath },
@@ -348,6 +354,7 @@ class DocumentProcessingPipeline @Inject constructor(
                         reprocess = reprocess,
                     ),
                 )
+                if (trialReading != null && !earlyArrived) TimingLog.log("reader: $documentId no early summary arrived or none was usable")
                 val understanding = if (trialReading != null) {
                     PamResult.Success(trialReading)
                 } else aiExtraction(
@@ -696,17 +703,27 @@ class DocumentProcessingPipeline @Inject constructor(
      * a person wrote is never replaced). Re-read from the database right before the write, so nothing else stored meanwhile is lost. The
      * reading's own stored result (written later from a fresh read of the row) keeps it. Never fails the reading.
      */
-    private suspend fun storeEarlySummary(documentId: String, text: String, startedNanos: Long) {
+    private suspend fun storeEarlySummary(documentId: String, early: EarlySummary, startedNanos: Long) {
         try {
-            val doc = documentDao.getById(documentId)?.takeIf { it.deletedAt == null } ?: return
-            val summary = DocumentUnderstanding(summary = text, summarySource = SummarySource.MODEL)
-            val updated = ReprocessOverwritePolicy.applySummary(documentMapper.toDomain(doc), summary)
+            val doc = documentDao.getById(documentId)?.takeIf { it.deletedAt == null }
+            if (doc == null) {
+                TimingLog.log("reader: $documentId early summary not stored: the document is gone")
+                return
+            }
+            val source = if (early.checked) SummarySource.MODEL else SummarySource.MODEL_TO_CHECK
+            val summary = DocumentUnderstanding(summary = early.text, summarySource = source)
+            val before = documentMapper.toDomain(doc)
+            val updated = ReprocessOverwritePolicy.applySummary(before, summary)
             documentDao.update(documentMapper.toEntity(updated).copy(syncStatus = doc.syncStatus))
-            TimingLog.log("reader: $documentId summary stored time-to-summary=${msSince(startedNanos)}ms")
+            TimingLog.log(
+                "reader: $documentId summary stored time-to-summary=${msSince(startedNanos)}ms source=$source gate=${early.verdict}" +
+                    if (updated.summary == before.summary && before.summarySource == SummarySource.USER) " (the person's own summary stays)" else "",
+            )
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "early summary of $documentId not stored: ${e.javaClass.simpleName}")
+            TimingLog.log("reader: $documentId early summary not stored: ${e.javaClass.simpleName}")
         }
     }
 

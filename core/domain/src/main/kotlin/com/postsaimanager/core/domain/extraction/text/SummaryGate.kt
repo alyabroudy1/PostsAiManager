@@ -14,8 +14,9 @@ import com.postsaimanager.core.domain.extraction.v2.QuoteVerifier
  *    verified facts (a span with a word the letter never printed is an invented name). A sentence's
  *    first word is never the start of a span (a capital there says nothing). A script without capitals has no spans,
  *    so this check simply finds nothing to reject.
- * 3. **Anti-copy.** The answer is rejected when one line of the letter holds at least [COPY_SHARE] of its words: small
- *    models copy the first line, and a copied line is not a summary.
+ * 3. **Anti-copy.** The answer is rejected when verbatim runs of the letter ([MIN_COPY_RUN] words or more in a row) make up at least
+ *    [COPY_SHARE] of its words: small models copy a line, and a copied line is not a summary. Overlap alone is no copy: a short
+ *    letter's faithful summary reuses most of its words.
  *
  * An empty answer and one far over the asked length are rejected too.
  */
@@ -40,7 +41,7 @@ class SummaryGate {
         val corpus = ocrText + "\n" + verifiedValues.joinToString("\n")
         unverifiedNumber(text, corpus)?.let { return Verdict.Rejected(Reason.UNVERIFIED_NUMBER, it) }
         unverifiedName(text, corpus)?.let { return Verdict.Rejected(Reason.UNVERIFIED_NAME, it) }
-        if (copiesOneLine(text, ocrText)) return Verdict.Rejected(Reason.COPIED)
+        if (copiesLetter(text, ocrText)) return Verdict.Rejected(Reason.COPIED)
         return Verdict.Accepted(text)
     }
 
@@ -65,11 +66,21 @@ class SummaryGate {
             for (span in capitalisedSpans(sentence)) {
                 // A span is a name the letter never gave only when one of its words is not in the letter at all. A run of
                 // words that are all there ("Sie Ihre Rechnung": German capitalises its nouns and polite pronouns) is not a name.
-                if (tokens(span).any { it !in known }) return span
+                if (tokens(span).any { !isKnown(it, known) }) return span
             }
         }
         return null
     }
+
+    /**
+     * A word the letter prints, or one that is only another form of such a word (an ending added or dropped: "Ihren" for the letter's
+     * "Ihr", "Antrags" for "Antrag"): a faithful summary inflects the letter's words, and an inflected word is no invented name. Letter
+     * by letter, no language: the shorter word is at least [MIN_STEM] letters and is the start of the longer, which is at most [MAX_ENDING] longer.
+     */
+    private fun isKnown(token: String, known: Set<String>): Boolean =
+        token in known || known.any { w ->
+            minOf(w.length, token.length) >= MIN_STEM && kotlin.math.abs(w.length - token.length) <= MAX_ENDING && (token.startsWith(w) || w.startsWith(token))
+        }
 
     /** Runs of two or more capitalised words; a trailing punctuation mark ends a run, the sentence's first word never starts one. */
     private fun capitalisedSpans(sentence: String): List<String> {
@@ -92,30 +103,46 @@ class SummaryGate {
 
     // ── anti-copy ────────────────────────────────────────────────────────────
 
-    private fun copiesOneLine(answer: String, ocrText: String): Boolean {
+    /**
+     * Copying is long verbatim runs, not overlap: a short letter's faithful summary shares most of its words with the letter (the
+     * same names, numbers and nouns), but a copy repeats the letter's own wording for words in a row. The answer's words that stand in
+     * a run of at least [MIN_COPY_RUN] words found in the letter in the same order (across the scan's line breaks: a printed sentence is
+     * wrapped by the page, and a copied sentence is a copy whichever way it was broken) are counted; the answer is a copy when they are
+     * [COPY_SHARE] of it.
+     */
+    private fun copiesLetter(answer: String, ocrText: String): Boolean = copiedShare(answer, ocrText) >= COPY_SHARE
+
+    /** The share (0..1) of [answer]'s words that stand in a verbatim run of [MIN_COPY_RUN] or more words of [ocrText]; 0 for no words. */
+    fun copiedShare(answer: String, ocrText: String): Double {
         val words = tokens(answer)
-        if (words.isEmpty()) return false
-        // A printed sentence is often wrapped over several lines by the scan, so a run of up to MAX_WRAPPED_LINES consecutive lines
-        // counts as one "line" (a copied sentence is a copy whichever way the page broke it).
-        val lines = ocrText.lines().map { tokens(it) }
-        for (start in lines.indices) {
-            val window = HashSet<String>()
-            for (end in start until minOf(lines.size, start + MAX_WRAPPED_LINES)) {
-                window += lines[end]
-                if (window.isNotEmpty() && words.count { it in window }.toDouble() / words.size >= COPY_SHARE) return true
+        if (words.isEmpty()) return 0.0
+        val letter = tokens(ocrText)
+        val covered = BooleanArray(words.size)
+        for (i in words.indices) {
+            var longest = 0
+            for (j in letter.indices) {
+                if (letter[j] != words[i]) continue
+                var k = 0
+                while (i + k < words.size && j + k < letter.size && words[i + k] == letter[j + k]) k++
+                if (k > longest) longest = k
             }
+            if (longest >= MIN_COPY_RUN) for (k in 0 until longest) covered[i + k] = true
         }
-        return false
+        return covered.count { it }.toDouble() / words.size
     }
 
     private fun tokens(s: String): List<String> = TOKEN.findAll(QuoteVerifier.fold(s)).map { it.value }.toList()
 
     companion object {
-        /** Reject when one line of the letter holds this share of the answer's words. */
+        /** Reject when verbatim runs of the letter make up this share of the answer's words. */
         const val COPY_SHARE = 0.7
 
-        /** How many consecutive lines of the letter count as one sentence the scan wrapped. */
-        const val MAX_WRAPPED_LINES = 3
+        /** The shortest word that can be the start of another form of a word of the letter, and the most letters an ending adds. */
+        const val MIN_STEM = 3
+        const val MAX_ENDING = 3
+
+        /** The fewest words in a row, found in the letter in the same order, that count as copied wording. */
+        const val MIN_COPY_RUN = 5
 
         /** The ask says at most 30 words; the gate only refuses a runaway. */
         const val MAX_WORDS = 45

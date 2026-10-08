@@ -66,6 +66,23 @@ class EventDateResolverTest {
     }
 
     @Test
+    fun `a re-read with no date of the letter keeps the date the event had, not the scan day`() {
+        val earlier = day(2026, 9, 1)
+
+        assertThat(EventDateResolver.resolve(kinds.byId(EventKinds.APPLICATION_FILED), emptyList(), scanned, zone, earlierEventDate = earlier)).isEqualTo(earlier)
+    }
+
+    @Test
+    fun `a date of the letter beats the earlier event date, whatever its meaning or slot`() {
+        val earlier = day(2026, 9, 1)
+        val fields = arrayOf(date("letter_date", "05.09.2026"))
+
+        assertThat(EventDateResolver.resolve(kinds.byId(EventKinds.INFORMATION), fields.toList(), scanned, zone, earlierEventDate = earlier)).isEqualTo(day(2026, 9, 5))
+        assertThat(EventDateResolver.resolve(kinds.byId(EventKinds.INFORMATION), listOf(date("event_date", "07.09.2026", "LETTER_DATE")), scanned, zone, earlierEventDate = earlier))
+            .isEqualTo(day(2026, 9, 7))
+    }
+
+    @Test
     fun `every date meaning a kind names exists in the value meanings`() {
         val known = com.postsaimanager.core.domain.extraction.v2.ValueMeanings.DEFAULT.all.map { it.id }.toSet()
         for (kind in kinds.all) assertThat(known).containsAtLeastElementsIn(kind.dateMeanings)

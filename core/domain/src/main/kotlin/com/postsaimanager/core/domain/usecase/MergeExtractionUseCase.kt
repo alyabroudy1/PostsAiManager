@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.usecase
 
+import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.FieldRevision
 import com.postsaimanager.core.model.ReviewState
@@ -155,7 +156,7 @@ class MergeExtractionUseCase @Inject constructor() {
                         engineVersion = engineVersion,
                         source = ValueSource.MACHINE,
                         slotKey = fresh.slotKey ?: current.slotKey,
-                        role = fresh.role,
+                        role = roleAfterReread(current, fresh, changed),
                         origin = fresh.origin,
                         aiConfidence = fresh.aiConfidence,
                         evidence = fresh.evidence,
@@ -231,6 +232,14 @@ class MergeExtractionUseCase @Inject constructor() {
         }
         return pairs
     }
+
+    /**
+     * The role a re-read stores: the fresh reading's, except that a meaning an earlier reading decided for this very value (the stored
+     * `meaning:*` role) is not taken back by a reading that decided none for it (a re-read that gives the date no meaning would otherwise
+     * date the letter's event by the day it was scanned). A value that changed, or a fresh reading that decided a meaning, replaces it.
+     */
+    private fun roleAfterReread(current: ExtractedData, fresh: ExtractedData, valueChanged: Boolean): String? =
+        if (!valueChanged && ValueMeanings.fromRole(current.role) != null && ValueMeanings.fromRole(fresh.role) == null) current.role else fresh.role
 
     /** A value with case, spacing and punctuation folded away, so "12,50 EUR" and "12.50 eur" compare equal. */
     private fun valueKey(value: String): String =

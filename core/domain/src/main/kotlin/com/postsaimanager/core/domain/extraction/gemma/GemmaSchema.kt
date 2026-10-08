@@ -44,7 +44,7 @@ object GemmaSchema {
     const val MAX_PARTY_TEXT_CHARS = 80
     const val MAX_PARTIES = 4
     const val MAX_DATES = 6
-    const val MAX_AMOUNTS = 6
+    const val MAX_AMOUNTS = 4
     const val MAX_REFERENCES = 5
     const val MAX_ACTIONS = 3
 
@@ -67,6 +67,9 @@ object GemmaSchema {
         const val PARTIES = "r"
         const val DATES = "d"
         const val AMOUNTS = "m"
+
+        /** The one amount the reader has to pay (a candidate id, or "none"): one field, so no two amounts can both claim it. */
+        const val TO_PAY = "t"
         const val REFERENCES = "f"
         const val ACTIONS = "k"
         const val EVENT_KIND = "e"
@@ -133,8 +136,9 @@ object GemmaSchema {
             ),
             Field.AMOUNTS to list(
                 MAX_AMOUNTS, amounts.isEmpty(),
-                objectOf(Item.ID to enumOf(amounts), Item.MEANING to enumOf(vocab.amountMeaningCodes.codes)),
+                objectOf(Item.ID to enumOf(amounts), Item.MEANING to enumOf(vocab.listedAmountMeaningCodes)),
             ),
+            Field.TO_PAY to enumOf(amounts + GemmaVocabulary.NONE),
             Field.REFERENCES to referenceList(referenceIds(letter), vocab),
             Field.ACTIONS to list(
                 MAX_ACTIONS, vocab.actionKinds.isEmpty(),
