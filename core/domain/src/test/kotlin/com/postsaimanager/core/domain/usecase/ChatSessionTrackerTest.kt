@@ -120,6 +120,39 @@ class ChatSessionTrackerTest {
     }
 
     @Test
+    @DisplayName("one clock: a chat is active for the whole session (ten idle minutes), not for a shorter window that frees the model between two messages")
+    fun `one clock for chat active`() {
+        assertThat(tracker.isChatActive()).isFalse()
+        tracker.begin("c")
+        assertThat(tracker.isChatActive()).isTrue()
+
+        now += 9 * minute
+        assertThat(tracker.isChatActive()).isTrue()
+
+        // A finished reply restarts the same clock.
+        tracker.touch("c")
+        now += 9 * minute
+        assertThat(tracker.isChatActive()).isTrue()
+
+        // The idle time passed: the chat is not active any more, whether or not the session end was noticed yet.
+        now += minute
+        assertThat(tracker.isChatActive()).isFalse()
+    }
+
+    @Test
+    @DisplayName("leaving the chat ends the activity at once; another chat keeps it")
+    fun `leaving ends activity`() {
+        tracker.begin("a")
+        tracker.begin("b")
+
+        tracker.leave("a")
+        assertThat(tracker.isChatActive()).isTrue()
+
+        tracker.leave("b")
+        assertThat(tracker.isChatActive()).isFalse()
+    }
+
+    @Test
     @DisplayName("sessions of different chats are independent")
     fun `sessions are per chat`() {
         tracker.begin("a")

@@ -32,12 +32,13 @@ class WriteHouseholdNotesUseCase @Inject constructor(
 
     /**
      * @param sessionTurns the messages of the session that ended, oldest first
+     * @param deferIfUnavailable throw [SessionNotesDeferred] when the model could not be used, so that the caller runs it again later
      * @return how many notes were written
      */
-    suspend operator fun invoke(sessionTurns: List<AiMessage>): Int {
+    suspend operator fun invoke(sessionTurns: List<AiMessage>, deferIfUnavailable: Boolean = false): Int {
         val existing = notes.notesOutsideDocuments().map { it.text }
         // No read values to compare with: the all-documents card is an overview, and a note repeating it is caught as a repeat of a note.
-        val draft = drafter.draft(sessionTurns, existing, cardText = "", about = SessionNotesFormat.ABOUT_HOUSEHOLD) ?: return 0
+        val draft = drafter.draft(sessionTurns, existing, cardText = "", about = SessionNotesFormat.ABOUT_HOUSEHOLD, deferIfUnavailable = deferIfUnavailable) ?: return 0
         val household = profiles.getProfiles().first().filter { it.isManaged }
             .map { SubjectCandidate(it.id, it.name, it.relationship, it.isSelf) }
         draft.notes.forEach { text ->

@@ -10,7 +10,10 @@ import kotlinx.coroutines.delay
  */
 interface ChatActivityGate {
 
-    /** True while a chat model is resident and the chat was used within the idle window. */
+    /**
+     * True while a chat session is live: from the moment a chat is used until the person leaves it or it has been idle for the
+     * session's idle time (`ChatSessionTracker`, the one owner of that clock).
+     */
     fun isChatActive(): Boolean
 
     /**

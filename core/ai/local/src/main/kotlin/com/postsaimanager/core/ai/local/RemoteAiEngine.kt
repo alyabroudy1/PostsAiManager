@@ -10,6 +10,7 @@ import com.postsaimanager.core.domain.ai.AiCapabilities
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.AiRequest
+import com.postsaimanager.core.domain.ai.ChatActivityGate
 import com.postsaimanager.core.domain.ai.InferenceCrash
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.ai.ReadingModel
@@ -67,6 +68,8 @@ class RemoteAiEngine @Inject constructor(
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
     /** The binding, the call mutex and the resident-runtime record, shared with the LiteRT-LM engine. */
     private val connection: InferenceConnection = InferenceConnection(context),
+    /** Whether a chat session is live: a reading never replaces the chat model while it is (the one clock, `ChatSessionTracker`). */
+    private val chatGate: ChatActivityGate = ChatActivityGate.Idle,
 ) : AiEngine, PromptSession {
 
     private val service: IInferenceService? get() = connection.service
@@ -186,7 +189,7 @@ class RemoteAiEngine @Inject constructor(
 
     /** Keeps a reading run on the reader model: loads it again when a chat-model load replaced it. */
     private val readerGuard: ReaderModelGuard = ReaderModelGuard(
-        chatGate = InferenceChatActivityGate(connection.chatActivity),
+        chatGate = chatGate,
         isResident = { path ->
             connection.resident == ModelRuntime.LLAMA_CPP && (coordinator.state.value as? ModelLoadState.Ready)?.modelId == path
         },
@@ -255,10 +258,17 @@ class RemoteAiEngine @Inject constructor(
     private fun chatTemplateRenders(remote: IInferenceService): Boolean =
         runCatching { !remote.formatChat(arrayOf("user"), arrayOf("Hello"), true).isNullOrBlank() }.getOrDefault(true)
 
+    private val loadPriority = ChatLoadPriority(connection.engineMutex)
+
     override suspend fun load(
         modelPath: String,
         config: InferenceConfig,
-    ): PamResult<AiCapabilities> = coordinator.load(modelPath, config)
+    ): PamResult<AiCapabilities> {
+        // A reading's native call in flight is waited for, never cut (see [ChatLoadPriority]); the other runtime having taken the
+        // model since counts as a replacement too, whatever this coordinator last recorded.
+        val replaces = coordinator.wouldReplaceResident(modelPath, config) || connection.resident != ModelRuntime.LLAMA_CPP
+        return loadPriority.load(replaces) { coordinator.load(modelPath, config) }
+    }
 
     override fun generate(request: AiRequest): Flow<String> = engineMutex.serialised(generateFlow(request))
 
@@ -379,8 +389,6 @@ class RemoteAiEngine @Inject constructor(
         systemPrompt: String,
         history: List<AiChatMessage>,
     ): Boolean {
-        // A chat used the model (the person opened or is using it): quiet jobs wait for it, whatever the runtime.
-        connection.chatActivity.touch()
         if (chatSession.isPrimed(conversationId)) return false
 
         // Held for both AIDL calls below (openChatSession + primeChatSession) — without this,
@@ -403,7 +411,6 @@ class RemoteAiEngine @Inject constructor(
     private fun sendChatMessageFlow(userText: String, request: AiRequest): Flow<String> = callbackFlow {
         // See the note in generate() — this producer block otherwise inherits the
         // collector's (often Main) dispatcher.
-        connection.chatActivity.touch()
         val remote = withContext(ioDispatcher) { connect() } ?: run {
             close(IllegalStateException("The AI engine is not running."))
             return@callbackFlow
@@ -430,13 +437,11 @@ class RemoteAiEngine @Inject constructor(
 
             override fun onComplete() {
                 logGenerationTiming(genStartNanos, tokenCount, "sendChatMessage")
-                connection.chatActivity.touch()
                 close()
             }
 
             override fun onError(message: String?) {
                 logGenerationTiming(genStartNanos, tokenCount, "sendChatMessage")
-                connection.chatActivity.touch()
                 close(IllegalStateException(message ?: "Generation failed."))
             }
         }
@@ -484,7 +489,6 @@ class RemoteAiEngine @Inject constructor(
 
     override suspend fun commitChatReply(answer: String) = engineMutex.withLock {
         withContext(ioDispatcher) {
-            connection.chatActivity.touch()
             chatSession.onCommitted(answer)
             val remote = service ?: return@withContext
             runCatching { remote.commitChatReply(answer) }
@@ -499,7 +503,6 @@ class RemoteAiEngine @Inject constructor(
      */
     override suspend fun discardPendingReply() = engineMutex.withLock {
         withContext(ioDispatcher) {
-            connection.chatActivity.touch()
             chatSession.onDiscarded()
             val remote = service ?: return@withContext
             runCatching { remote.discardPendingReply() }

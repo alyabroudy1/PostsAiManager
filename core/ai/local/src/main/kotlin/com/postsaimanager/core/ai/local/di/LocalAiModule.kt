@@ -1,6 +1,5 @@
 package com.postsaimanager.core.ai.local.di
 
-import com.postsaimanager.core.ai.local.InferenceChatActivityGate
 import com.postsaimanager.core.ai.local.RemoteAiEngine
 import com.postsaimanager.core.ai.local.RemoteLiteRtChatEngine
 import com.postsaimanager.core.domain.ai.AiEngine
@@ -9,6 +8,7 @@ import com.postsaimanager.core.domain.ai.ChatEngine
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.ai.RoutingChatEngine
 import com.postsaimanager.core.domain.extraction.v2.InterpreterFactory
+import com.postsaimanager.core.domain.usecase.ChatSessionTracker
 import com.postsaimanager.core.domain.extraction.zones.ProfileInterpreterFactory
 import com.postsaimanager.core.model.ModelRuntime
 import dagger.Binds
@@ -44,8 +44,9 @@ abstract class LocalAiModule {
     @Singleton
     abstract fun bindPromptSession(impl: RemoteAiEngine): PromptSession
 
+    /** "A chat is active" is the chat session's: one clock ([ChatSessionTracker]), shared by the engines and every quiet job. */
     @Binds
-    abstract fun bindChatActivityGate(impl: InferenceChatActivityGate): ChatActivityGate
+    abstract fun bindChatActivityGate(impl: ChatSessionTracker): ChatActivityGate
 
     @Binds
     abstract fun bindInterpreterFactory(impl: ProfileInterpreterFactory): InterpreterFactory

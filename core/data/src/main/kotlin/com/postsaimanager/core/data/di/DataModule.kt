@@ -109,6 +109,13 @@ abstract class DataModule {
     @Singleton
     abstract fun bindDocumentProcessor(impl: DocumentProcessingPipeline): DocumentProcessor
 
+    /** The notes of an ended chat session wait in WorkManager until the chat model is idle. */
+    @Binds
+    @Singleton
+    abstract fun bindSessionNotesQueue(
+        impl: com.postsaimanager.core.data.worker.WorkManagerSessionNotesQueue,
+    ): com.postsaimanager.core.domain.memory.SessionNotesQueue
+
     @Binds
     @Singleton
     abstract fun bindDocumentExporter(impl: PdfGenerator): DocumentExporter

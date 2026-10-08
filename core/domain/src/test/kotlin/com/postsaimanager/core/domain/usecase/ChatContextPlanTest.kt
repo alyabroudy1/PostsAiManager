@@ -12,6 +12,7 @@ import com.postsaimanager.core.domain.memory.ObserveDocumentMemoryUseCase
 import com.postsaimanager.core.domain.memory.SessionNoteGenerator
 import com.postsaimanager.core.domain.memory.SessionNoteVerifier
 import com.postsaimanager.core.domain.memory.SessionNotesCollector
+import com.postsaimanager.core.domain.memory.SessionNotesQueue
 import com.postsaimanager.core.domain.memory.WriteSessionNotesUseCase
 import com.postsaimanager.core.model.AiModelType
 import com.postsaimanager.core.model.MessageRole
@@ -169,6 +170,12 @@ class ChatContextPlanTest {
             override fun isAvailable() = true
             override suspend fun generate(system: String, prompt: String) = "The user paid the bill on 5 Oct."
         }
+        val queue = object : SessionNotesQueue {
+            val events = mutableListOf<ChatSessionEnded>()
+            override fun enqueue(event: ChatSessionEnded) {
+                events += event
+            }
+        }
         val collector = SessionNotesCollector(
             sessions.tracker,
             conversations,
@@ -179,12 +186,15 @@ class ChatContextPlanTest {
                     override suspend fun decide(note: String, persons: List<SubjectCandidate>) = PamResult.Success(null)
                 },
             ),
+            queue,
+            sessions.tracker,
         )
         collector.start(backgroundScope + kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler))
 
-        // The visit ends: its notes are written in the background (the model's live conversation is closed by that).
+        // The visit ends: its notes are queued, and written when the queued work runs (the model's live conversation is closed by that).
         sessions.tracker.leave("conv-d1")
         testScheduler.advanceUntilIdle()
+        queue.events.forEach { collector.write(it) }
         assertThat(notes.snapshot.map { it.text }).containsExactly("The user paid the bill on 5 Oct.")
         send.primeConversation("conv-d1", "d1")
 

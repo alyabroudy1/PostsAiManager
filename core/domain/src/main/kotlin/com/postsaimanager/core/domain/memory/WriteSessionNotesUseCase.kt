@@ -29,15 +29,16 @@ class WriteSessionNotesUseCase @Inject constructor(
 
     /**
      * @param sessionTurns the messages of the session that ended, oldest first (user, assistant and tool results as they are stored)
+     * @param deferIfUnavailable throw [SessionNotesDeferred] when the model could not be used, so that the caller runs it again later
      * @return how many notes were written
      */
-    suspend operator fun invoke(documentId: String, sessionTurns: List<AiMessage>): Int {
+    suspend operator fun invoke(documentId: String, sessionTurns: List<AiMessage>, deferIfUnavailable: Boolean = false): Int {
         val all = notes.notes(documentId)
         val existing = all.map { it.text }
         val actionNotes = all.filter { it.source == NoteSource.ACTION }.map { it.text }
         val card = documents.observeExtractedData(documentId).first().filter { !it.deletedByUser }
             .joinToString("\n") { it.fieldName + " " + it.fieldValue }
-        val draft = drafter.draft(sessionTurns, existing, card, about = SessionNotesFormat.ABOUT_DOCUMENT, actionNotes = actionNotes) ?: return 0
+        val draft = drafter.draft(sessionTurns, existing, card, about = SessionNotesFormat.ABOUT_DOCUMENT, actionNotes = actionNotes, deferIfUnavailable = deferIfUnavailable) ?: return 0
         draft.notes.forEach { notes.add(documentId, it, NoteSource.AI, sourceRef = draft.sourceRef) }
         return draft.notes.size
     }

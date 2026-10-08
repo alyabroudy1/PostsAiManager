@@ -22,6 +22,7 @@ import com.postsaimanager.core.data.worker.DocumentEnrichmentWorker
 import com.postsaimanager.core.data.worker.DocumentProcessingWorker
 import com.postsaimanager.core.data.worker.ReaderRetry
 import com.postsaimanager.core.data.worker.ReprocessDocumentWorker
+import com.postsaimanager.core.domain.ai.ChatActivityGate
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.EnrichmentRetryPolicy
 import com.postsaimanager.core.domain.document.EnrichmentTicketRebuilder
@@ -105,6 +106,8 @@ class DocumentProcessingPipeline @Inject constructor(
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
     // The "Gemma reads the letter" trial: asked first for a reading, and null (the reading below, unchanged) while the trial is off.
     private val gemmaTrial: GemmaTrialReading = GemmaTrialReading.NONE,
+    // A live chat session owns the model: a reading (the Gemma reader, or the Qwen one it falls back to) waits for it and is queued again.
+    private val chatActivity: ChatActivityGate = ChatActivityGate.Idle,
 ) : DocumentProcessor {
     private val _processingState = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     override val processingState: Flow<ProcessingState> = _processingState.asStateFlow()
@@ -335,6 +338,9 @@ class DocumentProcessingPipeline @Inject constructor(
                     ?.takeIf { it.width > 0 && it.height > 0 }?.let { it.width.toFloat() / it.height }
                 // The trial first (off by default, and then null at once): a Gemma reading in the same output type, or null when the
                 // trial is off, Gemma is not installed, busy, failed or too slow, and the reading below runs as it always did.
+                // The user's chat has priority over a reading: while a chat session is live the reading takes no model (it would close
+                // the visit's conversation, or replace the chat model), and is queued again. Nothing is degraded to a smaller reading.
+                if (chatActivity.isChatActive()) return@withContext requeueForChat(documentId, reprocess)
                 val readStarted = System.nanoTime()
                 var earlyArrived = false
                 val trialReading = gemmaTrial.read(
@@ -357,6 +363,10 @@ class DocumentProcessingPipeline @Inject constructor(
                 if (trialReading != null && !earlyArrived) TimingLog.log("reader: $documentId no early summary arrived or none was usable")
                 val understanding = if (trialReading != null) {
                     PamResult.Success(trialReading)
+                } else if (chatActivity.isChatActive()) {
+                    // Gemma did not read (busy with a chat reply, say) and the fallback would load Qwen over the chat model: never
+                    // while a chat is live. The reading is queued again, to be read by Gemma when the chat is over.
+                    return@withContext requeueForChat(documentId, reprocess)
                 } else aiExtraction(
                     allBlocks,
                     // 5.4: lets AiExtractionUseCase turn a character-budget cut into a page
@@ -1045,6 +1055,20 @@ class DocumentProcessingPipeline @Inject constructor(
     }.getOrDefault(false)
 
     /**
+     * A chat session is live, so the reading goes back to the queue instead of taking the model: a first reading is put back to
+     * QUEUED (the worker runs it again later, OCR and any edit kept), a quiet re-read changes nothing. Unlike a reader that did not
+     * read, this is not a failed try: it is not counted, because it ends when the chat does ([ReaderRetry.isWaitingForChat]).
+     */
+    private suspend fun requeueForChat(documentId: String, reprocess: Boolean): PamResult<ExtractionResult> {
+        Log.i(TAG, "a chat is active: the reading of $documentId waits for it and is queued again")
+        if (!reprocess) {
+            documentDao.updateStatus(documentId, DocumentStatus.QUEUED.name)
+            _processingState.value = ProcessingState.Idle
+        }
+        return PamResult.Error(PamError.ModelNotLoaded(CHAT_ACTIVE_NAME))
+    }
+
+    /**
      * Every non-cancellation exit of [processDocument] that isn't a success routes through
      * here: it is the one place that marks a document `FAILED`, so no early return can leave
      * one stuck at `PROCESSING` forever (the bug this method exists to close — a document with
@@ -1132,6 +1156,9 @@ internal const val MAX_READER_DEFERRALS = 2
 
 /** The name in the error the worker recognises as "the reader was unavailable: run it again later". */
 internal const val READER_MODEL_NAME = "reader"
+
+/** The name in the error the worker recognises as "a chat is active: the reading was not tried, run it again later". */
+internal const val CHAT_ACTIVE_NAME = "reader-waits-for-chat"
 
 /** The chat offers at most this many of the model's suggested questions. */
 private const val MAX_SUGGESTED_QUESTIONS = 3

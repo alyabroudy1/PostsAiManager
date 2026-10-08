@@ -40,6 +40,17 @@ class ModelLoadCoordinatorTest {
     inner class Dispatch {
 
         @Test
+        fun `a load replaces the resident model only when the model or its native config changes`() = runTest {
+            val coordinator = ModelLoadCoordinator(FakeModelLoadOps())
+            assertThat(coordinator.wouldReplaceResident("model-a", config())).isTrue()
+            coordinator.load("model-a", config(temperature = 0.7f))
+
+            assertThat(coordinator.wouldReplaceResident("model-a", config(temperature = 0.1f))).isFalse()
+            assertThat(coordinator.wouldReplaceResident("model-a", config(contextTokens = 2048))).isTrue()
+            assertThat(coordinator.wouldReplaceResident("model-b", config())).isTrue()
+        }
+
+        @Test
         fun `first load for a model is always a full load`() = runTest {
             val ops = FakeModelLoadOps()
             val coordinator = ModelLoadCoordinator(ops)

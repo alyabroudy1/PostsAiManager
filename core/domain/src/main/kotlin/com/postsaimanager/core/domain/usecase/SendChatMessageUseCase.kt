@@ -309,6 +309,11 @@ class SendChatMessageUseCase @Inject constructor(
 
         emit(ChatTurn.PreparingModel(reason = if (engine.isBusy) BUSY_REASON else null))
 
+        // The chat is active from here on, before the model is loaded: a reading that would start (or fall back to another model)
+        // while this turn loads sees it and waits, instead of taking the model this turn is about to use. What the engine still
+        // holds of an earlier visit is dropped after the load (below), once there is a model to drop it from.
+        beginChatActivity(conversationId)
+
         // Retrieval overlaps `engine.load` (the slow part — can mean a multi-second cold
         // model load, or waiting behind an in-flight generate() on the shared engine, see
         // AiEngine.isBusy) exactly the way grounding used to (3.1) — retrieval is now the
@@ -347,6 +352,7 @@ class SendChatMessageUseCase @Inject constructor(
                 // `PamResult.Error` value it normally returns) means this whole turn is being
                 // torn down, and the retrieval call should not keep running orphaned.
                 retrievalDeferred?.cancel()
+                abandonBegun(conversationId)
                 throw e
             }
             if (loadResult is PamResult.Error) {
@@ -357,11 +363,14 @@ class SendChatMessageUseCase @Inject constructor(
             }
         }
         if (loaded is PamResult.Error) {
+            // No model, so no session was begun on it: the next send begins it (and drops what the engine holds) again.
+            abandonBegun(conversationId)
             emit(ChatTurn.Failed(loaded.error.userMessage, ChatErrorAction.RETRY))
             return@flow
         }
         // The model loaded but its chat template does not render: no turn can start on it. Said plainly, with the way out.
         if (loaded is PamResult.Success && !loaded.data.canChat) {
+            abandonBegun(conversationId)
             emit(ChatTurn.Failed(CANNOT_CHAT_MESSAGE, ChatErrorAction.CHOOSE_CHAT_MODEL))
             return@flow
         }
@@ -373,7 +382,7 @@ class SendChatMessageUseCase @Inject constructor(
         com.postsaimanager.core.common.util.TimingLog.at("load + retrieval done (retrieved=${retrieved?.chunks?.size})")
         // A send that begins a new session (the first after the person left, or after 10 idle minutes) must not continue the old
         // conversation the engine may still hold: it is dropped, and built again from the plan below.
-        beginSession(conversationId)
+        dropOldConversationIfNew(conversationId)
         val needsPriming = !engine.isChatSessionPrimed(conversationId)
         val contextTokens = when (val state = engine.state.value) {
             is ModelLoadState.Ready -> state.config.contextTokens
@@ -687,11 +696,24 @@ class SendChatMessageUseCase @Inject constructor(
     ) {
         val activeModelPath = activeModelProvider.activeModelPath() ?: return
         val config = activeModelProvider.activeModelConfig()
-        val loaded = engine.load(activeModelPath, config)
+        // The chat is active from the moment it opens, before the model is loaded (see [invoke]): a reading waits for it.
+        beginChatActivity(conversationId)
+        val loaded = try {
+            engine.load(activeModelPath, config)
+        } catch (e: Throwable) {
+            abandonBegun(conversationId)
+            throw e
+        }
         onLoadFinished()
-        if (loaded is PamResult.Error) return
+        if (loaded is PamResult.Error) {
+            abandonBegun(conversationId)
+            return
+        }
         // A model that cannot chat has nothing to prime; the first send tells the user.
-        if (loaded is PamResult.Success && !loaded.data.canChat) return
+        if (loaded is PamResult.Success && !loaded.data.canChat) {
+            abandonBegun(conversationId)
+            return
+        }
 
         primeSession(conversationId, documentId, config)
 
@@ -704,6 +726,9 @@ class SendChatMessageUseCase @Inject constructor(
             else -> config.contextTokens
         }
         val effort = if (engine.supportsThinking) thinkingEffort else ThinkingEffort.OFF
+        // A reading holds the engine: the warm-up would be skipped, or (worse) wasted by the reading's own work. It starts when the
+        // engine is free (the chat shows "Preparing conversation…" meanwhile), and not at all when the reading outlasts the wait.
+        if (!awaitEngineFree()) return
         engine.warmUpChat(
             ChatReplyBudget.request(effort, contextTokens, config.modelSampling)
                 .copy(tools = ChatToolsPolicy.requestFor(config, documentId, emptyList())),
@@ -719,8 +744,8 @@ class SendChatMessageUseCase @Inject constructor(
         // the lock, so a send that raced this prime (both waiting behind an in-flight
         // document read, say) joins it instead of priming the same conversation twice.
         primeMutex.withLock {
-            // Opening the chat begins a session (or continues the live one); a new one drops what the engine still holds.
-            beginSession(conversationId)
+            // Opening the chat began a session (or continued the live one); a new one drops what the engine still holds.
+            dropOldConversationIfNew(conversationId)
             // Same ground truth invoke() re-checks after load — a config change during load
             // can still require a (re)prime even if this conversation looked primed a
             // moment ago.
@@ -746,12 +771,36 @@ class SendChatMessageUseCase @Inject constructor(
         }
     }
 
+    /** Conversations whose session just began and whose engine conversation of the last visit is still to be dropped. */
+    private val resetPending: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
     /**
-     * Marks [conversationId]'s chat as used. When that begins a new session, the conversation the engine may still hold from the
-     * last visit is dropped, so the next [AiEngine.ensureChatSession] builds it from the plan (the card and the last exchange).
+     * Marks [conversationId]'s chat as active, before its model is loaded (so a reading waits for it). When that begins a new
+     * session, [dropOldConversationIfNew] drops what the engine may still hold from the last visit.
      */
-    private suspend fun beginSession(conversationId: String) {
-        if (sessions.begin(conversationId)) engine.resetChatSession()
+    private fun beginChatActivity(conversationId: String) {
+        if (sessions.begin(conversationId)) resetPending.add(conversationId)
+    }
+
+    /** Drops the conversation the engine may still hold from the last visit, so the next [AiEngine.ensureChatSession] builds it from the plan (the card and the last exchange). Once per new session. */
+    private suspend fun dropOldConversationIfNew(conversationId: String) {
+        if (resetPending.remove(conversationId)) engine.resetChatSession()
+    }
+
+    /** The turn that began the session failed before the model was there: the session did not happen, the next send begins it again. */
+    private fun abandonBegun(conversationId: String) {
+        if (resetPending.remove(conversationId)) sessions.discard(conversationId)
+    }
+
+    /** Waits (bounded) until no other caller holds the engine; false when one still does after [ENGINE_FREE_WAIT_MS]. */
+    private suspend fun awaitEngineFree(): Boolean {
+        var waited = 0L
+        while (engine.isBusy) {
+            if (waited >= ENGINE_FREE_WAIT_MS) return false
+            kotlinx.coroutines.delay(ENGINE_FREE_POLL_MS)
+            waited += ENGINE_FREE_POLL_MS
+        }
+        return true
     }
 
     /**
@@ -863,6 +912,10 @@ class SendChatMessageUseCase @Inject constructor(
 
         /** [ChatTurn.PreparingModel.reason] when the engine is busy with another caller. */
         const val BUSY_REASON = ChatTurn.PreparingModel.WAITING_FOR_DOCUMENT
+
+        /** How long the chat's warm-up waits for a reading to release the engine, and how often it looks. */
+        const val ENGINE_FREE_WAIT_MS = 5 * 60_000L
+        const val ENGINE_FREE_POLL_MS = 2_000L
 
         const val NANOS_PER_MILLI = 1_000_000L
         const val NO_ANSWER_PRODUCED =

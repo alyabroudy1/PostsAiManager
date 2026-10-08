@@ -14,6 +14,8 @@ import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.database.entity.ExtractedDataEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.data.worker.DocumentEnrichmentWorker
+import com.postsaimanager.core.data.worker.ReaderRetry
+import com.postsaimanager.core.domain.ai.ChatActivityGate
 import com.postsaimanager.core.domain.extraction.gemma.EarlySummary
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTextOutcome
 import com.postsaimanager.core.domain.extraction.gemma.GemmaTextsOutcome
@@ -94,7 +96,7 @@ class DocumentProcessingPipelineGemmaTrialTest {
     private val announce = mockk<AnnounceUnderstoodLetterUseCase>(relaxed = true)
     private val announceLazy = mockk<dagger.Lazy<AnnounceUnderstoodLetterUseCase>>().also { every { it.get() } returns announce }
 
-    private fun pipeline(trial: GemmaTrialReading = GemmaTrialReading.NONE) = DocumentProcessingPipeline(
+    private fun pipeline(trial: GemmaTrialReading = GemmaTrialReading.NONE, chat: ChatActivityGate = ChatActivityGate.Idle) = DocumentProcessingPipeline(
         ocrService = ocrService,
         indexDocument = mockk<IndexDocumentUseCase>().also {
             coEvery { it(any<String>(), any<List<IndexDocumentUseCase.PageText>>()) } returns
@@ -114,6 +116,7 @@ class DocumentProcessingPipelineGemmaTrialTest {
         appContext = mockk<Context>(relaxed = true),
         ioDispatcher = dispatcher,
         gemmaTrial = trial,
+        chatActivity = chat,
     )
 
     @BeforeEach
@@ -374,5 +377,61 @@ class DocumentProcessingPipelineGemmaTrialTest {
         pipeline().processDocument("doc-1")
 
         coVerify(exactly = 0) { recordEvents(any(), any(), any()) }
+    }
+
+    /** A chat gate whose state the test flips. */
+    private class SwitchGate(var active: Boolean) : ChatActivityGate {
+        override fun isChatActive(): Boolean = active
+    }
+
+    @Test
+    @DisplayName("a live chat session: the reading takes no model (neither Gemma nor Qwen) and is queued again, not counted as a failed try")
+    fun `a chat in progress queues the reading`() = runTest(dispatcher) {
+        var asked = false
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding? {
+                asked = true
+                return gemma
+            }
+        }
+
+        val result = pipeline(trial, SwitchGate(active = true)).processDocument("doc-1")
+
+        assertThat(asked).isFalse()
+        coVerify(exactly = 0) { aiExtraction(any(), any(), any(), any(), any(), any(), any()) }
+        val error = (result as PamResult.Error).error
+        assertThat(ReaderRetry.isWaitingForChat(error)).isTrue()
+        assertThat(ReaderRetry.shouldRetry(error, runAttemptCount = ReaderRetry.MAX_ATTEMPTS + 5)).isTrue()
+        coVerify { documentDao.updateStatus("doc-1", DocumentStatus.QUEUED.name, any()) }
+    }
+
+    @Test
+    @DisplayName("Gemma did not read while a chat began (busy with a reply): no fallback to Qwen over the chat model, the reading is queued again")
+    fun `no qwen fallback while a chat is active`() = runTest(dispatcher) {
+        val gate = SwitchGate(active = false)
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding? {
+                gate.active = true
+                return null
+            }
+        }
+
+        val result = pipeline(trial, gate).processDocument("doc-1")
+
+        coVerify(exactly = 0) { aiExtraction(any(), any(), any(), any(), any(), any(), any()) }
+        assertThat(ReaderRetry.isWaitingForChat((result as PamResult.Error).error)).isTrue()
+        coVerify { documentDao.updateStatus("doc-1", DocumentStatus.QUEUED.name, any()) }
+    }
+
+    @Test
+    @DisplayName("with no chat the fallback to the old reading still runs when Gemma could not read")
+    fun `fallback without a chat`() = runTest(dispatcher) {
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding? = null
+        }
+
+        pipeline(trial, SwitchGate(active = false)).processDocument("doc-1")
+
+        coVerify(exactly = 1) { aiExtraction(any(), any(), any(), any(), any(), any(), any()) }
     }
 }
