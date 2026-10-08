@@ -121,7 +121,7 @@ object GemmaPrompt {
             append("- ${Field.DATES}, ${Field.AMOUNTS}: entries {${Item.VALUE}: the value as printed (a date as yyyy-MM-dd, an amount as 1234.50 EUR), ${Item.MEANING}: the code of what it means}.\n")
             append("- ${Field.REFERENCES}: entries {${Item.VALUE}: each number as printed, ${Item.KIND}: the code of its kind (the account is the iban kind)}.\n")
         } else {
-            append("- ${Field.PARTIES}: one entry per party that exists: {${Item.WHO}: who, ${Item.ID}: a name candidate id (always prefer one), or a line id only when no candidate holds the name, ${Item.KIND}: its kind code}.\n")
+            append("- ${Field.PARTIES}: one entry per party that exists: {${Item.WHO}: who, ${Item.ID}: choose a candidate id when one matches; a raw line only if no candidate fits, ${Item.KIND}: its kind code}.\n")
             append("- ${Field.DATES}, ${Field.AMOUNTS}: entries {${Item.ID}: the candidate, ${Item.MEANING}: the code of what it means}. " +
                 "Take the meaning from the letter's own words next to the value (the label); a value the letter does not describe, such as a line of a table, " +
                 "a unit price or a part of a total, is the \"none of these\" code. Only one date can be the date of the letter.\n")

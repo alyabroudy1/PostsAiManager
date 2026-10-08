@@ -67,7 +67,7 @@ object FollowUpPrompts {
                 append("\n${ids[i]}: ${m.name} (${SuggestSubject.relation(m)})")
                 if (m.profileId in printedInFull) append(" - the letter prints this exact name")
             }
-            append("\n$DECOY: $decoyName (a relative of the user)")
+            append("\n$DECOY: $decoyName (a made-up person who has nothing to do with this household or this letter)")
             append("\nAnswer with the id of every person the letter is for or about. A person counts only when the letter itself names them or ")
             append("clearly refers to them. Answer [\"$NONE\"] when it is about none of them.")
         }
