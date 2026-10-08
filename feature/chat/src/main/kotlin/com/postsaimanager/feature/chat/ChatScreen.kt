@@ -160,7 +160,10 @@ fun ChatScreen(
     // the chat opens or returns, and stops when the app goes to the background or the chat closes.
     LifecycleStartEffect(viewModel) {
         viewModel.startWarmUp()
-        onStopOrDispose { viewModel.stopWarmUp() }
+        onStopOrDispose {
+            viewModel.stopWarmUp()
+            viewModel.onScreenHidden()
+        }
     }
     var inputText by rememberSaveable { mutableStateOf("") }
     var showModelSheet by rememberSaveable { mutableStateOf(false) }

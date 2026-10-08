@@ -17,14 +17,19 @@ import com.postsaimanager.core.domain.document.ReprocessOutdatedDocumentsUseCase
 import com.postsaimanager.core.domain.document.people.ConcernedPeopleWatcher
 import com.postsaimanager.core.domain.memory.SessionNotesCollector
 import com.postsaimanager.core.domain.timeline.RecordPassedDeadlinesUseCase
+import com.postsaimanager.core.domain.usecase.ChatSessionTracker
 import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/** How often the parked chat sessions are checked for their 10 idle minutes. */
+private const val PARKED_SESSION_SWEEP_MS = 30_000L
 
 /**
  * Application entry point.
@@ -103,6 +108,10 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
     @Inject
     lateinit var recordPassedDeadlines: Lazy<RecordPassedDeadlinesUseCase>
 
+    // Same reason: the chat sessions (parked ones end on memory pressure and after 10 idle minutes).
+    @Inject
+    lateinit var chatSessions: Lazy<ChatSessionTracker>
+
     // Lazy for the same reason as above: only the main process has a UI to lock.
     @Inject
     lateinit var appLockCoordinator: Lazy<AppLockCoordinator>
@@ -155,11 +164,29 @@ class PostsAiManagerApp : Application(), Configuration.Provider {
         // The notes of a chat session are written when it ends (the person leaves the chat, or 10 idle minutes), here and not in the
         // chat's ViewModel, which is gone by then. Quiet: skipped when no chat model is loaded or the model is busy.
         runCatching { sessionNotesCollector.get().start(applicationScope) }
+        // A chat the person left is parked, not ended: this sweep ends it (and so queues its notes) 10 minutes after its last activity.
+        applicationScope.launch {
+            while (true) {
+                delay(PARKED_SESSION_SWEEP_MS)
+                runCatching { chatSessions.get().endExpiredParked() }
+            }
+        }
 
         // Every time the app opens: a due date that passed with nothing done is written once to the letter's timeline (code only, no model).
         applicationScope.launch {
             runCatching { recordPassedDeadlines.get().invoke() }
                 .onFailure { if (it is CancellationException) throw it }
+        }
+    }
+
+    /**
+     * Memory pressure ends the parked chat sessions: the model is about to be freed, so their live conversation goes with it and
+     * their notes are queued now. A chat in the foreground is left alone (the engine decides what it does with it).
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level == TRIM_MEMORY_RUNNING_CRITICAL || level == TRIM_MEMORY_COMPLETE) {
+            if (isMainProcess()) runCatching { chatSessions.get().endAllParked() }
         }
     }
 
