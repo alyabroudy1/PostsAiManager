@@ -40,7 +40,7 @@ class ObserveChatVisibleDocumentsUseCase @Inject constructor(
          * Sensitive by its family or topics, or because the legacy type it was stored under ([LegacyTypes]) stands for a
          * sensitive family or topic, so a document read before extraction-v2-2 stays hidden until it is re-read.
          */
-        private fun isSensitive(document: Document): Boolean {
+        fun isSensitive(document: Document): Boolean {
             val type = document.extractionType
             if (SCHEMA.isSensitive(type, document.topics)) return true
             val legacy = LegacyTypes.of(type) ?: return false

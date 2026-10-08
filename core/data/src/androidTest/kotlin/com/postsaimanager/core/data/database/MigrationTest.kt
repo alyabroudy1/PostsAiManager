@@ -1279,6 +1279,49 @@ class MigrationTest {
         }
     }
 
+    /**
+     * v25 gains `documents.readingStage` (nullable): every existing row keeps its data and reads null ("finished"), and a stage can be
+     * stored afterwards. Validates against the v26 schema. Needs a device.
+     */
+    @Test
+    fun migrate25To26_addsTheReadingStageAndKeepsTheDocuments() {
+        helper.createDatabase(TEST_DB, 25).apply {
+            execSQL(
+                "INSERT INTO documents (id, title, status, sourceType, pageCount, isFavorite, createdAt, modifiedAt, syncStatus, " +
+                    "isUserTitle, enrichmentAttempts, enrichmentPending) VALUES ('d', 'Letter', 'EXTRACTED', 'CAMERA', 1, 0, 1, 1, 'LOCAL', 0, 0, 0)",
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 26, true, PamMigrations.MIGRATION_25_26)
+
+        db.query("SELECT title, status, readingStage FROM documents WHERE id = 'd'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Letter", c.getString(0)); assertEquals("EXTRACTED", c.getString(1)); assertTrue(c.isNull(2))
+        }
+        db.execSQL("UPDATE documents SET readingStage = 'FIELDS_READY' WHERE id = 'd'")
+        db.query("SELECT readingStage FROM documents WHERE id = 'd'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("FIELDS_READY", c.getString(0))
+        }
+    }
+
+    /** Running the migration on a database that already has the column (a half-applied earlier run) changes nothing. Needs a device. */
+    @Test
+    fun migrate25To26_isIdempotent() {
+        helper.createDatabase(TEST_DB, 25).apply {
+            execSQL("ALTER TABLE documents ADD COLUMN readingStage TEXT")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 26, true, PamMigrations.MIGRATION_25_26)
+
+        db.query("SELECT count(*) FROM documents").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(0, c.getInt(0))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

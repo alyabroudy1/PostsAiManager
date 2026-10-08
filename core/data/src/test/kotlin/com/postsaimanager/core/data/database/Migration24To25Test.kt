@@ -74,11 +74,13 @@ class Migration24To25Test {
     )
 
     @Test
-    fun `the migration is the step from 24 to 25 and is registered last`() {
+    fun `the migration is the step from 24 to 25 and is registered, with later steps only added after it`() {
         assertThat(PamMigrations.MIGRATION_24_25.startVersion).isEqualTo(24)
         assertThat(PamMigrations.MIGRATION_24_25.endVersion).isEqualTo(25)
         assertThat(PamMigrations.ALL.toList()).contains(PamMigrations.MIGRATION_24_25)
-        assertThat(PamMigrations.ALL.map { it.endVersion }.max()).isEqualTo(25)
+        // v26 (the reading stage) is the latest step and chains from 25.
+        assertThat(PamMigrations.ALL.map { it.endVersion }.max()).isEqualTo(26)
+        assertThat(PamMigrations.MIGRATION_25_26.startVersion).isEqualTo(25)
     }
 
     @Test

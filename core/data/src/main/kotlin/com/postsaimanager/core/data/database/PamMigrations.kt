@@ -586,6 +586,21 @@ object PamMigrations {
         override fun migrate(db: SupportSQLiteDatabase) = NotesPerPersonMigration.apply(db)
     }
 
+    /**
+     * v26 (step-by-step reading): `documents.readingStage`, a nullable `ReadingStage` name. Additive and idempotent (a database that
+     * already has the column is left alone); every existing row stays null, which reads as "finished". 1..25 are untouched (25 may be
+     * installed on phones).
+     */
+    val MIGRATION_25_26 = object : Migration(25, 26) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            val hasColumn = db.query("PRAGMA table_info(`documents`)").use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                generateSequence { if (cursor.moveToNext()) cursor.getString(nameIndex) else null }.any { it == "readingStage" }
+            }
+            if (!hasColumn) db.execSQL("ALTER TABLE `documents` ADD COLUMN `readingStage` TEXT")
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -611,5 +626,6 @@ object PamMigrations {
         MIGRATION_22_23,
         MIGRATION_23_24,
         MIGRATION_24_25,
+        MIGRATION_25_26,
     )
 }

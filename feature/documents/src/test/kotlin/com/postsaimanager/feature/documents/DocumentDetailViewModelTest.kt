@@ -88,7 +88,23 @@ class DocumentDetailViewModelTest {
         profileRepository = profileRepository,
         loadLetterContacts = com.postsaimanager.core.testing.letterContactsFor(profileRepository, contactRepository),
         observeCase = ObserveCaseForDocumentUseCase(eventRepository),
+        viewing = viewing,
     )
+
+    private val viewing = com.postsaimanager.core.domain.reading.ViewingState()
+
+    @Test
+    fun `the screen being shown tells the notifications the letter is being looked at, and hiding it takes that back`() {
+        viewing.setAppInForeground(true)
+        val vm = viewModel("d1")
+
+        vm.onScreenShown()
+        assertThat(viewing.isViewing("d1")).isTrue()
+        assertThat(viewing.isViewing("other")).isFalse()
+
+        vm.onScreenHidden()
+        assertThat(viewing.isViewing("d1")).isFalse()
+    }
 
     private val contactRepository = com.postsaimanager.core.testing.FakeContactRepository()
     private val eventRepository = FakeEventRepository()

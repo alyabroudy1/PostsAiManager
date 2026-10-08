@@ -6,7 +6,10 @@ import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentDateChip
+import com.postsaimanager.core.model.DocumentTitleCodes
 import com.postsaimanager.core.model.PersonTag
+import com.postsaimanager.core.model.ReadingStage
+import com.postsaimanager.core.model.ReadingStep
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.DocumentListStatus
@@ -324,6 +327,61 @@ class ObserveDocumentListItemsUseCaseTest {
     fun `the thumbnail is page one's image and absent without a page`() = runTest {
         assertThat(rowOf(doc(), firstPage = "/files/p1.jpg").firstPagePath).isEqualTo("/files/p1.jpg")
         assertThat(rowOf(doc()).firstPagePath).isNull()
+    }
+
+    // ── the steps of a reading that is not finished ──
+
+    @Test
+    fun `a row names the step of a letter being read, as a spinner and not as a clock`() = runTest {
+        val reading = doc(DocumentStatus.PROCESSING, titleCode = DocumentTitleCodes.SCANNED_PAGES, titleArgs = listOf("1"))
+        val text = rowOf(reading)
+        assertThat(text.readingStep).isEqualTo(ReadingStep.READING_TEXT)
+        assertThat(text.status).isEqualTo(DocumentListStatus.Processing)
+        assertThat(rowOf(reading.copy(readingStage = ReadingStage.TEXT_READY)).readingStep).isEqualTo(ReadingStep.READING_DETAILS)
+    }
+
+    @Test
+    fun `once the first stage is stored the row shows the sender, the due date and Almost done, still as being read`() = runTest {
+        val almost = doc(DocumentStatus.EXTRACTED, titleCode = DocumentTitleCodes.SCANNED_PAGES, titleArgs = listOf("1"))
+            .copy(readingStage = ReadingStage.FIELDS_READY, enrichmentPending = true)
+        val row = rowOf(almost, listOf(field("sender", "Stadtwerke Musterstadt"), field("due_date", "15.10.2026")))
+
+        assertThat(row.readingStep).isEqualTo(ReadingStep.ALMOST_DONE)
+        assertThat(row.status).isEqualTo(DocumentListStatus.Processing)
+        // The first stage's fields are the row's: the sender stands in for the default title, the due date is the chip.
+        assertThat(row.sender).isEqualTo("Stadtwerke Musterstadt")
+        assertThat(row.provisionalTitle).isEqualTo("Stadtwerke Musterstadt")
+        assertThat(row.dateChip.kind).isEqualTo(DocumentDateChip.Kind.DUE)
+        assertThat(row.dateChip.date).isEqualTo(LocalDate.of(2026, 10, 15))
+    }
+
+    @Test
+    fun `a finished letter, a quiet re-read and an older letter show no step and keep their title`() = runTest {
+        val finished = doc(DocumentStatus.EXTRACTED, titleCode = DocumentTitleCodes.SCANNED_PAGES, titleArgs = listOf("1"))
+        listOf(ReadingStage.UNDERSTOOD, null).forEach { stage ->
+            val row = rowOf(finished.copy(readingStage = stage), listOf(field("sender", "Stadtwerke")))
+            assertThat(row.readingStep).isNull()
+            assertThat(row.provisionalTitle).isNull()
+            assertThat(row.status).isNotEqualTo(DocumentListStatus.Processing)
+        }
+    }
+
+    @Test
+    fun `a real title is never replaced by the sender while the reading is unfinished`() = runTest {
+        val row = rowOf(
+            doc(DocumentStatus.EXTRACTED, title = "Rechnung Juli").copy(readingStage = ReadingStage.FIELDS_READY),
+            listOf(field("sender", "Stadtwerke")),
+        )
+        assertThat(row.readingStep).isEqualTo(ReadingStep.ALMOST_DONE)
+        assertThat(row.provisionalTitle).isNull()
+    }
+
+    @Test
+    fun `a failed or waiting document names no step`() = runTest {
+        assertThat(rowOf(doc(DocumentStatus.FAILED).copy(readingStage = ReadingStage.TEXT_READY)).readingStep).isNull()
+        assertThat(rowOf(doc(DocumentStatus.FAILED).copy(readingStage = ReadingStage.TEXT_READY)).status).isEqualTo(DocumentListStatus.Failed)
+        assertThat(rowOf(doc(DocumentStatus.QUEUED)).readingStep).isNull()
+        assertThat(rowOf(doc(DocumentStatus.QUEUED)).status).isEqualTo(DocumentListStatus.Waiting)
     }
 
     @Test

@@ -1,4 +1,17 @@
 <resources>
+    <!-- Die Benachrichtigung „Brief verstanden“. -->
+    <string name="reading_finished_channel_name">Lesen abgeschlossen</string>
+    <string name="reading_finished_channel_description">Ein leiser Hinweis, wenn ein Brief im Hintergrund gelesen und verstanden wurde.</string>
+    <string name="reading_finished_title">Brief verstanden</string>
+    <plurals name="reading_finished_group_title">
+        <item quantity="one">%1$d Brief verstanden</item>
+        <item quantity="other">%1$d Briefe verstanden</item>
+    </plurals>
+    <string name="reading_finished_public">Ein Brief wurde verstanden</string>
+    <string name="reading_finished_due">Fällig %1$s</string>
+    <string name="reading_finished_more">+%1$d weitere</string>
+    <string name="reading_finished_group_hidden">Öffne die App, um sie zu sehen</string>
+
     <!-- Erinnerungen, die der Nutzer auf einer Aktionskarte bestätigt hat. -->
     <string name="reminder_channel_name">Erinnerungen</string>
     <string name="reminder_channel_description">Erinnerungen, die du für deine Briefe setzt, zum Beispiel vor einer Frist.</string>

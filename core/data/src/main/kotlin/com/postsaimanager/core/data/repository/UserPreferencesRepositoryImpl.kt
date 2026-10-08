@@ -41,6 +41,7 @@ private object PrefsKeys {
     val SEARCH_MODEL_HINT_DISMISSED = booleanPreferencesKey("search_model_hint_dismissed")
     val MODEL_SETUP_SKIPPED = booleanPreferencesKey("model_setup_skipped")
     val HOUSEHOLD_PROMPT_DISMISSED = booleanPreferencesKey("household_prompt_dismissed")
+    val READING_FINISHED_NOTIFICATIONS = booleanPreferencesKey("reading_finished_notifications")
 }
 
 @Singleton
@@ -70,6 +71,7 @@ class UserPreferencesRepositoryImpl @Inject constructor(
                     searchModelHintDismissed = prefs[PrefsKeys.SEARCH_MODEL_HINT_DISMISSED] ?: false,
                     modelSetupSkipped = prefs[PrefsKeys.MODEL_SETUP_SKIPPED] ?: false,
                     householdPromptDismissed = prefs[PrefsKeys.HOUSEHOLD_PROMPT_DISMISSED] ?: false,
+                    readingFinishedNotifications = prefs[PrefsKeys.READING_FINISHED_NOTIFICATIONS] ?: true,
                 )
             }
             .catch { emit(UserPreferences()) }
@@ -113,6 +115,9 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 
     override suspend fun setHouseholdPromptDismissed(dismissed: Boolean): PamResult<Unit> =
         editPrefs { it[PrefsKeys.HOUSEHOLD_PROMPT_DISMISSED] = dismissed }
+
+    override suspend fun setReadingFinishedNotifications(enabled: Boolean): PamResult<Unit> =
+        editPrefs { it[PrefsKeys.READING_FINISHED_NOTIFICATIONS] = enabled }
 
     private suspend fun editPrefs(
         block: (MutablePreferences) -> Unit,

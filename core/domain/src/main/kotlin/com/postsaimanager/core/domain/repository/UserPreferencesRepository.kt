@@ -33,4 +33,7 @@ interface UserPreferencesRepository {
 
     /** See [UserPreferences.householdPromptDismissed]. */
     suspend fun setHouseholdPromptDismissed(dismissed: Boolean): PamResult<Unit>
+
+    /** See [UserPreferences.readingFinishedNotifications]. */
+    suspend fun setReadingFinishedNotifications(enabled: Boolean): PamResult<Unit>
 }

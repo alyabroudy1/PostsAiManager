@@ -187,6 +187,13 @@ fun SettingsScreen(
                 checked = prefs.notificationsEnabled,
                 onCheckedChange = viewModel::setNotificationsEnabled,
             )
+            SettingsSwitchItem(
+                icon = PamIcons.Settings,
+                title = stringResource(R.string.settings_reading_finished_title),
+                subtitle = stringResource(R.string.settings_reading_finished_subtitle),
+                checked = prefs.readingFinishedNotifications,
+                onCheckedChange = viewModel::setReadingFinishedNotifications,
+            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 

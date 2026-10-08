@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_reading_finished_title">اكتملت القراءة</string>
+    <string name="settings_reading_finished_subtitle">إشعار هادئ عند فهم رسالة. لا يظهر أي محتوى على شاشة القفل</string>
     <string name="settings_skills_attribution">مهارات الوكيل (تنسيق SKILL.md ومهارة send-email وطريقة قراءة المهارات وإجراءات البريد والتقويم والتذكير) مقتبسة ومعدّلة من Google AI Edge Gallery (https://github.com/google-ai-edge/gallery)، حقوق النشر 2026 Google LLC، بترخيص Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0). الملفات المعدّلة مُعلَّمة على أنها معدّلة.</string>
 </resources>

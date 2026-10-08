@@ -15,6 +15,7 @@ import com.postsaimanager.core.domain.document.EnrichmentRetryPolicy
 import com.postsaimanager.core.domain.extraction.text.SummaryWriter
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
+import com.postsaimanager.core.domain.reading.AnnounceUnderstoodLetterUseCase
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
 import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
@@ -68,6 +69,10 @@ class DocumentEnrichmentPipelineTest {
     private val aiExtraction = mockk<AiExtractionUseCase>()
     private val mapper = DocumentMapper()
 
+    /** The announcement of "Letter understood": what the pipeline asks for, never the notification itself. */
+    private val announce = mockk<AnnounceUnderstoodLetterUseCase>(relaxed = true)
+    private val announceLazy = dagger.Lazy { announce }
+
     private val pipeline = DocumentProcessingPipeline(
         ocrService = mockk<OcrService>(),
         indexDocument = mockk<IndexDocumentUseCase>(),
@@ -77,6 +82,7 @@ class DocumentEnrichmentPipelineTest {
         concernedPeopleDecision = mockk(relaxed = true),
         recordEvents = mockk(relaxed = true),
         syncEventLinks = mockk(relaxed = true),
+        announceUnderstood = announceLazy,
         fieldRevisionDao = mockk<FieldRevisionDao>(relaxed = true),
         documentMapper = mapper,
         documentDao = documentDao,
@@ -452,6 +458,7 @@ class DocumentEnrichmentPipelineTest {
         concernedPeopleDecision = mockk(relaxed = true),
         recordEvents = mockk(relaxed = true),
         syncEventLinks = mockk(relaxed = true),
+        announceUnderstood = announceLazy,
         fieldRevisionDao = mockk<FieldRevisionDao>(relaxed = true),
         documentMapper = mapper,
         documentDao = documentDao,

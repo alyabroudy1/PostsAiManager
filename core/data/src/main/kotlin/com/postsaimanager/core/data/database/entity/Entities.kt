@@ -67,6 +67,8 @@ data class DocumentEntity(
     val sourceHash: String? = null,
     /** See [com.postsaimanager.core.model.Document.originalFilePath]. Added in v21. */
     val originalFilePath: String? = null,
+    /** A `ReadingStage` name; null for a letter read before v26 and for one a quiet re-read updates. Added in v26. */
+    val readingStage: String? = null,
 )
 
 @Entity(

@@ -76,6 +76,7 @@ class DocumentReprocessPipelineTest {
         concernedPeopleDecision = mockk(relaxed = true),
         recordEvents = mockk(relaxed = true),
         syncEventLinks = mockk(relaxed = true),
+        announceUnderstood = mockk(relaxed = true),
         fieldRevisionDao = mockk<FieldRevisionDao>(relaxed = true),
         documentMapper = mapper,
         documentDao = documentDao,

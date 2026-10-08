@@ -69,6 +69,7 @@ class DocumentMapper @Inject constructor() {
         concernedProfileIds = JsonColumns.decodeNullableStrings(entity.concernedProfileIds),
         sourceHash = entity.sourceHash,
         originalFilePath = entity.originalFilePath,
+        readingStage = com.postsaimanager.core.model.ReadingStage.parse(entity.readingStage),
     )
 
     fun toEntity(domain: Document): DocumentEntity = DocumentEntity(
@@ -108,6 +109,7 @@ class DocumentMapper @Inject constructor() {
         concernedProfileIds = JsonColumns.encodeNullableStrings(domain.concernedProfileIds),
         sourceHash = domain.sourceHash,
         originalFilePath = domain.originalFilePath,
+        readingStage = domain.readingStage?.name,
     )
 
     /**

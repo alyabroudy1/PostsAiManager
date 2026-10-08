@@ -4,6 +4,9 @@
     <string name="page_preview_select_text_unavailable">Auf dieser Seite gibt es keinen auswählbaren Text</string>
 
     <!-- Eine Zeile der Dokumentliste: Personen-Chips und Fälligkeitsdatum. -->
+    <string name="doc_row_step_reading_text">Text wird gelesen…</string>
+    <string name="doc_row_step_reading_details">Details werden gelesen…</string>
+    <string name="doc_row_step_almost_done">Fast fertig…</string>
     <string name="doc_row_due">Fällig %1$s</string>
     <string name="doc_row_due_today">Heute fällig</string>
     <string name="doc_row_due_tomorrow">Morgen fällig</string>

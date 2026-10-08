@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.FamilyPresentation
 import com.postsaimanager.core.domain.extraction.v2.Slots
 import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.domain.reading.ReadingSteps
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.Document
@@ -12,6 +13,7 @@ import com.postsaimanager.core.model.DocumentDateChip
 import com.postsaimanager.core.model.DocumentListItem
 import com.postsaimanager.core.model.DocumentListStatus
 import com.postsaimanager.core.model.DocumentStatus
+import com.postsaimanager.core.model.DocumentTitleCodes
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.PersonTag
 import com.postsaimanager.core.model.ValueSource
@@ -75,16 +77,24 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
         val fields = allFields.filterNot { it.deletedByUser }
         val due = firstReadableDate(fields, DUE_SLOTS, UnderstandingToFields.DEADLINE)
         val letterDate = firstReadableDate(fields, listOf(Slots.LETTER_DATE.json), UnderstandingToFields.DOCUMENT_DATE)
+        val step = ReadingSteps.of(document)
+        val sender = party(fields, DocumentParty.SENDER)
         return DocumentListItem(
             document = document,
             firstPagePath = firstPage,
-            sender = party(fields, DocumentParty.SENDER),
+            sender = sender,
             addressee = party(fields, DocumentParty.ADDRESSEE),
-            status = statusOf(document.status, fields),
+            // A reading that is not finished shows as being read, even once its first stage is stored (the row already shows the sender
+            // and the date then, with the step beside them).
+            status = if (step != null && document.status != DocumentStatus.FAILED) DocumentListStatus.Processing else statusOf(document.status, fields),
             dateChip = dateChip(document, due, letterDate, today),
             openActionCount = document.actionItems.size,
             people = people,
             typeId = typeTagOf(document.extractionType),
+            readingStep = step,
+            // The first stage knows the sender but not yet the name: until the second stage names the letter, the sender stands in
+            // for the app's default title ("Scanned 1 page").
+            provisionalTitle = sender.takeIf { step != null && document.titleCode == DocumentTitleCodes.SCANNED_PAGES },
         )
     }
 

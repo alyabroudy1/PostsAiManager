@@ -50,6 +50,11 @@ data class UserPreferences(
      * Home with an "AI model not installed" banner instead of the setup screen; it is cleared when setup finishes.
      */
     val modelSetupSkipped: Boolean = false,
+    /**
+     * Whether a "Letter understood" notification is posted when a new letter has been read in the background (channel "Reading
+     * finished", quiet). Separate from [notificationsEnabled], which is the deadline reminders.
+     */
+    val readingFinishedNotifications: Boolean = true,
 )
 
 /** The grace periods the app lock offers. 0 means "lock every time the app leaves the screen". */

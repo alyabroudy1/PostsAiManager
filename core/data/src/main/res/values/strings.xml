@@ -13,6 +13,19 @@
     <string name="processing_notification_matching">Matching profiles…</string>
     <string name="processing_notification_indexing">Indexing for search…</string>
 
+    <!-- The "Letter understood" notification (en, de, ar). -->
+    <string name="reading_finished_channel_name">Reading finished</string>
+    <string name="reading_finished_channel_description">A quiet note when a letter has been read and understood in the background.</string>
+    <string name="reading_finished_title">Letter understood</string>
+    <plurals name="reading_finished_group_title">
+        <item quantity="one">%1$d letter understood</item>
+        <item quantity="other">%1$d letters understood</item>
+    </plurals>
+    <string name="reading_finished_public">A letter was understood</string>
+    <string name="reading_finished_due">Due %1$s</string>
+    <string name="reading_finished_more">+%1$d more</string>
+    <string name="reading_finished_group_hidden">Open the app to see them</string>
+
     <!-- Reminders the user confirmed on an action card (en, de, ar). -->
     <string name="reminder_channel_name">Reminders</string>
     <string name="reminder_channel_description">Reminders you set for your letters, such as before a deadline.</string>

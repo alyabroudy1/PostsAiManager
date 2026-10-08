@@ -4,6 +4,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.postsaimanager.core.domain.applock.AppLockState
+import com.postsaimanager.core.domain.reading.ViewingState
 import com.postsaimanager.core.domain.repository.UserPreferencesRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -27,6 +28,8 @@ import javax.inject.Singleton
 class AppLockCoordinator @Inject constructor(
     private val appLock: AppLockState,
     private val preferences: UserPreferencesRepository,
+    // The same foreground signal tells the notifications whether the person is already looking at a letter.
+    private val viewing: ViewingState,
 ) {
 
     /** Must be called on the main thread. */
@@ -34,8 +37,14 @@ class AppLockCoordinator @Inject constructor(
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             LifecycleEventObserver { _, event ->
                 when (event) {
-                    Lifecycle.Event.ON_STOP -> appLock.onBackgrounded()
-                    Lifecycle.Event.ON_START -> appLock.onForegrounded()
+                    Lifecycle.Event.ON_STOP -> {
+                        viewing.setAppInForeground(false)
+                        appLock.onBackgrounded()
+                    }
+                    Lifecycle.Event.ON_START -> {
+                        viewing.setAppInForeground(true)
+                        appLock.onForegrounded()
+                    }
                     else -> Unit
                 }
             },

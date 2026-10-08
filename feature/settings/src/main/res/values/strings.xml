@@ -1,6 +1,8 @@
 <resources>
     <!-- Settings added in Phase 1 (background updates, App lock). English only for now; the same
          names in values-de and values-ar localise them. -->
+    <string name="settings_reading_finished_title">Reading finished</string>
+    <string name="settings_reading_finished_subtitle">Get a quiet notification when a letter has been understood. It shows no content on the lock screen</string>
     <string name="settings_update_older_title">Update older letters automatically</string>
     <string name="settings_update_older_subtitle">Re-read finished letters in the background, while charging or idle, when reading improves. Your edits are never changed</string>
 

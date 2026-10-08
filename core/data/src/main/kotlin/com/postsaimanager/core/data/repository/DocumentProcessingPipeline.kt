@@ -27,6 +27,7 @@ import com.postsaimanager.core.domain.document.EnrichmentTicketRebuilder
 import com.postsaimanager.core.domain.document.KeySlotMarker
 import com.postsaimanager.core.domain.document.ReprocessOverwritePolicy
 import com.postsaimanager.core.domain.document.people.DecideConcernedPeopleUseCase
+import com.postsaimanager.core.domain.reading.AnnounceUnderstoodLetterUseCase
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
 import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
@@ -44,6 +45,7 @@ import com.postsaimanager.core.model.ExtractionResult
 import com.postsaimanager.core.model.FactKind
 import com.postsaimanager.core.model.FamilySource
 import com.postsaimanager.core.model.ProcessingStage
+import com.postsaimanager.core.model.ReadingStage
 import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.TimelineCodes
 import com.postsaimanager.core.model.TimelineEvent
@@ -88,6 +90,8 @@ class DocumentProcessingPipeline @Inject constructor(
     // Lazy for the same reason: the timeline reads documents through DocumentRepository.
     private val recordEvents: dagger.Lazy<RecordDocumentEventsUseCase>,
     private val syncEventLinks: dagger.Lazy<SyncEventLinksUseCase>,
+    // Lazy for the same reason: it reads documents through DocumentRepository.
+    private val announceUnderstood: dagger.Lazy<AnnounceUnderstoodLetterUseCase>,
     private val fieldRevisionDao: FieldRevisionDao,
     private val documentMapper: DocumentMapper,
     private val documentDao: DocumentDao,
@@ -191,7 +195,12 @@ class DocumentProcessingPipeline @Inject constructor(
                 // Step 1: Mark as processing. Not for a reprocess: the document stays EXTRACTED
                 // throughout, so a failure or a kill leaves it exactly as it was.
                 state.value = ProcessingState.Running(documentId, ProcessingStage.READ, 0f)
-                if (!reprocess) documentDao.updateStatus(documentId, DocumentStatus.PROCESSING.name)
+                if (!reprocess) {
+                    documentDao.updateStatus(documentId, DocumentStatus.PROCESSING.name)
+                    // A new reading (a scan, an import, a re-read a person asked for) starts its stages again. A quiet background re-read
+                    // never touches the stage, so it is never shown as a reading and never announced.
+                    documentDao.updateReadingStage(documentId, null)
+                }
 
                 // Step 2: Get pages
                 val pages = documentDao.getPages(documentId)
@@ -272,6 +281,8 @@ class DocumentProcessingPipeline @Inject constructor(
                 // Nothing to write back when the stored OCR was reused as it is.
                 if (storedOcr == null && updatedPages.isNotEmpty()) {
                     documentDao.insertPages(updatedPages)
+                    // The text is stored: it can be selected and searched (search reads the stored page text) from now on.
+                    if (!reprocess) documentDao.updateReadingStage(documentId, ReadingStage.TEXT_READY.name)
                 }
 
                 // Log OCR event: a code and its numbers, rendered by the UI in the user's language.
@@ -420,6 +431,11 @@ class DocumentProcessingPipeline @Inject constructor(
                 fieldRevisionDao.insertAll(
                     merged.revisions.map(documentMapper::revisionToEntity),
                 )
+                // The first stage's fields are stored (the merge above kept every value a person wrote): this is the stage boundary the
+                // screens show them from. A reading with no second stage owed (no model read it) is finished here.
+                if (!reprocess) {
+                    documentDao.updateReadingStage(documentId, (if (staged) ReadingStage.FIELDS_READY else ReadingStage.UNDERSTOOD).name)
+                }
 
                 if (merged.newlyFlagged.isNotEmpty()) {
                     // Worth a timeline entry: the document says something different from
@@ -828,6 +844,7 @@ class DocumentProcessingPipeline @Inject constructor(
                         Log.w(TAG, "second stage of $documentId wrote no summary; attempt counted")
                         settleFailedAttempt(documentId)
                     }
+                    completeReading(documentId)
                     Log.i(TIMING_TAG, "$documentId TOTAL enrichDocument (inside the lock) ms=${msSince(started)} extras=${fields.size}")
                     finishEnrichment(documentId)
                     PamResult.Success(Unit)
@@ -852,6 +869,24 @@ class DocumentProcessingPipeline @Inject constructor(
         val fields = documentDao.getExtractedData(documentId).map(documentMapper::extractedDataToDomain)
         val updated = EnrichmentRetryPolicy.afterFailure(documentMapper.toDomain(latest), fields)
         documentDao.update(documentMapper.toEntity(updated).copy(syncStatus = latest.syncStatus))
+        // The limit of attempts settled the reading with the template summary: nothing more is coming.
+        completeReading(documentId)
+    }
+
+    /**
+     * Moves a reading from FIELDS_READY to UNDERSTOOD once nothing is owed any more (the second stage settled), and then tells the
+     * person (see [AnnounceUnderstoodLetterUseCase]). Only a reading that went through FIELDS_READY moves: a quiet re-read after an
+     * extractor version bump never touched its stage (it stays UNDERSTOOD, or null for an older letter), so it is neither shown as a
+     * reading nor announced. Never fails the stage.
+     */
+    private suspend fun completeReading(documentId: String) {
+        val doc = documentDao.getById(documentId)?.takeIf { it.deletedAt == null } ?: return
+        if (doc.enrichmentPending || ReadingStage.parse(doc.readingStage) != ReadingStage.FIELDS_READY) return
+        documentDao.updateReadingStage(documentId, ReadingStage.UNDERSTOOD.name)
+        runCatching { announceUnderstood.get()(documentId) }.onFailure { e ->
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Log.w(TAG, "announcement failed for $documentId: ${e.message}")
+        }
     }
 
     /**

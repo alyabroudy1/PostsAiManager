@@ -75,6 +75,7 @@
     <string name="card_summary_from_fields">Summary from the fields</string>
     <string name="card_summary_yours">Your summary</string>
     <string name="card_summary_coming">Summary coming…</string>
+    <string name="detail_still_understanding">Still understanding the letter… what you see so far is already read</string>
     <!-- The Pages tab: the card under the page images, and the collapsed recognized text -->
     <string name="pages_about_heading">About this document</string>
     <string name="pages_zoom_page">Open page %1$d full screen</string>

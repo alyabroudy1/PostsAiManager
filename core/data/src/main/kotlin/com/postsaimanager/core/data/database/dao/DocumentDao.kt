@@ -122,6 +122,10 @@ interface DocumentDao {
     @Query("UPDATE documents SET status = :status, modifiedAt = :modifiedAt WHERE id = :id")
     suspend fun updateStatus(id: String, status: String, modifiedAt: Long = System.currentTimeMillis())
 
+    /** Moves the reading's stage (a `ReadingStage` name, or null for "a new reading starts"). Leaves `modifiedAt` alone: it is progress, not an edit. */
+    @Query("UPDATE documents SET readingStage = :stage WHERE id = :id")
+    suspend fun updateReadingStage(id: String, stage: String?)
+
     @Query("DELETE FROM documents WHERE id = :id")
     suspend fun deleteById(id: String)
 
