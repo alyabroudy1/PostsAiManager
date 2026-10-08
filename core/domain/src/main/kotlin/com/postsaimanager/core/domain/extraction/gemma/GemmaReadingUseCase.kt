@@ -13,6 +13,7 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Result
 import com.postsaimanager.core.domain.extraction.v2.ExtractorCandidateSource
 import com.postsaimanager.core.domain.extraction.v2.LayoutReader
 import com.postsaimanager.core.model.DocumentUnderstanding
+import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.OcrBlock
 import com.postsaimanager.core.model.SummarySource
 import kotlinx.coroutines.CancellationException
@@ -95,11 +96,15 @@ class GemmaReadingUseCase @Inject constructor(
         val verified = decision.verified
         val summary = verified.summary?.let { SummaryResult(it, SummarySource.MODEL, null, emptyList()) }
         val title = TitleComposer.compose(result.documentType?.id, result.parties.sender?.name, verified.name, result.freeText.subject?.value)
-        val read = result.copy(summary = summary, actions = GemmaActionBinder.bind(verified.actions, result), composedTitle = title)
+        // The timeline's event is the reader's own answer (a kind of the event registry, asked in the same call); its title is the document's.
+        val read = result.copy(
+            summary = summary, actions = GemmaActionBinder.bind(verified.actions, result), composedTitle = title,
+            event = verified.eventKind?.let { EventReading(it) },
+        )
         val merged = source.lastMerged
         // The header comes first: the data layer logs it always, so a trial reading is told apart from the usual one in the log.
         val trace = listOf(
-            "reader=gemma-trial interpreter=${interpreter.name} window=$window",
+            "reader=gemma interpreter=${interpreter.name} window=$window",
             "entities=${if (spans == null) "not available yet (shape candidates only)" else "${spans.size} spans, ${merged?.added ?: 0} candidates added"}",
         ) + read.diagnostics.trace
         val understanding = adapter.adapt(read.copy(diagnostics = read.diagnostics.copy(trace = trace)))
@@ -119,7 +124,7 @@ class GemmaReadingUseCase @Inject constructor(
             is GemmaReadingParser.Parsed.Bad -> return GemmaReadingOutcome.Unavailable(parsed.reason)
         }
         val trace = listOf(
-            "reader=gemma-trial interpreter=picture-only",
+            "reader=gemma interpreter=picture-only",
             "t gemma reader (picture only) ms=${answered.ms}",
             "gemma input lines=0 candidates=0 image=yes json=${answered.json.length} chars; every value is to check",
         )

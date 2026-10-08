@@ -11,7 +11,10 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
-/** The trial's switch: off by default (debug and release alike), kept on the app's private preferences, one-off requests are spent. */
+/**
+ * The reader switch "Gemma (default) / Qwen scorer (old)": Gemma by default (debug and release alike), kept on the app's private
+ * preferences, one-off requests are spent.
+ */
 class SharedPreferencesGemmaReaderTrialTest {
 
     private val editor = mockk<SharedPreferences.Editor>(relaxed = true)
@@ -23,34 +26,45 @@ class SharedPreferencesGemmaReaderTrialTest {
     private val context = mockk<Context> { every { getSharedPreferences("gemma_reader_trial", Context.MODE_PRIVATE) } returns preferences }
 
     @Test
-    @DisplayName("the switch is off until it is turned on")
-    fun `off by default`() = runBlocking {
+    @DisplayName("Gemma is the reader until the old one is chosen")
+    fun `gemma by default`() = runBlocking {
         val trial = SharedPreferencesGemmaReaderTrial(context)
-
-        assertThat(trial.isEnabled()).isFalse()
-        assertThat(trial.enabled.first()).isFalse()
-    }
-
-    @Test
-    @DisplayName("turning it on is stored and seen at once; a new instance starts from what was stored")
-    fun `on is stored`() = runBlocking {
-        every { editor.putBoolean("enabled", true) } answers { stored["enabled"] = true; editor }
-        val trial = SharedPreferencesGemmaReaderTrial(context)
-
-        trial.setEnabled(true)
 
         assertThat(trial.isEnabled()).isTrue()
         assertThat(trial.enabled.first()).isTrue()
-        verify { editor.putBoolean("enabled", true) }
+    }
+
+    @Test
+    @DisplayName("the old trial switch, left off by a debug build, does not decide the default reader")
+    fun `the old trial key is ignored`() = runBlocking {
+        stored["enabled"] = false
+
         assertThat(SharedPreferencesGemmaReaderTrial(context).isEnabled()).isTrue()
     }
 
     @Test
-    @DisplayName("preferences that cannot be read leave the trial off")
-    fun `unreadable is off`() = runBlocking {
+    @DisplayName("choosing the old reader is stored and seen at once; a new instance starts from what was stored, and Gemma can be chosen again")
+    fun `the old reader is stored`() = runBlocking {
+        every { editor.putBoolean("gemma_is_the_reader", any()) } answers { stored["gemma_is_the_reader"] = secondArg(); editor }
+        val trial = SharedPreferencesGemmaReaderTrial(context)
+
+        trial.setEnabled(false)
+
+        assertThat(trial.isEnabled()).isFalse()
+        assertThat(trial.enabled.first()).isFalse()
+        verify { editor.putBoolean("gemma_is_the_reader", false) }
+        assertThat(SharedPreferencesGemmaReaderTrial(context).isEnabled()).isFalse()
+
+        trial.setEnabled(true)
+        assertThat(SharedPreferencesGemmaReaderTrial(context).isEnabled()).isTrue()
+    }
+
+    @Test
+    @DisplayName("preferences that cannot be read leave Gemma the reader")
+    fun `unreadable is gemma`() = runBlocking {
         every { context.getSharedPreferences(any(), any()) } throws IllegalStateException("storage unavailable")
 
-        assertThat(SharedPreferencesGemmaReaderTrial(context).isEnabled()).isFalse()
+        assertThat(SharedPreferencesGemmaReaderTrial(context).isEnabled()).isTrue()
     }
 
     @Test

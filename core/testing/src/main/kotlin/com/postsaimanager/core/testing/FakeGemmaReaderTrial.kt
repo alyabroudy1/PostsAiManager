@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** The trial's switch in memory: off until a test turns it on, like the real one. */
-class FakeGemmaReaderTrial(enabled: Boolean = false) : GemmaReaderTrial {
+/** The reader switch in memory: Gemma (on) until a test chooses the old reader, like the real one. */
+class FakeGemmaReaderTrial(enabled: Boolean = true) : GemmaReaderTrial {
 
     private val state = MutableStateFlow(enabled)
 

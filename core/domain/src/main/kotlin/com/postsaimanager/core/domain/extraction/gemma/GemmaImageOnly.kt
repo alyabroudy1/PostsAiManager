@@ -21,6 +21,7 @@ import com.postsaimanager.core.domain.extraction.v2.SlotKind
 import com.postsaimanager.core.domain.extraction.v2.SlotOrigin
 import com.postsaimanager.core.domain.extraction.v2.SlotValue
 import com.postsaimanager.core.domain.extraction.text.TitleComposer
+import com.postsaimanager.core.model.EventReading
 import com.postsaimanager.core.model.SummarySource
 import java.time.LocalDate
 
@@ -114,6 +115,7 @@ class GemmaImageOnly(
             parties = Parties(kept),
             summary = summary,
             composedTitle = title,
+            event = vocab.eventKind(reading.eventKind)?.let { EventReading(it) },
             extras = extras.take(MAX_EXTRAS),
             diagnostics = Diagnostics(
                 candidateCount = 0, offeredCount = 0, modelCalled = true, modelUsed = true, rawAnswer = rawAnswer,

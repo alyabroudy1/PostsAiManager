@@ -11,31 +11,31 @@ import org.junit.jupiter.api.Test
 class GemmaReaderTrialTest {
 
     @Test
-    @DisplayName("the trial is off by default: no reading is Gemma's")
-    fun `off by default`() = runBlocking {
+    @DisplayName("Gemma is the default reader: every reading is Gemma's until the old reader is chosen")
+    fun `gemma by default`() = runBlocking {
         val trial = FakeGemmaReaderTrial()
 
-        assertThat(trial.isEnabled()).isFalse()
-        assertThat(trial.shouldRead("d1")).isFalse()
+        assertThat(trial.isEnabled()).isTrue()
+        assertThat(trial.shouldRead("d1")).isTrue()
     }
 
     @Test
-    @DisplayName("the switch makes every reading Gemma's, and turning it off ends that")
+    @DisplayName("the debug switch chooses the old reader for every reading, and choosing Gemma again ends that")
     fun `the switch`() = runBlocking {
         val trial = FakeGemmaReaderTrial()
 
-        trial.setEnabled(true)
-        assertThat(trial.shouldRead("d1")).isTrue()
-        assertThat(trial.shouldRead("d2")).isTrue()
-
         trial.setEnabled(false)
         assertThat(trial.shouldRead("d1")).isFalse()
+        assertThat(trial.shouldRead("d2")).isFalse()
+
+        trial.setEnabled(true)
+        assertThat(trial.shouldRead("d1")).isTrue()
     }
 
     @Test
-    @DisplayName("a one-off request makes the next reading of that document Gemma's, once, and does not touch the others")
+    @DisplayName("a one-off request makes the next reading of that document Gemma's, once, even with the old reader chosen, and does not touch the others")
     fun `one off request`() = runBlocking {
-        val trial = FakeGemmaReaderTrial()
+        val trial = FakeGemmaReaderTrial(enabled = false)
         trial.requestOnce("d1")
 
         assertThat(trial.shouldRead("d2")).isFalse()
@@ -46,14 +46,14 @@ class GemmaReaderTrialTest {
     @Test
     @DisplayName("the debug action asks for Gemma's reading and queues a fresh read of that document")
     fun `read again with gemma`() = runBlocking {
-        val trial = FakeGemmaReaderTrial()
+        val trial = FakeGemmaReaderTrial(enabled = false)
         val processor = FakeDocumentProcessor()
 
         ReadAgainWithGemmaUseCase(trial, processor)("d1")
 
         assertThat(trial.isRequested("d1")).isTrue()
         assertThat(processor.enqueueCalls).containsExactly(FakeDocumentProcessor.EnqueueCall("d1", force = true))
-        // The switch itself stays off: only that reading is Gemma's.
+        // The switch itself is untouched: only that reading is Gemma's.
         assertThat(trial.isEnabled()).isFalse()
     }
 }

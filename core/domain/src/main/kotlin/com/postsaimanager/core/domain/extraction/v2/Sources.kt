@@ -4,6 +4,7 @@ import com.postsaimanager.core.domain.extraction.candidates.BlockKey
 import com.postsaimanager.core.domain.extraction.candidates.BlockZone
 import com.postsaimanager.core.domain.extraction.candidates.CandidateExtractor
 import com.postsaimanager.core.domain.extraction.candidates.CandidateSet
+import com.postsaimanager.core.domain.extraction.layout.AvatarGlyph
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterLayoutAnalyzer
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
@@ -21,8 +22,11 @@ class AnalyzerLayoutReader : LayoutReader {
  * candidate as a hint for the model and for the position check, not as a decision.
  */
 class ExtractorCandidateSource : CandidateSource {
-    override fun find(pages: List<List<OcrBlock>>, layout: LetterLayout): CandidateSet =
-        CandidateExtractor.extract(pages, BlockZones.of(pages, layout))
+    override fun find(pages: List<List<OcrBlock>>, layout: LetterLayout): CandidateSet {
+        // The layout was read from the pages without their avatar glyphs ([AvatarGlyph]): the candidates are found in the same text.
+        val letter = AvatarGlyph.strip(pages)
+        return CandidateExtractor.extract(letter, BlockZones.of(letter, layout))
+    }
 }
 
 /**

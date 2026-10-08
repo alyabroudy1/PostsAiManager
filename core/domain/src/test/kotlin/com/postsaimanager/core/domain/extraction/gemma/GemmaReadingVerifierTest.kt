@@ -166,6 +166,126 @@ class GemmaReadingVerifierTest {
         assertThat(v.drops.any { it.contains("dance") }).isTrue()
     }
 
+    @Test
+    @DisplayName("an action whose only date the model called the letter's date is dropped (a filing date is not a deadline)")
+    fun `invented action on a date that is no deadline`() {
+        val v = verify(
+            GemmaReading(
+                dates = listOf(date("D1", "LETTER_DATE"), date("D2", "other")),
+                actions = listOf(GemmaAction("confirm_renew", dateId = "D2")),
+            ),
+        )
+
+        assertThat(v.actions).isEmpty()
+        assertThat(v.drops.any { it.contains("confirm_renew") && it.contains("not a deadline") }).isTrue()
+    }
+
+    @Test
+    @DisplayName("an action keeps its amount when only its date had a meaning that is no deadline; deadline meanings stay")
+    fun `action date meanings`() {
+        val v = verify(
+            GemmaReading(
+                dates = listOf(date("D1", "LETTER_DATE"), date("D2", "DEADLINE"), date("D3", "APPOINTMENT")),
+                amounts = listOf(date("A1", "TOTAL_DUE")),
+                actions = listOf(
+                    GemmaAction("pay", dateId = "D1", amountId = "A1"),
+                    GemmaAction("object_cancel", dateId = "D2"),
+                    GemmaAction("attend", dateId = "D3"),
+                ),
+            ),
+        )
+
+        assertThat(v.actions.map { Triple(it.kind, it.dateCandidateId, it.amountCandidateId) })
+            .containsExactly(Triple("pay", null, "A1"), Triple("object_cancel", "D2", null), Triple("attend", "D3", null)).inOrder()
+    }
+
+    // ── asksReader: the model's own answers must agree ──
+
+    @Test
+    @DisplayName("a letter the model says asks nothing of its reader has no action, whatever actions it listed")
+    fun `asks reader no drops every action`() {
+        val v = verify(
+            GemmaReading(
+                asksReader = false,
+                dates = listOf(date("D2", "DUE_DATE")),
+                amounts = listOf(date("A1", "TOTAL_DUE")),
+                actions = listOf(GemmaAction("pay", dateId = "D2", amountId = "A1"), GemmaAction("object_cancel")),
+            ),
+        )
+
+        assertThat(v.actions).isEmpty()
+        assertThat(v.asksReader).isFalse()
+        assertThat(v.drops.any { it.contains("2 action(s) dropped") }).isTrue()
+        // Only the actions go: the values the model decided stay.
+        assertThat(v.dates.map { it.candidate.id }).containsExactly("D2")
+        assertThat(v.amounts.map { it.candidate.id }).containsExactly("A1")
+    }
+
+    @Test
+    @DisplayName("a letter that asks something keeps its actions; so does an answer with no asksReader (nothing to contradict)")
+    fun `asks reader yes or missing keeps actions`() {
+        val actions = listOf(GemmaAction("pay"))
+
+        assertThat(verify(GemmaReading(asksReader = true, actions = actions)).actions.map { it.kind }).containsExactly("pay")
+        assertThat(verify(GemmaReading(asksReader = null, actions = actions)).actions.map { it.kind }).containsExactly("pay")
+    }
+
+    @Test
+    @DisplayName("asksReader no with no action drops nothing")
+    fun `asks reader no without actions`() {
+        assertThat(verify(GemmaReading(asksReader = false)).drops).isEmpty()
+    }
+
+    // ── a meaning only one value can have ──
+
+    @Test
+    @DisplayName("two amounts that both claim the amount to pay: the one listed first keeps it, the other is kept as other")
+    fun `duplicate exclusive amount meaning`() {
+        val v = verify(GemmaReading(amounts = listOf(date("A1", "TOTAL_DUE"), date("A2", "TOTAL_DUE"))))
+
+        assertThat(v.amounts.map { it.candidate.id to it.meaningId }).containsExactly("A1" to "TOTAL_DUE", "A2" to null).inOrder()
+        assertThat(v.drops.single()).contains("TOTAL_DUE")
+    }
+
+    @Test
+    @DisplayName("a meaning other values may share (a premium, a fee) is not exclusive: both keep it")
+    fun `shared amount meaning`() {
+        val v = verify(GemmaReading(amounts = listOf(date("A1", "PREMIUM"), date("A2", "PREMIUM"))))
+
+        assertThat(v.amounts.map { it.meaningId }).containsExactly("PREMIUM", "PREMIUM")
+        assertThat(v.drops).isEmpty()
+    }
+
+    @Test
+    @DisplayName("an amount the model marked other stays without a meaning, and does not take the amount-to-pay from the one that has it")
+    fun `other is no claim`() {
+        val v = verify(GemmaReading(amounts = listOf(date("A2", "other"), date("A1", "TOTAL_DUE"))))
+
+        assertThat(v.amounts.map { it.candidate.id to it.meaningId }).containsExactly("A2" to null, "A1" to "TOTAL_DUE").inOrder()
+        assertThat(v.drops).isEmpty()
+    }
+
+    @Test
+    @DisplayName("the letter's date is exclusive too: two dates claiming it leave it with the first")
+    fun `duplicate letter date`() {
+        val v = verify(GemmaReading(dates = listOf(date("D1", "LETTER_DATE"), date("D3", "LETTER_DATE"))))
+
+        assertThat(v.dates.map { it.candidate.id to it.meaningId }).containsExactly("D1" to "LETTER_DATE", "D3" to null).inOrder()
+    }
+
+    // ── the timeline event kind ──
+
+    @Test
+    @DisplayName("the event kind is a kind of the timeline registry; any other word is no kind")
+    fun `event kind`() {
+        assertThat(verify(GemmaReading(eventKind = "approval")).eventKind).isEqualTo("approval")
+        assertThat(verify(GemmaReading(eventKind = "information")).eventKind).isEqualTo("information")
+        val unknown = verify(GemmaReading(eventKind = "party"))
+        assertThat(unknown.eventKind).isNull()
+        assertThat(unknown.drops.single()).contains("event kind")
+        assertThat(verify(GemmaReading()).eventKind).isNull()
+    }
+
     // ── free texts and the rest ──
 
     @Test

@@ -18,6 +18,12 @@ import kotlinx.serialization.json.putJsonArray
  * date is one of the letter's date candidates, so the model cannot write a value that is not on the page. "none" and "other" are
  * answers of their own.
  *
+ * The order of the fields is the order the model writes them: [Field.ASKS_READER] first ("does this document ask its reader to do
+ * anything?", which [GemmaReadingVerifier] holds the actions to), then the category (decided knowing it), the parties, the values, the
+ * actions, and [Field.EVENT_KIND]: what the letter reports on the timeline, a kind of the event registry. The kind is asked in this one
+ * call, not derived from the action kinds or the category afterwards, so the model's reading of the whole letter stays the only owner of
+ * that meaning and no mapping table of meanings lives in code.
+ *
  * A letter with no text lines (a page the OCR could not read) has nothing to choose from: the same fields are then free strings, and
  * the answer is read as unverified ([GemmaImageOnly]).
  */
@@ -39,6 +45,9 @@ object GemmaSchema {
 
     /** The answer's field names, one list for the schema, the parser and the prompt. */
     object Field {
+        /** "Does this document ask its reader to do anything?": yes or no, decided first, so the category and the actions follow from it. */
+        const val ASKS_READER = "asksReader"
+        const val EVENT_KIND = "eventKind"
         const val SENDER = "sender"
         const val ADDRESSEE = "addressee"
         const val CONTACT = "contact"
@@ -77,6 +86,8 @@ object GemmaSchema {
         val dates = dateIds(letter)
         val amounts = amountIds(letter)
         return objectOf(
+            Field.ASKS_READER to enumOf(listOf(GemmaVocabulary.NO, GemmaVocabulary.YES)),
+            Field.CATEGORY to enumOf(vocab.categoryIds),
             Field.SENDER to party(parties, vocab),
             Field.ADDRESSEE to party(parties, vocab),
             Field.CONTACT to party(parties, vocab),
@@ -98,7 +109,7 @@ object GemmaSchema {
                     "amountId" to enumOf(amounts + GemmaVocabulary.NONE),
                 ),
             ),
-            Field.CATEGORY to enumOf(vocab.categoryIds),
+            Field.EVENT_KIND to enumOf(vocab.eventKindIds),
             Field.LANGUAGE to text(MAX_LANGUAGE_CHARS),
             Field.NAME to text(MAX_NAME_CHARS),
             Field.SUMMARY to text(MAX_SUMMARY_CHARS),
@@ -110,6 +121,8 @@ object GemmaSchema {
     private fun imageOnly(vocab: GemmaVocabulary): JsonObject {
         fun party() = objectOf("name" to text(MAX_PARTY_TEXT_CHARS), "kind" to enumOf(vocab.partyKinds))
         return objectOf(
+            Field.ASKS_READER to enumOf(listOf(GemmaVocabulary.NO, GemmaVocabulary.YES)),
+            Field.CATEGORY to enumOf(vocab.categoryIds),
             Field.SENDER to party(),
             Field.ADDRESSEE to party(),
             Field.CONTACT to party(),
@@ -118,7 +131,7 @@ object GemmaSchema {
             Field.AMOUNTS to list(MAX_AMOUNTS, false, objectOf("value" to text(AMOUNT_CHARS), "meaning" to enumOf(vocab.amountMeanings.map { it.id } + GemmaVocabulary.OTHER))),
             Field.REFERENCES to list(MAX_REFERENCES, false, objectOf("value" to text(MAX_PARTY_TEXT_CHARS), "kind" to enumOf(vocab.referenceKinds))),
             Field.ACTIONS to list(MAX_ACTIONS, vocab.actionKinds.isEmpty(), objectOf("kind" to enumOf(vocab.actionKinds.map { it.id }))),
-            Field.CATEGORY to enumOf(vocab.categoryIds),
+            Field.EVENT_KIND to enumOf(vocab.eventKindIds),
             Field.LANGUAGE to text(MAX_LANGUAGE_CHARS),
             Field.NAME to text(MAX_NAME_CHARS),
             Field.SUMMARY to text(MAX_SUMMARY_CHARS),

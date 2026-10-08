@@ -7,10 +7,11 @@ import android.os.StatFs
 import com.postsaimanager.core.common.dispatcher.Dispatcher
 import com.postsaimanager.core.common.dispatcher.PamDispatcher
 import com.postsaimanager.core.domain.ai.AiEngine
-import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.DeviceCapability
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,6 +31,9 @@ class DeviceCapabilityChecker @Inject constructor(
     @Dispatcher(PamDispatcher.IO) private val ioDispatcher: CoroutineDispatcher,
 ) {
 
+    /** The accelerator question never waits long on a busy inference process (see [AcceleratorProbe]). */
+    private val probe = AcceleratorProbe(CoroutineScope(SupervisorJob() + ioDispatcher)) { aiEngine.availableAccelerators() }
+
     /**
      * @return a fresh snapshot, including [DeviceCapability.accelerators] probed from the
      *   `:inference` process. When that probe cannot run — the service has not been bound
@@ -42,8 +46,7 @@ class DeviceCapabilityChecker @Inject constructor(
 
         val memoryInfo = ActivityManager.MemoryInfo().also(activityManager::getMemoryInfo)
 
-        val accelerators = runCatching { aiEngine.availableAccelerators() }
-            .getOrDefault(setOf(Accelerator.CPU))
+        val accelerators = probe.current()
 
         return DeviceCapability(
             totalRamBytes = memoryInfo.totalMem,

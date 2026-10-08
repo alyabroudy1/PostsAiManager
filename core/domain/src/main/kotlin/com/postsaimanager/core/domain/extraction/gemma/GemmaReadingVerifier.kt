@@ -44,6 +44,10 @@ class VerifiedReading(
     val summary: String?,
     val keyInfo: List<KeyInfoVerifier.Kept>,
     val drops: List<String>,
+    /** What the letter reports on the timeline: a kind of the event registry, or null when the model named none the registry knows. */
+    val eventKind: String? = null,
+    /** The model's answer to "does the letter ask its reader to do anything?"; null when it gave none. */
+    val asksReader: Boolean? = null,
 )
 
 /**
@@ -78,7 +82,15 @@ class GemmaReadingVerifier(
         val dates = dates(reading, letter, offered, letterDate, drops)
         val amounts = amounts(reading, letter, offered, drops)
         val references = references(reading, letter, offered, drops)
-        val actions = actions(reading, dates, amounts, drops)
+        // The model's own answers must agree: a letter it says asks nothing of its reader has no action (it invented them).
+        val actions = if (reading.asksReader == false) {
+            if (reading.actions.isNotEmpty()) drops += "${reading.actions.size} action(s) dropped: the model said the letter asks nothing of its reader"
+            emptyList()
+        } else {
+            actions(reading, dates, amounts, drops)
+        }
+        val eventKind = vocab.eventKind(reading.eventKind)
+            .also { if (reading.eventKind != null && it == null) drops += "event kind '${reading.eventKind}' is not in the registry" }
 
         val category = reading.category?.trim()?.lowercase()?.takeIf { it in vocab.categoryIds }
             ?: GemmaVocabulary.DOCUMENT_CATEGORY.also { if (reading.category != null) drops += "category '${reading.category}' is not in the registry" }
@@ -103,7 +115,7 @@ class GemmaReadingVerifier(
         val keyInfo = keyInfos.verify(facts, ocrText, known).also {
             if (it.size < facts.size) drops += "${facts.size - it.size} key fact(s) dropped: not in the letter, a repeat of a read value, or over the limit"
         }
-        return VerifiedReading(parties, dates, amounts, references, actions, category, language, name, summary, keyInfo, drops)
+        return VerifiedReading(parties, dates, amounts, references, actions, category, language, name, summary, keyInfo, drops, eventKind, reading.asksReader)
     }
 
     // ── parties ──
@@ -170,7 +182,7 @@ class GemmaReadingVerifier(
                 }
             }
         }
-        return kept.values.toList()
+        return singleOwners(kept.values.toList(), drops)
     }
 
     private fun amounts(reading: GemmaReading, letter: GemmaLetter, offered: OfferedCandidates, drops: MutableList<String>): List<VerifiedValue> {
@@ -187,7 +199,26 @@ class GemmaReadingVerifier(
             }
             kept.putIfAbsent(c.id, VerifiedValue(c, vocab.amountMeaning(v.meaning)?.id))
         }
-        return kept.values.toList()
+        return singleOwners(kept.values.toList(), drops)
+    }
+
+    /**
+     * A meaning only one value of a document can have ("the amount to pay", "the date of the letter", see [com.postsaimanager.core.domain.extraction.v2.ValueMeaning.exclusive])
+     * stays with the value the model listed first; a later value that claims it too is one the model got wrong, and is kept as "other"
+     * (the value itself is a real candidate, only the meaning goes). A meaning the model gave "other" is already no meaning.
+     */
+    private fun singleOwners(values: List<VerifiedValue>, drops: MutableList<String>): List<VerifiedValue> {
+        val taken = HashSet<String>()
+        return values.map { v ->
+            val id = v.meaningId ?: return@map v
+            val exclusive = vocab.meanings.byId(id)?.exclusive == true
+            if (!exclusive || taken.add(id)) {
+                v
+            } else {
+                drops += "$id was claimed by ${v.candidate.id} as well: kept as other, the value listed first keeps it"
+                VerifiedValue(v.candidate, null)
+            }
+        }
     }
 
     // ── references, accounts, contact values ──
@@ -223,8 +254,16 @@ class GemmaReadingVerifier(
                 drops += "action '${a.kind}' is not in the registry"
                 null
             } ?: continue
-            val date = a.dateId?.takeIf { id -> dates.any { it.candidate.id == id } }
+            val kept = a.dateId?.let { id -> dates.firstOrNull { it.candidate.id == id } }
+            // The model's own answers must agree: a date it called the letter's date, a period or "other" is not a deadline.
+            val meansDeadline = kept == null || kept.meaningId in ACTION_DATE_MEANINGS
+            if (kept != null && !meansDeadline) drops += "action $kind: date ${kept.candidate.id} was given another meaning, not a deadline"
+            val date = kept?.takeIf { meansDeadline }?.candidate?.id
             val amount = a.amountId?.takeIf { id -> amounts.any { it.candidate.id == id } }
+            if (kept != null && !meansDeadline && amount == null && vocab.actionKind(kind)?.let { it.dateMeaning != null || it.amountMeaning != null } == true) {
+                drops += "action $kind: nothing is left of it (no date, no amount)"
+                continue
+            }
             if (a.dateId != null && date == null && !a.dateId.equals(GemmaVocabulary.NONE, true)) drops += "action $kind: date ${a.dateId} was not kept"
             if (a.amountId != null && amount == null && !a.amountId.equals(GemmaVocabulary.NONE, true)) drops += "action $kind: amount ${a.amountId} was not kept"
             out.putIfAbsent(kind, VerifiedAction(kind, date, amount))
@@ -249,6 +288,9 @@ class GemmaReadingVerifier(
     private companion object {
         const val LETTER_DATE = "LETTER_DATE"
         const val DUE_DATE = "DUE_DATE"
+
+        /** The date meanings (registry ids) that can be what an action is due by or happens at; any other meaning is not a deadline. */
+        val ACTION_DATE_MEANINGS = setOf(DUE_DATE, "DEADLINE", "APPOINTMENT")
         const val DATE_CHARS = 10
     }
 }

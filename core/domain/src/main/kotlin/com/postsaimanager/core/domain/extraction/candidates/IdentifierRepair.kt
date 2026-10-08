@@ -14,12 +14,23 @@ object IdentifierRepair {
     fun repair(token: String): String? {
         if (token.length < MIN_LENGTH || token.count { it.isDigit() } < MIN_DIGITS) return null
         val sb = StringBuilder(token)
-        for (i in token.indices) {
-            val prevDigit = i > 0 && token[i - 1].isDigit()
-            val nextDigit = i + 1 < token.length && token[i + 1].isDigit()
-            when (token[i]) {
-                'o', 'O' -> if (prevDigit || nextDigit) sb.setCharAt(i, '0')
-                'I', 'l' -> if (prevDigit && nextDigit) sb.setCharAt(i, '1')
+        // Repeated until nothing changes: a run of confused characters ("OO07777") is repaired from the digit it touches outwards, so
+        // the neighbour of a repaired character counts as a digit too. Real letters ("BG") touch no digit-run and stay.
+        var changed = true
+        while (changed) {
+            changed = false
+            for (i in token.indices) {
+                val prevDigit = i > 0 && sb[i - 1].isDigit()
+                val nextDigit = i + 1 < sb.length && sb[i + 1].isDigit()
+                val fixed = when (sb[i]) {
+                    'o', 'O' -> if (prevDigit || nextDigit) '0' else null
+                    'I', 'l' -> if (prevDigit && nextDigit) '1' else null
+                    else -> null
+                }
+                if (fixed != null) {
+                    sb.setCharAt(i, fixed)
+                    changed = true
+                }
             }
         }
         val out = sb.toString()

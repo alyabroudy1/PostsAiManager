@@ -9,6 +9,7 @@ import com.postsaimanager.core.domain.extraction.v2.PartyKind
 import com.postsaimanager.core.domain.extraction.v2.SlotKind
 import com.postsaimanager.core.domain.extraction.v2.ValueMeaning
 import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
+import com.postsaimanager.core.domain.timeline.EventKinds
 
 /**
  * The words the reader may answer with, all of them taken from the registries the rest of the app already owns (so a new meaning, a new
@@ -20,7 +21,14 @@ class GemmaVocabulary(
     val schema: ExtractionSchema = ExtractionSchema.DEFAULT,
     val actionKinds: List<ActionKind> = ActionKinds.ALL,
     val categories: List<DocCategory> = schema.categories,
+    val eventKinds: EventKinds = EventKinds.DEFAULT,
 ) {
+
+    /** The timeline kinds the reader may name for what the letter reports: the registry's scored ones, and "information" when none fits. */
+    val eventKindIds: List<String> = eventKinds.scored.map { it.id } + EventKinds.INFORMATION
+
+    /** The registry's kind for [id] when it is one the reader may name; null for any other word. */
+    fun eventKind(id: String?): String? = id?.trim()?.takeIf { it in eventKindIds }
 
     val dateMeanings: List<ValueMeaning> get() = meanings.of(MeaningKind.DATE)
     val amountMeanings: List<ValueMeaning> get() = meanings.of(MeaningKind.AMOUNT)
@@ -47,6 +55,10 @@ class GemmaVocabulary(
 
         /** "There is nobody / nothing for this question". */
         const val NONE = "none"
+
+        /** The two answers of "does this document ask its reader to do anything?". */
+        const val YES = "yes"
+        const val NO = "no"
 
         /** The category of a document that fits no category: the schema's neutral "Document". */
         const val DOCUMENT_CATEGORY = "document"

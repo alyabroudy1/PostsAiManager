@@ -14,12 +14,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The trial's seam in the document pipeline ([GemmaTrialReading]): when the switch is on (or this document was asked for), it prepares
+ * The Gemma reader's seam in the document pipeline ([GemmaTrialReading]): unless the debug switch chose the old reader, it prepares
  * the page pictures (the chat's own scaled copies, removed again afterwards), lets [GemmaReadingUseCase] read, and logs the reading for the
  * comparison with the old pipeline: one `PamTiming` line (the total, the pictures, the pages) next to the engine's own lines (prefill,
  * decode, the JSON's length), and one `DocProcessing` line of what was decided. Nothing in the logs is a word of the letter.
  *
- * Null (the old reading runs) whenever the trial is off for this reading or the answer is unavailable; the reason is logged.
+ * Null (the old reading runs) whenever the old reader was chosen or Gemma's answer is unavailable (not installed, busy, failed, too slow,
+ * unusable JSON); the reason is logged.
  */
 @Singleton
 class GemmaTrialReader @Inject constructor(
@@ -29,8 +30,9 @@ class GemmaTrialReader @Inject constructor(
 ) : GemmaTrialReading {
 
     override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding? {
-        // A quiet background re-read is never the trial's (and does not spend a request meant for a person's tap).
-        if (request.reprocess || !trial.shouldRead(request.documentId)) return null
+        // Gemma is the default reader; only the debug switch "Qwen scorer (old)" leaves the reading to the old pipeline. A quiet background
+        // re-read reads with Gemma too: it already waits behind every reading a person is waiting for (the pipeline's ProcessingLock).
+        if (!trial.shouldRead(request.documentId)) return null
         val started = System.nanoTime()
         val folder = "$FOLDER_PREFIX${request.documentId}"
         try {

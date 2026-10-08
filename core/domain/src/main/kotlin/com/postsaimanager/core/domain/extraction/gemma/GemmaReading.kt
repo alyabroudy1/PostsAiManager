@@ -26,6 +26,8 @@ data class GemmaAction(val kind: String, val dateId: String? = null, val amountI
 data class GemmaFact(val label: String, val value: String)
 
 data class GemmaReading(
+    /** The answer to "does this document ask its reader to do anything?": true for yes, false for no, null when it was not given. */
+    val asksReader: Boolean? = null,
     val sender: GemmaParty? = null,
     val addressee: GemmaParty? = null,
     val contact: GemmaParty? = null,
@@ -35,6 +37,8 @@ data class GemmaReading(
     val references: List<GemmaValue> = emptyList(),
     val actions: List<GemmaAction> = emptyList(),
     val category: String? = null,
+    /** What the letter reports on the timeline, a kind of the event registry. */
+    val eventKind: String? = null,
     val language: String? = null,
     val name: String? = null,
     val summary: String? = null,
@@ -59,6 +63,11 @@ object GemmaReadingParser {
         }
         return Parsed.Ok(
             GemmaReading(
+                asksReader = when (root.str(Field.ASKS_READER)?.lowercase()) {
+                    GemmaVocabulary.YES -> true
+                    GemmaVocabulary.NO -> false
+                    else -> null
+                },
                 sender = root.party(Field.SENDER),
                 addressee = root.party(Field.ADDRESSEE),
                 contact = root.party(Field.CONTACT),
@@ -70,6 +79,7 @@ object GemmaReadingParser {
                     GemmaAction(o.str("kind") ?: return@mapNotNull null, o.str("dateId"), o.str("amountId"))
                 },
                 category = root.str(Field.CATEGORY),
+                eventKind = root.str(Field.EVENT_KIND),
                 language = root.str(Field.LANGUAGE),
                 name = root.str(Field.NAME),
                 summary = root.str(Field.SUMMARY),

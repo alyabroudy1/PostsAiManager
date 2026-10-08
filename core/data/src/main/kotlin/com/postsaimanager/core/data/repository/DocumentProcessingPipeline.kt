@@ -61,9 +61,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
@@ -116,7 +114,7 @@ class DocumentProcessingPipeline @Inject constructor(
      * has to live here rather than in unique-work naming, which only prevents *the same*
      * document from running twice.
      */
-    private val processingMutex = Mutex()
+    private val processingMutex = ProcessingLock()
 
     /** How many times each document's first reading was sent back because the reader model was unavailable (lost with the process). */
     private val readerDeferrals = java.util.concurrent.ConcurrentHashMap<String, Int>()
@@ -184,7 +182,8 @@ class DocumentProcessingPipeline @Inject constructor(
         reprocess: Boolean,
         forcedFamily: String?,
     ): PamResult<ExtractionResult> =
-        processingMutex.withLock {
+        // A background re-read (an extractor-version bump) gives way to every reading a person is waiting for.
+        processingMutex.withLock(background = reprocess) {
         withContext(ioDispatcher) {
             // A background reprocess is invisible: its progress goes to a state nobody observes, so
             // the UI shows no spinner and no notification for a letter that is already done.
@@ -597,6 +596,17 @@ class DocumentProcessingPipeline @Inject constructor(
                             ),
                         ).copy(syncStatus = doc.syncStatus),
                     )
+                    // A one-go reading (Gemma) decided the timeline's event kind in the same call; a staged reading's second stage does, in
+                    // [enrichDocument]. Written after the title is stored (the event's title is the document's) and replacing the document's
+                    // earlier DOCUMENT events. Never fails the reading.
+                    if (usedModel && !staged) {
+                        read?.event?.let { reading ->
+                            runCatching { recordEvents.get()(documentId, reading) }.onFailure { e ->
+                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                Log.w(TAG, "timeline events failed for $documentId: ${e.message}")
+                            }
+                        }
+                    }
                 }
 
                 // Step 6: Mark as extracted (a reprocess never left it, so nothing to write).
@@ -632,6 +642,13 @@ class DocumentProcessingPipeline @Inject constructor(
 
                 // The result is stored and (for a scan) shown as EXTRACTED: now the second stage, in the background.
                 read?.enrichment?.let { scheduleEnrichment(documentId, it) }
+                // A one-go reading has no second stage to announce it: a letter a person is waiting for is announced now (a quiet re-read never).
+                if (usedModel && !staged && !reprocess) {
+                    runCatching { announceUnderstood.get()(documentId) }.onFailure { e ->
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        Log.w(TAG, "announcement failed for $documentId: ${e.message}")
+                    }
+                }
 
                 // Step 7: Make it searchable.
                 //

@@ -17,11 +17,15 @@ import javax.inject.Inject
  * show ([schema]), what is actually in effect right now ([effectiveConfig] — defaults with
  * [overrides] applied and clamped, see [com.postsaimanager.core.model.applying]), and the
  * raw [overrides] themselves, so the UI can tell "user-set" apart from "default" per field.
+ *
+ * [loaded] is false for the placeholder shown before the first real answer: an empty [schema] then means "not read yet", never
+ * "no model installed" (the schema is never empty once read).
  */
 data class InferenceSettingsUiState(
     val schema: List<ConfigSpec>,
     val effectiveConfig: InferenceConfig,
     val overrides: InferenceOverrides,
+    val loaded: Boolean = true,
 )
 
 /**

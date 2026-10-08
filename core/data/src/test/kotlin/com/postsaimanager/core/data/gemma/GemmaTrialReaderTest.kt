@@ -22,7 +22,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
-/** The trial's seam in the pipeline: off means untouched, on means Gemma's reading or, when Gemma cannot read, null (the old reading runs). */
+/** The Gemma reader's seam in the pipeline: Gemma by default, or null (the old reading runs) when the old reader is chosen or Gemma cannot read. */
 class GemmaTrialReaderTest {
 
     private val trial = FakeGemmaReaderTrial()
@@ -49,8 +49,18 @@ class GemmaTrialReaderTest {
     }
 
     @Test
-    @DisplayName("with the trial off nothing happens: no reading, no picture touched, the old reading runs")
-    fun `off is untouched`() = runBlocking {
+    @DisplayName("Gemma is the default reader: nothing is switched on, and a new document is read by Gemma")
+    fun `gemma is the default`() = runBlocking {
+        coEvery { reading(any(), any(), any(), any()) } returns GemmaReadingOutcome.Read(understanding, "")
+
+        assertThat(reader.read(request())).isSameInstanceAs(understanding)
+    }
+
+    @Test
+    @DisplayName("with the old reader chosen nothing happens: no reading, no picture touched, the old reading runs")
+    fun `old reader chosen is untouched`() = runBlocking {
+        trial.setEnabled(false)
+
         val result = reader.read(request())
 
         assertThat(result).isNull()
@@ -59,20 +69,25 @@ class GemmaTrialReaderTest {
     }
 
     @Test
-    @DisplayName("a quiet background re-read is never the trial's, and it does not spend a request meant for a person's tap")
-    fun `reprocess is not the trial's`() = runBlocking {
-        trial.setEnabled(true)
-        trial.requestOnce("doc-1")
+    @DisplayName("a quiet background re-read is Gemma's too (it waits behind the user's own work in the pipeline's lock)")
+    fun `reprocess reads with gemma`() = runBlocking {
+        coEvery { reading(any(), any(), any(), any()) } returns GemmaReadingOutcome.Read(understanding, "")
 
         val result = reader.read(request(reprocess = true))
 
-        assertThat(result).isNull()
-        coVerify(exactly = 0) { reading(any(), any(), any(), any()) }
-        assertThat(trial.isRequested("doc-1")).isTrue()
+        assertThat(result).isSameInstanceAs(understanding)
     }
 
     @Test
-    @DisplayName("with the trial on the first two pages go to the reader as pictures and the understanding comes back; the pictures are removed")
+    @DisplayName("a quiet background re-read falls back to the old reading when Gemma is not installed")
+    fun `reprocess falls back when gemma is missing`() = runBlocking {
+        coEvery { reading(any(), any(), any(), any()) } returns GemmaReadingOutcome.Unavailable("no chat model is installed")
+
+        assertThat(reader.read(request(reprocess = true))).isNull()
+    }
+
+    @Test
+    @DisplayName("with Gemma chosen the first two pages go to the reader as pictures and the understanding comes back; the pictures are removed")
     fun `on reads`() = runBlocking {
         trial.setEnabled(true)
         coEvery { reading(any(), any(), any(), any()) } returns GemmaReadingOutcome.Read(understanding, "category=invoice_bill")
@@ -89,8 +104,9 @@ class GemmaTrialReaderTest {
     }
 
     @Test
-    @DisplayName("a one-off request reads with the switch off, and is spent")
+    @DisplayName("a one-off request reads with the old reader chosen, and is spent")
     fun `one off request`() = runBlocking {
+        trial.setEnabled(false)
         trial.requestOnce("doc-1")
         coEvery { reading(any(), any(), any(), any()) } returns GemmaReadingOutcome.Read(understanding, "")
 
@@ -99,14 +115,13 @@ class GemmaTrialReaderTest {
     }
 
     @Test
-    @DisplayName("when Gemma cannot read (not installed, busy, failed, too slow) the answer is null, so the usual reading runs")
+    @DisplayName("when Gemma cannot read (not installed, busy, failed, too slow, unusable JSON) the answer is null, so the old reading runs")
     fun `unavailable falls back`() = runBlocking {
-        trial.setEnabled(true)
-        coEvery { reading(any(), any(), any(), any()) } returns GemmaReadingOutcome.Unavailable("no chat model is installed")
+        for (reason in listOf("no chat model is installed", "no answer (the model is busy, the run failed or it took longer than 120 s)", "the answer is not a JSON object")) {
+            coEvery { reading(any(), any(), any(), any()) } returns GemmaReadingOutcome.Unavailable(reason)
 
-        val result = reader.read(request())
-
-        assertThat(result).isNull()
-        assertThat(images.stored).isEmpty()
+            assertThat(reader.read(request())).isNull()
+            assertThat(images.stored).isEmpty()
+        }
     }
 }

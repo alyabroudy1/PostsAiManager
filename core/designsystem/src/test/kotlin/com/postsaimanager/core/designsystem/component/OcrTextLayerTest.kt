@@ -62,7 +62,14 @@ class OcrTextLayerTest {
         assertThat(count.isReady).isFalse()
         count.reported("b")
         assertThat(count.isReady).isTrue()
+        // Reported is not yet selectable: presses stay held back until the layer arms the guard a couple of frames later.
+        assertThat(count.isArmed).isFalse()
+        count.arm()
+        assertThat(count.isArmed).isTrue()
         assertThat(LaidOutCount(expected = 0).isReady).isTrue()
+        val early = LaidOutCount(expected = 1)
+        early.arm()
+        assertThat(early.isArmed).isFalse()
     }
 
     @Test

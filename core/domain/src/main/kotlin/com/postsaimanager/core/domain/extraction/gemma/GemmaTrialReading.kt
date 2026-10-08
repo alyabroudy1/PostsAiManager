@@ -7,8 +7,8 @@ import com.postsaimanager.core.model.OcrBlock
  * What the document pipeline hands the trial for one reading: the OCR blocks of every page (page 1 first), the files of the stored page
  * pictures, the shape of page 1 and the category a person chose, if any.
  *
- * @property reprocess a quiet background re-read of a finished letter: never part of the trial, which reads new documents and the ones a
- *   person asked it to read again
+ * @property reprocess a quiet background re-read of a finished letter (after an extractor version bump); Gemma reads it too, behind every
+ *   reading a person is waiting for
  */
 class GemmaTrialRequest(
     val documentId: String,

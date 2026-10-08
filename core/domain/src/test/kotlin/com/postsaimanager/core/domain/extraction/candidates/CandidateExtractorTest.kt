@@ -358,6 +358,15 @@ class CandidateExtractorTest {
     }
 
     @Test
+    fun `a run of confused letters inside a number is repaired and the real letters stay`() {
+        assertThat(IdentifierRepair.repair("12345BGOO07777")).isEqualTo("12345BG0007777")
+        assertThat(IdentifierRepair.repair("12345BG0007777")).isNull()
+        val c = one("Aktenzeichen: 12345BGOO07777").single { it.kind == CandidateKind.REFERENCE }
+        assertThat(c.raw).isEqualTo("12345BGOO07777")
+        assertThat(c.normalized).isEqualTo("12345BG0007777")
+    }
+
+    @Test
     fun `identifiers with few digits or ordinary letters are not repaired`() {
         assertThat(one("Kundennummer: SO12345").single { it.kind == CandidateKind.REFERENCE }.normalized).isEqualTo("SO12345")
         assertThat(one("Ref AB-2026-10-4471").single { it.kind == CandidateKind.REFERENCE }.attrs["repaired"]).isNull()
