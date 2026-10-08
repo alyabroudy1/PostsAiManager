@@ -9,6 +9,7 @@ import com.postsaimanager.core.domain.ai.AiCapabilities
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.domain.ai.ToolActionCall
 import com.postsaimanager.core.domain.ai.ToolActionWire
 import com.postsaimanager.core.domain.ai.InferenceCrash
@@ -229,6 +230,11 @@ class RemoteLiteRtChatEngine @Inject constructor(
      * model, never queued behind it, and never counted as the chat's activity (it is quiet work). See [RemoteGenerateOnce].
      */
     override suspend fun generateOnce(system: String, request: AiRequest): String? = generateOnceCall(system, request)
+
+    private val generateStructuredCall by lazy { RemoteGenerateStructured(connection.engineMutex, { connection.service }, ioDispatcher) }
+
+    /** "Gemma reads the letter", through the service ([IInferenceService.generateLiteRtStructured]); quiet work like [generateOnce]. */
+    override suspend fun generateStructured(request: StructuredRequest): String? = generateStructuredCall(request)
 
     override suspend fun warmUpChat(request: AiRequest) {
         // Another caller holds the model (a document being read, a reply in flight): this is never worth queueing behind, nor

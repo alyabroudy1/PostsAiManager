@@ -34,6 +34,7 @@ import com.google.ai.edge.litertlm.ExperimentalApi
 import com.google.ai.edge.litertlm.ExperimentalFlags
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
+import com.google.ai.edge.litertlm.ResponseFormat
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.ToolProvider
 import com.postsaimanager.core.model.Accelerator
@@ -59,6 +60,10 @@ internal data class LlmModelInstance(
 )
 
 internal object LlmChatModelHelper : LlmModelHelper {
+
+    @Volatile
+    override var lastBenchmark: String = ""
+        private set
 
     override fun initialize(
         config: LlmModelConfig,
@@ -221,6 +226,73 @@ internal object LlmChatModelHelper : LlmModelHelper {
             }
         } catch (e: Exception) {
             Log.w(TAG, "one-off generation failed: ${e.message}")
+            null
+        }
+
+    /**
+     * "Gemma reads the letter": a conversation of its own whose answer LiteRT-LM constrains to [schema] (LLGuidance behind
+     * `ConversationConfig.enableResponseFormat` and `ResponseFormat.json`). Thinking is off, there are no tools, the pictures come
+     * before the text as in a chat message. The engine's own counters (prefill and decode tokens and rates) go to the timing log
+     * before the conversation is closed; a generation still running at [timeoutMs] is cancelled by a daemon timer.
+     */
+    @OptIn(ExperimentalApi::class) // opt-in experimental flags and the response format
+    override fun generateStructured(
+        instance: LlmModelInstance,
+        config: LlmModelConfig,
+        system: String,
+        prompt: String,
+        images: List<ByteArray>,
+        schema: String,
+        maxTokens: Int,
+        timeoutMs: Long,
+    ): String? =
+        try {
+            lastBenchmark = ""
+            runCatching { instance.conversation.close() }
+            val conversation = instance.engine.createConversation(
+                ConversationConfig(
+                    samplerConfig = SamplerConfig(
+                        topK = config.topK,
+                        topP = config.topP.toDouble(),
+                        temperature = config.temperature.toDouble(),
+                    ),
+                    systemInstruction = Contents.of(system),
+                    enableResponseFormat = true,
+                    maxOutputToken = maxTokens,
+                ),
+            )
+            // Kept as the instance's conversation so that a clean-up closes whichever is open, and so a stop reaches it.
+            instance.conversation = conversation
+            val timedOut = java.util.concurrent.atomic.AtomicBoolean(false)
+            val timer = java.util.Timer("pam-structured-timeout", true)
+            timer.schedule(
+                object : java.util.TimerTask() {
+                    override fun run() {
+                        timedOut.set(true)
+                        runCatching { conversation.cancelProcess() }
+                    }
+                },
+                timeoutMs,
+            )
+            try {
+                val contents = mutableListOf<Content>()
+                for (image in images) contents.add(Content.ImageBytes(image))
+                contents.add(Content.Text(prompt))
+                val answer = conversation.sendMessage(
+                    Contents.of(contents),
+                    extraContext = mapOf<String, Any>("enable_thinking" to false),
+                    responseFormat = ResponseFormat.json(schema),
+                ).toString()
+                // Read before the conversation is closed; the engine puts it on its one timing line.
+                lastBenchmark = benchmarkLine(instance)
+                answer.takeIf { it.isNotBlank() }
+            } finally {
+                timer.cancel()
+                if (timedOut.get()) Log.w(TAG, "structured generation cancelled after ${timeoutMs}ms")
+                runCatching { conversation.close() }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "structured generation failed: ${e.message}")
             null
         }
 

@@ -213,6 +213,14 @@ interface IInferenceService {
      */
     String generateLiteRtOnce(String system, String prompt, int maxTokens, float temperature, int topK);
 
+    /**
+     * "Gemma reads the letter": one answer constrained to the JSON [schema] (LiteRT-LM `ResponseFormat.json`), with the pictures at
+     * [imagePaths] (files only: no picture bytes cross the binder), generated outside the chat session (see
+     * `LiteRtChatEngine.generateStructured`). Not queued, like [generateLiteRtOnce]: null at once when a reply or a warm-up is in flight,
+     * when no LiteRT-LM model is resident, when the generation failed or ran past [timeoutMs]. Blocking while it generates.
+     */
+    String generateLiteRtStructured(String system, String prompt, String schema, in String[] imagePaths, int maxTokens, float temperature, int topK, long timeoutMs);
+
     /** Frees the LiteRT-LM model. */
     void unloadLiteRt();
 }

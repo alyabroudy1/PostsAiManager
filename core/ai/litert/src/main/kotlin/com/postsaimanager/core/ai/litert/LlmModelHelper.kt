@@ -103,6 +103,26 @@ internal interface LlmModelHelper {
      */
     fun generateOnce(instance: LlmModelInstance, config: LlmModelConfig, system: String, prompt: String): String?
 
+    /**
+     * As [generateOnce], with pictures in front of [prompt] and the answer constrained to the JSON [schema] (LiteRT-LM
+     * `ConversationConfig.enableResponseFormat` and `ResponseFormat.json`), thinking off. The instance must have been started with
+     * [LlmModelConfig.supportImage] when [images] is not empty. A generation still running after [timeoutMs] is cancelled. Null
+     * when the engine failed, timed out or said nothing; the default says the runtime cannot constrain its output.
+     */
+    fun generateStructured(
+        instance: LlmModelInstance,
+        config: LlmModelConfig,
+        system: String,
+        prompt: String,
+        images: List<ByteArray>,
+        schema: String,
+        maxTokens: Int,
+        timeoutMs: Long,
+    ): String? = null
+
+    /** The engine's own prefill and decode counters of the last [generateStructured], as a line for the timing log; empty when it had none. */
+    val lastBenchmark: String get() = ""
+
     /** Closes the conversation and the engine and frees the model. */
     fun cleanUp(instance: LlmModelInstance, onDone: () -> Unit = {})
 

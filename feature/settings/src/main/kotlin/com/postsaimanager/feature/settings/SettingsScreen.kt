@@ -3,6 +3,7 @@ package com.postsaimanager.feature.settings
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.clickable
@@ -196,6 +197,22 @@ fun SettingsScreen(
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // ── Debug: a debug build only; nothing is shown in a release build ──
+            val debuggable = remember(context) { context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 }
+            if (debuggable) {
+                val gemmaTrial: GemmaTrialViewModel = hiltViewModel()
+                val trialOn by gemmaTrial.enabled.collectAsStateWithLifecycle()
+                SettingsSectionHeader(stringResource(R.string.settings_debug_section))
+                SettingsSwitchItem(
+                    icon = PamIcons.AiModel,
+                    title = stringResource(R.string.settings_gemma_trial_title),
+                    subtitle = stringResource(R.string.settings_gemma_trial_subtitle),
+                    checked = trialOn,
+                    onCheckedChange = gemmaTrial::setEnabled,
+                )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            }
 
             // ── About ──
             SettingsSectionHeader("About")

@@ -49,6 +49,7 @@ ktor = "3.0.3"
 # ML Kit
 mlkitDocumentScanner = "16.0.0-beta1"
 mlkitTextRecognition = "16.0.1"
+mlkitEntityExtraction = "16.0.0-beta6"
 
 # UI
 coil = "3.0.4"
@@ -144,6 +145,7 @@ ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version
 # ML Kit
 mlkit-document-scanner = { group = "com.google.android.gms", name = "play-services-mlkit-document-scanner", version.ref = "mlkitDocumentScanner" }
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
+mlkit-entity-extraction = { group = "com.google.mlkit", name = "entity-extraction", version.ref = "mlkitEntityExtraction" }
 
 # UI
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }

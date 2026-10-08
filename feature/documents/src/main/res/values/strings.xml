@@ -115,6 +115,8 @@
     <string name="header_type_unknown">Type unknown</string>
     <string name="header_change_type">Change type</string>
     <string name="header_read_again_as">Read again as…</string>
+    <!-- Debug builds only: the Gemma reading trial. -->
+    <string name="debug_read_again_with_gemma">Read again with Gemma (trial)</string>
     <string name="picker_change_title">Change type</string>
     <string name="picker_read_again_title">Read again as</string>
     <string name="picker_current">Current type</string>

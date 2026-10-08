@@ -71,6 +71,10 @@ dependencies {
     implementation(libs.mlkit.document.scanner)
     implementation(libs.mlkit.text.recognition)
 
+    // ML Kit Entity Extraction (the "Gemma reads the letter" trial's second candidate source): dates, money, IBAN, phone, e-mail and
+    // address spans. About 8.4 MB of library (the language models are downloaded on demand, one per language).
+    implementation(libs.mlkit.entity.extraction)
+
     // Coroutines
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
