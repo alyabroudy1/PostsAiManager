@@ -42,6 +42,13 @@ data class ScoringProfile(
      */
     val meaningMargins: Map<String, Double> = emptyMap(),
     val defaultMeaningMargin: Double = 0.0,
+    /**
+     * The margin by which a party's best candidates must beat a made-up name on "is this a field label or a heading, not a person or an
+     * organisation?" ([ScoringDescriptions.FIELD_LABEL]) to be dropped from the question (a form field's label such as the name of an
+     * information block's row is no party, however the layout showed it). Null (the default) never asks, so a profile that did not fit one
+     * decides as before.
+     */
+    val fieldLabelMargin: Double? = null,
     /** The cut points of a slot's or a party's confidence; see [ScoreCuts]. */
     val cuts: ScoreCuts = ScoreCuts(),
     /** How the scores of all questions are combined into the answers ([SlotDecoder]); the per-slot argmax by default. */
@@ -185,6 +192,9 @@ object ScoringDescriptions {
     )
 
     const val HOUSEHOLD = "the name of a family or household (several people living together)"
+
+    /** The statement a party's best candidates are asked about once more ([ScoringProfile.fieldLabelMargin]): a label or a heading is no party. */
+    const val FIELD_LABEL = "a field label or a heading, not the name of a person or an organisation"
 
     /**
      * The scoring name of the key-slot batch (the stored slot values scored for whether the reader needs them). It keeps the name of the

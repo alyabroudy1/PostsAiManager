@@ -15,8 +15,9 @@ import java.util.Locale
  * ([ScoringProfile.meaningMargin]); the best of those is the answer, and when none counts the answer is "other" (no meaning). The model
  * only scores; the registry and the margins decide.
  *
- * It adds nothing to a slot's decision: the slot keeps the value it chose, and the meaning is attached to it (see
- * `ZoneScoringInterpreter`), so the two never compete.
+ * It never CHOOSES a value for a slot, but it can veto one (see [MeaningVerdict]): the slot keeps the value it chose and the meaning is
+ * attached to it, unless the meaning contradicts what the slot is for (a due-date slot holding a value that means "first day of a period"),
+ * in which case the slot is left empty; it is never given another value by a rule.
  *
  * @param score scores [questions] about [shared] in the open session: the interpreter's own scorer (null when the engine failed the batch)
  */

@@ -39,7 +39,10 @@ class ZonePlan(private val template: LayoutTemplate, private val zoned: ZonedLet
      * and fallback zones fill it first; a question's preferred candidates are never cut (they are what the question has always scored),
      * only the candidates beyond them are.
      */
-    fun offer(candidates: List<Candidate>, preferred: Collection<LetterZone>, fallback: Collection<LetterZone> = emptyList()): List<Candidate> {
+    fun offer(candidates: List<Candidate>, preferred: Collection<LetterZone>, fallback: Collection<LetterZone> = emptyList()): List<Candidate> =
+        offer(candidates, preferred, fallback, cap = true)
+
+    private fun offer(candidates: List<Candidate>, preferred: Collection<LetterZone>, fallback: Collection<LetterZone>, cap: Boolean): List<Candidate> {
         fun rank(c: Candidate): Int {
             val at = zoned.zonesOfCandidate(c.id)
             return when {
@@ -49,13 +52,35 @@ class ZonePlan(private val template: LayoutTemplate, private val zoned: ZonedLet
             }
         }
         val ranked = candidates.withIndex().sortedWith(compareBy({ rank(it.value) }, { it.index })).map { it.value }
+        if (!cap) return ranked
         val keep = maxOf(MAX_OFFERED, candidates.count { rank(it) == 0 })
         return ranked.take(keep)
+    }
+
+    /**
+     * The candidates of one question in two tiers (a cascade, a mechanism and no meaning): [first] are those printed in a [preferred] zone,
+     * in the candidate table's order, never cut; [rest] are the others (those in a [fallback] zone first), cut to what the cap leaves
+     * ([MAX_OFFERED] in all, at least [MIN_REST]). The first tier is scored first; the rest is scored only when no candidate of the first
+     * tier beats what the question needs (its threshold and its content-free baseline plus margin), so the other zones' candidates can
+     * never outvote a preferred one, and a sender printed outside the preferred zones is still found when the preferred zones hold none.
+     * The model still decides inside each tier. When no candidate is printed in a preferred zone, [first] is empty and [rest] is everything.
+     */
+    class Tiers(val first: List<Candidate>, val rest: List<Candidate>)
+
+    fun tiers(candidates: List<Candidate>, preferred: Collection<LetterZone>, fallback: Collection<LetterZone> = emptyList()): Tiers {
+        val ordered = offer(candidates, preferred, fallback.toList(), cap = false)
+        val firstCount = candidates.count { c -> zoned.zonesOfCandidate(c.id).any { it in preferred } }
+        val first = ordered.take(firstCount)
+        val rest = ordered.drop(firstCount)
+        return Tiers(first, rest.take(maxOf(MAX_OFFERED - first.size, MIN_REST)))
     }
 
     companion object {
         /** The most candidates one question scores, beyond what its preferred zones hold: the cost of reading every candidate of a page is bounded here. */
         const val MAX_OFFERED = 24
+
+        /** The fewest candidates of the other zones a cascade's second tier may score, whatever the first tier holds. */
+        const val MIN_REST = 8
     }
 
     fun isHeader(zones: List<LetterZone>): Boolean = zones.isNotEmpty() && zones.all { it in ZonedLetter.HEADER_ZONES }

@@ -18,8 +18,25 @@ object KeyInfoFormat {
 
     /** How many facts one answer may list: the most the verifier keeps as extras. */
     const val MAX_FACTS = 6
-    const val MAX_LABEL_CHARS = 40
+    /** A label is a short noun phrase: at most this many characters and [MAX_LABEL_WORDS] words, no digit, no sentence punctuation. */
+    const val MAX_LABEL_CHARS = 30
+    const val MAX_LABEL_WORDS = 4
     const val MAX_VALUE_CHARS = 80
+
+    private val SENTENCE_MARKS = charArrayOf('.', '!', '?', ':', ';')
+    private val WHITESPACE = Regex("\\s+")
+
+    /**
+     * Whether [label] has the shape of a label: 1..[MAX_LABEL_WORDS] words, at most [MAX_LABEL_CHARS] characters, no digit of any script
+     * and no sentence punctuation. By shape only (the grammar bounds the characters, this checks the whole): a sentence fragment such as
+     * "3. The letter indicates that the new 1.0" is not a label, whatever the words say.
+     */
+    fun isLabelShape(label: String): Boolean {
+        val t = label.trim()
+        if (t.isEmpty() || t.length > MAX_LABEL_CHARS) return false
+        if (t.any { it.isDigit() || it in SENTENCE_MARKS }) return false
+        return t.split(WHITESPACE).size <= MAX_LABEL_WORDS
+    }
 
     /** The decode budget of the one generation: about 30 tokens a fact. */
     const val MAX_TOKENS = 200
@@ -37,7 +54,7 @@ object KeyInfoFormat {
             "fact" to "label \": \" value",
             "label" to bounded("lchar", MAX_LABEL_CHARS),
             "value" to bounded("vchar", MAX_VALUE_CHARS),
-            "lchar" to "[^:\\n\\r\"\\\\]",
+            "lchar" to "[^:\\n\\r\"\\\\0-9.!?;]",
             "vchar" to "[^\\n\\r]",
             "nl" to "\"\\n\"",
         )

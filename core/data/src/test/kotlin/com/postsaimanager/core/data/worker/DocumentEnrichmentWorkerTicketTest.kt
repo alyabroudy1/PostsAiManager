@@ -27,6 +27,21 @@ class DocumentEnrichmentWorkerTicketTest {
     }
 
     @Test
+    fun `a blocked second stage is queued again after a short fixed delay with its own input, never an exponential backoff`() {
+        val first = DocumentEnrichmentWorker.request("doc-1", ticket)
+        val again = DocumentEnrichmentWorker.again(first.workSpec.input, people = false)
+        assertThat(again.workSpec.initialDelay).isEqualTo(60_000L)
+        assertThat(DocumentEnrichmentWorker.RETRY_DELAY_SECONDS).isAtMost(5 * 60L)
+        assertThat(again.workSpec.backoffPolicy).isEqualTo(androidx.work.BackoffPolicy.LINEAR)
+        assertThat(again.workSpec.backoffDelayDuration).isEqualTo(60_000L)
+        assertThat(DocumentEnrichmentWorker.ticketOf(again.workSpec.input)).isEqualTo(ticket)
+        assertThat(again.tags).contains(DocumentEnrichmentWorker.TAG)
+        val people = DocumentEnrichmentWorker.again(DocumentEnrichmentWorker.peopleRequest("doc-1").workSpec.input, people = true)
+        assertThat(people.tags).contains(DocumentEnrichmentWorker.PEOPLE_TAG)
+        assertThat(people.tags).doesNotContain(DocumentEnrichmentWorker.TAG)
+    }
+
+    @Test
     fun `an unreadable ticket is as good as none`() {
         val data = workDataOf(DocumentEnrichmentWorker.KEY_DOCUMENT_ID to "doc-1", DocumentEnrichmentWorker.KEY_TICKET to "{not json")
         assertThat(DocumentEnrichmentWorker.ticketOf(data)).isNull()

@@ -10,6 +10,9 @@ internal object NameFinder : CandidateFinder {
     /** Shape-only names are looked for above this height on page 1 (fraction of the page). */
     private const val TOP_HALF = 0.5f
 
+    /** A label before a colon is at most this many words ("Label: value" on one line); a longer lead-in is a sentence, not offered. */
+    private const val MAX_LABEL_WORDS = 3
+
     /**
      * A routing prefix by shape: leading abbreviation tokens such as "z. Hd." or "c/o" (short letters
      * ended by a full stop, or two letters around a slash). Only removed from the name; the words are
@@ -23,7 +26,9 @@ internal object NameFinder : CandidateFinder {
 
     override fun find(ctx: ExtractionContext): List<Draft> {
         val out = ArrayList<Draft>()
-        for (line in ctx.activeLines) findIn(ctx, line, out)
+        // The label of a label/value pair is not a name (see [LabelValueLayout]): decided by the stacked layout, never by a word.
+        val labels = LabelValueLayout.labelLines(ctx)
+        for (line in ctx.activeLines) if (line !in labels) findIn(ctx, line, out)
         return out
     }
 
@@ -156,7 +161,13 @@ internal object NameFinder : CandidateFinder {
     private fun shapeName(ctx: ExtractionContext, line: SourceLine, out: MutableList<Draft>, footer: Boolean) {
         val b = line.block?.bounds ?: return
         if (!footer && !(line.page == 1 && b.top < TOP_HALF)) return
-        val t = line.text.trim()
+        val whole = line.text.trim()
+        // "Label: value" on one line (not in a footer): the label is not offered, the value after the colon is, when it is a name by shape
+        // of at least two words (one word after a label is as likely a state or a value, "heute", as a name).
+        val colon = whole.indexOf(':')
+        val labelled = !footer && colon > 0 && colon == whole.lastIndexOf(':') && whole.substring(0, colon).trim().split(WHITE).size <= MAX_LABEL_WORDS
+        val t = if (labelled) whole.substring(colon + 1).trim() else whole
+        if (labelled && t.split(WHITE).size < 2) return
         if (t.length !in 3..60 || t.any { it.isDigit() } || t.contains('@') || t.contains("://") || t.contains("www.", true)) return
         if (t.contains(':') || t.last() in ",;!?") return
         val words = t.split(WHITE).filter { it.isNotEmpty() }
@@ -166,8 +177,9 @@ internal object NameFinder : CandidateFinder {
         if (text.isBlank() || text.length < 3) return
         val zoneAttr = line.zone?.let { mapOf("zone" to it.name) } ?: emptyMap()
         val attrs = zoneAttr + ("shape" to "true")
-        val range = 0 until t.length
-        // One neutral candidate, the whole line; a single word is a weaker guess. Person, company or
+        val start = if (t.length < whole.length) line.text.indexOf(t).coerceAtLeast(0) else 0
+        val range = start until (start + t.length)
+        // One neutral candidate, the whole line (or the value after its label); a single word is a weaker guess. Person, company or
         // authority, and the name without any form of address, are the model's call.
         val single = text.split(WHITE).size < 2
         val flags = listOfNotNull(

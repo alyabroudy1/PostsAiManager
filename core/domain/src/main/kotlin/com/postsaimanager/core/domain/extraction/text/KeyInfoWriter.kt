@@ -38,7 +38,7 @@ class KeyInfoWriter(
         if (read.isEmpty()) append("- none\n")
         read.forEach { (label, value) -> append("- ").append(label).append(": ").append(value).append('\n') }
         append("\nQUESTION: List up to ").append(KeyInfoFormat.MAX_FACTS).append(" other facts a person would need from THIS document ")
-        append("that are not among the read fields. Each fact is one line: a short label, a colon and the value copied exactly as it is printed. ")
+        append("that are not among the read fields. Each fact is one line: a label of one to four words without digits or full stops, a colon and the value copied exactly as it is printed. ")
         append(languageCode?.trim()?.takeIf { it.isNotEmpty() }?.let { "Write the labels in the language with the code \"$it\". " } ?: "Write the labels in the document's own language. ")
         append("Answer ").append(KeyInfoFormat.NONE).append(" when there is nothing more.")
         append("\nANSWER FORMAT: label: value, one fact per line")

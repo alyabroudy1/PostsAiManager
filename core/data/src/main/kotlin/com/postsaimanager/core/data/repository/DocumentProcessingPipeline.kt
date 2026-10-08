@@ -892,7 +892,8 @@ class DocumentProcessingPipeline @Inject constructor(
     /**
      * The reading's structure in logcat: the chosen model, profile and interpreter always (an unknown model
      * is a warning), the rest (template, zones, candidate counts, ids and scores) only in a debuggable build.
-     * Structure only: [DocumentUnderstanding.readingTrace] never holds a word of the letter.
+     * Structure only, except the per-question `ask ...` lines, which carry the winner's text cut to 40 characters (for fitting the margins
+     * from normal use): those are logged under [TAG] in a debuggable build and nowhere else.
      */
     private fun logReadingTrace(documentId: String, trace: List<String>) {
         val header = trace.firstOrNull() ?: return

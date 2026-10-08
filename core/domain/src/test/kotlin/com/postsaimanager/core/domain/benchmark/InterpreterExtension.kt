@@ -352,7 +352,10 @@ internal class ReplayPromptSession(private val recording: Recording, private val
             // recording holds it, else "not scored" (far below any score, so it never makes a name lose and the reading is as recorded).
             // The same holds for the baselines of the reference questions and for the meaning of a date or an amount (extraction-v2-14): never
             // recorded, so "not scored" and no meaning is decided in a replay.
-            if (live.all { ScoringDescriptions.isBaselineQuestion(it) || isMeaningQuestion(it) }) return PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED })
+            // The field-label check of a party's best names (extraction-v2-18) is the same: never recorded, "not scored", so no name is dropped.
+            if (live.all { ScoringDescriptions.isBaselineQuestion(it) || isMeaningQuestion(it) || it.contains(ScoringDescriptions.FIELD_LABEL) }) {
+                return PamResult.Success(live.map { LegacyFamilyBridge.NOT_RECORDED })
+            }
             // The reference slots every family asks since extraction-v2-5 are newer than the recordings: a batch that holds them besides
             // recorded questions replays the recorded ones and scripts the new ones as "not scored".
             scriptedAroundNewCore(live)?.let { return it }
