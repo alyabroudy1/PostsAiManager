@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The app-process side of [com.postsaimanager.core.domain.ai.ChatEngine.generateStructured] over AIDL
@@ -29,27 +30,45 @@ internal class RemoteGenerateStructured(
     },
 ) {
 
+    /** The conversations kept open ([StructuredRequest.keepOpenAs]) and when each was last used, so a chat's warm-up does not take the model from them. */
+    private val kept = ConcurrentHashMap<String, Long>()
+
+    /**
+     * True while a conversation kept open for follow-up questions is still live: it counts as the engine being busy, so the chat's
+     * warm-up waits for it. An entry nobody closed (the caller died before [close]) expires after [KEPT_EXPIRY_MS] instead of
+     * blocking the chat for good.
+     */
+    fun hasKept(now: Long = System.currentTimeMillis()): Boolean {
+        kept.entries.removeIf { now - it.value > KEPT_EXPIRY_MS }
+        return kept.isNotEmpty()
+    }
+
     suspend operator fun invoke(request: StructuredRequest): String? {
         if (!mutex.tryLock()) return null
         try {
-            return withContext(ioDispatcher) {
-                val remote = service() ?: return@withContext null
-                // The first turn's text arrives on a binder thread while the call below still blocks: handed on as it comes.
-                val onLead = request.onLead
-                val lead = if (request.leadPrompt != null && onLead != null) newLead { text -> runBlocking { onLead(text) } } else null
-                try {
-                    remote.generateLiteRtStructured(
-                        request.system, request.prompt, request.schema, request.imagePaths.toTypedArray(),
-                        request.maxTokens, request.temperature, request.topK, request.timeoutMs, request.leadPrompt, lead, request.keepOpenAs,
-                    )
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    null
-                }
-            }
+            val answer = readOnService(request)
+            val key = request.keepOpenAs
+            if (key != null) if (answer != null) kept[key] = System.currentTimeMillis() else kept.remove(key)
+            return answer
         } finally {
             mutex.unlock()
+        }
+    }
+
+    private suspend fun readOnService(request: StructuredRequest): String? = withContext(ioDispatcher) {
+        val remote = service() ?: return@withContext null
+        // The first turn's text arrives on a binder thread while the call below still blocks: handed on as it comes.
+        val onLead = request.onLead
+        val lead = if (request.leadPrompt != null && onLead != null) newLead { text -> runBlocking { onLead(text) } } else null
+        try {
+            remote.generateLiteRtStructured(
+                request.system, request.prompt, request.schema, request.imagePaths.toTypedArray(),
+                request.maxTokens, request.temperature, request.topK, request.timeoutMs, request.leadPrompt, lead, request.keepOpenAs,
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
         }
     }
 
@@ -57,7 +76,7 @@ internal class RemoteGenerateStructured(
     suspend fun continueWith(request: FollowUpRequest): String? {
         if (!mutex.tryLock()) return null
         try {
-            return withContext(ioDispatcher) {
+            val answer = withContext(ioDispatcher) {
                 val remote = service() ?: return@withContext null
                 try {
                     remote.continueLiteRtStructured(request.key, request.prompt, request.schema, request.timeoutMs)
@@ -67,6 +86,8 @@ internal class RemoteGenerateStructured(
                     null
                 }
             }
+            if (answer != null) kept[request.key] = System.currentTimeMillis() else kept.remove(request.key)
+            return answer
         } finally {
             mutex.unlock()
         }
@@ -74,6 +95,8 @@ internal class RemoteGenerateStructured(
 
     /** Closes the conversation kept open under [key]; skipped when another caller holds the model (its own conversation replaces it). */
     suspend fun close(key: String) {
+        // Closed or not, it is no longer ours to guard: a caller that holds the model replaces the conversation.
+        kept.remove(key)
         if (!mutex.tryLock()) return
         try {
             withContext(ioDispatcher) {
@@ -89,5 +112,10 @@ internal class RemoteGenerateStructured(
         } finally {
             mutex.unlock()
         }
+    }
+
+    private companion object {
+        /** A kept conversation nobody closed stops counting as busy after this long without a question. */
+        const val KEPT_EXPIRY_MS = 120_000L
     }
 }

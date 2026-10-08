@@ -5,6 +5,8 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.ChatEngine
 import com.postsaimanager.core.domain.ai.FollowUpRequest
+import com.postsaimanager.core.domain.ai.ModelUse
+import com.postsaimanager.core.domain.ai.loadForUse
 import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.domain.document.contacts.SameContactDecision
 import com.postsaimanager.core.domain.document.contacts.SameContactProfile
@@ -120,11 +122,13 @@ class GemmaFollowUpQuestions @Inject constructor(
         // Background work gives way: with a reply or a reading holding the model there is nothing to wait for, the question stays pending.
         if (engine.isBusy) return unavailable("the model is busy")
         val path = activeModel.activeModelPath() ?: return unavailable("no chat model is installed")
-        val config = activeModel.activeModelConfig()
+        // The reading's own config (the accelerator the reader runs on), so the questions never cost a reload; the load goes through the
+        // engine's chat-priority policy (it waits for a running call, never cuts one).
+        val config = activeModel.readingModelConfig()
         if (config.runtime != ModelRuntime.LITERT_LM) return unavailable("the chat model is not a LiteRT-LM model")
         val text = (letter?.invoke() ?: storedText(documentId)).trim()
         if (text.isEmpty()) return unavailable("the letter has no stored text")
-        if (engine.load(path, config) is PamResult.Error) return unavailable("the chat model could not be loaded")
+        if (engine.loadForUse(ModelUse.READING, path, config) is PamResult.Error) return unavailable("the chat model could not be loaded")
         val request = StructuredRequest(
             system = SYSTEM,
             prompt = "LETTER\n${text.take(MAX_LETTER_CHARS)}\n\n${ask.prompt}",

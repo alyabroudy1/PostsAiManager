@@ -125,8 +125,9 @@ class RemoteLiteRtChatEngine @Inject constructor(
     private var warmingUp = false
 
     // "Busy" says another caller (a document being read) holds the model, so the chat's own warm-up does not count: a message sent
-    // while it runs waits for it as for any preparation, and must not be told a document is being read.
-    override val isBusy: Boolean get() = connection.engineMutex.isLocked && !warmingUp
+    // while it runs waits for it as for any preparation, and must not be told a document is being read. A conversation the reader
+    // kept open for its follow-up questions counts too: the reading is not over until it is closed, and the chat's warm-up waits.
+    override val isBusy: Boolean get() = (connection.engineMutex.isLocked && !warmingUp) || generateStructuredCall.hasKept()
 
     // The engine streams the thought channel between think tags when the reply asks for thinking (Off by default in the chat).
     override val supportsThinking: Boolean get() = true
@@ -252,7 +253,7 @@ class RemoteLiteRtChatEngine @Inject constructor(
     override suspend fun warmUpChat(request: AiRequest) {
         // Another caller holds the model (a document being read, a reply in flight): this is never worth queueing behind, nor
         // worth taking the model over for. The first message prepares the conversation itself, as it always did.
-        if (connection.engineMutex.isLocked) return
+        if (connection.engineMutex.isLocked || generateStructuredCall.hasKept()) return
         connection.engineMutex.withLock {
             warmingUp = true
             try {

@@ -126,7 +126,7 @@ class GemmaAfterReadingTest {
         assertThat(contact.confidence).isAtLeast(0.75f)
         assertThat(contact.fieldValue).contains("Nadine Beispiel")
 
-        val link = LinkSenderContactUseCase(documents, profiles, contacts, DecideSameContactUseCase(SameContactYes(), SameContactProfile()))
+        val link = LinkSenderContactUseCase(documents, profiles, contacts, DecideSameContactUseCase(scoringFollowUps(sameContact = SameContactYes()), SameContactProfile()))
         assertThat(link("d1")).isInstanceOf(ContactLinkOutcome.Created::class.java)
         assertThat(contacts.observeContacts("jc").first().map { it.name }.single()).contains("Nadine Beispiel")
     }
