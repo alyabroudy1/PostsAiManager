@@ -20,6 +20,7 @@ import com.postsaimanager.core.data.mapper.DocumentMapper
 import com.postsaimanager.core.data.mapper.JsonColumns
 import com.postsaimanager.core.data.worker.DocumentEnrichmentWorker
 import com.postsaimanager.core.data.worker.DocumentProcessingWorker
+import com.postsaimanager.core.data.worker.ReaderRetry
 import com.postsaimanager.core.data.worker.ReprocessDocumentWorker
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.EnrichmentRetryPolicy
@@ -113,6 +114,9 @@ class DocumentProcessingPipeline @Inject constructor(
      */
     private val processingMutex = Mutex()
 
+    /** How many times each document's first reading was sent back because the reader model was unavailable (lost with the process). */
+    private val readerDeferrals = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
     /**
      * Readings whose second stage (language, extras, title, summary) is still to be written, by document. Kept here so a second
      * stage that a new scan pushed aside can be scheduled again, and so a screen can say "Summary coming…" meanwhile.
@@ -135,7 +139,7 @@ class DocumentProcessingPipeline @Inject constructor(
             documentDao.updateStatus(documentId, DocumentStatus.QUEUED.name)
         }
 
-        val request = OneTimeWorkRequestBuilder<DocumentProcessingWorker>()
+        val request = ReaderRetry.backoff(OneTimeWorkRequestBuilder<DocumentProcessingWorker>())
             .setInputData(
                 workDataOf(
                     DocumentProcessingWorker.KEY_DOCUMENT_ID to documentId,
@@ -342,6 +346,24 @@ class DocumentProcessingPipeline @Inject constructor(
                     (read.entities.isNotEmpty() || read.facts.isNotEmpty() || read.documentType.isNotBlank())
                 // The model itself ran and its answer was used.
                 val usedModel = usedV2 && read?.modelUsed == true
+                if (usedModel) readerDeferrals.remove(documentId)
+
+                // A reader model is installed but did not read (its session was lost, the chat model replaced it, or a chat was
+                // active): the reading is owed, so it never completes with only found values. A first reading goes back to the queue
+                // (the worker runs it again later, OCR and any edit kept); a quiet re-read changes nothing and is asked again. A
+                // completion without the model is only for when no reader is installed, or when it failed again and again.
+                if (!usedModel && read?.readerUnavailable == true) {
+                    val tries = if (reprocess) 0 else readerDeferrals.merge(documentId, 1, Int::plus) ?: 1
+                    if (reprocess || tries <= MAX_READER_DEFERRALS) {
+                        Log.i(TAG, "reader model unavailable for $documentId (try $tries): the reading is queued again")
+                        if (!reprocess) {
+                            documentDao.updateStatus(documentId, DocumentStatus.QUEUED.name)
+                            _processingState.value = ProcessingState.Idle
+                        }
+                        return@withContext PamResult.Error(PamError.ModelNotLoaded(READER_MODEL_NAME))
+                    }
+                    readerDeferrals.remove(documentId)
+                }
 
                 // A background reprocess exists to read a letter better. Without the model it
                 // could only replace an earlier reading with values merely found by code, so it
@@ -994,6 +1016,15 @@ private const val TIMING_TAG = "ExtractTiming"
 private const val REASON_NO_PAGES = "no_pages"
 private const val REASON_ERROR = "error"
 private const val REASON_NO_MODEL = "no_model"
+
+/**
+ * A first reading whose reader model was unavailable goes back to the queue this many times before it completes with what code found
+ * (a model that never reads, such as an answer that cannot be parsed, must not loop for ever).
+ */
+internal const val MAX_READER_DEFERRALS = 2
+
+/** The name in the error the worker recognises as "the reader was unavailable: run it again later". */
+internal const val READER_MODEL_NAME = "reader"
 
 /** The chat offers at most this many of the model's suggested questions. */
 private const val MAX_SUGGESTED_QUESTIONS = 3

@@ -32,7 +32,8 @@ import kotlinx.coroutines.launch
  * keeps the process alive, and the ongoing, low-importance notification is what makes that
  * legitimate.
  *
- * **Retry policy — deliberately none.** Unlike a download, a failure here (OCR error, model
+ * **Retry policy — none, except for a reader model that was unavailable** ([ReaderRetry]: its session was lost, the chat model replaced
+ * it, or a chat was active; the reading is owed and is run again after a minute). Unlike a download, a failure here (OCR error, model
  * unavailable, a malformed page) is almost always deterministic: the same document fed
  * through the same pipeline again fails the same way. Returning [Result.retry] would have
  * WorkManager re-run it on a backoff schedule with nobody watching, burning battery for a
@@ -80,7 +81,12 @@ class DocumentProcessingWorker @AssistedInject constructor(
                         .onFailure { Log.w(TAG, "deadline reminder not scheduled for $documentId", it) }
                     Result.success()
                 }
-                is PamResult.Error -> {
+                is PamResult.Error -> if (ReaderRetry.shouldRetry(result.error, runAttemptCount)) {
+                    // The reader model was unavailable (lost, replaced by the chat model, or a chat was active): the pipeline put the
+                    // document back in the queue, and it is read again later instead of being left unread.
+                    Log.i(TAG, "reader model unavailable for $documentId: reading it again later")
+                    Result.retry()
+                } else {
                     // The pipeline itself already logged (and recorded on the timeline) the
                     // specific reason via `failDocument` — this line is what turns
                     // logcat's bare "Worker result FAILURE" into something that names the
