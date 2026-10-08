@@ -131,7 +131,7 @@ class LinkSenderContactUseCaseTest {
         // and the model's answer (No) decides.
         assertThat(outcome).isInstanceOf(ContactLinkOutcome.Created::class.java)
         assertThat(contactsOfJobcenter().map { it.name }).containsExactly("Frau Müller", "Frau Nadine Beispiel")
-        val grouped = ObserveOrganisationContactsUseCase(contacts).group(contactsOfJobcenter())
+        val grouped = ObserveOrganisationContactsUseCase(contacts, documents).group(contactsOfJobcenter())
         assertThat(grouped.current?.name).isEqualTo("Frau Müller")
         assertThat(grouped.earlier.map { it.name }).containsExactly("Frau Nadine Beispiel")
     }
@@ -232,6 +232,32 @@ class LinkSenderContactUseCaseTest {
         assertThat(nadine.email).isEqualTo("n.beispiel@jobcenter-musterstadt.example")
         assertThat(nadine.lastSeen).isEqualTo(3_000)
         assertThat(nadine.firstSeen).isEqualTo(500)
+    }
+
+    @Test
+    fun `a letter that names a contact the user typed confirms its field, so the contact is never a suggestion`() = runTest {
+        contacts.seed(ContactPerson("typed", "jc", "Frau Nadine Beispiel", firstSeen = 500, lastSeen = 500))
+        documents.seedExtracted("d3", contactField("d3", "Frau Nadine Beispiel"))
+        senderIs("d3")
+        same.sameAs = setOf("Frau Nadine Beispiel")
+
+        link("d3")
+
+        assertThat(documents.observeExtractedData("d3").first().single().reviewState).isEqualTo(ReviewState.CONFIRMED)
+    }
+
+    @Test
+    fun `a letter that names a contact an earlier letter made leaves its field for the person to answer`() = runTest {
+        documents.seedExtracted("d1", contactField("d1", "Frau Nadine Beispiel"))
+        senderIs("d1")
+        link("d1")
+        documents.seedExtracted("d3", contactField("d3", "N. Beispiel"))
+        senderIs("d3")
+        same.sameAs = setOf("Frau Nadine Beispiel")
+
+        link("d3")
+
+        assertThat(documents.observeExtractedData("d3").first().single().reviewState).isEqualTo(ReviewState.UNREVIEWED)
     }
 
     @Test

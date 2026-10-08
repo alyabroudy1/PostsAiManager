@@ -56,6 +56,13 @@
     <string name="essentials_for">For</string>
     <string name="essentials_about">About</string>
     <string name="essentials_contact_open">Open %1$s at the organisation</string>
+    <string name="letter_contact_suggested">Suggested contact</string>
+    <string name="letter_contact_confirm">Confirm</string>
+    <string name="letter_contact_edit">Edit</string>
+    <string name="letter_contact_discard">Discard</string>
+    <string name="letter_contact_confirm_description">Confirm %1$s as the contact</string>
+    <string name="letter_contact_edit_description">Edit %1$s at the organisation</string>
+    <string name="letter_contact_discard_description">Discard the suggested contact %1$s</string>
     <string name="contact_offer_call">Call %1$s</string>
     <string name="contact_offer_email">Email %1$s</string>
     <string name="contact_no_app">No app found for this.</string>

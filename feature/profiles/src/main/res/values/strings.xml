@@ -26,7 +26,48 @@
 
     <!-- Organisation contacts -->
     <string name="contacts_title">Contacts</string>
-    <string name="contacts_empty">No contacts yet.</string>
+    <string name="contacts_empty">No contacts yet. Add one yourself, or a letter that names someone adds them here.</string>
+    <string name="contact_add">Add contact</string>
+    <string name="contact_add_title">New contact</string>
+    <string name="contacts_suggested">Suggested contacts</string>
+    <string name="contact_suggested_from">Suggested from %1$s</string>
+    <string name="contact_suggested_from_letter">Suggested from a letter</string>
+    <string name="contact_confirm">Confirm</string>
+    <string name="contact_edit">Edit</string>
+    <string name="contact_discard">Discard</string>
+
+    <!-- Own details: label and value, named by the user -->
+    <string name="custom_details_title">Own details</string>
+    <string name="custom_details_empty">Add a detail with a name of your own, such as a customer number or opening hours.</string>
+    <string name="custom_detail_add">Add own detail</string>
+    <string name="custom_detail_label">Name of the detail</string>
+    <string name="custom_detail_value">Value</string>
+    <string name="custom_detail_dialog_add">New detail</string>
+    <string name="custom_detail_dialog_edit">Edit detail</string>
+    <string name="custom_detail_save">Save</string>
+    <string name="custom_detail_cancel">Cancel</string>
+    <string name="custom_detail_edit">Edit %1$s</string>
+    <string name="custom_detail_remove">Remove %1$s</string>
+    <string name="custom_detail_move_up">Move %1$s up</string>
+    <string name="custom_detail_move_down">Move %1$s down</string>
+    <string name="profile_field_website">Website</string>
+
+    <!-- What letters showed about an organisation, offered for the empty fields -->
+    <string name="suggestions_title">From your letters</string>
+    <string name="suggestions_hint">Nothing is saved until you accept it.</string>
+    <string name="suggestion_from">From %1$s</string>
+    <string name="suggestion_from_letter">From a letter</string>
+    <string name="suggestion_field_address">Address</string>
+    <string name="suggestion_field_phone">Phone</string>
+    <string name="suggestion_field_email">Email</string>
+    <string name="suggestion_field_website">Website</string>
+    <string name="suggestion_field_iban">Bank account (IBAN)</string>
+    <string name="suggestion_accept">Accept</string>
+    <string name="suggestion_edit">Edit</string>
+    <string name="suggestion_dismiss">Dismiss</string>
+    <string name="suggestion_accept_all">Accept all</string>
+    <string name="suggestion_edit_title">Edit, then accept</string>
+    <string name="suggestion_value">Value</string>
     <string name="contacts_current">Your contact now</string>
     <string name="contacts_earlier">Earlier contacts</string>
     <string name="contacts_last_seen">Last letter %1$s</string>

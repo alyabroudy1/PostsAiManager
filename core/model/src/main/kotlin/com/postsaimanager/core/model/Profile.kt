@@ -43,6 +43,8 @@ data class Profile(
     val birthDate: String? = null,
     /** A sensitive person: their documents follow the sensitive-document chat rules. */
     val sensitive: Boolean = false,
+    /** Details the user named themselves, in their order, next to the predefined fields above. */
+    val customDetails: List<CustomDetail> = emptyList(),
     val createdAt: Long,
     val modifiedAt: Long,
 ) {

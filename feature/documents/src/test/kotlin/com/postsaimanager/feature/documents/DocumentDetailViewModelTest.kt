@@ -3,6 +3,10 @@ package com.postsaimanager.feature.documents
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.domain.contacts.ConfirmContactUseCase
+import com.postsaimanager.core.domain.contacts.DiscardContactUseCase
+import com.postsaimanager.core.domain.contacts.LetterContactFields
+import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.document.DocumentExporter
@@ -89,9 +93,61 @@ class DocumentDetailViewModelTest {
         loadLetterContacts = com.postsaimanager.core.testing.letterContactsFor(profileRepository, contactRepository),
         observeCase = ObserveCaseForDocumentUseCase(eventRepository),
         viewing = viewing,
+        letterContactFields = LetterContactFields(contactRepository, documentRepository, discardContact),
+        confirmContact = ConfirmContactUseCase(contactRepository, documentRepository),
+        discardContact = discardContact,
     )
 
     private val viewing = com.postsaimanager.core.domain.reading.ViewingState()
+    private val discardContact by lazy { DiscardContactUseCase(contactRepository, documentRepository) }
+
+    private fun contactField(id: String, name: String) = ExtractedData(
+        id = id, documentId = "d1", fieldName = "Contact Person", fieldValue = name, fieldType = ExtractedFieldType.PERSON_NAME,
+        confidence = 0.9f, slotKey = "contact",
+    )
+
+    private suspend fun suggestedContact() {
+        documentRepository.seed(testDocument(id = "d1"))
+        documentRepository.seedExtracted("d1", contactField("c-d1", "Frau Müller"))
+        contactRepository.seed(ContactPerson("c1", "jc", "Frau Müller", firstSeen = 1, lastSeen = 1))
+        contactRepository.linkContactToDocument("c1", "d1")
+    }
+
+    @Test
+    fun `ignoring the contact field on the letter discards the contact with its tombstone`() = runTest {
+        suggestedContact()
+
+        viewModel("d1").ignoreField("c-d1")
+
+        assertThat(documentRepository.observeExtractedData("d1").first().single().reviewState).isEqualTo(ReviewState.IGNORED)
+        assertThat(contactRepository.getContact("c1")).isInstanceOf(com.postsaimanager.core.common.result.PamResult.Error::class.java)
+        assertThat(contactRepository.isRemovedFromDocument("d1", "Frau Müller")).isTrue()
+    }
+
+    @Test
+    fun `editing the contact field on the letter renames the contact, and confirming it keeps it`() = runTest {
+        suggestedContact()
+        val vm = viewModel("d1")
+
+        vm.updateField("c-d1", "Contact Person", "Frau Anna Müller")
+
+        assertThat(documentRepository.observeExtractedData("d1").first().single().reviewState).isEqualTo(ReviewState.EDITED)
+        assertThat((contactRepository.getContact("c1") as com.postsaimanager.core.common.result.PamResult.Success).data.name)
+            .isEqualTo("Frau Anna Müller")
+    }
+
+    @Test
+    fun `the letter's Confirm and Discard act on the same contact as the organisation page`() = runTest {
+        suggestedContact()
+        val vm = viewModel("d1")
+
+        vm.confirmLetterContact("c1")
+        assertThat(documentRepository.observeExtractedData("d1").first().single().reviewState).isEqualTo(ReviewState.CONFIRMED)
+
+        vm.discardLetterContact("c1")
+        assertThat(contactRepository.getContact("c1")).isInstanceOf(com.postsaimanager.core.common.result.PamResult.Error::class.java)
+        assertThat(contactRepository.isRemovedFromDocument("d1", "Frau Müller")).isTrue()
+    }
 
     @Test
     fun `the screen being shown tells the notifications the letter is being looked at, and hiding it takes that back`() {

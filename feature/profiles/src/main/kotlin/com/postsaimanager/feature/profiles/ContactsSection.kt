@@ -7,7 +7,11 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -54,6 +58,10 @@ class ContactActions(
     val move: (contactId: String, organisationId: String) -> Unit = { _, _ -> },
     val delete: (contactId: String) -> Unit = {},
     val confirm: (contactId: String) -> Unit = {},
+    /** The user typed a new contact (an id and organisation are made by the use case; only the typed values count). */
+    val add: (ContactPerson) -> Unit = {},
+    /** The user discards a suggested contact: it is deleted with its tombstone, so reading its letter again does not bring it back. */
+    val discard: (contactId: String) -> Unit = {},
     val call: (phone: String) -> Unit = {},
     val email: (address: String) -> Unit = {},
 )
@@ -78,6 +86,12 @@ internal fun ContactsSection(
     onFocusPlaced: (rootY: Float) -> Unit = {},
 ) {
     val everyone = listOfNotNull(contacts.current) + contacts.earlier
+    // A contact a reading suggested is answered first (confirm, edit, discard); only the ones nobody is asking about are "your contact".
+    val suggested = everyone.filter { it.id in contacts.toCheck }
+    val settled = everyone.filter { it.id !in contacts.toCheck }
+    val settledCurrent = settled.firstOrNull { it.active }
+    val settledEarlier = settled.filter { it != settledCurrent }
+    var adding by rememberSaveable { mutableStateOf(false) }
     Column(
         modifier = modifier.fillMaxWidth().testTag("contacts_section"),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -91,16 +105,84 @@ internal fun ContactsSection(
                 modifier = Modifier.testTag("contacts_empty"),
             )
         }
-        contacts.current?.let { current ->
-            Text(stringResource(R.string.contacts_current), style = MaterialTheme.typography.labelLarge)
-            ContactRow(current, everyone, otherOrganisations, actions, focusContactId, onFocusPlaced, isCurrent = true, toCheck = current.id in contacts.toCheck)
-        }
-        if (contacts.earlier.isNotEmpty()) {
-            Text(stringResource(R.string.contacts_earlier), style = MaterialTheme.typography.labelLarge)
-            contacts.earlier.forEach {
-                ContactRow(it, everyone, otherOrganisations, actions, focusContactId, onFocusPlaced, isCurrent = false, toCheck = it.id in contacts.toCheck)
+        if (suggested.isNotEmpty()) {
+            Text(stringResource(R.string.contacts_suggested), style = MaterialTheme.typography.labelLarge)
+            suggested.forEach {
+                SuggestedContactRow(it, contacts.suggestedFrom[it.id].orEmpty(), actions, focusContactId, onFocusPlaced)
             }
         }
+        settledCurrent?.let { current ->
+            Text(stringResource(R.string.contacts_current), style = MaterialTheme.typography.labelLarge)
+            ContactRow(current, everyone, otherOrganisations, actions, focusContactId, onFocusPlaced, isCurrent = true)
+        }
+        if (settledEarlier.isNotEmpty()) {
+            Text(stringResource(R.string.contacts_earlier), style = MaterialTheme.typography.labelLarge)
+            settledEarlier.forEach {
+                ContactRow(it, everyone, otherOrganisations, actions, focusContactId, onFocusPlaced, isCurrent = false)
+            }
+        }
+        OutlinedButton(onClick = { adding = true }, modifier = Modifier.testTag("contact_add")) {
+            Icon(PamIcons.Add, contentDescription = null)
+            Text(stringResource(R.string.contact_add), modifier = Modifier.padding(start = 8.dp))
+        }
+    }
+    if (adding) {
+        EditContactDialog(
+            contact = ContactPerson(id = "", organisationId = "", name = "", firstSeen = 0, lastSeen = 0),
+            title = R.string.contact_add_title,
+            onDismiss = { adding = false },
+            onSave = { actions.add(it); adding = false },
+        )
+    }
+}
+
+/**
+ * A contact a reading found in a letter, waiting for the user: "Suggested from <letter>" and its details, with Confirm, Edit and
+ * Discard. Confirming and editing keep it as the user's contact; discarding removes it and a re-reading does not bring it back.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SuggestedContactRow(
+    contact: ContactPerson,
+    letterTitle: String,
+    actions: ContactActions,
+    focusContactId: String?,
+    onFocusPlaced: (rootY: Float) -> Unit,
+) {
+    var editing by rememberSaveable(contact.id) { mutableStateOf(false) }
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .onGloballyPositioned { if (contact.id == focusContactId) onFocusPlaced(it.positionInRoot().y) }
+            .testTag("contact_${contact.id}"),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(contact.name, style = MaterialTheme.typography.bodyLarge)
+        Text(
+            if (letterTitle.isBlank()) stringResource(R.string.contact_suggested_from_letter) else stringResource(R.string.contact_suggested_from, letterTitle),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.testTag("contact_suggested_${contact.id}"),
+        )
+        listOfNotNull(contact.title, contact.department, contact.room).joinToString(" · ").takeIf { it.isNotBlank() }?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        listOfNotNull(contact.phone, contact.email).joinToString(" · ").takeIf { it.isNotBlank() }?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { actions.confirm(contact.id) }, modifier = Modifier.testTag("contact_confirm_${contact.id}")) {
+                Text(stringResource(R.string.contact_confirm))
+            }
+            OutlinedButton(onClick = { editing = true }, modifier = Modifier.testTag("contact_edit_${contact.id}")) {
+                Text(stringResource(R.string.contact_edit))
+            }
+            TextButton(onClick = { actions.discard(contact.id) }, modifier = Modifier.testTag("contact_discard_${contact.id}")) {
+                Text(stringResource(R.string.contact_discard))
+            }
+        }
+    }
+    if (editing) {
+        EditContactDialog(contact, onDismiss = { editing = false }, onSave = { actions.save(it); editing = false })
     }
 }
 
@@ -114,7 +196,6 @@ private fun ContactRow(
     focusContactId: String?,
     onFocusPlaced: (rootY: Float) -> Unit,
     isCurrent: Boolean,
-    toCheck: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var dialog by rememberSaveable(contact.id) { mutableStateOf<ContactDialog?>(null) }
@@ -129,15 +210,6 @@ private fun ContactRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(contact.name, style = MaterialTheme.typography.bodyLarge)
-                if (toCheck) {
-                    // Read from a letter without being sure: shown unconfirmed. A tap on the mark confirms (as the menu entry does).
-                    Text(
-                        stringResource(R.string.contact_to_check),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.clickable { actions.confirm(contact.id) }.testTag("contact_to_check_${contact.id}"),
-                    )
-                }
             }
             val moreDescription = stringResource(R.string.contact_more, contact.name)
             IconButton(
@@ -145,13 +217,6 @@ private fun ContactRow(
                 modifier = Modifier.testTag("contact_menu_${contact.id}").semantics { contentDescription = moreDescription },
             ) { Icon(PamIcons.More, contentDescription = null) }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                if (toCheck) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.contact_menu_confirm)) },
-                        onClick = { menuOpen = false; actions.confirm(contact.id) },
-                        modifier = Modifier.testTag("menu_confirm"),
-                    )
-                }
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.contact_menu_edit)) },
                     onClick = { menuOpen = false; dialog = ContactDialog.EDIT },
@@ -251,20 +316,31 @@ private fun ContactRow(
     }
 }
 
+/** Edits a contact's details, or (with an empty [contact] and the "new contact" title) types a new one. The own details are part of it. */
 @Composable
-private fun EditContactDialog(contact: ContactPerson, onDismiss: () -> Unit, onSave: (ContactPerson) -> Unit) {
+private fun EditContactDialog(
+    contact: ContactPerson,
+    onDismiss: () -> Unit,
+    onSave: (ContactPerson) -> Unit,
+    title: Int = R.string.contact_edit_title,
+) {
     var draft by remember { mutableStateOf(contact) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.contact_edit_title)) },
+        title = { Text(stringResource(title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ContactField(draft.name, R.string.contact_field_name, "contact_field_name") { v -> draft = draft.copy(name = v) }
                 ContactField(draft.title, R.string.contact_field_title, "contact_field_title") { v -> draft = draft.copy(title = v) }
                 ContactField(draft.department, R.string.contact_field_department, "contact_field_department") { v -> draft = draft.copy(department = v) }
                 ContactField(draft.phone, R.string.contact_field_phone, "contact_field_phone", KeyboardType.Phone) { v -> draft = draft.copy(phone = v) }
                 ContactField(draft.email, R.string.contact_field_email, "contact_field_email", KeyboardType.Email) { v -> draft = draft.copy(email = v) }
                 ContactField(draft.room, R.string.contact_field_room, "contact_field_room") { v -> draft = draft.copy(room = v) }
+                CustomDetailsSection(
+                    details = draft.customDetails,
+                    onChange = { draft = draft.copy(customDetails = it) },
+                    tagPrefix = "contact_custom",
+                )
             }
         },
         confirmButton = {

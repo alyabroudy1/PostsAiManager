@@ -57,6 +57,13 @@
     <string name="essentials_for">إلى</string>
     <string name="essentials_about">بخصوص</string>
     <string name="essentials_contact_open">فتح %1$s لدى الجهة</string>
+    <string name="letter_contact_suggested">جهة اتصال مقترحة</string>
+    <string name="letter_contact_confirm">تأكيد</string>
+    <string name="letter_contact_edit">تعديل</string>
+    <string name="letter_contact_discard">تجاهل</string>
+    <string name="letter_contact_confirm_description">تأكيد %1$s كجهة اتصال</string>
+    <string name="letter_contact_edit_description">تعديل %1$s لدى الجهة</string>
+    <string name="letter_contact_discard_description">تجاهل جهة الاتصال المقترحة %1$s</string>
     <string name="contact_offer_call">الاتصال بـ %1$s</string>
     <string name="contact_offer_email">مراسلة %1$s بالبريد</string>
     <string name="contact_no_app">لا يوجد تطبيق لهذا.</string>

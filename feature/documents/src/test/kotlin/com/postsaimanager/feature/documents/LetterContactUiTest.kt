@@ -59,6 +59,49 @@ class LetterContactUiTest {
     }
 
     @Test
+    fun `a suggested contact shows Confirm, Edit and Discard that act on that contact`() {
+        val confirmed = mutableListOf<String>()
+        val discarded = mutableListOf<String>()
+        val opened = mutableListOf<Pair<String, String>>()
+        compose.setContent {
+            MaterialTheme {
+                PartiesCard(
+                    PartiesView(from = PartyEntry(sender), forWhom = null, about = null),
+                    actions,
+                    LetterContacts(letterContact = nadine, organisationId = "jc", letterContactSuggested = true),
+                    LetterContactActions(confirm = { confirmed += it }, discard = { discarded += it }),
+                ) { organisationId, contactId -> opened += organisationId to contactId }
+            }
+        }
+
+        compose.onNodeWithTag("letter_contact_suggested").assertIsDisplayed()
+        compose.onNodeWithTag("letter_contact_confirm").performClick()
+        compose.onNodeWithTag("letter_contact_edit").performClick()
+        compose.onNodeWithTag("letter_contact_discard").performClick()
+
+        assertThat(confirmed).containsExactly("nadine")
+        assertThat(opened).containsExactly("jc" to "nadine")
+        assertThat(discarded).containsExactly("nadine")
+    }
+
+    @Test
+    fun `a contact nobody suggested has no suggestion buttons`() {
+        compose.setContent {
+            MaterialTheme {
+                PartiesCard(
+                    PartiesView(from = PartyEntry(sender), forWhom = null, about = null),
+                    actions,
+                    LetterContacts(letterContact = nadine, organisationId = "jc"),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("letter_contact_chip").assertIsDisplayed()
+        compose.onNodeWithTag("letter_contact_suggested").assertDoesNotExist()
+        compose.onNodeWithTag("letter_contact_confirm").assertDoesNotExist()
+    }
+
+    @Test
     fun `a letter with no linked contact has no chip`() {
         compose.setContent {
             MaterialTheme {

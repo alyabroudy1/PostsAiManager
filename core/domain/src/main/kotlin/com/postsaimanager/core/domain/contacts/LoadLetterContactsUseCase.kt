@@ -26,6 +26,8 @@ data class LetterContacts(
     val current: ContactPerson? = null,
     val organisationId: String? = null,
     val organisationName: String? = null,
+    /** The letter's contact was suggested by a reading and nobody has confirmed, edited or discarded it yet. */
+    val letterContactSuggested: Boolean = false,
 ) {
     /** The details of both people, to be offered as values (a skill's recipient, a call), without repeating a person. */
     val people: List<ContactPerson> get() = listOfNotNull(letterContact, current).distinctBy { it.id }
@@ -55,6 +57,7 @@ class LoadLetterContactsUseCase @Inject constructor(
                         current = grouped.current,
                         organisationId = organisationId,
                         organisationName = organisation?.let { it.organization ?: it.name } ?: senderName,
+                        letterContactSuggested = letterContact != null && letterContact.id in grouped.toCheck,
                     )
                 }
             }

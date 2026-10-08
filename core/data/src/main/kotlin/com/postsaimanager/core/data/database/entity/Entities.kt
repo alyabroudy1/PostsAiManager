@@ -137,6 +137,8 @@ data class ProfileEntity(
     @ColumnInfo(defaultValue = "'PERSON'") val kind: String = "PERSON",
     /** SELF, MEMBER or null (see `HouseholdRole`). Added in v22, filled from [type]. */
     val householdRole: String? = null,
+    /** The user's own named details as JSON (see `CustomDetails`); null when there are none. Added in v27. */
+    val customDetails: String? = null,
 )
 
 /**
@@ -166,6 +168,34 @@ data class ContactPersonEntity(
     val firstSeen: Long,
     val lastSeen: Long,
     val active: Boolean,
+    /** The user's own named details as JSON (see `CustomDetails`); null when there are none. Added in v27. */
+    val customDetails: String? = null,
+)
+
+/**
+ * A value a letter showed for an organisation profile, waiting for the user (PENDING) or dismissed (kept, so it is not offered again).
+ * One row per (profile, field, value); gone with the profile. Added in v27.
+ */
+@Entity(
+    tableName = "profile_suggestions",
+    foreignKeys = [
+        ForeignKey(
+            entity = ProfileEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["profileId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("profileId"), Index(value = ["profileId", "field", "value"], unique = true)],
+)
+data class ProfileSuggestionEntity(
+    @PrimaryKey val id: String,
+    val profileId: String,
+    val field: String,
+    val value: String,
+    val sourceDocumentId: String,
+    val createdAt: Long,
+    val status: String,
 )
 
 /** Which contact handled which document; gone with either side. Added in v22. */

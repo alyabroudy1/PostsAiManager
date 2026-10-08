@@ -601,6 +601,14 @@ object PamMigrations {
         }
     }
 
+    /**
+     * v27 (own details and suggestions): `profiles.customDetails`, `contact_persons.customDetails` and the table `profile_suggestions`. See
+     * [ContactsUxMigration]. Additive and idempotent. 1..26 are untouched (26 may be installed on phones).
+     */
+    val MIGRATION_26_27 = object : Migration(26, 27) {
+        override fun migrate(db: SupportSQLiteDatabase) = ContactsUxMigration.apply(db)
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -627,5 +635,6 @@ object PamMigrations {
         MIGRATION_23_24,
         MIGRATION_24_25,
         MIGRATION_25_26,
+        MIGRATION_26_27,
     )
 }

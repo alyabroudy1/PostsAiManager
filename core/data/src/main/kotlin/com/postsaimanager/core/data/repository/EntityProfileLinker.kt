@@ -8,6 +8,7 @@ import com.postsaimanager.core.data.database.entity.DismissedEntityEntity
 import com.postsaimanager.core.domain.contacts.ContactLinkOutcome
 import com.postsaimanager.core.domain.contacts.LinkSenderContactUseCase
 import com.postsaimanager.core.domain.document.normaliseEntityName
+import com.postsaimanager.core.domain.organisation.SuggestOrganisationDetailsUseCase
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.domain.usecase.EntityLinkingUseCase
 import com.postsaimanager.core.model.DocumentUnderstanding
@@ -46,6 +47,8 @@ class EntityProfileLinker @Inject constructor(
     private val decide: EntityLinkingUseCase,
     // Lazy: the same-person question reaches the model, which reaches the document processor that owns this linker (a cycle otherwise).
     private val linkSenderContact: dagger.Lazy<LinkSenderContactUseCase>,
+    // Lazy for the same reason: whose a phone number is, is also a question to the model.
+    private val suggestOrganisationDetails: dagger.Lazy<SuggestOrganisationDetailsUseCase>,
 ) {
 
     data class Outcome(
@@ -105,6 +108,17 @@ class EntityProfileLinker @Inject constructor(
             throw e
         } catch (e: Exception) {
             null
+        }
+
+        // What the letter shows about its sender organisation (address, general phone, e-mail, website, account) is offered to that
+        // organisation's profile as suggestions, and the contact person's own phone or e-mail goes to the contact. The sender is linked
+        // by now, so this is the one place it can be done; a failure leaves the reading as it was.
+        try {
+            suggestOrganisationDetails.get()(documentId)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Unit
         }
 
         return Outcome(linked, created, ignored, contact)

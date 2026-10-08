@@ -57,6 +57,13 @@
     <string name="essentials_for">An</string>
     <string name="essentials_about">Betrifft</string>
     <string name="essentials_contact_open">%1$s bei der Organisation öffnen</string>
+    <string name="letter_contact_suggested">Vorgeschlagene Ansprechperson</string>
+    <string name="letter_contact_confirm">Bestätigen</string>
+    <string name="letter_contact_edit">Bearbeiten</string>
+    <string name="letter_contact_discard">Verwerfen</string>
+    <string name="letter_contact_confirm_description">%1$s als Ansprechperson bestätigen</string>
+    <string name="letter_contact_edit_description">%1$s bei der Organisation bearbeiten</string>
+    <string name="letter_contact_discard_description">Vorgeschlagene Ansprechperson %1$s verwerfen</string>
     <string name="contact_offer_call">%1$s anrufen</string>
     <string name="contact_offer_email">%1$s eine E-Mail schreiben</string>
     <string name="contact_no_app">Keine App dafür gefunden.</string>

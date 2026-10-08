@@ -21,7 +21,20 @@ interface ProfileDao {
     @Query("SELECT * FROM profiles WHERE householdRole = :role ORDER BY name ASC")
     fun observeByRole(role: String): Flow<List<ProfileEntity>>
 
-    @Query("SELECT * FROM profiles WHERE name LIKE '%' || :query || '%' OR organization LIKE '%' || :query || '%'")
+    /**
+     * A profile matches by its name, its organisation, its own named details (label or value), or, for an organisation, by a contact's
+     * name or own named details.
+     */
+    @Query(
+        """
+        SELECT * FROM profiles
+        WHERE name LIKE '%' || :query || '%' OR organization LIKE '%' || :query || '%' OR customDetails LIKE '%' || :query || '%'
+        OR id IN (
+            SELECT organisationId FROM contact_persons
+            WHERE name LIKE '%' || :query || '%' OR customDetails LIKE '%' || :query || '%'
+        )
+        """,
+    )
     fun search(query: String): Flow<List<ProfileEntity>>
 
     @Query("SELECT * FROM profiles WHERE id = :id")
@@ -84,6 +97,7 @@ data class ProfileWithRole(
     val relationship: String?,
     val birthDate: String?,
     val sensitive: Boolean,
+    val customDetails: String?,
     val createdAt: Long,
     val modifiedAt: Long,
     val role: String,

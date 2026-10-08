@@ -66,6 +66,7 @@ import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.memory.DocumentNoteText
+import com.postsaimanager.core.domain.organisation.SuggestionRules
 import com.postsaimanager.core.model.DocumentNote
 import com.postsaimanager.core.model.FormDataKey
 import com.postsaimanager.core.model.Profile
@@ -125,6 +126,11 @@ fun ProfileDetailScreen(
         detailActions = SavedDetailActions(save = viewModel::saveDetail, delete = viewModel::deleteDetail),
         onOpenDocument = onOpenDocument,
         onRenameCase = viewModel::rename,
+        suggestionActions = SuggestionActions(
+            accept = viewModel::acceptSuggestion,
+            dismiss = viewModel::dismissSuggestion,
+            acceptAll = viewModel::acceptAllSuggestions,
+        ),
         notes = notes,
         noteActions = notesViewModel.actions,
         contactActions = ContactActions(
@@ -134,6 +140,8 @@ fun ProfileDetailScreen(
             move = viewModel::moveContactTo,
             delete = viewModel::removeContact,
             confirm = viewModel::confirmContact,
+            add = viewModel::addContact,
+            discard = viewModel::discardContact,
             call = { phone -> launch(context, Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone.filter { it.isDigit() || it == '+' })), "dial", viewModel) },
             email = { address -> launch(context, Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:" + Uri.encode(address))), "write-email", viewModel) },
         ),
@@ -170,6 +178,7 @@ fun ProfileDetailContent(
     contactActions: ContactActions = ContactActions(),
     onOpenDocument: (documentId: String) -> Unit = {},
     onRenameCase: (caseId: String, title: String) -> Unit = { _, _ -> },
+    suggestionActions: SuggestionActions = SuggestionActions(),
     /** The notes the assistant keeps about this person ("What the assistant remembers"); shown for a household person only. */
     notes: List<DocumentNote> = emptyList(),
     noteActions: NoteActions = NoteActions(),
@@ -287,6 +296,12 @@ fun ProfileDetailContent(
                     BirthDateField(draft.birthDate) { iso -> onUpdate { it.copy(birthDate = iso) } }
                 }
 
+                // What the organisation's letters showed for its empty fields: offered here, next to the fields they would fill.
+                if (draft.kind == ProfileKind.ORGANISATION && !state.isNew) {
+                    val open = SuggestionRules.open(draft, state.suggestions.map { it.suggestion })
+                    OrganisationSuggestionsSection(state.suggestions.filter { it.suggestion in open }, suggestionActions)
+                }
+
                 Text(stringResource(R.string.profile_section_contact), style = MaterialTheme.typography.labelLarge)
                 TextField(draft.street, R.string.profile_field_street, "field_street") { v -> onUpdate { it.copy(street = v) } }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -295,6 +310,15 @@ fun ProfileDetailContent(
                 }
                 TextField(draft.phone, R.string.profile_field_phone, "field_phone", keyboard = KeyboardType.Phone) { v -> onUpdate { it.copy(phone = v) } }
                 TextField(draft.email, R.string.profile_field_email, "field_email", keyboard = KeyboardType.Email) { v -> onUpdate { it.copy(email = v) } }
+                if (draft.kind == ProfileKind.ORGANISATION) {
+                    TextField(draft.website, R.string.profile_field_website, "field_website", keyboard = KeyboardType.Uri) { v -> onUpdate { it.copy(website = v) } }
+                }
+
+                // The user's own named details (customer number, opening hours): kept in the draft, saved with Save.
+                CustomDetailsSection(
+                    details = draft.customDetails,
+                    onChange = { list -> onUpdate { it.copy(customDetails = list) } },
+                )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {

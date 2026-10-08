@@ -30,7 +30,48 @@
 
     <!-- جهات اتصال الجهة -->
     <string name="contacts_title">جهات الاتصال</string>
-    <string name="contacts_empty">لا توجد جهات اتصال بعد.</string>
+    <string name="contacts_empty">لا توجد جهات اتصال بعد. أضف واحدة بنفسك، أو تُضاف هنا عندما يذكر خطاب شخصًا.</string>
+    <string name="contact_add">إضافة جهة اتصال</string>
+    <string name="contact_add_title">جهة اتصال جديدة</string>
+    <string name="contacts_suggested">جهات اتصال مقترحة</string>
+    <string name="contact_suggested_from">مقترحة من %1$s</string>
+    <string name="contact_suggested_from_letter">مقترحة من خطاب</string>
+    <string name="contact_confirm">تأكيد</string>
+    <string name="contact_edit">تعديل</string>
+    <string name="contact_discard">تجاهل</string>
+
+    <!-- تفاصيل خاصة: اسم وقيمة من المستخدم -->
+    <string name="custom_details_title">تفاصيل خاصة</string>
+    <string name="custom_details_empty">أضف تفصيلًا باسم من اختيارك، مثل رقم العميل أو ساعات الدوام.</string>
+    <string name="custom_detail_add">إضافة تفصيل خاص</string>
+    <string name="custom_detail_label">اسم التفصيل</string>
+    <string name="custom_detail_value">القيمة</string>
+    <string name="custom_detail_dialog_add">تفصيل جديد</string>
+    <string name="custom_detail_dialog_edit">تعديل التفصيل</string>
+    <string name="custom_detail_save">حفظ</string>
+    <string name="custom_detail_cancel">إلغاء</string>
+    <string name="custom_detail_edit">تعديل %1$s</string>
+    <string name="custom_detail_remove">إزالة %1$s</string>
+    <string name="custom_detail_move_up">نقل %1$s إلى الأعلى</string>
+    <string name="custom_detail_move_down">نقل %1$s إلى الأسفل</string>
+    <string name="profile_field_website">الموقع الإلكتروني</string>
+
+    <!-- ما أظهرته الخطابات عن جهة، مقترح للحقول الفارغة -->
+    <string name="suggestions_title">من خطاباتك</string>
+    <string name="suggestions_hint">لا يُحفظ شيء قبل أن تقبله.</string>
+    <string name="suggestion_from">من %1$s</string>
+    <string name="suggestion_from_letter">من خطاب</string>
+    <string name="suggestion_field_address">العنوان</string>
+    <string name="suggestion_field_phone">الهاتف</string>
+    <string name="suggestion_field_email">البريد الإلكتروني</string>
+    <string name="suggestion_field_website">الموقع الإلكتروني</string>
+    <string name="suggestion_field_iban">الحساب البنكي (IBAN)</string>
+    <string name="suggestion_accept">قبول</string>
+    <string name="suggestion_edit">تعديل</string>
+    <string name="suggestion_dismiss">تجاهل</string>
+    <string name="suggestion_accept_all">قبول الكل</string>
+    <string name="suggestion_edit_title">عدّل ثم اقبل</string>
+    <string name="suggestion_value">القيمة</string>
     <string name="contacts_current">جهة اتصالك الآن</string>
     <string name="contacts_earlier">جهات اتصال سابقة</string>
     <string name="contacts_last_seen">آخر رسالة %1$s</string>
