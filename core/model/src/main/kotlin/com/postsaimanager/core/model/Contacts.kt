@@ -24,6 +24,8 @@ data class ContactPerson(
     val lastSeen: Long,
     /** False once the user marked "no longer responsible"; the contact stays as history. */
     val active: Boolean = true,
+    /** Details the user named themselves ("Direct line", "Office hours"), in their order. */
+    val customDetails: List<CustomDetail> = emptyList(),
 )
 
 /** A number a household person has at one organisation (a customer number, a tax ID); owned by the household person. */

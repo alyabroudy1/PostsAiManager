@@ -14,7 +14,8 @@ import com.postsaimanager.core.data.database.entity.DocumentContactEntity
 import com.postsaimanager.core.domain.document.normaliseEntityName
 import com.postsaimanager.core.domain.repository.ContactRepository
 import com.postsaimanager.core.model.ContactPerson
-import com.postsaimanager.core.model.DocumentUnderstanding
+import com.postsaimanager.core.model.CustomDetail
+import com.postsaimanager.core.model.CustomDetails
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -36,8 +37,8 @@ class ContactRepositoryImpl @Inject constructor(
     override fun observeContactsForDocument(documentId: String): Flow<List<ContactPerson>> =
         contactDao.observeForDocument(documentId).map { rows -> rows.map(::toDomain) }.flowOn(ioDispatcher)
 
-    override fun observeContactsToCheck(organisationId: String): Flow<Set<String>> =
-        contactDao.observeToCheck(organisationId, DocumentUnderstanding.AUTO_LINK_CONFIDENCE).map { it.toSet() }.flowOn(ioDispatcher)
+    override fun observeContactsToCheck(organisationId: String): Flow<Map<String, String>> =
+        contactDao.observeToCheck(organisationId).map { rows -> rows.associate { it.contactId to it.documentId } }.flowOn(ioDispatcher)
 
     override suspend fun documentIdsOf(contactId: String): List<String> = withContext(ioDispatcher) { contactDao.documentIdsOf(contactId) }
 
@@ -100,6 +101,9 @@ class ContactRepositoryImpl @Inject constructor(
                             phone = keep.phone ?: merged.phone,
                             email = keep.email ?: merged.email,
                             room = keep.room ?: merged.room,
+                            customDetails = CustomDetails.encode(
+                                mergedDetails(CustomDetails.decode(keep.customDetails), CustomDetails.decode(merged.customDetails)),
+                            ),
                             firstSeen = minOf(keep.firstSeen, merged.firstSeen),
                             lastSeen = maxOf(keep.lastSeen, merged.lastSeen),
                         ),
@@ -135,11 +139,17 @@ class ContactRepositoryImpl @Inject constructor(
         id = entity.id, organisationId = entity.organisationId, name = entity.name, title = entity.title,
         department = entity.department, phone = entity.phone, email = entity.email, room = entity.room,
         firstSeen = entity.firstSeen, lastSeen = entity.lastSeen, active = entity.active,
+        customDetails = CustomDetails.decode(entity.customDetails),
     )
 
     private fun toEntity(contact: ContactPerson) = ContactPersonEntity(
         id = contact.id, organisationId = contact.organisationId, name = contact.name, title = contact.title,
         department = contact.department, phone = contact.phone, email = contact.email, room = contact.room,
         firstSeen = contact.firstSeen, lastSeen = contact.lastSeen, active = contact.active,
+        customDetails = CustomDetails.encode(contact.customDetails),
     )
+
+    /** The kept contact's details, then the merged one's whose label the kept one does not have (a label is compared trimmed, ignoring case). */
+    private fun mergedDetails(keep: List<CustomDetail>, merged: List<CustomDetail>): List<CustomDetail> =
+        keep + merged.filter { m -> keep.none { it.label.trim().equals(m.label.trim(), ignoreCase = true) } }
 }

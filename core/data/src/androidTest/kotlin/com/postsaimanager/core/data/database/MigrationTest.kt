@@ -1322,6 +1322,30 @@ class MigrationTest {
         }
     }
 
+    /** v26 to v27 validates against the exported schema: own details on profiles and contacts, and the suggestions table. Needs a device. */
+    @Test
+    fun migrate26To27_addsOwnDetailsAndSuggestionsAndKeepsTheRows() {
+        helper.createDatabase(TEST_DB, 26).apply {
+            execSQL(
+                "INSERT INTO profiles (id, type, name, completionScore, createdAt, modifiedAt, sensitive, kind) " +
+                    "VALUES ('jc', 'AUTHORITY', 'Jobcenter', 0, 1, 1, 0, 'ORGANISATION')",
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 27, true, PamMigrations.MIGRATION_26_27)
+
+        db.query("SELECT name, customDetails FROM profiles WHERE id = 'jc'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Jobcenter", c.getString(0)); assertTrue(c.isNull(1))
+        }
+        db.execSQL("INSERT INTO profile_suggestions VALUES ('s1', 'jc', 'PHONE', '0800 555 0199', 'd1', 1, 'PENDING')")
+        db.query("SELECT count(*) FROM profile_suggestions").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(1, c.getInt(0))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
     }

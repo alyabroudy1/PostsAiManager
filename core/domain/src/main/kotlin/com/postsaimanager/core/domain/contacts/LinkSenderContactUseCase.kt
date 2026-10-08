@@ -89,8 +89,12 @@ class LinkSenderContactUseCase @Inject constructor(
 
         val existing = decision.matchedId?.let { id -> known.firstOrNull { it.id == id } }
         return if (existing != null) {
+            // A contact no letter was linked to is one the user typed: the letter that names the same person answers nothing new, so
+            // its field is confirmed and the contact never turns into a suggestion.
+            val typedByUser = contacts.documentIdsOf(existing.id).isEmpty()
             contacts.updateContact(seen(existing, read, seenAt))
             contacts.linkContactToDocument(existing.id, documentId)
+            if (typedByUser) confirmLetterField(documentId, read.name)
             ContactLinkOutcome.Matched(existing.id, decision)
         } else {
             val created = ContactPerson(
@@ -101,6 +105,12 @@ class LinkSenderContactUseCase @Inject constructor(
             contacts.linkContactToDocument(created.id, documentId)
             ContactLinkOutcome.Created(created.id, decision)
         }
+    }
+
+    private suspend fun confirmLetterField(documentId: String, name: String) {
+        documents.observeExtractedData(documentId).first()
+            .filter { isLiveContact(it) && it.source == ValueSource.MACHINE && it.fieldValue.trim().equals(name.trim(), ignoreCase = true) }
+            .forEach { documents.confirmExtractedField(it.id) }
     }
 
     /** The existing contact seen again: newer `lastSeen` (and older `firstSeen`), and only what it did not have yet. */
@@ -128,7 +138,8 @@ class LinkSenderContactUseCase @Inject constructor(
     /**
      * A contact inside an already resolved sender organisation is low impact (it is listed on the organisation page, where the user
      * edits or deletes it), so a machine reading links at the field's own acceptance level (MEDIUM), not at the higher bar for
-     * auto-creating a profile. Such a contact is shown as "to check" until the letter's field is confirmed.
+     * auto-creating a profile. Every such contact is a suggestion ("Suggested from <letter>") until the user confirms, edits or
+     * discards it, on the organisation page or in the letter's Extracted tab.
      */
     private val ACCEPT_CONFIDENCE = ConfidenceCombiner.MEDIUM
 

@@ -12,6 +12,9 @@ import com.postsaimanager.core.domain.document.contacts.SameContact
 import com.postsaimanager.core.domain.document.contacts.SameContactProfile
 import com.postsaimanager.core.domain.document.contacts.SameContactQuestion
 import com.postsaimanager.core.domain.form.BaselineScores
+import com.postsaimanager.core.domain.organisation.DecideDetailOwnerUseCase
+import com.postsaimanager.core.domain.organisation.DetailOwnerProfile
+import com.postsaimanager.core.domain.organisation.SuggestOrganisationDetailsUseCase
 import com.postsaimanager.core.domain.usecase.EntityLinkingUseCase
 import com.postsaimanager.core.domain.usecase.UnderstandingToFields
 import com.postsaimanager.core.model.DocumentUnderstanding
@@ -24,8 +27,10 @@ import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.model.ProfileType
 import com.postsaimanager.core.model.RecognisedEntity
 import com.postsaimanager.core.testing.FakeContactRepository
+import com.postsaimanager.core.testing.FakeDetailOwnerQuestion
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
+import com.postsaimanager.core.testing.FakeProfileSuggestionRepository
 import com.postsaimanager.core.testing.testDocument
 import com.postsaimanager.core.testing.testProfile
 import kotlinx.coroutines.flow.first
@@ -62,6 +67,12 @@ class EntityProfileLinkerTest {
     private val linker = EntityProfileLinker(
         matcher, profileRepository, dismissedDao, EntityLinkingUseCase(),
         dagger.Lazy { LinkSenderContactUseCase(documents, profileRepository, contacts, DecideSameContactUseCase(sameContact, SameContactProfile())) },
+        dagger.Lazy {
+            SuggestOrganisationDetailsUseCase(
+                documents, profileRepository, contacts, FakeProfileSuggestionRepository(),
+                DecideDetailOwnerUseCase(FakeDetailOwnerQuestion(), DetailOwnerProfile()),
+            )
+        },
     )
 
     init {

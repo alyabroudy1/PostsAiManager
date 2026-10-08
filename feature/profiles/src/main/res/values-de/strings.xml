@@ -26,7 +26,48 @@
 
     <!-- Ansprechpersonen einer Organisation -->
     <string name="contacts_title">Ansprechpersonen</string>
-    <string name="contacts_empty">Noch keine Ansprechpersonen.</string>
+    <string name="contacts_empty">Noch keine Ansprechpersonen. Legen Sie selbst eine an, oder ein Brief, der jemanden nennt, trägt sie hier ein.</string>
+    <string name="contact_add">Ansprechperson hinzufügen</string>
+    <string name="contact_add_title">Neue Ansprechperson</string>
+    <string name="contacts_suggested">Vorgeschlagene Ansprechpersonen</string>
+    <string name="contact_suggested_from">Vorgeschlagen aus %1$s</string>
+    <string name="contact_suggested_from_letter">Vorgeschlagen aus einem Brief</string>
+    <string name="contact_confirm">Bestätigen</string>
+    <string name="contact_edit">Bearbeiten</string>
+    <string name="contact_discard">Verwerfen</string>
+
+    <!-- Eigene Angaben: Name und Wert vom Nutzer -->
+    <string name="custom_details_title">Eigene Angaben</string>
+    <string name="custom_details_empty">Fügen Sie eine Angabe mit eigenem Namen hinzu, etwa eine Kundennummer oder Öffnungszeiten.</string>
+    <string name="custom_detail_add">Eigene Angabe hinzufügen</string>
+    <string name="custom_detail_label">Name der Angabe</string>
+    <string name="custom_detail_value">Wert</string>
+    <string name="custom_detail_dialog_add">Neue Angabe</string>
+    <string name="custom_detail_dialog_edit">Angabe bearbeiten</string>
+    <string name="custom_detail_save">Speichern</string>
+    <string name="custom_detail_cancel">Abbrechen</string>
+    <string name="custom_detail_edit">%1$s bearbeiten</string>
+    <string name="custom_detail_remove">%1$s entfernen</string>
+    <string name="custom_detail_move_up">%1$s nach oben</string>
+    <string name="custom_detail_move_down">%1$s nach unten</string>
+    <string name="profile_field_website">Website</string>
+
+    <!-- Was Briefe über eine Organisation zeigten, angeboten für die leeren Felder -->
+    <string name="suggestions_title">Aus Ihren Briefen</string>
+    <string name="suggestions_hint">Nichts wird gespeichert, bevor Sie es übernehmen.</string>
+    <string name="suggestion_from">Aus %1$s</string>
+    <string name="suggestion_from_letter">Aus einem Brief</string>
+    <string name="suggestion_field_address">Adresse</string>
+    <string name="suggestion_field_phone">Telefon</string>
+    <string name="suggestion_field_email">E-Mail</string>
+    <string name="suggestion_field_website">Website</string>
+    <string name="suggestion_field_iban">Bankkonto (IBAN)</string>
+    <string name="suggestion_accept">Übernehmen</string>
+    <string name="suggestion_edit">Bearbeiten</string>
+    <string name="suggestion_dismiss">Verwerfen</string>
+    <string name="suggestion_accept_all">Alle übernehmen</string>
+    <string name="suggestion_edit_title">Bearbeiten, dann übernehmen</string>
+    <string name="suggestion_value">Wert</string>
     <string name="contacts_current">Ihre Ansprechperson jetzt</string>
     <string name="contacts_earlier">Frühere Ansprechpersonen</string>
     <string name="contacts_last_seen">Letzter Brief %1$s</string>

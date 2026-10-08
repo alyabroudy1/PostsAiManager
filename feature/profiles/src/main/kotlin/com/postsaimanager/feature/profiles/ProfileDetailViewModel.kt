@@ -7,8 +7,16 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.result.map
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
+import com.postsaimanager.core.domain.contacts.AddContactUseCase
 import com.postsaimanager.core.domain.contacts.ConfirmContactUseCase
 import com.postsaimanager.core.domain.contacts.DeleteContactUseCase
+import com.postsaimanager.core.domain.contacts.DiscardContactUseCase
+import com.postsaimanager.core.domain.organisation.AcceptProfileSuggestionUseCase
+import com.postsaimanager.core.domain.organisation.DismissProfileSuggestionUseCase
+import com.postsaimanager.core.domain.organisation.ObserveProfileSuggestionsUseCase
+import com.postsaimanager.core.domain.organisation.SuggestionRules
+import com.postsaimanager.core.domain.organisation.SuggestionView
+import com.postsaimanager.core.model.CustomDetails
 import com.postsaimanager.core.domain.contacts.MergeContactsUseCase
 import com.postsaimanager.core.domain.contacts.MoveContactUseCase
 import com.postsaimanager.core.domain.contacts.ObserveOrganisationContactsUseCase
@@ -74,6 +82,11 @@ class ProfileDetailViewModel @Inject constructor(
     private val moveContact: MoveContactUseCase,
     private val deleteContact: DeleteContactUseCase,
     private val confirmContact: ConfirmContactUseCase,
+    private val addContact: AddContactUseCase,
+    private val discardContact: DiscardContactUseCase,
+    private val observeSuggestions: ObserveProfileSuggestionsUseCase,
+    private val acceptSuggestion: AcceptProfileSuggestionUseCase,
+    private val dismissSuggestion: DismissProfileSuggestionUseCase,
     private val externalFlowGuard: ExternalFlowGuard,
     private val observePersonTimeline: ObserveTimelineForPersonUseCase,
     private val observeOrganisationTimeline: ObserveTimelineForOrganisationUseCase,
@@ -128,6 +141,7 @@ class ProfileDetailViewModel @Inject constructor(
             state.copy(otherOrganisations = organisations.filter { it.id != profileId }.sortedBy { it.name.lowercase() })
         }
         .combine(timeline()) { state, timeline -> state.copy(timeline = timeline, focusCaseId = focusCaseId) }
+        .combine(if (isNew) flowOf(emptyList()) else observeSuggestions(profileId)) { state, found -> state.copy(suggestions = found) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProfileDetailUiState(isNew = isNew))
 
     /**
@@ -205,6 +219,8 @@ class ProfileDetailViewModel @Inject constructor(
             city = current.city.cleaned(),
             phone = current.phone.cleaned(),
             email = current.email.cleaned(),
+            website = current.website.cleaned(),
+            customDetails = CustomDetails.cleaned(current.customDetails),
             householdRole = before?.householdRole,
             relationship = before?.relationship,
             modifiedAt = System.currentTimeMillis(),
@@ -286,6 +302,69 @@ class ProfileDetailViewModel @Inject constructor(
     /** The contact marked "to check" is right: the letters' contact fields that name it are confirmed, which clears the mark. */
     fun confirmContact(contactId: String) = changeContact { confirmContact.invoke(contactId) }
 
+    /** The user typed a new contact into this organisation; it is theirs, never "suggested". */
+    fun addContact(contact: ContactPerson) {
+        viewModelScope.launch {
+            val result = addContact.invoke(
+                profileId, contact.name, contact.title, contact.department, contact.phone, contact.email, contact.customDetails,
+            )
+            if (result is PamResult.Error) _message.value = result.error.userMessage
+        }
+    }
+
+    /** Discards a suggested contact: gone, with the tombstone, so reading its letter again does not bring it back. */
+    fun discardContact(contactId: String) = changeContact { discardContact.invoke(contactId) }
+
+    // ── What the organisation's letters showed, offered for its empty fields ──
+
+    /**
+     * Accepts suggestion [id] (as it is, or as the user [edited] it): the stored profile gets the value and so does the draft, so the
+     * fields on the page show it at once and a later Save does not undo it.
+     */
+    fun acceptSuggestion(id: String, edited: String?) {
+        val suggestion = uiState.value.suggestions.firstOrNull { it.suggestion.id == id }?.suggestion ?: return
+        viewModelScope.launch {
+            when (val result = acceptSuggestion.invoke(id, edited)) {
+                is PamResult.Success -> {
+                    val value = (edited ?: suggestion.value).trim()
+                    draft.update { it?.let { d -> SuggestionRules.apply(d, suggestion.field, value, d.modifiedAt) } }
+                    refreshStored()
+                }
+                is PamResult.Error -> _message.value = result.error.userMessage
+            }
+        }
+    }
+
+    /** "Dismiss": the value stays dismissed, so reading the letter again does not offer it again. */
+    fun dismissSuggestion(id: String) {
+        viewModelScope.launch {
+            val result = dismissSuggestion.invoke(id)
+            if (result is PamResult.Error) _message.value = result.error.userMessage
+        }
+    }
+
+    /** "Accept all": the oldest suggestion of each field that is still empty on the page. */
+    fun acceptAllSuggestions() {
+        val current = draft.value ?: return
+        val pending = uiState.value.suggestions.map { it.suggestion }
+        val chosen = SuggestionRules.oldestPerField(SuggestionRules.open(current, pending))
+        if (chosen.isEmpty()) return
+        viewModelScope.launch {
+            when (val result = acceptSuggestion.acceptAll(profileId, chosen)) {
+                is PamResult.Success -> {
+                    draft.update { it?.let { d -> chosen.fold(d) { acc, s -> SuggestionRules.apply(acc, s.field, s.value, d.modifiedAt) } } }
+                    refreshStored()
+                }
+                is PamResult.Error -> _message.value = result.error.userMessage
+            }
+        }
+    }
+
+    /** Re-reads the stored profile, so the next Save compares its household role with what is really stored. */
+    private suspend fun refreshStored() {
+        (profiles.getProfileById(profileId) as? PamResult.Success)?.let { stored = it.data }
+    }
+
     private fun changeContact(change: suspend () -> PamResult<Unit>) {
         viewModelScope.launch {
             val result = change()
@@ -361,6 +440,8 @@ data class ProfileDetailUiState(
     val timeline: TimelineUi = TimelineUi.EMPTY,
     /** The matter the page was opened for: starts expanded. */
     val focusCaseId: String? = null,
+    /** What the organisation's letters showed for its fields, each with its letter's title; waiting for the user. */
+    val suggestions: List<SuggestionView> = emptyList(),
 ) {
     val canSave: Boolean get() = draft?.name?.isNotBlank() == true
 }

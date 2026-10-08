@@ -161,6 +161,8 @@ internal fun ExtractedTab(
     letterContacts: LetterContacts = LetterContacts(),
     /** The chip: opens the organisation page at the contact (organisation id, contact id). */
     onContactClick: (organisationId: String, contactId: String) -> Unit = { _, _ -> },
+    /** Confirm and Discard of the letter's suggested contact (Edit opens the organisation page at the contact, through [onContactClick]). */
+    contactActions: LetterContactActions = LetterContactActions(),
     onCall: (phone: String) -> Unit = {},
     onEmail: (address: String) -> Unit = {},
     /** The debug action "Read again with Gemma (trial)"; null (a release build) offers nothing. */
@@ -265,7 +267,7 @@ internal fun ExtractedTab(
                     }
                 }
                 if (essentials.actions.isNotEmpty()) item(key = "essentials-actions") { ActionsCard(essentials.actions, rowActions, onCall, onEmail) }
-                if (!essentials.parties.isEmpty) item(key = "essentials-parties") { PartiesCard(essentials.parties, rowActions, letterContacts, onContactClick) }
+                if (!essentials.parties.isEmpty) item(key = "essentials-parties") { PartiesCard(essentials.parties, rowActions, letterContacts, contactActions, onContactClick) }
                 if (essentials.subject != null || essentials.keyInfo.isNotEmpty()) {
                     item(key = "essentials-key") { KeyInfoCard(essentials.subject, essentials.keyInfo, rowActions) }
                 }

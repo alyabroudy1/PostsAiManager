@@ -7,6 +7,9 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.util.UuidGenerator
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
+import com.postsaimanager.core.domain.contacts.ConfirmContactUseCase
+import com.postsaimanager.core.domain.contacts.DiscardContactUseCase
+import com.postsaimanager.core.domain.contacts.LetterContactFields
 import com.postsaimanager.core.domain.contacts.LetterContacts
 import com.postsaimanager.core.domain.contacts.LoadLetterContactsUseCase
 import com.postsaimanager.core.designsystem.component.DocumentCaseUi
@@ -70,6 +73,9 @@ class DocumentDetailViewModel @Inject constructor(
     loadLetterContacts: LoadLetterContactsUseCase,
     observeCase: ObserveCaseForDocumentUseCase,
     private val viewing: ViewingState,
+    private val letterContactFields: LetterContactFields,
+    private val confirmContact: ConfirmContactUseCase,
+    private val discardContact: DiscardContactUseCase,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
@@ -225,7 +231,7 @@ class DocumentDetailViewModel @Inject constructor(
     fun confirmField(fieldId: String) = setReviewState(listOf(fieldId), ReviewState.CONFIRMED)
 
     /** ✕ on a row: the person does not want this value. It moves to "Ignored" and a re-read never brings it back. */
-    fun ignoreField(fieldId: String) = setReviewState(listOf(fieldId), ReviewState.IGNORED)
+    fun ignoreField(fieldId: String) = ignoreFields(listOf(fieldId))
 
     /** "Restore" in the Ignored footer: back to unreviewed. */
     fun restoreField(fieldId: String) = setReviewState(listOf(fieldId), ReviewState.UNREVIEWED)
@@ -233,8 +239,23 @@ class DocumentDetailViewModel @Inject constructor(
     /** Block-level Confirm (an address block): every row of the block. */
     fun confirmFields(fieldIds: List<String>) = setReviewState(fieldIds, ReviewState.CONFIRMED)
 
-    /** Block-level Ignore (an address block): every row of the block. */
-    fun ignoreFields(fieldIds: List<String>) = setReviewState(fieldIds, ReviewState.IGNORED)
+    /**
+     * Block-level Ignore (an address block): every row of the block. The letter's contact field and the contact it names are one thing:
+     * ignoring it discards the contact too (with its tombstone), see [LetterContactFields].
+     */
+    fun ignoreFields(fieldIds: List<String>) {
+        viewModelScope.launch { letterContactFields.ignore(documentId, fieldIds) }
+    }
+
+    /** The letter's suggested contact is right: its field is confirmed, here and on the organisation page. */
+    fun confirmLetterContact(contactId: String) {
+        viewModelScope.launch { confirmContact(contactId) }
+    }
+
+    /** The letter's suggested contact is not wanted: discarded with its tombstone, so reading the letter again does not bring it back. */
+    fun discardLetterContact(contactId: String) {
+        viewModelScope.launch { discardContact(contactId) }
+    }
 
     // EDITED is never set here: an edit carries a value and goes through updateField.
     private fun setReviewState(fieldIds: List<String>, state: ReviewState) {
@@ -286,7 +307,7 @@ class DocumentDetailViewModel @Inject constructor(
 
     /** ✎ Edit: the person's value (and name, for a row they named themselves). The repository marks the row edited. */
     fun updateField(fieldId: String, name: String, value: String) {
-        viewModelScope.launch { documentRepository.updateExtractedField(fieldId, name, value) }
+        viewModelScope.launch { letterContactFields.edit(documentId, fieldId, name, value) }
     }
 
     // ── Summary ──

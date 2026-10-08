@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.Flow
 /** Row of [ContactDao.observeCounts]. */
 data class ContactCountRow(val organisationId: String, val count: Int)
 
+/** Row of [ContactDao.observeToCheck]: a suggested contact and the letter it was found on. */
+data class ToCheckRow(val contactId: String, val documentId: String)
+
 @Dao
 interface ContactDao {
 
@@ -29,28 +32,29 @@ interface ContactDao {
     fun observeForDocument(documentId: String): Flow<List<ContactPersonEntity>>
 
     /**
-     * The contacts of [organisationId] that were made from a reading nobody has looked at and that was not sure ([bar]): a letter
-     * linked to the contact has a machine "contact" field with the contact's name, unreviewed, below [bar], and no letter has that
-     * name confirmed, edited, typed by the user or read with confidence at or above [bar]. Confirming the field clears it.
+     * The contacts of [organisationId] that a reading suggested and nobody has answered: a letter linked to the contact has a machine
+     * "contact" field with the contact's name, unreviewed, and no letter has that name confirmed, edited or typed by the user. Each row
+     * is the contact and the (first) letter it was found on. Confirming or editing the field, here or on the letter, clears it; a
+     * contact the user typed has no such field and is never in the list.
      */
     @Query(
         """
-        SELECT c.id FROM contact_persons c
+        SELECT c.id AS contactId, MIN(dc.documentId) AS documentId FROM contact_persons c
+        INNER JOIN document_contacts dc ON dc.contactId = c.id
+        INNER JOIN extracted_data e ON e.documentId = dc.documentId
         WHERE c.organisationId = :organisationId
-        AND EXISTS (
-            SELECT 1 FROM document_contacts dc INNER JOIN extracted_data e ON e.documentId = dc.documentId
-            WHERE dc.contactId = c.id AND e.slotKey = 'contact' AND LOWER(TRIM(e.fieldValue)) = LOWER(TRIM(c.name))
-            AND e.source = 'MACHINE' AND e.reviewState = 'UNREVIEWED' AND e.deletedByUser = 0 AND e.confidence < :bar
-        )
+        AND e.slotKey = 'contact' AND LOWER(TRIM(e.fieldValue)) = LOWER(TRIM(c.name))
+        AND e.source = 'MACHINE' AND e.reviewState = 'UNREVIEWED' AND e.deletedByUser = 0
         AND NOT EXISTS (
-            SELECT 1 FROM document_contacts dc INNER JOIN extracted_data e ON e.documentId = dc.documentId
-            WHERE dc.contactId = c.id AND e.slotKey = 'contact' AND LOWER(TRIM(e.fieldValue)) = LOWER(TRIM(c.name))
-            AND e.deletedByUser = 0
-            AND (e.source = 'USER' OR e.reviewState IN ('CONFIRMED', 'EDITED') OR e.confidence >= :bar)
+            SELECT 1 FROM document_contacts dc2 INNER JOIN extracted_data e2 ON e2.documentId = dc2.documentId
+            WHERE dc2.contactId = c.id AND e2.slotKey = 'contact' AND LOWER(TRIM(e2.fieldValue)) = LOWER(TRIM(c.name))
+            AND e2.deletedByUser = 0
+            AND (e2.source = 'USER' OR e2.reviewState IN ('CONFIRMED', 'EDITED'))
         )
+        GROUP BY c.id
         """,
     )
-    fun observeToCheck(organisationId: String, bar: Float): Flow<List<String>>
+    fun observeToCheck(organisationId: String): Flow<List<ToCheckRow>>
 
     @Query("SELECT organisationId, COUNT(*) AS count FROM contact_persons GROUP BY organisationId")
     fun observeCounts(): Flow<List<ContactCountRow>>

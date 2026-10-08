@@ -167,16 +167,26 @@ private fun ValueSubLine(row: ExtractedData) {
 // From / For / About
 // ═══════════════════════════════════════════════════════════
 
+/**
+ * What the user can do to the contact a reading suggested for this letter: confirm it or discard it (the organisation page's Confirm
+ * and Discard act on the same contact). A recorder in a test.
+ */
+internal class LetterContactActions(
+    val confirm: (contactId: String) -> Unit = {},
+    val discard: (contactId: String) -> Unit = {},
+)
+
 /** "From / For / About": the sender, the addressee ("You" for the Me profile) and the person the letter is about, when someone else. */
 @Composable
 internal fun PartiesCard(
     parties: PartiesView,
     actions: FieldActions,
     contacts: LetterContacts = LetterContacts(),
+    contactActions: LetterContactActions = LetterContactActions(),
     onContactClick: (organisationId: String, contactId: String) -> Unit = { _, _ -> },
 ) {
     EssentialCard(stringResource(R.string.essentials_parties_title), MaterialTheme.colorScheme.surfaceContainerHigh) {
-        parties.from?.let { PartyRow(stringResource(R.string.essentials_from), it, actions, contacts, onContactClick) }
+        parties.from?.let { PartyRow(stringResource(R.string.essentials_from), it, actions, contacts, onContactClick, contactActions) }
         parties.forWhom?.let { PartyRow(stringResource(R.string.essentials_for), it, actions) }
         parties.about?.let { PartyRow(stringResource(R.string.essentials_about), it, actions) }
     }
@@ -189,6 +199,7 @@ private fun PartyRow(
     actions: FieldActions,
     contacts: LetterContacts? = null,
     onContactClick: (organisationId: String, contactId: String) -> Unit = { _, _ -> },
+    contactActions: LetterContactActions = LetterContactActions(),
 ) {
     val value = when (val r = party.recipient) {
         PagesRecipient.You -> stringResource(R.string.pages_to_you)
@@ -206,8 +217,46 @@ private fun PartyRow(
                 leadingIcon = { Icon(PamIcons.Person, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 modifier = Modifier.testTag("letter_contact_chip").semantics { contentDescription = open },
             )
+            if (contacts?.letterContactSuggested == true) SuggestedContactStrip(contact, onContactClick, contactActions)
         }
         if (party.addressLines.isNotEmpty()) AddressLine(party.row.id, party.addressLines)
+    }
+}
+
+/**
+ * "Suggested contact": the letter's contact was found by a reading and nobody has answered it. Confirm keeps it, Edit opens the
+ * organisation page at the contact (where its details are edited), Discard removes it (and a re-reading does not bring it back).
+ * They act on the same contact as the organisation page, so answering in either place answers both.
+ */
+@Composable
+private fun SuggestedContactStrip(
+    contact: com.postsaimanager.core.model.ContactPerson,
+    onContactClick: (organisationId: String, contactId: String) -> Unit,
+    actions: LetterContactActions,
+) {
+    Column(modifier = Modifier.testTag("letter_contact_suggested")) {
+        Text(
+            stringResource(R.string.letter_contact_suggested),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            val confirm = stringResource(R.string.letter_contact_confirm_description, contact.name)
+            val edit = stringResource(R.string.letter_contact_edit_description, contact.name)
+            val discard = stringResource(R.string.letter_contact_discard_description, contact.name)
+            TextButton(
+                onClick = { actions.confirm(contact.id) },
+                modifier = Modifier.testTag("letter_contact_confirm").semantics { contentDescription = confirm },
+            ) { Text(stringResource(R.string.letter_contact_confirm)) }
+            TextButton(
+                onClick = { onContactClick(contact.organisationId, contact.id) },
+                modifier = Modifier.testTag("letter_contact_edit").semantics { contentDescription = edit },
+            ) { Text(stringResource(R.string.letter_contact_edit)) }
+            TextButton(
+                onClick = { actions.discard(contact.id) },
+                modifier = Modifier.testTag("letter_contact_discard").semantics { contentDescription = discard },
+            ) { Text(stringResource(R.string.letter_contact_discard)) }
+        }
     }
 }
 

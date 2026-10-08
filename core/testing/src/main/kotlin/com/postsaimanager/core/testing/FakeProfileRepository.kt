@@ -61,7 +61,8 @@ class FakeProfileRepository : ProfileRepository {
         profiles.map { list ->
             list.filter {
                 it.name.contains(query, ignoreCase = true) ||
-                    it.organization?.contains(query, ignoreCase = true) == true
+                    it.organization?.contains(query, ignoreCase = true) == true ||
+                    com.postsaimanager.core.model.CustomDetails.matches(it.customDetails, query)
             }
         }
 

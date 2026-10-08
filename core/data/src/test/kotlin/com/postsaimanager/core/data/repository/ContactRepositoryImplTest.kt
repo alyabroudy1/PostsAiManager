@@ -177,29 +177,53 @@ class ContactRepositoryImplTest {
     }
 
     @Test
-    fun `a contact from an unreviewed MEDIUM reading is to check`(): Unit = runBlocking {
+    fun `a contact from an unreviewed reading is suggested, with the letter it was found on`(): Unit = runBlocking {
         linked("d1")
         contactField("d1", "Frau Beispiel", confidence = 0.7f)
 
-        assertThat(contacts.observeContactsToCheck("jc").first()).containsExactly("c1")
+        assertThat(contacts.observeContactsToCheck("jc").first()).containsExactly("c1", "d1")
     }
 
     @Test
-    fun `a contact from a confident reading, a typed or a confirmed field is not to check`(): Unit = runBlocking {
+    fun `a confident reading is suggested too, a typed or a confirmed one is not, and a typed contact never is`(): Unit = runBlocking {
         linked("d1")
 
         contactField("d1", "Frau Beispiel", confidence = 0.9f)
-        assertThat(contacts.observeContactsToCheck("jc").first()).isEmpty()
+        assertThat(contacts.observeContactsToCheck("jc").first()).containsExactly("c1", "d1")
 
         contactField("d1", "Frau Beispiel", confidence = 0.7f, source = "USER", reviewState = "CONFIRMED")
         assertThat(contacts.observeContactsToCheck("jc").first()).isEmpty()
+
+        contacts.addContact(contact("typed").copy(name = "Herr Eigen"))
+        assertThat(contacts.observeContactsToCheck("jc").first()).isEmpty()
+    }
+
+    @Test
+    fun `an ignored field is not a suggestion`(): Unit = runBlocking {
+        linked("d1")
+        contactField("d1", "Frau Beispiel", confidence = 0.7f, reviewState = "IGNORED")
+
+        assertThat(contacts.observeContactsToCheck("jc").first()).isEmpty()
+    }
+
+    @Test
+    fun `own details survive a round trip and a merge keeps both contacts' labels`(): Unit = runBlocking {
+        val direct = com.postsaimanager.core.model.CustomDetail("Direct line", "030 1")
+        val hours = com.postsaimanager.core.model.CustomDetail("Office hours", "Mo-Fr 8-12")
+        contacts.addContact(contact("a").copy(customDetails = listOf(direct)))
+        contacts.addContact(contact("b").copy(customDetails = listOf(direct.copy(value = "other"), hours)))
+
+        assertThat((contacts.getContact("a") as PamResult.Success).data.customDetails).containsExactly(direct)
+        contacts.mergeContacts("a", "b")
+
+        assertThat((contacts.getContact("a") as PamResult.Success).data.customDetails).containsExactly(direct, hours).inOrder()
     }
 
     @Test
     fun `confirming the field clears the mark`(): Unit = runBlocking {
         linked("d1")
         contactField("d1", "Frau Beispiel", confidence = 0.7f)
-        assertThat(contacts.observeContactsToCheck("jc").first()).containsExactly("c1")
+        assertThat(contacts.observeContactsToCheck("jc").first()).containsExactly("c1", "d1")
 
         contactField("d1", "Frau Beispiel", confidence = 0.7f, source = "USER", reviewState = "CONFIRMED")
 

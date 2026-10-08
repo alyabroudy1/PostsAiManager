@@ -78,8 +78,8 @@ class Migration24To25Test {
         assertThat(PamMigrations.MIGRATION_24_25.startVersion).isEqualTo(24)
         assertThat(PamMigrations.MIGRATION_24_25.endVersion).isEqualTo(25)
         assertThat(PamMigrations.ALL.toList()).contains(PamMigrations.MIGRATION_24_25)
-        // v26 (the reading stage) is the latest step and chains from 25.
-        assertThat(PamMigrations.ALL.map { it.endVersion }.max()).isEqualTo(26)
+        // v26 (the reading stage) chains from 25; later steps may follow.
+        assertThat(PamMigrations.ALL.map { it.endVersion }.max()).isAtLeast(26)
         assertThat(PamMigrations.MIGRATION_25_26.startVersion).isEqualTo(25)
     }
 

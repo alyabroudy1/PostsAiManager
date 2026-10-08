@@ -5,8 +5,17 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import com.postsaimanager.core.domain.organisation.SuggestionView
+import com.postsaimanager.core.model.CustomDetail
+import com.postsaimanager.core.model.PostalValue
+import com.postsaimanager.core.model.ProfileSuggestion
+import com.postsaimanager.core.model.SuggestionField
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -48,7 +57,8 @@ class ProfileDetailUiTest {
     private val deleted = mutableListOf<String>()
     private val kinds = mutableListOf<ProfileKind>()
     private val roles = mutableListOf<HouseholdRole?>()
-    private var draft = profile()
+    /** The draft the editor shows; state, so an edit through `onUpdate` is drawn again like the ViewModel's flow would. */
+    private var draft by androidx.compose.runtime.mutableStateOf(profile())
 
     private fun profile(kind: ProfileKind = ProfileKind.PERSON, role: HouseholdRole? = HouseholdRole.MEMBER) = Profile(
         id = "ahmad", kind = kind, householdRole = role, name = "Ahmad", relationship = Relationship.CHILD.takeIf { role == HouseholdRole.MEMBER },
@@ -70,6 +80,8 @@ class ProfileDetailUiTest {
         focusContactId: String? = null,
         timeline: TimelineUi = TimelineUi.EMPTY,
         focusCaseId: String? = null,
+        suggestions: List<SuggestionView> = emptyList(),
+        suggestionActions: SuggestionActions = SuggestionActions(),
     ) {
         draft = draft.copy(name = name)
         compose.setContent {
@@ -79,14 +91,15 @@ class ProfileDetailUiTest {
                     state = ProfileDetailUiState(
                         draft = draft, loaded = true, facts = facts, isNew = isNew, selfTaken = selfTaken, selfLocked = selfLocked,
                         contacts = contacts, otherOrganisations = otherOrganisations, focusContactId = focusContactId,
-                        timeline = timeline, focusCaseId = focusCaseId,
+                        timeline = timeline, focusCaseId = focusCaseId, suggestions = suggestions,
                     ),
+                    suggestionActions = suggestionActions,
                     onOpenDocument = { openedDocuments += it },
                     onRenameCase = { id, title -> renamedCases += id to title },
                     availableKeys = FormDataKeys.ALL.filter { it.profileColumn == null && it.id !in facts.map { f -> f.key } },
                     snackbarHostState = SnackbarHostState(),
                     onNavigateBack = {},
-                    onUpdate = {},
+                    onUpdate = { change -> draft = change(draft) },
                     onKind = { kinds += it },
                     onRole = { roles += it },
                     onRelationship = {},
@@ -404,6 +417,244 @@ class ProfileDetailUiTest {
         draft = profile(kind = ProfileKind.ORGANISATION, role = null)
         show()
         compose.onNodeWithTag("contacts_empty").performScrollTo().assertIsDisplayed()
+    }
+
+    // ── add a contact, and the suggested ones ──
+
+    private val added = mutableListOf<ContactPerson>()
+    private val confirmed = mutableListOf<String>()
+    private val discarded = mutableListOf<String>()
+    private val suggestionRecorder = ContactActions(
+        save = { savedContacts += it }, add = { added += it }, confirm = { confirmed += it }, discard = { discarded += it },
+    )
+
+    @Test
+    fun `an organisation can add a contact by typing it, with its own details`() {
+        draft = profile(kind = ProfileKind.ORGANISATION, role = null)
+        show(contactActions = suggestionRecorder)
+
+        compose.onNodeWithTag("contact_add").performScrollTo().performClick()
+        compose.onNodeWithTag("contact_field_name").performTextInput("Herr Beispiel")
+        compose.onNodeWithTag("contact_field_title").performTextInput("Teamleiter")
+        compose.onNodeWithTag("contact_field_phone").performTextInput("030 5")
+        compose.onNodeWithTag("contact_custom_add").performScrollTo().performClick()
+        compose.onNodeWithTag("contact_custom_label").performTextInput("Direct line")
+        compose.onNodeWithTag("contact_custom_value").performTextInput("030 6")
+        compose.onNodeWithTag("contact_custom_save").performClick()
+        compose.onNodeWithTag("contact_save").performClick()
+
+        with(added.single()) {
+            assertThat(name).isEqualTo("Herr Beispiel")
+            assertThat(title).isEqualTo("Teamleiter")
+            assertThat(phone).isEqualTo("030 5")
+            assertThat(customDetails).containsExactly(CustomDetail("Direct line", "030 6"))
+        }
+    }
+
+    @Test
+    fun `a new contact needs a name`() {
+        draft = profile(kind = ProfileKind.ORGANISATION, role = null)
+        show(contactActions = suggestionRecorder)
+
+        compose.onNodeWithTag("contact_add").performScrollTo().performClick()
+
+        compose.onNodeWithTag("contact_save").assertIsNotEnabled()
+        assertThat(added).isEmpty()
+    }
+
+    @Test
+    fun `a suggested contact says which letter it came from and offers confirm, edit and discard`() {
+        draft = profile(kind = ProfileKind.ORGANISATION, role = null)
+        show(
+            contacts = OrganisationContacts(
+                current = mueller, earlier = listOf(nadine), toCheck = setOf("c2"), suggestedFrom = mapOf("c2" to "Bescheid vom 12. Mai"),
+            ),
+            contactActions = suggestionRecorder,
+        )
+
+        compose.onNodeWithTag("contact_suggested_c2").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Suggested from Bescheid vom 12. Mai").assertIsDisplayed()
+        // The suggested one is not "your contact now": Nadine, whom nobody is asking about, is.
+        compose.onNodeWithText("Your contact now").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("contact_confirm_c2").performScrollTo().performClick()
+        compose.onNodeWithTag("contact_discard_c2").performScrollTo().performClick()
+        compose.onNodeWithTag("contact_edit_c2").performScrollTo().performClick()
+        compose.onNodeWithTag("contact_field_phone").performTextReplacement("030 999")
+        compose.onNodeWithTag("contact_save").performClick()
+
+        assertThat(confirmed).containsExactly("c2")
+        assertThat(discarded).containsExactly("c2")
+        assertThat(savedContacts.single()).isEqualTo(mueller.copy(phone = "030 999"))
+    }
+
+    @Test
+    fun `a contact nobody suggested has no suggestion buttons`() {
+        showOrganisation()
+
+        compose.onNodeWithTag("contact_confirm_c2").assertDoesNotExist()
+        compose.onNodeWithTag("contact_discard_c2").assertDoesNotExist()
+    }
+
+    // ── own details ──
+
+    private val customerNumber = CustomDetail("Customer number", "4711")
+    private val hours = CustomDetail("Opening hours", "Mon-Fri 8-12")
+
+    @Test
+    fun `a person or organisation lists its own details and adds one with a name of its own`() {
+        draft = profile().copy(customDetails = listOf(customerNumber))
+        show()
+
+        compose.onNodeWithText("Customer number").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("4711").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("custom_detail_add").performScrollTo().performClick()
+        compose.onNodeWithTag("custom_detail_label").performTextInput("Opening hours")
+        compose.onNodeWithTag("custom_detail_value").performTextInput("Mon-Fri 8-12")
+        compose.onNodeWithTag("custom_detail_save").performClick()
+
+        assertThat(draft.customDetails).containsExactly(customerNumber, hours).inOrder()
+    }
+
+    @Test
+    fun `an own detail needs a name and a value before it can be saved`() {
+        show()
+
+        compose.onNodeWithTag("custom_detail_add").performScrollTo().performClick()
+        compose.onNodeWithTag("custom_detail_label").performTextInput("Opening hours")
+        compose.onNodeWithTag("custom_detail_save").assertIsNotEnabled()
+        compose.onNodeWithTag("custom_detail_value").performTextInput("Mon-Fri 8-12")
+        compose.onNodeWithTag("custom_detail_save").assertIsEnabled()
+    }
+
+    @Test
+    fun `an own detail can be edited, removed and moved`() {
+        draft = profile().copy(customDetails = listOf(customerNumber, hours))
+        show()
+
+        compose.onNodeWithTag("custom_detail_row_0_edit").performScrollTo().performClick()
+        compose.onNodeWithTag("custom_detail_value").performTextReplacement("4712")
+        compose.onNodeWithTag("custom_detail_save").performClick()
+        assertThat(draft.customDetails.first()).isEqualTo(customerNumber.copy(value = "4712"))
+
+        compose.onNodeWithTag("custom_detail_row_1_up").performScrollTo().performClick()
+        assertThat(draft.customDetails.map { it.label }).containsExactly("Opening hours", "Customer number").inOrder()
+
+        compose.onNodeWithTag("custom_detail_row_0_remove").performScrollTo().performClick()
+        assertThat(draft.customDetails.map { it.label }).containsExactly("Customer number")
+    }
+
+    @Test
+    fun `the first own detail cannot move up and the last cannot move down`() {
+        draft = profile().copy(customDetails = listOf(customerNumber, hours))
+        show()
+
+        compose.onNodeWithTag("custom_detail_row_0_up").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("custom_detail_row_1_down").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `editing a contact edits its own details too`() {
+        showOrganisation()
+
+        openMenu("c2", "menu_edit")
+        compose.onNodeWithTag("contact_custom_add").performScrollTo().performClick()
+        compose.onNodeWithTag("contact_custom_label").performTextInput("Direct line")
+        compose.onNodeWithTag("contact_custom_value").performTextInput("030 6")
+        compose.onNodeWithTag("contact_custom_save").performClick()
+        compose.onNodeWithTag("contact_save").performClick()
+
+        assertThat(savedContacts.single().customDetails).containsExactly(CustomDetail("Direct line", "030 6"))
+    }
+
+    // ── what the organisation's letters showed ──
+
+    private fun suggestion(id: String, field: SuggestionField, value: String, title: String = "Bescheid vom 12. Mai") =
+        SuggestionView(ProfileSuggestion(id, "ahmad", field, value, "d1", 1), title)
+
+    private val accepted = mutableListOf<Pair<String, String?>>()
+    private val dismissed = mutableListOf<String>()
+    private var acceptedAll = 0
+    private val suggestionActions = SuggestionActions(
+        accept = { id, edited -> accepted += id to edited }, dismiss = { dismissed += it }, acceptAll = { acceptedAll++ },
+    )
+
+    private val jobcenterSuggestions = listOf(
+        suggestion("s-address", SuggestionField.ADDRESS, PostalValue("Beispielweg 12", "12345", "Musterstadt").encode()),
+        suggestion("s-phone", SuggestionField.PHONE, "0800 555 0199"),
+    )
+
+    @Test
+    fun `the organisation page offers what its letters showed, from which letter, with accept edit and dismiss`() {
+        draft = profile(kind = ProfileKind.ORGANISATION, role = null)
+        show(suggestions = jobcenterSuggestions, suggestionActions = suggestionActions)
+
+        compose.onNodeWithTag("suggestions_section").performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("From Bescheid vom 12. Mai").assertCountEquals(2)
+        compose.onNodeWithText("Beispielweg 12, 12345 Musterstadt").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("0800 555 0199").performScrollTo().assertIsDisplayed()
+
+        compose.onNodeWithTag("suggestion_accept_s-phone").performScrollTo().performClick()
+        compose.onNodeWithTag("suggestion_dismiss_s-address").performScrollTo().performClick()
+        compose.onNodeWithTag("suggestions_accept_all").performScrollTo().performClick()
+
+        assertThat(accepted).containsExactly("s-phone" to null)
+        assertThat(dismissed).containsExactly("s-address")
+        assertThat(acceptedAll).isEqualTo(1)
+    }
+
+    @Test
+    fun `editing a suggestion sends what the user typed`() {
+        draft = profile(kind = ProfileKind.ORGANISATION, role = null)
+        show(suggestions = jobcenterSuggestions, suggestionActions = suggestionActions)
+
+        compose.onNodeWithTag("suggestion_edit_s-phone").performScrollTo().performClick()
+        compose.onNodeWithTag("suggestion_field_value").performTextReplacement("0800 555 0100")
+        compose.onNodeWithTag("suggestion_edit_save").performClick()
+
+        assertThat(accepted).containsExactly("s-phone" to "0800 555 0100")
+    }
+
+    @Test
+    fun `editing an address suggestion edits street, postcode and city`() {
+        draft = profile(kind = ProfileKind.ORGANISATION, role = null)
+        show(suggestions = jobcenterSuggestions, suggestionActions = suggestionActions)
+
+        compose.onNodeWithTag("suggestion_edit_s-address").performScrollTo().performClick()
+        compose.onNodeWithTag("suggestion_field_street").performTextReplacement("Beispielweg 14")
+        compose.onNodeWithTag("suggestion_edit_save").performClick()
+
+        assertThat(accepted.single().second).isEqualTo(PostalValue("Beispielweg 14", "12345", "Musterstadt").encode())
+    }
+
+    @Test
+    fun `a suggestion for a field that has a value is not offered`() {
+        draft = profile(kind = ProfileKind.ORGANISATION, role = null).copy(phone = "030 typed")
+        show(suggestions = jobcenterSuggestions, suggestionActions = suggestionActions)
+
+        compose.onNodeWithTag("suggestion_s-phone").assertDoesNotExist()
+        compose.onNodeWithTag("suggestion_s-address").performScrollTo().assertIsDisplayed()
+        // One suggestion left: nothing to "accept all".
+        compose.onNodeWithTag("suggestions_accept_all").assertDoesNotExist()
+    }
+
+    @Test
+    fun `an organisation without suggestions, and a person, have no suggestions section`() {
+        draft = profile(kind = ProfileKind.ORGANISATION, role = null)
+        show()
+        compose.onNodeWithTag("suggestions_section").assertDoesNotExist()
+    }
+
+    @Test
+    fun `an organisation has a website field, a person does not`() {
+        draft = profile(kind = ProfileKind.ORGANISATION, role = null)
+        show()
+        compose.onNodeWithTag("field_website").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `a person has no website field`() {
+        show()
+        compose.onNodeWithTag("field_website").assertDoesNotExist()
     }
 
     @Test

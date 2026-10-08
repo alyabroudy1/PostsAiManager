@@ -148,6 +148,9 @@ fun DocumentDetailScreen(
     val notes by notesViewModel.notes.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val letterContacts by viewModel.letterContacts.collectAsStateWithLifecycle()
+    val contactActions = remember(viewModel) {
+        LetterContactActions(confirm = viewModel::confirmLetterContact, discard = viewModel::discardLetterContact)
+    }
     val caseRow by viewModel.caseRow.collectAsStateWithLifecycle()
     val pagesContext by viewModel.pagesContext.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
@@ -314,6 +317,7 @@ fun DocumentDetailScreen(
                     pagesContext = pagesContext,
                     letterContacts = letterContacts,
                     onContactClick = onContactClick,
+                    contactActions = contactActions,
                     caseRow = caseRow,
                     onCaseClick = onCaseClick,
                     onOpenDocument = onOpenDocument,
@@ -397,6 +401,7 @@ private fun DocumentDetailContent(
     pagesContext: PagesContext,
     letterContacts: LetterContacts,
     onContactClick: (organisationId: String, contactId: String) -> Unit,
+    contactActions: LetterContactActions,
     caseRow: DocumentCaseUi?,
     onCaseClick: (profileId: String, caseId: String) -> Unit,
     onOpenDocument: (documentId: String) -> Unit,
@@ -553,6 +558,7 @@ private fun DocumentDetailContent(
                 selfName = pagesContext.selfName,
                 letterContacts = letterContacts,
                 onContactClick = onContactClick,
+                contactActions = contactActions,
                 onCall = { phone -> openContactApp(context, Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone.filter { it.isDigit() || it == '+' })), "dial", externalLaunch) },
                 onEmail = { address -> openContactApp(context, Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:" + Uri.encode(address))), "write-email", externalLaunch) },
             )

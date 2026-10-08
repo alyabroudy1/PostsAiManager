@@ -11,6 +11,7 @@ import com.postsaimanager.core.data.database.entity.DismissedEntityEntity
 import com.postsaimanager.core.data.database.entity.DocumentProfileLinkEntity
 import com.postsaimanager.core.data.database.entity.ProfileEntity
 import com.postsaimanager.core.domain.repository.ProfileRepository
+import com.postsaimanager.core.model.CustomDetails
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProfileRole
 import com.postsaimanager.core.model.HouseholdRole
@@ -51,7 +52,7 @@ class ProfileRepositoryImpl @Inject constructor(
                         website = pwr.website, reference = pwr.reference, notes = pwr.notes,
                         completionScore = pwr.completionScore, avatarPath = pwr.avatarPath,
                         relationship = relationshipOf(pwr.relationship), birthDate = pwr.birthDate,
-                        sensitive = pwr.sensitive,
+                        sensitive = pwr.sensitive, customDetails = CustomDetails.decode(pwr.customDetails),
                         createdAt = pwr.createdAt, modifiedAt = pwr.modifiedAt,
                     ),
                     ProfileRole.valueOf(pwr.role),
@@ -160,6 +161,7 @@ class ProfileRepositoryImpl @Inject constructor(
         sourceDocumentId = entity.sourceDocumentId, sourceEntityName = entity.sourceEntityName,
         relationship = relationshipOf(entity.relationship), birthDate = entity.birthDate,
         sensitive = entity.sensitive,
+        customDetails = CustomDetails.decode(entity.customDetails),
         createdAt = entity.createdAt, modifiedAt = entity.modifiedAt,
     )
 
@@ -176,6 +178,7 @@ class ProfileRepositoryImpl @Inject constructor(
         sourceDocumentId = profile.sourceDocumentId, sourceEntityName = profile.sourceEntityName,
         relationship = profile.relationship?.name, birthDate = profile.birthDate,
         sensitive = profile.sensitive,
+        customDetails = CustomDetails.encode(profile.customDetails),
         createdAt = profile.createdAt, modifiedAt = profile.modifiedAt,
     )
 }

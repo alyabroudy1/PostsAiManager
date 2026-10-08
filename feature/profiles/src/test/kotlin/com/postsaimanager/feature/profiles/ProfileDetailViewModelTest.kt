@@ -20,6 +20,24 @@ import com.postsaimanager.core.domain.contacts.SetContactActiveUseCase
 import com.postsaimanager.core.domain.contacts.SetHouseholdRoleUseCase
 import com.postsaimanager.core.domain.contacts.UpdateContactUseCase
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
+import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.contacts.AddContactUseCase
+import com.postsaimanager.core.domain.contacts.DiscardContactUseCase
+import com.postsaimanager.core.domain.organisation.AcceptProfileSuggestionUseCase
+import com.postsaimanager.core.domain.organisation.DismissProfileSuggestionUseCase
+import com.postsaimanager.core.domain.organisation.ObserveProfileSuggestionsUseCase
+import com.postsaimanager.core.domain.organisation.SuggestionRules
+import com.postsaimanager.core.domain.usecase.UnderstandingToFields
+import com.postsaimanager.core.model.CustomDetail
+import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.ExtractedFieldType
+import com.postsaimanager.core.model.ProfileSuggestion
+import com.postsaimanager.core.model.ReviewState
+import com.postsaimanager.core.model.SuggestionField
+import com.postsaimanager.core.model.SuggestionStatus
+import com.postsaimanager.core.testing.FakeProfileSuggestionRepository
+import com.postsaimanager.core.testing.testDocument
 import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.model.HouseholdRole
 import com.postsaimanager.core.model.ProfileKind
@@ -50,26 +68,35 @@ class ProfileDetailViewModelTest {
     private val contacts = FakeContactRepository()
     private val events = FakeEventRepository()
 
-    private fun viewModel(id: String, role: String? = null, caseId: String? = null) = ProfileDetailViewModel(
+    private val documents = FakeDocumentRepository()
+    private val suggestions = FakeProfileSuggestionRepository()
+
+    private fun viewModel(id: String, role: String? = null, caseId: String? = null, contactId: String? = null) = ProfileDetailViewModel(
         SavedStateHandle(
             listOfNotNull(
                 ProfileDetailViewModel.ARG_PROFILE_ID to id,
                 role?.let { ProfileDetailViewModel.ARG_ROLE to it },
                 caseId?.let { ProfileDetailViewModel.ARG_CASE_ID to it },
+                contactId?.let { ProfileDetailViewModel.ARG_CONTACT_ID to it },
             ).toMap(),
         ),
         profiles,
         SetHouseholdRoleUseCase(profiles),
-        ObserveOrganisationContactsUseCase(contacts),
+        ObserveOrganisationContactsUseCase(contacts, documents),
         ObserveSavedDetailsUseCase(facts),
         RememberDetailUseCase(profiles, facts),
         ForgetDetailUseCase(facts),
-        UpdateContactUseCase(contacts),
+        UpdateContactUseCase(contacts, documents),
         SetContactActiveUseCase(contacts),
         MergeContactsUseCase(contacts),
         MoveContactUseCase(contacts, profiles),
         DeleteContactUseCase(contacts),
-        ConfirmContactUseCase(contacts, FakeDocumentRepository()),
+        ConfirmContactUseCase(contacts, documents),
+        AddContactUseCase(contacts, profiles),
+        DiscardContactUseCase(contacts, documents),
+        ObserveProfileSuggestionsUseCase(suggestions, documents),
+        AcceptProfileSuggestionUseCase(suggestions, profiles),
+        DismissProfileSuggestionUseCase(suggestions),
         guard,
         ObserveTimelineForPersonUseCase(events),
         ObserveTimelineForOrganisationUseCase(events),
@@ -294,6 +321,176 @@ class ProfileDetailViewModelTest {
     }
 
     @Test
+    fun `a contact typed on the page is added to the organisation and is not suggested`() = runTest {
+        seedJobcenterWithTwoContacts()
+        val vm = viewModel("jc")
+
+        vm.addContact(
+            ContactPerson("", "", "Herr Beispiel", title = "Teamleiter", phone = "030 5", firstSeen = 0, lastSeen = 0, customDetails = listOf(CustomDetail("Room", "2.14"))),
+        )
+
+        vm.uiState.test {
+            val found = expectMostRecentItem().contacts
+            assertThat((listOfNotNull(found.current) + found.earlier).map { it.name }).contains("Herr Beispiel")
+            val added = (listOfNotNull(found.current) + found.earlier).first { it.name == "Herr Beispiel" }
+            assertThat(added.organisationId).isEqualTo("jc")
+            assertThat(added.customDetails).containsExactly(CustomDetail("Room", "2.14"))
+            assertThat(found.toCheck).isEmpty()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a suggested contact is listed with its letter, and confirm, edit and discard act on the same contact as the letter`() = runTest {
+        seedJobcenterWithTwoContacts()
+        documents.seed(testDocument(id = "d1", title = "Bescheid vom 12. Mai"))
+        documents.seedExtracted(
+            "d1",
+            ExtractedData(
+                id = "c-d1", documentId = "d1", fieldName = "Contact Person", fieldValue = "Frau Müller", fieldType = ExtractedFieldType.PERSON_NAME,
+                confidence = 0.9f, slotKey = UnderstandingToFields.SLOT_CONTACT,
+            ),
+        )
+        contacts.linkContactToDocument("c2", "d1")
+        contacts.toCheck.value = mapOf("c2" to "d1")
+        val vm = viewModel("jc")
+
+        vm.uiState.test {
+            val found = expectMostRecentItem().contacts
+            assertThat(found.toCheck).containsExactly("c2")
+            assertThat(found.suggestedFrom).containsExactly("c2", "Bescheid vom 12. Mai")
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        vm.confirmContact("c2")
+        assertThat(documents.observeExtractedData("d1").first().single().reviewState).isEqualTo(ReviewState.CONFIRMED)
+
+        vm.saveContact(contacts.getContact("c2").let { (it as PamResult.Success).data }.copy(name = "Frau Anna Müller"))
+        with(documents.observeExtractedData("d1").first().single()) {
+            assertThat(fieldValue).isEqualTo("Frau Anna Müller")
+            assertThat(reviewState).isEqualTo(ReviewState.EDITED)
+        }
+
+        vm.discardContact("c2")
+        assertThat(documents.observeExtractedData("d1").first().single().reviewState).isEqualTo(ReviewState.IGNORED)
+        assertThat(contacts.getContact("c2")).isInstanceOf(PamResult.Error::class.java)
+        assertThat(contacts.isRemovedFromDocument("d1", "Frau Anna Müller")).isTrue()
+    }
+
+    // ---- own details and the organisation's suggestions ----
+
+    private fun suggestion(id: String, field: SuggestionField, value: String, at: Long = 1) =
+        ProfileSuggestion(id, "jc", field, value, "d1", at)
+
+    private fun seedJobcenterWithSuggestions() {
+        documents.seed(testDocument(id = "d1", title = "Bescheid vom 12. Mai"))
+        profiles.seed(testProfile(id = "jc", name = "Jobcenter Musterstadt", type = ProfileType.AUTHORITY, phone = "030 typed"))
+        runBlocking {
+            suggestions.offer(suggestion("s-phone", SuggestionField.PHONE, "0800 555 0199"))
+            suggestions.offer(suggestion("s-email", SuggestionField.EMAIL, "info@jobcenter-musterstadt.example", at = 2))
+            suggestions.offer(suggestion("s-web", SuggestionField.WEBSITE, "www.jobcenter-musterstadt.example", at = 3))
+        }
+    }
+
+    @Test
+    fun `the page lists the suggestions with their letter and the ones whose field has a value are not asked`() = runTest {
+        seedJobcenterWithSuggestions()
+
+        viewModel("jc").uiState.test {
+            val state = expectMostRecentItem()
+            assertThat(state.suggestions.map { it.suggestion.id }).containsExactly("s-phone", "s-email", "s-web")
+            assertThat(state.suggestions.map { it.letterTitle }.distinct()).containsExactly("Bescheid vom 12. Mai")
+            assertThat(SuggestionRules.open(state.draft!!, state.suggestions.map { it.suggestion }).map { it.id })
+                .containsExactly("s-email", "s-web")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `accepting a suggestion fills the stored profile and the draft, and never overwrites a typed value`() = runTest {
+        seedJobcenterWithSuggestions()
+        val vm = viewModel("jc")
+        vm.uiState.test {
+            expectMostRecentItem()
+
+            vm.acceptSuggestion("s-email", null)
+
+            val state = expectMostRecentItem()
+            assertThat(state.draft?.email).isEqualTo("info@jobcenter-musterstadt.example")
+            assertThat(state.suggestions.map { it.suggestion.id }).doesNotContain("s-email")
+            cancelAndIgnoreRemainingEvents()
+        }
+        val stored = (profiles.getProfileById("jc") as PamResult.Success).data
+        assertThat(stored.email).isEqualTo("info@jobcenter-musterstadt.example")
+        assertThat(stored.phone).isEqualTo("030 typed")
+    }
+
+    @Test
+    fun `an edited suggestion writes what the user typed`() = runTest {
+        seedJobcenterWithSuggestions()
+        val vm = viewModel("jc")
+        vm.uiState.test {
+            expectMostRecentItem()
+
+            vm.acceptSuggestion("s-web", "https://www.jobcenter-musterstadt.example")
+
+            assertThat(expectMostRecentItem().draft?.website).isEqualTo("https://www.jobcenter-musterstadt.example")
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertThat((profiles.getProfileById("jc") as PamResult.Success).data.website).isEqualTo("https://www.jobcenter-musterstadt.example")
+    }
+
+    @Test
+    fun `dismissing a suggestion removes it from the page`() = runTest {
+        seedJobcenterWithSuggestions()
+        val vm = viewModel("jc")
+        vm.uiState.test {
+            expectMostRecentItem()
+
+            vm.dismissSuggestion("s-web")
+
+            assertThat(expectMostRecentItem().suggestions.map { it.suggestion.id }).containsExactly("s-phone", "s-email")
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertThat(suggestions.all("jc").first { it.id == "s-web" }.status).isEqualTo(SuggestionStatus.DISMISSED)
+    }
+
+    @Test
+    fun `accept all takes the suggestions of the fields that are empty`() = runTest {
+        seedJobcenterWithSuggestions()
+        val vm = viewModel("jc")
+        vm.uiState.test {
+            expectMostRecentItem()
+
+            vm.acceptAllSuggestions()
+
+            val state = expectMostRecentItem()
+            assertThat(state.draft?.email).isEqualTo("info@jobcenter-musterstadt.example")
+            assertThat(state.draft?.website).isEqualTo("www.jobcenter-musterstadt.example")
+            assertThat(state.draft?.phone).isEqualTo("030 typed")
+            cancelAndIgnoreRemainingEvents()
+        }
+        val stored = (profiles.getProfileById("jc") as PamResult.Success).data
+        assertThat(stored.email).isEqualTo("info@jobcenter-musterstadt.example")
+        assertThat(stored.phone).isEqualTo("030 typed")
+    }
+
+    @Test
+    fun `own details are part of the draft and are saved trimmed, in the user's order, without half-empty ones`() = runTest {
+        profiles.seed(ahmad())
+        val vm = viewModel("ahmad")
+        vm.uiState.test {
+            vm.update { it.copy(customDetails = listOf(CustomDetail(" Steuer-ID ", " 123 "), CustomDetail("Notiz", " "), CustomDetail("Schule", "Grundschule"))) }
+            assertThat(profiles.updated).isEmpty()
+
+            vm.save()
+
+            assertThat(profiles.updated.single().customDetails).containsExactly(CustomDetail("Steuer-ID", "123"), CustomDetail("Schule", "Grundschule")).inOrder()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `a refused change is reported`() = runTest {
         seedJobcenterWithTwoContacts()
         profiles.seed(testProfile(id = "anna", name = "Anna", type = ProfileType.PERSON))
@@ -307,14 +504,7 @@ class ProfileDetailViewModelTest {
     @Test
     fun `the contact a letter chip opened the page for is the focus`() = runTest {
         seedJobcenterWithTwoContacts()
-        val vm = ProfileDetailViewModel(
-            SavedStateHandle(mapOf(ProfileDetailViewModel.ARG_PROFILE_ID to "jc", ProfileDetailViewModel.ARG_CONTACT_ID to "c1")),
-            profiles, SetHouseholdRoleUseCase(profiles), ObserveOrganisationContactsUseCase(contacts), ObserveSavedDetailsUseCase(facts),
-            RememberDetailUseCase(profiles, facts), ForgetDetailUseCase(facts), UpdateContactUseCase(contacts), SetContactActiveUseCase(contacts),
-            MergeContactsUseCase(contacts), MoveContactUseCase(contacts, profiles), DeleteContactUseCase(contacts),
-            ConfirmContactUseCase(contacts, FakeDocumentRepository()), guard,
-            ObserveTimelineForPersonUseCase(events), ObserveTimelineForOrganisationUseCase(events), RenameCaseUseCase(events),
-        )
+        val vm = viewModel("jc", contactId = "c1")
 
         vm.uiState.test {
             assertThat(expectMostRecentItem().focusContactId).isEqualTo("c1")

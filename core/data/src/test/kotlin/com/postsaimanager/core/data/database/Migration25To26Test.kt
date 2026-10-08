@@ -56,7 +56,7 @@ class Migration25To26Test {
         assertThat(PamMigrations.MIGRATION_25_26.startVersion).isEqualTo(25)
         assertThat(PamMigrations.MIGRATION_25_26.endVersion).isEqualTo(26)
         assertThat(PamMigrations.ALL.toList()).contains(PamMigrations.MIGRATION_25_26)
-        assertThat(PamMigrations.ALL.map { it.endVersion }.max()).isEqualTo(26)
+        assertThat(PamMigrations.ALL.map { it.endVersion }.max()).isAtLeast(26)
     }
 
     @Test

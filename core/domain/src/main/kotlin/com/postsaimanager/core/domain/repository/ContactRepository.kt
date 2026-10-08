@@ -16,10 +16,11 @@ interface ContactRepository {
     fun observeContactsForDocument(documentId: String): Flow<List<ContactPerson>>
 
     /**
-     * The ids of the organisation's contacts that are "to check": made from a machine reading that was not sure (below the profile
-     * auto-create bar) and that nobody has confirmed, edited or typed. Confirming the letter's contact field clears it.
+     * The organisation's contacts that are "to check" (suggested): found by a machine reading in a letter and not yet confirmed,
+     * edited or typed by anyone. Contact id to the id of the letter it was found on. Confirming or editing the letter's contact
+     * field, or confirming the contact on the organisation page, clears it; a contact the user typed is never listed.
      */
-    fun observeContactsToCheck(organisationId: String): Flow<Set<String>>
+    fun observeContactsToCheck(organisationId: String): Flow<Map<String, String>>
 
     /** The documents a contact is linked to. */
     suspend fun documentIdsOf(contactId: String): List<String>

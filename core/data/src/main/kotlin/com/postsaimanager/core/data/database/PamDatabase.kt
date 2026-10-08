@@ -14,6 +14,7 @@ import com.postsaimanager.core.data.database.dao.MessageDao
 import com.postsaimanager.core.data.database.dao.ProfileDao
 import com.postsaimanager.core.data.database.dao.ProfileEventDao
 import com.postsaimanager.core.data.database.dao.ProfileFactDao
+import com.postsaimanager.core.data.database.dao.ProfileSuggestionDao
 import com.postsaimanager.core.data.database.dao.TimelineDao
 import com.postsaimanager.core.data.database.entity.*
 
@@ -45,8 +46,9 @@ import com.postsaimanager.core.data.database.entity.*
         CaseEntity::class,
         ProfileEventEntity::class,
         ProfileEventPersonEntity::class,
+        ProfileSuggestionEntity::class,
     ],
-    version = 26,
+    version = 27,
     exportSchema = true,
 )
 abstract class PamDatabase : RoomDatabase() {
@@ -63,6 +65,7 @@ abstract class PamDatabase : RoomDatabase() {
     abstract fun contactDao(): ContactDao
     abstract fun documentNoteDao(): DocumentNoteDao
     abstract fun profileEventDao(): ProfileEventDao
+    abstract fun profileSuggestionDao(): ProfileSuggestionDao
 
     companion object {
         const val DATABASE_NAME = "pam_database"
