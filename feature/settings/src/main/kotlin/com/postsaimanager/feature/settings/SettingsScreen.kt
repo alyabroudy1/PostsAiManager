@@ -111,7 +111,7 @@ fun SettingsScreen(
             SettingsSectionHeader("On-device AI")
             if (inferenceSettings.schema.isEmpty()) {
                 Text(
-                    text = "Install a model to configure it.",
+                    text = if (inferenceSettings.loaded) "Install a model to configure it." else "Loading the model settings...",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

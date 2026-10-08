@@ -157,8 +157,11 @@ class PageSelectionUiTest {
             viewport.offset = Offset(-100f, -60f)
         }
         compose.waitForIdle()
+        // The text layer is not composed while the zoom changes; it returns once the zoom has held still.
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
 
-        val after = text.fetchSemanticsNode().positionInWindow
+        val after = compose.onNodeWithText("Musterfirma Rechnung", useUnmergedTree = true).fetchSemanticsNode().positionInWindow
         // Zoom about the box's centre, then the pan: p' = centre + (p - centre) * scale + offset (in the box's own coordinates).
         val local = before - pageOrigin
         val expected = pageOrigin + centre + (local - centre) * 2.5f + Offset(-100f, -60f)
@@ -176,6 +179,8 @@ class PageSelectionUiTest {
             viewport.scale = 2.5f
             viewport.offset = Offset(-100f, -60f)
         }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(500)
         compose.waitForIdle()
         val bounds = compose.onNodeWithText("Musterfirma Rechnung", useUnmergedTree = true).fetchSemanticsNode().boundsInWindow
         val pageOrigin = compose.onNodeWithTag(PAGE_TEST_TAG).fetchSemanticsNode().positionInWindow

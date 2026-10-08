@@ -223,8 +223,16 @@ class GemmaReadingVerifier(
                 drops += "action '${a.kind}' is not in the registry"
                 null
             } ?: continue
-            val date = a.dateId?.takeIf { id -> dates.any { it.candidate.id == id } }
+            val kept = a.dateId?.let { id -> dates.firstOrNull { it.candidate.id == id } }
+            // The model's own answers must agree: a date it called the letter's date, a period or "other" is not a deadline.
+            val meansDeadline = kept == null || kept.meaningId in ACTION_DATE_MEANINGS
+            if (kept != null && !meansDeadline) drops += "action $kind: date ${kept.candidate.id} was given another meaning, not a deadline"
+            val date = kept?.takeIf { meansDeadline }?.candidate?.id
             val amount = a.amountId?.takeIf { id -> amounts.any { it.candidate.id == id } }
+            if (kept != null && !meansDeadline && amount == null && vocab.actionKind(kind)?.let { it.dateMeaning != null || it.amountMeaning != null } == true) {
+                drops += "action $kind: nothing is left of it (no date, no amount)"
+                continue
+            }
             if (a.dateId != null && date == null && !a.dateId.equals(GemmaVocabulary.NONE, true)) drops += "action $kind: date ${a.dateId} was not kept"
             if (a.amountId != null && amount == null && !a.amountId.equals(GemmaVocabulary.NONE, true)) drops += "action $kind: amount ${a.amountId} was not kept"
             out.putIfAbsent(kind, VerifiedAction(kind, date, amount))
@@ -249,6 +257,9 @@ class GemmaReadingVerifier(
     private companion object {
         const val LETTER_DATE = "LETTER_DATE"
         const val DUE_DATE = "DUE_DATE"
+
+        /** The date meanings (registry ids) that can be what an action is due by or happens at; any other meaning is not a deadline. */
+        val ACTION_DATE_MEANINGS = setOf(DUE_DATE, "DEADLINE", "APPOINTMENT")
         const val DATE_CHARS = 10
     }
 }

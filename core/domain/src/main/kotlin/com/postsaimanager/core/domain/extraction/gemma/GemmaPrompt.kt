@@ -68,7 +68,9 @@ object GemmaPrompt {
             append("- ${Field.DATES}, ${Field.AMOUNTS}: the candidates that matter, each with what it means.\n")
             append("- ${Field.REFERENCES}: reference numbers and the account to pay to, each with its kind.\n")
         }
-        append("- ${Field.ACTIONS}: what the letter asks of its reader, with the date and the amount it is for.\n")
+        append("- ${Field.ACTIONS}: what the letter asks of its reader, with the date and the amount it is for. " +
+            "The list may be empty, and it should be empty unless the letter itself asks the reader to do something; " +
+            "a letter that only informs asks for nothing, and a date that is not a deadline or an appointment is not an action's date.\n")
         append("- ${Field.CATEGORY}: what the document is.\n")
         append("- ${Field.LANGUAGE}: the language the document is written in, as a short code.\n")
         append("- ${Field.NAME}: a short name of this document in its own language, at most ${GemmaSchema.MAX_NAME_CHARS} characters.\n")

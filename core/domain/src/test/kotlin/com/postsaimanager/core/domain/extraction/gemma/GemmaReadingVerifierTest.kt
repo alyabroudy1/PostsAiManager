@@ -166,6 +166,39 @@ class GemmaReadingVerifierTest {
         assertThat(v.drops.any { it.contains("dance") }).isTrue()
     }
 
+    @Test
+    @DisplayName("an action whose only date the model called the letter's date is dropped (a filing date is not a deadline)")
+    fun `invented action on a date that is no deadline`() {
+        val v = verify(
+            GemmaReading(
+                dates = listOf(date("D1", "LETTER_DATE"), date("D2", "other")),
+                actions = listOf(GemmaAction("confirm_renew", dateId = "D2")),
+            ),
+        )
+
+        assertThat(v.actions).isEmpty()
+        assertThat(v.drops.any { it.contains("confirm_renew") && it.contains("not a deadline") }).isTrue()
+    }
+
+    @Test
+    @DisplayName("an action keeps its amount when only its date had a meaning that is no deadline; deadline meanings stay")
+    fun `action date meanings`() {
+        val v = verify(
+            GemmaReading(
+                dates = listOf(date("D1", "LETTER_DATE"), date("D2", "DEADLINE"), date("D3", "APPOINTMENT")),
+                amounts = listOf(date("A1", "TOTAL_DUE")),
+                actions = listOf(
+                    GemmaAction("pay", dateId = "D1", amountId = "A1"),
+                    GemmaAction("object_cancel", dateId = "D2"),
+                    GemmaAction("attend", dateId = "D3"),
+                ),
+            ),
+        )
+
+        assertThat(v.actions.map { Triple(it.kind, it.dateCandidateId, it.amountCandidateId) })
+            .containsExactly(Triple("pay", null, "A1"), Triple("object_cancel", "D2", null), Triple("attend", "D3", null)).inOrder()
+    }
+
     // ── free texts and the rest ──
 
     @Test

@@ -94,6 +94,7 @@ class SettingsViewModel @Inject constructor(
                     schema = emptyList(),
                     effectiveConfig = InferenceConfig(contextTokens = 4096, threads = 2),
                     overrides = InferenceOverrides.NONE,
+                    loaded = false,
                 ),
             )
 

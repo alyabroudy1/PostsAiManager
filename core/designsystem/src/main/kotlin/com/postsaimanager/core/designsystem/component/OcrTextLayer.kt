@@ -12,6 +12,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +65,10 @@ internal fun OcrTextLayer(lines: List<PageTextLine>, fit: FittedPage, selection:
     val toolbar = remember(platformToolbar, selection) { TrackingTextToolbar(platformToolbar, selection) }
     // Only lines that can be selected are composed: a blank text or a sub-pixel box would register a selectable with nothing to select.
     val shown = remember(lines, fit) { selectableLines(lines, fit) }
+    // While the zoom is changing no selection container is composed at all: a press during a zoom would reach texts that are about to be
+    // laid out again at another size. The key below therefore only ever sees a settled width, never one step of a gesture.
+    val settled = rememberSettled(fit.shownWidth, SETTLE_MILLIS)
+    if (!settled) return
     CompositionLocalProvider(LocalTextSelectionColors provides colors, LocalTextToolbar provides toolbar) {
         // A new key replaces the container, which is how a selection is cleared. The colours are part of the key because they key every
         // text's selection controller: a controller replaced under a text that keeps its measured layout never gets the layout again
@@ -69,6 +76,13 @@ internal fun OcrTextLayer(lines: List<PageTextLine>, fit: FittedPage, selection:
         // The zoom is part of the key too: a new scale lays every text out afresh, so the press guard starts over with it.
         key(selection.generation, colors, shown.size, fit.shownWidth) {
         val laidOut = remember { LaidOutCount(shown.size) }
+        LaunchedEffect(laidOut.isReady) {
+            if (laidOut.isReady) {
+                withFrameNanos { }
+                withFrameNanos { }
+                laidOut.arm()
+            }
+        }
         SelectionContainer {
             Box(Modifier.fillMaxSize().then(laidOut.guard())) {
                 shown.forEach { (id, line) ->
@@ -127,18 +141,49 @@ internal fun selectableLines(lines: List<PageTextLine>, fit: FittedPage): List<P
 internal class LaidOutCount(private val expected: Int) {
     private val reportedKeys = HashSet<String>()
     private var ready by mutableStateOf(expected == 0)
+    private var armed by mutableStateOf(false)
 
     fun reported(key: String) {
         reportedKeys += key
         if (reportedKeys.size >= expected) ready = true
     }
 
+    /** Every line has reported its layout. */
     val isReady: Boolean get() = ready
+
+    /**
+     * Presses are let through only once [isReady] AND a couple of frames have passed since: a line reports its layout before the selection
+     * machinery has been handed it, so "reported" alone is not yet "selectable".
+     */
+    val isArmed: Boolean get() = armed
+
+    fun arm() {
+        if (ready) armed = true
+    }
 
     fun guard(): Modifier = Modifier.pointerInput(this) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            if (!ready) down.consume()
+            if (!armed) down.consume()
         }
     }
 }
+
+/**
+ * True while [value] has held still for [millis]. A value that keeps changing (a zoom gesture or its animation) is never settled, so
+ * what depends on it is not composed meanwhile instead of being rebuilt on every step. The first value counts as settled.
+ */
+@Composable
+internal fun rememberSettled(value: Float, millis: Long): Boolean {
+    var settled by remember { mutableStateOf(value) }
+    LaunchedEffect(value) {
+        if (value != settled) {
+            delay(millis)
+            settled = value
+        }
+    }
+    return settled == value
+}
+
+/** How long the page's zoom must hold still before its text becomes selectable again. */
+private const val SETTLE_MILLIS = 150L
