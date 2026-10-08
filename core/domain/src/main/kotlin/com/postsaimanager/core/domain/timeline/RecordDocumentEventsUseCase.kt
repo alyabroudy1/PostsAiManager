@@ -108,7 +108,7 @@ class RecordDocumentEventsUseCase @Inject constructor(
         (previous.mapNotNull { it.caseId } + listOfNotNull(caseId)).distinct().forEach { refresh(it) }
     }
 
-    /** The matter [event] belongs to (an existing one with the new keys added, or a new one), saved. */
+    /** The matter [event] belongs to (an existing one with the new keys added, or a new one), saved; null while the same-matter question is unanswered. */
     private suspend fun caseFor(
         organisationId: String,
         organisationName: String?,
@@ -117,12 +117,17 @@ class RecordDocumentEventsUseCase @Inject constructor(
         keys: Set<String>,
         previous: ProfileEvent?,
         now: Long,
-    ): String {
+    ): String? {
         val cases = events.casesOfOrganisation(organisationId)
         val byReference = cases.filter { c -> c.referenceKeys.any { it in keys } }.maxByOrNull { it.createdAt }
         val existing = byReference
             ?: cases.firstOrNull { it.id == previous?.caseId }
-            ?: askSameMatter(cases, organisationName, event, kind)
+            ?: when (val asked = askSameMatter(cases, organisationName, event, kind)) {
+                is MatterAnswer.Chosen -> asked.case
+                MatterAnswer.NewMatter -> null
+                // Not decided: the event waits without a matter (a new one would split the matter for good); the next reading asks again.
+                MatterAnswer.Pending -> return null
+            }
         if (existing != null) {
             // A matter still titled as this letter's own earlier event was (nobody renamed it) follows the title the letter has now: a
             // re-read that names the sender better (the avatar letter no longer in front of it) must not leave the old name on the matter.
@@ -140,9 +145,16 @@ class RecordDocumentEventsUseCase @Inject constructor(
         return created.id
     }
 
-    /** The organisation's matter the model says the letter is part of, or null (a new matter, or no model to ask). */
-    private suspend fun askSameMatter(cases: List<Case>, organisationName: String?, event: ProfileEvent, kind: EventKind): Case? {
-        if (cases.isEmpty()) return null
+    /** What the same-matter question came to: a matter chosen, a new one, or no answer (no model: the event has no matter yet). */
+    private sealed interface MatterAnswer {
+        class Chosen(val case: Case) : MatterAnswer
+        data object NewMatter : MatterAnswer
+        data object Pending : MatterAnswer
+    }
+
+    /** The organisation's matter the model says the letter is part of, a new matter, or no answer ([MatterAnswer.Pending]). */
+    private suspend fun askSameMatter(cases: List<Case>, organisationName: String?, event: ProfileEvent, kind: EventKind): MatterAnswer {
+        if (cases.isEmpty()) return MatterAnswer.NewMatter
         val candidates = cases.map { c ->
             MatterCandidate(
                 id = c.id,
@@ -152,8 +164,9 @@ class RecordDocumentEventsUseCase @Inject constructor(
             )
         }
         val question = NewMatterEvent(kind.label(EventKind.ENGLISH), event.eventDate, event.title)
-        val decided = (sameMatter(organisationName.orEmpty(), question, candidates) as? PamResult.Success)?.data ?: return null
-        return cases.firstOrNull { it.id == decided.matchedId }
+        val decided = (sameMatter(event.documentId, organisationName.orEmpty(), question, candidates) as? PamResult.Success)?.data
+            ?: return MatterAnswer.Pending
+        return cases.firstOrNull { it.id == decided.matchedId }?.let { MatterAnswer.Chosen(it) } ?: MatterAnswer.NewMatter
     }
 
     private fun line(event: ProfileEvent): String =

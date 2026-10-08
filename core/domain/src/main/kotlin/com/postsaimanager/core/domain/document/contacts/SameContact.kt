@@ -114,6 +114,27 @@ class ModelSameContact @Inject constructor(
     }
 
     private fun details(name: String, title: String?, phone: String?, email: String?, lastSeenAt: Long?): String =
+        ContactFacts.details(name, title, phone, email, lastSeenAt)
+
+    private fun date(epochMillis: Long): String = ContactFacts.date(epochMillis)
+
+    private fun sameDigits(a: String?, b: String?): Boolean = ContactFacts.sameDigits(a, b)
+
+    private fun sameText(a: String?, b: String?): Boolean = ContactFacts.sameText(a, b)
+
+    private companion object {
+        const val SYSTEM = "You read a letter and answer questions about the people it names. Say two contacts are the same person only when the details agree."
+    }
+}
+
+/**
+ * How a contact's details are shown to the model and compared, for every way the same-contact question is asked (the scorer's statements
+ * and Gemma's follow-up turn). Structure only: no word is interpreted.
+ */
+object ContactFacts {
+
+    /** The contact's details as one line: the name, the title, the phone, the e-mail and when it was last seen, whichever are known. */
+    fun details(name: String, title: String?, phone: String?, email: String?, lastSeenAt: Long?): String =
         listOfNotNull(
             name,
             title?.takeIf { it.isNotBlank() },
@@ -122,18 +143,16 @@ class ModelSameContact @Inject constructor(
             lastSeenAt?.let { "last seen ${date(it)}" },
         ).joinToString("; ")
 
-    private fun date(epochMillis: Long): String = Instant.ofEpochMilli(epochMillis).toString().take(DATE_CHARS)
+    fun date(epochMillis: Long): String = Instant.ofEpochMilli(epochMillis).toString().take(DATE_CHARS)
 
-    private fun sameDigits(a: String?, b: String?): Boolean {
+    /** True when both are phone numbers with the same digits (at least [MIN_DIGITS] of them). */
+    fun sameDigits(a: String?, b: String?): Boolean {
         val x = a?.filter(Char::isDigit).orEmpty()
         return x.length >= MIN_DIGITS && x == b?.filter(Char::isDigit)
     }
 
-    private fun sameText(a: String?, b: String?): Boolean = !a.isNullOrBlank() && a.trim().equals(b?.trim(), ignoreCase = true)
+    fun sameText(a: String?, b: String?): Boolean = !a.isNullOrBlank() && a.trim().equals(b?.trim(), ignoreCase = true)
 
-    private companion object {
-        const val SYSTEM = "You read a letter and answer questions about the people it names. Say two contacts are the same person only when the details agree."
-        const val DATE_CHARS = 10
-        const val MIN_DIGITS = 5
-    }
+    private const val DATE_CHARS = 10
+    private const val MIN_DIGITS = 5
 }

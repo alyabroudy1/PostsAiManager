@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.form.BaselineScores
+import com.postsaimanager.core.testing.scoringFollowUps
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 
@@ -26,10 +27,10 @@ class DecideSameContactUseCaseTest {
     private val schmidt = ContactCandidate("schmidt", "Karl Schmidt", lastSeenAt = 3_000)
     private val letterContact = ReadContact("N. Müller")
 
-    private fun useCase(fake: FakeSameContact) = DecideSameContactUseCase(fake, SameContactProfile())
+    private fun useCase(fake: FakeSameContact) = DecideSameContactUseCase(scoringFollowUps(sameContact = fake), SameContactProfile())
 
     private suspend fun decide(fake: FakeSameContact, contact: ReadContact = letterContact, vararg candidates: ContactCandidate) =
-        (useCase(fake)(contact, "Jobcenter Musterstadt", "Ihre Ansprechpartnerin", candidates.toList()) as PamResult.Success).data
+        (useCase(fake)("d1", contact,"Jobcenter Musterstadt", "Ihre Ansprechpartnerin", candidates.toList()) as PamResult.Success).data
 
     @Test
     fun `the pre-filter narrows the candidates and the model is asked only about the rest`() = runTest {
@@ -110,7 +111,7 @@ class DecideSameContactUseCaseTest {
     @Test
     fun `a model that cannot answer is an error`() = runTest {
         val fake = FakeSameContact(emptyMap()).apply { error = PamError.InferenceError("no model") }
-        assertThat(useCase(fake)(letterContact, "Org", null, listOf(nadine))).isInstanceOf(PamResult.Error::class.java)
+        assertThat(useCase(fake)("d1", letterContact, "Org", null, listOf(nadine))).isInstanceOf(PamResult.Error::class.java)
     }
 
     @Test

@@ -32,6 +32,7 @@ import com.postsaimanager.core.testing.FakeDetailOwnerQuestion
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.FakeProfileSuggestionRepository
+import com.postsaimanager.core.testing.scoringFollowUps
 import com.postsaimanager.core.testing.testDocument
 import com.postsaimanager.core.testing.testProfile
 import kotlinx.coroutines.flow.first
@@ -67,11 +68,11 @@ class EntityProfileLinkerTest {
     private val sameContact = ScriptedSameContact()
     private val linker = EntityProfileLinker(
         matcher, profileRepository, dismissedDao, EntityLinkingUseCase(),
-        dagger.Lazy { LinkSenderContactUseCase(documents, profileRepository, contacts, DecideSameContactUseCase(sameContact, SameContactProfile())) },
+        dagger.Lazy { LinkSenderContactUseCase(documents, profileRepository, contacts, DecideSameContactUseCase(scoringFollowUps(sameContact = sameContact), SameContactProfile())) },
         dagger.Lazy {
             SuggestOrganisationDetailsUseCase(
                 documents, profileRepository, contacts, FakeProfileSuggestionRepository(),
-                DecideDetailOwnerUseCase(FakeDetailOwnerQuestion(), DetailOwnerProfile()),
+                DecideDetailOwnerUseCase(scoringFollowUps(detailOwner = FakeDetailOwnerQuestion())),
             )
         },
         dagger.Lazy { ReplaceStaleSenderUseCase(profileRepository, contacts, documents) },

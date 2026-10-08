@@ -81,7 +81,7 @@ class LinkSenderContactUseCase @Inject constructor(
         val excerpt = ContactExcerpt.around(letterText(documentId), read.name) ?: fallbackExcerpt?.takeIf { it.isNotBlank() }
 
         val decision = when (
-            val answer = decide(read, organisation.organization ?: organisation.name, excerpt, known.map(::candidateOf))
+            val answer = decide(documentId, read, organisation.organization ?: organisation.name, excerpt, known.map(::candidateOf))
         ) {
             is PamResult.Error -> return ContactLinkOutcome.Pending(PendingReason.DECISION_FAILED)
             is PamResult.Success -> answer.data

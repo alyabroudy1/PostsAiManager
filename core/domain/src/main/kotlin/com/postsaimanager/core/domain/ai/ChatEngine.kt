@@ -137,6 +137,17 @@ interface ChatEngine {
      */
     suspend fun generateStructured(request: StructuredRequest): String? = null
 
+    /**
+     * A follow-up question in the conversation a [generateStructured] kept open ([StructuredRequest.keepOpenAs]): the letter and the
+     * pictures are already in it, so only the question is read. Like [generateStructured] it never loads a model and is skipped (null)
+     * when another caller holds the model. Null as well when that conversation is gone (another caller used the model since, the model
+     * was reloaded, the process restarted) or the generation failed: the caller then opens a conversation of its own.
+     */
+    suspend fun continueStructured(request: FollowUpRequest): String? = null
+
+    /** Closes the conversation kept open under [key] (a no-op when there is none, or it is gone already). */
+    suspend fun closeStructured(key: String) {}
+
     /** Appends [answer] (thinking-stripped) to the open session's history. */
     suspend fun commitChatReply(answer: String)
 

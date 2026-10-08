@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.document.people
 
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.document.followup.FollowUpQuestions
 import com.postsaimanager.core.domain.document.list.PartyNames
 import com.postsaimanager.core.domain.form.SubjectCandidate
 import com.postsaimanager.core.domain.repository.DocumentRepository
@@ -11,17 +12,15 @@ import javax.inject.Inject
 /**
  * Decides, once per document and over the whole letter, which managed people (Me and the family members) it is for or about, and
  * stores the decision on the document (`Document.concernedProfileIds`: null = not asked yet, empty = asked, nobody). The model
- * decides ([ConcernedPeople]); the code only verifies: a person is asked about only when the letter mentions a token of their name
- * ([PartyNames.mentions]), and is kept only when the model named them. When no managed profile passes that pre-filter the answer is
- * empty without asking the model at all. Nothing is stored when no model can answer, and there is no name-matching fallback.
- *
- * Follow-up: the question runs in its own prompt session, so it pays one more read of the letter (about 10 to 18 s in the
- * background on the phone). Asked inside the reading's own body session (the letter already decoded) it would cost about 1 to 3 s.
+ * decides ([FollowUpQuestions]: a follow-up turn in Gemma's own conversation, or the Qwen scorer); the code only verifies: a person is
+ * asked about only when the letter mentions a token of their name ([PartyNames.mentions]), and is kept only when the model named them.
+ * When no managed profile passes that pre-filter the answer is empty without asking the model at all. Nothing is stored when no model
+ * can answer (the decision stays "not asked yet"), and there is no name-matching fallback.
  */
 class DecideConcernedPeopleUseCase @Inject constructor(
     private val profiles: ProfileRepository,
     private val documents: DocumentRepository,
-    private val concerned: ConcernedPeople,
+    private val followUps: FollowUpQuestions,
 ) {
 
     /**
@@ -35,7 +34,7 @@ class DecideConcernedPeopleUseCase @Inject constructor(
         val named = if (candidates.isEmpty()) {
             emptySet()
         } else {
-            when (val answer = concerned.decide(letter, candidates.map { SubjectCandidate(it.id, it.name, it.relationship, it.isSelf) })) {
+            when (val answer = followUps.concernedPeople(documentId, letter,candidates.map { SubjectCandidate(it.id, it.name, it.relationship, it.isSelf) })) {
                 is PamResult.Error -> return answer
                 is PamResult.Success -> answer.data
             }

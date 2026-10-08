@@ -79,7 +79,7 @@ class SuggestOrganisationDetailsUseCase @Inject constructor(
             val current = contact?.let { (contacts.getContact(it.id) as? PamResult.Success)?.data }
             val contactWants = current != null && contactFieldEmpty(current, candidate.kind)
             if (!organisationWants && !contactWants) continue
-            val owner = when (val answer = decide(candidate, name, contact?.name, ContactExcerpt.around(text, candidate.value, EXCERPT_RADIUS))) {
+            val owner = when (val answer = decide(documentId, candidate, name, contact?.name, ContactExcerpt.around(text, candidate.value, EXCERPT_RADIUS))) {
                 is PamResult.Error -> { skipped = true; break }
                 is PamResult.Success -> answer.data
             }

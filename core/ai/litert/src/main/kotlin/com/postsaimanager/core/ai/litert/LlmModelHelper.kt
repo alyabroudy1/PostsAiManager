@@ -123,7 +123,19 @@ internal interface LlmModelHelper {
         timeoutMs: Long,
         leadPrompt: String? = null,
         onLead: ((String) -> Unit)? = null,
+        keepOpen: Boolean = false,
     ): String? = null
+
+    /**
+     * Asks [prompt] in the instance's live conversation, which the caller knows to be one [generateStructured] kept open with `keepOpen`,
+     * and returns the answer constrained to [schema]; the letter and the pictures are already in that conversation's cache. The
+     * conversation stays open. A generation still running after [timeoutMs] is cancelled. Null when the engine failed, timed out or
+     * said nothing (the conversation is then closed: its state is unknown). The default says the runtime cannot.
+     */
+    fun continueStructured(instance: LlmModelInstance, prompt: String, schema: String, timeoutMs: Long): String? = null
+
+    /** Closes the instance's live conversation (a kept-open structured one), leaving the engine as it is. */
+    fun closeConversation(instance: LlmModelInstance) {}
 
     /** The engine's own prefill and decode counters of the last [generateStructured], as a line for the timing log; empty when it had none. */
     val lastBenchmark: String get() = ""

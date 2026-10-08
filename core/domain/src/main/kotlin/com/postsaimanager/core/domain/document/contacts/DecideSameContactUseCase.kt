@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.document.contacts
 
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.domain.document.followup.FollowUpQuestions
 import javax.inject.Inject
 
 /** One asked candidate and its score (log-odds of Yes against No), for the debug log. */
@@ -21,22 +22,24 @@ data class SameContactDecision(
 
 /**
  * Decides whether a contact person read from a letter is the same person as an existing contact of that organisation. The model decides
- * ([SameContact]); the code only verifies: a name pre-filter ([ContactNameFilter]) narrows the candidates and never decides, each one
- * left is scored against a made-up distractor, and a candidate wins only when it beats the distractor by the margin, the best one
- * winning. Nothing left to ask, or nobody beating the margin, is a new person. An error (nothing decided) when no model can answer.
+ * ([FollowUpQuestions]: a Gemma follow-up turn, or the Qwen scorer's margin over a made-up distractor); the code only verifies: a name
+ * pre-filter ([ContactNameFilter]) narrows the candidates and never decides. Nothing left to ask, or nobody chosen, is a new person.
+ * An error (nothing decided, left pending) when no model can answer.
  */
 class DecideSameContactUseCase @Inject constructor(
-    private val sameContact: SameContact,
+    private val followUps: FollowUpQuestions,
     private val profile: SameContactProfile,
 ) {
 
     /**
+     * @param documentId the letter the contact was read from.
      * @param contact the contact as read from the letter.
      * @param organisation the organisation's name.
      * @param excerpt a short excerpt of the letter around the contact, if there is one.
      * @param candidates the existing contacts of that organisation.
      */
     suspend operator fun invoke(
+        documentId: String,
         contact: ReadContact,
         organisation: String,
         excerpt: String?,
@@ -47,18 +50,6 @@ class DecideSameContactUseCase @Inject constructor(
             .sortedByDescending { it.lastSeenAt ?: Long.MIN_VALUE }
             .take(profile.maxCandidates)
         if (narrowed.isEmpty()) return PamResult.Success(SameContactDecision(null, emptyList(), null, profile.margin))
-        val scores = when (val answer = sameContact.score(SameContactQuestion(contact, organisation, excerpt, narrowed))) {
-            is PamResult.Error -> return answer
-            is PamResult.Success -> answer.data
-        }
-        val best = scores.beating(profile.margin).maxByOrNull { scores.candidates[it] }
-        return PamResult.Success(
-            SameContactDecision(
-                matchedId = best?.let { narrowed[it].id },
-                asked = narrowed.mapIndexed { i, c -> CandidateScore(c.id, scores.candidates[i]) },
-                baseline = scores.baseline,
-                margin = profile.margin,
-            ),
-        )
+        return followUps.sameContact(documentId, SameContactQuestion(contact, organisation, excerpt, narrowed))
     }
 }

@@ -64,7 +64,7 @@ class GemmaTrialReader @Inject constructor(
         val folder = "$FOLDER_PREFIX${request.documentId}"
         try {
             val pictures = request.pageImagePaths.take(MAX_PICTURES).mapNotNull { images.import(folder, "file://$it", longSide = PICTURE_LONG_SIDE) }
-            return when (val outcome = reading(request.pages, pictures, request.pageAspect, request.forcedFamily, request.onSummary)) {
+            return when (val outcome = reading(request.pages, pictures, request.pageAspect, request.forcedFamily, request.onSummary, keepOpenAs = request.documentId)) {
                 is GemmaReadingOutcome.Read -> {
                     val ms = (System.nanoTime() - started) / NANOS_PER_MS
                     TimingLog.log("reader: ${request.documentId} gemma reading total=${ms}ms pages=${request.pages.size} pictures=${pictures.size} image=${if (pictures.isEmpty()) "no" else "yes"}")

@@ -18,6 +18,7 @@ import com.postsaimanager.core.testing.FakeContactRepository
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeEventRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
+import com.postsaimanager.core.testing.scoringFollowUps
 import com.postsaimanager.core.testing.testDocument
 import com.postsaimanager.core.testing.testProfile
 import kotlinx.coroutines.flow.first
@@ -51,7 +52,7 @@ class RecordDocumentEventsUseCaseTest {
     private val same = FakeSameMatter()
     private val record = RecordDocumentEventsUseCase(
         documents, ResolveEventLinksUseCase(profiles, contacts), events,
-        DecideSameMatterUseCase(same, SameMatterProfile()), RefreshCaseStatusUseCase(events), clock,
+        DecideSameMatterUseCase(scoringFollowUps(sameMatter = same), SameMatterProfile()), RefreshCaseStatusUseCase(events), clock,
     )
 
     private val jobcenter = testProfile(id = "jc", name = "Jobcenter Musterstadt", organization = "Jobcenter Musterstadt", type = ProfileType.AUTHORITY)
@@ -189,7 +190,7 @@ class RecordDocumentEventsUseCaseTest {
     }
 
     @Test
-    fun `a matter the model does not pick, or no model, gives a new matter`() = runTest {
+    fun `a matter the model does not pick gives a new matter, and no model leaves the event without a matter, pending`() = runTest {
         letter("d1")
         record("d1", EventReading(EventKinds.APPLICATION_FILED, "Antrag auf Bürgergeld"))
         letter("d2")
@@ -198,7 +199,9 @@ class RecordDocumentEventsUseCaseTest {
         same.error = PamError.InferenceError("no model")
         record("d3", EventReading(EventKinds.INFORMATION, "Hinweis"))
 
-        assertThat(events.allCases).hasSize(3)
+        // Two matters: the unanswered question did not split a third one off for good.
+        assertThat(events.allCases).hasSize(2)
+        assertThat(events.allEvents.single { it.documentId == "d3" }.caseId).isNull()
     }
 
     @Test

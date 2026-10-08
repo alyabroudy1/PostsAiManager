@@ -21,6 +21,7 @@ import com.postsaimanager.core.testing.FakeDetailOwnerQuestion
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
 import com.postsaimanager.core.testing.FakeProfileSuggestionRepository
+import com.postsaimanager.core.testing.scoringFollowUps
 import com.postsaimanager.core.testing.testDocument
 import com.postsaimanager.core.testing.testProfile
 import kotlinx.coroutines.flow.first
@@ -40,7 +41,7 @@ class SuggestOrganisationDetailsUseCaseTest {
     private val suggestions = FakeProfileSuggestionRepository()
     private val owner = FakeDetailOwnerQuestion()
     private val suggest = SuggestOrganisationDetailsUseCase(
-        documents, profiles, contacts, suggestions, DecideDetailOwnerUseCase(owner, DetailOwnerProfile()),
+        documents, profiles, contacts, suggestions, DecideDetailOwnerUseCase(scoringFollowUps(detailOwner = owner)),
     )
 
     private val letter = """

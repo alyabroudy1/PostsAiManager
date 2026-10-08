@@ -13,6 +13,7 @@ import com.postsaimanager.core.domain.ai.ToolActionWire
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiChatRole
 import com.postsaimanager.core.domain.ai.AiRequest
+import com.postsaimanager.core.domain.ai.FollowUpRequest
 import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.model.Accelerator
 import com.postsaimanager.core.model.ModelLoadState
@@ -526,6 +527,7 @@ class InferenceService : Service() {
             timeoutMs: Long,
             leadPrompt: String?,
             leadCallback: ILeadCallback?,
+            keepOpenAs: String?,
         ): String? {
             if (system == null || prompt == null || schema == null || !isLiteRtReady()) return null
             // Quiet work, as generateLiteRtOnce: skipped, never queued behind a reply or a warm-up.
@@ -538,8 +540,21 @@ class InferenceService : Service() {
                 leadPrompt = leadPrompt,
                 // The first turn's text goes straight back over the (oneway) callback; a dead app process only loses it.
                 onLead = onLead,
+                keepOpenAs = keepOpenAs,
             )
             return submit { runBlocking { liteRt.generateStructured(request) } }
+        }
+
+        override fun continueLiteRtStructured(key: String?, prompt: String?, schema: String?, timeoutMs: Long): String? {
+            if (key == null || prompt == null || schema == null || !isLiteRtReady()) return null
+            // Quiet work, as generateLiteRtStructured: skipped, never queued behind a reply or a warm-up.
+            if (liteRtReply?.isActive == true || liteRtWarmUp?.isActive == true) return null
+            return submit { runBlocking { liteRt.continueStructured(FollowUpRequest(key, prompt, schema, timeoutMs)) } }
+        }
+
+        override fun closeLiteRtStructured(key: String?) {
+            if (key == null || !isLiteRtReady()) return
+            submit { runBlocking { liteRt.closeStructured(key) } }
         }
 
         override fun unloadLiteRt() {

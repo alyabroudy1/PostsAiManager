@@ -9,6 +9,7 @@ import com.postsaimanager.core.domain.ai.AiCapabilities
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.FollowUpRequest
 import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.domain.ai.ToolActionCall
 import com.postsaimanager.core.domain.skills.JsSkillRequest
@@ -143,6 +144,12 @@ class LiteRtChatEngine internal constructor(
     /** True when the reply in flight (or the last) ran with the tools, so [lastReplyToolExchanges] has a meaning. */
     @Volatile
     private var replyUsedTools = false
+
+    /**
+     * The key (a document's id) and the conversation a [generateStructured] kept open for follow-up questions; null when none is. The
+     * conversation counts only while it is still the instance's live one: anything else that builds a conversation replaces it.
+     */
+    private var keptOpen: Pair<String, Any>? = null
 
     /** The accelerator the engine started on, for the log and the diagnostics. Null with no model loaded. */
     val accelerator: Accelerator? get() = instance?.accelerator
@@ -652,11 +659,14 @@ class LiteRtChatEngine internal constructor(
             val answer = withContext(Dispatchers.IO) {
                 helper.generateStructured(
                     live, modelConfig, request.system, request.prompt, images, request.schema, request.maxTokens, request.timeoutMs,
-                    request.leadPrompt, onLead,
+                    request.leadPrompt, onLead, keepOpen = request.keepOpenAs != null,
                 )
             }
             conversationSampling = null
             restartFromPlan = true
+            // Kept open for the follow-up questions only after a good answer; whatever was kept before is gone (the helper closed it).
+            val keepKey = request.keepOpenAs
+            keptOpen = if (answer != null && keepKey != null) keepKey to (live.conversation as Any) else null
             // The one timing line of a reading: the total, where it ran, the pictures, the JSON's length and the engine's own counters.
             TimingLog.log(
                 "reader: structured answer total=${(System.nanoTime() - started) / 1_000_000}ms backend=${live.accelerator} " +
@@ -665,6 +675,45 @@ class LiteRtChatEngine internal constructor(
                     helper.lastBenchmark.ifBlank { "bench: none" },
             )
             return answer
+        } finally {
+            mutex.unlock()
+        }
+    }
+
+    /**
+     * A follow-up question in the conversation [generateStructured] kept open for [FollowUpRequest.key]. Taken only when nothing else
+     * holds the model, like [generateStructured]; null when there is no such conversation any more (another caller built a conversation
+     * since: the kept one is then no longer the instance's live one), so the caller asks in one of its own.
+     */
+    override suspend fun continueStructured(request: FollowUpRequest): String? {
+        if (!mutex.tryLock()) return null
+        try {
+            val live = instance ?: return null
+            val kept = keptOpen ?: return null
+            if (kept.first != request.key || kept.second !== live.conversation) {
+                keptOpen = null
+                return null
+            }
+            val answer = withContext(Dispatchers.IO) { helper.continueStructured(live, request.prompt, request.schema, request.timeoutMs) }
+            // The chat's own conversation is still to be rebuilt after this one.
+            conversationSampling = null
+            restartFromPlan = true
+            if (answer == null) keptOpen = null
+            return answer
+        } finally {
+            mutex.unlock()
+        }
+    }
+
+    override suspend fun closeStructured(key: String) {
+        // Not queued behind a reply: a reply's own conversation replaces the kept one anyway, so there is nothing left to close then.
+        if (!mutex.tryLock()) return
+        try {
+            val kept = keptOpen ?: return
+            if (kept.first != key) return
+            keptOpen = null
+            val live = instance ?: return
+            if (kept.second === live.conversation) withContext(Dispatchers.IO) { helper.closeConversation(live) }
         } finally {
             mutex.unlock()
         }
@@ -708,6 +757,7 @@ class LiteRtChatEngine internal constructor(
     private fun release() {
         instance?.let { helper.cleanUp(it) }
         instance = null
+        keptOpen = null
         loaded = null
         sessionId = null
         system = ""

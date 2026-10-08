@@ -4,6 +4,7 @@ import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.PromptSession
 import com.postsaimanager.core.domain.form.BaselineScores
 import com.postsaimanager.core.domain.form.BaselineYesNo
+import com.postsaimanager.core.domain.document.followup.FollowUpQuestions
 import com.postsaimanager.core.domain.form.PromptFraming
 import dagger.Binds
 import dagger.Module
@@ -25,7 +26,10 @@ data class DetailQuestion(
     val organisation: String,
     val contactName: String?,
     val excerpt: String?,
-)
+) {
+    /** A direct line or an own mailbox can be the contact person's; a website and a bank account are only ever the organisation's. */
+    val contactCanOwn: Boolean get() = contactName != null && (kind == DetailKind.PHONE || kind == DetailKind.EMAIL)
+}
 
 /**
  * The model's reading of "whose is this phone number, e-mail address, website or account: the organisation's own (a switchboard, a
@@ -126,33 +130,21 @@ abstract class DetailOwnerModule {
 }
 
 /**
- * Decides whose a value is. The model decides ([DetailOwnerQuestion]); the code only verifies: the organisation's statement and the
- * contact's each have to beat their made-up party by the margin, and when both do, the contact's wins for a phone number or an e-mail
- * address (a direct one is more specific than a general one). A website and a bank account are only ever the organisation's. No model to answer
+ * Decides whose a value is. The model decides ([FollowUpQuestions]: a Gemma follow-up turn choosing the organisation, the contact or
+ * neither, or the Qwen scorer whose statements each have to beat a made-up party by the margin, the contact's winning when both do); the
+ * code only verifies: a website and a bank account are only ever the organisation's ([DetailQuestion.contactCanOwn]). No model to answer
  * is an error (nothing decided), never a guess.
  */
 class DecideDetailOwnerUseCase @Inject constructor(
-    private val question: DetailOwnerQuestion,
-    private val profile: DetailOwnerProfile,
+    private val followUps: FollowUpQuestions,
 ) {
 
-    suspend operator fun invoke(candidate: DetailCandidate, organisation: String, contactName: String?, excerpt: String?): PamResult<DetailOwner> {
-        val asked = DetailQuestion(candidate.kind, candidate.value, organisation, contactName, excerpt)
-        val organisationBeats = when (val answer = question.scoreOrganisation(asked)) {
-            is PamResult.Error -> return answer
-            is PamResult.Success -> answer.data.beating(profile.margin).isNotEmpty()
-        }
-        val contactCanOwn = contactName != null && (candidate.kind == DetailKind.PHONE || candidate.kind == DetailKind.EMAIL)
-        val contactBeats = contactCanOwn && when (val answer = question.scoreContact(asked)) {
-            is PamResult.Error -> return answer
-            is PamResult.Success -> answer.data.beating(profile.margin).isNotEmpty()
-        }
-        return PamResult.Success(
-            when {
-                contactBeats -> DetailOwner.CONTACT
-                organisationBeats -> DetailOwner.ORGANISATION
-                else -> DetailOwner.NEITHER
-            },
-        )
-    }
+    suspend operator fun invoke(
+        documentId: String,
+        candidate: DetailCandidate,
+        organisation: String,
+        contactName: String?,
+        excerpt: String?,
+    ): PamResult<DetailOwner> =
+        followUps.detailOwner(documentId, DetailQuestion(candidate.kind, candidate.value, organisation, contactName, excerpt))
 }

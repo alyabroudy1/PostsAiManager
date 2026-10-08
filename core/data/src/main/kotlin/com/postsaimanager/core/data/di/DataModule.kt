@@ -171,4 +171,10 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindGemmaTextGenerator(impl: ChatEngineGemmaTextGenerator): GemmaTextGenerator
+
+    @Binds
+    @Singleton
+    abstract fun bindAfterReadingLog(
+        impl: com.postsaimanager.core.data.gemma.AndroidAfterReadingLog,
+    ): com.postsaimanager.core.domain.document.followup.AfterReadingLog
 }

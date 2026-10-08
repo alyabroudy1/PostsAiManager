@@ -23,6 +23,12 @@ class GemmaReaderRequest(
      * structured answer is still being generated (never for a letter with no text: nothing could verify the summary).
      */
     val onSummary: (suspend (String) -> Unit)? = null,
+    /**
+     * The key (the document's id) under which the conversation stays open after the structured answer, so the after-reading questions
+     * ([com.postsaimanager.core.domain.document.followup.FollowUpQuestions]) are asked in it with the letter and the pictures already read.
+     * Whoever sets it closes it again. Null: the conversation is closed after the answer, as always.
+     */
+    val keepOpenAs: String? = null,
 )
 
 sealed interface GemmaReaderOutcome {
@@ -79,6 +85,7 @@ class ChatEngineGemmaReader @Inject constructor(
             maxTokens = ANSWER_TOKENS.coerceAtMost((config.contextTokens / 2).coerceAtLeast(MIN_ANSWER_TOKENS)),
             timeoutMs = TIMEOUT_MS,
             leadPrompt = turns?.first, onLead = turns?.let { request.onSummary },
+            keepOpenAs = request.keepOpenAs,
         )
         // The service enforces the timeout itself; this one only keeps a binder call that never returns from holding the reading.
         val json = withTimeoutOrNull(TIMEOUT_MS + GRACE_MS) { engine.generateStructured(structured) }

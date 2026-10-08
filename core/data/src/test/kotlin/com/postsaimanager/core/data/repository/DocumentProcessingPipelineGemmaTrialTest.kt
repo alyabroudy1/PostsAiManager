@@ -6,8 +6,11 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import com.google.common.truth.Truth.assertThat
+import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.data.database.dao.DocumentDao
+import com.postsaimanager.core.domain.document.followup.FollowUpQuestions
+import com.postsaimanager.core.domain.document.people.DecideConcernedPeopleUseCase
 import com.postsaimanager.core.data.database.dao.FieldRevisionDao
 import com.postsaimanager.core.data.database.entity.DocumentEntity
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
@@ -43,6 +46,7 @@ import com.postsaimanager.core.model.TextBounds
 import com.postsaimanager.core.testing.FakeTimelineRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
@@ -96,6 +100,9 @@ class DocumentProcessingPipelineGemmaTrialTest {
     private val announce = mockk<AnnounceUnderstoodLetterUseCase>(relaxed = true)
     private val announceLazy = mockk<dagger.Lazy<AnnounceUnderstoodLetterUseCase>>().also { every { it.get() } returns announce }
 
+    private val concernedPeople = mockk<DecideConcernedPeopleUseCase>(relaxed = true)
+    private val followUps = mockk<FollowUpQuestions>(relaxed = true)
+
     private fun pipeline(trial: GemmaTrialReading = GemmaTrialReading.NONE, chat: ChatActivityGate = ChatActivityGate.Idle) = DocumentProcessingPipeline(
         ocrService = ocrService,
         indexDocument = mockk<IndexDocumentUseCase>().also {
@@ -105,7 +112,7 @@ class DocumentProcessingPipelineGemmaTrialTest {
         mergeExtraction = MergeExtractionUseCase(),
         aiExtraction = aiExtraction,
         entityProfileLinker = linker,
-        concernedPeopleDecision = mockk(relaxed = true),
+        concernedPeopleDecision = mockk<dagger.Lazy<DecideConcernedPeopleUseCase>>().also { every { it.get() } returns concernedPeople },
         recordEvents = recordEventsLazy,
         syncEventLinks = mockk(relaxed = true),
         announceUnderstood = announceLazy,
@@ -117,6 +124,7 @@ class DocumentProcessingPipelineGemmaTrialTest {
         ioDispatcher = dispatcher,
         gemmaTrial = trial,
         chatActivity = chat,
+        followUps = mockk<dagger.Lazy<FollowUpQuestions>>().also { every { it.get() } returns followUps },
     )
 
     @BeforeEach
@@ -271,6 +279,53 @@ class DocumentProcessingPipelineGemmaTrialTest {
         verify(exactly = 2) {
             workManager.enqueueUniqueWork(DocumentEnrichmentWorker.peopleWorkName("doc-1"), any<ExistingWorkPolicy>(), any<OneTimeWorkRequest>())
         }
+    }
+
+    @Test
+    @DisplayName("Gemma's conversation stays open through the after-reading steps: the people check runs in it (not queued) and the conversation is closed after")
+    fun `the people check runs in the readers conversation, which is closed after`() = runTest(dispatcher) {
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding = gemma.copy(event = EventReading("application_filed"))
+        }
+        coEvery { documentDao.getPages("doc-1") } returns listOf(page.copy(ocrText = "Rechnung 64,98 EUR"))
+        coEvery { concernedPeople("doc-1", any()) } returns PamResult.Success(emptySet())
+
+        pipeline(trial).processDocument("doc-1")
+
+        coVerify(exactly = 1) { concernedPeople("doc-1", any()) }
+        verify(exactly = 0) {
+            workManager.enqueueUniqueWork(DocumentEnrichmentWorker.peopleWorkName("doc-1"), any<ExistingWorkPolicy>(), any<OneTimeWorkRequest>())
+        }
+        coVerifyOrder {
+            recordEvents("doc-1", EventReading("application_filed"), any())
+            followUps.finish("doc-1")
+        }
+    }
+
+    @Test
+    @DisplayName("a people check that cannot be answered in the reader's conversation is queued, to be asked again")
+    fun `an unanswered people check is queued`() = runTest(dispatcher) {
+        val trial = object : GemmaTrialReading {
+            override suspend fun read(request: GemmaTrialRequest): DocumentUnderstanding = gemma
+        }
+        coEvery { documentDao.getPages("doc-1") } returns listOf(page.copy(ocrText = "Rechnung 64,98 EUR"))
+        coEvery { concernedPeople("doc-1", any()) } returns PamResult.Error(PamError.ExtractionFailed(detail = "no answer"))
+
+        pipeline(trial).processDocument("doc-1")
+
+        verify(exactly = 1) {
+            workManager.enqueueUniqueWork(DocumentEnrichmentWorker.peopleWorkName("doc-1"), any<ExistingWorkPolicy>(), any<OneTimeWorkRequest>())
+        }
+        coVerify(exactly = 1) { followUps.finish("doc-1") }
+    }
+
+    @Test
+    @DisplayName("a reading the old reader made opens no follow-up conversation, so none is closed and the people check is queued")
+    fun `the old reading closes nothing`() = runTest(dispatcher) {
+        pipeline().processDocument("doc-1")
+
+        coVerify(exactly = 0) { followUps.finish(any()) }
+        coVerify(exactly = 0) { concernedPeople(any(), any()) }
     }
 
     @Test

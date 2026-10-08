@@ -9,6 +9,7 @@ import com.postsaimanager.core.domain.ai.AiCapabilities
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.FollowUpRequest
 import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.domain.ai.ToolActionCall
 import com.postsaimanager.core.domain.ai.ToolActionWire
@@ -242,6 +243,11 @@ class RemoteLiteRtChatEngine @Inject constructor(
 
     /** "Gemma reads the letter", through the service ([IInferenceService.generateLiteRtStructured]); quiet work like [generateOnce]. */
     override suspend fun generateStructured(request: StructuredRequest): String? = generateStructuredCall(request)
+
+    /** A follow-up question in the conversation [generateStructured] kept open ([IInferenceService.continueLiteRtStructured]). */
+    override suspend fun continueStructured(request: FollowUpRequest): String? = generateStructuredCall.continueWith(request)
+
+    override suspend fun closeStructured(key: String) = generateStructuredCall.close(key)
 
     override suspend fun warmUpChat(request: AiRequest) {
         // Another caller holds the model (a document being read, a reply in flight): this is never worth queueing behind, nor

@@ -5,6 +5,7 @@ import com.postsaimanager.core.domain.ai.AiCapabilities
 import com.postsaimanager.core.domain.ai.AiChatMessage
 import com.postsaimanager.core.domain.ai.AiRequest
 import com.postsaimanager.core.domain.ai.ChatEngine
+import com.postsaimanager.core.domain.ai.FollowUpRequest
 import com.postsaimanager.core.domain.ai.StructuredRequest
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.ModelLoadState
@@ -115,10 +116,44 @@ class FakeChatEngine(
     /** What the first turn of a two-turn request answers (handed to the request's listener before the structured answer); null: nothing. */
     var leadAnswer: String? = null
 
+    /** When set, answers [generateStructured] in place of [structuredAnswer], by the request (a null answer is "busy" or "failed"). */
+    var structuredResponder: ((StructuredRequest) -> String?)? = null
+
+    /** The key of the conversation a [generateStructured] kept open ([StructuredRequest.keepOpenAs]), or null when none is open. */
+    var keptOpenKey: String? = null
+        private set
+
     override suspend fun generateStructured(request: StructuredRequest): String? {
         structuredRequests += request
         if (request.leadPrompt != null) leadAnswer?.let { request.onLead?.invoke(it) }
-        return structuredAnswer
+        val answer = structuredResponder?.invoke(request) ?: structuredAnswer
+        keptOpenKey = if (answer != null) request.keepOpenAs else null
+        return answer
+    }
+
+    /** What [continueStructured] answers, by the request (null: the model is busy, or the generation failed). */
+    var followUpResponder: (FollowUpRequest) -> String? = { null }
+
+    /** Every follow-up that reached [continueStructured], in order, whether or not a conversation was open for it. */
+    val followUpRequests = mutableListOf<FollowUpRequest>()
+
+    /** The keys [closeStructured] was called for, in order. */
+    val closedKeys = mutableListOf<String>()
+
+    /** Another caller used the model: the kept conversation is gone, as the real engine's identity check finds it. */
+    fun dropKeptConversation() {
+        keptOpenKey = null
+    }
+
+    override suspend fun continueStructured(request: FollowUpRequest): String? {
+        followUpRequests += request
+        if (keptOpenKey != request.key) return null
+        return followUpResponder(request).also { if (it == null) keptOpenKey = null }
+    }
+
+    override suspend fun closeStructured(key: String) {
+        closedKeys += key
+        if (keptOpenKey == key) keptOpenKey = null
     }
 
     override suspend fun commitChatReply(answer: String) {

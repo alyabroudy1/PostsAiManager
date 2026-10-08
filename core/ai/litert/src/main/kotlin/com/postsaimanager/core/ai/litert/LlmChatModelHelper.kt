@@ -247,6 +247,7 @@ internal object LlmChatModelHelper : LlmModelHelper {
         timeoutMs: Long,
         leadPrompt: String?,
         onLead: ((String) -> Unit)?,
+        keepOpen: Boolean,
     ): String? =
         try {
             lastBenchmark = ""
@@ -265,6 +266,7 @@ internal object LlmChatModelHelper : LlmModelHelper {
             )
             // Kept as the instance's conversation so that a clean-up closes whichever is open, and so a stop reaches it.
             instance.conversation = conversation
+            var keep = false
             val timedOut = java.util.concurrent.atomic.AtomicBoolean(false)
             val timer = java.util.Timer("pam-structured-timeout", true)
             timer.schedule(
@@ -302,16 +304,51 @@ internal object LlmChatModelHelper : LlmModelHelper {
                 }
                 // Read before the conversation is closed; the engine puts it on its one timing line.
                 lastBenchmark = benchmarkLine(instance)
-                answer.takeIf { it.isNotBlank() }
+                answer.takeIf { it.isNotBlank() }?.also { keep = keepOpen && !timedOut.get() }
             } finally {
                 timer.cancel()
                 if (timedOut.get()) Log.w(TAG, "structured generation cancelled after ${timeoutMs}ms")
-                runCatching { conversation.close() }
+                // Kept open only after a good answer: the follow-up questions go on in it (the letter and the pictures are in its cache).
+                if (!keep) runCatching { conversation.close() }
             }
         } catch (e: Exception) {
             Log.w(TAG, "structured generation failed: ${e.message}")
             null
         }
+
+    @OptIn(ExperimentalApi::class) // the response format
+    override fun continueStructured(instance: LlmModelInstance, prompt: String, schema: String, timeoutMs: Long): String? {
+        val conversation = instance.conversation
+        val timedOut = java.util.concurrent.atomic.AtomicBoolean(false)
+        val timer = java.util.Timer("pam-followup-timeout", true)
+        timer.schedule(
+            object : java.util.TimerTask() {
+                override fun run() {
+                    timedOut.set(true)
+                    runCatching { conversation.cancelProcess() }
+                }
+            },
+            timeoutMs,
+        )
+        return try {
+            conversation.sendMessage(
+                Contents.of(prompt),
+                extraContext = mapOf<String, Any>("enable_thinking" to false),
+                responseFormat = ResponseFormat.json(schema),
+            ).toString().takeIf { it.isNotBlank() && !timedOut.get() }
+                .also { if (it == null) runCatching { conversation.close() } }
+        } catch (e: Exception) {
+            Log.w(TAG, "follow-up generation failed: ${e.message}")
+            runCatching { conversation.close() }
+            null
+        } finally {
+            timer.cancel()
+        }
+    }
+
+    override fun closeConversation(instance: LlmModelInstance) {
+        runCatching { instance.conversation.close() }
+    }
 
     override fun cleanUp(instance: LlmModelInstance, onDone: () -> Unit) {
         try {

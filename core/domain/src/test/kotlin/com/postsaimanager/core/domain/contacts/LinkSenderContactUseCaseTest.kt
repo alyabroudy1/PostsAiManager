@@ -21,6 +21,7 @@ import com.postsaimanager.core.model.ValueSource
 import com.postsaimanager.core.testing.FakeContactRepository
 import com.postsaimanager.core.testing.FakeDocumentRepository
 import com.postsaimanager.core.testing.FakeProfileRepository
+import com.postsaimanager.core.testing.scoringFollowUps
 import com.postsaimanager.core.testing.testDocument
 import com.postsaimanager.core.testing.testProfile
 import kotlinx.coroutines.flow.first
@@ -50,7 +51,7 @@ class LinkSenderContactUseCaseTest {
     private val profiles = FakeProfileRepository()
     private val contacts = FakeContactRepository()
     private val same = FakeSameContact()
-    private val link = LinkSenderContactUseCase(documents, profiles, contacts, DecideSameContactUseCase(same, SameContactProfile()))
+    private val link = LinkSenderContactUseCase(documents, profiles, contacts, DecideSameContactUseCase(scoringFollowUps(sameContact = same), SameContactProfile()))
 
     private val jobcenter = testProfile(id = "jc", name = "Jobcenter Musterstadt", organization = "Jobcenter Musterstadt")
 
