@@ -51,7 +51,8 @@ class EntityProfileLinker @Inject constructor(
     private val linkSenderContact: dagger.Lazy<LinkSenderContactUseCase>,
     // Lazy for the same reason: whose a phone number is, is also a question to the model.
     private val suggestOrganisationDetails: dagger.Lazy<SuggestOrganisationDetailsUseCase>,
-    private val replaceStaleSender: ReplaceStaleSenderUseCase,
+    // Lazy for the same reason: it reads the letter's stored fields through the document repository.
+    private val replaceStaleSenderUseCase: dagger.Lazy<ReplaceStaleSenderUseCase>,
 ) {
 
     data class Outcome(
@@ -71,6 +72,11 @@ class EntityProfileLinker @Inject constructor(
 
         for (entity in understanding.entities) {
             if (entity.name.isBlank()) continue
+            // A sender the person set or confirmed is never replaced or added to by a reading.
+            if (entity.role == EntityRole.SENDER && replaceStaleSenderUseCase.get().senderIsUsers(documentId)) {
+                ignored++
+                continue
+            }
 
             val key = normaliseEntityName(entity.name)
             val dismissed = dismissedEntityDao.isDismissed(documentId, key)
@@ -146,7 +152,7 @@ class EntityProfileLinker @Inject constructor(
     private suspend fun settleSender(documentId: String, entity: RecognisedEntity, role: ProfileRole, profileId: String) {
         if (role != ProfileRole.SENDER || !isOrganisation(entity.kind)) return
         try {
-            val replaced = replaceStaleSender(documentId, profileId)
+            val replaced = replaceStaleSenderUseCase.get()(documentId, profileId)
             if (replaced > 0) log(Log.INFO, "sender of $documentId: $replaced earlier sender organisation(s) unlinked")
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e

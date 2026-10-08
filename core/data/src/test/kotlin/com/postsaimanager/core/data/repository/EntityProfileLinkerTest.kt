@@ -74,7 +74,7 @@ class EntityProfileLinkerTest {
                 DecideDetailOwnerUseCase(FakeDetailOwnerQuestion(), DetailOwnerProfile()),
             )
         },
-        ReplaceStaleSenderUseCase(profileRepository, contacts),
+        dagger.Lazy { ReplaceStaleSenderUseCase(profileRepository, contacts, documents) },
     )
 
     init {
@@ -197,6 +197,30 @@ class EntityProfileLinkerTest {
             assertThat(contacts.observeContactsForDocument("doc-1").first().map { it.organisationId }).containsExactly(jobcenter.id)
             assertThat(outcome.contact).isInstanceOf(ContactLinkOutcome.Created::class.java)
         }
+    }
+
+    @Test
+    @DisplayName("a sender the user set on the letter survives a re-read: no other sender is linked, nothing is unlinked")
+    fun `the user-set sender survives a re-read`() = runTest {
+        linker.process(
+            "doc-1",
+            DocumentUnderstanding(entities = listOf(entity("Ansprechpartnerin", EntityKind.AUTHORITY, EntityRole.SENDER))),
+        )
+        val chosen = profiles().single { it.organization == "Ansprechpartnerin" }
+        documents.seedExtracted(
+            "doc-1",
+            ExtractedData(
+                id = "sender-doc-1", documentId = "doc-1", fieldName = UnderstandingToFields.SENDER_ORGANISATION,
+                fieldValue = "Ansprechpartnerin", fieldType = ExtractedFieldType.ORGANIZATION, confidence = 1f,
+                source = com.postsaimanager.core.model.ValueSource.USER, slotKey = UnderstandingToFields.SLOT_SENDER,
+            ),
+        )
+
+        linker.process("doc-1", jobcenterLetter())
+
+        val senders = profileRepository.links.filter { it.second == "doc-1" && it.third == ProfileRole.SENDER }.map { it.first }
+        assertThat(senders).containsExactly(chosen.id)
+        assertThat(profiles().none { it.organization == "Jobcenter Berlin Mitte" }).isTrue()
     }
 
     // ═══════════════════════════════════════════════════════════
