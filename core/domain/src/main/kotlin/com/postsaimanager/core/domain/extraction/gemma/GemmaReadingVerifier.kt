@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.extraction.gemma
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.candidates.IbanValidator
+import com.postsaimanager.core.domain.extraction.layout.LetterZone
 import com.postsaimanager.core.domain.extraction.text.DocumentNameVerifier
 import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
 import com.postsaimanager.core.domain.extraction.v2.PartyKind
@@ -166,10 +167,26 @@ class GemmaReadingVerifier(
             return party
         }
 
-        val sender = resolve(PartyRole.SENDER, reading.sender)
+        var sender = resolve(PartyRole.SENDER, reading.sender)
         var addressee = resolve(PartyRole.ADDRESSEE, reading.addressee)
         var contact = resolve(PartyRole.CONTACT, reading.contact)
         val subject = resolve(PartyRole.SUBJECT_PERSON, reading.subjectPerson)
+        // Layout consistency: the sender stands in the address field (the addressee's place) while the addressee does not.
+        if (sender != null && addressee != null && zoneOf(sender, letter) == ADDRESS_FIELD && zoneOf(addressee, letter) != ADDRESS_FIELD) {
+            if (zoneOf(addressee, letter) in SENDER_ZONES) {
+                drops.adjust("SENDER and ADDRESSEE swapped: the sender was printed in the address field, the addressee in the letterhead")
+                val swapped = addressee.withRole(PartyRole.SENDER) to sender.withRole(PartyRole.ADDRESSEE)
+                sender = swapped.first
+                addressee = swapped.second
+            } else {
+                val reason = "SENDER and ADDRESSEE contradict the layout (the sender is in the address field, the addressee is not)"
+                drops += reason
+                toCheck += ToCheck(reason, party = sender.asQuote(letter))
+                toCheck += ToCheck(reason, party = addressee.asQuote(letter))
+                sender = null
+                addressee = null
+            }
+        }
         if (sender != null && addressee != null && same(sender, addressee, offered)) {
             drops += "ADDRESSEE: the same party as the sender"
             addressee = null
@@ -180,6 +197,19 @@ class GemmaReadingVerifier(
         }
         return listOfNotNull(sender, addressee, contact, subject)
     }
+
+    /** The layout zone (a [LetterZone] tag) of the line [p] is printed on: its candidate's line, or the line it quotes; null when unknown. */
+    private fun zoneOf(p: VerifiedParty, letter: GemmaLetter): String? {
+        val line = p.candidateId?.let { id -> letter.candidate(id)?.lineId?.let(letter::line) }
+            ?: p.quote?.let { q -> letter.lines.firstOrNull { it.text.trim() == q } }
+        return line?.zone
+    }
+
+    /** [p] as the line of the letter it was printed as (a candidate becomes its printed text), the form a value to check is shown in. */
+    private fun VerifiedParty.asQuote(letter: GemmaLetter): VerifiedParty =
+        VerifiedParty(role, kind, null, candidateId?.let { letter.candidate(it)?.raw?.trim() } ?: quote)
+
+    private fun VerifiedParty.withRole(role: PartyRole) = VerifiedParty(role, kind, candidateId, quote)
 
     private fun same(a: VerifiedParty, b: VerifiedParty, offered: OfferedCandidates): Boolean {
         if (a.candidateId != null && a.candidateId == b.candidateId) return true
@@ -341,6 +371,10 @@ class GemmaReadingVerifier(
     private fun parse(c: Candidate): LocalDate? = runCatching { LocalDate.parse(c.normalized.take(DATE_CHARS)) }.getOrNull()
 
     private companion object {
+        val ADDRESS_FIELD = LetterZone.ADDRESS_FIELD.tag
+
+        /** The zones that name the sender: a name printed there is the letter's sender, not its addressee. */
+        val SENDER_ZONES = setOf(LetterZone.LETTERHEAD.tag, LetterZone.RETURN_ADDRESS_LINE.tag)
         const val LETTER_DATE = "LETTER_DATE"
         const val DUE_DATE = "DUE_DATE"
 

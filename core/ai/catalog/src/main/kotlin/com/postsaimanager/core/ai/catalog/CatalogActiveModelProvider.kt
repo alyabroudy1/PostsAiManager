@@ -1,5 +1,6 @@
 package com.postsaimanager.core.ai.catalog
 
+import android.util.Log
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.AiEngine
 import com.postsaimanager.core.domain.ai.ReadingAcceleratorSetting
@@ -100,7 +101,12 @@ class CatalogActiveModelProvider @Inject constructor(
         val chat = configFor(model)
         if (model?.runtime != ModelRuntime.LITERT_LM) return chat
         val spec = backendSpec(model)
-        val accelerator = resolveAccelerator(readingAccelerator.current(), liteRtDevice(model).accelerators, spec)
+        val wanted = readingAccelerator.current()
+        val device = liteRtDevice(model)
+        val accelerator = resolveAccelerator(wanted, device.accelerators, spec)
+        runCatching {
+            Log.i(TAG, "reading accelerator: wanted=$wanted resolved=$accelerator gpuOffered=${Accelerator.GPU in device.accelerators}")
+        }
         return chat.copy(accelerator = accelerator, gpuLayers = resolveGpuLayers(accelerator, spec))
     }
 
@@ -257,5 +263,6 @@ class CatalogActiveModelProvider @Inject constructor(
 
     private companion object {
         const val DEFAULT_CONTEXT_TOKENS = 4096
+        const val TAG = "CatalogActiveModel"
     }
 }

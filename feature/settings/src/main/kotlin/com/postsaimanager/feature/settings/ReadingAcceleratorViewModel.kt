@@ -3,6 +3,7 @@ package com.postsaimanager.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.domain.ai.ReadingAcceleratorSetting
+import com.postsaimanager.core.domain.ai.SetReadingAcceleratorUseCase
 import com.postsaimanager.core.model.Accelerator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,8 +19,9 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ReadingAcceleratorViewModel @Inject constructor(
-    private val setting: ReadingAcceleratorSetting,
-) : ViewModel() {
+    setting: ReadingAcceleratorSetting,
+    private val setReading: SetReadingAcceleratorUseCase,
+): ViewModel() {
 
     /** True when readings run on the GPU. */
     val onGpu: StateFlow<Boolean> = setting.accelerator
@@ -27,7 +29,7 @@ class ReadingAcceleratorViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
 
     fun setOnGpu(onGpu: Boolean) {
-        viewModelScope.launch { setting.set(if (onGpu) Accelerator.GPU else Accelerator.CPU) }
+        viewModelScope.launch { setReading(if (onGpu) Accelerator.GPU else Accelerator.CPU) }
     }
 
     private companion object {
