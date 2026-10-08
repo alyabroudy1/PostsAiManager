@@ -156,4 +156,40 @@ class WriteSessionNotesUseCaseTest {
 
         assertThat(notes.snapshot).hasSize(1)
     }
+
+    @Test
+    fun `the paid-bill session keeps the payment the user stated, and the question names the action note not to restate`() {
+        // The phone session: a reminder action was confirmed (its ACTION note exists), then the user said they already paid.
+        notes.seed(DocumentNote("n0", "d1", "Reminder set for 9 Oct 09:00: Payment due for Strom Jahresabrechnung", NoteSource.ACTION, 1, 1))
+        generator.answer = "Reminder set for 9 Oct 09:00: Payment due for Strom Jahresabrechnung.\nThe user already paid this bill on 5 October."
+
+        val written = write(
+            user("Remind me tomorrow at 9 to pay this", id = "u1"),
+            assistant("The reminder is ready."),
+            user("I already paid this bill on 5 October", id = "u2"),
+            assistant("I see. You have already paid the bill on October 5th."),
+        )
+
+        assertThat(written).isEqualTo(1)
+        assertThat(texts()).contains("The user already paid this bill on 5 October.")
+        assertThat(notes.snapshot.filter { it.source == NoteSource.AI }.map { it.text })
+            .containsExactly("The user already paid this bill on 5 October.")
+        assertThat(generator.lastPrompt).contains("ACTIONS ALREADY RECORDED")
+        assertThat(generator.lastPrompt).contains("- Reminder set for 9 Oct 09:00: Payment due for Strom Jahresabrechnung")
+        assertThat(generator.lastPrompt).contains("what the USER stated")
+    }
+
+    @Test
+    fun `a payment stated in words with a digit day is grounded by the digit in the user's own words`() {
+        generator.answer = "The user paid the electricity bill on 5 October."
+
+        assertThat(write(user("I already paid this bill on 5 October"))).isEqualTo(1)
+    }
+
+    @Test
+    fun `the prompt has no actions section when no action was confirmed`() {
+        write(user("hello"))
+
+        assertThat(generator.lastPrompt).doesNotContain("ACTIONS ALREADY RECORDED")
+    }
 }

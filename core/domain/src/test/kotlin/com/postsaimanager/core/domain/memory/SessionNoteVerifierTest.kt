@@ -18,6 +18,20 @@ class SessionNoteVerifierTest {
     }
 
     @Test
+    fun `a note that mostly restates an action note is dropped, a different fact about the same bill is kept`() {
+        val action = listOf("Reminder set for 9 Oct 09:00: pay the electricity bill")
+        val kept = verifier.verify(
+            listOf("Reminder set for 9 Oct to pay the electricity bill", "The user paid the invoice on 5 October."),
+            grounding + "remind me on 9 Oct",
+            card,
+            existing = action,
+            actionNotes = action,
+        )
+
+        assertThat(kept).containsExactly("The user paid the invoice on 5 October.")
+    }
+
+    @Test
     fun `a number the user never said is dropped`() {
         assertThat(verify("The user paid the invoice on 6 Oct.", "The user paid 120 euros.")).isEmpty()
     }

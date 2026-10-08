@@ -20,12 +20,20 @@ internal class SessionNoteDrafter(
     /**
      * @param sessionTurns the messages of the session that ended, oldest first
      * @param existing the notes already kept (not repeated, and counted against the cap)
+     * @param actionNotes the notes of confirmed actions (part of [existing]): the model is told not to restate them, and the verifier
+     *   drops a note that does
      * @param cardText the read values the notes must not repeat
      * @param about what the notes are about, as the question words it
      * @return the verified notes, in order, plus the message id they are grounded in (the last thing the user said), or null when there
      *   is nothing to write
      */
-    suspend fun draft(sessionTurns: List<AiMessage>, existing: List<String>, cardText: String, about: String): Draft? {
+    suspend fun draft(
+        sessionTurns: List<AiMessage>,
+        existing: List<String>,
+        cardText: String,
+        about: String,
+        actionNotes: List<String> = emptyList(),
+    ): Draft? {
         val userTurns = sessionTurns.filter { it.role == MessageRole.USER && it.content.isNotBlank() }
         // Nothing the user said: nothing to remember, and no reason to wake the model.
         if (userTurns.isEmpty() || !generator.isAvailable()) return null
@@ -38,7 +46,7 @@ internal class SessionNoteDrafter(
             }
         }
         val answer = try {
-            generator.generate(SessionNotesFormat.SYSTEM, SessionNotesFormat.prompt(turns, existing, about))
+            generator.generate(SessionNotesFormat.SYSTEM, SessionNotesFormat.prompt(turns, existing, about, actionNotes))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -47,7 +55,7 @@ internal class SessionNoteDrafter(
 
         val grounding = userTurns.map { it.content } +
             sessionTurns.flatMap { message -> message.toolTrace.map { it.resultJson } + listOfNotNull(message.toolResult) }
-        val kept = verifier.verify(SessionNotesFormat.parse(answer), grounding, cardText, existing)
+        val kept = verifier.verify(SessionNotesFormat.parse(answer), grounding, cardText, existing, actionNotes)
         return if (kept.isEmpty()) null else Draft(kept, userTurns.last().id)
     }
 
