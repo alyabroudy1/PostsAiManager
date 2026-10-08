@@ -72,6 +72,11 @@ data class AiModelDescriptor(
      * for Qwen. Null: the per-mode recipe applies.
      */
     val sampling: SamplingConfig? = null,
+    /**
+     * Whether the model can hold a conversation here. False for a llama.cpp build whose chat template does not render (the Gemma 4
+     * GGUF): it may still read letters, but no chat picker offers it. Defaulted true so every manifest written before stays chat-able.
+     */
+    val supportsChat: Boolean = true,
 ) {
     /**
      * A model may only be downloaded when both a URL **and** an integrity hash are known.
@@ -139,6 +144,8 @@ data class InstalledModelSummary(
     /** Null when the model was side-loaded and its catalog descriptor is unknown. */
     val quantization: String?,
     val contextTokens: Int,
+    /** False when the catalogue says the model cannot chat ([AiModelDescriptor.supportsChat]); true for a side-loaded one, whose template is probed at load. */
+    val supportsChat: Boolean = true,
 )
 
 /** Coarse device class, used to curate the catalog rather than to gate features. */

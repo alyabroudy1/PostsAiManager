@@ -111,6 +111,14 @@ class RecommendChatModelUseCaseTest {
     }
 
     @Test
+    fun `a model that cannot chat is not offered as a chat model`() {
+        val readingOnly = model("reading-only", 3.0, 4.0, 5.0).copy(supportsChat = false)
+        val result = RecommendChatModelUseCase()(phone(11.3), catalog + readingOnly, emptySet(), search.toLong())
+        assertThat(result.options.map { it.id }).containsExactly("reader", "two", "four")
+        assertThat(result.option("reading-only")).isNull()
+    }
+
+    @Test
     fun `installed models and an installed search model add nothing`() {
         val result = recommend(phone(11.3), installed = setOf("reader", "two"), searchBytes = 0)
         assertThat(result.option("reader")!!.downloadBytes).isEqualTo(0L)

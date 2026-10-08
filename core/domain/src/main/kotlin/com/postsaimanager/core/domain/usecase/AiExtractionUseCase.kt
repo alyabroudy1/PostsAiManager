@@ -3,6 +3,7 @@ package com.postsaimanager.core.domain.usecase
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.ai.ActiveModelProvider
 import com.postsaimanager.core.domain.ai.AiEngine
+import com.postsaimanager.core.domain.ai.ReadingModel
 import com.postsaimanager.core.domain.extraction.v2.DocumentInterpreter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Adapter
 import com.postsaimanager.core.domain.extraction.v2.ExtractionV2Pipeline
@@ -13,7 +14,9 @@ import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.EnrichmentTicket
 import com.postsaimanager.core.model.InferenceConfig
 import com.postsaimanager.core.model.OcrBlock
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Reads a document and returns what was understood. A thin orchestrator: it loads the extraction
@@ -82,13 +85,19 @@ class AiExtractionUseCase @Inject constructor(
 
         val started = System.nanoTime()
         val modelId = activeModelProvider.extractionModelId()
-        val interpreter = loadedInterpreter(config, modelId)
+        val readerPath = activeModelProvider.extractionModelPath()
+        val interpreter = loadedInterpreter(readerPath, config, modelId)
         val loadMs = (System.nanoTime() - started) / NANOS_PER_MS
 
-        val result = pipeline.run(
-            pages(blocks, pageBlockCounts), interpreter, window, pageAspect, traceContent = traceContent, stages = stages, ticket = ticket,
-            forcedFamily = forcedFamily,
-        )
+        // The run says which model it reads with, so the engine keeps it on that model: a chat-model load that replaces it
+        // between two steps is undone before the next prompt session opens, and the reading never scores on the chat model.
+        val readingContext = if (readerPath != null && interpreter != null) ReadingModel(readerPath, config) else EmptyCoroutineContext
+        val result = withContext(readingContext) {
+            pipeline.run(
+                pages(blocks, pageBlockCounts), interpreter, window, pageAspect, traceContent = traceContent, stages = stages,
+                ticket = ticket, forcedFamily = forcedFamily,
+            )
+        }
         val adapting = System.nanoTime()
         // What was chosen to read with, first in the trace: the strategy follows from the model's profile, and an
         // unknown model silently reading with the fallback is exactly what a trace must make visible.
@@ -118,8 +127,8 @@ class AiExtractionUseCase @Inject constructor(
      * engine may be ready on the chat model, or on this model with a stale configuration, and `load`
      * is cheap when nothing changed.
      */
-    private suspend fun loadedInterpreter(config: InferenceConfig, modelId: String?): DocumentInterpreter? {
-        val path = activeModelProvider.extractionModelPath() ?: return null
+    private suspend fun loadedInterpreter(path: String?, config: InferenceConfig, modelId: String?): DocumentInterpreter? {
+        if (path == null) return null
         if (engine.load(path, config) is PamResult.Error) return null
         return interpreters.create(config.contextTokens, modelId)
     }

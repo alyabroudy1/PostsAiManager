@@ -98,6 +98,9 @@ enum class ChatErrorAction {
 
     /** The model is on its way (downloading in the background): nothing to fix, just wait. */
     MODEL_DOWNLOADING,
+
+    /** The active model cannot chat (its chat template does not render): send the user to the AI models screen to choose a chat model. */
+    CHOOSE_CHAT_MODEL,
 }
 
 /**
@@ -355,6 +358,11 @@ class SendChatMessageUseCase @Inject constructor(
         }
         if (loaded is PamResult.Error) {
             emit(ChatTurn.Failed(loaded.error.userMessage, ChatErrorAction.RETRY))
+            return@flow
+        }
+        // The model loaded but its chat template does not render: no turn can start on it. Said plainly, with the way out.
+        if (loaded is PamResult.Success && !loaded.data.canChat) {
+            emit(ChatTurn.Failed(CANNOT_CHAT_MESSAGE, ChatErrorAction.CHOOSE_CHAT_MODEL))
             return@flow
         }
 
@@ -682,6 +690,8 @@ class SendChatMessageUseCase @Inject constructor(
         val loaded = engine.load(activeModelPath, config)
         onLoadFinished()
         if (loaded is PamResult.Error) return
+        // A model that cannot chat has nothing to prime; the first send tells the user.
+        if (loaded is PamResult.Success && !loaded.data.canChat) return
 
         primeSession(conversationId, documentId, config)
 
@@ -857,6 +867,9 @@ class SendChatMessageUseCase @Inject constructor(
         const val NANOS_PER_MILLI = 1_000_000L
         const val NO_ANSWER_PRODUCED =
             "The model finished thinking but did not produce an answer. You can try again."
+
+        /** The active model's chat template does not render (the chat screen shows its own translated wording for this action). */
+        const val CANNOT_CHAT_MESSAGE = "This model can't chat. Choose a chat model in AI models"
 
         /** M5: shown instead of a blank bubble when thinking used the whole reply budget. */
         const val RAN_OUT_OF_ROOM_WHILE_THINKING =

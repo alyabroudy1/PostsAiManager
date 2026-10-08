@@ -52,5 +52,6 @@ internal fun summaryOf(model: InstalledModel): InstalledModelSummary {
         sizeBytes = model.sizeBytes,
         quantization = descriptor?.quantization,
         contextTokens = model.contextTokens,
+        supportsChat = descriptor?.supportsChat ?: true,
     )
 }
