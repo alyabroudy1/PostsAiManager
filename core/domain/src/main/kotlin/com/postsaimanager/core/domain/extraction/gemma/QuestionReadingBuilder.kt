@@ -87,7 +87,7 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
      * is no person. This types the value; nothing is looked up in the letter.
      */
     private fun contactOf(answers: QaAnswers): Contact {
-        val fields = answers[QaLabel.CONTACT]?.let { QaText.fields(it) }.orEmpty().filter { it.isNotEmpty() }
+        val fields = answers[QaLabel.CONTACT]?.let { QaText.fields(it) }.orEmpty().filter { it.isNotEmpty() }.map(::withoutSpacesInEmail)
         val shapes = fields.associateWith { shapeOf(it) }
         return Contact(
             name = fields.firstOrNull { shapes[it] == null },
@@ -95,6 +95,10 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
             email = fields.firstOrNull { shapes[it] == CandidateKind.EMAIL },
         )
     }
+
+    /** An e-mail-like value ("name @ host . tld", as an OCR line break or a model may leave it) without the spaces around "@" and ".": normalising, nothing is looked up. */
+    private fun withoutSpacesInEmail(text: String): String =
+        if ('@' in text) text.trim().replace(EMAIL_SPACES, "$1") else text
 
     /** [CandidateKind.PHONE] or [CandidateKind.EMAIL] when [text] as a whole is such a value, [CandidateKind.REFERENCE] for a web address, else null. */
     private fun shapeOf(text: String): CandidateKind? {
@@ -212,6 +216,7 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
 
     private companion object {
         const val MAX_NOTE_CHARS = 40
+        val EMAIL_SPACES = Regex("\\s*([@.])\\s*")
 
         /** A phone or e-mail value covers the field when it holds at least 4/5 of its letters and digits (a label like "Tel." may stand before it). */
         const val COVER_NUM = 4

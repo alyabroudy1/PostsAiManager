@@ -86,6 +86,15 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
+    @DisplayName("an e-mail with a space around the @ (as the Stadtwerke answer had it) is still an e-mail, not a contact person")
+    fun `an e-mail with spaces`() {
+        val v = build("CONTACT: 0123 456-789; kundenservice @ stadtwerke-musterstadt . example")
+
+        assertThat(v.parties).isEmpty()
+        assertThat(v.references.map { it.candidate.raw.replace(" ", "") }).contains("kundenservice@stadtwerke-musterstadt.example")
+    }
+
+    @Test
     @DisplayName("an action word that is no registry id is kept as the generic other action, with a note, never dropped")
     fun `an unknown action word`() {
         val v = build("ASKS: yes | not_applicable; go to the appointment — 14.10.2026")
@@ -143,7 +152,12 @@ class QuestionReadingBuilderTest {
         val q = QuestionPrompt.questions(withSummary = true)
 
         assertThat(q).contains("never shortened")
-        assertThat(q).contains("the main purpose of the letter first")
+        assertThat(q).contains("the main one first")
+        assertThat(q).contains("Something to bring to an appointment is part of attending it")
+        // The summary line has no word the model could echo into a summary ("asks for none").
+        val summary = q.lines().first { it.startsWith("SUMMARY:") }
+        assertThat(summary).doesNotContain("asks")
+        assertThat(summary).doesNotContain("none")
     }
 
     @Test
