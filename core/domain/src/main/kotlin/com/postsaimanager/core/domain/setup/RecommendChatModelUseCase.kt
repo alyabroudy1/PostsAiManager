@@ -7,17 +7,21 @@ import com.postsaimanager.core.model.ChatModelRecommendation
 import com.postsaimanager.core.model.DeviceProfile
 import com.postsaimanager.core.model.ModelRole
 import com.postsaimanager.core.model.NotRecommendedReason
+import com.postsaimanager.core.model.isItsOwnReader
 import javax.inject.Inject
 
 /**
  * Which chat models suit this phone, and the one to check first.
  *
- * Letters are always read by the reader model ([ModelRole.READER_AND_CHAT]), so it is part of every download; the choice is the chat
- * model. All thresholds are on the descriptors ([AiModelDescriptor.minRamGb], [AiModelDescriptor.recommendedRamGb]), none here.
+ * Letters are read by the reader model ([ModelRole.READER_AND_CHAT]) unless the chosen chat model reads them itself
+ * ([AiModelDescriptor.readsDocuments], the Gemma models): then the download is that model and the search model only. The choice is
+ * the chat model. All thresholds and the order are on the descriptors ([AiModelDescriptor.minRamGb],
+ * [AiModelDescriptor.recommendedRamGb], [AiModelDescriptor.setupRank]), none here.
  *
- * The preselected model is the largest [AiModelDescriptor.preselectable] one whose recommended memory the phone has and whose whole
- * download fits in the free space; the reader when none does. Bigger models are slow on this engine, so memory alone never makes
- * them the default.
+ * The options are listed by [AiModelDescriptor.setupRank] (highest first), those not recommended for this phone after the others.
+ * The preselected model is the highest-ranked (then the largest) [AiModelDescriptor.preselectable] one whose recommended memory the
+ * phone has and whose whole download fits in the free space; the reader when none does. Bigger models are slow on this engine, so
+ * memory alone never makes them the default.
  */
 class RecommendChatModelUseCase @Inject constructor() {
 
@@ -38,18 +42,21 @@ class RecommendChatModelUseCase @Inject constructor() {
         val options = catalog.filter { it.supportsChat }.map { model ->
             val download = downloadBytes(model, reader, installedIds, searchModelBytes)
             ChatModelOption(model, fitOf(model, device, download, storageHeadroomBytes), download)
-        }
+        }.sortedWith(compareBy<ChatModelOption> { it.fit is ChatModelFit.NotRecommended }.thenByDescending { it.descriptor.setupRank })
         val preselected = options
             .filter { it.fit == ChatModelFit.Recommended && it.descriptor.preselectable }
-            .maxByOrNull { it.descriptor.sizeBytes }
+            .maxWithOrNull(compareBy<ChatModelOption> { it.descriptor.setupRank }.thenBy { it.descriptor.sizeBytes })
             ?.id
             ?: reader.id
         return ChatModelRecommendation(options, preselected, reader)
     }
 
-    /** What choosing [chat] downloads: the reader and the chat model when they differ, and the search model, each only if missing. */
+    /**
+     * What choosing [chat] downloads: the chat model, the reader too unless the chat model is its own reader, and the search model,
+     * each only if missing.
+     */
     private fun downloadBytes(chat: AiModelDescriptor, reader: AiModelDescriptor, installedIds: Set<String>, searchModelBytes: Long): Long {
-        val models = listOf(reader, chat).distinctBy { it.id }.filter { it.id !in installedIds }
+        val models = (if (chat.isItsOwnReader(reader)) listOf(chat) else listOf(reader, chat)).filter { it.id !in installedIds }
         return models.sumOf { it.sizeBytes } + searchModelBytes
     }
 

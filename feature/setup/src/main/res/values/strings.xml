@@ -7,6 +7,7 @@
     <string name="setup_choose_model_title">Choose the chat model</string>
     <string name="setup_model_size">%1$s download</string>
     <string name="setup_reader_note">Letters are read with %1$s (always included)</string>
+    <string name="setup_reader_note_self">%1$s chats and reads your letters too: no second model to download. A smaller reader can be added later on the models screen.</string>
     <string name="setup_download_total_three">Download ≈ %1$s: reader + chat model + search model</string>
     <string name="setup_download_total_two">Download ≈ %1$s: %2$s + search model</string>
     <string name="setup_confirm_title">Use this model anyway?</string>

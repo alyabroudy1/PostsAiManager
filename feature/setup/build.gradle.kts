@@ -29,6 +29,11 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        // The Compose UI tests run on the JVM under Robolectric and need the real string resources.
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -53,4 +58,11 @@ dependencies {
     // Coroutines
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
+
+    // Compose UI tests on the JVM: Robolectric hosts them, and the Vintage engine lets the JUnit 5 platform
+    // (pam.test-conventions) run their JUnit 4 rule.
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    testRuntimeOnly(libs.junit.vintage.engine)
+    debugImplementation(libs.compose.ui.test.manifest)
 }

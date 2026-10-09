@@ -31,7 +31,8 @@ class ReadDocumentsAwaitingModelUseCase @Inject constructor(
 
     /** @return how many letters were scheduled. */
     suspend operator fun invoke(limit: Int = DEFAULT_LIMIT): Int {
-        if (activeModelProvider.extractionModelPath() == null) return 0
+        // Not the llama.cpp reader alone: with Gemma as the only model installed the Gemma reader reads on the chat model.
+        if (!activeModelProvider.canReadDocuments()) return 0
         var scheduled = 0
         for (document in documentRepository.getDocuments().first().filter(::awaits).sortedByDescending { it.createdAt }) {
             if (scheduled >= limit) break

@@ -63,6 +63,16 @@ class ReadDocumentsAwaitingModelUseCaseTest {
     }
 
     @Test
+    fun `with Gemma alone installed, no llama reader, the waiting letters are still read (the Gemma reader runs on the chat model)`() = runTest {
+        documents.seed(extracted("found", ExtractorVersion.FOUND_VALUES))
+        model.llamaReaderInstalled = false
+
+        assertThat(model.extractionModelPath()).isNull()
+        assertThat(useCase()).isEqualTo(1)
+        assertThat(processor.urgentReprocessCalls).containsExactly("found")
+    }
+
+    @Test
     fun `watching schedules the waiting letters when the model gets installed, not before`() = runTest {
         documents.seed(extracted("found", ExtractorVersion.FOUND_VALUES))
         val job = launch(UnconfinedTestDispatcher(testScheduler), CoroutineStart.UNDISPATCHED) { useCase.watch() }

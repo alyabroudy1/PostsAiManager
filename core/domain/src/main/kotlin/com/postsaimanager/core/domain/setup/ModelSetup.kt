@@ -27,7 +27,8 @@ interface ModelSetupGateway {
     fun progress(chatModelId: String): Flow<SetupProgress>
 
     /**
-     * Enqueues what is not installed yet: the reader (once, also when it is the chosen model), the chosen chat model, the search model.
+     * Enqueues what is not installed yet: the reader (once, also when it is the chosen model; not when the chosen model reads letters
+     * itself), the chosen chat model, the search model.
      * [allowMetered] lets the download use mobile data; otherwise it waits for Wi-Fi.
      *
      * @return false when a model has no verified download source.

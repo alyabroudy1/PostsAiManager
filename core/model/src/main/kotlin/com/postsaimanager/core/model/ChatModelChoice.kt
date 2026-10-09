@@ -15,6 +15,12 @@ enum class ModelRole {
     READER_AND_CHAT,
 }
 
+/**
+ * True when choosing this model as the chat model needs no separate reader download: it is the [reader] itself, or it reads letters
+ * itself ([AiModelDescriptor.readsDocuments]).
+ */
+fun AiModelDescriptor.isItsOwnReader(reader: AiModelDescriptor): Boolean = id == reader.id || readsDocuments
+
 /** What this phone offers, for deciding which chat models suit it. */
 data class DeviceProfile(
     /** Total memory in GB (decimal, as Android reports it: a "12 GB" phone reads about 11.3). */

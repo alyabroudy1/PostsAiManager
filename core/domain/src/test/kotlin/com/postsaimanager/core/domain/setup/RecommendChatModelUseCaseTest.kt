@@ -125,4 +125,64 @@ class RecommendChatModelUseCaseTest {
         assertThat(result.option("two")!!.downloadBytes).isEqualTo(0L)
         assertThat(result.option("four")!!.downloadBytes).isEqualTo(four.sizeBytes)
     }
+
+    // The Gemma model: ranked first by the catalogue, reads letters itself, needs 8 GB.
+    private val gemma = model("gemma", 2.6, 8.0, 8.0).copy(setupRank = 100, readsDocuments = true)
+    private val withGemma = listOf(reader, two, four, gemma)
+
+    private fun recommendWithGemma(device: DeviceProfile, installed: Set<String> = emptySet()) =
+        RecommendChatModelUseCase()(device, withGemma, installed, search.toLong())
+
+    @Test
+    fun `a high-memory phone lists Gemma first, recommended, and preselects it`() {
+        val result = recommendWithGemma(phone(11.3))
+        assertThat(result.options.first().id).isEqualTo("gemma")
+        assertThat(result.option("gemma")!!.fit).isEqualTo(ChatModelFit.Recommended)
+        assertThat(result.preselectedId).isEqualTo("gemma")
+    }
+
+    @Test
+    fun `choosing Gemma downloads Gemma and the search model only, no reader`() {
+        val result = recommendWithGemma(phone(11.3))
+        assertThat(result.option("gemma")!!.downloadBytes).isEqualTo(gemma.sizeBytes + search.toLong())
+        // A model that only chats still comes with the reader.
+        assertThat(result.option("two")!!.downloadBytes).isEqualTo(reader.sizeBytes + two.sizeBytes + search.toLong())
+    }
+
+    @Test
+    fun `an installed Gemma adds nothing to its download`() {
+        val result = recommendWithGemma(phone(11.3), installed = setOf("gemma"))
+        assertThat(result.option("gemma")!!.downloadBytes).isEqualTo(search.toLong())
+    }
+
+    @Test
+    fun `a phone below Gemma's memory keeps the best Qwen and shows Gemma as not recommended with the reason, after the others`() {
+        val result = recommendWithGemma(phone(5.6))
+        assertThat(result.preselectedId).isEqualTo("two")
+        assertThat(result.option("gemma")!!.fit).isEqualTo(ChatModelFit.NotRecommended(NotRecommendedReason.MEMORY, requiredRamGb = 8.0))
+        assertThat(result.options.map { it.id }).containsExactly("reader", "two", "gemma", "four").inOrder()
+    }
+
+    @Test
+    fun `a 4 GB phone preselects the reader even with Gemma on offer`() {
+        val result = recommendWithGemma(phone(3.7))
+        assertThat(result.preselectedId).isEqualTo("reader")
+        assertThat(result.option("gemma")!!.fit).isInstanceOf(ChatModelFit.NotRecommended::class.java)
+    }
+
+    @Test
+    fun `Gemma is not preselected when its download does not fit, the next recommended model is`() {
+        // Gemma 2.6 + search 0.27 + headroom 0.512 = 3.38 GB > 3.0; the 2B needs 2.58 GB.
+        val result = recommendWithGemma(phone(11.3, storageGb = 3.0))
+        assertThat(result.option("gemma")!!.fit).isInstanceOf(ChatModelFit.NotRecommended::class.java)
+        assertThat(result.preselectedId).isEqualTo("two")
+    }
+
+    @Test
+    fun `the rank decides the order and the default, not a model's name or size`() {
+        val loud = model("big-unranked", 3.0, 4.0, 4.0)
+        val result = RecommendChatModelUseCase()(phone(11.3), listOf(reader, loud, gemma.copy(setupRank = 5)), emptySet(), 0L)
+        assertThat(result.preselectedId).isEqualTo("gemma")
+        assertThat(result.options.first().id).isEqualTo("gemma")
+    }
 }

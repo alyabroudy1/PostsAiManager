@@ -62,6 +62,16 @@ class ReprocessOutdatedDocumentsUseCaseTest {
     }
 
     @Test
+    @DisplayName("with Gemma alone installed (no llama reader) older letters are still scheduled: the Gemma reader runs on the chat model")
+    fun readsWithGemmaAlone() = runTest {
+        documents.seed(extracted("old", "entity-extractor-1"))
+        model.llamaReaderInstalled = false
+
+        assertThat(reprocess()).isEqualTo(1)
+        assertThat(processor.reprocessCalls).containsExactly("old")
+    }
+
+    @Test
     @DisplayName("leaves trashed letters and letters that are not finished to the ordinary pipeline")
     fun excludesTrashedAndUnfinished() = runTest {
         documents.seed(

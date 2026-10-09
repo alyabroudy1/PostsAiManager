@@ -77,6 +77,18 @@ data class AiModelDescriptor(
      * GGUF): it may still read letters, but no chat picker offers it. Defaulted true so every manifest written before stays chat-able.
      */
     val supportsChat: Boolean = true,
+    /**
+     * Which model first-run setup puts first and prefers: the higher the rank, the earlier it is listed and the sooner it is the
+     * preselected one (among the models that suit the phone and are [preselectable]). 0 = unranked; unranked models keep their
+     * order and are preferred by size. Data, so a manifest can change the recommendation without an app update.
+     */
+    val setupRank: Int = 0,
+    /**
+     * The model reads scanned letters itself (the Gemma reader runs on the chat model), so choosing it as the chat model needs no
+     * separate reader download. Defaulted false: a model that only chats is installed next to the catalogue's
+     * [ModelRole.READER_AND_CHAT] model.
+     */
+    val readsDocuments: Boolean = false,
 ) {
     /**
      * A model may only be downloaded when both a URL **and** an integrity hash are known.
