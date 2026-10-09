@@ -57,6 +57,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -399,7 +400,8 @@ class ChatViewModel @Inject constructor(
     /** Chat survives process death — messages are persisted, not held in the ViewModel. */
     private fun restoreHistory() {
         viewModelScope.launch {
-            conversationRepository.getMessages(conversationId).collect { messages ->
+            // A document renamed meanwhile (on its own screen) gives the chips its new title: the titles are watched, not cached.
+            combine(conversationRepository.getMessages(conversationId), sourceTitles()) { messages, _ -> messages }.collect { messages ->
                 // The agent's own protocol (its stored tool calls and results) is not a message: only the calls that show
                 // something (a question, the card, a page chip, the closing message) are, and the user never sees raw tool JSON.
                 val chatMessages = FormMessageCodec.rendered(messages).map { message ->
@@ -439,14 +441,16 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * Cache of document id -> (title, deleted), for [toChatSource]. Never invalidated for a
-     * *title*: a document's title barely ever changes after it is scanned, and a stale title
-     * on a citation chip is a cosmetic, not a correctness, problem — not worth a Flow
-     * subscription per source. A trashed/deleted verdict is re-checked every time instead
-     * (see [toChatSource]) since that one does matter — a chip must not keep looking live
-     * after the user deletes the document mid-conversation.
+     * The titles of the live documents, which a citation chip of a document-less chat names its document by: it emits again when a
+     * title changes (a rename, a better composed title), so the messages are resolved again and no chip keeps an old title. A chat of
+     * one document names no document in its chips, so it watches nothing.
      */
-    private val documentTitleCache = mutableMapOf<String, String?>()
+    private fun sourceTitles(): Flow<Map<String, String>> =
+        if (documentId == null) {
+            documentRepository.getDocuments().map { documents -> documents.associate { it.id to it.title } }.distinctUntilChanged()
+        } else {
+            flowOf(emptyMap())
+        }
 
     /**
      * [ChatSource.title] is only resolved for a document-less conversation ([documentId] is
@@ -458,15 +462,10 @@ class ChatViewModel @Inject constructor(
      */
     private suspend fun toChatSource(source: MessageSource): ChatSource {
         val document = (documentRepository.getDocumentById(source.documentId) as? PamResult.Success)?.data
-        val title = if (documentId == null) {
-            documentTitleCache.getOrPut(source.documentId) { document?.title }
-        } else {
-            null
-        }
         return ChatSource(
             documentId = source.documentId,
             pageNumber = source.pageNumber,
-            title = title,
+            title = if (documentId == null) document?.title else null,
             chunkId = source.chunkId,
             documentDeleted = document == null || document.isTrashed,
         )
