@@ -36,6 +36,10 @@ android {
     kotlin {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget(libs.versions.jvmTarget.get()))
+            // Room's generated DAO classes are full of lambdas. As invokedynamic, D8 turns each into a synthetic `Outer$N` class, and when
+            // the outer class is dexed apart from its Kotlin-made `Outer$1` (the insert adapter) the names collide ("defined multiple
+            // times", ProfileEventDao_Impl). Compiled as classes there is nothing for D8 to name.
+            freeCompilerArgs.add("-Xlambdas=class")
         }
     }
 }

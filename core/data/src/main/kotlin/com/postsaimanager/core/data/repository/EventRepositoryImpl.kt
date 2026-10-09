@@ -50,9 +50,9 @@ class EventRepositoryImpl @Inject constructor(
 
     override suspend fun replaceDocumentEvents(documentId: String, events: List<ProfileEvent>) = withContext(ioDispatcher) {
         database.withTransaction {
-            dao.deleteBySource(documentId, EventSource.DOCUMENT.name)
-            // What code derived from the values being replaced goes with them; the daily check writes it again from the new values.
-            dao.deleteBySource(documentId, EventSource.SYSTEM.name)
+            // The reading's event goes, and so does what code derived from the values being replaced (the daily check writes it again from
+            // the new values); what the user edited or deleted stays.
+            dao.deleteReplaceable(documentId)
             events.forEach { insert(it) }
         }
     }
