@@ -15,6 +15,8 @@ import javax.inject.Inject
  * - it repeats what is already known: an existing note, the document card, or an earlier kept note (compared folded for case,
  *   accents and punctuation, and as a containment in either direction for the notes); a note that mostly restates a note of a
  *   confirmed action (most of the shorter one's words are shared, at least three) is dropped too;
+ * - it is a question, or says nearly the same words as a question the user asked (a clause of their messages that ends in a question
+ *   mark): what the user asked about is not something they stated, so it is no fact to keep;
  * - [SessionNotesFormat.MAX_NOTES] notes are already kept, or the document already holds [MAX_NOTES_PER_DOCUMENT].
  *
  * Pure. Nothing here knows a language or a kind of fact.
@@ -28,6 +30,7 @@ class SessionNoteVerifier @Inject constructor() {
      * @param existing the notes the document already holds
      * @param actionNotes the notes written by confirmed actions (already in [existing]): a candidate that mostly restates one is
      *   dropped, as the action already recorded it
+     * @param userMessages what the user wrote in the session: a note that only restates a QUESTION of theirs is no fact (see the class doc)
      */
     fun verify(
         candidates: List<String>,
@@ -35,7 +38,9 @@ class SessionNoteVerifier @Inject constructor() {
         cardText: String,
         existing: List<String>,
         actionNotes: List<String> = emptyList(),
+        userMessages: List<String> = emptyList(),
     ): List<String> {
+        val questions = userMessages.flatMap(::questionsOf)
         val actionWords = actionNotes.map(::words).filter { it.isNotEmpty() }
         val groundingNumbers = grounding.flatMapTo(mutableSetOf()) { numbers(it) }
         val cardKey = key(cardText)
@@ -47,6 +52,7 @@ class SessionNoteVerifier @Inject constructor() {
             val note = candidate.replace(WHITESPACE, " ").trim()
             if (note.isEmpty() || note.length > SessionNotesFormat.MAX_NOTE_CHARS) continue
             if (!groundingNumbers.containsAll(numbers(note))) continue
+            if (isQuestion(note, questions)) continue
             val noteKey = key(note)
             if (noteKey.isEmpty()) continue
             if (cardKey.contains(noteKey)) continue
@@ -57,6 +63,21 @@ class SessionNoteVerifier @Inject constructor() {
             known += noteKey
         }
         return kept
+    }
+
+    /**
+     * The word sets of the question clauses of [message]: a clause is the text between punctuation marks, and it is a question when its
+     * closing mark is a question mark (`?`, or the Arabic `؟`). Punctuation only, no word of any language.
+     */
+    private fun questionsOf(message: String): List<Set<String>> =
+        CLAUSE.findAll(message).filter { it.value.trimEnd().last() in QUESTION_MARKS }.map { words(it.value) }.filter { it.isNotEmpty() }.toList()
+
+    /** A note that is itself a question, or that says nearly the same words as a question of the user: their question is no fact. */
+    private fun isQuestion(note: String, questions: List<Set<String>>): Boolean {
+        if (note.trimEnd().last() in QUESTION_MARKS) return true
+        val noteWords = words(note)
+        if (noteWords.size < MIN_QUESTION_WORDS) return false
+        return questions.any { q -> noteWords.count { it in q }.toDouble() / noteWords.size >= QUESTION_OVERLAP }
     }
 
     /** The distinct words of [text], folded: letters and digits only. */
@@ -82,6 +103,12 @@ class SessionNoteVerifier @Inject constructor() {
 
         private const val MIN_SHARED_WORDS = 3
         private const val RESTATE_RATIO = 0.6
+
+        /** A note of at least this many words, three quarters of them in one question of the user, restates the question. */
+        private const val MIN_QUESTION_WORDS = 3
+        private const val QUESTION_OVERLAP = 0.75
+        private const val QUESTION_MARKS = "?؟"
+        private val CLAUSE = Regex("[^.!?؟,;:\\n]+[.!?؟,;:]?")
 
         private val WORD = Regex("[\\p{L}\\p{Nd}]+")
         private val WHITESPACE = Regex("\\s+")

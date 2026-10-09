@@ -8,7 +8,7 @@ import java.time.LocalDate
  * stored deadlines and action items); nothing here is decided again.
  *
  * @property people the household persons.
- * @property cases the open matters, most recently active first.
+ * @property cases the matters of the household persons, the open ones first, with their status (a rejected one is still listed).
  * @property deadlines the deadlines in the coming days, soonest first.
  * @property actions the letters that ask the reader to do something.
  */
@@ -22,8 +22,12 @@ data class HouseholdOverview(
     /** [relation] is how the person relates to the user ("me", "child"); null when unknown. */
     data class Person(val name: String, val relation: String?)
 
-    /** An open matter of [person]; [latest] is its newest event as one short phrase (date, kind, title), null when none is left to show. */
-    data class OpenCase(val person: String, val organisation: String?, val title: String, val latest: String?)
+    /**
+     * A matter of [person] with where it stands ([status]: open, approved, rejected, closed); [latest] is its newest event as one short
+     * phrase (date, kind, title), null when none is left to show. A rejected matter is listed too: it still has what follows from it
+     * (an objection deadline), which "what is open for her" is about.
+     */
+    data class OpenCase(val person: String, val organisation: String?, val title: String, val latest: String?, val status: String? = null)
 
     data class Deadline(val date: LocalDate, val person: String?, val sender: String?, val title: String)
 
@@ -38,8 +42,8 @@ data class HouseholdOverview(
  * ```
  * ## Household overview (2026-10-07)
  * People: Maria (me), Omar (child)
- * Open cases:
- * - Maria: Jobcenter, Bürgergeld application. Latest: 2026-09-10 Approval, Bürgergeld approved from 1 Sep
+ * Cases:
+ * - Maria: Jobcenter, Bürgergeld application [rejected]. Latest: 2026-12-05 Rejection, Ablehnungsbescheid
  * Deadlines in the next 30 days:
  * - 2026-10-15 Maria: Stadtwerke, Jahresabrechnung
  * Letters needing action:
@@ -93,9 +97,10 @@ object HouseholdOverviewFormat {
             if (fits(line)) out.append(line).append('\n')
         }
         section(
-            "Open cases:",
+            "Cases:",
             overview.cases.map { c ->
-                "- ${c.person}: " + listOfNotNull(c.organisation, c.title).joinToString(", ") + (c.latest?.let { ". Latest: $it" } ?: "")
+                "- ${c.person}: " + listOfNotNull(c.organisation, c.title).joinToString(", ") + (c.status?.let { " [$it]" } ?: "") +
+                    (c.latest?.let { ". Latest: $it" } ?: "")
             },
         )
         section(

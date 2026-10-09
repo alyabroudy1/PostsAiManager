@@ -29,8 +29,9 @@ interface EventRepository {
     suspend fun eventsOfCase(caseId: String): List<ProfileEvent>
 
     /**
-     * Replaces the [EventSource.DOCUMENT] events of [documentId] by [events] in one step; events of any other source stay, so a re-read
-     * keeps what the user did and wrote.
+     * Replaces the [EventSource.DOCUMENT] events of [documentId] by [events] in one step, and the [EventSource.SYSTEM] ones with them (code
+     * derived them from the values of the reading being replaced, a "deadline passed" from a due date the new reading may not have; the
+     * daily check writes them again from the new values). ACTION and USER events stay, so a re-read keeps what the user did and wrote.
      */
     suspend fun replaceDocumentEvents(documentId: String, events: List<ProfileEvent>)
 

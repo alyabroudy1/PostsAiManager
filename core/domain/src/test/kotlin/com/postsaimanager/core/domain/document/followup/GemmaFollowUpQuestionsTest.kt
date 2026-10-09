@@ -316,6 +316,9 @@ class GemmaFollowUpQuestionsTest {
 
         assertThat(same.matchedId).isEqualTo("m-antrag")
         assertThat(new.matchedId).isNull()
+        // A request for documents is a step of the application, not a new matter: the question says so (pass 38: jc-4 stayed out of the case).
+        assertThat(engine.followUpRequests.first().prompt).contains("one more step of")
+        assertThat(engine.followUpRequests.first().prompt).contains("a request for documents")
     }
 
     @Test

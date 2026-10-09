@@ -264,6 +264,28 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
+    @DisplayName("a contact the model named by the label of the pair ('Ansprechpartnerin') is the value line below it, never the label word")
+    fun `a label is not a contact name`() {
+        val v = build("CONTACT: Ansprechpartnerin | 0123 456-701")
+
+        val contact = v.parties.single { it.role == PartyRole.CONTACT }
+        val name = contact.candidateId?.let { letter.candidate(it)?.raw } ?: contact.quote
+        assertThat(name).contains("Beispiel")
+        assertThat(name).doesNotContain("Ansprechpartnerin")
+        assertThat(v.notes.any { it.contains("label of the letter") }).isTrue()
+    }
+
+    @Test
+    @DisplayName("a LETTERDATE that is only a time of day (a status bar's 09:41) is no letter date: missing, with a qa note")
+    fun `a time is not a letter date`() {
+        val v = build("LETTERDATE: 09:41")
+
+        assertThat(v.dates.none { it.meaningId == "LETTER_DATE" }).isTrue()
+        assertThat(v.dates).isEmpty()
+        assertThat(v.notes.any { it.startsWith("letter date is not a date") }).isTrue()
+    }
+
+    @Test
     @DisplayName("the word none is no answer for a party: no party is stored")
     fun `none words`() {
         val v = build("SENDER: Markt Beispiel | company\nRECIPIENT: none\nCONTACT: none | none | none")

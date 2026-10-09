@@ -150,6 +150,8 @@
     <string name="chat_step_load_skill_failed">Could not load skill \"%1$s\"</string>
     <string name="chat_step_intent">Prepared the action \"%1$s\"</string>
     <string name="chat_step_intent_failed">The action \"%1$s\" was refused</string>
+    <string name="chat_action_not_set">Action not set</string>
+    <string name="chat_action_retry">Retry</string>
     <string name="chat_step_js">Ran the script of \"%1$s\"</string>
     <string name="chat_step_js_failed">The script of \"%1$s\" failed</string>
     <string name="chat_webview_full_screen">View full screen</string>

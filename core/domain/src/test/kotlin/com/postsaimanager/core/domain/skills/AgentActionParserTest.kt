@@ -54,6 +54,39 @@ class AgentActionParserTest {
     }
 
     @Test
+    fun `a reminder sent as date tomorrow and time 09-00 is accepted, as pass 38's model sent it`() {
+        val now = LocalDateTime.of(2026, 10, 9, 14, 30)
+        val action = (
+            AgentActionParser.parse(
+                "schedule_notification",
+                """{"time":"09:00","date":"tomorrow","description":"Check the bill"}""",
+                "d1",
+                now,
+            ) as ActionParse.Parsed
+            ).action as AgentAction.ScheduleReminder
+
+        assertThat(action.at).isEqualTo(LocalDateTime.of(2026, 10, 10, 9, 0))
+        assertThat(action.text).isEqualTo("Check the bill")
+    }
+
+    @Test
+    fun `a reminder with an ISO date and a time is accepted, and today means today`() {
+        val now = LocalDateTime.of(2026, 10, 9, 8, 0)
+        fun at(params: String) = ((AgentActionParser.parse("schedule_notification", params, null, now) as ActionParse.Parsed).action as AgentAction.ScheduleReminder).at
+
+        assertThat(at("""{"message":"x","date":"2026-11-02","time":"9:30"}""")).isEqualTo(LocalDateTime.of(2026, 11, 2, 9, 30))
+        assertThat(at("""{"message":"x","date":"today","time":"17:00"}""")).isEqualTo(LocalDateTime.of(2026, 10, 9, 17, 0))
+    }
+
+    @Test
+    fun `a refused reminder says what to send, and an unknown intent lists the intents`() {
+        val reason = rejected("schedule_notification", """{"message":"x","date":"next week"}""")
+        assertThat(reason).contains("in_days")
+        assertThat(reason).contains("hour")
+        assertThat(rejected("schedule_reminder", "{}")).contains("schedule_notification")
+    }
+
+    @Test
     fun `schedule_notification builds the time from its numbers, as numbers or as digit strings`() {
         val action = parsed(
             "schedule_notification",

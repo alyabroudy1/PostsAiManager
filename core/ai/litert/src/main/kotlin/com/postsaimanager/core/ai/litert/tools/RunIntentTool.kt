@@ -33,12 +33,18 @@ internal class RunIntentTool(private val calls: AgentToolCalls) : ToolSet {
 
     /** Run an Android intent */
     @Tool(
-        description = "Run an Android intent. It is used to interact with the app to perform certain actions.",
+        description = "Run an Android intent. It is used to interact with the app to perform certain actions. " +
+            "Read the skill with load_skill first; the call may be refused, and then nothing was done.",
     )
     fun runIntent(
-        @ToolParam(description = "The intent to run.") intent: String,
         @ToolParam(
-            description = "A JSON string containing the parameter values required for the intent.",
+            description = "The intent to run: send_email, create_calendar_event, schedule_notification (a reminder) " +
+                "or get_current_date_and_time.",
+        ) intent: String,
+        @ToolParam(
+            description = "A JSON string with the parameters of the intent. schedule_notification: message, plus in_days with hour " +
+                "and minute (tomorrow at 9 is in_days 1, hour 9, minute 0), or in_minutes / in_hours, or year, month, day, hour, minute. " +
+                "send_email: extra_email, extra_subject, extra_text. create_calendar_event: title, begin_time (yyyy-MM-ddTHH:mm:ss).",
         )
         parameters: String,
     ): Map<String, String> = calls.runIntent(intent, parameters)

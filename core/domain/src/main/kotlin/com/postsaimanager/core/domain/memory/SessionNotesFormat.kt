@@ -38,7 +38,8 @@ object SessionNotesFormat {
     /** The standing instruction of the one generation. */
     const val SYSTEM =
         "You write short durable notes for a document assistant. You only report what the user said they did, decided or asked to be " +
-            "remembered. You never add facts, numbers or dates that are not in the user's own messages."
+            "remembered. A question the user asked is not a fact: you never write a question, or what the user only asked about, as a note. " +
+            "You never add facts, numbers or dates that are not in the user's own messages."
 
     /**
      * The question: the conversation (newest part, within [MAX_TRANSCRIPT_CHARS]), the notes already kept (so they are not repeated),
@@ -61,7 +62,8 @@ object SessionNotesFormat {
         append("\nQUESTION: List up to ").append(MAX_NOTES)
         append(" durable facts or decisions from this conversation that matter for ").append(about).append(" later. ")
         append("First look for what the USER stated about their own situation or decisions: something they already paid, booked, ")
-        append("sent or arranged, or something they decided to do. Do not write what the assistant did or offered (reminders, ")
+        append("sent or arranged, or something they decided to do. A question of the user is not a fact (\"Did I already pay?\" says ")
+        append("nothing about whether they paid): never turn a question into a note. Do not write what the assistant did or offered (reminders, ")
         append("calendar entries, drafts): those are recorded already. One note per line, at most ").append(MAX_NOTE_CHARS)
         append(" characters each, in the language the user wrote in. Answer ").append(NONE).append(" if nothing.")
     }

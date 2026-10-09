@@ -27,7 +27,8 @@ class QaValueTyper(private val offered: OfferedCandidates) {
     val synthesized: List<Candidate> get() = made.toList()
 
     fun date(text: String): Candidate? {
-        val extracted = CandidateExtractor.extractFromText(text).candidates.firstOrNull { it.kind == CandidateKind.DATE || it.kind == CandidateKind.DATETIME }
+        // A clock time on its own ("09:41") is no date: it is skipped, so it never types as one, and a real date after it is still found.
+        val extracted = CandidateExtractor.extractFromText(text).candidates.firstOrNull { isCalendarDate(it) }
         val iso = ISO.find(text)?.value?.takeIf { parses(it) } ?: extracted?.normalized?.take(ISO_CHARS)?.takeIf { parses(it) } ?: return null
         offered.rows.map { it.candidate }
             .firstOrNull { (it.kind == CandidateKind.DATE || it.kind == CandidateKind.DATETIME) && it.normalized.take(ISO_CHARS) == iso }
@@ -72,8 +73,16 @@ class QaValueTyper(private val offered: OfferedCandidates) {
 
     private fun compact(s: String) = QuoteVerifier.fold(s).filter { it.isLetterOrDigit() }
 
-    private companion object {
-        val ISO = Regex("\\d{4}-\\d{2}-\\d{2}")
+    companion object {
+        /**
+         * A DATE or DATETIME candidate that holds a calendar day: not a time of day on its own (the finder marks it `timeOnly`, its
+         * normalised form has no year), and not a date kept as printed with no ISO form.
+         */
+        fun isCalendarDate(c: Candidate): Boolean =
+            (c.kind == CandidateKind.DATE || c.kind == CandidateKind.DATETIME) && c.attrs["timeOnly"] == null &&
+                runCatching { LocalDate.parse(c.normalized.take(ISO_CHARS)) }.isSuccess
+
+        private val ISO = Regex("\\d{4}-\\d{2}-\\d{2}")
         val NUMBER = Regex("\\d[\\d.,]*\\d|\\d")
         const val ISO_CHARS = 10
         const val DEFAULT_CURRENCY = "EUR"

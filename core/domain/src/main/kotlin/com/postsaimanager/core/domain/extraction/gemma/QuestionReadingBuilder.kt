@@ -36,7 +36,10 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
             party(PartyRole.CONTACT, contactOf(answers).name, letter, notes),
         )
         // The letter's own date has a line of its own and comes first, so that it keeps its meaning if the dates list repeats it.
-        val letterDate = answers[QaLabel.LETTERDATE]?.let { typer.date(it) }?.let { VerifiedValue(it, GemmaVocabulary.LETTER_DATE_MEANING) }
+        // It is typed as a date: a value that is only a time of day ("09:41") is no letter date, it is missing (and noted).
+        val letterDate = answers[QaLabel.LETTERDATE]?.let { text ->
+            typer.date(text) ?: null.also { notes += "letter date is not a date, left out: ${text.take(MAX_NOTE_CHARS)}" }
+        }?.let { VerifiedValue(it, GemmaVocabulary.LETTER_DATE_MEANING) }
         val dates = (
             listOfNotNull(letterDate) +
                 values(QaLabel.DATES, answers, notes) { vocab.dateMeanings.map { it.id } }
@@ -112,7 +115,17 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
 
     /** [text] is "name | kind"; [kindText] overrides where the kind comes from (the contact has no kind: a person). */
     private fun party(role: PartyRole, text: String?, letter: GemmaLetter, notes: MutableList<String>, kindText: String? = text?.let { QaText.fields(it).getOrNull(1) }): VerifiedParty? {
-        val name = text?.let { QaText.fields(it).firstOrNull() }?.trim('*', '"', ' ')?.takeIf { it.isNotEmpty() } ?: return null
+        val written = text?.let { QaText.fields(it).firstOrNull() }?.trim('*', '"', ' ')?.takeIf { it.isNotEmpty() } ?: return null
+        // The label of a label/value pair ("Ansprechpartnerin" over a name) is no party, as the layout marked it: the party is the value
+        // line the same block pairs with it, and with no value line there is none (the same rule as the JSON reader's verifier).
+        val label = letter.lines.firstOrNull { it.isLabel && QuoteVerifier.fold(it.text).trim() == QuoteVerifier.fold(written).trim() }
+        val name = if (label == null) {
+            written
+        } else {
+            val value = label.valueLineId?.let(letter::line)?.text?.trim()?.takeIf { it.isNotEmpty() }
+            notes += "${role.name.lowercase()}: the answer was a label of the letter, ${if (value != null) "its value line was taken" else "left out"}"
+            value ?: return null
+        }
         val kind = when {
             role == PartyRole.CONTACT -> PartyKind.PERSON
             else -> PartyKind.entries.firstOrNull { it.name.lowercase() == QaText.word(kindText) } ?: PartyKind.OTHER

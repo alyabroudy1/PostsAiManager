@@ -71,6 +71,10 @@ class SessionNotesCollector @Inject constructor(
                 .filter { it.createdAt >= event.startedAt }
                 .sortedBy { it.createdAt }
             if (turns.isEmpty()) return SessionNotesRun.Done(0)
+            // A live session (the visit in the foreground, or a parked one the person may come back to) keeps the engine: asking the
+            // gate would END a parked session (reading), so this job checks the tracker first and waits for the session to really
+            // end (10 minutes, another chat, a reading by someone else, memory); its notes are queued then, never dropped.
+            if (sessions.hasLiveSession()) return SessionNotesRun.Later
             if (chatActivity.isChatActive()) return SessionNotesRun.Later
             val documentId = conversation.documentId
             SessionNotesRun.Done(

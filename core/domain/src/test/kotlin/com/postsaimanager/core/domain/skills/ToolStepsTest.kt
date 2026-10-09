@@ -50,6 +50,19 @@ class ToolStepsTest {
     }
 
     @Test
+    fun `a reply whose last action call was refused ends refused, a later success settles it`() {
+        val refused = ToolExchange("run_intent", """{"intent":"schedule_reminder","parameters":"{}"}""", """{"error":"bad","status":"failed"}""")
+        val proposed = ToolExchange("run_intent", """{"intent":"schedule_notification","parameters":"{}"}""", """{"status":"proposed"}""")
+        val load = ToolExchange("load_skill", """{"skill_name":"s"}""", """{"skill_instructions":"1."}""")
+
+        assertThat(ToolSteps.endsWithRefusedIntent(ToolSteps.of(listOf(refused)))).isTrue()
+        assertThat(ToolSteps.endsWithRefusedIntent(ToolSteps.of(listOf(refused, load)))).isTrue()
+        assertThat(ToolSteps.endsWithRefusedIntent(ToolSteps.of(listOf(refused, proposed)))).isFalse()
+        assertThat(ToolSteps.endsWithRefusedIntent(ToolSteps.of(listOf(load)))).isFalse()
+        assertThat(ToolSteps.endsWithRefusedIntent(emptyList())).isFalse()
+    }
+
+    @Test
     fun `an unknown tool and unreadable json do not break the panel`() {
         val steps = ToolSteps.of(listOf(ToolExchange("future_tool", "not json", "")))
         assertThat(steps.single().kind).isEqualTo(ToolStepKind.OTHER)

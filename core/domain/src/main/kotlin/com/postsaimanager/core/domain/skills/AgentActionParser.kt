@@ -90,14 +90,19 @@ object AgentActionParser {
         /** The documents a reminder may point at besides the chat's own: the model's `document_id` is used only when it is one of these. */
         knownDocumentIds: Set<String> = emptySet(),
     ): ActionParse {
-        val kind = AgentIntent.of(intent) ?: return ActionParse.Rejected("Intent not found: \"${intent.trim()}\"")
+        val kind = AgentIntent.of(intent)
+            ?: return ActionParse.Rejected("Intent not found: \"${intent.trim()}\". The intents are: ${AgentIntent.entries.joinToString { it.wire }}.")
         if (kind == AgentIntent.GET_CURRENT_DATE_AND_TIME) return ActionParse.Parsed(AgentAction.GetDateTime)
         val params = runCatching { json.parseToJsonElement(parameters.ifBlank { "{}" }).jsonObject }.getOrNull()
             ?: return ActionParse.Rejected("The parameters are not a JSON object.")
         return when (kind) {
             AgentIntent.SEND_EMAIL -> email(params)
             AgentIntent.CREATE_CALENDAR_EVENT -> event(params)
-            AgentIntent.SCHEDULE_NOTIFICATION -> reminder(params, chatDocumentId, knownDocumentIds, now, log)
+            AgentIntent.SCHEDULE_NOTIFICATION ->
+                when (val parsed = reminder(withDateAndTime(params), chatDocumentId, knownDocumentIds, now, log)) {
+                    is ActionParse.Rejected -> ActionParse.Rejected(parsed.reason + REMINDER_FORMS)
+                    is ActionParse.Parsed -> parsed
+                }
             AgentIntent.GET_CURRENT_DATE_AND_TIME -> ActionParse.Parsed(AgentAction.GetDateTime)
         }
     }
@@ -121,7 +126,8 @@ object AgentActionParser {
         now: LocalDateTime,
         log: (String) -> Unit,
     ): ActionParse {
-        val message = p.text("message") ?: return missing("message")
+        // A small model that did not read the skill names the line "description" or "text": the reminder's own line is the same thing.
+        val message = p.text("message") ?: p.text("description") ?: p.text("text") ?: p.text("title") ?: return missing("message")
         // The model's document_id is never trusted on its own: a small model writes a reference number there. It counts only when it
         // is the chat's document or one the caller knows exists; otherwise the reminder belongs to the chat's document.
         val stated = p.text("document_id")
@@ -161,6 +167,41 @@ object AgentActionParser {
         }
         return ActionParse.Parsed(AgentAction.ScheduleReminder(at = at, text = message, documentId = documentId))
     }
+
+    /**
+     * The `date` and `time` spelling that a model which did not read the skill uses (`date` "today", "tomorrow" or `yyyy-MM-dd`,
+     * `time` "HH:mm"), turned into the parameters the parser understands: today and tomorrow become `in_days` 0 / 1 with `hour` and
+     * `minute`, a date its `year`, `month` and `day`. Only those forms, documented in the tool's own description; anything else is
+     * left alone and answered with what to send. A parameter the model gave itself always wins.
+     */
+    private fun withDateAndTime(p: JsonObject): JsonObject {
+        val time = TIME.matchEntire(p.text("time").orEmpty()) ?: return p
+        val date = p.text("date").orEmpty().lowercase()
+        val added = mutableMapOf<String, JsonPrimitive>()
+        added["hour"] = JsonPrimitive(time.groupValues[1].toInt())
+        added["minute"] = JsonPrimitive(time.groupValues[2].toInt())
+        val iso = ISO_DATE.matchEntire(date)
+        when {
+            date == "today" -> added["in_days"] = JsonPrimitive(0)
+            date == "tomorrow" -> added["in_days"] = JsonPrimitive(1)
+            iso != null -> {
+                added["year"] = JsonPrimitive(iso.groupValues[1].toInt())
+                added["month"] = JsonPrimitive(iso.groupValues[2].toInt())
+                added["day"] = JsonPrimitive(iso.groupValues[3].toInt())
+            }
+            else -> return p
+        }
+        return JsonObject(added.filterKeys { it !in p } + p)
+    }
+
+    private val TIME = Regex("(\\d{1,2}):(\\d{2})(?::\\d{2})?")
+    private val ISO_DATE = Regex("(\\d{4})-(\\d{1,2})-(\\d{1,2})")
+
+    /** What a refused reminder call tells the model to send instead. */
+    private const val REMINDER_FORMS =
+        " A reminder takes: message (one line), plus either in_days with hour and minute (tomorrow at 9: in_days 1, hour 9, minute 0), " +
+            "in_minutes or in_hours (from now), or year, month, day, hour and minute (numbers). date (today, tomorrow or yyyy-MM-dd) " +
+            "with time (HH:mm) is also accepted."
 
     /** The absolute date and time the model gave (a full year, month and day; hour and minute 0 when absent), or null when it gave none. */
     private fun absolute(p: JsonObject): LocalDateTime? {

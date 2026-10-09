@@ -192,6 +192,18 @@ class ChatSessionTracker internal constructor(
     @Synchronized
     fun startedAt(conversationId: String): Long? = if (conversationId in live) started[conversationId] else null
 
+    /**
+     * Whether any chat has a live session, foreground or parked, after ending the ones that expired. A READ that never ends a parked
+     * session (unlike [isChatActive]): the notes job of an earlier session asks it, so that it waits instead of taking the engine
+     * from a parked chat that the person may come back to.
+     */
+    @Synchronized
+    fun hasLiveSession(): Boolean {
+        val now = clock()
+        for (id in live.keys.toList()) endStale(id, now)
+        return live.isNotEmpty()
+    }
+
     /** Whether [conversationId] has a live session that is parked (its screen is not showing). */
     @Synchronized
     fun isParked(conversationId: String): Boolean = conversationId in live && conversationId !in foreground
