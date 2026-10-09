@@ -3,6 +3,8 @@
     <string name="settings_debug_section">Debug</string>
     <string name="settings_gemma_trial_title">Reader: Gemma (default) / Qwen scorer (old)</string>
     <string name="settings_gemma_trial_subtitle">On: Gemma reads every letter with the page picture, and the old Qwen scorer reads when Gemma cannot. Off: the old Qwen scorer reads</string>
+    <string name="settings_reader_style_title">Reader style: JSON / Questions</string>
+    <string name="settings_reader_style_subtitle">On: Gemma reads a letter by asking one labelled question, as the chat does, and the answers are stored as given. Off: Gemma answers the constrained JSON schema</string>
     <string name="settings_reading_accelerator_title">Reading: CPU / GPU</string>
     <string name="settings_reading_accelerator_subtitle">On: the model reads letters on the GPU (faster to start, the chat reloads it on the CPU when you chat). Off: the CPU, like the chat</string>
     <!-- Settings added in Phase 1 (background updates, App lock). English only for now; the same

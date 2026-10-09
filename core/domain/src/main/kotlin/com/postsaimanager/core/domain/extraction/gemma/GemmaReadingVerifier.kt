@@ -12,7 +12,14 @@ import com.postsaimanager.core.domain.extraction.v2.QuoteVerifier
 import java.time.LocalDate
 
 /** A party the model named and code accepted: [candidateId] of a name candidate, or the printed [quote] of a line of the letter. */
-class VerifiedParty(val role: PartyRole, val kind: PartyKind, val candidateId: String?, val quote: String?) {
+class VerifiedParty(
+    val role: PartyRole,
+    val kind: PartyKind,
+    val candidateId: String?,
+    val quote: String?,
+    /** A name the "Questions" reader stored as the model wrote it: not looked for in the letter, the person confirms it ([QuestionReadingBuilder]). */
+    val stated: Boolean = false,
+) {
     /** What identifies the party for comparisons: its candidate id or its printed text. */
     val reference: String get() = candidateId ?: quote.orEmpty()
 }
@@ -58,6 +65,11 @@ class VerifiedReading(
     val losses: List<String> = emptyList(),
     /** What the model chose that a check refused, as values to check. */
     val toCheck: List<ToCheck> = emptyList(),
+    /**
+     * Values the "Questions" reader typed from the model's words that no candidate of the letter matched (ids "Q1", "Q2" ...): added to
+     * the candidates the result is built from, so they are stored like any other, to be confirmed by the person.
+     */
+    val synthesized: List<Candidate> = emptyList(),
 )
 
 /** The reasons a reading collects: every one goes to the trace, the ones that [lose] an answer also make the reading need review. */

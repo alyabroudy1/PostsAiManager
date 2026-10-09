@@ -342,6 +342,13 @@ class VerificationContext(
 ) {
     /** All pages' text, for quotes that may sit anywhere. */
     val ocrText: String by lazy { pageTexts.joinToString("\n") }
+
+    /** The same context with [extra] values (typed from the model's own words, see the "Questions" reader) offered as well. */
+    fun withExtraCandidates(extra: List<com.postsaimanager.core.domain.extraction.candidates.Candidate>): VerificationContext =
+        if (extra.isEmpty()) this else VerificationContext(
+            candidates, OfferedCandidates(offered.rows + extra.map { OfferedRow(it, emptyList(), listOf(it.page)) }, offered.dropped),
+            pageTexts, layoutCharsSent, layoutCharsTotal, pagesRead, totalPages, prompt, grammar, rawAnswer, rawText, textError,
+        )
 }
 
 /** Validation, consistency checks, quote verification and confidence. Never replaces the model's answer. */
