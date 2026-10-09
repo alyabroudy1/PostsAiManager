@@ -86,6 +86,15 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
+    @DisplayName("labelled nothing ('none | phone: none | e-mail: none', as the dentist answer had it) is no contact and no values")
+    fun `labelled none`() {
+        val v = build("SENDER: Zahnarztpraxis Dr. Beispiel | kind: company\nCONTACT: none | phone: none | e-mail: none")
+
+        assertThat(v.parties.map { it.role }).containsExactly(PartyRole.SENDER)
+        assertThat(v.references).isEmpty()
+    }
+
+    @Test
     @DisplayName("an ASKS item the model marks none (as the Stadtwerke answer had it) is no action; the real one stays; a note says so")
     fun `an action marked none`() {
         val v = build("ASKS: yes; pay — by 15.10.2026; send_documents — none")

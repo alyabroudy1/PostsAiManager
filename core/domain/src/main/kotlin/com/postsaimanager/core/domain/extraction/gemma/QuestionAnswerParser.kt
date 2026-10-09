@@ -55,10 +55,12 @@ object QaText {
     private val ITEM_SEPARATOR = Regex("\\s*;\\s*")
     private val PART_SEPARATOR = Regex("\\s*\\|\\s*|\\s+[—–-]\\s+|\\s*[—–]\\s*")
 
-    /** True for an empty answer or the word the question asked for when nothing applies. */
+    /** True for an empty answer or the word the question asked for when nothing applies, also when a model labelled it (`phone: none`). */
     fun isNone(text: String?): Boolean {
         val t = text?.trim()?.trim('.', '"', '\'', '*', ' ').orEmpty()
-        return t.isEmpty() || t.equals(QuestionPrompt.NONE_WORD, ignoreCase = true) || t == "-" || t == "—"
+        val unlabelled = t.substringAfterLast(':').trim().trim('.', '"', '\'', '*', ' ')
+        return t.isEmpty() || t.equals(QuestionPrompt.NONE_WORD, ignoreCase = true) || t == "-" || t == "—" ||
+            (':' in t && unlabelled.equals(QuestionPrompt.NONE_WORD, ignoreCase = true))
     }
 
     /** The items of a list answer, in order; none for "none". */
