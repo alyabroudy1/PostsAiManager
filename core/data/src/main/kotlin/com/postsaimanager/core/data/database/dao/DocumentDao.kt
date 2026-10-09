@@ -136,6 +136,25 @@ interface DocumentDao {
     @Query("SELECT * FROM document_pages WHERE documentId = :docId ORDER BY pageNumber")
     fun observePages(docId: String): Flow<List<DocumentPageEntity>>
 
+    @Query("UPDATE document_pages SET pageNumber = :pageNumber WHERE id = :id")
+    suspend fun setPageNumber(id: String, pageNumber: Int)
+
+    @Query("DELETE FROM document_pages WHERE id = :id")
+    suspend fun deletePageById(id: String)
+
+    @Query("UPDATE documents SET pageCount = :pageCount, modifiedAt = :modifiedAt WHERE id = :id")
+    suspend fun setPageCount(id: String, pageCount: Int, modifiedAt: Long = System.currentTimeMillis())
+
+    /** The pages a form fill's fields sit on (field id and page), for moving them when the document's pages change. */
+    @Query("SELECT id, page AS pageNumber FROM form_fields WHERE documentId = :documentId")
+    suspend fun getFormFieldPages(documentId: String): List<FormFieldPageRow>
+
+    @Query("UPDATE form_fields SET page = :page WHERE id = :id")
+    suspend fun setFormFieldPage(id: String, page: Int)
+
+    @Query("DELETE FROM form_fields WHERE id = :id")
+    suspend fun deleteFormField(id: String)
+
     /** The user's correction of a page's recognised text: the text is theirs ('USER'), the positioned blocks stay as read (the preview's selection). */
     @Query("UPDATE document_pages SET ocrText = :text, textSource = 'USER' WHERE documentId = :documentId AND pageNumber = :pageNumber")
     suspend fun setPageTextByUser(documentId: String, pageNumber: Int, text: String)
@@ -259,6 +278,9 @@ interface DocumentDao {
         }
     }
 }
+
+/** A form field's row id and its page; see [DocumentDao.getFormFieldPages]. */
+data class FormFieldPageRow(val id: String, val pageNumber: Int)
 
 /** A document's stored decision; see [DocumentDao.getConcernedContaining]. */
 data class ConcernedRow(

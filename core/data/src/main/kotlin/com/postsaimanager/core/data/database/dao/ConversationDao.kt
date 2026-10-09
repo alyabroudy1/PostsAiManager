@@ -59,6 +59,13 @@ interface ConversationDao {
     @Query("DELETE FROM message_sources WHERE documentId = :documentId")
     suspend fun deleteMessageSourcesForDocument(documentId: String)
 
+    /** The pages the chat cited [documentId] on (id and page), for moving them when the document's pages change. */
+    @Query("SELECT id, pageNumber FROM message_sources WHERE documentId = :documentId AND pageNumber IS NOT NULL")
+    suspend fun getCitedPages(documentId: String): List<CitedPageRow>
+
+    @Query("UPDATE message_sources SET pageNumber = :pageNumber WHERE id = :id")
+    suspend fun setCitedPage(id: Long, pageNumber: Int?)
+
     /**
      * Keeps the denormalised `messageCount` / `lastMessageAt` columns in step with the
      * messages table. Called inside [insertMessageAndTouchConversation] so the two writes
@@ -122,6 +129,9 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE id = :id")
     suspend fun deleteById(id: String)
 }
+
+/** A chat citation's row id and the page it cites; see [ConversationDao.getCitedPages]. */
+data class CitedPageRow(val id: Long, val pageNumber: Int)
 
 /** A [MessageEntity] with its [MessageSourceEntity] rows — see [MessageDao.observeForConversation]. */
 data class MessageWithSources(

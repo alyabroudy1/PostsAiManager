@@ -19,6 +19,7 @@ import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.PageChange
 import com.postsaimanager.core.model.ReviewState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -492,6 +493,43 @@ class DocumentRepositoryImpl @Inject constructor(
         withContext(ioDispatcher) {
             try {
                 documentDao.setPageTextByUser(documentId, pageNumber, text)
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun changePages(documentId: String, change: PageChange): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                val pages = documentDao.getPages(documentId)
+                val removed = pages.filter { change.newNumber(it.pageNumber) == null }
+                database.withTransaction {
+                    removed.forEach { documentDao.deletePageById(it.id) }
+                    pages.forEach { page -> change.newNumber(page.pageNumber)?.let { documentDao.setPageNumber(page.id, it) } }
+                    // What each value, citation and form field says about "page n" follows its page.
+                    val moved = documentDao.getExtractedData(documentId).map(mapper::extractedDataToDomain).mapNotNull { field ->
+                        val page = field.pageNumber
+                        val updated = field.copy(
+                            pageNumber = page?.let(change::newNumber),
+                            // The box was a place on the page the value was read from: with the page gone there is no place.
+                            bbox = field.bbox.takeUnless { page != null && change.newNumber(page) == null },
+                            alternatives = field.alternatives.mapNotNull { alt ->
+                                val altPage = alt.page ?: return@mapNotNull alt
+                                change.newNumber(altPage)?.let { alt.copy(page = it) }
+                            },
+                        )
+                        updated.takeIf { it != field }
+                    }
+                    if (moved.isNotEmpty()) documentDao.insertExtractedData(moved.map(mapper::extractedDataToEntity))
+                    conversationDao.getCitedPages(documentId).forEach { conversationDao.setCitedPage(it.id, change.newNumber(it.pageNumber)) }
+                    documentDao.getFormFieldPages(documentId).forEach { row ->
+                        val to = change.newNumber(row.pageNumber)
+                        if (to == null) documentDao.deleteFormField(row.id) else if (to != row.pageNumber) documentDao.setFormFieldPage(row.id, to)
+                    }
+                    documentDao.setPageCount(documentId, pages.size - removed.size)
+                }
+                if (removed.isNotEmpty()) pageImageStore.deleteImages(removed.flatMap { listOfNotNull(it.imagePath, it.processedPath) })
                 PamResult.Success(Unit)
             } catch (e: Exception) {
                 PamResult.Error(PamError.DatabaseError(cause = e))

@@ -6,6 +6,7 @@ import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
+import com.postsaimanager.core.model.PageChange
 import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.TimelineEvent
 import kotlinx.coroutines.flow.Flow
@@ -133,6 +134,14 @@ interface DocumentRepository {
      * reads (in place of the page's word blocks) and never replaces. The page's positioned blocks are kept as they were read.
      */
     suspend fun setPageTextByUser(documentId: String, pageNumber: Int, text: String): PamResult<Unit>
+
+    /**
+     * Deletes a page of [documentId] or puts its pages in a new order ([change]), in one transaction: the page rows, the page number of every
+     * value's evidence (a value whose page is gone keeps its text and loses the place), of every chat citation and of every form field (those on
+     * a deleted page go), and the document's page count. The image file of a deleted page is removed after it. Which changes are allowed is
+     * the use cases' to decide; this applies one.
+     */
+    suspend fun changePages(documentId: String, change: PageChange): PamResult<Unit>
 
     /** Marks the matter of [documentId] as the person's choice (`caseLinkSource = USER`), so a re-read does not regroup the letter. */
     suspend fun markCaseChosenByUser(documentId: String): PamResult<Unit>

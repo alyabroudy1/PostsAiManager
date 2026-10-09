@@ -9,6 +9,7 @@ import com.postsaimanager.core.model.CaseLinkSource
 import com.postsaimanager.core.model.ConcernedSource
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.LanguageSource
+import com.postsaimanager.core.model.PageChange
 import com.postsaimanager.core.model.PageTextSource
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
@@ -351,6 +352,23 @@ class FakeDocumentRepository : DocumentRepository {
         pages.value = pages.value.mapValues { (id, list) ->
             if (id != documentId) list else list.map { if (it.pageNumber == pageNumber) it.copy(ocrText = text, textSource = PageTextSource.USER) else it }
         }
+        PamResult.Success(Unit)
+    }
+
+    // Like the real one: the pages are renumbered (or removed), and every value's evidence page follows.
+    override suspend fun changePages(documentId: String, change: PageChange): PamResult<Unit> = guard {
+        val kept = pages.value[documentId].orEmpty().mapNotNull { page -> change.newNumber(page.pageNumber)?.let { page.copy(pageNumber = it) } }
+        pages.value = pages.value + (documentId to kept.sortedBy { it.pageNumber })
+        extracted.value = extracted.value + (
+            documentId to extracted.value[documentId].orEmpty().map { field ->
+                val page = field.pageNumber
+                field.copy(
+                    pageNumber = page?.let(change::newNumber),
+                    bbox = field.bbox.takeUnless { page != null && change.newNumber(page) == null },
+                )
+            }
+            )
+        documents.value = documents.value.map { if (it.id == documentId) it.copy(pageCount = kept.size) else it }
         PamResult.Success(Unit)
     }
 

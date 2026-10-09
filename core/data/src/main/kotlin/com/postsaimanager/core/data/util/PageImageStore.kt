@@ -85,6 +85,16 @@ class PageImageStore @Inject constructor(
         }
     }
 
+    /** Removes the image files at [paths] (`file://` URIs of pages that were deleted). A file that is not there is no error. */
+    suspend fun deleteImages(paths: List<String>) {
+        withContext(ioDispatcher) {
+            paths.forEach { path ->
+                runCatching { Uri.parse(path).path?.let { File(it).delete() } }
+                    .onFailure { e -> Log.w(TAG, "failed to delete $path: ${e.message}") }
+            }
+        }
+    }
+
     private fun storePage(docDir: File, page: DocumentPage): DocumentPage {
         val outFile = File(docDir, "page-${page.pageNumber}.jpg")
         val sourceUri = Uri.parse(page.imagePath)
