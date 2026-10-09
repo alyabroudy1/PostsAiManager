@@ -112,13 +112,14 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
-    @DisplayName("the TYPE line is marked as always required (it moved early once and changed the dentist reading, so it stays after the references), the summary line stays first")
-    fun `the type is required`() {
+    @DisplayName("the TYPE line comes right after the sender and recipient, marked as always required (late, a model left it out), and the summary line stays first")
+    fun `the type is asked early`() {
         val q = QuestionPrompt.questions(withSummary = true)
 
         assertThat(q).contains("TYPE: always answer this line, never leave it out")
         assertThat(q.indexOf("SUMMARY:")).isLessThan(q.indexOf("SENDER:"))
-        assertThat(q.indexOf("REFERENCES:")).isLessThan(q.indexOf("TYPE:"))
+        assertThat(q.indexOf("RECIPIENT:")).isLessThan(q.indexOf("TYPE:"))
+        assertThat(q.indexOf("TYPE:")).isLessThan(q.indexOf("CONTACT:"))
     }
 
     @Test
