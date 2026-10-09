@@ -18,6 +18,15 @@ class BigCoreCountTest {
     }
 
     @Test
+    fun `reported RAM is rounded up to the marketed size`() {
+        assertThat(AndroidDeviceCapabilities.marketedRamGb(7.4)).isEqualTo(8.0)
+        assertThat(AndroidDeviceCapabilities.marketedRamGb(11.2)).isEqualTo(12.0)
+        assertThat(AndroidDeviceCapabilities.marketedRamGb(5.6)).isEqualTo(6.0)
+        assertThat(AndroidDeviceCapabilities.marketedRamGb(8.0)).isEqualTo(8.0)
+        assertThat(AndroidDeviceCapabilities.marketedRamGb(32.5)).isEqualTo(32.5)
+    }
+
+    @Test
     fun `unreadable frequencies fall back to the processor count`() {
         assertThat(AndroidDeviceCapabilities.bigCoreCount(emptyList(), processorCount = 6)).isEqualTo(6)
     }
