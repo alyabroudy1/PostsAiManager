@@ -11,8 +11,10 @@ import kotlinx.coroutines.delay
 interface ChatActivityGate {
 
     /**
-     * True while a chat session is live: from the moment a chat is used until the person leaves it or it has been idle for the
-     * session's idle time (`ChatSessionTracker`, the one owner of that clock).
+     * True while a chat is in the FOREGROUND (its screen is showing, from the moment it is used until it has been idle for the
+     * session's idle time) or a reply is running. A chat the person left keeps its session parked for a while, but a parked session
+     * is not "active": asking here is wanting the engine, so the tracker ends it (and queues its notes) and answers false
+     * (`ChatSessionTracker`, the one owner of that clock).
      */
     fun isChatActive(): Boolean
 

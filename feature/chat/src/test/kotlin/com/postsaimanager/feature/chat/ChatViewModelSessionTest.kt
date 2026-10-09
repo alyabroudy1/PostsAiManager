@@ -145,7 +145,7 @@ class ChatViewModelSessionTest {
     }
 
     @Test
-    @DisplayName("leaving the chat screen ends the session and fires the event")
+    @DisplayName("leaving the chat screen parks the session: nothing ends and no event fires")
     fun `leaving ends the session`() = runTest {
         seed(exchanges = 2)
         val events = mutableListOf<ChatSessionEnded>()
@@ -155,8 +155,9 @@ class ChatViewModelSessionTest {
 
         clear(vm)
 
-        assertThat(events).containsExactly(ChatSessionEnded(id, ChatSessionEnd.LEFT, startedAt = 1_000_000L))
-        assertThat(tracker.isLive(id)).isFalse()
+        // Parked, not ended: no event (no notes yet), the session lives on, and a reading may take the engine.
+        assertThat(events).isEmpty()
+        assertThat(tracker.isParked(id)).isTrue()
         collector.cancel()
     }
 

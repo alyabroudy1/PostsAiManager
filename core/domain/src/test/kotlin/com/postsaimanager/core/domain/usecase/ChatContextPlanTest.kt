@@ -273,6 +273,42 @@ class ChatContextPlanTest {
     }
 
     @Test
+    @DisplayName("leave and re-enter within 10 minutes: the live conversation is reused, nothing is rebuilt or warmed up again")
+    fun `parked session is reused`() = runTest {
+        seedConversation(exchanges = 3)
+        engine.response = "ok"
+        send.primeConversation("conv-d1", "d1")
+        send("conv-d1", "d1", "first of this visit").toList()
+
+        sessions.tracker.park("conv-d1")
+        sessions.advance(9 * 60_000L)
+        sessions.tracker.enter("conv-d1")
+        send.primeConversation("conv-d1", "d1")
+        val turns = send("conv-d1", "d1", "back again").toList()
+
+        assertThat(turns.filterIsInstance<ChatTurn.PreparingConversation>()).isEmpty()
+        assertThat(engine.isChatSessionPrimed("conv-d1")).isTrue()
+        assertThat(engine.lastSessionHistory.map { it.content }).contains("first of this visit")
+    }
+
+    @Test
+    @DisplayName("leave and return after 10 minutes: the conversation is rebuilt from the card and the last exchange")
+    fun `parked session expires`() = runTest {
+        seedConversation(exchanges = 3)
+        engine.response = "ok"
+        send.primeConversation("conv-d1", "d1")
+        send("conv-d1", "d1", "first of this visit").toList()
+
+        sessions.tracker.park("conv-d1")
+        sessions.advance(10 * 60_000L)
+        sessions.tracker.enter("conv-d1")
+        val turns = send("conv-d1", "d1", "back again").toList()
+
+        assertThat(turns.filterIsInstance<ChatTurn.PreparingConversation>()).hasSize(1)
+        assertThat(engine.lastSessionHistory.map { it.content }).containsExactly("first of this visit", "ok").inOrder()
+    }
+
+    @Test
     @DisplayName("after the visit ended, the next send rebuilds from the card and the last exchange, not from the chat")
     fun `send after leaving rebuilds from the plan`() = runTest {
         seedConversation(exchanges = 3)

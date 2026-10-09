@@ -88,7 +88,7 @@ class ChatViewModel @Inject constructor(
     private val chatImageSupport: ChatImageSupportUseCase,
     private val jsSkillRelay: JsSkillRelay,
     private val formFillingFlag: FormFillingFlag = FormFillingFlag.ON,
-    /** Which chats have a live session: this screen is a visit that ends when it is left or idle for 10 minutes. */
+    /** Which chats have a live session: this screen is a visit that is parked when left and ends 10 minutes after the last activity. */
     private val sessions: ChatSessionTracker = ChatSessionTracker(),
 ) : ViewModel() {
 
@@ -319,6 +319,8 @@ class ChatViewModel @Inject constructor(
      * waits for the engine like any message does.
      */
     fun startWarmUp() {
+        // The screen shows: a parked session of this chat comes back to the foreground (its conversation is reused as it is).
+        sessions.enter(conversationId)
         if (warmUpJob?.isActive == true) return
         warmUpJob = viewModelScope.launch {
             try {
@@ -363,6 +365,14 @@ class ChatViewModel @Inject constructor(
     fun stopWarmUp() {
         warmUpJob?.cancel()
         warmUpJob = null
+    }
+
+    /**
+     * The screen left the foreground (the chat was left, or the app went to the background). The session is parked, not ended: it
+     * lives on for 10 minutes after the last activity, so coming back to this chat in that time reuses the live conversation.
+     */
+    fun onScreenHidden() {
+        sessions.park(conversationId)
     }
 
     /** Shared by [preWarmModel] and [selectModel] — see their docs. */
@@ -417,7 +427,11 @@ class ChatViewModel @Inject constructor(
                 // below that line (see scheduleSessionIdleEnd for when it moves).
                 if (!contextStartKnown) {
                     contextStartKnown = true
-                    contextStartId = ContinuityTail.select(messages).firstOrNull()?.id
+                    // A parked session that this screen re-entered keeps the divider where that visit's context started (its live
+                    // conversation was not rebuilt); otherwise it is the continuity tail.
+                    val sessionStart = sessions.startedAt(conversationId)
+                        ?.let { startedAt -> messages.firstOrNull { it.createdAt >= startedAt }?.id }
+                    contextStartId = sessionStart ?: ContinuityTail.select(messages).firstOrNull()?.id
                 }
                 _uiState.update { it.copy(messages = chatMessages, contextStartMessageId = contextStartId) }
             }
@@ -834,9 +848,10 @@ class ChatViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        // Leaving the chat ends the visit: the next send (or the next open) builds the conversation from the card and the last exchange.
+        // Leaving the chat parks the visit, it does not end it: the tracker keeps the session for 10 minutes after the last activity (and
+        // ends it on a different chat, a reading that needs the engine, memory pressure or a new day), and writes the notes then.
         idleJob?.cancel()
-        sessions.leave(conversationId)
+        sessions.park(conversationId)
         stopWarmUp()
         generationJob?.cancel()
         super.onCleared()
