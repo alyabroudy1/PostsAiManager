@@ -31,12 +31,17 @@ class GemmaFoundValues(private val schema: ExtractionSchema = ExtractionSchema.D
         return withLetterDate(withAddresses, letterDate)
     }
 
-    /** The only date candidate of page 1's letterhead and reference block, or null (none, or several: the layout does not say which is the letter's). */
+    /**
+     * The only date candidate of page 1's letterhead and reference block, or null (none, or several: the layout does not say which is the
+     * letter's). A clock time on its own (the "09:41" of a screenshot's status bar) is no date, so it is neither the letter's date nor one
+     * of the several: the date is typed as a calendar date before the layout is asked.
+     */
     fun candidateOf(letter: GemmaLetter, offered: OfferedCandidates): Candidate? =
         letter.candidatesOf(CandidateKind.DATE, CandidateKind.DATETIME)
             .filter { c -> c.lineId?.let(letter::line)?.let { it.page == 1 && it.zone in HEADER_ZONES } == true }
+            .mapNotNull { offered.get(it.id) }
+            .filter { it.attrs["timeOnly"] == null }
             .singleOrNull()
-            ?.let { offered.get(it.id) }
 
     private fun withLetterDate(raw: RawInterpretation, letterDate: Candidate?): RawInterpretation {
         val key = MeaningSlots.slotOf(MeaningKind.DATE, LETTER_DATE) ?: return raw

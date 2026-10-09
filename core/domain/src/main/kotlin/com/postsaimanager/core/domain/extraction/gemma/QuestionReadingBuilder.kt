@@ -36,7 +36,10 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
             party(PartyRole.CONTACT, contactOf(answers).name, letter, notes),
         )
         // The letter's own date has a line of its own and comes first, so that it keeps its meaning if the dates list repeats it.
-        val letterDate = answers[QaLabel.LETTERDATE]?.let { typer.date(it) }?.let { VerifiedValue(it, GemmaVocabulary.LETTER_DATE_MEANING) }
+        // It is typed as a date: a value that is only a time of day ("09:41") is no letter date, it is missing (and noted).
+        val letterDate = answers[QaLabel.LETTERDATE]?.let { text ->
+            typer.date(text) ?: null.also { notes += "letter date is not a date, left out: ${text.take(MAX_NOTE_CHARS)}" }
+        }?.let { VerifiedValue(it, GemmaVocabulary.LETTER_DATE_MEANING) }
         val dates = (
             listOfNotNull(letterDate) +
                 values(QaLabel.DATES, answers, notes) { vocab.dateMeanings.map { it.id } }

@@ -264,6 +264,16 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
+    @DisplayName("a LETTERDATE that is only a time of day (a status bar's 09:41) is no letter date: missing, with a qa note")
+    fun `a time is not a letter date`() {
+        val v = build("LETTERDATE: 09:41")
+
+        assertThat(v.dates.none { it.meaningId == "LETTER_DATE" }).isTrue()
+        assertThat(v.dates).isEmpty()
+        assertThat(v.notes.any { it.startsWith("letter date is not a date") }).isTrue()
+    }
+
+    @Test
     @DisplayName("the word none is no answer for a party: no party is stored")
     fun `none words`() {
         val v = build("SENDER: Markt Beispiel | company\nRECIPIENT: none\nCONTACT: none | none | none")
