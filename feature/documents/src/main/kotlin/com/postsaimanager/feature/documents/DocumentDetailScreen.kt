@@ -79,6 +79,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -214,6 +215,20 @@ fun DocumentDetailScreen(
     // at a different tab (Extracted, Timeline) when they left this document.
     LaunchedEffect(initialPage) {
         if (initialPage != null) viewModel.selectTab(DetailTab.PAGES)
+    }
+
+    // What the user changed that a new reading takes into account (a page's text, the pages): "Read again" is offered, never started. A
+    // re-read keeps every value the user set.
+    val readAgainOffer by viewModel.readAgainOffer.collectAsStateWithLifecycle()
+    LaunchedEffect(readAgainOffer) {
+        val offer = readAgainOffer ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = resources.getString(if (offer == ReadAgainOffer.PAGE_TEXT) R.string.read_again_offer_text else R.string.read_again_offer_pages),
+            actionLabel = resources.getString(R.string.read_again_action),
+            duration = SnackbarDuration.Long,
+        )
+        if (result == SnackbarResult.ActionPerformed) viewModel.startProcessing(force = true)
+        viewModel.clearReadAgainOffer()
     }
 
     // "Confirm n confident" / "Confirm all" offer a cheap undo — the Snackbar itself both shows and resolves
@@ -372,6 +387,7 @@ fun DocumentDetailScreen(
                     onSetPeople = viewModel::setConcernedPeople,
                     onSetFieldMeaning = viewModel::setFieldMeaning,
                     onSetLanguage = viewModel::setLanguage,
+                    onCorrectPageText = viewModel::correctPageText,
                     onOpenDocument = onOpenDocument,
                     onInstallModel = onInstallModel,
                     processingState = processingState,
@@ -466,6 +482,7 @@ private fun DocumentDetailContent(
     onSetPeople: (List<String>) -> Unit,
     onSetFieldMeaning: (fieldId: String, meaningId: String?) -> Unit,
     onSetLanguage: (String) -> Unit,
+    onCorrectPageText: (pageNumber: Int, text: String) -> Unit,
     onOpenDocument: (documentId: String) -> Unit,
     onInstallModel: () -> Unit,
     processingState: ProcessingState,
@@ -605,6 +622,7 @@ private fun DocumentDetailContent(
                 onZoomPage = onZoomPage,
                 jumpToPage = jumpToPage,
                 onEditTitle = onEditTitle,
+                onCorrectPageText = onCorrectPageText,
             )
             DetailTab.EXTRACTED -> ExtractedTab(
                 document = state.document,
@@ -810,7 +828,23 @@ private fun PagesTab(
     /** The page last viewed in the full-screen preview (1-based): the pager lands on it when the preview closes. */
     jumpToPage: Int? = null,
     onEditTitle: () -> Unit = {},
+    /** The user corrected a page's recognised text (page number, the whole text). */
+    onCorrectPageText: (pageNumber: Int, text: String) -> Unit = { _, _ -> },
 ) {
+    var correctingPage by rememberSaveable { mutableStateOf<Int?>(null) }
+    correctingPage?.let { number ->
+        pages.firstOrNull { it.pageNumber == number }?.let { page ->
+            EditPageTextDialog(
+                pageNumber = number,
+                initial = page.ocrText.orEmpty(),
+                onDismiss = { correctingPage = null },
+                onSave = { text ->
+                    correctingPage = null
+                    onCorrectPageText(number, text)
+                },
+            )
+        }
+    }
     if (pages.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No pages scanned yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -910,8 +944,10 @@ private fun PagesTab(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             PagesSummaryCard(title = title, summary = summary, onInstall = onInstallModel, onEditTitle = onEditTitle)
+            // Every page can be corrected, one the recognizer found nothing on included (its text is then empty until the user types it).
             RecognizedTextSection(
-                pages = pages.filter { !it.ocrText.isNullOrBlank() }.map { PageText(it.pageNumber, it.ocrText!!) },
+                pages = pages.map { PageText(it.pageNumber, it.ocrText.orEmpty()) },
+                onEdit = { correctingPage = it },
             )
         }
     }

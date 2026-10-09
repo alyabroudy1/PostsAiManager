@@ -217,6 +217,32 @@ internal fun PeopleCard(
     }
 }
 
+/** Corrects the recognised text of one page. Saving is the user's own text from then on; a re-read reads it and never replaces it. */
+@Composable
+internal fun EditPageTextDialog(pageNumber: Int, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by rememberSaveable(pageNumber) { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.page_text_edit_title, pageNumber)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    minLines = 6,
+                    maxLines = 14,
+                    modifier = Modifier.fillMaxWidth().testTag("page_text_field"),
+                )
+                Text(stringResource(R.string.page_text_edit_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSave(text) }, enabled = text != initial, modifier = Modifier.testTag("page_text_save")) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+}
+
 /** The words of a language tag in the user's language ("Deutsch", "German"); the tag itself when the platform has none. */
 internal fun languageName(tag: String): String =
     Locale.forLanguageTag(tag).getDisplayLanguage(Locale.getDefault()).takeIf { it.isNotBlank() } ?: tag

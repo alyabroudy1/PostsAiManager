@@ -132,6 +132,10 @@ class DocumentDetailViewModelTest {
                 documentRepository, ResolveEventLinksUseCase(profileRepository, contactRepository), eventRepository, refresh, java.time.Clock.systemUTC(),
             ),
             setCaseStatus = com.postsaimanager.core.domain.timeline.SetCaseStatusUseCase(eventRepository),
+            correctPageText = com.postsaimanager.core.domain.document.CorrectPageTextUseCase(
+                documentRepository,
+                com.postsaimanager.core.domain.usecase.IndexDocumentUseCase(FakeDocumentChunkRepository(), com.postsaimanager.core.testing.FakeEmbeddingService()),
+            ),
         )
     }
 
@@ -740,6 +744,24 @@ class DocumentDetailViewModelTest {
             viewModel("d1").setFieldMeaning("due", "TOTAL_DUE")
 
             assertThat(documentRepository.observeExtractedData("d1").first().single().role).isNull()
+        }
+
+        @Test
+        fun `a corrected page text is the user's, and a new reading is offered but not started`() = runTest {
+            documentRepository.seed(testDocument(id = "d1"))
+            documentRepository.seedPages("d1", DocumentPage("p1", "d1", 1, "file:///1.jpg", ocrText = "Rechnung vom 3.10.2O26"))
+            val vm = viewModel("d1")
+            assertThat(vm.readAgainOffer.value).isNull()
+
+            vm.correctPageText(1, "Rechnung vom 3.10.2026")
+
+            val page = (documentRepository.getDocumentPages("d1") as com.postsaimanager.core.common.result.PamResult.Success).data.single()
+            assertThat(page.ocrText).isEqualTo("Rechnung vom 3.10.2026")
+            assertThat(page.textSource).isEqualTo(com.postsaimanager.core.model.PageTextSource.USER)
+            assertThat(vm.readAgainOffer.value).isEqualTo(ReadAgainOffer.PAGE_TEXT)
+            assertThat(documentProcessor.enqueueCalls.filter { it.force }).isEmpty()
+            vm.clearReadAgainOffer()
+            assertThat(vm.readAgainOffer.value).isNull()
         }
 
         @Test

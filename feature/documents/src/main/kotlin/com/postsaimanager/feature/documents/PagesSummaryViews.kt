@@ -133,7 +133,12 @@ internal data class PageText(val pageNumber: Int, val text: String)
  * text is left out; with no text at all the section is not drawn.
  */
 @Composable
-internal fun RecognizedTextSection(pages: List<PageText>, modifier: Modifier = Modifier) {
+internal fun RecognizedTextSection(
+    pages: List<PageText>,
+    modifier: Modifier = Modifier,
+    /** "Correct the text" under each page: the user fixes what the recognizer got wrong. Null: the text is read-only. */
+    onEdit: ((pageNumber: Int) -> Unit)? = null,
+) {
     if (pages.isEmpty()) return
     var expanded by rememberSaveable { mutableStateOf(false) }
     val label = stringResource(if (expanded) R.string.pages_hide_text else R.string.pages_show_text)
@@ -167,6 +172,12 @@ internal fun RecognizedTextSection(pages: List<PageText>, modifier: Modifier = M
                                 )
                             }
                             Text(page.text, style = MaterialTheme.typography.bodySmall)
+                            if (onEdit != null) {
+                                TextButton(onClick = { onEdit(page.pageNumber) }, modifier = Modifier.testTag("page_text_edit_${page.pageNumber}")) {
+                                    Icon(PamIcons.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Text(stringResource(R.string.page_text_edit), modifier = Modifier.padding(start = 6.dp))
+                                }
+                            }
                         }
                     }
                 }

@@ -144,6 +144,12 @@
     <string name="case_move_new">قضية جديدة</string>
     <string name="case_move_new_label">اسم القضية الجديدة (اختياري)</string>
     <string name="case_move_here">هنا الآن</string>
+    <string name="page_text_edit">تصحيح النص</string>
+    <string name="page_text_edit_title">تصحيح نص الصفحة %1$d</string>
+    <string name="page_text_edit_hint">يُقرأ ما تكتبه كما هو، ولا تستبدله أي قراءة جديدة.</string>
+    <string name="read_again_offer_text">تم حفظ النص. هل تريد قراءة الرسالة مرة أخرى به؟</string>
+    <string name="read_again_offer_pages">تغيّرت الصفحات. هل تريد قراءة الرسالة مرة أخرى؟</string>
+    <string name="read_again_action">اقرأ مرة أخرى</string>
     <string name="language_label">اللغة</string>
     <string name="language_unknown">لم تُكتشف</string>
     <string name="language_edit_description">تغيير لغة هذه الرسالة</string>

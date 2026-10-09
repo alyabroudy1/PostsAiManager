@@ -364,6 +364,21 @@ class DocumentDetailViewModel @Inject constructor(
         viewModelScope.launch { edits.updateContact(contact) }
     }
 
+    private val _readAgainOffer = MutableStateFlow<ReadAgainOffer?>(null)
+
+    /** Set after the user changed what the reading is made from (a page's text): the screen offers "Read again" for it. Null: no offer. */
+    val readAgainOffer: StateFlow<ReadAgainOffer?> = _readAgainOffer.asStateFlow()
+
+    /** The offer was answered or dismissed. */
+    fun clearReadAgainOffer() { _readAgainOffer.value = null }
+
+    /** The person corrected a page's recognised text: kept by every re-read, which is offered. */
+    fun correctPageText(pageNumber: Int, text: String) {
+        viewModelScope.launch {
+            if (edits.correctPageText(documentId, pageNumber, text) is PamResult.Success) _readAgainOffer.value = ReadAgainOffer.PAGE_TEXT
+        }
+    }
+
     /** The person set the letter's language: kept by every re-read, and the language the summary and answers are written in. */
     fun setLanguage(tag: String) {
         viewModelScope.launch { edits.setLanguage(documentId, tag) }
@@ -473,3 +488,6 @@ class DocumentDetailViewModel @Inject constructor(
 }
 
 enum class DetailTab { PAGES, EXTRACTED, TIMELINE }
+
+/** What the user changed that a new reading would take into account, so the screen offers to read the letter again. */
+enum class ReadAgainOffer { PAGE_TEXT, PAGES }

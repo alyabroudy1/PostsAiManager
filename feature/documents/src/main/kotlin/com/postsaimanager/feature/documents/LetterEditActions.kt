@@ -1,6 +1,7 @@
 package com.postsaimanager.feature.documents
 
 import com.postsaimanager.core.domain.contacts.UpdateContactUseCase
+import com.postsaimanager.core.domain.document.CorrectPageTextUseCase
 import com.postsaimanager.core.domain.document.SetDocumentLanguageUseCase
 import com.postsaimanager.core.domain.document.SetFieldMeaningUseCase
 import com.postsaimanager.core.domain.document.actions.AddActionUseCase
@@ -36,4 +37,5 @@ class LetterEditActions @Inject constructor(
     val deleteEvent: DeleteEventUseCase,
     val addEvent: AddEventUseCase,
     val setCaseStatus: SetCaseStatusUseCase,
+    val correctPageText: CorrectPageTextUseCase,
 )

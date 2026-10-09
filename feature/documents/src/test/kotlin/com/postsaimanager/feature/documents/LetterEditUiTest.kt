@@ -238,6 +238,41 @@ class LetterEditUiTest {
         assertThat(chosen).containsExactly("DUE_DATE", null).inOrder()
     }
 
+    // ── a page's text ──
+
+    @Test
+    fun `each page's text has a Correct the text button, and the dialog hands the corrected text over`() {
+        val edited = mutableListOf<Int>()
+        val saved = mutableListOf<String>()
+        compose.setContent {
+            MaterialTheme {
+                androidx.compose.foundation.layout.Column {
+                    RecognizedTextSection(listOf(PageText(1, "Rechnung vom 3.10.2O26")), onEdit = { edited += it })
+                    EditPageTextDialog(1, "Rechnung vom 3.10.2O26", onDismiss = {}, onSave = { saved += it })
+                }
+            }
+        }
+
+        compose.onNodeWithText("Show recognized text", ignoreCase = true).performClick()
+        compose.onNodeWithTag("page_text_edit_1").performClick()
+        compose.onNodeWithTag("page_text_save").assertIsNotEnabled()
+        compose.onNodeWithTag("page_text_field").performTextClearance()
+        compose.onNodeWithTag("page_text_field").performTextInput("Rechnung vom 3.10.2026")
+        compose.onNodeWithTag("page_text_save").performClick()
+
+        assertThat(edited).containsExactly(1)
+        assertThat(saved).containsExactly("Rechnung vom 3.10.2026")
+    }
+
+    @Test
+    fun `without an edit callback the recognised text is read-only`() {
+        compose.setContent { MaterialTheme { RecognizedTextSection(listOf(PageText(1, "Rechnung"))) } }
+
+        compose.onNodeWithText("Show recognized text", ignoreCase = true).performClick()
+
+        compose.onNodeWithTag("page_text_edit_1").assertDoesNotExist()
+    }
+
     // ── the language ──
 
     @Test

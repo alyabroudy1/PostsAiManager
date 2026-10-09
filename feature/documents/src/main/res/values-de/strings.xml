@@ -144,6 +144,12 @@
     <string name="case_move_new">Ein neuer Vorgang</string>
     <string name="case_move_new_label">Name des neuen Vorgangs (optional)</string>
     <string name="case_move_here">jetzt hier</string>
+    <string name="page_text_edit">Text korrigieren</string>
+    <string name="page_text_edit_title">Text von Seite %1$d korrigieren</string>
+    <string name="page_text_edit_hint">Was Sie schreiben, wird so gelesen, wie es dasteht, und keine neue Lesung ersetzt es.</string>
+    <string name="read_again_offer_text">Text gespeichert. Den Brief damit erneut lesen?</string>
+    <string name="read_again_offer_pages">Die Seiten haben sich geändert. Den Brief erneut lesen?</string>
+    <string name="read_again_action">Erneut lesen</string>
     <string name="language_label">Sprache</string>
     <string name="language_unknown">Nicht erkannt</string>
     <string name="language_edit_description">Sprache dieses Briefs ändern</string>
