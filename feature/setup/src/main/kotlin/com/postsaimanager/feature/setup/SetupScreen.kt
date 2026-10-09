@@ -228,15 +228,20 @@ private fun ModelChoice(offer: SetupOffer, state: SetupUiState, onSelect: (Strin
             }
         }
     }
+    val chosenName = state.selectedOption?.descriptor?.name.orEmpty()
     Text(
-        text = stringResource(R.string.setup_reader_note, recommendation.reader.name),
+        text = if (state.chatReadsLetters) {
+            stringResource(R.string.setup_reader_note_self, chosenName)
+        } else {
+            stringResource(R.string.setup_reader_note, recommendation.reader.name)
+        },
         style = MaterialTheme.typography.bodyMedium,
         textAlign = TextAlign.Center,
     )
     val total = Formatter.formatShortFileSize(context, state.totalDownloadBytes)
     Text(
         text = if (state.chatIsReader) {
-            stringResource(R.string.setup_download_total_two, total, recommendation.reader.name)
+            stringResource(R.string.setup_download_total_two, total, chosenName)
         } else {
             stringResource(R.string.setup_download_total_three, total)
         },
@@ -357,7 +362,10 @@ private fun PartRows(offer: SetupOffer, state: SetupUiState) {
     val reader = offer.recommendation.reader
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (state.chatIsReader) {
-            PartRow(label = stringResource(R.string.setup_part_chat, reader.name), status = progress.reader)
+            PartRow(
+                label = stringResource(R.string.setup_part_chat, state.selectedOption?.descriptor?.name ?: reader.name),
+                status = progress.reader,
+            )
         } else {
             PartRow(label = stringResource(R.string.setup_part_reader, reader.name), status = progress.reader)
             PartRow(

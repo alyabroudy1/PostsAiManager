@@ -51,6 +51,15 @@ class ObserveSetupNeedUseCaseTest {
     }
 
     @Test
+    fun `Gemma alone ends the need, no second model is owed`() = runTest {
+        val gemmaOnly = InstalledModelSummary("gemma-4-e2b-it-litertlm", "Gemma 4 E2B · Chat", "/g.litertlm", 1L, "LiteRT-LM", 8192)
+        val models = FakeInstalledModels().apply { this.models.value = listOf(gemmaOnly) }
+        ObserveSetupNeedUseCase(models, FakeUserPreferencesRepository())().test {
+            assertThat(awaitItem()).isEqualTo(SetupNeed.NOT_NEEDED)
+        }
+    }
+
+    @Test
     fun `the banner goes away when a model gets installed, and comes back when it is removed`() = runTest {
         val models = FakeInstalledModels()
         val prefs = FakeUserPreferencesRepository(UserPreferences(modelSetupSkipped = true))

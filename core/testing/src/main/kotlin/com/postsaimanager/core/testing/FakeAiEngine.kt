@@ -280,7 +280,10 @@ class FakeActiveModelProvider(
         return chat.copy(accelerator = reading, gpuLayers = if (reading == Accelerator.GPU) -1 else 0)
     }
 
-    override suspend fun extractionModelPath(): String? = extractionPath ?: path
+    /** False is the Gemma-only phone: no llama.cpp reader is installed, so there is no extraction model path (the chat model remains). */
+    var llamaReaderInstalled: Boolean = true
+
+    override suspend fun extractionModelPath(): String? = if (llamaReaderInstalled) extractionPath ?: path else null
     override suspend fun extractionModelConfig(): InferenceConfig =
         InferenceConfig.defaults(device, contextTokens).copy(
             accelerator = accelerator,

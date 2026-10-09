@@ -2,7 +2,11 @@ package com.postsaimanager.core.ai.catalog
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.extraction.zones.ModelProfiles
+import com.postsaimanager.core.domain.setup.RecommendChatModelUseCase
+import com.postsaimanager.core.model.ChatModelFit
+import com.postsaimanager.core.model.DeviceProfile
 import com.postsaimanager.core.model.ModelRuntime
+import com.postsaimanager.core.model.NotRecommendedReason
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -68,10 +72,10 @@ class BundledCatalogTest {
     }
 
     @Test
-    @DisplayName("only the 0.8B and 2B may be the default, and the slower models say so")
+    @DisplayName("only the 0.8B, the 2B and Gemma 4 E2B Chat may be the default, and the slower models say so")
     fun `preselectable models and speed hints`() {
         val preselectable = BundledCatalog.models.filter { it.preselectable }.map { it.id }
-        assertThat(preselectable).containsExactly("qwen3.5-0.8b-q4_k_m", "qwen3.5-2b-q4_k_m")
+        assertThat(preselectable).containsExactly("qwen3.5-0.8b-q4_k_m", "qwen3.5-2b-q4_k_m", "gemma-4-e2b-it-litertlm")
         // The speed note compares with the llama.cpp reader; a model on another runtime is not slower than it for the same reason.
         BundledCatalog.models.filter { it.runtime == ModelRuntime.LLAMA_CPP }.filterNot { it.preselectable }.forEach {
             assertThat(it.speedHint).isEqualTo(com.postsaimanager.core.model.SpeedHint.MUCH_SLOWER)
@@ -203,6 +207,54 @@ class BundledCatalogTest {
         // models, and the app quietly reads letters with whatever they picked for chat.
         assertThat(readers).isNotEmpty()
         assertThat(readers.map { it.family }).contains("Gemma")
+    }
+
+    private fun setupOffer(ramGb: Double) = RecommendChatModelUseCase()(
+        device = DeviceProfile(ramGb, 50_000_000_000L, bigCoreCount = 4, is64Bit = true),
+        catalog = BundledCatalog.models,
+        installedIds = emptySet(),
+        searchModelBytes = 270_000_000L,
+    )
+
+    @Test
+    @DisplayName("first-run setup puts Gemma 4 E2B Chat first, recommended and preselected, on a phone with its memory")
+    fun `setup recommends gemma on a high memory phone`() {
+        val offer = setupOffer(11.3)
+
+        assertThat(offer.preselectedId).isEqualTo("gemma-4-e2b-it-litertlm")
+        assertThat(offer.options.first().id).isEqualTo("gemma-4-e2b-it-litertlm")
+        assertThat(offer.options.first().fit).isEqualTo(ChatModelFit.Recommended)
+        // One download: Gemma and the search model, no Qwen reader.
+        val gemma = BundledCatalog.models.first { it.id == "gemma-4-e2b-it-litertlm" }
+        assertThat(offer.options.first().downloadBytes).isEqualTo(gemma.sizeBytes + 270_000_000L)
+    }
+
+    @Test
+    @DisplayName("on a phone below Gemma's memory setup keeps the best Qwen and shows Gemma as not recommended")
+    fun `setup keeps qwen on a low memory phone`() {
+        val offer = setupOffer(5.6)
+
+        assertThat(offer.preselectedId).isEqualTo("qwen3.5-2b-q4_k_m")
+        assertThat(offer.option("gemma-4-e2b-it-litertlm")!!.fit)
+            .isEqualTo(ChatModelFit.NotRecommended(NotRecommendedReason.MEMORY, requiredRamGb = 8.0))
+    }
+
+    @Test
+    @DisplayName("the GGUF Gemma reading builds are never offered as a chat choice in setup")
+    fun `setup does not offer the reading builds`() {
+        val ids = setupOffer(16.0).options.map { it.id }
+
+        assertThat(ids).containsNoneOf("gemma-4-e2b-it-qat-q4_0", "gemma-4-e4b-it-qat-q4_0")
+        assertThat(BundledCatalog.models.filter { it.runtime == ModelRuntime.LLAMA_CPP && it.family == "Gemma" }.map { it.setupRank })
+            .containsExactly(0, 0)
+    }
+
+    @Test
+    @DisplayName("only the Gemma chat builds read letters themselves; the Qwen reader stays the catalogue's fallback reader")
+    fun `reads documents flag`() {
+        assertThat(BundledCatalog.models.filter { it.readsDocuments }.map { it.id })
+            .containsExactly("gemma-4-e2b-it-litertlm", "gemma-4-e4b-it-litertlm")
+        assertThat(BundledCatalog.models.maxBy { it.setupRank }.id).isEqualTo("gemma-4-e2b-it-litertlm")
     }
 
     @Test

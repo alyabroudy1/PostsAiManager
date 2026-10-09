@@ -236,7 +236,7 @@ object BundledCatalog {
             // The Gallery's allowlist entry says `llmSupportImage: true` for this file; audio is declared for later (unused yet).
             inputs = GEMMA4_LITERT_INPUTS,
             description = "Google's own LiteRT-LM build of Gemma 4, the one in the AI Edge Gallery. Chats on the CPU by default; " +
-                "the GPU can be chosen in the chat's model settings. It only chats: your letters are still read by the reader model.",
+                "the GPU can be chosen in the chat's model settings. It chats and reads your letters, so it is the only model setup needs.",
             // CPU first: on the test phone the GPU engine garbled the figures and dates inside tool calls (dropped dots and hyphens,
             // doubled digits) that the CPU engine wrote correctly with the same model, prompt and sampling. The GPU stays selectable.
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.CPU, Accelerator.GPU)),
@@ -247,6 +247,11 @@ object BundledCatalog {
             approxRamUseGb = 3.5,
             runtime = ModelRuntime.LITERT_LM,
             sampling = GEMMA4_GALLERY_SAMPLING,
+            // The app's chat and, through the Gemma reader, its document reader: first-run setup recommends it where the phone has the
+            // memory, and downloads only it and the search model (the Qwen reader stays an optional fallback on the Models screen).
+            setupRank = 100,
+            preselectable = true,
+            readsDocuments = true,
         ),
         AiModelDescriptor(
             id = "gemma-4-e4b-it-litertlm",
@@ -264,18 +269,20 @@ object BundledCatalog {
             supportsTools = true,
             inputs = GEMMA4_LITERT_INPUTS,
             description = "The larger LiteRT-LM build of Gemma 4, from the AI Edge Gallery. Better answers, on a high-end " +
-                "phone. It only chats: your letters are still read by the reader model.",
+                "phone. It chats and reads your letters.",
             backendSpec = BackendSpec(accelerators = listOf(Accelerator.CPU, Accelerator.GPU)),
             minRamGb = 12.0,
             recommendedRamGb = 12.0,
             approxRamUseGb = 5.0,
             runtime = ModelRuntime.LITERT_LM,
             sampling = GEMMA4_GALLERY_SAMPLING,
+            readsDocuments = true,
         ),
     )
 
     /**
-     * The reader model (flagged [ModelRole.READER_AND_CHAT] above, which a test pins): setup always installs it, and extraction runs
+     * The reader model (flagged [ModelRole.READER_AND_CHAT] above, which a test pins): the fallback reader. Setup installs it with a
+     * chat model that cannot read letters itself (not with Gemma, see [AiModelDescriptor.readsDocuments]), and the old extraction runs
      * on it whenever it is installed. The id is only for code that has no descriptor list at hand.
      */
     const val READER_MODEL_ID = "qwen3.5-0.8b-q4_k_m"

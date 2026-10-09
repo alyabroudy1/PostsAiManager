@@ -40,7 +40,7 @@ class ReprocessOutdatedDocumentsUseCase @Inject constructor(
 
     suspend operator fun invoke(limit: Int = DEFAULT_LIMIT): Int {
         if (!userPreferencesRepository.getUserPreferences().first().updateOlderLettersAutomatically) return 0
-        if (activeModelProvider.extractionModelPath() == null) return 0
+        if (!activeModelProvider.canReadDocuments()) return 0
 
         val candidates = documentRepository.getDocuments().first()
             .filter(::isCandidate)

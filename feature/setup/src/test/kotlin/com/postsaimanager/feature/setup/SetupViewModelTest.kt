@@ -416,4 +416,65 @@ class SetupViewModelTest {
     fun `the user preferences default is not skipped`() {
         assertThat(UserPreferences().modelSetupSkipped).isFalse()
     }
+
+    // A Gemma-like model: ranked first by the catalogue, reads letters itself, so it is the only chat download.
+    private val gemma = descriptor("gemma", 2_600L).copy(setupRank = 100, readsDocuments = true)
+    private val gemmaOffer = SetupOffer(
+        ChatModelRecommendation(
+            options = listOf(
+                ChatModelOption(gemma, ChatModelFit.Recommended, gemma.sizeBytes + search),
+                ChatModelOption(reader, ChatModelFit.Recommended, reader.sizeBytes + search),
+                ChatModelOption(two, ChatModelFit.Recommended, reader.sizeBytes + two.sizeBytes + search),
+            ),
+            preselectedId = "gemma",
+            reader = reader,
+        ),
+        canInstallChatModel = true,
+    )
+
+    @Test
+    fun `Gemma is preselected and recommended, and its total is Gemma plus the search model, no reader`() = runTest {
+        gateway.offer = gemmaOffer
+        viewModel().uiState.test {
+            val state = expectMostRecentItem()
+            assertThat(state.selectedId).isEqualTo("gemma")
+            assertThat(state.selectedOption!!.fit).isEqualTo(ChatModelFit.Recommended)
+            assertThat(state.chatIsReader).isTrue()
+            assertThat(state.chatReadsLetters).isTrue()
+            assertThat(state.totalDownloadBytes).isEqualTo(2_600L + search)
+        }
+    }
+
+    @Test
+    fun `a Qwen choice after Gemma brings the separate reader back`() = runTest {
+        gateway.offer = gemmaOffer
+        val vm = viewModel()
+        vm.uiState.test {
+            expectMostRecentItem()
+            vm.select("two")
+            val state = expectMostRecentItem()
+            assertThat(state.chatIsReader).isFalse()
+            assertThat(state.chatReadsLetters).isFalse()
+            assertThat(state.totalDownloadBytes).isEqualTo(500L + 1_300L + search)
+        }
+    }
+
+    @Test
+    fun `Gemma alone finishes the setup once it and the search model are ready`() = runTest {
+        gateway.offer = gemmaOffer
+        val vm = viewModel()
+        vm.uiState.test {
+            expectMostRecentItem()
+            vm.download()
+            assertThat(gateway.startedModels).containsExactly("gemma")
+            // One row stands for the chat and the reader: the gateway reports it twice.
+            gateway.state.value = SetupProgress(chat = downloading(), search = SetupPartStatus.Waiting, reader = downloading())
+            assertThat(expectMostRecentItem().stage).isEqualTo(SetupStage.DOWNLOADING)
+
+            gateway.state.value = SetupProgress(chat = SetupPartStatus.Done, search = SetupPartStatus.Done, reader = SetupPartStatus.Done)
+            val done = expectMostRecentItem()
+            assertThat(done.stage).isEqualTo(SetupStage.FINISHED)
+            assertThat(done.exit).isTrue()
+        }
+    }
 }

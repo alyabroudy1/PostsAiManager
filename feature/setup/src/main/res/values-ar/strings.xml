@@ -7,6 +7,7 @@
     <string name="setup_choose_model_title">اختر نموذج المحادثة</string>
     <string name="setup_model_size">حجم التنزيل %1$s</string>
     <string name="setup_reader_note">تتم قراءة الرسائل باستخدام %1$s (مضمَّن دائمًا)</string>
+    <string name="setup_reader_note_self">يتحدث %1$s ويقرأ رسائلك أيضًا: لا حاجة إلى تنزيل نموذج ثانٍ. يمكنك إضافة نموذج قراءة أصغر لاحقًا من شاشة النماذج.</string>
     <string name="setup_download_total_three">التنزيل ≈ %1$s: نموذج القراءة + نموذج المحادثة + نموذج البحث</string>
     <string name="setup_download_total_two">التنزيل ≈ %1$s: %2$s + نموذج البحث</string>
     <string name="setup_confirm_title">استخدام هذا النموذج على أي حال؟</string>

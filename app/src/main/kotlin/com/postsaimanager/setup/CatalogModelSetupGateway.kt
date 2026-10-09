@@ -13,6 +13,7 @@ import com.postsaimanager.core.model.ModelRole
 import com.postsaimanager.core.model.SetupOffer
 import com.postsaimanager.core.model.SetupPartStatus
 import com.postsaimanager.core.model.SetupProgress
+import com.postsaimanager.core.model.isItsOwnReader
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -30,8 +31,9 @@ import javax.inject.Singleton
  * First-run setup over the existing download machinery: the reader model and the chosen chat model through [ModelCatalogRepository]
  * (`ModelDownloadWorker` underneath) and the search model through [EmbeddingModelManager]. Nothing here downloads by itself.
  *
- * The reader (the catalog's [ModelRole.READER_AND_CHAT] model) is always installed, once, even when it is also the chosen chat model.
- * What it owns that the Models screen does at the UI layer: registering a finished download as installed
+ * The reader (the catalog's [ModelRole.READER_AND_CHAT] model) is installed, once, even when it is also the chosen chat model, unless
+ * the chosen chat model reads letters itself ([AiModelDescriptor.readsDocuments], Gemma): then only that model and the search model
+ * are downloaded. What it owns that the Models screen does at the UI layer: registering a finished download as installed
  * ([ModelCatalogRepository.onDownloadComplete]), so setup works without that screen being open, and making the chosen model the
  * active chat model (reading stays on the reader: see `InstalledIndex.readerModel`).
  */
@@ -66,10 +68,11 @@ class CatalogModelSetupGateway @Inject constructor(
         val entries = entries()
         emit(readerOf(entries) to entries.firstOrNull { it.descriptor.id == chatModelId }?.descriptor)
     }.flatMapLatest { (reader, chat) ->
-        // One download and one row when the chosen chat model is the reader.
-        val separateChat = chat?.takeIf { it.id != reader.id }
+        // One download and one row when the chosen chat model is its own reader (the reader itself, or a model that reads letters).
+        val separateChat = chat?.takeUnless { it.isItsOwnReader(reader) }
+        val single = if (separateChat == null) chat ?: reader else null
         combine(
-            part(reader, activate = separateChat == null),
+            part(single ?: reader, activate = separateChat == null),
             separateChat?.let { part(it, activate = true) } ?: flowOf(null),
             embedding.status,
         ) { readerPart, chatPart, search ->
@@ -81,7 +84,9 @@ class CatalogModelSetupGateway @Inject constructor(
         val entries = entries()
         val reader = readerOf(entries)
         val chat = entries.firstOrNull { it.descriptor.id == chatModelId }?.descriptor ?: reader
-        val started = ensureInstalledOrStarted(reader, allowMetered) && ensureInstalledOrStarted(chat, allowMetered)
+        // A chat model that reads letters itself (Gemma) is the only model downloaded: the Qwen reader is an optional extra later.
+        val started = (chat.isItsOwnReader(reader) || ensureInstalledOrStarted(reader, allowMetered)) &&
+            ensureInstalledOrStarted(chat, allowMetered)
         if (isInstalled(chat.id)) catalog.setActive(chat.id)
         if (!embedding.isInstalled()) embedding.install(allowMetered)
         return started

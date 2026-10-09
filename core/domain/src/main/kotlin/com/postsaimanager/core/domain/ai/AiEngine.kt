@@ -263,6 +263,14 @@ interface ActiveModelProvider {
      */
     suspend fun extractionModelPath(): String?
 
+    /**
+     * Whether any model is there to read documents: the llama.cpp reader ([extractionModelPath]), or the chat model alone. A
+     * LiteRT-LM chat model (Gemma) is never the llama.cpp reader, so [extractionModelPath] is null when Gemma is the only model
+     * installed; the Gemma reader runs on the chat model, so letters are still read, and callers that ask "is there anything to read
+     * with" must use this rather than [extractionModelPath].
+     */
+    suspend fun canReadDocuments(): Boolean = extractionModelPath() != null || activeModelPath() != null
+
     /** As [activeModelConfig], for the extraction model. */
     suspend fun extractionModelConfig(): InferenceConfig
 

@@ -10,6 +10,7 @@ import com.postsaimanager.core.model.ChatModelOption
 import com.postsaimanager.core.model.SetupOffer
 import com.postsaimanager.core.model.SetupPartStatus
 import com.postsaimanager.core.model.SetupProgress
+import com.postsaimanager.core.model.isItsOwnReader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -64,8 +65,15 @@ data class SetupUiState(
     /** What the chosen models download in all: the reader, the chat model when it is another one, and the search model. */
     val totalDownloadBytes: Long get() = selectedOption?.downloadBytes ?: 0L
 
-    /** True when the chosen chat model is the reader, so there is no separate chat download to show. */
-    val chatIsReader: Boolean get() = selectedId != null && selectedId == offer?.recommendation?.reader?.id
+    /** True when the chosen chat model is its own reader (the reader itself, or a model that reads letters, Gemma): no separate reader download. */
+    val chatIsReader: Boolean
+        get() {
+            val reader = offer?.recommendation?.reader ?: return false
+            return selectedOption?.descriptor?.isItsOwnReader(reader) == true
+        }
+
+    /** True when the chosen chat model reads letters itself, so the screen says so instead of naming the always-installed reader. */
+    val chatReadsLetters: Boolean get() = selectedOption?.descriptor?.readsDocuments == true
 }
 
 /** What the user did, as opposed to what the downloads report. */
