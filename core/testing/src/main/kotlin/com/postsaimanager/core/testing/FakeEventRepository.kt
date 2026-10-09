@@ -72,7 +72,10 @@ class FakeEventRepository : EventRepository {
     }
 
     override suspend fun replaceDocumentEvents(documentId: String, events: List<ProfileEvent>) {
-        this.events.value = this.events.value.filterNot { it.documentId == documentId && (it.source == EventSource.DOCUMENT || it.source == EventSource.SYSTEM) } + events
+        // What the user edited or deleted stays; the rest of the reading's and the derived events is replaced.
+        this.events.value = this.events.value.filterNot {
+            it.documentId == documentId && (it.source == EventSource.DOCUMENT || it.source == EventSource.SYSTEM) && it.userState == EventUserState.NONE
+        } + events
     }
 
     override suspend fun addEvent(event: ProfileEvent) {

@@ -102,6 +102,19 @@ class EditEventUseCasesTest {
     }
 
     @Test
+    fun `a re-read replaces the derived system event, but one the user deleted stays deleted`() = runTest {
+        letter(); readOnce()
+        fun system(id: String, state: EventUserState) =
+            ProfileEvent(id, "d1", EventKinds.INFORMATION, 1L, 1L, "Deadline passed", source = EventSource.SYSTEM, userState = state)
+        events.seedEvents(system("s-old", EventUserState.NONE), system("s-gone", EventUserState.DELETED))
+
+        record("d1", EventReading(EventKinds.APPROVAL, "Bewilligt"))
+
+        assertThat(mine().map { it.id }).doesNotContain("s-old")
+        assertThat(mine().single { it.id == "s-gone" }.userState).isEqualTo(EventUserState.DELETED)
+    }
+
+    @Test
     fun `a deleted event that the user wrote is removed for good`() = runTest {
         letter()
         add("d1", EventKinds.INFORMATION, 1_000_000L, "Phoned the office")

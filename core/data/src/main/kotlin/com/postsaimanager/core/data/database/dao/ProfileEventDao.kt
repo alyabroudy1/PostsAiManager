@@ -110,7 +110,8 @@ interface ProfileEventDao {
     @Query("INSERT OR IGNORE INTO profile_event_people (eventId, profileId) SELECT :eventId, id FROM profiles WHERE id IN (:profileIds)")
     suspend fun insertPeople(eventId: String, profileIds: List<String>)
 
-    @Query("DELETE FROM profile_events WHERE documentId = :documentId AND source = :source")
+    /** Removes the letter's events of [source] the user did not touch: an edited event or a tombstone ('EDITED', 'DELETED') stays. */
+    @Query("DELETE FROM profile_events WHERE documentId = :documentId AND source = :source AND userState = 'NONE'")
     suspend fun deleteBySource(documentId: String, source: String)
 
     @Query("DELETE FROM profile_event_people WHERE eventId IN (SELECT id FROM profile_events WHERE documentId = :documentId)")
