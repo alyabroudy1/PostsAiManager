@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.usecase
 
+import com.postsaimanager.core.domain.extraction.actions.ActionBinding
 import com.postsaimanager.core.domain.extraction.actions.ActionKinds
 import com.postsaimanager.core.domain.extraction.actions.ActionPart
 import com.postsaimanager.core.domain.contacts.LetterContacts
@@ -68,8 +69,7 @@ object LetterReadingContext {
 
     private fun read(actionItems: List<ActionItem>, fields: List<ExtractedData>): List<Line> {
         val live = fields.filter { !it.deletedByUser && it.reviewState != ReviewState.IGNORED && it.fieldValue.isNotBlank() }
-        fun bound(item: ActionItem, part: ActionPart): ExtractedData? =
-            item.bindings[part.key]?.let { key -> live.firstOrNull { it.slotKey == key } }
+        fun bound(item: ActionItem, part: ActionPart): ExtractedData? = ActionBinding.field(item, part, live)
 
         val lines = mutableListOf<Line>()
         val coveredDates = mutableSetOf<String>()

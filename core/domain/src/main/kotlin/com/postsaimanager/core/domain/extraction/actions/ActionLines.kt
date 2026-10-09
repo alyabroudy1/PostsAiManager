@@ -58,7 +58,8 @@ object ActionLines {
         val offer = contact?.let {
             ContactOffer(it.name, it.phone?.takeIf { p -> p.isNotBlank() && !letterHasPhone }, it.email?.takeIf { e -> e.isNotBlank() && !letterHasEmail })
         }?.takeUnless { it.isEmpty }
-        fun field(item: ActionItem, part: ActionPart): ExtractedData? = item.bindings[part.key]?.let { key -> live.firstOrNull { it.slotKey == key } }
+        // The person's chosen meaning of a date or an amount first, then the slot the reading bound the part to.
+        fun field(item: ActionItem, part: ActionPart): ExtractedData? = ActionBinding.field(item, part, live)
 
         return items.filter { !it.removed }.mapNotNull { item ->
             val kind = ActionKinds.of(item.kind) ?: return@mapNotNull null
