@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.document.DocumentProcessor
+import com.postsaimanager.core.domain.document.MoveDocumentToTrashUseCase
+import com.postsaimanager.core.domain.document.RestoreDocumentUseCase
 import com.postsaimanager.core.domain.importing.ImportQueue
 import com.postsaimanager.core.domain.importing.ImportStatus
 import com.postsaimanager.core.domain.document.list.ObserveDocumentListItemsUseCase
@@ -34,7 +36,19 @@ class HomeViewModel @Inject constructor(
     private val dismissHouseholdPrompt: DismissHouseholdPromptUseCase,
     private val importQueue: ImportQueue,
     private val externalFlowGuard: ExternalFlowGuard,
+    private val moveToTrash: MoveDocumentToTrashUseCase,
+    private val restoreDocument: RestoreDocumentUseCase,
 ) : ViewModel() {
+
+    /** Swipe-to-delete on a recent document, the same use case as the Documents tab. The screen's snackbar offers Undo. */
+    fun onDeleteDocument(documentId: String) {
+        viewModelScope.launch { moveToTrash(documentId) }
+    }
+
+    /** Undo for [onDeleteDocument]. */
+    fun onRestoreDocument(documentId: String) {
+        viewModelScope.launch { restoreDocument(documentId) }
+    }
 
     /**
      * The one-time "Add yourself and your family" card: the household role the profile editor should open with, or null for no card

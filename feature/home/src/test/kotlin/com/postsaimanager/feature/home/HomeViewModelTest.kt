@@ -58,7 +58,23 @@ class HomeViewModelTest {
         dismissHouseholdPrompt = DismissHouseholdPromptUseCase(preferences),
         importQueue = importQueue,
         externalFlowGuard = com.postsaimanager.core.domain.applock.AppLockState(com.postsaimanager.core.testing.FakeMonotonicClock()),
+        moveToTrash = com.postsaimanager.core.domain.document.MoveDocumentToTrashUseCase(repository),
+        restoreDocument = com.postsaimanager.core.domain.document.RestoreDocumentUseCase(repository),
     )
+
+    @Test
+    fun `swiping a recent document moves it to the trash and Undo brings it back`() = runTest {
+        repository.seed(testDocument(id = "d1"), testDocument(id = "d2"))
+        val vm = viewModel()
+        vm.uiState.test {
+            assertThat((expectMostRecentItem() as HomeUiState.Success).recentDocuments.map { it.id }).containsExactly("d1", "d2")
+            vm.onDeleteDocument("d1")
+            assertThat((awaitItem() as HomeUiState.Success).recentDocuments.map { it.id }).containsExactly("d2")
+            vm.onRestoreDocument("d1")
+            assertThat((awaitItem() as HomeUiState.Success).recentDocuments.map { it.id }).containsExactly("d1", "d2")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 
     private val importQueue = com.postsaimanager.core.testing.FakeImportQueue()
 

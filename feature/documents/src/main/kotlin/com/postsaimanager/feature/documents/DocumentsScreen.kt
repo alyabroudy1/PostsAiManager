@@ -47,6 +47,7 @@ import com.postsaimanager.core.designsystem.component.PamEmptyState
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
+import com.postsaimanager.core.designsystem.component.SwipeToDeleteRow
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.ProcessingState
 
@@ -161,48 +162,4 @@ fun DocumentsScreen(
     }
 }
 
-/**
- * Swipe-in-either-direction-to-trash for a single row. `SwipeToDismissBoxValue.StartToEnd`
- * and `.EndToStart` are both wired to delete — direction isn't semantically meaningful here,
- * only "the user swiped it away" — matching the platform's usual one-gesture-one-action swipe
- * pattern. The write is optimistic: dismissal fires [onDelete] immediately rather than waiting
- * for a confirmation, since the caller's Undo snackbar is the confirmation.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SwipeToDeleteRow(
-    onDelete: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value != SwipeToDismissBoxValue.Settled) onDelete()
-            true
-        },
-    )
-    SwipeToDismissBox(
-        state = dismissState,
-        backgroundContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 20.dp),
-                contentAlignment = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
-                    Alignment.CenterEnd
-                } else {
-                    Alignment.CenterStart
-                },
-            ) {
-                Icon(
-                    PamIcons.Delete,
-                    contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                )
-            }
-        },
-    ) {
-        content()
-    }
-}
 

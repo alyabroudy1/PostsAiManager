@@ -29,7 +29,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -41,6 +49,7 @@ import com.postsaimanager.core.designsystem.component.PamEmptyState
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
+import com.postsaimanager.core.designsystem.component.SwipeToDeleteRow
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.importing.ImportStatus
 import com.postsaimanager.core.model.DocumentListItem
@@ -74,7 +83,22 @@ fun HomeScreen(
         if (uris.isNotEmpty()) onImportPicked(uris)
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    // The write already happened when the row was swiped away; the id only drives the Undo snackbar (same as the Documents tab).
+    var pendingUndoId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(pendingUndoId) {
+        val id = pendingUndoId ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = "Document moved to Recently deleted",
+            actionLabel = "Undo",
+            duration = SnackbarDuration.Long,
+        )
+        if (result == SnackbarResult.ActionPerformed) viewModel.onRestoreDocument(id)
+        pendingUndoId = null
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             PamTopAppBar(
                 title = "Posts AI Manager",
@@ -129,7 +153,14 @@ fun HomeScreen(
             householdPrompt?.let { role ->
                 HouseholdCard(onAdd = { onAddHousehold(role) }, onDismiss = viewModel::onDismissHouseholdPrompt)
             }
-            HomeContent(uiState, processingState, onDocumentClick, onScanClick, Modifier.weight(1f))
+            HomeContent(
+                uiState, processingState, onDocumentClick, onScanClick,
+                onDeleteDocument = { id ->
+                    viewModel.onDeleteDocument(id)
+                    pendingUndoId = id
+                },
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
@@ -243,6 +274,7 @@ private fun HomeContent(
     processingState: ProcessingState,
     onDocumentClick: (String) -> Unit,
     onScanClick: () -> Unit,
+    onDeleteDocument: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
@@ -268,6 +300,7 @@ private fun HomeContent(
                     documents = state.recentDocuments,
                     processingState = processingState,
                     onDocumentClick = onDocumentClick,
+                    onDeleteDocument = onDeleteDocument,
                 )
             }
         }
@@ -279,6 +312,7 @@ private fun DocumentList(
     documents: List<DocumentListItem>,
     processingState: ProcessingState,
     onDocumentClick: (String) -> Unit,
+    onDeleteDocument: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -297,12 +331,14 @@ private fun DocumentList(
             )
         }
         items(documents, key = { it.id }) { item ->
-            DocumentListRow(
-                item = item,
-                runningState = (processingState as? ProcessingState.Running)
-                    ?.takeIf { it.documentId == item.id },
-                onClick = { onDocumentClick(item.id) },
-            )
+            SwipeToDeleteRow(onDelete = { onDeleteDocument(item.id) }) {
+                DocumentListRow(
+                    item = item,
+                    runningState = (processingState as? ProcessingState.Running)
+                        ?.takeIf { it.documentId == item.id },
+                    onClick = { onDocumentClick(item.id) },
+                )
+            }
         }
     }
 }
