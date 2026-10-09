@@ -90,6 +90,9 @@ class AgentToolsTest {
         assertThat(emitted).isEmpty()
         assertThat(result["status"]).isEqualTo("failed")
         assertThat(result["error"]).isEqualTo("Missing parameter: extra_email")
+        // The model is told that nothing was done, so it retries or says so, and never reports success.
+        assertThat(result["note"]).contains("nothing was done")
+        assertThat(result["note"]).contains("Never say that it was done")
     }
 
     @Test

@@ -726,6 +726,31 @@ private fun ChatBubble(
             }
         }
 
+        // The action the reply proposed was refused (no card): say so next to the words, and offer to try again.
+        if (message.actionRefused) {
+            Row(
+                modifier = Modifier.padding(start = 40.dp, top = 2.dp).testTag("actionNotSet"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Stop,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.chat_action_not_set),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                TextButton(onClick = onRetry, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+                    Text(stringResource(R.string.chat_action_retry), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+
         // 5.1: Copy/Regenerate on a finished reply only — a stopped/crashed one already
         // shows its own Stopped/Retry row above, and copying or regenerating half an answer
         // is not a real action. Regenerate is further limited to the LATEST assistant reply

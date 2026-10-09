@@ -179,6 +179,8 @@
     <string name="chat_step_load_skill_failed">تعذّر تحميل المهارة \"%1$s\"</string>
     <string name="chat_step_intent">تم تجهيز الإجراء \"%1$s\"</string>
     <string name="chat_step_intent_failed">تم رفض الإجراء \"%1$s\"</string>
+    <string name="chat_action_not_set">لم يتم إعداد الإجراء</string>
+    <string name="chat_action_retry">إعادة المحاولة</string>
     <string name="chat_step_js">تم تشغيل برنامج المهارة \"%1$s\"</string>
     <string name="chat_step_js_failed">فشل برنامج المهارة \"%1$s\"</string>
     <string name="chat_webview_full_screen">عرض بملء الشاشة</string>

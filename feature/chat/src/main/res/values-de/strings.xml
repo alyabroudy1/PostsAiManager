@@ -147,6 +147,8 @@
     <string name="chat_step_load_skill_failed">Skill \"%1$s\" konnte nicht geladen werden</string>
     <string name="chat_step_intent">Aktion \"%1$s\" vorbereitet</string>
     <string name="chat_step_intent_failed">Aktion \"%1$s\" wurde abgelehnt</string>
+    <string name="chat_action_not_set">Aktion nicht eingerichtet</string>
+    <string name="chat_action_retry">Erneut versuchen</string>
     <string name="chat_step_js">Skript von \"%1$s\" ausgeführt</string>
     <string name="chat_step_js_failed">Skript von \"%1$s\" ist fehlgeschlagen</string>
     <string name="chat_webview_full_screen">Im Vollbild ansehen</string>

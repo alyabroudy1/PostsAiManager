@@ -171,7 +171,9 @@ internal class AgentToolCalls(
         val unknownIntent = AgentIntent.of(name) == null
         val isSkill = unknownIntent && runBlocking { skills.load(name) } != null
         val error = if (isSkill) "Intent not found. Try to run it as a skill" else reason
-        return mapOf("error" to error, "status" to "failed")
+        // Nothing was done: say so in words that make the model fix the call, or tell the user, and never report success.
+        val note = if (unknownIntent) "$REFUSED_NOTE The intents are: ${AgentIntent.entries.joinToString { it.wire }}." else REFUSED_NOTE
+        return mapOf("error" to error, "status" to "failed", "note" to note)
     }
 
     internal companion object {
@@ -185,6 +187,14 @@ internal class AgentToolCalls(
 
         /** A script is a small page; one that has not answered after this is stuck. */
         const val JS_TIMEOUT_MS = 60_000L
+
+        /**
+         * What the model is told after a refused call: nothing was done, so it retries with a corrected call (the skill's steps, read
+         * with `load_skill`, name the intent and its parameters) or tells the user that it did not work. It must not say it was done.
+         */
+        const val REFUSED_NOTE = "Failed: nothing was done and nothing was shown to the user. Call run_intent again with the corrected " +
+            "intent and parameters (call load_skill first if you have not read the skill's steps), or tell the user in one sentence " +
+            "that it did not work. Never say that it was done."
 
         /**
          * What the model is told after a proposal: the truth, and what to say, so that its one-sentence summary says the action

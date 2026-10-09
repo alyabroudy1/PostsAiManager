@@ -33,6 +33,12 @@ object ToolSteps {
 
     fun of(exchanges: List<ToolExchange>): List<ToolStep> = exchanges.map(::stepOf)
 
+    /**
+     * True when the reply's LAST `run_intent` call was refused: the action never reached a card, whatever the reply's words say.
+     * A later call that went through (the model fixed it and tried again) settles it. Reads the stored calls only, never the text.
+     */
+    fun endsWithRefusedIntent(steps: List<ToolStep>): Boolean = steps.lastOrNull { it.kind == ToolStepKind.RUN_INTENT }?.failed == true
+
     private fun stepOf(exchange: ToolExchange): ToolStep {
         val args = objectOf(exchange.argumentsJson)
         val result = objectOf(exchange.resultJson)

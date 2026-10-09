@@ -987,6 +987,13 @@ data class ChatMessage(
      */
     val isEmptyReply: Boolean
         get() = !isUser && form == null && text.isBlank() && thinking.isNullOrBlank() && !incomplete
+
+    /**
+     * The reply's last action call was refused, so no card exists whatever the reply says ("I have set a reminder"): the screen shows
+     * a small "Action not set" notice with Retry instead of letting the words stand alone.
+     */
+    val actionRefused: Boolean
+        get() = !isUser && form == null && com.postsaimanager.core.domain.skills.ToolSteps.endsWithRefusedIntent(toolSteps)
 }
 
 /**
