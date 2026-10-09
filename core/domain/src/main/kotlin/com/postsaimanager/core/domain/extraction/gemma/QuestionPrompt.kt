@@ -89,12 +89,14 @@ object QuestionPrompt {
         append("When something is not in the letter, write exactly: $NONE_WORD. Separate items with \";\", at most $MAX_ITEMS per list.\n")
         if (withSummary) {
             append("${QaLabel.SUMMARY}: first line, one sentence (at most ${SummaryLimits.MAX_CHARS} characters) in the language of the letter: ")
-            append("what it is, from whom, and the main fact; mention a request only if there is one\n")
+            append("what it is, from whom, and the main fact; add what the reader must do only if the letter demands it\n")
         }
         val kinds = PartyKind.entries.joinToString(", ") { it.name.lowercase() }
         append("${QaLabel.SENDER}: who sent or issued it (organisation, shop or person): its full name exactly as printed (every word of the name, with its title or legal form, never shortened; ")
         append("a name may continue on the next line) | its kind: one of $kinds\n")
         append("${QaLabel.RECIPIENT}: to whom it is addressed (the name only; $NONE_WORD if no one is named) | its kind\n")
+        append("${QaLabel.TYPE}: always answer this line, never leave it out: what kind of document this is, exactly one of: ")
+        append(vocab.categories.joinToString("; ") { "${it.id} (${it.promptLine})" }).append("; ${GemmaVocabulary.DOCUMENT_CATEGORY} (fits none of these)\n")
         append("${QaLabel.CONTACT}: a person at the sender the reader can contact (a person's name only, never a phone number or an e-mail address; $NONE_WORD if no person is named) ")
         append("| their phone number | their e-mail\n")
         append("${QaLabel.ASKS}: ${GemmaVocabulary.YES} or ${GemmaVocabulary.NO} (does it ask the reader to do anything?); then at most $MAX_ASKS separate things the reader must do, the main one first, each as: kind — by when (a date). ")
@@ -110,8 +112,6 @@ object QuestionPrompt {
         append("${QaLabel.TOPAY}: the amount the reader has to pay (not a total that includes what was already paid), as: amount — by when ($NONE_WORD if nothing is to be paid)\n")
         append("${QaLabel.REFERENCES}: the reference numbers (customer, case, invoice, account ...), each as: number — kind. kind is one of: ")
         append(vocab.referenceKinds.joinToString(", ")).append('\n')
-        append("${QaLabel.TYPE}: what kind of document this is, one of: ")
-        append(vocab.categories.joinToString("; ") { "${it.id} (${it.promptLine})" }).append("; ${GemmaVocabulary.DOCUMENT_CATEGORY} (fits none of these)\n")
         append("${QaLabel.TITLE}: a short name for this document, at most 6 words\n")
         append("${QaLabel.EVENT}: what the letter reports, one word, one of: ")
         append(vocab.eventKindIds.joinToString(", ")).append('\n')

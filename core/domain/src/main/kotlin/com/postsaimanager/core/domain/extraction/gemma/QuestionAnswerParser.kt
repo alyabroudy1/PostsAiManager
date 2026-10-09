@@ -69,7 +69,11 @@ object QaText {
     fun parts(item: String): List<String> =
         item.split(PART_SEPARATOR).map { p -> p.replace(KIND_LABEL, "").trim().takeUnless { isNone(it) }.orEmpty() }
 
-    private val KIND_LABEL = Regex("^\\s*kind\\s*[:=]\\s*", RegexOption.IGNORE_CASE)
+    /** True when a part of [item] after the first is exactly the word the prompt defines for nothing ([QuestionPrompt.NONE_WORD]): `kind — none`. */
+    fun marksNone(item: String): Boolean =
+        item.split(PART_SEPARATOR).drop(1).any { it.trim().trim('.', '"', '\'', '*', ' ').equals(QuestionPrompt.NONE_WORD, ignoreCase = true) }
+
+    private val KIND_LABEL =Regex("^\\s*kind\\s*[:=]\\s*", RegexOption.IGNORE_CASE)
 
     /**
      * The fields of a one-value line (`name | kind`, `name | phone | e-mail`) when a model also separated them with ";" or wrote a

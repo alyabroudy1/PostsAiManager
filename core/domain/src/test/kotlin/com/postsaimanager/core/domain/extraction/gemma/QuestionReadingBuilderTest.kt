@@ -86,6 +86,26 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
+    @DisplayName("an ASKS item the model marks none (as the Stadtwerke answer had it) is no action; the real one stays; a note says so")
+    fun `an action marked none`() {
+        val v = build("ASKS: yes; pay — by 15.10.2026; send_documents — none")
+
+        assertThat(v.actions.map { it.kind }).containsExactly("pay")
+        assertThat(v.notes.any { it.startsWith("action marked none by the model") }).isTrue()
+    }
+
+    @Test
+    @DisplayName("the TYPE line comes right after the sender and recipient, marked as always required, and the summary line stays first")
+    fun `the type is asked early`() {
+        val q = QuestionPrompt.questions(withSummary = true)
+
+        assertThat(q).contains("TYPE: always answer this line, never leave it out")
+        assertThat(q.indexOf("SUMMARY:")).isLessThan(q.indexOf("SENDER:"))
+        assertThat(q.indexOf("RECIPIENT:")).isLessThan(q.indexOf("TYPE:"))
+        assertThat(q.indexOf("TYPE:")).isLessThan(q.indexOf("CONTACT:"))
+    }
+
+    @Test
     @DisplayName("an e-mail with a space around the @ (as the Stadtwerke answer had it) is still an e-mail, not a contact person")
     fun `an e-mail with spaces`() {
         val v = build("CONTACT: 0123 456-789; kundenservice @ stadtwerke-musterstadt . example")

@@ -193,7 +193,14 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
                 paid = paid ?: state
                 parts = parts.drop(1)
             }
-            parts
+            // An item the model itself marks "none" (`kind — none`) says there is nothing to do: it is not an action.
+            val word = parts.firstOrNull()?.takeIf { it.isNotEmpty() }
+            if (word != null && QaText.marksNone(item)) {
+                notes += "action marked none by the model, left out: ${word.take(MAX_NOTE_CHARS)}"
+                emptyList()
+            } else {
+                parts
+            }
         }
         if (asks == false) return Asked(false, emptyList(), emptyList(), paid)
         val kindIds = vocab.actionKinds.map { it.id }
