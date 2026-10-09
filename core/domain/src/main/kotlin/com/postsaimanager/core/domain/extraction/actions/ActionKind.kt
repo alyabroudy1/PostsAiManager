@@ -38,6 +38,8 @@ data class ActionKind(
     val party: Boolean = true,
     val referenceSlots: List<String> = emptyList(),
     val iban: Boolean = false,
+    /** False for a kind that needs an object (the documents to send): a model saying "none" for it means there is nothing to do. */
+    val standsAlone: Boolean = true,
 ) {
 
     /** The parts this kind may state, in the order a line lists them. */
@@ -99,6 +101,7 @@ object ActionKinds {
         task = "send documents or information to the sender",
         dateMeaning = "the date by which the reader is asked to send them",
         referenceSlots = CASE_REFERENCES,
+        standsAlone = false,
     )
 
     val SIGN_RETURN = ActionKind(

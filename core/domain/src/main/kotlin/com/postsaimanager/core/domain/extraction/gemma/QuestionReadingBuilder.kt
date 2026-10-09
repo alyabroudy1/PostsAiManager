@@ -193,23 +193,22 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
                 paid = paid ?: state
                 parts = parts.drop(1)
             }
-            // An item the model itself marks "none" (`kind — none`) says there is nothing to do: it is not an action.
-            val word = parts.firstOrNull()?.takeIf { it.isNotEmpty() }
-            if (word != null && QaText.marksNone(item)) {
-                notes += "action marked none by the model, left out: ${word.take(MAX_NOTE_CHARS)}"
-                emptyList()
-            } else {
-                parts
-            }
+            parts to QaText.marksNone(item)
         }
         if (asks == false) return Asked(false, emptyList(), emptyList(), paid)
         val kindIds = vocab.actionKinds.map { it.id }
         val extra = mutableListOf<VerifiedValue>()
-        val actions = itemParts.mapNotNull { parts ->
+        val actions = itemParts.mapNotNull { (parts, marksNone) ->
             val word = parts.firstOrNull()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
             // A word that is no registry id is not dropped: the action is kept as "other", the model's own word goes to the trace.
             val kind = choose(word, kindIds)?.let(vocab::actionKind)
                 ?: ActionKinds.OTHER.also { notes += "action word is not in the registry, stored as other: ${word.take(MAX_NOTE_CHARS)}" }
+            // `kind — none` is a kind with no date for one that stands alone (pay, attend ...); for a kind that needs an object (the
+            // documents to send) the model saying none means there is nothing to do: not an action.
+            if (marksNone && !kind.standsAlone) {
+                notes += "action marked none by the model, left out: ${word.take(MAX_NOTE_CHARS)}"
+                return@mapNotNull null
+            }
             val amount = if (kind.amountMeaning != null) toPay else null
             // The action's own date, else the date of the amount to pay (a payment action is due when the payment is).
             val date = (parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let(typer::date) ?: toPayDate.takeIf { amount != null })?.also { d ->

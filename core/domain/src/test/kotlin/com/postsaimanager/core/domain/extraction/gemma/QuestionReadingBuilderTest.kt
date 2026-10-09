@@ -95,7 +95,7 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
-    @DisplayName("an ASKS item the model marks none (as the Stadtwerke answer had it) is no action; the real one stays; a note says so")
+    @DisplayName("a kind that needs an object (send_documents) marked none is no action (as the Stadtwerke answer had it); the real one stays; a note says so")
     fun `an action marked none`() {
         val v = build("ASKS: yes; pay — by 15.10.2026; send_documents — none")
 
@@ -104,14 +104,21 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
-    @DisplayName("the TYPE line comes right after the sender and recipient, marked as always required, and the summary line stays first")
-    fun `the type is asked early`() {
+    @DisplayName("a kind that stands alone with no date (pay — none) is still the action")
+    fun `a payment without a date`() {
+        val v = build("ASKS: yes; pay — none")
+
+        assertThat(v.actions.map { it.kind }).containsExactly("pay")
+    }
+
+    @Test
+    @DisplayName("the TYPE line is marked as always required (it moved early once and changed the dentist reading, so it stays after the references), the summary line stays first")
+    fun `the type is required`() {
         val q = QuestionPrompt.questions(withSummary = true)
 
         assertThat(q).contains("TYPE: always answer this line, never leave it out")
         assertThat(q.indexOf("SUMMARY:")).isLessThan(q.indexOf("SENDER:"))
-        assertThat(q.indexOf("RECIPIENT:")).isLessThan(q.indexOf("TYPE:"))
-        assertThat(q.indexOf("TYPE:")).isLessThan(q.indexOf("CONTACT:"))
+        assertThat(q.indexOf("REFERENCES:")).isLessThan(q.indexOf("TYPE:"))
     }
 
     @Test
