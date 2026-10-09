@@ -128,6 +128,12 @@ interface DocumentRepository {
     /** A person set the language of [documentId] (a language tag such as `de`): stored with `languageSource = USER`, kept by every re-read. */
     suspend fun setLanguageByUser(documentId: String, language: String): PamResult<Unit>
 
+    /**
+     * A person corrected the recognised text of page [pageNumber] of [documentId]: stored with `textSource = USER`, which every re-read
+     * reads (in place of the page's word blocks) and never replaces. The page's positioned blocks are kept as they were read.
+     */
+    suspend fun setPageTextByUser(documentId: String, pageNumber: Int, text: String): PamResult<Unit>
+
     /** Marks the matter of [documentId] as the person's choice (`caseLinkSource = USER`), so a re-read does not regroup the letter. */
     suspend fun markCaseChosenByUser(documentId: String): PamResult<Unit>
 

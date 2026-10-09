@@ -9,6 +9,7 @@ import com.postsaimanager.core.model.CaseLinkSource
 import com.postsaimanager.core.model.ConcernedSource
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.LanguageSource
+import com.postsaimanager.core.model.PageTextSource
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
@@ -342,6 +343,13 @@ class FakeDocumentRepository : DocumentRepository {
     override suspend fun setLanguageByUser(documentId: String, language: String): PamResult<Unit> = guard {
         documents.value = documents.value.map {
             if (it.id == documentId) it.copy(language = language.trim(), languageSource = LanguageSource.USER) else it
+        }
+        PamResult.Success(Unit)
+    }
+
+    override suspend fun setPageTextByUser(documentId: String, pageNumber: Int, text: String): PamResult<Unit> = guard {
+        pages.value = pages.value.mapValues { (id, list) ->
+            if (id != documentId) list else list.map { if (it.pageNumber == pageNumber) it.copy(ocrText = text, textSource = PageTextSource.USER) else it }
         }
         PamResult.Success(Unit)
     }

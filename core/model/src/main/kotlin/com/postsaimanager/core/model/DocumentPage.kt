@@ -18,4 +18,6 @@ data class DocumentPage(
     val height: Int = 0,
     /** Positioned OCR blocks (normalised bounds); empty when the page has none stored. */
     val ocrBlocks: List<OcrBlock> = emptyList(),
+    /** Who wrote [ocrText]: the recognizer, or the user's correction (which a re-read reads and never replaces). */
+    val textSource: PageTextSource = PageTextSource.OCR,
 )

@@ -488,6 +488,16 @@ class DocumentRepositoryImpl @Inject constructor(
             }
         }
 
+    override suspend fun setPageTextByUser(documentId: String, pageNumber: Int, text: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentDao.setPageTextByUser(documentId, pageNumber, text)
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
     override suspend fun markCaseChosenByUser(documentId: String): PamResult<Unit> =
         withContext(ioDispatcher) {
             try {

@@ -2,6 +2,7 @@ package com.postsaimanager.core.data.repository
 
 import com.postsaimanager.core.data.database.entity.DocumentPageEntity
 import com.postsaimanager.core.data.mapper.DocumentMapper
+import com.postsaimanager.core.domain.extraction.layout.PlainTextBlocks
 import com.postsaimanager.core.model.OcrBlock
 
 /**
@@ -26,6 +27,8 @@ internal object StoredOcr {
     fun reuse(pages: List<DocumentPageEntity>, mapper: DocumentMapper, requireWordBoxes: Boolean = false): List<Pair<DocumentPageEntity, OcrResult?>>? {
         if (pages.isEmpty()) return null
         val reused = pages.map { page ->
+            // A page whose text the user corrected is read from that text (plain lines), whatever blocks it has stored.
+            if (isUserText(page)) return@map page to userEdited(page)
             val text = page.ocrText ?: return null
             val blocks = mapper.pageToDomain(page).ocrBlocks
             if (blocks.isEmpty()) return null
@@ -38,6 +41,18 @@ internal object StoredOcr {
             )
         }
         return reused
+    }
+
+    /** Whether the user corrected [page]'s text: it is read as it stands and never replaced by a recognition. */
+    fun isUserText(page: DocumentPageEntity): Boolean = page.textSource == "USER"
+
+    /**
+     * What a reading is given for a page whose text the user corrected: their text, and its plain lines as the blocks (the person typed
+     * words, not positions, so the page has no layout beyond running text).
+     */
+    fun userEdited(page: DocumentPageEntity): OcrResult {
+        val text = page.ocrText.orEmpty()
+        return OcrResult(fullText = text, confidence = 1f, blocks = PlainTextBlocks.of(text), detectedLanguage = null)
     }
 
     /** Whether every block holds lines and every line holds the boxes of its words. */

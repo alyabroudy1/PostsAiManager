@@ -254,6 +254,8 @@ class DocumentProcessingPipeline @Inject constructor(
                 val ocrByPage: List<Pair<DocumentPageEntity, OcrResult?>> = storedOcr ?: coroutineScope {
                     pages.map { page ->
                         async {
+                            // A page whose text the user corrected is not recognised again: it is read from their text.
+                            if (StoredOcr.isUserText(page)) return@async page to StoredOcr.userEdited(page)
                             ocrSemaphore.withPermit {
                                 val pageStarted = System.nanoTime()
                                 val ocrResult = ocrService.recognizeText(page.imagePath).getOrNull()
@@ -281,6 +283,8 @@ class DocumentProcessingPipeline @Inject constructor(
                 // One write for every page that produced text, instead of one DAO call per
                 // page — turns an N-statement sequence into a single batched insert.
                 val updatedPages = ocrByPage.mapNotNull { (page, ocrResult) ->
+                    // The user's corrected text and the blocks read from the image stay as stored: nothing recognised replaces them.
+                    if (StoredOcr.isUserText(page)) return@mapNotNull null
                     ocrResult?.let {
                         page.copy(
                             ocrText = it.fullText,

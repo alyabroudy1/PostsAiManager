@@ -141,6 +141,7 @@ class DocumentMapper @Inject constructor() {
         width = entity.width,
         height = entity.height,
         ocrBlocks = decodeBlocks(entity.ocrBlocks),
+        textSource = com.postsaimanager.core.model.PageTextSource.parse(entity.textSource),
     )
 
     private fun decodeBlocks(json: String?): List<OcrBlock> {
@@ -170,6 +171,7 @@ class DocumentMapper @Inject constructor() {
         width = domain.width,
         height = domain.height,
         ocrBlocks = encodeBlocks(domain.ocrBlocks),
+        textSource = domain.textSource.name,
     )
 
     fun extractedDataToDomain(entity: ExtractedDataEntity): ExtractedData = ExtractedData(

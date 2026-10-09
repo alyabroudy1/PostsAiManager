@@ -136,6 +136,10 @@ interface DocumentDao {
     @Query("SELECT * FROM document_pages WHERE documentId = :docId ORDER BY pageNumber")
     fun observePages(docId: String): Flow<List<DocumentPageEntity>>
 
+    /** The user's correction of a page's recognised text: the text is theirs ('USER'), the positioned blocks stay as read (the preview's selection). */
+    @Query("UPDATE document_pages SET ocrText = :text, textSource = 'USER' WHERE documentId = :documentId AND pageNumber = :pageNumber")
+    suspend fun setPageTextByUser(documentId: String, pageNumber: Int, text: String)
+
     @Query("SELECT * FROM documents WHERE id = :id")
     fun observeById(id: String): Flow<DocumentEntity?>
 

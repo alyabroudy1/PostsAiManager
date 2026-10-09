@@ -592,6 +592,28 @@ class DocumentReprocessPipelineTest {
     }
 
     @Test
+    @DisplayName("a page whose text the user corrected is read from that text, never recognised again and never overwritten")
+    fun userCorrectedPageTextIsReadAndKept() = runTest(dispatcher) {
+        coEvery { documentDao.getPages("doc-1") } returns listOf(
+            DocumentPageEntity(
+                id = "p1", documentId = "doc-1", pageNumber = 1, imagePath = "/p1.jpg", processedPath = null,
+                ocrText = "Rechnung\n64,98 EUR bis Freitag", ocrConfidence = 0.8f, width = 10, height = 10, textSource = "USER",
+            ),
+        )
+        val blocks = slot<List<OcrBlock>>()
+        coEvery { aiExtraction(capture(blocks), any(), any(), any(), any(), any(), any()) } returns PamResult.Success(understanding())
+
+        val result = pipeline.processDocument("doc-1", reprocess = true)
+
+        assertThat(result).isInstanceOf(PamResult.Success::class.java)
+        // The reading was given the corrected lines, not a recognition of the image.
+        coVerify(exactly = 0) { ocrService.recognizeText(any()) }
+        assertThat(blocks.captured.flatMap { it.lines }.map { it.text }).containsExactly("Rechnung", "64,98 EUR bis Freitag").inOrder()
+        // And nothing recognised was written over the page.
+        coVerify(exactly = 0) { documentDao.insertPages(any()) }
+    }
+
+    @Test
     @DisplayName("a document without pages keeps its status on a reprocess")
     fun noPagesKeepsStatus() = runTest(dispatcher) {
         coEvery { documentDao.getPages("doc-1") } returns emptyList()

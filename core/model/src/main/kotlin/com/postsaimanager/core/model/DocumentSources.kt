@@ -14,6 +14,18 @@ enum class FamilySource {
     }
 }
 
+/** Who wrote the recognised text of a page. A re-read never replaces text that is [USER]'s. */
+@Serializable
+enum class PageTextSource {
+    OCR,
+    USER,
+    ;
+
+    companion object {
+        fun parse(name: String?): PageTextSource = entries.firstOrNull { it.name == name } ?: OCR
+    }
+}
+
 /** Who decided which household people a document is for or about. The people check replaces the list only while this is [MODEL]. */
 @Serializable
 enum class ConcernedSource {
