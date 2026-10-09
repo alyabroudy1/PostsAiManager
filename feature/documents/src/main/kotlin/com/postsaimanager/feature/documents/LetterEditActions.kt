@@ -7,6 +7,10 @@ import com.postsaimanager.core.domain.document.actions.AddActionUseCase
 import com.postsaimanager.core.domain.document.actions.DeleteActionUseCase
 import com.postsaimanager.core.domain.document.actions.EditActionUseCase
 import com.postsaimanager.core.domain.document.people.SetConcernedPeopleUseCase
+import com.postsaimanager.core.domain.timeline.AddEventUseCase
+import com.postsaimanager.core.domain.timeline.DeleteEventUseCase
+import com.postsaimanager.core.domain.timeline.EditEventUseCase
+import com.postsaimanager.core.domain.timeline.SetCaseStatusUseCase
 import com.postsaimanager.core.domain.timeline.MoveDocumentToCaseUseCase
 import com.postsaimanager.core.domain.timeline.ObserveCaseChoicesUseCase
 import com.postsaimanager.core.domain.timeline.RenameCaseUseCase
@@ -28,4 +32,8 @@ class LetterEditActions @Inject constructor(
     val moveToCase: MoveDocumentToCaseUseCase,
     val caseChoices: ObserveCaseChoicesUseCase,
     val setLanguage: SetDocumentLanguageUseCase,
+    val editEvent: EditEventUseCase,
+    val deleteEvent: DeleteEventUseCase,
+    val addEvent: AddEventUseCase,
+    val setCaseStatus: SetCaseStatusUseCase,
 )

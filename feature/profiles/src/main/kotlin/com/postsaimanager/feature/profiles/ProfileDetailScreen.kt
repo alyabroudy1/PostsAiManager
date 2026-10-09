@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalConfiguration
+import com.postsaimanager.core.designsystem.component.TimelineEdits
 import com.postsaimanager.core.designsystem.component.TimelineSection
 import com.postsaimanager.core.domain.timeline.EventKinds
 import com.postsaimanager.core.designsystem.component.MemoryCard
@@ -126,6 +127,14 @@ fun ProfileDetailScreen(
         detailActions = SavedDetailActions(save = viewModel::saveDetail, delete = viewModel::deleteDetail),
         onOpenDocument = onOpenDocument,
         onRenameCase = viewModel::rename,
+        timelineEdits = remember(viewModel) {
+            TimelineEdits(
+                kindIds = EventKinds.DEFAULT.all.map { it.id },
+                onEditEvent = viewModel::editEvent,
+                onDeleteEvent = viewModel::deleteEvent,
+                onSetStatus = viewModel::setCaseStatus,
+            )
+        },
         suggestionActions = SuggestionActions(
             accept = viewModel::acceptSuggestion,
             dismiss = viewModel::dismissSuggestion,
@@ -178,6 +187,8 @@ fun ProfileDetailContent(
     contactActions: ContactActions = ContactActions(),
     onOpenDocument: (documentId: String) -> Unit = {},
     onRenameCase: (caseId: String, title: String) -> Unit = { _, _ -> },
+    /** What the user can change on the timeline (an event, a matter's status); null: no such menus. */
+    timelineEdits: TimelineEdits? = null,
     suggestionActions: SuggestionActions = SuggestionActions(),
     /** The notes the assistant keeps about this person ("What the assistant remembers"); shown for a household person only. */
     notes: List<DocumentNote> = emptyList(),
@@ -240,6 +251,7 @@ fun ProfileDetailContent(
                         onOpenDocument = onOpenDocument,
                         onRenameCase = onRenameCase,
                         focusCaseId = state.focusCaseId,
+                        edits = timelineEdits,
                     )
                     HorizontalDivider()
                 }

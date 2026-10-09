@@ -69,6 +69,8 @@ fun TimelineSection(
     onRenameCase: (caseId: String, title: String) -> Unit,
     modifier: Modifier = Modifier,
     focusCaseId: String? = null,
+    /** What the user can change (an event, a matter's status); null: the timeline has no menus of that kind. */
+    edits: TimelineEdits? = null,
 ) {
     var showAllCases by rememberSaveable { mutableStateOf(false) }
     // A matter named by the page's argument is always among the visible ones.
@@ -85,7 +87,7 @@ fun TimelineSection(
             )
         }
         timeline.cases.take(limit).forEach { case ->
-            CaseCard(case, kindLabel, startExpanded = case.caseId == focusCaseId, onOpenDocument, onRenameCase)
+            CaseCard(case, kindLabel, startExpanded = case.caseId == focusCaseId, onOpenDocument, onRenameCase, edits)
         }
         if (timeline.cases.size > TIMELINE_VISIBLE) {
             TextButton(onClick = { showAllCases = !showAllCases }, modifier = Modifier.testTag("timeline_cases_toggle")) {
@@ -98,7 +100,9 @@ fun TimelineSection(
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(top = 8.dp).testTag("timeline_other"),
             )
-            timeline.other.forEach { EventRow(it, kindLabel, onClick = { onOpenDocument(it.documentId) }) }
+            timeline.other.forEach { event ->
+                EventRow(event, kindLabel, onClick = { onOpenDocument(event.documentId) }, trailing = edits?.let { { EventMenu(event, kindLabel, it) } })
+            }
         }
     }
 }
@@ -111,10 +115,12 @@ private fun CaseCard(
     startExpanded: Boolean,
     onOpenDocument: (String) -> Unit,
     onRename: (String, String) -> Unit,
+    edits: TimelineEdits? = null,
 ) {
     var expanded by rememberSaveable(case.caseId) { mutableStateOf(startExpanded) }
     var menuOpen by rememberSaveable(case.caseId) { mutableStateOf(false) }
     var renaming by rememberSaveable(case.caseId) { mutableStateOf(false) }
+    var settingStatus by rememberSaveable(case.caseId) { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth().testTag("timeline_case_${case.caseId}"),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -162,6 +168,16 @@ private fun CaseCard(
                         },
                         modifier = Modifier.testTag("timeline_rename_item"),
                     )
+                    if (edits != null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.timeline_status_menu)) },
+                            onClick = {
+                                menuOpen = false
+                                settingStatus = true
+                            },
+                            modifier = Modifier.testTag("timeline_status_item"),
+                        )
+                    }
                 }
             }
         }
@@ -170,8 +186,16 @@ private fun CaseCard(
                 modifier = Modifier.padding(start = 12.dp, end = 4.dp, bottom = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                case.events.forEach { EventRow(it, kindLabel, onClick = { onOpenDocument(it.documentId) }) }
+                case.events.forEach { event ->
+                    EventRow(event, kindLabel, onClick = { onOpenDocument(event.documentId) }, trailing = edits?.let { { EventMenu(event, kindLabel, it) } })
+                }
             }
+        }
+    }
+    if (settingStatus && edits != null) {
+        CaseStatusDialog(case.status, case.statusByUser, onDismiss = { settingStatus = false }) { status ->
+            settingStatus = false
+            edits.onSetStatus(case.caseId, status)
         }
     }
     if (renaming) RenameDialog(case.title, onDismiss = { renaming = false }) { title ->
@@ -208,7 +232,14 @@ private fun RenameDialog(current: String, onDismiss: () -> Unit, onSave: (String
  * not-tappable line (the letter being looked at).
  */
 @Composable
-internal fun EventRow(event: TimelineEventUi, kindLabel: (String) -> String, onClick: (() -> Unit)?, marked: Boolean = false) {
+internal fun EventRow(
+    event: TimelineEventUi,
+    kindLabel: (String) -> String,
+    onClick: (() -> Unit)?,
+    marked: Boolean = false,
+    /** What follows the text on the row: the event's menu where the user can change it. */
+    trailing: (@Composable () -> Unit)? = null,
+) {
     val source = stringResource(sourceLabel(event.source))
     val base = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("timeline_event_${event.id}")
     val tappable = if (onClick != null) {
@@ -239,6 +270,7 @@ internal fun EventRow(event: TimelineEventUi, kindLabel: (String) -> String, onC
                 )
             }
         }
+        trailing?.invoke()
     }
 }
 
@@ -302,6 +334,25 @@ private fun statusIcon(status: CaseStatus): ImageVector = when (status) {
     CaseStatus.CLOSED -> PamIcons.Close
 }
 
+/** "Part of: none · Add to a matter": the row of a letter that is in no matter, so the user can still put it into one ([onAdd]). */
+@Composable
+fun DocumentCaseNoneRow(onAdd: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth().testTag("document_case_none"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(modifier = Modifier.heightIn(min = 48.dp).padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.timeline_part_of_none),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onAdd, modifier = Modifier.testTag("document_case_add")) { Text(stringResource(R.string.timeline_add_to_matter)) }
+        }
+    }
+}
+
 /**
  * "Part of: <matter>" on a letter: the matter's title and status, with the earlier and later letters of the matter behind a toggle
  * (five, then "Show all"). Tapping the title opens the matter on the timeline ([onOpenCase], given the profile to show it on, or
@@ -319,11 +370,15 @@ fun DocumentCaseRow(
     modifier: Modifier = Modifier,
     onRename: ((caseId: String, title: String) -> Unit)? = null,
     onMove: (() -> Unit)? = null,
+    /** What the user can change on the matter's events and status; null: no such menus. */
+    edits: TimelineEdits? = null,
 ) {
     var expanded by rememberSaveable(ui.caseId) { mutableStateOf(false) }
     var showAll by rememberSaveable(ui.caseId) { mutableStateOf(false) }
     var menuOpen by rememberSaveable(ui.caseId) { mutableStateOf(false) }
     var renaming by rememberSaveable(ui.caseId) { mutableStateOf(false) }
+    var settingStatus by rememberSaveable(ui.caseId) { mutableStateOf(false) }
+    var addingEvent by rememberSaveable(ui.caseId) { mutableStateOf(false) }
     val target = ui.openProfileId
     Card(
         modifier = modifier.fillMaxWidth().testTag("document_case_row"),
@@ -356,7 +411,7 @@ fun DocumentCaseRow(
                     contentDescription = stringResource(if (expanded) R.string.timeline_history_hide else R.string.timeline_history_show),
                 )
             }
-            if (onRename != null || onMove != null) {
+            if (onRename != null || onMove != null || edits != null) {
                 Box {
                     IconButton(onClick = { menuOpen = true }, modifier = Modifier.testTag("document_case_menu")) {
                         Icon(PamIcons.More, contentDescription = stringResource(R.string.timeline_case_menu))
@@ -382,6 +437,26 @@ fun DocumentCaseRow(
                                 modifier = Modifier.testTag("document_case_move_item"),
                             )
                         }
+                        if (edits != null) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.timeline_status_menu)) },
+                                onClick = {
+                                    menuOpen = false
+                                    settingStatus = true
+                                },
+                                modifier = Modifier.testTag("document_case_status_item"),
+                            )
+                            if (edits.onAddEvent != null) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.timeline_event_add)) },
+                                    onClick = {
+                                        menuOpen = false
+                                        addingEvent = true
+                                    },
+                                    modifier = Modifier.testTag("document_case_add_event_item"),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -391,7 +466,10 @@ fun DocumentCaseRow(
             Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 shown.forEach { event ->
                     val current = event.documentId == ui.currentDocumentId
-                    EventRow(event, kindLabel, onClick = if (current) null else ({ onOpenDocument(event.documentId) }), marked = current)
+                    EventRow(
+                        event, kindLabel, onClick = if (current) null else ({ onOpenDocument(event.documentId) }), marked = current,
+                        trailing = edits?.let { { EventMenu(event, kindLabel, it) } },
+                    )
                 }
                 if (ui.events.size > TIMELINE_VISIBLE) {
                     TextButton(onClick = { showAll = !showAll }, modifier = Modifier.testTag("document_case_show_all")) {
@@ -404,5 +482,18 @@ fun DocumentCaseRow(
     if (renaming && onRename != null) RenameDialog(ui.title, onDismiss = { renaming = false }) { title ->
         renaming = false
         onRename(ui.caseId, title)
+    }
+    if (settingStatus && edits != null) {
+        CaseStatusDialog(ui.status, ui.statusByUser, onDismiss = { settingStatus = false }) { status ->
+            settingStatus = false
+            edits.onSetStatus(ui.caseId, status)
+        }
+    }
+    val add = edits?.onAddEvent
+    if (addingEvent && edits != null && add != null) {
+        EventEditDialog(null, edits.kindIds, kindLabel, onDismiss = { addingEvent = false }) { kind, date, title ->
+            addingEvent = false
+            add(kind, date, title)
+        }
     }
 }

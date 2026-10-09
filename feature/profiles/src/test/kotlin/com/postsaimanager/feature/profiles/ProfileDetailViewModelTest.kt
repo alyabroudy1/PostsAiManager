@@ -101,6 +101,9 @@ class ProfileDetailViewModelTest {
         ObserveTimelineForPersonUseCase(events),
         ObserveTimelineForOrganisationUseCase(events),
         RenameCaseUseCase(events),
+        com.postsaimanager.core.domain.timeline.EditEventUseCase(events, com.postsaimanager.core.domain.timeline.RefreshCaseStatusUseCase(events)),
+        com.postsaimanager.core.domain.timeline.DeleteEventUseCase(events, com.postsaimanager.core.domain.timeline.RefreshCaseStatusUseCase(events)),
+        com.postsaimanager.core.domain.timeline.SetCaseStatusUseCase(events),
     )
 
     private val guard = mockk<ExternalFlowGuard>(relaxed = true)
@@ -585,6 +588,28 @@ class ProfileDetailViewModelTest {
 
         assertThat(events.allCases.single().title).isEqualTo("Bürgergeld 2026")
         assertThat(events.allCases.single().status).isEqualTo(CaseStatus.REJECTED)
+    }
+
+    @Test
+    fun `an event edited or deleted from the timeline is the user's, and the matter's status can be set and handed back`() = runTest {
+        seedMariaCase()
+        val vm = viewModel("maria")
+
+        vm.editEvent("e3", "approval", 300L * 86_400_000L, "Doch bewilligt")
+        vm.deleteEvent("e2")
+        vm.setCaseStatus("k1", CaseStatus.CLOSED)
+
+        val edited = events.allEvents.single { it.id == "e3" }
+        assertThat(edited.title).isEqualTo("Doch bewilligt")
+        assertThat(edited.userState).isEqualTo(com.postsaimanager.core.model.EventUserState.EDITED)
+        assertThat(events.allEvents.single { it.id == "e2" }.userState).isEqualTo(com.postsaimanager.core.model.EventUserState.DELETED)
+        assertThat(events.allCases.single().status).isEqualTo(CaseStatus.CLOSED)
+        assertThat(events.allCases.single().statusSource).isEqualTo(com.postsaimanager.core.model.CaseStatusSource.USER)
+
+        vm.setCaseStatus("k1", null)
+
+        assertThat(events.allCases.single().statusSource).isEqualTo(com.postsaimanager.core.model.CaseStatusSource.AUTO)
+        assertThat(events.allCases.single().status).isEqualTo(CaseStatus.APPROVED)
     }
 
     @Test

@@ -152,11 +152,11 @@ class DocumentDetailViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LetterContacts())
 
     /**
-     * The matter this letter is part of, for the "Part of" row; null while it belongs to none, or to one that is only this letter
-     * (see [TimelinePresenter.isPlainEvent]).
+     * The matter this letter is part of, for the "Part of" row; null while it belongs to none (the row then says "none" and offers to add
+     * the letter to a matter, see [caseChoices]).
      */
     val caseRow: StateFlow<DocumentCaseUi?> = observeCase(documentId)
-        .map { found -> found?.let { TimelinePresenter.documentCase(documentId, it.case, it.events) } }
+        .map { found -> found?.let { TimelinePresenter.documentCase(documentId, it.case, it.events, showPlain = true) } }
         .catch { emit(null) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -367,6 +367,26 @@ class DocumentDetailViewModel @Inject constructor(
     /** The person set the letter's language: kept by every re-read, and the language the summary and answers are written in. */
     fun setLanguage(tag: String) {
         viewModelScope.launch { edits.setLanguage(documentId, tag) }
+    }
+
+    /** The person edited an event of the matter (kind, day, text); a re-read keeps it. */
+    fun editEvent(eventId: String, kindId: String, eventDate: Long, title: String) {
+        viewModelScope.launch { edits.editEvent(eventId, kindId, eventDate, title) }
+    }
+
+    /** The person deleted an event of the matter; a re-read does not bring it back. */
+    fun deleteEvent(eventId: String) {
+        viewModelScope.launch { edits.deleteEvent(eventId) }
+    }
+
+    /** The person added an event to this letter's timeline. */
+    fun addEvent(kindId: String, eventDate: Long, title: String) {
+        viewModelScope.launch { edits.addEvent(documentId, kindId, eventDate, title) }
+    }
+
+    /** The person set the matter's status, or null to hand it back to the letters' events. */
+    fun setCaseStatus(caseId: String, status: com.postsaimanager.core.model.CaseStatus?) {
+        viewModelScope.launch { edits.setCaseStatus(caseId, status) }
     }
 
     /** The person renamed the matter this letter is part of. */

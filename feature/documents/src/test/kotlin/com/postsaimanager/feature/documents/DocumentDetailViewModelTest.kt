@@ -126,6 +126,12 @@ class DocumentDetailViewModelTest {
             moveToCase = MoveDocumentToCaseUseCase(documentRepository, eventRepository, refresh, java.time.Clock.systemUTC()),
             caseChoices = ObserveCaseChoicesUseCase(eventRepository),
             setLanguage = com.postsaimanager.core.domain.document.SetDocumentLanguageUseCase(documentRepository),
+            editEvent = com.postsaimanager.core.domain.timeline.EditEventUseCase(eventRepository, refresh),
+            deleteEvent = com.postsaimanager.core.domain.timeline.DeleteEventUseCase(eventRepository, refresh),
+            addEvent = com.postsaimanager.core.domain.timeline.AddEventUseCase(
+                documentRepository, ResolveEventLinksUseCase(profileRepository, contactRepository), eventRepository, refresh, java.time.Clock.systemUTC(),
+            ),
+            setCaseStatus = com.postsaimanager.core.domain.timeline.SetCaseStatusUseCase(eventRepository),
         )
     }
 
@@ -218,12 +224,28 @@ class DocumentDetailViewModelTest {
     }
 
     @Test
-    fun `a letter alone in an unrenamed matter has no Part of row`() = runTest {
+    fun `a letter alone in an unrenamed matter still has its Part of row, so it can be renamed or moved`() = runTest {
         eventRepository.seedCases(Case("k1", "jc", "Info", createdAt = 1))
         eventRepository.seedEvents(letterEvent("e1", "d1", "information", 10, title = "Info"))
 
         viewModel("d1").caseRow.test {
+            assertThat(expectMostRecentItem()!!.title).isEqualTo("Info")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a letter with events but in no matter has no row but can be put into one`() = runTest {
+        eventRepository.seedCases(Case("k1", "jc", "Other matter", createdAt = 1))
+        eventRepository.seedEvents(letterEvent("e1", "d1", "information", 10, title = "Info").copy(caseId = null))
+        val vm = viewModel("d1")
+
+        vm.caseRow.test {
             assertThat(expectMostRecentItem()).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.caseChoices.test {
+            assertThat(expectMostRecentItem()!!.cases.map { it.id }).containsExactly("k1")
             cancelAndIgnoreRemainingEvents()
         }
     }

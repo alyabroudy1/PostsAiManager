@@ -18,6 +18,18 @@
     <string name="timeline_status_description">Stand: %1$s</string>
     <string name="timeline_case_menu">Optionen für diesen Vorgang</string>
     <string name="timeline_move_case">Diesen Brief in einen anderen Vorgang verschieben</string>
+    <string name="timeline_event_menu">Optionen für dieses Ereignis</string>
+    <string name="timeline_event_edit">Ereignis bearbeiten</string>
+    <string name="timeline_event_delete">Ereignis löschen</string>
+    <string name="timeline_event_add">Ereignis hinzufügen</string>
+    <string name="timeline_event_add_title">Ereignis hinzufügen</string>
+    <string name="timeline_event_edit_title">Ereignis bearbeiten</string>
+    <string name="timeline_event_kind_label">Was passiert ist</string>
+    <string name="timeline_event_text_label">Text</string>
+    <string name="timeline_event_date_label">Datum</string>
+    <string name="timeline_status_menu">Status festlegen…</string>
+    <string name="timeline_status_dialog_title">Status dieses Vorgangs</string>
+    <string name="timeline_status_automatic">Automatisch (aus den Briefen)</string>
     <string name="timeline_rename">Umbenennen</string>
     <string name="timeline_rename_title">Vorgang umbenennen</string>
     <string name="timeline_rename_label">Name</string>
@@ -32,6 +44,8 @@
     <string name="timeline_source_action">Von Ihnen in der App erledigt</string>
     <string name="timeline_source_system">Von der App vermerkt</string>
     <string name="timeline_source_user">Von Ihnen geschrieben</string>
+    <string name="timeline_part_of_none">Gehört zu: keinem Vorgang</string>
+    <string name="timeline_add_to_matter">Zu einem Vorgang hinzufügen</string>
     <string name="timeline_part_of">Gehört zu: %1$s</string>
     <string name="timeline_part_of_open">Diesen Vorgang im Verlauf anzeigen</string>
     <string name="timeline_this_letter">Dieser Brief</string>

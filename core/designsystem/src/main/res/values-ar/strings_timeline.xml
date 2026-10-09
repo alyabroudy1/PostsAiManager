@@ -22,6 +22,18 @@
     <string name="timeline_status_description">الحالة: %1$s</string>
     <string name="timeline_case_menu">خيارات هذه القضية</string>
     <string name="timeline_move_case">نقل هذه الرسالة إلى قضية أخرى</string>
+    <string name="timeline_event_menu">خيارات هذا الحدث</string>
+    <string name="timeline_event_edit">تعديل الحدث</string>
+    <string name="timeline_event_delete">حذف الحدث</string>
+    <string name="timeline_event_add">إضافة حدث</string>
+    <string name="timeline_event_add_title">إضافة حدث</string>
+    <string name="timeline_event_edit_title">تعديل الحدث</string>
+    <string name="timeline_event_kind_label">ما الذي حدث</string>
+    <string name="timeline_event_text_label">النص</string>
+    <string name="timeline_event_date_label">التاريخ</string>
+    <string name="timeline_status_menu">تحديد الحالة…</string>
+    <string name="timeline_status_dialog_title">حالة هذه القضية</string>
+    <string name="timeline_status_automatic">تلقائي (من الرسائل)</string>
     <string name="timeline_rename">إعادة تسمية</string>
     <string name="timeline_rename_title">إعادة تسمية هذه القضية</string>
     <string name="timeline_rename_label">الاسم</string>
@@ -36,6 +48,8 @@
     <string name="timeline_source_action">أجريته في التطبيق</string>
     <string name="timeline_source_system">دوّنه التطبيق</string>
     <string name="timeline_source_user">كتبته أنت</string>
+    <string name="timeline_part_of_none">جزء من: لا شيء</string>
+    <string name="timeline_add_to_matter">إضافة إلى قضية</string>
     <string name="timeline_part_of">جزء من: %1$s</string>
     <string name="timeline_part_of_open">عرض هذه القضية في الخط الزمني</string>
     <string name="timeline_this_letter">هذا الخطاب</string>

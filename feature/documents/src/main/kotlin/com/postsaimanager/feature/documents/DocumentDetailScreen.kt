@@ -84,6 +84,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.postsaimanager.core.common.extensions.toRelativeTime
+import com.postsaimanager.core.designsystem.component.DocumentCaseNoneRow
+import com.postsaimanager.core.designsystem.component.TimelineEdits
 import com.postsaimanager.core.designsystem.component.DocumentCaseRow
 import com.postsaimanager.core.designsystem.component.DocumentCaseUi
 import com.postsaimanager.core.domain.timeline.EventKinds
@@ -152,6 +154,15 @@ fun DocumentDetailScreen(
     val letterContacts by viewModel.letterContacts.collectAsStateWithLifecycle()
     val contactActions = remember(viewModel) {
         LetterContactActions(confirm = viewModel::confirmLetterContact, discard = viewModel::discardLetterContact, edit = viewModel::updateLetterContact)
+    }
+    val timelineEdits = remember(viewModel) {
+        TimelineEdits(
+            kindIds = EventKinds.DEFAULT.all.map { it.id },
+            onEditEvent = viewModel::editEvent,
+            onDeleteEvent = viewModel::deleteEvent,
+            onSetStatus = viewModel::setCaseStatus,
+            onAddEvent = viewModel::addEvent,
+        )
     }
     val caseRow by viewModel.caseRow.collectAsStateWithLifecycle()
     val caseChoices by viewModel.caseChoices.collectAsStateWithLifecycle()
@@ -351,6 +362,7 @@ fun DocumentDetailScreen(
                     caseRow = caseRow,
                     onCaseClick = onCaseClick,
                     onRenameCase = viewModel::renameCase,
+                    timelineEdits = timelineEdits,
                     onMoveCase = if (caseChoices != null) ({ showMoveCaseDialog = true }) else null,
                     onEditTitle = { showRenameDialog = true },
                     actionEdits = remember(viewModel) {
@@ -445,6 +457,7 @@ private fun DocumentDetailContent(
     caseRow: DocumentCaseUi?,
     onCaseClick: (profileId: String, caseId: String) -> Unit,
     onRenameCase: (caseId: String, title: String) -> Unit,
+    timelineEdits: TimelineEdits,
     /** Move the letter to another matter, a new one or none; null while it has no sender to belong to. */
     onMoveCase: (() -> Unit)?,
     onEditTitle: () -> Unit,
@@ -555,7 +568,11 @@ private fun DocumentDetailContent(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 onRename = onRenameCase,
                 onMove = onMoveCase,
+                edits = timelineEdits,
             )
+        } else if (onMoveCase != null) {
+            // In no matter yet: the row says so and offers to put the letter into one.
+            DocumentCaseNoneRow(onAdd = onMoveCase, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         }
 
         TabRow(selectedTabIndex = selectedTab.ordinal) {

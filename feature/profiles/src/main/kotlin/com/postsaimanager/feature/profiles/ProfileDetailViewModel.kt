@@ -28,6 +28,9 @@ import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.designsystem.component.TimelineCaseInput
 import com.postsaimanager.core.designsystem.component.TimelinePresenter
 import com.postsaimanager.core.designsystem.component.TimelineUi
+import com.postsaimanager.core.domain.timeline.DeleteEventUseCase
+import com.postsaimanager.core.domain.timeline.EditEventUseCase
+import com.postsaimanager.core.domain.timeline.SetCaseStatusUseCase
 import com.postsaimanager.core.domain.timeline.ObserveTimelineForOrganisationUseCase
 import com.postsaimanager.core.domain.timeline.ObserveTimelineForPersonUseCase
 import com.postsaimanager.core.domain.timeline.RenameCaseUseCase
@@ -91,6 +94,9 @@ class ProfileDetailViewModel @Inject constructor(
     private val observePersonTimeline: ObserveTimelineForPersonUseCase,
     private val observeOrganisationTimeline: ObserveTimelineForOrganisationUseCase,
     private val renameCase: RenameCaseUseCase,
+    private val editEventUseCase: EditEventUseCase,
+    private val deleteEventUseCase: DeleteEventUseCase,
+    private val setCaseStatusUseCase: SetCaseStatusUseCase,
 ) : ViewModel() {
 
     /** The contact the organisation page was opened for (the letter's contact chip): scrolled into view once. */
@@ -280,6 +286,21 @@ class ProfileDetailViewModel @Inject constructor(
     /** The user renamed a matter on the timeline; the status stays derived. */
     fun rename(caseId: String, title: String) {
         viewModelScope.launch { renameCase(caseId, title) }
+    }
+
+    /** The person edited an event of the timeline (kind, day, text); a re-read of its letter keeps it. */
+    fun editEvent(eventId: String, kindId: String, eventDate: Long, title: String) {
+        viewModelScope.launch { editEventUseCase(eventId, kindId, eventDate, title) }
+    }
+
+    /** The person deleted an event of the timeline; a re-read of its letter does not bring it back. */
+    fun deleteEvent(eventId: String) {
+        viewModelScope.launch { deleteEventUseCase(eventId) }
+    }
+
+    /** The person set a matter's status, or null to hand it back to the events. */
+    fun setCaseStatus(caseId: String, status: com.postsaimanager.core.model.CaseStatus?) {
+        viewModelScope.launch { setCaseStatusUseCase(caseId, status) }
     }
 
     // ── Contacts of an organisation: each change is one small use case ──

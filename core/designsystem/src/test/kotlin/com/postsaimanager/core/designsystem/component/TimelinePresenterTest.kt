@@ -135,4 +135,11 @@ class TimelinePresenterTest {
         assertThat(TimelinePresenter.documentCase("d1", case(title = "Mitteilung"), listOf(lone))).isNull()
         assertThat(TimelinePresenter.documentCase("d1", case(title = "Umbenannt"), listOf(lone))).isNotNull()
     }
+
+    @Test
+    fun `the letter's own page shows even a lone unrenamed matter, so it can be renamed or left`() {
+        val lone = event("e1", "d1", "information", 10, title = "Mitteilung")
+
+        assertThat(TimelinePresenter.documentCase("d1", case(title = "Mitteilung"), listOf(lone), showPlain = true)).isNotNull()
+    }
 }

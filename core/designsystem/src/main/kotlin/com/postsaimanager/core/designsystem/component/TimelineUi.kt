@@ -2,6 +2,7 @@ package com.postsaimanager.core.designsystem.component
 
 import com.postsaimanager.core.model.Case
 import com.postsaimanager.core.model.CaseStatus
+import com.postsaimanager.core.model.CaseStatusSource
 import com.postsaimanager.core.model.EventSource
 import com.postsaimanager.core.model.ProfileEvent
 
@@ -38,6 +39,8 @@ data class TimelineCaseUi(
     val organisationName: String?,
     val personNames: List<String>,
     val events: List<TimelineEventUi>,
+    /** The user set [status] by hand (it is not derived from the events until they hand it back to automatic). */
+    val statusByUser: Boolean = false,
 ) {
     /** The newest event: the card's "Rejected · 5 Dec" line. */
     val latest: TimelineEventUi get() = events.first()
@@ -65,6 +68,7 @@ data class DocumentCaseUi(
     val events: List<TimelineEventUi>,
     val currentDocumentId: String,
     val openProfileId: String?,
+    val statusByUser: Boolean = false,
 )
 
 /** A matter and its events, as the presenter takes them (the domain's `CaseTimeline`, without the domain). */
@@ -124,6 +128,7 @@ object TimelinePresenter {
             caseId = case.id,
             title = case.title,
             status = case.status,
+            statusByUser = case.statusSource == CaseStatusSource.USER,
             letterCount = letters.size,
             organisationName = organisationName(case.organisationProfileId).takeUnless { forOrganisation },
             personNames = if (forOrganisation) events.flatMap { it.personProfileIds }.distinct().mapNotNull(personName) else emptyList(),
@@ -157,14 +162,17 @@ object TimelinePresenter {
      * The "Part of" block for [documentId], or null when the letter belongs to no matter or to one drawn as a plain event.
      *
      * @param events the matter's events, any order, the letter's own among them.
+     * @param showPlain draw the row for a matter that is only this letter too (the letter's own page always says where the letter is, so
+     *   the user can rename or move it)
      */
-    fun documentCase(documentId: String, case: Case, events: List<ProfileEvent>): DocumentCaseUi? {
-        if (events.isEmpty() || isPlainEvent(case, events)) return null
+    fun documentCase(documentId: String, case: Case, events: List<ProfileEvent>, showPlain: Boolean = false): DocumentCaseUi? {
+        if (events.isEmpty() || (!showPlain && isPlainEvent(case, events))) return null
         val own = events.filter { it.documentId == documentId }
         return DocumentCaseUi(
             caseId = case.id,
             title = case.title,
             status = case.status,
+            statusByUser = case.statusSource == CaseStatusSource.USER,
             events = newestFirst(events).map { event(it, null, null, false) },
             currentDocumentId = documentId,
             openProfileId = own.flatMap { it.personProfileIds }.firstOrNull() ?: case.organisationProfileId,

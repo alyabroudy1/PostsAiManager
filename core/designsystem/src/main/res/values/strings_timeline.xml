@@ -18,6 +18,18 @@
     <string name="timeline_status_description">Status: %1$s</string>
     <string name="timeline_case_menu">Options for this matter</string>
     <string name="timeline_move_case">Move this letter to another matter</string>
+    <string name="timeline_event_menu">Options for this event</string>
+    <string name="timeline_event_edit">Edit event</string>
+    <string name="timeline_event_delete">Delete event</string>
+    <string name="timeline_event_add">Add an event</string>
+    <string name="timeline_event_add_title">Add an event</string>
+    <string name="timeline_event_edit_title">Edit event</string>
+    <string name="timeline_event_kind_label">What happened</string>
+    <string name="timeline_event_text_label">Text</string>
+    <string name="timeline_event_date_label">Date</string>
+    <string name="timeline_status_menu">Set status…</string>
+    <string name="timeline_status_dialog_title">Status of this matter</string>
+    <string name="timeline_status_automatic">Automatic (from the letters)</string>
     <string name="timeline_rename">Rename</string>
     <string name="timeline_rename_title">Rename this matter</string>
     <string name="timeline_rename_label">Name</string>
@@ -32,6 +44,8 @@
     <string name="timeline_source_action">Something you did in the app</string>
     <string name="timeline_source_system">Noted by the app</string>
     <string name="timeline_source_user">Written by you</string>
+    <string name="timeline_part_of_none">Part of: none</string>
+    <string name="timeline_add_to_matter">Add to a matter</string>
     <string name="timeline_part_of">Part of: %1$s</string>
     <string name="timeline_part_of_open">Show this matter on the timeline</string>
     <string name="timeline_this_letter">This letter</string>
