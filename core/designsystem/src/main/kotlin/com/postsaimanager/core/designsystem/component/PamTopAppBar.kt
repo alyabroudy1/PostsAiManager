@@ -1,5 +1,6 @@
 package com.postsaimanager.core.designsystem.component
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,6 +14,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 
 /**
@@ -27,6 +29,9 @@ fun PamTopAppBar(
     onNavigateBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     scrollBehavior: TopAppBarScrollBehavior? = null,
+    /** Tapping the title does this (a screen whose title can be renamed); [onTitleClickLabel] names it for screen readers. */
+    onTitleClick: (() -> Unit)? = null,
+    onTitleClickLabel: String? = null,
 ) {
     CenterAlignedTopAppBar(
         title = {
@@ -35,6 +40,11 @@ fun PamTopAppBar(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.titleLarge,
+                modifier = if (onTitleClick != null) {
+                    Modifier.clickable(onClickLabel = onTitleClickLabel, role = Role.Button, onClick = onTitleClick)
+                } else {
+                    Modifier
+                },
             )
         },
         navigationIcon = {

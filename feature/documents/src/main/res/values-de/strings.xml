@@ -103,4 +103,45 @@
     <string name="meaning_premium">Beitrag oder Prämie</string>
     <string name="meaning_invoice_total">Rechnungsbetrag</string>
     <string name="meaning_fee">Gebühr</string>
+
+    <!-- Bearbeiten, was die KI ausgefüllt hat -->
+    <string name="title_edit">Titel bearbeiten</string>
+    <string name="edit_meaning_label">Was das ist</string>
+    <string name="edit_meaning_none">Keines davon</string>
+    <string name="actions_add">Aufgabe hinzufügen</string>
+    <string name="action_menu_edit_action">Aufgabe bearbeiten</string>
+    <string name="action_edit_action_full">Aufgabe bearbeiten: %1$s</string>
+    <string name="action_menu_delete_action">Aufgabe löschen</string>
+    <string name="action_delete_action_full">Aufgabe löschen: %1$s</string>
+    <string name="action_dialog_edit_title">Aufgabe bearbeiten</string>
+    <string name="action_dialog_add_title">Aufgabe hinzufügen</string>
+    <string name="action_dialog_kind_label">Was verlangt wird</string>
+    <string name="action_dialog_text_label">In Ihren Worten (optional)</string>
+    <string name="action_dialog_date_label">Fällig am</string>
+    <string name="action_dialog_date_pick">Datum wählen</string>
+    <string name="action_dialog_date_clear">Kein Datum</string>
+    <string name="action_kind_pay">Zahlen</string>
+    <string name="action_kind_reply">Antworten</string>
+    <string name="action_kind_object_cancel">Widersprechen oder kündigen</string>
+    <string name="action_kind_attend">Einen Termin wahrnehmen</string>
+    <string name="action_kind_send_documents">Unterlagen senden</string>
+    <string name="action_kind_sign_return">Unterschreiben und zurücksenden</string>
+    <string name="action_kind_confirm_renew">Bestätigen oder verlängern</string>
+    <string name="action_kind_contact">Kontakt aufnehmen</string>
+    <string name="action_kind_other_action">Etwas anderes</string>
+    <string name="people_title">Für wen das ist</string>
+    <string name="people_hint">Tippen Sie auf eine Person, um sie hinzuzufügen oder zu entfernen. Ihre Auswahl bleibt bestehen, wenn der Brief erneut gelesen wird.</string>
+    <string name="people_set_by_you">Von Ihnen festgelegt</string>
+    <string name="contact_edit_description">Kontakt %1$s bearbeiten</string>
+    <string name="contact_edit_title">Kontakt bearbeiten</string>
+    <string name="contact_edit_name">Name</string>
+    <string name="contact_edit_role">Funktion</string>
+    <string name="contact_edit_phone">Telefon</string>
+    <string name="contact_edit_email">E-Mail</string>
+    <string name="case_move_menu">In einen anderen Vorgang verschieben…</string>
+    <string name="case_move_title">Diesen Brief verschieben nach</string>
+    <string name="case_move_none">Kein Vorgang</string>
+    <string name="case_move_new">Ein neuer Vorgang</string>
+    <string name="case_move_new_label">Name des neuen Vorgangs (optional)</string>
+    <string name="case_move_here">jetzt hier</string>
 </resources>

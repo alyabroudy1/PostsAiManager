@@ -54,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -76,8 +77,12 @@ import com.postsaimanager.core.domain.extraction.v2.DocDirection
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.PartyRole
 import com.postsaimanager.core.domain.extraction.v2.SectionKind
+import com.postsaimanager.core.domain.document.FieldMeanings
+import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
+import com.postsaimanager.core.model.ConcernedSource
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentNote
+import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.FieldAlternative
 import com.postsaimanager.core.model.SummarySource
@@ -167,11 +172,22 @@ internal fun ExtractedTab(
     onEmail: (address: String) -> Unit = {},
     /** The debug action "Read again with Gemma (trial)"; null (a release build) offers nothing. */
     onReadAgainWithGemma: (() -> Unit)? = null,
+    /** The pencil of the title (summary card): opens the screen's rename dialog. */
+    onEditTitle: (() -> Unit)? = null,
+    /** The user's edits of the actions: edit, delete, add. */
+    actionEdits: ActionEditActions = ActionEditActions(),
+    /** The household people the letter can be for (Me and the family); with none, "Who this is for" is not shown. */
+    householdPeople: List<Profile> = emptyList(),
+    /** The user sets who the letter is for (the whole list). */
+    onSetPeople: (List<String>) -> Unit = {},
+    /** The user chose what a date or an amount means (field id, meaning id; null: none of them). */
+    onSetFieldMeaning: (fieldId: String, meaningId: String?) -> Unit = { _, _ -> },
 ) {
     // Kept across a rotation: the row being edited is stored as its id and resolved from the data, so the sheet shows the latest row.
     var editingFieldId by rememberSaveable { mutableStateOf<String?>(null) }
     val editingField = editingFieldId?.let { id -> data.firstOrNull { it.id == id } }
     var editingSummary by rememberSaveable { mutableStateOf(false) }
+    var addingAction by rememberSaveable { mutableStateOf(false) }
     var picker by rememberSaveable { mutableStateOf<PickerMode?>(null) }
     var showAllExtras by remember { mutableStateOf(false) }
     var detailsExpanded by rememberSaveable { mutableStateOf(false) }
@@ -200,6 +216,15 @@ internal fun ExtractedTab(
             ) {
                 item(key = "reread") {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                        // A letter that asks for nothing has no "What you need to do" card, so the way to add an action of one's own is here.
+                        if (presentation.essentials.actions.isEmpty()) {
+                            TextButton(onClick = { addingAction = true }, modifier = Modifier.testTag("action_add_empty")) {
+                                Icon(PamIcons.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(stringResource(R.string.actions_add), style = MaterialTheme.typography.labelSmall)
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
                         if (onReadAgainWithGemma != null) {
                             OutlinedButton(onClick = onReadAgainWithGemma, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
                                 Text(stringResource(R.string.debug_read_again_with_gemma), style = MaterialTheme.typography.labelSmall)
@@ -244,7 +269,7 @@ internal fun ExtractedTab(
 
                 if (!presentation.summary.isEmpty || presentation.summary.summaryComing) {
                     item(key = "summary") {
-                        SummaryCardView(presentation.summary, onEditSummary = { editingSummary = true })
+                        SummaryCardView(presentation.summary, onEditSummary = { editingSummary = true }, onEditTitle = onEditTitle)
                     }
                 }
 
@@ -266,8 +291,18 @@ internal fun ExtractedTab(
                         }
                     }
                 }
-                if (essentials.actions.isNotEmpty()) item(key = "essentials-actions") { ActionsCard(essentials.actions, rowActions, onCall, onEmail) }
+                if (essentials.actions.isNotEmpty()) item(key = "essentials-actions") { ActionsCard(essentials.actions, rowActions, onCall, onEmail, actionEdits) }
                 if (!essentials.parties.isEmpty) item(key = "essentials-parties") { PartiesCard(essentials.parties, rowActions, letterContacts, contactActions, onContactClick) }
+                if (householdPeople.isNotEmpty()) {
+                    item(key = "essentials-people") {
+                        PeopleCard(
+                            people = householdPeople,
+                            selectedIds = document.concernedProfileIds.orEmpty(),
+                            setByUser = document.concernedSource == ConcernedSource.USER,
+                            onChange = onSetPeople,
+                        )
+                    }
+                }
                 if (essentials.subject != null || essentials.keyInfo.isNotEmpty()) {
                     item(key = "essentials-key") { KeyInfoCard(essentials.subject, essentials.keyInfo, rowActions) }
                 }
@@ -329,7 +364,21 @@ internal fun ExtractedTab(
                 onUpdateField(field.id, name, value)
                 editingFieldId = null
             },
+            onSetMeaning = onSetFieldMeaning,
             onShowOnPage = onShowOnPage,
+        )
+    }
+
+    if (addingAction) {
+        ActionEditDialog(
+            initial = null,
+            shownText = null,
+            shownDate = null,
+            onDismiss = { addingAction = false },
+            onSave = { edit ->
+                addingAction = false
+                actionEdits.add(edit)
+            },
         )
     }
 
@@ -489,7 +538,7 @@ private fun FamilyPickerDialog(mode: PickerMode, current: String?, onDismiss: ()
  * Who it is from and for, what to do and the key facts are the cards below it.
  */
 @Composable
-internal fun SummaryCardView(card: SummaryCard, onEditSummary: () -> Unit) {
+internal fun SummaryCardView(card: SummaryCard, onEditSummary: () -> Unit, onEditTitle: (() -> Unit)? = null) {
     val context = LocalContext.current
     var reporting by rememberSaveable { mutableStateOf(false) }
     Card(
@@ -498,8 +547,21 @@ internal fun SummaryCardView(card: SummaryCard, onEditSummary: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            card.titleArgs?.let { args -> composedTitleText(context, args) }?.let { title ->
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            // The title: composed from the type, the sender and the subject, or the person's own words. The pencil renames the letter.
+            (card.titleArgs?.let { args -> composedTitleText(context, args) } ?: card.plainTitle)?.let { title ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f).let { if (onEditTitle != null) it.clickable(onClick = onEditTitle) else it },
+                    )
+                    if (onEditTitle != null) {
+                        IconButton(onClick = onEditTitle, modifier = Modifier.testTag("title_edit")) {
+                            Icon(PamIcons.Edit, contentDescription = stringResource(R.string.title_edit), modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
             }
             val summary = card.summaryText ?: card.templateArgs?.let { templateSummaryText(context, it) }
             if (summary != null) {
@@ -865,15 +927,19 @@ private fun EditFieldSheet(
     field: ExtractedData,
     onDismiss: () -> Unit,
     onSave: (name: String, value: String) -> Unit,
+    onSetMeaning: (fieldId: String, meaningId: String?) -> Unit,
     onShowOnPage: (page: Int?, bbox: TextBounds?) -> Unit,
 ) {
-    // A name that is a key (a found value's, or an extra's bare slot key) is edited as the words the screen shows for it;
-    // left unchanged, the stored key is kept. A slot-labelled row keeps its name: its label is rendered from the key.
-    val keyed = SlotLabels.found(field.slotKey) != null || SlotLabels.extraKeyName(field.fieldName) != null
-    val nameEditable = SlotLabels.labelFor(field) == null
+    // A name that is a key (a slot's, a found value's, or an extra's bare slot key) is edited as the words the screen shows for it;
+    // left unchanged, the stored key is kept. Changed, the person's own words are the row's label from then on, and a re-read keeps them.
+    val keyed = SlotLabels.labelFor(field) != null || SlotLabels.found(field.slotKey) != null || SlotLabels.extraKeyName(field.fieldName) != null
     val shownName = fieldLabelText(field)
     var name by rememberSaveable(field.id) { mutableStateOf(if (keyed) shownName else field.fieldName) }
     var value by rememberSaveable(field.id) { mutableStateOf(field.fieldValue) }
+    // What a date or an amount means: the meanings of its kind as chips, the current one selected.
+    val meaningChoices = remember(field.id) { FieldMeanings.choices(field) }
+    val currentMeaning = ValueMeanings.fromRole(field.role)?.id
+    var meaning by rememberSaveable(field.id) { mutableStateOf(currentMeaning) }
     // The picked alternative as its position (an alternative itself is not saved): resolved against the field's own list.
     var chosenIndex by rememberSaveable(field.id) { mutableStateOf<Int?>(null) }
     val chosen: FieldAlternative? = chosenIndex?.let { field.alternatives.getOrNull(it) }
@@ -886,16 +952,15 @@ private fun EditFieldSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(stringResource(R.string.edit_title, shownName), style = MaterialTheme.typography.titleMedium)
-            if (nameEditable) {
-                OutlinedTextField(
-                    value = name, onValueChange = { name = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.edit_name_label)) },
-                )
-            }
+            OutlinedTextField(
+                value = name, onValueChange = { name = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.edit_name_label)) },
+            )
             OutlinedTextField(
                 value = value, onValueChange = { value = it }, maxLines = 5, modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.edit_value_label)) },
             )
+            if (meaningChoices.isNotEmpty()) MeaningChips(meaningChoices, meaning) { meaning = it }
             if (field.alternatives.isNotEmpty()) {
                 Text(stringResource(R.string.edit_alternatives), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -919,8 +984,10 @@ private fun EditFieldSheet(
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
                 Button(
                     onClick = {
-                        val savedName = if (!nameEditable) field.fieldName else if (keyed && name.trim() == shownName) field.fieldName else name.trim()
+                        val savedName = if (keyed && name.trim() == shownName) field.fieldName else name.trim()
                         onSave(savedName, value.trim())
+                        // After the value, so the two writes land in this order (the view model runs them one after the other).
+                        if (meaningChoices.isNotEmpty() && meaning != currentMeaning) onSetMeaning(field.id, meaning)
                     },
                     enabled = value.isNotBlank() && name.isNotBlank(),
                 ) { Text(stringResource(R.string.action_save)) }

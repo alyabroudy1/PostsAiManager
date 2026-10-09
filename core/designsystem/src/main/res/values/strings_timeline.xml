@@ -17,6 +17,7 @@
     <string name="timeline_status_closed">Closed</string>
     <string name="timeline_status_description">Status: %1$s</string>
     <string name="timeline_case_menu">Options for this matter</string>
+    <string name="timeline_move_case">Move this letter to another matter</string>
     <string name="timeline_rename">Rename</string>
     <string name="timeline_rename_title">Rename this matter</string>
     <string name="timeline_rename_label">Name</string>

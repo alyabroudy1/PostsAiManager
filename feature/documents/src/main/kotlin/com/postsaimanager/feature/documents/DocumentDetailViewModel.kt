@@ -25,7 +25,13 @@ import com.postsaimanager.core.domain.reading.ViewingState
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.InstalledModelsRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
+import com.postsaimanager.core.domain.document.actions.ActionEdit
+import com.postsaimanager.core.domain.timeline.CaseChoices
+import com.postsaimanager.core.domain.timeline.CaseTarget
+import com.postsaimanager.core.model.ActionItem
+import com.postsaimanager.core.model.ContactPerson
 import com.postsaimanager.core.model.HouseholdRole
+import com.postsaimanager.core.model.Profile
 import kotlinx.coroutines.flow.combine
 import com.postsaimanager.core.domain.usecase.GetDocumentPreviewUseCase
 import com.postsaimanager.core.model.DocumentPreview
@@ -46,6 +52,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import javax.inject.Inject
 
@@ -76,6 +84,7 @@ class DocumentDetailViewModel @Inject constructor(
     private val letterContactFields: LetterContactFields,
     private val confirmContact: ConfirmContactUseCase,
     private val discardContact: DiscardContactUseCase,
+    private val edits: LetterEditActions,
 ) : ViewModel() {
 
     val documentId: String = checkNotNull(savedStateHandle["documentId"])
@@ -150,6 +159,17 @@ class DocumentDetailViewModel @Inject constructor(
         .map { found -> found?.let { TimelinePresenter.documentCase(documentId, it.case, it.events) } }
         .catch { emit(null) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** The matters this letter can be moved to (those of its sender) and the one it is in; null while it has no sender to belong to. */
+    val caseChoices: StateFlow<CaseChoices?> = edits.caseChoices(documentId)
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** The household people (Me and the family) the letter can be for: the chips of "Who this is for". */
+    val householdPeople: StateFlow<List<Profile>> = profileRepository.getProfiles()
+        .map { all -> all.filter { it.isManaged } }
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Guards the auto-enqueue below so opening a `NEW` document does not re-enqueue on
      * every recomposition — `enqueue` is idempotent via `ExistingWorkPolicy.KEEP` anyway,
@@ -307,7 +327,51 @@ class DocumentDetailViewModel @Inject constructor(
 
     /** ✎ Edit: the person's value (and name, for a row they named themselves). The repository marks the row edited. */
     fun updateField(fieldId: String, name: String, value: String) {
-        viewModelScope.launch { letterContactFields.edit(documentId, fieldId, name, value) }
+        viewModelScope.launch { fieldWrites.withLock { letterContactFields.edit(documentId, fieldId, name, value) } }
+    }
+
+    /** The person chose what a date or an amount means ([meaningId] of `ValueMeanings`; null: none of them). Kept by every re-read. */
+    fun setFieldMeaning(fieldId: String, meaningId: String?) {
+        viewModelScope.launch { fieldWrites.withLock { edits.setMeaning(documentId, fieldId, meaningId) } }
+    }
+
+    /** The edits of one row (its value, then its meaning) are separate writes of the same row: one after the other, in the order made. */
+    private val fieldWrites = Mutex()
+
+    // ── What the letter asks, who it is for, the contact, the matter ──
+    /** The person edited an action: its kind, wording or due date. Kept by every re-read. */
+    fun editAction(original: ActionItem, edit: ActionEdit) {
+        viewModelScope.launch { edits.editAction(documentId, original, edit) }
+    }
+
+    /** The person deleted an action; a re-read does not bring it back. */
+    fun deleteAction(original: ActionItem) {
+        viewModelScope.launch { edits.deleteAction(documentId, original) }
+    }
+
+    /** The person added an action of their own. */
+    fun addAction(edit: ActionEdit) {
+        viewModelScope.launch { edits.addAction(documentId, edit) }
+    }
+
+    /** The person says who the letter is for: the people check never changes it afterwards. */
+    fun setConcernedPeople(profileIds: List<String>) {
+        viewModelScope.launch { edits.setPeople(documentId, profileIds) }
+    }
+
+    /** The person edited the contact person of the letter (name, role, phone, e-mail), the same as on the organisation's page. */
+    fun updateLetterContact(contact: ContactPerson) {
+        viewModelScope.launch { edits.updateContact(contact) }
+    }
+
+    /** The person renamed the matter this letter is part of. */
+    fun renameCase(caseId: String, title: String) {
+        viewModelScope.launch { edits.renameCase(caseId, title) }
+    }
+
+    /** The person moved the letter to another matter, a new one, or none; reading it again leaves it there. */
+    fun moveToCase(target: CaseTarget) {
+        viewModelScope.launch { edits.moveToCase(documentId, target) }
     }
 
     // ── Summary ──

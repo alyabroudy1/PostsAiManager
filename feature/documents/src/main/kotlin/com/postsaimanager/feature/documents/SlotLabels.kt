@@ -180,6 +180,10 @@ object SlotLabels {
     @StringRes
     fun meaning(role: String?): Int? = ValueMeanings.fromRole(role)?.let { meanings[it.id] }
 
+    /** The label of the meaning with [id] (a chip of the meaning chooser), or null for an id with none. */
+    @StringRes
+    fun meaningLabel(id: String): Int? = meanings[id]
+
     /** Every meaning id that has a label; for the test that guards the registry. */
     val meaningIds: Set<String> get() = meanings.keys
 
@@ -197,8 +201,12 @@ object SlotLabels {
      */
     @StringRes
     fun labelFor(field: ExtractedData): Int? {
-        // A date or an amount the reading gave a meaning is labelled by it ("Appointment"), whichever slot holds it.
-        if (field.source == ValueSource.MACHINE) meaning(field.role)?.let { return it }
+        // A date or an amount that has a meaning is labelled by it ("Appointment"), whichever slot holds it, whether the reading decided
+        // it or the person chose it. A value the person took over keeps a name they typed (the meaning then shows in the edit sheet).
+        meaning(field.role)?.let { res ->
+            val appName = field.slotKey != null && !field.isExtra && field.fieldName in defaultNames(field.slotKey!!)
+            if (field.source == ValueSource.MACHINE || appName) return res
+        }
         val res = slot(field.slotKey.takeUnless { field.isExtra }) ?: return null
         if (field.source == ValueSource.MACHINE) return res
         return res.takeIf { field.fieldName in defaultNames(field.slotKey!!) }

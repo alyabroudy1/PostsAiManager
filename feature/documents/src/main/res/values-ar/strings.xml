@@ -103,4 +103,45 @@
     <string name="meaning_premium">قسط أو اشتراك</string>
     <string name="meaning_invoice_total">إجمالي الفاتورة</string>
     <string name="meaning_fee">رسوم</string>
+
+    <!-- تعديل ما ملأه الذكاء الاصطناعي -->
+    <string name="title_edit">تعديل العنوان</string>
+    <string name="edit_meaning_label">ما هذا</string>
+    <string name="edit_meaning_none">لا شيء من هذه</string>
+    <string name="actions_add">إضافة مهمة</string>
+    <string name="action_menu_edit_action">تعديل المهمة</string>
+    <string name="action_edit_action_full">تعديل المهمة: %1$s</string>
+    <string name="action_menu_delete_action">حذف المهمة</string>
+    <string name="action_delete_action_full">حذف المهمة: %1$s</string>
+    <string name="action_dialog_edit_title">تعديل المهمة</string>
+    <string name="action_dialog_add_title">إضافة مهمة</string>
+    <string name="action_dialog_kind_label">ما المطلوب منك</string>
+    <string name="action_dialog_text_label">بكلماتك (اختياري)</string>
+    <string name="action_dialog_date_label">تاريخ الاستحقاق</string>
+    <string name="action_dialog_date_pick">اختر تاريخًا</string>
+    <string name="action_dialog_date_clear">بدون تاريخ</string>
+    <string name="action_kind_pay">الدفع</string>
+    <string name="action_kind_reply">الرد</string>
+    <string name="action_kind_object_cancel">الاعتراض أو الإلغاء</string>
+    <string name="action_kind_attend">حضور موعد</string>
+    <string name="action_kind_send_documents">إرسال مستندات</string>
+    <string name="action_kind_sign_return">التوقيع وإعادة الإرسال</string>
+    <string name="action_kind_confirm_renew">التأكيد أو التجديد</string>
+    <string name="action_kind_contact">التواصل</string>
+    <string name="action_kind_other_action">شيء آخر</string>
+    <string name="people_title">لمن هذه الرسالة</string>
+    <string name="people_hint">اضغط على شخص لإضافته أو إزالته. يبقى اختيارك عند قراءة الرسالة مرة أخرى.</string>
+    <string name="people_set_by_you">من اختيارك</string>
+    <string name="contact_edit_description">تعديل جهة الاتصال %1$s</string>
+    <string name="contact_edit_title">تعديل جهة الاتصال</string>
+    <string name="contact_edit_name">الاسم</string>
+    <string name="contact_edit_role">الوظيفة</string>
+    <string name="contact_edit_phone">الهاتف</string>
+    <string name="contact_edit_email">البريد الإلكتروني</string>
+    <string name="case_move_menu">نقل إلى قضية أخرى…</string>
+    <string name="case_move_title">نقل هذه الرسالة إلى</string>
+    <string name="case_move_none">بدون قضية</string>
+    <string name="case_move_new">قضية جديدة</string>
+    <string name="case_move_new_label">اسم القضية الجديدة (اختياري)</string>
+    <string name="case_move_here">هنا الآن</string>
 </resources>

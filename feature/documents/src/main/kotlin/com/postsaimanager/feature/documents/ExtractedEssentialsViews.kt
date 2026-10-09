@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.OutlinedButton
@@ -90,18 +92,67 @@ internal fun ActionsCard(
     actions: FieldActions,
     onCall: (phone: String) -> Unit = {},
     onEmail: (address: String) -> Unit = {},
+    edits: ActionEditActions = ActionEditActions(),
 ) {
+    // What the user is editing: an existing action (its line) or a new one; kept across a rotation as the position of the line.
+    var editingIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+    var adding by rememberSaveable { mutableStateOf(false) }
     EssentialCard(stringResource(R.string.essentials_actions_title), MaterialTheme.colorScheme.primaryContainer) {
+        var first = true
         lines.forEachIndexed { index, line ->
-            val text = actionLineText(line) ?: return@forEachIndexed
-            if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(end = 12.dp))
-            ActionLineView(line, text, actions, onCall, onEmail)
+            // The person's own wording, else the sentence rendered from the kind and the live values.
+            val text = line.text ?: actionLineText(line) ?: return@forEachIndexed
+            if (!first) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(end = 12.dp))
+            first = false
+            ActionLineView(line, text, actions, onCall, onEmail, onEdit = { editingIndex = index }, onDelete = { edits.delete(line.item) })
         }
+        TextButton(onClick = { adding = true }, modifier = Modifier.testTag("action_add")) {
+            Icon(PamIcons.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(stringResource(R.string.actions_add))
+        }
+    }
+    editingIndex?.let { index ->
+        val line = lines.getOrNull(index)
+        if (line == null) {
+            editingIndex = null
+        } else {
+            ActionEditDialog(
+                initial = line.item,
+                shownText = line.text ?: actionLineText(line),
+                shownDate = line.date?.date,
+                onDismiss = { editingIndex = null },
+                onSave = { edit ->
+                    editingIndex = null
+                    edits.edit(line.item, edit)
+                },
+            )
+        }
+    }
+    if (adding) {
+        ActionEditDialog(
+            initial = null,
+            shownText = null,
+            shownDate = null,
+            onDismiss = { adding = false },
+            onSave = { edit ->
+                adding = false
+                edits.add(edit)
+            },
+        )
     }
 }
 
 @Composable
-private fun ActionLineView(line: ActionLine, text: String, actions: FieldActions, onCall: (String) -> Unit, onEmail: (String) -> Unit) {
+private fun ActionLineView(
+    line: ActionLine,
+    text: String,
+    actions: FieldActions,
+    onCall: (String) -> Unit,
+    onEmail: (String) -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val open = line.rows.filter { !it.isSettled }
     val uncertain = line.rows.any { it.isUncertain }
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -115,7 +166,11 @@ private fun ActionLineView(line: ActionLine, text: String, actions: FieldActions
             )
             if (line.rows.isNotEmpty()) {
                 if (open.isNotEmpty()) ConfirmButton(text) { actions.confirm(open.map { it.id }) } else ConfirmedMark(text)
-                OverflowMenu(text) { close ->
+            }
+            OverflowMenu(text) { close ->
+                MenuItem(R.string.action_menu_edit_action, R.string.action_edit_action_full, text) { close(); onEdit() }
+                MenuItem(R.string.action_menu_delete_action, R.string.action_delete_action_full, text) { close(); onDelete() }
+                if (line.rows.isNotEmpty()) {
                     line.rows.forEach { row ->
                         val label = fieldLabelText(row)
                         MenuItem(R.string.action_menu_edit, R.string.action_edit_field, label) { close(); actions.edit(row) }
@@ -174,6 +229,8 @@ private fun ValueSubLine(row: ExtractedData) {
 internal class LetterContactActions(
     val confirm: (contactId: String) -> Unit = {},
     val discard: (contactId: String) -> Unit = {},
+    /** The user edited the contact's name, role, phone or e-mail from the letter. */
+    val edit: (contact: com.postsaimanager.core.model.ContactPerson) -> Unit = {},
 )
 
 /** "From / For / About": the sender, the addressee ("You" for the Me profile) and the person the letter is about, when someone else. */
@@ -211,12 +268,29 @@ private fun PartyRow(
         val contact = contacts?.letterContact
         if (contact != null) {
             val open = stringResource(R.string.essentials_contact_open, contact.name)
-            AssistChip(
-                onClick = { onContactClick(contact.organisationId, contact.id) },
-                label = { Text(contact.name) },
-                leadingIcon = { Icon(PamIcons.Person, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                modifier = Modifier.testTag("letter_contact_chip").semantics { contentDescription = open },
-            )
+            var editing by rememberSaveable(contact.id) { mutableStateOf(false) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AssistChip(
+                    onClick = { onContactClick(contact.organisationId, contact.id) },
+                    label = { Text(contact.name) },
+                    leadingIcon = { Icon(PamIcons.Person, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                    modifier = Modifier.testTag("letter_contact_chip").semantics { contentDescription = open },
+                )
+                // The contact's details are edited here, the same as on the organisation's page (one contact, so both say the same).
+                IconButton(onClick = { editing = true }, modifier = Modifier.testTag("letter_contact_pencil")) {
+                    Icon(PamIcons.Edit, contentDescription = stringResource(R.string.contact_edit_description, contact.name), modifier = Modifier.size(18.dp))
+                }
+            }
+            if (editing) {
+                EditContactDialog(
+                    contact = contact,
+                    onDismiss = { editing = false },
+                    onSave = { edited ->
+                        editing = false
+                        contactActions.edit(edited)
+                    },
+                )
+            }
             if (contacts?.letterContactSuggested == true) SuggestedContactStrip(contact, onContactClick, contactActions)
         }
         if (party.addressLines.isNotEmpty()) AddressLine(party.row.id, party.addressLines)

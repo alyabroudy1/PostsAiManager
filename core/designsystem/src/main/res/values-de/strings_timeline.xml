@@ -17,6 +17,7 @@
     <string name="timeline_status_closed">Abgeschlossen</string>
     <string name="timeline_status_description">Stand: %1$s</string>
     <string name="timeline_case_menu">Optionen für diesen Vorgang</string>
+    <string name="timeline_move_case">Diesen Brief in einen anderen Vorgang verschieben</string>
     <string name="timeline_rename">Umbenennen</string>
     <string name="timeline_rename_title">Vorgang umbenennen</string>
     <string name="timeline_rename_label">Name</string>

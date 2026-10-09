@@ -21,6 +21,7 @@
     <string name="timeline_status_closed">مغلق</string>
     <string name="timeline_status_description">الحالة: %1$s</string>
     <string name="timeline_case_menu">خيارات هذه القضية</string>
+    <string name="timeline_move_case">نقل هذه الرسالة إلى قضية أخرى</string>
     <string name="timeline_rename">إعادة تسمية</string>
     <string name="timeline_rename_title">إعادة تسمية هذه القضية</string>
     <string name="timeline_rename_label">الاسم</string>

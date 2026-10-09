@@ -318,4 +318,45 @@
     <string name="meaning_premium">Premium or contribution</string>
     <string name="meaning_invoice_total">Invoice total</string>
     <string name="meaning_fee">Fee</string>
+
+    <!-- Editing what the AI filled in: the title, the meaning of a value, the actions, who a letter is for, the contact, the matter -->
+    <string name="title_edit">Edit title</string>
+    <string name="edit_meaning_label">What this is</string>
+    <string name="edit_meaning_none">None of these</string>
+    <string name="actions_add">Add an action</string>
+    <string name="action_menu_edit_action">Edit action</string>
+    <string name="action_edit_action_full">Edit action: %1$s</string>
+    <string name="action_menu_delete_action">Delete action</string>
+    <string name="action_delete_action_full">Delete action: %1$s</string>
+    <string name="action_dialog_edit_title">Edit action</string>
+    <string name="action_dialog_add_title">Add an action</string>
+    <string name="action_dialog_kind_label">What it asks of you</string>
+    <string name="action_dialog_text_label">In your words (optional)</string>
+    <string name="action_dialog_date_label">Due date</string>
+    <string name="action_dialog_date_pick">Pick a date</string>
+    <string name="action_dialog_date_clear">No date</string>
+    <string name="action_kind_pay">Pay</string>
+    <string name="action_kind_reply">Reply</string>
+    <string name="action_kind_object_cancel">Object or cancel</string>
+    <string name="action_kind_attend">Attend an appointment</string>
+    <string name="action_kind_send_documents">Send documents</string>
+    <string name="action_kind_sign_return">Sign and return</string>
+    <string name="action_kind_confirm_renew">Confirm or renew</string>
+    <string name="action_kind_contact">Get in touch</string>
+    <string name="action_kind_other_action">Something else</string>
+    <string name="people_title">Who this is for</string>
+    <string name="people_hint">Tap a person to add or remove them. What you choose stays when the letter is read again.</string>
+    <string name="people_set_by_you">Set by you</string>
+    <string name="contact_edit_description">Edit contact %1$s</string>
+    <string name="contact_edit_title">Edit contact</string>
+    <string name="contact_edit_name">Name</string>
+    <string name="contact_edit_role">Role</string>
+    <string name="contact_edit_phone">Phone</string>
+    <string name="contact_edit_email">E-mail</string>
+    <string name="case_move_menu">Move to another matter…</string>
+    <string name="case_move_title">Move this letter to</string>
+    <string name="case_move_none">No matter</string>
+    <string name="case_move_new">A new matter</string>
+    <string name="case_move_new_label">Name of the new matter (optional)</string>
+    <string name="case_move_here">here now</string>
 </resources>

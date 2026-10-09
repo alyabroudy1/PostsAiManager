@@ -24,6 +24,7 @@ import com.postsaimanager.core.model.ExtractedFieldType
 import com.postsaimanager.core.model.FamilySource
 import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.SummarySource
+import com.postsaimanager.core.model.TitleSource
 import com.postsaimanager.core.model.ValueSource
 
 /**
@@ -32,6 +33,7 @@ import com.postsaimanager.core.model.ValueSource
  *
  * @property titleArgs the positional args of a composed title (`TitleComposer`: family id, sender, subject); null when the
  *   document's title is not a composed one (the top bar shows it)
+ * @property plainTitle the person's own title (a rename), shown on the card with the pencil that changes it; null for any other title
  * @property summaryText the summary in words: the model's, or the person's own edit; null when there is none or it is a template
  * @property templateArgs the args of a template summary (`SummaryFacts.templateArgs`) the screen renders from string resources
  * @property summarySource where the summary came from, which decides its badge; null when there is no summary
@@ -43,10 +45,11 @@ data class SummaryCard(
     val templateArgs: List<String>? = null,
     val summarySource: SummarySource? = null,
     val summaryComing: Boolean = false,
+    val plainTitle: String? = null,
 ) {
     val hasSummary: Boolean get() = summaryText != null || templateArgs != null
 
-    val isEmpty: Boolean get() = titleArgs == null && !hasSummary
+    val isEmpty: Boolean get() = titleArgs == null && plainTitle == null && !hasSummary
 }
 
 /** What the chip row at the top says about the reading: the family, the topics and how sure the classifier was. */
@@ -434,6 +437,7 @@ object ExtractedPresenter {
         val template = text == null && document.summaryCode == SummaryWriter.TEMPLATE_CODE && document.summaryArgs.isNotEmpty()
         return SummaryCard(
             titleArgs = document.titleArgs.takeIf { TitleComposer.isComposed(document.titleCode) && it.isNotEmpty() },
+            plainTitle = document.title.takeIf { document.titleSource == TitleSource.USER && it.isNotBlank() },
             summaryText = text,
             templateArgs = document.summaryArgs.takeIf { template },
             summarySource = when {

@@ -31,6 +31,18 @@ import com.postsaimanager.core.model.ReviewState
 import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.model.TextBounds
 import com.postsaimanager.core.model.ValueSource
+import com.postsaimanager.core.domain.contacts.UpdateContactUseCase
+import com.postsaimanager.core.domain.document.SetFieldMeaningUseCase
+import com.postsaimanager.core.domain.document.actions.AddActionUseCase
+import com.postsaimanager.core.domain.document.actions.DeleteActionUseCase
+import com.postsaimanager.core.domain.document.actions.EditActionUseCase
+import com.postsaimanager.core.domain.document.people.SetConcernedPeopleUseCase
+import com.postsaimanager.core.domain.timeline.MoveDocumentToCaseUseCase
+import com.postsaimanager.core.domain.timeline.ObserveCaseChoicesUseCase
+import com.postsaimanager.core.domain.timeline.RefreshCaseStatusUseCase
+import com.postsaimanager.core.domain.timeline.RenameCaseUseCase
+import com.postsaimanager.core.domain.timeline.ResolveEventLinksUseCase
+import com.postsaimanager.core.domain.timeline.SyncEventLinksUseCase
 import com.postsaimanager.core.domain.timeline.ObserveCaseForDocumentUseCase
 import com.postsaimanager.core.model.Case
 import com.postsaimanager.core.model.CaseStatus
@@ -96,7 +108,25 @@ class DocumentDetailViewModelTest {
         letterContactFields = LetterContactFields(contactRepository, documentRepository, discardContact),
         confirmContact = ConfirmContactUseCase(contactRepository, documentRepository),
         discardContact = discardContact,
+        edits = letterEdits,
     )
+
+    private val letterEdits by lazy {
+        val refresh = RefreshCaseStatusUseCase(eventRepository)
+        LetterEditActions(
+            editAction = EditActionUseCase(documentRepository),
+            deleteAction = DeleteActionUseCase(documentRepository),
+            addAction = AddActionUseCase(documentRepository),
+            setPeople = SetConcernedPeopleUseCase(
+                documentRepository, SyncEventLinksUseCase(documentRepository, ResolveEventLinksUseCase(profileRepository, contactRepository), eventRepository),
+            ),
+            setMeaning = SetFieldMeaningUseCase(documentRepository),
+            updateContact = UpdateContactUseCase(contactRepository, documentRepository),
+            renameCase = RenameCaseUseCase(eventRepository),
+            moveToCase = MoveDocumentToCaseUseCase(documentRepository, eventRepository, refresh, java.time.Clock.systemUTC()),
+            caseChoices = ObserveCaseChoicesUseCase(eventRepository),
+        )
+    }
 
     private val viewing = com.postsaimanager.core.domain.reading.ViewingState()
     private val discardContact by lazy { DiscardContactUseCase(contactRepository, documentRepository) }
@@ -613,6 +643,98 @@ class DocumentDetailViewModelTest {
             val state = vm.fieldPreview.value!!
             assertThat(state.loading).isFalse()
             assertThat(state.preview).isNull()
+        }
+    }
+
+    /** What the user changes on a letter (the actions, who it is for, a value's meaning, its matter): each is stored as theirs. */
+    @Nested
+    inner class LetterEdits {
+
+        private val pay = com.postsaimanager.core.model.ActionItem("pay", mapOf("amount" to "total"))
+        private val reply = com.postsaimanager.core.model.ActionItem("reply")
+
+        private suspend fun document() = (documentRepository.getDocumentById("d1") as com.postsaimanager.core.common.result.PamResult.Success).data
+
+        @Test
+        fun `editing, deleting and adding actions are stored on the letter as the user's`() = runTest {
+            documentRepository.seed(testDocument(id = "d1").copy(actionItems = listOf(pay, reply)))
+            val vm = viewModel("d1")
+
+            vm.editAction(reply, com.postsaimanager.core.domain.document.actions.ActionEdit(kind = "contact", text = "Call them"))
+            vm.deleteAction(pay)
+            vm.addAction(com.postsaimanager.core.domain.document.actions.ActionEdit(kind = "other_action", text = "Ask the neighbour"))
+
+            val actions = document().actionItems
+            assertThat(actions.filter { !it.removed }.map { it.kind to it.text }).containsExactly("contact" to "Call them", "other_action" to "Ask the neighbour")
+            assertThat(actions.single { it.removed }.kind).isEqualTo("pay")
+            assertThat(actions.filter { !it.removed }.map { it.source }.toSet()).containsExactly(com.postsaimanager.core.model.ActionSource.USER)
+        }
+
+        @Test
+        fun `setting who the letter is for stores the user's list`() = runTest {
+            documentRepository.seed(testDocument(id = "d1").copy(concernedProfileIds = listOf("old")))
+            val vm = viewModel("d1")
+
+            vm.setConcernedPeople(listOf("maria", "me"))
+
+            assertThat(document().concernedProfileIds).containsExactly("maria", "me")
+            assertThat(document().concernedSource).isEqualTo(com.postsaimanager.core.model.ConcernedSource.USER)
+        }
+
+        @Test
+        fun `a value and its meaning saved together both land, the value first`() = runTest {
+            documentRepository.seed(testDocument(id = "d1"))
+            documentRepository.seedExtracted(
+                "d1",
+                ExtractedData(
+                    id = "due", documentId = "d1", fieldName = "Due date", fieldValue = "15.10.2026", fieldType = ExtractedFieldType.DATE,
+                    confidence = 0.6f, slotKey = "due_date",
+                ),
+            )
+            val vm = viewModel("d1")
+
+            vm.updateField("due", "Due date", "16.10.2026")
+            vm.setFieldMeaning("due", "APPOINTMENT")
+
+            val row = documentRepository.observeExtractedData("d1").first().single()
+            assertThat(row.fieldValue).isEqualTo("16.10.2026")
+            assertThat(row.role).isEqualTo("meaning:APPOINTMENT")
+            assertThat(row.reviewState).isEqualTo(ReviewState.EDITED)
+            assertThat(row.source).isEqualTo(ValueSource.USER)
+        }
+
+        @Test
+        fun `a meaning that is not one of the value's kind is refused`() = runTest {
+            documentRepository.seed(testDocument(id = "d1"))
+            documentRepository.seedExtracted(
+                "d1",
+                ExtractedData(
+                    id = "due", documentId = "d1", fieldName = "Due date", fieldValue = "15.10.2026", fieldType = ExtractedFieldType.DATE,
+                    confidence = 0.6f, slotKey = "due_date",
+                ),
+            )
+
+            viewModel("d1").setFieldMeaning("due", "TOTAL_DUE")
+
+            assertThat(documentRepository.observeExtractedData("d1").first().single().role).isNull()
+        }
+
+        @Test
+        fun `renaming the matter and moving the letter out of it`() = runTest {
+            documentRepository.seed(testDocument(id = "d1"))
+            eventRepository.seedCases(Case("c1", "jc", "Housing benefit", createdAt = 1L))
+            eventRepository.seedEvents(
+                ProfileEvent("e1", "d1", "information", 1L, 1L, "Letter", organisationProfileId = "jc", caseId = "c1"),
+                ProfileEvent("e2", "d2", "information", 2L, 2L, "Other letter", organisationProfileId = "jc", caseId = "c1"),
+            )
+            val vm = viewModel("d1")
+
+            vm.renameCase("c1", "Housing benefit 2026")
+            vm.moveToCase(com.postsaimanager.core.domain.timeline.CaseTarget.None)
+
+            assertThat(eventRepository.getCase("c1")!!.title).isEqualTo("Housing benefit 2026")
+            assertThat(eventRepository.allEvents.single { it.documentId == "d1" }.caseId).isNull()
+            assertThat(document().caseLinkSource).isEqualTo(com.postsaimanager.core.model.CaseLinkSource.USER)
         }
     }
 }

@@ -12,6 +12,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -24,19 +26,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.postsaimanager.core.designsystem.icon.PamIcons
 
 /**
  * The one compact card under the page images: the document's title, a short summary with its source badge, who it is from and
  * who it is to. Or, while there is nothing to say, one honest line: reading, AI not installed (with Install), or failed.
  */
 @Composable
-internal fun PagesSummaryCard(title: String, summary: PagesSummary, onInstall: () -> Unit, modifier: Modifier = Modifier) {
+internal fun PagesSummaryCard(
+    title: String,
+    summary: PagesSummary,
+    onInstall: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** The pencil beside the title (and a tap on it): renames the letter. Null: the title is plain. */
+    onEditTitle: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -52,7 +63,19 @@ internal fun PagesSummaryCard(title: String, summary: PagesSummary, onInstall: (
             )
             when (summary.state) {
                 PagesSummaryState.READY -> {
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f).let { if (onEditTitle != null) it.clickable(onClick = onEditTitle) else it },
+                        )
+                        if (onEditTitle != null) {
+                            IconButton(onClick = onEditTitle, modifier = Modifier.testTag("title_edit")) {
+                                Icon(PamIcons.Edit, contentDescription = stringResource(R.string.title_edit), modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
                     val text = summary.summaryText ?: summary.templateArgs?.let { templateSummaryText(context, it) }
                     if (text != null) {
                         Text(

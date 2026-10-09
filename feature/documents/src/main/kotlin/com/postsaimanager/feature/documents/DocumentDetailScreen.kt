@@ -75,6 +75,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -101,6 +102,7 @@ import com.postsaimanager.core.model.DocumentNote
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedFieldType
+import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ProcessingStage
 import com.postsaimanager.core.model.ProcessingState
 import com.postsaimanager.core.model.ReadingStage
@@ -149,9 +151,11 @@ fun DocumentDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val letterContacts by viewModel.letterContacts.collectAsStateWithLifecycle()
     val contactActions = remember(viewModel) {
-        LetterContactActions(confirm = viewModel::confirmLetterContact, discard = viewModel::discardLetterContact)
+        LetterContactActions(confirm = viewModel::confirmLetterContact, discard = viewModel::discardLetterContact, edit = viewModel::updateLetterContact)
     }
     val caseRow by viewModel.caseRow.collectAsStateWithLifecycle()
+    val caseChoices by viewModel.caseChoices.collectAsStateWithLifecycle()
+    val householdPeople by viewModel.householdPeople.collectAsStateWithLifecycle()
     val pagesContext by viewModel.pagesContext.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val processingState by viewModel.processingProgress.collectAsStateWithLifecycle()
@@ -171,6 +175,18 @@ fun DocumentDetailScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showMoveCaseDialog by remember { mutableStateOf(false) }
+
+    caseChoices?.takeIf { showMoveCaseDialog }?.let { choices ->
+        MoveToCaseDialog(
+            choices = choices,
+            onDismiss = { showMoveCaseDialog = false },
+            onPick = { target ->
+                showMoveCaseDialog = false
+                viewModel.moveToCase(target)
+            },
+        )
+    }
 
     (uiState as? DocumentDetailUiState.Success)?.document?.takeIf { showRenameDialog }?.let { document ->
         RenameDocumentDialog(
@@ -215,8 +231,14 @@ fun DocumentDetailScreen(
                     else -> "Document"
                 },
                 onNavigateBack = onNavigateBack,
+                // Tapping the title, or the pencil beside the menu, renames the letter (it is also the first entry of the menu).
+                onTitleClick = (uiState as? DocumentDetailUiState.Success)?.takeUnless { it.document.isTrashed }?.let { { showRenameDialog = true } },
+                onTitleClickLabel = stringResource(R.string.title_edit),
                 actions = {
                     if (uiState is DocumentDetailUiState.Success) {
+                        IconButton(onClick = { showRenameDialog = true }, modifier = Modifier.testTag("detail_title_edit")) {
+                            Icon(PamIcons.Edit, contentDescription = stringResource(R.string.title_edit))
+                        }
                         IconButton(onClick = { showOverflowMenu = true }) {
                             Icon(PamIcons.More, contentDescription = "More options")
                         }
@@ -226,6 +248,14 @@ fun DocumentDetailScreen(
                                 onClick = {
                                     showOverflowMenu = false
                                     showRenameDialog = true
+                                },
+                            )
+                            // The letter's place in its matters: moved to another one, a new one or none (it needs a sender to belong to).
+                            if (caseChoices != null) DropdownMenuItem(
+                                text = { Text(stringResource(R.string.case_move_menu)) },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    showMoveCaseDialog = true
                                 },
                             )
                             // Offered on any document: a letter can come with a form to fill in, and the user can always ask.
@@ -320,6 +350,15 @@ fun DocumentDetailScreen(
                     contactActions = contactActions,
                     caseRow = caseRow,
                     onCaseClick = onCaseClick,
+                    onRenameCase = viewModel::renameCase,
+                    onMoveCase = if (caseChoices != null) ({ showMoveCaseDialog = true }) else null,
+                    onEditTitle = { showRenameDialog = true },
+                    actionEdits = remember(viewModel) {
+                        ActionEditActions(edit = viewModel::editAction, delete = viewModel::deleteAction, add = viewModel::addAction)
+                    },
+                    householdPeople = householdPeople,
+                    onSetPeople = viewModel::setConcernedPeople,
+                    onSetFieldMeaning = viewModel::setFieldMeaning,
                     onOpenDocument = onOpenDocument,
                     onInstallModel = onInstallModel,
                     processingState = processingState,
@@ -404,6 +443,14 @@ private fun DocumentDetailContent(
     contactActions: LetterContactActions,
     caseRow: DocumentCaseUi?,
     onCaseClick: (profileId: String, caseId: String) -> Unit,
+    onRenameCase: (caseId: String, title: String) -> Unit,
+    /** Move the letter to another matter, a new one or none; null while it has no sender to belong to. */
+    onMoveCase: (() -> Unit)?,
+    onEditTitle: () -> Unit,
+    actionEdits: ActionEditActions,
+    householdPeople: List<Profile>,
+    onSetPeople: (List<String>) -> Unit,
+    onSetFieldMeaning: (fieldId: String, meaningId: String?) -> Unit,
     onOpenDocument: (documentId: String) -> Unit,
     onInstallModel: () -> Unit,
     processingState: ProcessingState,
@@ -504,6 +551,8 @@ private fun DocumentDetailContent(
                 onOpenCase = onCaseClick,
                 onOpenDocument = onOpenDocument,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                onRename = onRenameCase,
+                onMove = onMoveCase,
             )
         }
 
@@ -536,6 +585,7 @@ private fun DocumentDetailContent(
                 initialPage = initialPage,
                 onZoomPage = onZoomPage,
                 jumpToPage = jumpToPage,
+                onEditTitle = onEditTitle,
             )
             DetailTab.EXTRACTED -> ExtractedTab(
                 document = state.document,
@@ -551,6 +601,11 @@ private fun DocumentDetailContent(
                 onConfirmAll = onConfirmAll,
                 onUpdateField = onUpdateField,
                 onUpdateSummary = onUpdateSummary,
+                onEditTitle = onEditTitle,
+                actionEdits = actionEdits,
+                householdPeople = householdPeople,
+                onSetPeople = onSetPeople,
+                onSetFieldMeaning = onSetFieldMeaning,
                 onShowOnPage = onShowOnPage,
                 onFillForm = onFillForm,
                 notes = notes,
@@ -734,6 +789,7 @@ private fun PagesTab(
     onZoomPage: (pageNumber: Int) -> Unit,
     /** The page last viewed in the full-screen preview (1-based): the pager lands on it when the preview closes. */
     jumpToPage: Int? = null,
+    onEditTitle: () -> Unit = {},
 ) {
     if (pages.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -833,7 +889,7 @@ private fun PagesTab(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            PagesSummaryCard(title = title, summary = summary, onInstall = onInstallModel)
+            PagesSummaryCard(title = title, summary = summary, onInstall = onInstallModel, onEditTitle = onEditTitle)
             RecognizedTextSection(
                 pages = pages.filter { !it.ocrText.isNullOrBlank() }.map { PageText(it.pageNumber, it.ocrText!!) },
             )

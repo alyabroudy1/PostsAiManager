@@ -306,6 +306,9 @@ private fun statusIcon(status: CaseStatus): ImageVector = when (status) {
  * "Part of: <matter>" on a letter: the matter's title and status, with the earlier and later letters of the matter behind a toggle
  * (five, then "Show all"). Tapping the title opens the matter on the timeline ([onOpenCase], given the profile to show it on, or
  * null when none is known: then the title is plain).
+ *
+ * The user can rename the matter from here ([onRename]) and move the letter to another matter, a new one or none ([onMove]); a row
+ * given neither has no menu.
  */
 @Composable
 fun DocumentCaseRow(
@@ -314,9 +317,13 @@ fun DocumentCaseRow(
     onOpenCase: (profileId: String, caseId: String) -> Unit,
     onOpenDocument: (documentId: String) -> Unit,
     modifier: Modifier = Modifier,
+    onRename: ((caseId: String, title: String) -> Unit)? = null,
+    onMove: (() -> Unit)? = null,
 ) {
     var expanded by rememberSaveable(ui.caseId) { mutableStateOf(false) }
     var showAll by rememberSaveable(ui.caseId) { mutableStateOf(false) }
+    var menuOpen by rememberSaveable(ui.caseId) { mutableStateOf(false) }
+    var renaming by rememberSaveable(ui.caseId) { mutableStateOf(false) }
     val target = ui.openProfileId
     Card(
         modifier = modifier.fillMaxWidth().testTag("document_case_row"),
@@ -349,6 +356,35 @@ fun DocumentCaseRow(
                     contentDescription = stringResource(if (expanded) R.string.timeline_history_hide else R.string.timeline_history_show),
                 )
             }
+            if (onRename != null || onMove != null) {
+                Box {
+                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.testTag("document_case_menu")) {
+                        Icon(PamIcons.More, contentDescription = stringResource(R.string.timeline_case_menu))
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        if (onRename != null) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.timeline_rename)) },
+                                onClick = {
+                                    menuOpen = false
+                                    renaming = true
+                                },
+                                modifier = Modifier.testTag("document_case_rename_item"),
+                            )
+                        }
+                        if (onMove != null) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.timeline_move_case)) },
+                                onClick = {
+                                    menuOpen = false
+                                    onMove()
+                                },
+                                modifier = Modifier.testTag("document_case_move_item"),
+                            )
+                        }
+                    }
+                }
+            }
         }
         if (expanded) {
             val shown = if (showAll) ui.events else ui.events.take(TIMELINE_VISIBLE)
@@ -364,5 +400,9 @@ fun DocumentCaseRow(
                 }
             }
         }
+    }
+    if (renaming && onRename != null) RenameDialog(ui.title, onDismiss = { renaming = false }) { title ->
+        renaming = false
+        onRename(ui.caseId, title)
     }
 }
