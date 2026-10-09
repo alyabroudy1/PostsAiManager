@@ -274,6 +274,10 @@ class BuildChatContextUseCase internal constructor(
             appendLine("- For a draft reply, use formal letter conventions.")
             appendLine("- Be concise.")
             appendLine(
+                "- What the user tells you about their own actions (they paid, sent, called, booked) is a fact: acknowledge it and use it. " +
+                    "The app remembers it. Never answer that you cannot know it.",
+            )
+            appendLine(
                 "- Always answer in the same language the user writes in. If the user writes " +
                     "in English, answer in English, even if the document is in another language.",
             )

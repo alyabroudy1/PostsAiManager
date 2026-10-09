@@ -49,7 +49,8 @@ data class ChatSessionEnded(val conversationId: String, val reason: ChatSessionE
  * the engine's conversation, so coming back to the same chat within [idleMs] reuses it: [begin] returns false, nothing is rebuilt
  * or warmed up again. A parked session ends early, and writes its notes (via [ended]), only when:
  *  - a DIFFERENT chat is opened ([ChatSessionEnd.DIFFERENT_CHAT]): it needs a new conversation;
- *  - quiet model work asks for the engine ([isChatActive]) while the chat is not in the foreground ([ChatSessionEnd.READING]);
+ *  - a reading the person started (import, Reprocess, Read again) asks for the engine ([isChatActiveForUserReading]) while the chat is
+ *    not in the foreground ([ChatSessionEnd.READING]). Quiet background work ([isChatActive]) never ends a parked session: it waits;
  *  - [endAllParked] reports memory pressure or an unloaded model ([ChatSessionEnd.MEMORY]);
  *  - the day changed ([ChatSessionEnd.NEW_DAY]), or [idleMs] passed ([ChatSessionEnd.IDLE], noticed by [endExpiredParked] or the
  *    next [begin] / [enter]).
@@ -61,9 +62,9 @@ data class ChatSessionEnded(val conversationId: String, val reason: ChatSessionE
  * [ended] is the hook for what happens at the end of a visit: `SessionNotesCollector` writes the notes of the document memory
  * there. Pure state and a clock, so the rules are unit-tested with a fake clock.
  *
- * It is also the one notion of "a chat is active" ([ChatActivityGate]): a chat is active while its session is in the FOREGROUND
- * (from the moment [begin] runs, before the model is even loaded) and not idle. A parked session does not block anything: whoever
- * asks takes the engine and the parked session ends. There is no second, shorter idle clock.
+ * It is also the one notion of "a chat is active" ([ChatActivityGate]): a chat is active while it has a live session, in the
+ * FOREGROUND (from the moment [begin] runs, before the model is even loaded) or PARKED, and not idle. Quiet work waits for it; only a
+ * reading the person started takes the engine from a parked session. There is no second, shorter idle clock.
  */
 @Singleton
 class ChatSessionTracker internal constructor(
@@ -209,12 +210,18 @@ class ChatSessionTracker internal constructor(
     fun isParked(conversationId: String): Boolean = conversationId in live && conversationId !in foreground
 
     /**
-     * True while a chat is in the foreground with a live session used within [idleMs] (an idle one that nobody ended yet does not
-     * count). A parked session is not active: asking is wanting the engine, so every parked session ends here
-     * ([ChatSessionEnd.READING]) and its notes are queued, and the caller may go on when no foreground chat is left.
+     * For quiet background work: true while any session is live, foreground or parked (within [idleMs]). It never ends a parked
+     * session (the person may come back to it), so background jobs wait and are queued again, never dropped.
      */
     @Synchronized
-    override fun isChatActive(): Boolean {
+    override fun isChatActive(): Boolean = hasLiveSession()
+
+    /**
+     * For a reading the person started (import, Reprocess, Read again): every parked session ends here ([ChatSessionEnd.READING]) and
+     * its notes are queued; true while a chat in the foreground with a live session used within [idleMs] is left.
+     */
+    @Synchronized
+    override fun isChatActiveForUserReading(): Boolean {
         val now = clock()
         for (id in live.keys.filter { it !in foreground }) end(id, ChatSessionEnd.READING)
         return live.any { (id, last) -> id in foreground && now - last < idleMs }

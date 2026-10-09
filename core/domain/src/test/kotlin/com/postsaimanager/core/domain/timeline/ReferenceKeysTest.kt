@@ -21,6 +21,13 @@ class ReferenceKeysTest {
     }
 
     @Test
+    fun `look-alike letters inside a digit run read as digits, words are left alone`() {
+        assertThat(ReferenceKeys.normalise("12345BGOOO7777")).isEqualTo(ReferenceKeys.normalise("12345BG0007777"))
+        assertThat(ReferenceKeys.normalise("KD-l23I")).isEqualTo("KD1231")
+        assertThat(ReferenceKeys.normalise("Olli 1234")).isEqualTo("OLLI1234")
+    }
+
+    @Test
     fun `a value that is too short or holds no digit is no reference`() {
         assertThat(ReferenceKeys.normalise("A12")).isNull()
         assertThat(ReferenceKeys.normalise("Jobcenter")).isNull()

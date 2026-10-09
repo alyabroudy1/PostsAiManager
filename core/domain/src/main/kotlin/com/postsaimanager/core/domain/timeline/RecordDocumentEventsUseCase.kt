@@ -85,15 +85,16 @@ class RecordDocumentEventsUseCase @Inject constructor(
     private val clock: Clock,
 ) {
 
-    suspend operator fun invoke(documentId: String, reading: EventReading, kinds: EventKinds = EventKinds.DEFAULT) {
-        val document = (documents.getDocumentById(documentId) as? PamResult.Success)?.data?.takeUnless { it.isTrashed } ?: return
+    /** @return true when the same-matter question could not be answered (no model free): the event waits without a matter, to be asked again. */
+    suspend operator fun invoke(documentId: String, reading: EventReading, kinds: EventKinds = EventKinds.DEFAULT): Boolean {
+        val document = (documents.getDocumentById(documentId) as? PamResult.Success)?.data?.takeUnless { it.isTrashed } ?: return false
         val fields = documents.observeExtractedData(documentId).first()
         val kind = kinds.byId(reading.kindId)
         val now = clock.millis()
         val resolved = links(document)
         val previous = events.eventsOfDocument(documentId).filter { it.source == EventSource.DOCUMENT }
         // The reading's event the user edited or deleted stays as they left it: nothing is written beside or over it.
-        if (!EventEditPolicy.mayReplaceReading(previous)) return
+        if (!EventEditPolicy.mayReplaceReading(previous)) return false
         val event = ProfileEvent(
             id = UuidGenerator.generate(),
             documentId = documentId,
@@ -107,15 +108,19 @@ class RecordDocumentEventsUseCase @Inject constructor(
             source = EventSource.DOCUMENT,
         )
         // A letter the user moved to a matter (or to none) stays where they put it: only the events are re-written, the grouping is not asked again.
+        var pending = false
         val caseId = if (document.caseLinkSource == CaseLinkSource.USER) {
             previous.firstOrNull()?.caseId
         } else {
             resolved.organisationProfileId?.let { organisation ->
-                caseFor(organisation, resolved.organisationName, event, kind, ReferenceKeys.of(fields), previous.firstOrNull(), now)
+                val placed = caseFor(organisation, resolved.organisationName, event, kind, ReferenceKeys.of(fields), previous.firstOrNull(), now)
+                pending = placed == null
+                placed
             }
         }
         events.replaceDocumentEvents(documentId, listOf(event.copy(caseId = caseId)))
         (previous.mapNotNull { it.caseId } + listOfNotNull(caseId)).distinct().forEach { refresh(it) }
+        return pending
     }
 
     /** The matter [event] belongs to (an existing one with the new keys added, or a new one), saved; null while the same-matter question is unanswered. */
@@ -187,6 +192,24 @@ class RecordDocumentEventsUseCase @Inject constructor(
 
     private companion object {
         const val DATE_CHARS = 10
+    }
+}
+
+/**
+ * Asks the same-matter question again for a letter whose event waits without a matter (the model was busy or gave no usable answer the
+ * first time): it re-writes the stored event through [RecordDocumentEventsUseCase] with the kind and title it already has, so the one
+ * place that groups letters stays the only one.
+ */
+class RetryPendingMatterUseCase @Inject constructor(
+    private val events: EventRepository,
+    private val record: RecordDocumentEventsUseCase,
+) {
+
+    /** @return true while the letter still has no matter because the question could not be answered; false when it is placed or nothing is owed. */
+    suspend operator fun invoke(documentId: String): Boolean {
+        val own = events.eventsOfDocument(documentId).filter { it.source == EventSource.DOCUMENT }.singleOrNull() ?: return false
+        if (own.caseId != null) return false
+        return record(documentId, EventReading(own.kind, own.title))
     }
 }
 

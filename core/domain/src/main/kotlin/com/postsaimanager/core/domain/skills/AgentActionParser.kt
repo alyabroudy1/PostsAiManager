@@ -127,7 +127,10 @@ object AgentActionParser {
         log: (String) -> Unit,
     ): ActionParse {
         // A small model that did not read the skill names the line "description" or "text": the reminder's own line is the same thing.
-        val message = p.text("message") ?: p.text("description") ?: p.text("text") ?: p.text("title") ?: return missing("message")
+        // When it gave more than one, the fullest line is the one that says what the reminder is for (a bare "Reminder" title beside a
+        // description naming the sender must not win).
+        val message = listOf("message", "description", "text", "title").mapNotNull { p.text(it) }.maxByOrNull { it.length }
+            ?: return missing("message")
         // The model's document_id is never trusted on its own: a small model writes a reference number there. It counts only when it
         // is the chat's document or one the caller knows exists; otherwise the reminder belongs to the chat's document.
         val stated = p.text("document_id")

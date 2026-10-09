@@ -207,6 +207,52 @@ class RecordDocumentEventsUseCaseTest {
     }
 
     @Test
+    fun `an OCR O for a zero inside the reference still joins the matter by reference`() = runTest {
+        letter("d1", field("d1", "case_no", "12345BG0007777"), field("d1", "letter_date", "10.09.2026", "LETTER_DATE"))
+        record("d1", EventReading(EventKinds.APPROVAL, "Bewilligung"))
+        letter("d2", field("d2", "case_no", "12345BGOOO7777"), field("d2", "letter_date", "05.12.2026", "LETTER_DATE"))
+        record("d2", EventReading(EventKinds.REJECTION, "Ablehnung"))
+
+        assertThat(same.questions).isEmpty()
+        assertThat(events.allCases).hasSize(1)
+        // A rejection after an approval makes the matter rejected.
+        assertThat(events.allCases.single().status).isEqualTo(CaseStatus.REJECTED)
+    }
+
+    @Test
+    fun `a letter whose reference matches no matter still gets the same-matter question`() = runTest {
+        letter("d1", field("d1", "case_no", "BG 1111111"), field("d1", "letter_date", "10.09.2026", "LETTER_DATE"))
+        record("d1", EventReading(EventKinds.APPROVAL, "Bewilligung"))
+        letter("d2", field("d2", "case_no", "BG 2222222"), field("d2", "letter_date", "05.12.2026", "LETTER_DATE"))
+        same.sameAs = setOf("Bewilligung")
+
+        record("d2", EventReading(EventKinds.REJECTION, "Ablehnung"))
+
+        assertThat(same.questions).hasSize(1)
+        assertThat(events.allCases).hasSize(1)
+        assertThat(events.allCases.single().status).isEqualTo(CaseStatus.REJECTED)
+    }
+
+    @Test
+    fun `an unanswered same-matter question is reported pending and asked again later`() = runTest {
+        letter("d1", field("d1", "case_no", "BG 1111111"))
+        record("d1", EventReading(EventKinds.APPROVAL, "Bewilligung"))
+        letter("d2", field("d2", "case_no", "BG 2222222"))
+        same.error = PamError.InferenceError("busy")
+        assertThat(record("d2", EventReading(EventKinds.REJECTION, "Ablehnung"))).isTrue()
+        assertThat(events.allEvents.single { it.documentId == "d2" }.caseId).isNull()
+
+        same.error = null
+        same.sameAs = setOf("Bewilligung")
+        val retry = RetryPendingMatterUseCase(events, record)
+        assertThat(retry("d2")).isFalse()
+
+        assertThat(events.allCases).hasSize(1)
+        assertThat(events.allEvents.single { it.documentId == "d2" }.caseId).isNotNull()
+        assertThat(events.allEvents.single { it.documentId == "d2" }.title).isEqualTo("Ablehnung")
+    }
+
+    @Test
     fun `a matter reference beats the model, which is not asked`() = runTest {
         letter("d1", field("d1", "case_no", "BG 3141592"))
         record("d1", EventReading(EventKinds.INFORMATION, "a"))

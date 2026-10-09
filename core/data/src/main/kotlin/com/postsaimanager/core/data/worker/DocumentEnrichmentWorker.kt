@@ -73,6 +73,17 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
             }
         }
 
+        // And "which matter is this letter part of?", asked again for a letter whose question could not be answered at first (see [matterRequest]).
+        if (inputData.getBoolean(KEY_MATTER_CHECK, false)) {
+            return when (documentProcessor.decideMatter(documentId)) {
+                is PamResult.Success -> Result.success()
+                is PamResult.Error -> {
+                    val attempt = inputData.getInt(KEY_ATTEMPT, 0)
+                    if (attempt >= MAX_PEOPLE_ATTEMPTS) Result.failure() else tryAgainSoon(documentId, attempt + 1)
+                }
+            }
+        }
+
         return when (val result = documentProcessor.enrichDocument(documentId, ticket)) {
             is PamResult.Success -> Result.success()
             is PamResult.Error -> {
@@ -88,10 +99,16 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
      * have WorkManager double it up to five hours, and with Doze the second stage then sat unwritten ("Summary coming...") for hours.
      */
     private fun tryAgainSoon(documentId: String, attempt: Int = 0): Result {
+        val matter = inputData.getBoolean(KEY_MATTER_CHECK, false)
         val people = inputData.getBoolean(KEY_PEOPLE_CHECK, false)
-        val name = if (people) peopleWorkName(documentId) else workName(documentId)
+        val name = when {
+            matter -> matterWorkName(documentId)
+            people -> peopleWorkName(documentId)
+            else -> workName(documentId)
+        }
         val input = if (attempt == 0) inputData else Data.Builder().putAll(inputData).putInt(KEY_ATTEMPT, attempt).build()
-        WorkManager.getInstance(applicationContext).enqueueUniqueWork(name, ExistingWorkPolicy.APPEND_OR_REPLACE, again(input, people))
+        // The matter check is quiet like the people check: a new scan does not push it aside.
+        WorkManager.getInstance(applicationContext).enqueueUniqueWork(name, ExistingWorkPolicy.APPEND_OR_REPLACE, again(input, people || matter))
         return Result.success()
     }
 
@@ -138,6 +155,18 @@ class DocumentEnrichmentWorker @AssistedInject constructor(
         const val PEOPLE_TAG = "people-documents"
 
         fun peopleWorkName(documentId: String) = "people-document-$documentId"
+
+        /** Marks the work that asks the same-matter question again for a letter whose event has no matter yet. */
+        const val KEY_MATTER_CHECK = "matterCheck"
+
+        fun matterWorkName(documentId: String) = "matter-document-$documentId"
+
+        /** The work that asks which matter [documentId] belongs to, once the model is free. Quiet, like the people check. */
+        fun matterRequest(documentId: String): OneTimeWorkRequest =
+            OneTimeWorkRequestBuilder<DocumentEnrichmentWorker>()
+                .setInputData(workDataOf(KEY_DOCUMENT_ID to documentId, KEY_MATTER_CHECK to true))
+                .addTag(PEOPLE_TAG)
+                .build()
 
         /** The work that decides who [documentId] is for or about, over its stored text. */
         fun peopleRequest(documentId: String): OneTimeWorkRequest =

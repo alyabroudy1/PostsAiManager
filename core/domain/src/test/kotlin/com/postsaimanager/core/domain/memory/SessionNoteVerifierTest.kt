@@ -32,6 +32,24 @@ class SessionNoteVerifierTest {
     }
 
     @Test
+    fun `a note that restates a request the assistant carried out with a tool is dropped, a stated fact stays`() {
+        val kept = verifier.verify(
+            listOf("remind me tomorrow at 9", "The user paid the invoice on 5 October."),
+            grounding + "remind me tomorrow at 9",
+            card,
+            existing = emptyList(),
+            commands = listOf("remind me tomorrow at 9"),
+        )
+
+        assertThat(kept).containsExactly("The user paid the invoice on 5 October.")
+    }
+
+    @Test
+    fun `the notes prompt tells the model that a request to the assistant is no note`() {
+        assertThat(SessionNotesFormat.prompt(emptyList(), emptyList())).contains("request or command the user gave the assistant")
+    }
+
+    @Test
     fun `a number the user never said is dropped`() {
         assertThat(verify("The user paid the invoice on 6 Oct.", "The user paid 120 euros.")).isEmpty()
     }

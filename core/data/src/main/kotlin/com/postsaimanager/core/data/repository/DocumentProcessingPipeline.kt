@@ -40,6 +40,7 @@ import com.postsaimanager.core.domain.extraction.v2.ExtractorVersion
 import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.TimelineRepository
 import com.postsaimanager.core.domain.timeline.RecordDocumentEventsUseCase
+import com.postsaimanager.core.domain.timeline.RetryPendingMatterUseCase
 import com.postsaimanager.core.domain.timeline.SyncEventLinksUseCase
 import com.postsaimanager.core.domain.usecase.AiExtractionUseCase
 import com.postsaimanager.core.domain.usecase.IndexDocumentUseCase
@@ -111,6 +112,8 @@ class DocumentProcessingPipeline @Inject constructor(
     private val chatActivity: ChatActivityGate = ChatActivityGate.Idle,
     // Lazy: the questions reach the document repository, which needs this processor. Only [FollowUpQuestions.finish] is called from here.
     private val followUps: dagger.Lazy<FollowUpQuestions> = dagger.Lazy { FollowUpQuestions.NONE },
+    // Lazy for the same reason as [recordEvents]: asks the same-matter question again for a letter whose event waits without a matter.
+    private val retryMatter: dagger.Lazy<RetryPendingMatterUseCase> = dagger.Lazy { error("the matter retry is not wired") },
 ) : DocumentProcessor {
     private val _processingState = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     override val processingState: Flow<ProcessingState> = _processingState.asStateFlow()
@@ -347,7 +350,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 // trial is off, Gemma is not installed, busy, failed or too slow, and the reading below runs as it always did.
                 // The user's chat has priority over a reading: while a chat session is live the reading takes no model (it would close
                 // the visit's conversation, or replace the chat model), and is queued again. Nothing is degraded to a smaller reading.
-                if (chatActivity.isChatActive()) return@withContext requeueForChat(documentId, reprocess)
+                if (chatBlocksReading(reprocess)) return@withContext requeueForChat(documentId, reprocess)
                 val readStarted = System.nanoTime()
                 var earlyArrived = false
                 val trialReading = gemmaTrial.read(
@@ -370,7 +373,7 @@ class DocumentProcessingPipeline @Inject constructor(
                 if (trialReading != null && !earlyArrived) TimingLog.log("reader: $documentId no early summary arrived or none was usable")
                 val understanding = if (trialReading != null) {
                     PamResult.Success(trialReading)
-                } else if (chatActivity.isChatActive()) {
+                } else if (chatBlocksReading(reprocess)) {
                     // Gemma did not read (busy with a chat reply, say) and the fallback would load Qwen over the chat model: never
                     // while a chat is live. The reading is queued again, to be read by Gemma when the chat is over.
                     return@withContext requeueForChat(documentId, reprocess)
@@ -789,7 +792,7 @@ class DocumentProcessingPipeline @Inject constructor(
 
         if (!staged) {
             read.event?.let { reading ->
-                runCatching { recordEvents.get()(documentId, reading) }.onFailure { e ->
+                runCatching { if (recordEvents.get()(documentId, reading)) enqueueMatterCheck(documentId) }.onFailure { e ->
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     Log.w(TAG, "timeline events failed for $documentId: ${e.message}")
                 }
@@ -828,6 +831,30 @@ class DocumentProcessingPipeline @Inject constructor(
             DocumentEnrichmentWorker.peopleWorkName(documentId), ExistingWorkPolicy.KEEP, DocumentEnrichmentWorker.peopleRequest(documentId),
         )
         Unit
+    }
+
+    override suspend fun enqueueMatterCheck(documentId: String) = withContext(ioDispatcher) {
+        workManager.enqueueUniqueWork(
+            DocumentEnrichmentWorker.matterWorkName(documentId), ExistingWorkPolicy.KEEP, DocumentEnrichmentWorker.matterRequest(documentId),
+        )
+        Unit
+    }
+
+    /** Success when the letter has its matter (or owes none); an error while the question still cannot be answered (the work asks again). */
+    override suspend fun decideMatter(documentId: String): PamResult<Unit> = processingMutex.withLock {
+        withContext(ioDispatcher) {
+            try {
+                if (retryMatter.get()(documentId)) {
+                    PamResult.Error(PamError.ExtractionFailed(detail = "The same-matter question is still pending"))
+                } else {
+                    PamResult.Success(Unit)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PamResult.Error(PamError.ExtractionFailed(detail = "Same matter: ${e.message}", cause = e))
+            }
+        }
     }
 
     override suspend fun decideConcernedPeople(documentId: String): PamResult<Unit> = processingMutex.withLock { decidePeople(documentId) }
@@ -1007,7 +1034,7 @@ class DocumentProcessingPipeline @Inject constructor(
                     // What the letter reports goes on the timeline (replacing this document's earlier DOCUMENT events; the user's and the
                     // actions' stay). A reading that could not score the kinds writes nothing and leaves the stored events. Never fails the stage.
                     read.event?.let { reading ->
-                        runCatching { recordEvents.get()(documentId, reading) }.onFailure { e ->
+                        runCatching { if (recordEvents.get()(documentId, reading)) enqueueMatterCheck(documentId) }.onFailure { e ->
                             if (e is kotlinx.coroutines.CancellationException) throw e
                             Log.w(TAG, "timeline events failed for $documentId: ${e.message}")
                         }
@@ -1093,6 +1120,14 @@ class DocumentProcessingPipeline @Inject constructor(
      * QUEUED (the worker runs it again later, OCR and any edit kept), a quiet re-read changes nothing. Unlike a reader that did not
      * read, this is not a failed try: it is not counted, because it ends when the chat does ([ReaderRetry.isWaitingForChat]).
      */
+    /**
+     * Whether a chat keeps this reading from taking the model. A reading the person started (import, Reprocess, Read again) ends a
+     * PARKED chat session and waits only for a chat in the foreground; a quiet background re-read ([reprocess]) waits for any live
+     * session, parked or not, and never ends one.
+     */
+    private fun chatBlocksReading(reprocess: Boolean): Boolean =
+        if (reprocess) chatActivity.isChatActive() else chatActivity.isChatActiveForUserReading()
+
     private suspend fun requeueForChat(documentId: String, reprocess: Boolean): PamResult<ExtractionResult> {
         Log.i(TAG, "a chat is active: the reading of $documentId waits for it and is queued again")
         if (!reprocess) {

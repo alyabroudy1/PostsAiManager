@@ -11,12 +11,18 @@ import kotlinx.coroutines.delay
 interface ChatActivityGate {
 
     /**
-     * True while a chat is in the FOREGROUND (its screen is showing, from the moment it is used until it has been idle for the
-     * session's idle time) or a reply is running. A chat the person left keeps its session parked for a while, but a parked session
-     * is not "active": asking here is wanting the engine, so the tracker ends it (and queues its notes) and answers false
-     * (`ChatSessionTracker`, the one owner of that clock).
+     * For QUIET work (a reading's second stage, a people check, a quiet re-read, the notes of an earlier session): true while any chat
+     * session is live, in the FOREGROUND or PARKED (the person left the screen, for up to the session's idle time). It never ends a
+     * parked session: the person may come back to it, so background work waits and is queued again (`ChatSessionTracker`, the one owner
+     * of that clock).
      */
     fun isChatActive(): Boolean
+
+    /**
+     * For a reading the person started themselves (an import, Reprocess, Read again): ends every PARKED session (its notes are queued)
+     * and answers whether a chat in the FOREGROUND still holds the engine. Nothing else may end a parked session by asking.
+     */
+    fun isChatActiveForUserReading(): Boolean = isChatActive()
 
     /**
      * Waits until the chat is idle, for at most [maxWaitMs]. Quiet work calls it before it starts and, when it returns false,

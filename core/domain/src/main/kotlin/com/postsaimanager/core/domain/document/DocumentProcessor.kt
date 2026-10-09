@@ -106,4 +106,13 @@ interface DocumentProcessor {
      * no stored text) leaves what is stored as it is.
      */
     suspend fun decideConcernedPeople(documentId: String): PamResult<Unit> = PamResult.Success(Unit)
+
+    /**
+     * Schedules, in the background, the same-matter question again for a letter whose timeline event waits without a matter (the
+     * model was busy when the reading ended). Quiet work like the people check; one unique work per document.
+     */
+    suspend fun enqueueMatterCheck(documentId: String) = Unit
+
+    /** Asks that question now (`RetryPendingMatterUseCase`). An error while it still cannot be answered; the work asks again later. */
+    suspend fun decideMatter(documentId: String): PamResult<Unit> = PamResult.Success(Unit)
 }

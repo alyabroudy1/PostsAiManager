@@ -59,7 +59,16 @@ internal class SessionNoteDrafter(
 
         val grounding = userTurns.map { it.content } +
             sessionTurns.flatMap { message -> message.toolTrace.map { it.resultJson } + listOfNotNull(message.toolResult) }
-        val kept = verifier.verify(SessionNotesFormat.parse(answer), grounding, cardText, existing, actionNotes, userMessages = userTurns.map { it.content })
+        // A user message the assistant answered with a tool call is a request, carried out and recorded as an action: not a fact to keep.
+        val commands = sessionTurns.zipWithNext()
+            .filter { (user, reply) ->
+                user.role == MessageRole.USER && reply.role == MessageRole.ASSISTANT && (reply.toolTrace.isNotEmpty() || reply.toolResult != null)
+            }
+            .map { (user, _) -> user.content }
+        val kept = verifier.verify(
+            SessionNotesFormat.parse(answer), grounding, cardText, existing, actionNotes,
+            userMessages = userTurns.map { it.content }, commands = commands,
+        )
         return if (kept.isEmpty()) null else Draft(kept, userTurns.last().id)
     }
 

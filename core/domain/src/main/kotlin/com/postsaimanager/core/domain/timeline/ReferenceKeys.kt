@@ -32,14 +32,47 @@ object ReferenceKeys {
 
     /** [value] as a key, or null when it is too short or holds no digit to be a reference. */
     fun normalise(value: String): String? {
-        val key = buildString {
+        val kept = buildString {
             for (c in value) {
                 when {
                     Character.isDigit(c) -> append(Character.digit(c, 10))
-                    Character.isLetter(c) -> append(c.toString().uppercase(Locale.ROOT))
+                    Character.isLetter(c) -> append(c)
                 }
             }
         }
+        val key = readDigitRuns(kept).uppercase(Locale.ROOT)
         return key.takeIf { it.length >= MIN_LENGTH && it.any(Char::isDigit) }
     }
+
+    /**
+     * Typing, not meaning: the text recogniser reads a zero as O or a one as I or l. Inside a run of characters that holds a real digit
+     * and nothing but digits and those four look-alikes (O, o, I, l), they are digits: "BGOO07777" and "BG0007777" are one reference.
+     * A run with no real digit (a word) is left as it is.
+     */
+    private fun readDigitRuns(text: String): String {
+        val out = StringBuilder(text.length)
+        var i = 0
+        while (i < text.length) {
+            if (!isDigitLike(text[i])) {
+                out.append(text[i++])
+                continue
+            }
+            var end = i
+            while (end < text.length && isDigitLike(text[end])) end++
+            val run = text.substring(i, end)
+            out.append(if (run.any(Char::isDigit)) run.map(::asDigit).joinToString("") else run)
+            i = end
+        }
+        return out.toString()
+    }
+
+    private fun isDigitLike(c: Char): Boolean = c.isDigit() || c in LOOK_ALIKES
+
+    private fun asDigit(c: Char): Char = when (c) {
+        'O', 'o' -> '0'
+        'I', 'l' -> '1'
+        else -> c
+    }
+
+    private const val LOOK_ALIKES = "OoIl"
 }

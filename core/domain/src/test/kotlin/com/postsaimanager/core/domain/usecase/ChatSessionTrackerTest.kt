@@ -235,17 +235,49 @@ class ChatSessionTrackerTest {
     }
 
     @Test
-    @DisplayName("a reading that asks while the chat is parked ends the session, and may run")
+    @DisplayName("a reading the person started, asking while the chat is parked, ends the session and may run")
     fun `reading ends parked`() = runTest {
         val events = mutableListOf<ChatSessionEnded>()
         collectEnds(events)
         tracker.begin("c")
         tracker.park("c")
 
-        assertThat(tracker.isChatActive()).isFalse()
+        assertThat(tracker.isChatActiveForUserReading()).isFalse()
 
         assertThat(events.map { it.reason }).containsExactly(ChatSessionEnd.READING)
         assertThat(tracker.isLive("c")).isFalse()
+    }
+
+    @Test
+    @DisplayName("quiet background work asking while the chat is parked waits and never ends the session, however often it asks")
+    fun `background work never ends a parked session`() = runTest {
+        val events = mutableListOf<ChatSessionEnded>()
+        collectEnds(events)
+        tracker.begin("c")
+        tracker.park("c")
+
+        repeat(5) {
+            now += 30_000
+            assertThat(tracker.isChatActive()).isTrue()
+        }
+        now += 3 * minute
+        assertThat(tracker.isChatActive()).isTrue()
+
+        assertThat(events).isEmpty()
+        // Coming back after about 3 minutes finds the same session: nothing is rebuilt.
+        assertThat(tracker.begin("c")).isFalse()
+        assertThat(tracker.isLive("c")).isTrue()
+    }
+
+    @Test
+    @DisplayName("a parked session is not active any more once its ten idle minutes passed")
+    fun `parked session expires`() {
+        tracker.begin("c")
+        tracker.park("c")
+
+        now += 10 * minute
+
+        assertThat(tracker.isChatActive()).isFalse()
     }
 
     @Test

@@ -174,6 +174,16 @@ class BuildChatContextUseCaseTest {
         }
 
         @Test
+        @DisplayName("tells the model that what the user says about their own actions is a fact to acknowledge")
+        fun `includes the user-stated facts rule`() = runTest {
+            documents.seed(testDocument(id = "d1"))
+
+            val prompt = useCase(documentId = "d1", contextTokens = 4096).text
+
+            assertThat(prompt).contains("they paid, sent, called, booked) is a fact: acknowledge it and use it")
+        }
+
+        @Test
         @DisplayName("tells the model to answer in the user's language, not the document's")
         fun `includes the language rule as its own imperative instruction`() = runTest {
             documents.seed(testDocument(id = "d1"))

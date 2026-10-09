@@ -39,8 +39,10 @@ class SessionNoteVerifier @Inject constructor() {
         existing: List<String>,
         actionNotes: List<String> = emptyList(),
         userMessages: List<String> = emptyList(),
+        commands: List<String> = emptyList(),
     ): List<String> {
         val questions = userMessages.flatMap(::questionsOf)
+        val commandWords = commands.map(::words).filter { it.isNotEmpty() }
         val actionWords = actionNotes.map(::words).filter { it.isNotEmpty() }
         val groundingNumbers = grounding.flatMapTo(mutableSetOf()) { numbers(it) }
         val cardKey = key(cardText)
@@ -53,6 +55,7 @@ class SessionNoteVerifier @Inject constructor() {
             if (note.isEmpty() || note.length > SessionNotesFormat.MAX_NOTE_CHARS) continue
             if (!groundingNumbers.containsAll(numbers(note))) continue
             if (isQuestion(note, questions)) continue
+            if (commandWords.any { restatesCommand(words(note), it) }) continue
             val noteKey = key(note)
             if (noteKey.isEmpty()) continue
             if (cardKey.contains(noteKey)) continue
@@ -80,6 +83,15 @@ class SessionNoteVerifier @Inject constructor() {
         return questions.any { q -> noteWords.count { it in q }.toDouble() / noteWords.size >= QUESTION_OVERLAP }
     }
 
+    /**
+     * A request the assistant carried out with a tool (a reminder, a draft) is no fact about the user: the action's own note records it.
+     * A note holding most of the request's words, at least [MIN_SHARED_WORDS], only restates it.
+     */
+    private fun restatesCommand(note: Set<String>, command: Set<String>): Boolean {
+        val shared = command.count { it in note }
+        return shared >= MIN_SHARED_WORDS && shared.toDouble() / command.size >= COMMAND_OVERLAP
+    }
+
     /** The distinct words of [text], folded: letters and digits only. */
     private fun words(text: String): Set<String> = WORD.findAll(QuoteVerifier.fold(text)).mapTo(mutableSetOf()) { it.value }
 
@@ -103,6 +115,7 @@ class SessionNoteVerifier @Inject constructor() {
 
         private const val MIN_SHARED_WORDS = 3
         private const val RESTATE_RATIO = 0.6
+        private const val COMMAND_OVERLAP = 0.6
 
         /** A note of at least this many words, three quarters of them in one question of the user, restates the question. */
         private const val MIN_QUESTION_WORDS = 3

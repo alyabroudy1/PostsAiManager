@@ -63,8 +63,9 @@ object SessionNotesFormat {
         append(" durable facts or decisions from this conversation that matter for ").append(about).append(" later. ")
         append("First look for what the USER stated about their own situation or decisions: something they already paid, booked, ")
         append("sent or arranged, or something they decided to do. A question of the user is not a fact (\"Did I already pay?\" says ")
-        append("nothing about whether they paid): never turn a question into a note. Do not write what the assistant did or offered (reminders, ")
-        append("calendar entries, drafts): those are recorded already. One note per line, at most ").append(MAX_NOTE_CHARS)
+        append("nothing about whether they paid): never turn a question into a note. A request or command the user gave the assistant (to ")
+        append("remind them, write, send or add something) is not a fact either: never write it as a note. Do not write what the assistant ")
+        append("did or offered (reminders, calendar entries, drafts): those are recorded already. One note per line, at most ").append(MAX_NOTE_CHARS)
         append(" characters each, in the language the user wrote in. Answer ").append(NONE).append(" if nothing.")
     }
 
