@@ -88,7 +88,7 @@ class DocumentNoteRepositoryRoomTest {
     }
 
     @Test
-    fun `editing keeps the source, deleting removes, and an unknown id is a no-op`() = runBlocking<Unit> {
+    fun `editing makes the note the user's and keeps its reference, deleting removes, and an unknown id is a no-op`() = runBlocking<Unit> {
         val note = notes.add("d1", "from the model", NoteSource.AI, "m1")
 
         notes.updateText(note.id, "corrected")
@@ -96,7 +96,8 @@ class DocumentNoteRepositoryRoomTest {
         notes.setPinned("missing", true)
 
         assertThat(notes.notes("d1").single().text).isEqualTo("corrected")
-        assertThat(notes.notes("d1").single().source).isEqualTo(NoteSource.AI)
+        assertThat(notes.notes("d1").single().source).isEqualTo(NoteSource.USER)
+        assertThat(notes.notes("d1").single().sourceRef).isEqualTo("m1")
         notes.delete(note.id)
         assertThat(notes.notes("d1")).isEmpty()
     }

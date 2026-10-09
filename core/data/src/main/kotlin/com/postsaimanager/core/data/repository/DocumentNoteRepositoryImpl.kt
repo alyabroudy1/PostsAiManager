@@ -73,7 +73,8 @@ class DocumentNoteRepositoryImpl @Inject constructor(
 
     override suspend fun updateText(id: String, text: String) = withContext(ioDispatcher) {
         val existing = dao.getById(id) ?: return@withContext
-        dao.upsert(existing.copy(text = text, updatedAt = System.currentTimeMillis()))
+        // An edit makes the note the user's, whoever wrote it first; its reference stays, so the card it came from can find it.
+        dao.upsert(existing.copy(text = text, source = NoteSource.USER.name, updatedAt = System.currentTimeMillis()))
     }
 
     override suspend fun setPinned(id: String, pinned: Boolean) = withContext(ioDispatcher) {

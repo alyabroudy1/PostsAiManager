@@ -63,7 +63,7 @@ class FakeDocumentNoteRepository : DocumentNoteRepository {
     }
 
     override suspend fun updateText(id: String, text: String) {
-        all.value = all.value.map { if (it.id == id) it.copy(text = text, updatedAt = ++clock) else it }
+        all.value = all.value.map { if (it.id == id) it.copy(text = text, source = NoteSource.USER, updatedAt = ++clock) else it }
     }
 
     override suspend fun setPinned(id: String, pinned: Boolean) {

@@ -61,17 +61,49 @@ class DocumentNotesUseCasesTest {
     }
 
     @Test
-    fun `editing keeps the source, and an emptied text deletes the note`() = runBlocking {
+    fun `editing makes the note the user's, and an emptied text deletes the note`() = runBlocking {
         repo.add("d1", "from the model", NoteSource.AI, "m1")
         val id = repo.snapshot.single().id
         val edit = EditDocumentNoteUseCase(repo)
 
         edit(id, "The user corrected it")
         assertThat(repo.snapshot.single().text).isEqualTo("The user corrected it")
-        assertThat(repo.snapshot.single().source).isEqualTo(NoteSource.AI)
+        assertThat(repo.snapshot.single().source).isEqualTo(NoteSource.USER)
 
         edit(id, "  ")
         assertThat(repo.snapshot).isEmpty()
+    }
+
+    @Test
+    fun `an action note the user edited is not written over when its card is recorded again`() = runBlocking {
+        val record = RecordActionNoteUseCase(repo)
+        record("d1", "card-1", "Reminder set for 8 Oct 09:00")
+        EditDocumentNoteUseCase(repo)(repo.snapshot.single().id, "Reminder set, but I moved it to Friday")
+
+        record("d1", "card-1", "Reminder set for 9 Oct 09:00")
+
+        assertThat(repo.snapshot).hasSize(1)
+        assertThat(repo.snapshot.single().text).isEqualTo("Reminder set, but I moved it to Friday")
+        assertThat(repo.snapshot.single().source).isEqualTo(NoteSource.USER)
+    }
+
+    @Test
+    fun `an action note the user edited stays when its card is restored`() = runBlocking {
+        RecordActionNoteUseCase(repo)("d1", "card-1", "Email opened")
+        EditDocumentNoteUseCase(repo)(repo.snapshot.single().id, "Email sent by the neighbour")
+
+        ForgetActionNoteUseCase(repo)("card-1")
+
+        assertThat(repo.snapshot.single().text).isEqualTo("Email sent by the neighbour")
+    }
+
+    @Test
+    fun `the policy lets the app rewrite its own notes only`() {
+        fun note(source: NoteSource) = com.postsaimanager.core.model.DocumentNote("n", "d1", "t", source, 1L, 1L)
+
+        assertThat(NoteOverwritePolicy.mayOverwrite(note(NoteSource.ACTION))).isTrue()
+        assertThat(NoteOverwritePolicy.mayOverwrite(note(NoteSource.AI))).isTrue()
+        assertThat(NoteOverwritePolicy.mayOverwrite(note(NoteSource.USER))).isFalse()
     }
 
     @Test

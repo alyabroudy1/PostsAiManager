@@ -75,8 +75,20 @@ class RecordActionNoteUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(documentId: String, cardId: String, text: String) {
         val clean = DocumentNoteText.clean(text) ?: return
+        // A note the user edited has become theirs (it keeps the card's reference): recording the card again must not write over it.
+        val edited = notes.notes(documentId).firstOrNull { it.sourceRef == cardId && it.source == NoteSource.USER }
+        if (edited != null && !NoteOverwritePolicy.mayOverwrite(edited)) return
         notes.upsertByRef(documentId, NoteSource.ACTION, cardId, clean)
     }
+}
+
+/**
+ * Which notes the app may rewrite, the one place that decides it. A note's text is the app's to rewrite only while the app wrote it; once
+ * the user edited it ([NoteSource.USER], whoever wrote it first), nothing but the user changes it again.
+ */
+object NoteOverwritePolicy {
+
+    fun mayOverwrite(note: DocumentNote): Boolean = note.source != NoteSource.USER
 }
 
 /** Removes the note of a card that is no longer confirmed (a restored card). A card that never had one is a no-op. */

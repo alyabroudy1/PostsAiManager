@@ -37,7 +37,7 @@ interface DocumentNoteRepository {
      */
     suspend fun upsertByRef(documentId: String, source: NoteSource, sourceRef: String, text: String): DocumentNote
 
-    /** Replaces the text of note [id]; the note keeps its source (an edited AI note stays "AI"). No-op for an unknown id. */
+    /** Replaces the text of note [id]; the note becomes the user's (source USER) and keeps its reference. No-op for an unknown id. */
     suspend fun updateText(id: String, text: String)
 
     suspend fun setPinned(id: String, pinned: Boolean)
