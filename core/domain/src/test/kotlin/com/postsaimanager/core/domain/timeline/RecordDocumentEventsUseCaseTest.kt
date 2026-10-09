@@ -218,7 +218,7 @@ class RecordDocumentEventsUseCaseTest {
     // ── re-reading ──
 
     @Test
-    fun `reading a letter again replaces its DOCUMENT event and keeps the USER, ACTION and SYSTEM ones`() = runTest {
+    fun `reading a letter again replaces its DOCUMENT event and the derived SYSTEM one, and keeps the USER and ACTION ones`() = runTest {
         letter("d1", field("d1", "case_no", "BG 3141592"))
         record("d1", EventReading(EventKinds.PAYMENT_DEMAND, "old"))
         val matter = events.allEvents.single().caseId
@@ -231,7 +231,8 @@ class RecordDocumentEventsUseCaseTest {
 
         val after = events.allEvents
         assertThat(after.filter { it.source == EventSource.DOCUMENT }.map { it.title }).containsExactly("new")
-        assertThat(after.filter { it.source != EventSource.DOCUMENT }).containsExactlyElementsIn(kept)
+        // A "deadline passed" derived from a due date of the old reading is gone (a stale one stayed on jc-1 in device pass 38).
+        assertThat(after.filter { it.source != EventSource.DOCUMENT }).containsExactlyElementsIn(kept.filter { it.source != EventSource.SYSTEM })
         // The same matter, now rejected: the letter was not shuffled into another one or a second one.
         assertThat(events.allCases).hasSize(1)
         assertThat(events.allCases.single().id).isEqualTo(matter)

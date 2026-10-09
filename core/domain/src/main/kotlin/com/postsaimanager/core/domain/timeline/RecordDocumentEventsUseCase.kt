@@ -72,7 +72,8 @@ class RefreshCaseStatusUseCase @Inject constructor(private val events: EventRepo
  *   ([ReferenceKeys]). Then the matter the letter was already in, when it is read again. Then the model's same-matter question over the
  *   organisation's matters ([DecideSameMatterUseCase], margin, a made-up distractor); otherwise a new matter, titled with the first event's
  *   title (the user may rename it). With no resolved sender there is no matter.
- * - **Re-reading** replaces the document's DOCUMENT events and keeps every ACTION, USER and SYSTEM one.
+ * - **Re-reading** replaces the document's DOCUMENT events and the SYSTEM ones derived from its old values ("deadline passed": the daily check
+ *   writes it again from the new values), and keeps every ACTION and USER one.
  */
 class RecordDocumentEventsUseCase @Inject constructor(
     private val documents: DocumentRepository,

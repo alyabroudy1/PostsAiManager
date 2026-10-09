@@ -48,7 +48,7 @@ class FakeEventRepository : EventRepository {
     override suspend fun eventsOfCase(caseId: String): List<ProfileEvent> = oldestFirst(events.value.filter { it.caseId == caseId })
 
     override suspend fun replaceDocumentEvents(documentId: String, events: List<ProfileEvent>) {
-        this.events.value = this.events.value.filterNot { it.documentId == documentId && it.source == EventSource.DOCUMENT } + events
+        this.events.value = this.events.value.filterNot { it.documentId == documentId && (it.source == EventSource.DOCUMENT || it.source == EventSource.SYSTEM) } + events
     }
 
     override suspend fun addEvent(event: ProfileEvent) {
