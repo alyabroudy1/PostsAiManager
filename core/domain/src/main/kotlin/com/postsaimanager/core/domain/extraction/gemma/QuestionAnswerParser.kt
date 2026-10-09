@@ -69,6 +69,15 @@ object QaText {
     fun parts(item: String): List<String> =
         item.split(PART_SEPARATOR).map { p -> p.trim().takeUnless { isNone(it) }.orEmpty() }
 
+    private val KIND_LABEL = Regex("^\\s*kind\\s*[:=]\\s*", RegexOption.IGNORE_CASE)
+
+    /**
+     * The fields of a one-value line (`name | kind`, `name | phone | e-mail`) when a model also separated them with ";" or wrote a
+     * "kind:" label (`name; kind: company`): split on both, a "none" field stays an empty string so positions hold.
+     */
+    fun fields(text: String): List<String> =
+        text.split(ITEM_SEPARATOR).flatMap { parts(it) }.map { it.replace(KIND_LABEL, "") }
+
     /** [text] as a word of a list: its leading word, lower-cased, with everything but letters and digits removed ("pay (pay an amount)" is "pay"). */
     fun word(text: String?): String =
         text.orEmpty().trim().trimStart('*', '"', '\'', ' ').takeWhile { it.isLetterOrDigit() || it == '_' || it == '-' }.lowercase()

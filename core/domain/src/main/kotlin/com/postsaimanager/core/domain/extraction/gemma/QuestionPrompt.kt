@@ -92,7 +92,7 @@ object QuestionPrompt {
         }
         val kinds = PartyKind.entries.joinToString(", ") { it.name.lowercase() }
         append("${QaLabel.SENDER}: who sent or issued the document: the organisation, shop or person it comes from, ")
-        append("with its full name exactly as printed in the letter (every word of the name, with its title or legal form, never shortened) | its kind: one of $kinds\n")
+        append("with its full name exactly as printed in the letter (every word of the name, with its title or legal form, never shortened; a name may continue on the next line) | its kind: one of $kinds\n")
         append("${QaLabel.RECIPIENT}: to whom the letter is addressed (the name only; $NONE_WORD if no one is named) | its kind\n")
         append("${QaLabel.CONTACT}: a person at the sender whom the reader can contact (the name only; never the recipient; $NONE_WORD if no such person is named) ")
         append("| their phone number | their e-mail\n")

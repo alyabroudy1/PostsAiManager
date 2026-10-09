@@ -77,8 +77,8 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
     // ── parties ──
 
     /** [text] is "name | kind"; [kindText] overrides where the kind comes from (the contact has no kind: a person). */
-    private fun party(role: PartyRole, text: String?, letter: GemmaLetter, notes: MutableList<String>, kindText: String? = text?.let { QaText.parts(it).getOrNull(1) }): VerifiedParty? {
-        val name = text?.let { QaText.parts(it).firstOrNull() }?.trim('*', '"', ' ')?.takeIf { it.isNotEmpty() } ?: return null
+    private fun party(role: PartyRole, text: String?, letter: GemmaLetter, notes: MutableList<String>, kindText: String? = text?.let { QaText.fields(it).getOrNull(1) }): VerifiedParty? {
+        val name = text?.let { QaText.fields(it).firstOrNull() }?.trim('*', '"', ' ')?.takeIf { it.isNotEmpty() } ?: return null
         val kind = when {
             role == PartyRole.CONTACT -> PartyKind.PERSON
             else -> PartyKind.entries.firstOrNull { it.name.lowercase() == QaText.word(kindText) } ?: PartyKind.OTHER
@@ -120,7 +120,7 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
             out.putIfAbsent(candidate.id, VerifiedReference(candidate, kind))
         }
         // The contact's phone number and e-mail address are values of the letter like any other: stored as references of no kind.
-        val contact = answers[QaLabel.CONTACT]?.let { QaText.parts(it) }.orEmpty()
+        val contact = answers[QaLabel.CONTACT]?.let { QaText.fields(it) }.orEmpty()
         contact.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { typer.reference(it, CandidateKind.PHONE) }
             ?.let { out.putIfAbsent(it.id, VerifiedReference(it, GemmaVocabulary.OTHER)) }
         contact.getOrNull(2)?.takeIf { it.isNotEmpty() }?.let { typer.reference(it, CandidateKind.EMAIL) }

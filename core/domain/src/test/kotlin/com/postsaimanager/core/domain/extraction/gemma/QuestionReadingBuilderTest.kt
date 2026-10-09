@@ -67,6 +67,17 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
+    @DisplayName("a model that wrote 'name; kind: x' instead of 'name | x' still gives the bare name, and 'none; kind: person' is no recipient")
+    fun `names with a kind label`() {
+        val v = build("SENDER: Zahnarztpraxis Dr. Beispiel; kind: authority\nRECIPIENT: none; kind: person")
+
+        val sender = v.parties.single()
+        assertThat(sender.role).isEqualTo(PartyRole.SENDER)
+        assertThat(sender.quote).isEqualTo("Zahnarztpraxis Dr. Beispiel")
+        assertThat(sender.kind).isEqualTo(PartyKind.AUTHORITY)
+    }
+
+    @Test
     @DisplayName("a seller alone (a receipt: no recipient named) is stored as the sender, with its full name as the model wrote it")
     fun `a sender without a recipient`() {
         val v = build("SENDER: Markt Beispiel | company\nRECIPIENT: none\nCONTACT: none\nASKS: no | not_applicable\nTYPE: receipt")
