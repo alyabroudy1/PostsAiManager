@@ -1,6 +1,7 @@
 package com.postsaimanager.feature.documents
 
 import com.postsaimanager.core.domain.contacts.UpdateContactUseCase
+import com.postsaimanager.core.domain.document.SetDocumentLanguageUseCase
 import com.postsaimanager.core.domain.document.SetFieldMeaningUseCase
 import com.postsaimanager.core.domain.document.actions.AddActionUseCase
 import com.postsaimanager.core.domain.document.actions.DeleteActionUseCase
@@ -26,4 +27,5 @@ class LetterEditActions @Inject constructor(
     val renameCase: RenameCaseUseCase,
     val moveToCase: MoveDocumentToCaseUseCase,
     val caseChoices: ObserveCaseChoicesUseCase,
+    val setLanguage: SetDocumentLanguageUseCase,
 )

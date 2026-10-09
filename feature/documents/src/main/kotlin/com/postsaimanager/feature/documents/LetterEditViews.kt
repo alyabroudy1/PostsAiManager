@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +21,8 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -41,6 +44,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.postsaimanager.core.designsystem.component.FriendlyDate
+import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.domain.document.LetterLanguages
 import com.postsaimanager.core.domain.document.actions.ActionEdit
 import com.postsaimanager.core.domain.extraction.actions.ActionKinds
 import com.postsaimanager.core.domain.extraction.v2.ValueMeaning
@@ -52,6 +57,7 @@ import com.postsaimanager.core.model.Profile
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.util.Locale
 
 // The dialogs and chips with which the user changes what the AI filled in on a letter: an action, who the letter is for, the meaning of a
 // date or an amount, the contact person, the matter. Each only collects the person's choice and hands it to a callback; what the choice
@@ -209,6 +215,63 @@ internal fun PeopleCard(
             Text(stringResource(R.string.people_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+/** The words of a language tag in the user's language ("Deutsch", "German"); the tag itself when the platform has none. */
+internal fun languageName(tag: String): String =
+    Locale.forLanguageTag(tag).getDisplayLanguage(Locale.getDefault()).takeIf { it.isNotBlank() } ?: tag
+
+/** "Language: Deutsch" with its pencil, the first line of "All details": the language the letter is read, summarised and answered in. */
+@Composable
+internal fun LanguageRow(language: String?, setByUser: Boolean, onEdit: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth().testTag("language_row"),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Row(modifier = Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f).padding(vertical = 6.dp)) {
+                Text(stringResource(R.string.language_label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    language?.let(::languageName) ?: stringResource(R.string.language_unknown),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                )
+                if (setByUser) Text(stringResource(R.string.people_set_by_you), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(onClick = onEdit, modifier = Modifier.testTag("language_edit")) {
+                Icon(PamIcons.Edit, contentDescription = stringResource(R.string.language_edit_description), modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
+
+/** Sets the language of the letter: the supported languages (and the current one when it is another) as chips. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun LanguageDialog(current: String?, onDismiss: () -> Unit, onPick: (String) -> Unit) {
+    val choices = (LetterLanguages.SUPPORTED + listOfNotNull(current?.takeIf { it !in LetterLanguages.SUPPORTED })).distinct()
+    var picked by rememberSaveable { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.language_edit_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    choices.forEach { tag ->
+                        FilterChip(selected = picked == tag, onClick = { picked = tag }, label = { Text(languageName(tag)) }, modifier = Modifier.testTag("language_$tag"))
+                    }
+                }
+                Text(stringResource(R.string.language_edit_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = {
+            Button(onClick = { picked?.let(onPick) }, enabled = picked != null && picked != current, modifier = Modifier.testTag("language_save")) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
 }
 
 /** Edits the contact person named on the letter: name, role, phone and e-mail, the same fields as on the organisation's page. */

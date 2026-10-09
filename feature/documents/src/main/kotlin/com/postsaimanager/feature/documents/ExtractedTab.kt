@@ -82,6 +82,7 @@ import com.postsaimanager.core.domain.extraction.v2.ValueMeanings
 import com.postsaimanager.core.model.ConcernedSource
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentNote
+import com.postsaimanager.core.model.LanguageSource
 import com.postsaimanager.core.model.Profile
 import com.postsaimanager.core.model.ExtractedData
 import com.postsaimanager.core.model.FieldAlternative
@@ -182,7 +183,10 @@ internal fun ExtractedTab(
     onSetPeople: (List<String>) -> Unit = {},
     /** The user chose what a date or an amount means (field id, meaning id; null: none of them). */
     onSetFieldMeaning: (fieldId: String, meaningId: String?) -> Unit = { _, _ -> },
+    /** The user set the letter's language (a tag such as `de`); kept by every re-read. */
+    onSetLanguage: (String) -> Unit = {},
 ) {
+    var editingLanguage by rememberSaveable { mutableStateOf(false) }
     // Kept across a rotation: the row being edited is stored as its id and resolved from the data, so the sheet shows the latest row.
     var editingFieldId by rememberSaveable { mutableStateOf<String?>(null) }
     val editingField = editingFieldId?.let { id -> data.firstOrNull { it.id == id } }
@@ -318,6 +322,9 @@ internal fun ExtractedTab(
                         )
                     }
                     if (detailsExpanded) {
+                        item(key = "language") {
+                            LanguageRow(document.language, document.languageSource == LanguageSource.USER, onEdit = { editingLanguage = true })
+                        }
                         presentation.sections.forEach { section ->
                             item(key = "section-${section.kind}") { SectionTitle(stringResource(sectionTitle(section.kind))) }
                             items(section.items, key = { "${section.kind}-" + it.rows.first().id }) { ItemView(it, rowActions) }
@@ -366,6 +373,17 @@ internal fun ExtractedTab(
             },
             onSetMeaning = onSetFieldMeaning,
             onShowOnPage = onShowOnPage,
+        )
+    }
+
+    if (editingLanguage) {
+        LanguageDialog(
+            current = document.language,
+            onDismiss = { editingLanguage = false },
+            onPick = { tag ->
+                editingLanguage = false
+                onSetLanguage(tag)
+            },
         )
     }
 

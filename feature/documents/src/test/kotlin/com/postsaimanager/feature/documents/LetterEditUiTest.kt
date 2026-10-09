@@ -2,6 +2,7 @@ package com.postsaimanager.feature.documents
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -235,6 +236,28 @@ class LetterEditUiTest {
         compose.onNodeWithTag("meaning_none").performClick()
 
         assertThat(chosen).containsExactly("DUE_DATE", null).inOrder()
+    }
+
+    // ── the language ──
+
+    @Test
+    fun `the language row names the language and its dialog hands over another one`() {
+        val picked = mutableListOf<String>()
+        compose.setContent {
+            MaterialTheme {
+                androidx.compose.foundation.layout.Column {
+                    LanguageRow("de", setByUser = false, onEdit = {})
+                    LanguageDialog(current = "de", onDismiss = {}, onPick = { picked += it })
+                }
+            }
+        }
+
+        compose.onNodeWithTag("language_row").assertIsDisplayed()
+        compose.onNodeWithTag("language_save").assertIsNotEnabled()
+        compose.onNodeWithTag("language_ar").performClick()
+        compose.onNodeWithTag("language_save").performClick()
+
+        assertThat(picked).containsExactly("ar")
     }
 
     // ── the title ──

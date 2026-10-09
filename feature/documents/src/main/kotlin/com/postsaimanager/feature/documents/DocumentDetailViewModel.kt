@@ -364,6 +364,11 @@ class DocumentDetailViewModel @Inject constructor(
         viewModelScope.launch { edits.updateContact(contact) }
     }
 
+    /** The person set the letter's language: kept by every re-read, and the language the summary and answers are written in. */
+    fun setLanguage(tag: String) {
+        viewModelScope.launch { edits.setLanguage(documentId, tag) }
+    }
+
     /** The person renamed the matter this letter is part of. */
     fun renameCase(caseId: String, title: String) {
         viewModelScope.launch { edits.renameCase(caseId, title) }

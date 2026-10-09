@@ -125,6 +125,7 @@ class DocumentDetailViewModelTest {
             renameCase = RenameCaseUseCase(eventRepository),
             moveToCase = MoveDocumentToCaseUseCase(documentRepository, eventRepository, refresh, java.time.Clock.systemUTC()),
             caseChoices = ObserveCaseChoicesUseCase(eventRepository),
+            setLanguage = com.postsaimanager.core.domain.document.SetDocumentLanguageUseCase(documentRepository),
         )
     }
 

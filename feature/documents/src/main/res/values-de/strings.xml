@@ -144,4 +144,9 @@
     <string name="case_move_new">Ein neuer Vorgang</string>
     <string name="case_move_new_label">Name des neuen Vorgangs (optional)</string>
     <string name="case_move_here">jetzt hier</string>
+    <string name="language_label">Sprache</string>
+    <string name="language_unknown">Nicht erkannt</string>
+    <string name="language_edit_description">Sprache dieses Briefs ändern</string>
+    <string name="language_edit_title">Sprache dieses Briefs</string>
+    <string name="language_edit_hint">Zusammenfassung und Antworten werden in dieser Sprache geschrieben. Sie bleibt bestehen, wenn der Brief erneut gelesen wird.</string>
 </resources>

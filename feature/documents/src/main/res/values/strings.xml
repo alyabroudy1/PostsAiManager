@@ -359,4 +359,9 @@
     <string name="case_move_new">A new matter</string>
     <string name="case_move_new_label">Name of the new matter (optional)</string>
     <string name="case_move_here">here now</string>
+    <string name="language_label">Language</string>
+    <string name="language_unknown">Not detected</string>
+    <string name="language_edit_description">Change the language of this letter</string>
+    <string name="language_edit_title">Language of this letter</string>
+    <string name="language_edit_hint">The summary and the answers are written in this language. It stays when the letter is read again.</string>
 </resources>
