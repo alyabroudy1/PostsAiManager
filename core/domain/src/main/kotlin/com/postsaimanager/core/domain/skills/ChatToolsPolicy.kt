@@ -33,33 +33,19 @@ object ChatToolsPolicy {
 /** What the model is told, in its system prompt, about the skills and how its tools behave. English: the model answers in the user's language. */
 object ChatToolsPrompt {
 
+    /** The most characters the whole tools prompt may have: it is prefilled at every chat warm-up (about 20 s on CPU for 2,000). */
+    const val MAX_CHARS = 600
+
     /**
-     * The Gallery's agent-chat system prompt for skills, verbatim (`DEFAULT_SYSTEM_PROMPT_SKILLS_ONLY` in AgentChatTaskModule.kt,
-     * v1.0.20, Apache 2.0, modified only in that the skills list is ours). The letter grounding is put in front of it by the engine;
-     * the date is not in it: as in the Gallery, the model asks for it with the `get_current_date_and_time` intent when a skill needs it.
+     * A short hint instead of the Gallery's long `DEFAULT_SYSTEM_PROMPT_SKILLS_ONLY` (shortened for speed; the skills, the tools
+     * and the on-demand `load_skill` are still the Gallery's). The letter grounding is put in front of it by the engine; the date is
+     * not in it (a time-aware skill gets it with its text).
      *
-     * @param skillsList [SkillCatalog.namesAndDescriptions], the Gallery's `formatSelectedSkills` format
+     * @param skillsList [SkillCatalog.namesAndDescriptions]: one `- name: description` line per skill
      */
-    fun build(skillsList: String): String = TEMPLATE.replace(SKILLS_PLACEHOLDER, skillsList)
+    fun build(skillsList: String): String = "$HINT\n$skillsList"
 
-    private const val SKILLS_PLACEHOLDER = "___SKILLS___"
-
-    // The placeholder is replaced after trimIndent: a multi-line list substituted before it would break the indentation.
-    private val TEMPLATE = """
-        You are an AI assistant that helps users by answering questions and completes tasks using skills. For EVERY new task or request or question, you MUST execute the following steps in exact order. You MUST NOT skip any steps.
-
-        CRITICAL RULE: You MUST execute all steps silently. Do NOT generate or output any internal thoughts, reasoning, explanations, or intermediate text at ANY step.
-
-        1. First, find the most relevant skill from the following list:
-
-        ___SKILLS___
-
-        After this step you MUST go to next step. You MUST NOT use `run_intent` under any circumstances at this step.
-
-        2. If a relevant skill exists, use the `load_skill` tool to read its instructions. You MUST NOT use `run_intent` under any circumstances at this step.
-
-        3. Follow the skill's instructions exactly to complete the task. You MUST NOT output any intermediate thoughts or status updates. No exceptions! Output ONLY the final result when successful. It should contain one-sentence summary of the action taken, and the final result of the skill.
-
-        4. If no relevant skill is found, output "No relevant skills found" and stop.
-    """.trimIndent()
+    private const val HINT =
+        "You can use these skills when the user asks for an action. Call load_skill(name) to read a skill's steps, " +
+            "then follow them. For ordinary questions about the letter, just answer."
 }

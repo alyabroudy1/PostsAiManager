@@ -49,20 +49,24 @@ class ChatToolsTest {
     }
 
     @Test
-    @DisplayName("the prompt is the Gallery's skills prompt with our skills list: its steps and rules, the list in step 1, no placeholder left")
-    fun `the prompt is the Gallery's with the skills listed`() {
+    @DisplayName("the prompt is a short hint (use skills on an action request, load_skill, otherwise just answer) and the compact list")
+    fun `the prompt is a short hint with the skills listed`() {
         val list = SkillPrompt.namesAndDescriptions(
             listOf(Skill("send-email", "Write an e-mail.", ""), Skill("schedule-reminder", "Remind the user.", "")),
         )
 
         val prompt = ChatToolsPrompt.build(list)
 
-        assertThat(prompt).startsWith("You are an AI assistant that helps users by answering questions and completes tasks using skills.")
-        assertThat(prompt).contains("1. First, find the most relevant skill from the following list:\n\n$list\n\nAfter this step")
-        assertThat(prompt).contains("use the `load_skill` tool to read its instructions")
-        assertThat(prompt).contains("You MUST NOT use `run_intent` under any circumstances at this step.")
-        assertThat(prompt).contains("4. If no relevant skill is found, output \"No relevant skills found\" and stop.")
-        assertThat(prompt).doesNotContain("___SKILLS___")
+        assertThat(prompt).isEqualTo(
+            "You can use these skills when the user asks for an action. Call load_skill(name) to read a skill's steps, " +
+                "then follow them. For ordinary questions about the letter, just answer.\n" +
+                "- send-email: Write an e-mail.\n- schedule-reminder: Remind the user.",
+        )
+    }
+
+    @Test
+    fun `the prompt of an empty list is only the hint`() {
+        assertThat(ChatToolsPrompt.build("").length).isLessThan(ChatToolsPrompt.MAX_CHARS)
     }
 
     @Test

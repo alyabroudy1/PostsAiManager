@@ -1,6 +1,6 @@
 ---
 name: schedule-reminder
-description: Use only when the user explicitly asks to be reminded or to set a reminder or notification, at a time they name (like "in 2 minutes", "tomorrow at 9", "on Friday") or before the deadline of the letter being discussed. Never for a question about a date or deadline.
+description: Only when the user explicitly asks to be reminded or to set a reminder or notification.
 time-aware: true
 ---
 

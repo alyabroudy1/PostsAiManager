@@ -1,6 +1,6 @@
 ---
 name: calculate-hash
-description: Calculate the hash of a given text.
+description: Hash a given text.
 ---
 
 # Calculate hash
