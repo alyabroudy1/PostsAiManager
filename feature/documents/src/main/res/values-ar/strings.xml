@@ -144,6 +144,11 @@
     <string name="case_move_new">قضية جديدة</string>
     <string name="case_move_new_label">اسم القضية الجديدة (اختياري)</string>
     <string name="case_move_here">هنا الآن</string>
+    <string name="page_move_earlier">نقل إلى الأمام</string>
+    <string name="page_move_later">نقل إلى الخلف</string>
+    <string name="page_delete">حذف الصفحة</string>
+    <string name="page_delete_title">حذف الصفحة %1$d؟</string>
+    <string name="page_delete_message">تُزال الصفحة وصورتها. وتحتفظ القيم المقروءة منها بنصها. يمكنك بعد ذلك قراءة الرسالة مرة أخرى.</string>
     <string name="page_text_edit">تصحيح النص</string>
     <string name="page_text_edit_title">تصحيح نص الصفحة %1$d</string>
     <string name="page_text_edit_hint">يُقرأ ما تكتبه كما هو، ولا تستبدله أي قراءة جديدة.</string>

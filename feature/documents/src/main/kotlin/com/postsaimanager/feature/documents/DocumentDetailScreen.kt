@@ -388,6 +388,8 @@ fun DocumentDetailScreen(
                     onSetFieldMeaning = viewModel::setFieldMeaning,
                     onSetLanguage = viewModel::setLanguage,
                     onCorrectPageText = viewModel::correctPageText,
+                    onMovePage = viewModel::movePage,
+                    onDeletePage = viewModel::deletePage,
                     onOpenDocument = onOpenDocument,
                     onInstallModel = onInstallModel,
                     processingState = processingState,
@@ -483,6 +485,8 @@ private fun DocumentDetailContent(
     onSetFieldMeaning: (fieldId: String, meaningId: String?) -> Unit,
     onSetLanguage: (String) -> Unit,
     onCorrectPageText: (pageNumber: Int, text: String) -> Unit,
+    onMovePage: (pageNumber: Int, delta: Int) -> Unit,
+    onDeletePage: (pageNumber: Int) -> Unit,
     onOpenDocument: (documentId: String) -> Unit,
     onInstallModel: () -> Unit,
     processingState: ProcessingState,
@@ -623,6 +627,8 @@ private fun DocumentDetailContent(
                 jumpToPage = jumpToPage,
                 onEditTitle = onEditTitle,
                 onCorrectPageText = onCorrectPageText,
+                onMovePage = onMovePage,
+                onDeletePage = onDeletePage,
             )
             DetailTab.EXTRACTED -> ExtractedTab(
                 document = state.document,
@@ -830,8 +836,29 @@ private fun PagesTab(
     onEditTitle: () -> Unit = {},
     /** The user corrected a page's recognised text (page number, the whole text). */
     onCorrectPageText: (pageNumber: Int, text: String) -> Unit = { _, _ -> },
+    /** The user moved a page by [delta] places (-1: one earlier). */
+    onMovePage: (pageNumber: Int, delta: Int) -> Unit = { _, _ -> },
+    onDeletePage: (pageNumber: Int) -> Unit = {},
 ) {
     var correctingPage by rememberSaveable { mutableStateOf<Int?>(null) }
+    var deletingPage by rememberSaveable { mutableStateOf<Int?>(null) }
+    deletingPage?.let { number ->
+        AlertDialog(
+            onDismissRequest = { deletingPage = null },
+            title = { Text(stringResource(R.string.page_delete_title, number)) },
+            text = { Text(stringResource(R.string.page_delete_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deletingPage = null
+                        onDeletePage(number)
+                    },
+                    modifier = Modifier.testTag("page_delete_confirm"),
+                ) { Text(stringResource(R.string.page_delete)) }
+            },
+            dismissButton = { TextButton(onClick = { deletingPage = null }) { Text(stringResource(R.string.action_cancel)) } },
+        )
+    }
     correctingPage?.let { number ->
         pages.firstOrNull { it.pageNumber == number }?.let { page ->
             EditPageTextDialog(
@@ -926,6 +953,24 @@ private fun PagesTab(
                                 Icon(PamIcons.Edit, contentDescription = "Copy text", modifier = Modifier.size(20.dp))
                             }
                             Text("Copy", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                // The order of the pages and the pages themselves are the user's to change.
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    if (pageIndex > 0) {
+                        TextButton(onClick = { onMovePage(page.pageNumber, -1) }, modifier = Modifier.testTag("page_move_earlier")) {
+                            Text(stringResource(R.string.page_move_earlier))
+                        }
+                    }
+                    if (pageIndex < pages.size - 1) {
+                        TextButton(onClick = { onMovePage(page.pageNumber, 1) }, modifier = Modifier.testTag("page_move_later")) {
+                            Text(stringResource(R.string.page_move_later))
+                        }
+                    }
+                    if (pages.size > 1) {
+                        TextButton(onClick = { deletingPage = page.pageNumber }, modifier = Modifier.testTag("page_delete")) {
+                            Text(stringResource(R.string.page_delete), color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }

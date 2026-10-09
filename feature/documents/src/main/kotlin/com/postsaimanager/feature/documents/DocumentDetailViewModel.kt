@@ -379,6 +379,21 @@ class DocumentDetailViewModel @Inject constructor(
         }
     }
 
+    /** The person deleted a page: what refers to the later pages moves with them, and a new reading is offered. */
+    fun deletePage(pageNumber: Int) {
+        viewModelScope.launch {
+            if (edits.deletePage(documentId, pageNumber) is PamResult.Success) _readAgainOffer.value = ReadAgainOffer.PAGES
+        }
+    }
+
+    /** The person moved a page by [delta] places (-1: one earlier); a new reading is offered. */
+    fun movePage(pageNumber: Int, delta: Int) {
+        viewModelScope.launch {
+            val order = edits.reorderPages.moved(documentId, pageNumber, delta) ?: return@launch
+            if (edits.reorderPages(documentId, order) is PamResult.Success) _readAgainOffer.value = ReadAgainOffer.PAGES
+        }
+    }
+
     /** The person set the letter's language: kept by every re-read, and the language the summary and answers are written in. */
     fun setLanguage(tag: String) {
         viewModelScope.launch { edits.setLanguage(documentId, tag) }

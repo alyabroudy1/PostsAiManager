@@ -136,6 +136,14 @@ class DocumentDetailViewModelTest {
                 documentRepository,
                 com.postsaimanager.core.domain.usecase.IndexDocumentUseCase(FakeDocumentChunkRepository(), com.postsaimanager.core.testing.FakeEmbeddingService()),
             ),
+            deletePage = com.postsaimanager.core.domain.document.DeleteDocumentPageUseCase(
+                documentRepository,
+                com.postsaimanager.core.domain.usecase.IndexDocumentUseCase(FakeDocumentChunkRepository(), com.postsaimanager.core.testing.FakeEmbeddingService()),
+            ),
+            reorderPages = com.postsaimanager.core.domain.document.ReorderDocumentPagesUseCase(
+                documentRepository,
+                com.postsaimanager.core.domain.usecase.IndexDocumentUseCase(FakeDocumentChunkRepository(), com.postsaimanager.core.testing.FakeEmbeddingService()),
+            ),
         )
     }
 
@@ -762,6 +770,32 @@ class DocumentDetailViewModelTest {
             assertThat(documentProcessor.enqueueCalls.filter { it.force }).isEmpty()
             vm.clearReadAgainOffer()
             assertThat(vm.readAgainOffer.value).isNull()
+        }
+
+        @Test
+        fun `moving and deleting pages change the letter's pages and offer a new reading, not start one`() = runTest {
+            documentRepository.seed(testDocument(id = "d1"))
+            documentRepository.seedPages(
+                "d1",
+                DocumentPage("p1", "d1", 1, "file:///1.jpg", ocrText = "eins"),
+                DocumentPage("p2", "d1", 2, "file:///2.jpg", ocrText = "zwei"),
+                DocumentPage("p3", "d1", 3, "file:///3.jpg", ocrText = "drei"),
+            )
+            val vm = viewModel("d1")
+            suspend fun ids() = (documentRepository.getDocumentPages("d1") as com.postsaimanager.core.common.result.PamResult.Success).data.map { it.id }
+
+            vm.movePage(3, -1)
+            assertThat(ids()).containsExactly("p1", "p3", "p2").inOrder()
+            assertThat(vm.readAgainOffer.value).isEqualTo(ReadAgainOffer.PAGES)
+            vm.clearReadAgainOffer()
+
+            vm.movePage(1, -1) // already first: nothing changes, nothing is offered
+            assertThat(vm.readAgainOffer.value).isNull()
+
+            vm.deletePage(1)
+            assertThat(ids()).containsExactly("p3", "p2").inOrder()
+            assertThat(vm.readAgainOffer.value).isEqualTo(ReadAgainOffer.PAGES)
+            assertThat(documentProcessor.enqueueCalls.filter { it.force }).isEmpty()
         }
 
         @Test

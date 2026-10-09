@@ -144,6 +144,11 @@
     <string name="case_move_new">Ein neuer Vorgang</string>
     <string name="case_move_new_label">Name des neuen Vorgangs (optional)</string>
     <string name="case_move_here">jetzt hier</string>
+    <string name="page_move_earlier">Nach vorn</string>
+    <string name="page_move_later">Nach hinten</string>
+    <string name="page_delete">Seite löschen</string>
+    <string name="page_delete_title">Seite %1$d löschen?</string>
+    <string name="page_delete_message">Die Seite und ihr Bild werden entfernt. Werte, die daraus gelesen wurden, behalten ihren Text. Danach können Sie den Brief erneut lesen.</string>
     <string name="page_text_edit">Text korrigieren</string>
     <string name="page_text_edit_title">Text von Seite %1$d korrigieren</string>
     <string name="page_text_edit_hint">Was Sie schreiben, wird so gelesen, wie es dasteht, und keine neue Lesung ersetzt es.</string>

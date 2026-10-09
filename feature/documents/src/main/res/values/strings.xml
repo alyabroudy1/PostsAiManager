@@ -359,6 +359,11 @@
     <string name="case_move_new">A new matter</string>
     <string name="case_move_new_label">Name of the new matter (optional)</string>
     <string name="case_move_here">here now</string>
+    <string name="page_move_earlier">Move earlier</string>
+    <string name="page_move_later">Move later</string>
+    <string name="page_delete">Delete page</string>
+    <string name="page_delete_title">Delete page %1$d?</string>
+    <string name="page_delete_message">The page and its image are removed. Values read from it keep their text. You can read the letter again afterwards.</string>
     <string name="page_text_edit">Correct the text</string>
     <string name="page_text_edit_title">Correct the text of page %1$d</string>
     <string name="page_text_edit_hint">What you write is read as it stands, and no new reading replaces it.</string>
