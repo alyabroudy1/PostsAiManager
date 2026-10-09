@@ -53,8 +53,11 @@ object QuestionPrompt {
     /** The most things the letter is said to ask: the main ones only (a reader of a letter does not need every possible step). */
     const val MAX_ASKS = 2
 
-    /** The labels the answer holds, in order: [QaLabel.SUMMARY] only when a summary is wanted, never [QaLabel.PAID] (a part of ASKS). */
-    fun asked(withSummary: Boolean): List<QaLabel> = QaLabel.entries.filter { (it != QaLabel.SUMMARY || withSummary) && it != QaLabel.PAID }
+    /**
+     * The labels the answer holds: [QaLabel.SUMMARY] only when a summary is wanted. The paid state has a line of its own again (it was a part
+     * of ASKS, where a model took its word, such as to_pay, for the action kind); the builder still understands it inside ASKS.
+     */
+    fun asked(withSummary: Boolean): List<QaLabel> = QaLabel.entries.filter { it != QaLabel.SUMMARY || withSummary }
 
     fun system(): String =
         "You read one letter and answer questions about it. " +
@@ -94,12 +97,11 @@ object QuestionPrompt {
         append("${QaLabel.RECIPIENT}: to whom it is addressed (the name only; $NONE_WORD if no one is named) | its kind\n")
         append("${QaLabel.CONTACT}: a person at the sender the reader can contact (a person's name only, never a phone number or an e-mail address; $NONE_WORD if no person is named) ")
         append("| their phone number | their e-mail\n")
-        append("${QaLabel.ASKS}: ${GemmaVocabulary.YES} or ${GemmaVocabulary.NO} (does it ask the reader to do anything?) | the paid state, one of: ")
-        append(PaidState.entries.joinToString("; ") { "${it.id} (${it.sentence})" })
-        append("; then at most $MAX_ASKS separate things the reader must do (otherwise ${GemmaVocabulary.NO}), the main one first, each as: kind — by when (a date). ")
-        append("The line is: ${GemmaVocabulary.YES} | paid state; kind — by when; kind — by when. ")
+        append("${QaLabel.ASKS}: ${GemmaVocabulary.YES} or ${GemmaVocabulary.NO} (does it ask the reader to do anything?); then at most $MAX_ASKS separate things the reader must do, the main one first, each as: kind — by when (a date). ")
         append("Something to bring to an appointment is part of attending it; cancelling or objecting comes after the main one. kind is exactly one of: ")
         append(vocab.actionKinds.joinToString("; ") { "${it.id} (${it.task})" }).append('\n')
+        append("${QaLabel.PAID}: the paid state, one of: ")
+        append(PaidState.entries.joinToString("; ") { "${it.id} (${it.sentence})" }).append('\n')
         append("${QaLabel.LETTERDATE}: the date the letter was written, as printed ($NONE_WORD if it has none)\n")
         append("${QaLabel.DATES}: the important dates, each as: date — meaning. meaning is one of: ")
         append(vocab.dateMeanings.joinToString("; ") { "${it.id} (${it.description})" }).append("; ${GemmaVocabulary.OTHER}\n")

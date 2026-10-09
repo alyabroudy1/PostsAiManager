@@ -46,7 +46,8 @@ class QuestionAnswerGemmaReaderTest {
         assertThat(request.prompt).contains(weakLetter.lines.first().text)
         assertThat(request.prompt).doesNotContain("L1 ")
         QuestionPrompt.asked(withSummary = true).forEach { assertThat(request.prompt).contains("${it.name}:") }
-        assertThat(request.prompt).doesNotContain("${QaLabel.PAID}:")
+        // The paid state is a line of its own (a word of it, such as to_pay, was taken for an action kind when it stood inside ASKS).
+        assertThat(request.prompt).contains("${QaLabel.PAID}:")
         assertThat(request.prompt.indexOf("${QaLabel.SUMMARY}:")).isLessThan(request.prompt.indexOf("${QaLabel.SENDER}:"))
         assertThat(request.prompt.indexOf("${QaLabel.EVENT}:")).isLessThan(request.prompt.indexOf("${QaLabel.LANGUAGE}:"))
         assertThat(request.prompt).contains("DUE_DATE")
