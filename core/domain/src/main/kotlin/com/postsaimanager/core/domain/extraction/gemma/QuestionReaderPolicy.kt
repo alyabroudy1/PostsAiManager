@@ -1,7 +1,6 @@
 package com.postsaimanager.core.domain.extraction.gemma
 
 import com.postsaimanager.core.domain.ai.SamplingPurpose
-import com.postsaimanager.core.model.Accelerator
 
 /**
  * Whether the "Questions" reader shows the model the page picture. On the CPU the vision encoder and the picture's tokens cost seconds,
@@ -39,11 +38,11 @@ object QaImageDecision {
 }
 
 /**
- * How the "Questions" reader samples. The chat's own sampling (free text) on the CPU, as before; greedy decoding (the constrained
- * readers' sampling) on an accelerator, where the half-precision logits made a drawn answer drift while a greedy one held.
+ * How the "Questions" reader samples: greedy decoding (the constrained readers' sampling) on every backend, so the same letter gives the
+ * same answer (a drawn answer drifted on the GPU and read the same letter differently on the CPU). Only this reading: the chat keeps
+ * its own sampling.
  */
 object QaSampling {
 
-    fun purposeFor(accelerator: Accelerator): SamplingPurpose =
-        if (accelerator == Accelerator.CPU) SamplingPurpose.FREE_TEXT else SamplingPurpose.STRUCTURED
+    val PURPOSE = SamplingPurpose.STRUCTURED
 }

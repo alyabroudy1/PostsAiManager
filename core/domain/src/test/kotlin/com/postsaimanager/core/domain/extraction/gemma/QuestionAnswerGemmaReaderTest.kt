@@ -104,13 +104,14 @@ class QuestionAnswerGemmaReaderTest {
     }
 
     @Test
-    @DisplayName("sampling: the chat's own (free text) on the CPU, greedy on the GPU; the model is loaded for a reading")
+    @DisplayName("sampling: greedy on the CPU and on the GPU; the model is loaded for a reading")
     fun `sampling by backend`() = runBlocking<Unit> {
         reader().read(GemmaReaderRequest(strongLetter, emptyList()))
         val cpu = engine.structuredRequests.last()
-        val free = samplingFor(SamplingPurpose.FREE_TEXT)
-        assertThat(cpu.topK).isEqualTo(free.topK)
-        assertThat(cpu.temperature).isEqualTo(free.temperature)
+        val cpuGreedy = samplingFor(SamplingPurpose.STRUCTURED)
+        assertThat(cpu.topK).isEqualTo(1)
+        assertThat(cpu.topK).isEqualTo(cpuGreedy.topK)
+        assertThat(cpu.temperature).isEqualTo(cpuGreedy.temperature)
 
         provider.readingAccelerator = Accelerator.GPU
         reader().read(GemmaReaderRequest(strongLetter, emptyList()))
@@ -120,6 +121,19 @@ class QuestionAnswerGemmaReaderTest {
         assertThat(gpu.temperature).isEqualTo(greedy.temperature)
         assertThat(engine.loads.last().second.accelerator).isEqualTo(Accelerator.GPU)
         assertThat(gpu.prompt).contains(strongLetter.lines.first().text)
+    }
+
+    @Test
+    @DisplayName("a looping answer is cut after its first run, kept, and noted")
+    fun `loop guard`() = runBlocking<Unit> {
+        val loop = "REFERENCES: Kundennummer KD-0000-4711 — customer_no; IBAN DE00 0000 0000 0000 0000 00 — iban; "
+        engine.structuredAnswer = "SENDER: Nordlicht Mobilfunk GmbH | company\n" + loop + loop + loop
+
+        val outcome = reader().read(GemmaReaderRequest(strongLetter, emptyList())) as GemmaReaderOutcome.Stated
+
+        assertThat(outcome.text).startsWith("SENDER: Nordlicht Mobilfunk GmbH | company\nREFERENCES:")
+        assertThat(outcome.text.length).isLessThan(engine.structuredAnswer!!.length)
+        assertThat(outcome.notes.any { it.startsWith("qa note: loop guard cut") }).isTrue()
     }
 
     @Test

@@ -37,6 +37,7 @@ import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.ResponseFormat
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.ToolProvider
+import com.postsaimanager.core.domain.ai.RepetitionGuard
 import com.postsaimanager.core.model.Accelerator
 import java.util.concurrent.CancellationException
 
@@ -291,9 +292,10 @@ internal object LlmChatModelHelper : LlmModelHelper {
                 val answer = if (leadPrompt == null) {
                     contents.add(Content.Text(prompt))
                     // A blank schema is a free-text answer (the "Questions" reader style): no response format on the message.
-                    if (schema.isBlank() && onPartial != null) {
-                        // Streamed: the caller sees the answer line by line while it is decoded (the summary line comes first).
-                        streamFreeText(conversation, Contents.of(contents), thinkingOff, onPartial).also { if (timedOut.get()) error("timed out") }
+                    if (schema.isBlank()) {
+                        // Streamed: the caller sees the answer line by line while it is decoded (the summary line comes first), and a
+                        // decode that starts repeating itself is stopped (see streamFreeText).
+                        streamFreeText(conversation, Contents.of(contents), thinkingOff, onPartial ?: {}).also { if (timedOut.get()) error("timed out") }
                     } else if (schema.isBlank()) {
                         conversation.sendMessage(Contents.of(contents), extraContext = thinkingOff).toString()
                     } else {
@@ -354,6 +356,8 @@ internal object LlmChatModelHelper : LlmModelHelper {
             object : MessageCallback {
                 override fun onMessage(message: Message) {
                     text.append(message.toString())
+                    // A greedy decode can fall into a loop: stop it as soon as the last run of the answer repeats (the caller cuts the repeat).
+                    if (RepetitionGuard.repeats(text.toString())) runCatching { conversation.cancelProcess() }
                     val lines = text.count { it == '\n' }
                     if (lines > linesHandedOn) {
                         linesHandedOn = lines

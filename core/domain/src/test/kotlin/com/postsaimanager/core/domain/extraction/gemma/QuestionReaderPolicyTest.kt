@@ -2,7 +2,7 @@ package com.postsaimanager.core.domain.extraction.gemma
 
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.ai.SamplingPurpose
-import com.postsaimanager.core.model.Accelerator
+import com.postsaimanager.core.domain.ai.samplingFor
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -51,9 +51,9 @@ class QuestionReaderPolicyTest {
     }
 
     @Test
-    @DisplayName("sampling: free text on the CPU, greedy on any accelerator")
+    @DisplayName("sampling: greedy (top-k 1) on every backend")
     fun `sampling`() {
-        assertThat(QaSampling.purposeFor(Accelerator.CPU)).isEqualTo(SamplingPurpose.FREE_TEXT)
-        assertThat(QaSampling.purposeFor(Accelerator.GPU)).isEqualTo(SamplingPurpose.STRUCTURED)
+        assertThat(QaSampling.PURPOSE).isEqualTo(SamplingPurpose.STRUCTURED)
+        assertThat(samplingFor(QaSampling.PURPOSE).topK).isEqualTo(1)
     }
 }
