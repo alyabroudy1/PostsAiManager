@@ -89,8 +89,8 @@ object QuestionPrompt {
             append("what it is, from whom, and the main fact; mention a request only if there is one\n")
         }
         val kinds = PartyKind.entries.joinToString(", ") { it.name.lowercase() }
-        append("${QaLabel.SENDER}: who sent or issued it (organisation, shop or person): its full name as printed, every word, never shortened; ")
-        append("a name may continue on the next line | its kind: one of $kinds\n")
+        append("${QaLabel.SENDER}: who sent or issued it (organisation, shop or person): its full name exactly as printed (every word of the name, with its title or legal form, never shortened; ")
+        append("a name may continue on the next line) | its kind: one of $kinds\n")
         append("${QaLabel.RECIPIENT}: to whom it is addressed (the name only; $NONE_WORD if no one is named) | its kind\n")
         append("${QaLabel.CONTACT}: a person at the sender the reader can contact (a person's name only, never a phone number or an e-mail address; $NONE_WORD if no person is named) ")
         append("| their phone number | their e-mail\n")
@@ -98,7 +98,7 @@ object QuestionPrompt {
         append(PaidState.entries.joinToString("; ") { "${it.id} (${it.sentence})" })
         append("; then at most $MAX_ASKS separate things the reader must do (otherwise ${GemmaVocabulary.NO}), the main one first, each as: kind — by when (a date). ")
         append("Something to bring to an appointment is part of attending it; cancelling or objecting comes after the main one. kind is exactly one of: ")
-        append(vocab.actionKinds.joinToString(", ") { it.id }).append('\n')
+        append(vocab.actionKinds.joinToString("; ") { "${it.id} (${it.task})" }).append('\n')
         append("${QaLabel.LETTERDATE}: the date the letter was written, as printed ($NONE_WORD if it has none)\n")
         append("${QaLabel.DATES}: the important dates, each as: date — meaning. meaning is one of: ")
         append(vocab.dateMeanings.joinToString("; ") { "${it.id} (${it.description})" }).append("; ${GemmaVocabulary.OTHER}\n")
