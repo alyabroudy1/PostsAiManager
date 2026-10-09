@@ -96,14 +96,58 @@ class QuestionReadingBuilderTest {
     @Test
     @DisplayName("amounts: typed to cents and currency, one candidate per value, the meaning from the registry or none")
     fun `amounts`() {
-        val v = build("AMOUNTS: 64,98 € — TOTAL_DUE; 5,00 EUR — something else; 64,98 EUR — TOTAL_DUE")
+        val v = build("AMOUNTS: 64,98 € — INVOICE_TOTAL; 5,00 EUR — something else; 64,98 EUR — INVOICE_TOTAL")
 
         assertThat(v.amounts).hasSize(2)
         val total = v.amounts.first()
-        assertThat(total.meaningId).isEqualTo("TOTAL_DUE")
+        assertThat(total.meaningId).isEqualTo("INVOICE_TOTAL")
         assertThat(total.candidate.cents).isEqualTo(6498L)
         assertThat(v.amounts[1].meaningId).isNull()
         assertThat(v.amounts[1].candidate.cents).isEqualTo(500L)
+    }
+
+    @Test
+    @DisplayName("the amount to pay is the TOPAY line only: the invoice total in the list never claims it, and the pay action takes it with its date")
+    fun `to pay`() {
+        val v = build("ASKS: yes | to_pay; pay\nAMOUNTS: 584,20 EUR — TOTAL_DUE; 480,00 EUR — other\nTOPAY: 104,20 EUR — 2026-10-15")
+
+        val toPay = v.amounts.filter { it.meaningId == "TOTAL_DUE" }.single()
+        assertThat(toPay.candidate.cents).isEqualTo(10420L)
+        assertThat(v.amounts.first { it.candidate.cents == 58420L }.meaningId).isNull()
+        val pay = v.actions.single()
+        assertThat(pay.amountCandidateId).isEqualTo(toPay.candidate.id)
+        assertThat(v.dates.map { it.candidate.id }).contains(pay.dateCandidateId)
+
+        // With no TOPAY the pay action has no amount (the list is not guessed from).
+        assertThat(build("ASKS: yes | to_pay; pay\nAMOUNTS: 584,20 EUR — TOTAL_DUE\nTOPAY: none").actions.single().amountCandidateId).isNull()
+    }
+
+    @Test
+    @DisplayName("the letter's date is the LETTERDATE line, first in the dates with its meaning; none gives no date")
+    fun `letter date line`() {
+        val v = build("LETTERDATE: 2026-09-25\nDATES: 2026-10-15 — DUE_DATE")
+
+        assertThat(v.dates.first().meaningId).isEqualTo("LETTER_DATE")
+        assertThat(v.dates.first().candidate.normalized).startsWith("2026-09-25")
+        assertThat(build("LETTERDATE: none").dates).isEmpty()
+    }
+
+    @Test
+    @DisplayName("the word none is no answer for a party: no party is stored")
+    fun `none words`() {
+        val v = build("SENDER: Markt Beispiel | company\nRECIPIENT: none\nCONTACT: none | none | none")
+
+        assertThat(v.parties.single().role).isEqualTo(PartyRole.SENDER)
+    }
+
+    @Test
+    @DisplayName("at most two actions are kept, and the trace notes are no drops")
+    fun `at most two actions`() {
+        val v = build("ASKS: yes | not_applicable; attend — 2026-10-14; send_documents — 2026-10-13; object_cancel — 2026-10-13")
+
+        assertThat(v.actions).hasSize(2)
+        assertThat(v.drops).isEmpty()
+        assertThat(v.notes).isNotEmpty()
     }
 
     @Test
@@ -140,7 +184,7 @@ class QuestionReadingBuilderTest {
     @Test
     @DisplayName("asks: the action kind from the registry with its date (added to the dates when the list lacks it) and the amount to pay")
     fun `actions`() {
-        val v = build("ASKS: yes — pay — 2026-10-09\nAMOUNTS: 64,98 EUR — TOTAL_DUE\nDATES: none")
+        val v = build("ASKS: yes — pay — 2026-10-09\nTOPAY: 64,98 EUR\nDATES: none")
 
         assertThat(v.asksReader).isTrue()
         val action = v.actions.single()
@@ -152,7 +196,7 @@ class QuestionReadingBuilderTest {
     @Test
     @DisplayName("the short format: the paid state is the second part of the ASKS line, then one 'kind — by when' item per thing asked")
     fun `paid state inside the asks line`() {
-        val v = build("SUMMARY: A reminder.\nASKS: yes | to_pay; pay — 2026-10-09; reply — 2026-10-12\nAMOUNTS: 64,98 EUR — TOTAL_DUE\nEVENT: payment_reminder\nLANGUAGE: de")
+        val v = build("SUMMARY: A reminder.\nASKS: yes | to_pay; pay — 2026-10-09; reply — 2026-10-12\nTOPAY: 64,98 EUR\nEVENT: payment_reminder\nLANGUAGE: de")
 
         assertThat(v.paid).isEqualTo(PaidState.TO_PAY)
         assertThat(v.asksReader).isTrue()

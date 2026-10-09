@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.extraction.gemma
 
+import com.postsaimanager.core.domain.extraction.candidates.Candidate
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.text.DocumentNameFormat
 import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
@@ -32,14 +33,24 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
             party(PartyRole.ADDRESSEE, answers[QaLabel.RECIPIENT], letter, notes),
             party(PartyRole.CONTACT, answers[QaLabel.CONTACT], letter, notes),
         )
-        val dates = values(QaLabel.DATES, answers, notes) { vocab.dateMeanings.map { it.id } }
-            .mapNotNull { (text, meaning) -> typer.date(text)?.let { VerifiedValue(it, meaning) } ?: null.also { notes += "date not typed" } }
-            .distinctBy { it.candidate.id }
-        val amounts = values(QaLabel.AMOUNTS, answers, notes) { vocab.amountMeanings.map { it.id } }
-            .mapNotNull { (text, meaning) -> typer.amount(text)?.let { VerifiedValue(it, meaning) } ?: null.also { notes += "amount not typed" } }
-            .distinctBy { it.candidate.id }
+        // The letter's own date has a line of its own and comes first, so that it keeps its meaning if the dates list repeats it.
+        val letterDate = answers[QaLabel.LETTERDATE]?.let { typer.date(it) }?.let { VerifiedValue(it, GemmaVocabulary.LETTER_DATE_MEANING) }
+        val dates = (
+            listOfNotNull(letterDate) +
+                values(QaLabel.DATES, answers, notes) { vocab.dateMeanings.map { it.id } }
+                    .mapNotNull { (text, meaning) -> typer.date(text)?.let { VerifiedValue(it, meaning) } ?: null.also { notes += "date not typed" } }
+            ).distinctBy { it.candidate.id }
+        // The amount to pay has a line of its own (TOPAY) and is the only amount with that meaning, so that the invoice total never claims it.
+        val (toPay, toPayDate) = toPay(answers, typer)
+        val amounts = (
+            listOfNotNull(toPay?.let { VerifiedValue(it, GemmaVocabulary.TO_PAY_MEANING) }) +
+                values(QaLabel.AMOUNTS, answers, notes) { vocab.amountMeanings.map { it.id } }
+                    .mapNotNull { (text, meaning) ->
+                        typer.amount(text)?.let { VerifiedValue(it, meaning?.takeUnless { m -> m == GemmaVocabulary.TO_PAY_MEANING }) } ?: null.also { notes += "amount not typed" }
+                    }
+            ).distinctBy { it.candidate.id }
         val references = references(answers, typer, notes)
-        val (asks, actions, extraDates, paidInAsks) = askedActions(answers, typer, dates, amounts, notes)
+        val (asks, actions, extraDates, paidInAsks) = askedActions(answers, typer, dates, toPay, toPayDate, notes)
 
         val category = QaText.key(answers[QaLabel.TYPE]).let { key -> vocab.categoryIds.firstOrNull { QaText.key(it) == key } }
             ?: GemmaVocabulary.DOCUMENT_CATEGORY.also { if (answers[QaLabel.TYPE] != null) notes += "category is not in the registry" }
@@ -50,9 +61,17 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
 
         return VerifiedReading(
             parties = parties, dates = dates + extraDates, amounts = amounts, references = references, actions = actions,
-            category = category, language = language, name = name, drops = notes, eventKind = eventKind, asksReader = asks, paid = paid,
-            synthesized = typer.synthesized,
+            category = category, language = language, name = name, drops = emptyList(), eventKind = eventKind, asksReader = asks, paid = paid,
+            synthesized = typer.synthesized, notes = notes,
         )
+    }
+
+    /** `TOPAY: amount — by when`: the typed amount and the typed date (either may be null). */
+    private fun toPay(answers: QaAnswers, typer: QaValueTyper): Pair<Candidate?, Candidate?> {
+        val parts = QaText.items(answers[QaLabel.TOPAY]).firstOrNull()?.let { QaText.parts(it) }.orEmpty()
+        val amount = parts.firstOrNull()?.takeIf { it.isNotEmpty() }?.let(typer::amount)
+        val date = parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let(typer::date)
+        return amount to date
     }
 
     // ── parties ──
@@ -121,7 +140,9 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
      * first action in that item, `yes — kind — by when`, or left the paid state out is understood as well). A date the action names that
      * the dates list lacks is added to it (with no meaning).
      */
-    private fun askedActions(answers: QaAnswers, typer: QaValueTyper, dates: List<VerifiedValue>, amounts: List<VerifiedValue>, notes: MutableList<String>): Asked {
+    private fun askedActions(
+        answers: QaAnswers, typer: QaValueTyper, dates: List<VerifiedValue>, toPay: Candidate?, toPayDate: Candidate?, notes: MutableList<String>,
+    ): Asked {
         val text = answers[QaLabel.ASKS] ?: return Asked(null, emptyList(), emptyList(), null)
         val items = QaText.items(text)
         val asks = when (QaText.word(items.firstOrNull() ?: text)) {
@@ -145,16 +166,13 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
         val extra = mutableListOf<VerifiedValue>()
         val actions = itemParts.mapNotNull { parts ->
             val kind = choose(parts.firstOrNull(), kindIds)?.let(vocab::actionKind) ?: return@mapNotNull null
-            val date = parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let(typer::date)?.also { d ->
+            val amount = if (kind.amountMeaning != null) toPay else null
+            // The action's own date, else the date of the amount to pay (a payment action is due when the payment is).
+            val date = (parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let(typer::date) ?: toPayDate.takeIf { amount != null })?.also { d ->
                 if (dates.none { it.candidate.id == d.id } && extra.none { it.candidate.id == d.id }) extra += VerifiedValue(d, null)
             }
-            val amount = if (kind.amountMeaning != null) {
-                (amounts.firstOrNull { it.meaningId == GemmaVocabulary.TO_PAY_MEANING } ?: amounts.singleOrNull())?.candidate?.id
-            } else {
-                null
-            }
-            VerifiedAction(kind.id, date?.id, amount)
-        }.distinctBy { it.kind }
+            VerifiedAction(kind.id, date?.id, amount?.id)
+        }.distinctBy { it.kind }.take(QuestionPrompt.MAX_ASKS)
         notes += "asks=${asks} actions=${actions.size}"
         return Asked(asks ?: actions.isNotEmpty().takeIf { it }, actions, extra, paid)
     }

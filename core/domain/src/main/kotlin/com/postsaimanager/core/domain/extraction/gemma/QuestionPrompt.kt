@@ -13,8 +13,14 @@ enum class QaLabel {
 
     /** `yes | no`, the paid state, then one `kind — by when` per thing asked (the paid state used to be a line of its own). */
     ASKS,
+
+    /** The date the letter was written (asked on a line of its own so that it is never left out), or none. */
+    LETTERDATE,
     DATES,
     AMOUNTS,
+
+    /** `amount — by when`: the one amount the reader has to pay, apart from the list of amounts; the pay action takes its amount from it. */
+    TOPAY,
     REFERENCES,
     TYPE,
     TITLE,
@@ -43,6 +49,9 @@ object QuestionPrompt {
 
     /** The most items a list line (dates, amounts, references) has: the rest of a long letter is not asked for. */
     const val MAX_ITEMS = 5
+
+    /** The most things the letter is said to ask: the main ones only (a reader of a letter does not need every possible step). */
+    const val MAX_ASKS = 2
 
     /** The labels the answer holds, in order: [QaLabel.SUMMARY] only when a summary is wanted, never [QaLabel.PAID] (a part of ASKS). */
     fun asked(withSummary: Boolean): List<QaLabel> = QaLabel.entries.filter { (it != QaLabel.SUMMARY || withSummary) && it != QaLabel.PAID }
@@ -75,7 +84,8 @@ object QuestionPrompt {
     fun questions(vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT, forcedCategory: String? = null, withSummary: Boolean = false): String = buildString {
         append("Now answer these questions about the letter, all at once, in exactly this format: one line per label, the label in capitals, a colon, ")
         append("then a terse answer (words, not sentences), and nothing else. Write names and values as they are printed in the letter. ")
-        append("Write $NONE_WORD where nothing applies. Separate several items with \";\", at most $MAX_ITEMS items per list.\n")
+        append("When something is not in the letter, write exactly: $NONE_WORD (that one word, no other text). ")
+        append("Separate several items with \";\", at most $MAX_ITEMS items per list.\n")
         if (withSummary) {
             append("${QaLabel.SUMMARY}: first line, one sentence (at most ${SummaryLimits.MAX_CHARS} characters) in the language of the letter: what it is about ")
             append("and what it asks of the reader, if anything\n")
@@ -83,15 +93,18 @@ object QuestionPrompt {
         val kinds = PartyKind.entries.joinToString(", ") { it.name.lowercase() }
         append("${QaLabel.SENDER}: who sent the letter (the name only) | its kind: one of $kinds\n")
         append("${QaLabel.RECIPIENT}: to whom the letter is addressed (the name only) | its kind\n")
-        append("${QaLabel.CONTACT}: the contact person named at the sender (the name only) | their phone number | their e-mail\n")
+        append("${QaLabel.CONTACT}: a person at the sender whom the reader can contact (the name only; never the recipient; $NONE_WORD if no such person is named) ")
+        append("| their phone number | their e-mail\n")
         append("${QaLabel.ASKS}: ${GemmaVocabulary.YES} or ${GemmaVocabulary.NO} (does the letter ask the reader to do anything?) | the paid state, one of: ")
         append(PaidState.entries.joinToString("; ") { "${it.id} (${it.sentence})" })
-        append("; then, for each thing asked: kind — by when (a date). kind is one of: ")
+        append("; then, for each of the at most $MAX_ASKS most important things the letter asks (otherwise ${GemmaVocabulary.NO}): kind — by when (a date). kind is one of: ")
         append(vocab.actionKinds.joinToString("; ") { "${it.id} (${it.task})" }).append('\n')
+        append("${QaLabel.LETTERDATE}: the date the letter was written, as printed ($NONE_WORD if it has none)\n")
         append("${QaLabel.DATES}: the important dates, each as: date — meaning. meaning is one of: ")
         append(vocab.dateMeanings.joinToString("; ") { "${it.id} (${it.description})" }).append("; ${GemmaVocabulary.OTHER}\n")
         append("${QaLabel.AMOUNTS}: the important amounts, each as: amount — meaning. meaning is one of: ")
-        append(vocab.amountMeanings.joinToString("; ") { "${it.id} (${it.description})" }).append("; ${GemmaVocabulary.OTHER}\n")
+        append(vocab.listedAmountMeanings.joinToString("; ") { "${it.id} (${it.description})" }).append("; ${GemmaVocabulary.OTHER}\n")
+        append("${QaLabel.TOPAY}: the amount the reader has to pay (not a total that includes what was already paid), as: amount — by when ($NONE_WORD if nothing is to be paid)\n")
         append("${QaLabel.REFERENCES}: the reference numbers (customer, case, invoice, account ...), each as: number — kind. kind is one of: ")
         append(vocab.referenceKinds.joinToString(", ")).append('\n')
         append("${QaLabel.TYPE}: what kind of document this is, one of: ")

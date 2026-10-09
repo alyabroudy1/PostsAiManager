@@ -130,6 +130,7 @@ class GemmaDocumentInterpreter(
             "actions=[${verified.actions.joinToString(",") { it.kind }}] name=${verified.name != null} paid=${verified.paid?.id} " +
             "dropped=${verified.drops.size}"
         verified.drops.forEach { lines += "gemma dropped: $it" }
+        verified.notes.forEach { lines += "qa note: $it" }
         return InterpretationOutcome.Answered(raw, rawAnswer, prompt, schemaText)
     }
 

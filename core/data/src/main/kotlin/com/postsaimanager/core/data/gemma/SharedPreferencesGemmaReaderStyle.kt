@@ -11,8 +11,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The "Reader style: JSON / Questions" switch on the app's private preferences (`gemma_reader_style`): JSON until a debug build's
- * Settings chooses Questions. A stored value that is not a style reads as JSON.
+ * The "Reader style: JSON / Questions" switch on the app's private preferences (`gemma_reader_style`): Questions until a debug build's
+ * Settings chooses JSON (the fallback). A stored value that is not a style reads as the default, Questions.
  */
 @Singleton
 class SharedPreferencesGemmaReaderStyle @Inject constructor(
@@ -44,7 +44,7 @@ class SharedPreferencesGemmaReaderStyle @Inject constructor(
     }
 
     private fun read(): ReaderStyle =
-        runCatching { preferences.getString(KEY, null) }.getOrNull()?.let { name -> ReaderStyle.entries.firstOrNull { it.name == name } } ?: ReaderStyle.JSON
+        runCatching { preferences.getString(KEY, null) }.getOrNull()?.let { name -> ReaderStyle.entries.firstOrNull { it.name == name } } ?: ReaderStyle.QUESTIONS
 
     private companion object {
         const val FILE = "gemma_reader_style"

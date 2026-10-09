@@ -3,7 +3,7 @@ package com.postsaimanager.core.domain.extraction.gemma
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
-/** How Gemma reads a letter: the constrained-JSON reader (the default) or the "Questions" reader, which asks as the chat does. */
+/** How Gemma reads a letter: the "Questions" reader (the default), which asks as the chat does, or the constrained-JSON reader (the fallback). */
 enum class ReaderStyle { JSON, QUESTIONS }
 
 /** The debug switch "Reader style: JSON / Questions" (Settings, Debug; a release build always reads in the default style). */

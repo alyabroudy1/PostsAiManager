@@ -70,6 +70,8 @@ class VerifiedReading(
      * the candidates the result is built from, so they are stored like any other, to be confirmed by the person.
      */
     val synthesized: List<Candidate> = emptyList(),
+    /** What the "Questions" reader did with the answers (how a name was stored, how many items): trace lines that are not drops, as nothing is dropped. */
+    val notes: List<String> = emptyList(),
 )
 
 /** The reasons a reading collects: every one goes to the trace, the ones that [lose] an answer also make the reading need review. */

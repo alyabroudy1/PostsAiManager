@@ -78,6 +78,9 @@ class GemmaVocabulary(
         /** The meaning (registry id) of the one amount the reader has to pay: asked as its own field, not once per amount. */
         const val TO_PAY_MEANING = "TOTAL_DUE"
 
+        /** The meaning (registry id) of the date the letter was written: asked as its own line by the "Questions" reader. */
+        const val LETTER_DATE_MEANING = "LETTER_DATE"
+
         /** "There is nobody / nothing for this question". */
         const val NONE = "none"
 

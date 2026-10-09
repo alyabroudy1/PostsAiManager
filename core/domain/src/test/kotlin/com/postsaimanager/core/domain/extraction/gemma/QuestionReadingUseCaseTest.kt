@@ -30,7 +30,8 @@ class QuestionReadingUseCaseTest {
         CONTACT: none
         ASKS: yes — pay — 09.10.2026
         DATES: 25.09.2026 — LETTER_DATE; 09.10.2026 — DUE_DATE
-        AMOUNTS: 64,98 EUR — TOTAL_DUE
+        AMOUNTS: none
+        TOPAY: 64,98 EUR — 09.10.2026
         REFERENCES: 2026-08-771204 — invoice_no
         TYPE: bill
         TITLE: Mahnung Mobilfunkrechnung
