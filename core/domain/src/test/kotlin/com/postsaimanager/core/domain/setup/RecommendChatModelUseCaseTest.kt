@@ -74,6 +74,24 @@ class RecommendChatModelUseCaseTest {
     }
 
     @Test
+    fun `only the model the app preselects is labelled recommended, the others that fit are suitable`() {
+        // On a 12 GB phone both the reader and the 2B would qualify; the 2B is the default, so the reader is only suitable.
+        val result = recommend(phone(11.3))
+
+        assertThat(result.preselectedId).isEqualTo("two")
+        assertThat(result.options.filter { it.fit == ChatModelFit.Recommended }.map { it.id }).containsExactly("two")
+        assertThat(result.option("reader")!!.fit).isEqualTo(ChatModelFit.Suitable)
+        assertThat(result.option("four")!!.fit).isEqualTo(ChatModelFit.Suitable)
+    }
+
+    @Test
+    fun `when the reader is the default it carries the label alone`() {
+        val result = recommend(phone(3.7))
+
+        assertThat(result.options.filter { it.fit == ChatModelFit.Recommended }.map { it.id }).containsExactly("reader")
+    }
+
+    @Test
     fun `without a preselectable recommended model the reader is the default`() {
         val onlyBig = RecommendChatModelUseCase()(phone(11.3), listOf(reader.copy(preselectable = false), four), emptySet(), 0L)
         assertThat(onlyBig.preselectedId).isEqualTo("reader")

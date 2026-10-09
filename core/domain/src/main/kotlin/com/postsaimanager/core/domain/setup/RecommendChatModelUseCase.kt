@@ -48,7 +48,10 @@ class RecommendChatModelUseCase @Inject constructor() {
             .maxWithOrNull(compareBy<ChatModelOption> { it.descriptor.setupRank }.thenBy { it.descriptor.sizeBytes })
             ?.id
             ?: reader.id
-        return ChatModelRecommendation(options, preselected, reader)
+        // "Recommended for this phone" is said of the one model the app preselects and of no other: a model that merely may be the default
+        // (it fits and is not slow) is suitable, and says so.
+        val labelled = options.map { if (it.fit == ChatModelFit.Recommended && it.id != preselected) it.copy(fit = ChatModelFit.Suitable) else it }
+        return ChatModelRecommendation(labelled, preselected, reader)
     }
 
     /**

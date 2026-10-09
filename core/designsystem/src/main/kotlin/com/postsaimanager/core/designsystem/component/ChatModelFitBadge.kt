@@ -30,7 +30,12 @@ fun ChatModelFitBadge(fit: ChatModelFit, modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.primary,
             modifier = modifier,
         )
-        ChatModelFit.Suitable -> Unit
+        ChatModelFit.Suitable -> Text(
+            text = stringResource(R.string.model_fit_suitable),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = modifier,
+        )
         is ChatModelFit.NotRecommended -> Text(
             text = notRecommendedText(fit),
             style = MaterialTheme.typography.labelMedium,

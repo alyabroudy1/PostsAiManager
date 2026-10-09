@@ -4,6 +4,7 @@
     <string name="model_speed_slower">إجابات أبطأ</string>
     <string name="model_speed_much_slower">إجابات أبطأ بكثير</string>
     <string name="model_fit_recommended">موصى به لهذا الهاتف</string>
+    <string name="model_fit_suitable">يعمل على هذا الهاتف</string>
     <string name="model_fit_not_memory">غير موصى به: يحتاج إلى ذاكرة لا تقل عن %1$s غيغابايت</string>
     <string name="model_fit_not_storage">غير موصى به: يحتاج إلى %1$s من المساحة الفارغة</string>
     <string name="device_class_0">فئة الجهاز: أساسية</string>

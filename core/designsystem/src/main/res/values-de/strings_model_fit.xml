@@ -4,6 +4,7 @@
     <string name="model_speed_slower">Langsamere Antworten</string>
     <string name="model_speed_much_slower">Deutlich langsamere Antworten</string>
     <string name="model_fit_recommended">Für dieses Handy empfohlen</string>
+    <string name="model_fit_suitable">Läuft auf diesem Handy</string>
     <string name="model_fit_not_memory">Nicht empfohlen: benötigt ≥ %1$s GB Arbeitsspeicher</string>
     <string name="model_fit_not_storage">Nicht empfohlen: benötigt %1$s freien Speicherplatz</string>
     <string name="device_class_0">Gerätekategorie: Basis</string>
