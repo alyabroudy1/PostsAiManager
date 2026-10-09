@@ -67,6 +67,38 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
+    @DisplayName("a seller alone (a receipt: no recipient named) is stored as the sender, with its full name as the model wrote it")
+    fun `a sender without a recipient`() {
+        val v = build("SENDER: Markt Beispiel | company\nRECIPIENT: none\nCONTACT: none\nASKS: no | not_applicable\nTYPE: receipt")
+
+        val sender = v.parties.single()
+        assertThat(sender.role).isEqualTo(PartyRole.SENDER)
+        assertThat(sender.quote).isEqualTo("Markt Beispiel")
+        assertThat(v.parties.none { it.role == PartyRole.ADDRESSEE }).isTrue()
+    }
+
+    @Test
+    @DisplayName("appointment: the main action comes first and a conditional step second, in the order the model gave them")
+    fun `an appointment's actions`() {
+        val v = build(
+            "SENDER: Zahnarztpraxis Dr. Beispiel | company\nRECIPIENT: none\n" +
+                "ASKS: yes | not_applicable; attend — 14.10.2026; object_cancel — 13.10.2026\nTYPE: appointment",
+        )
+
+        assertThat(v.actions.map { it.kind }).containsExactly("attend", "object_cancel").inOrder()
+        assertThat(v.parties.single().quote).isEqualTo("Zahnarztpraxis Dr. Beispiel")
+    }
+
+    @Test
+    @DisplayName("the questions ask for the full printed name and the main purpose before a conditional step")
+    fun `the prompt wording`() {
+        val q = QuestionPrompt.questions(withSummary = true)
+
+        assertThat(q).contains("never shortened")
+        assertThat(q).contains("the main purpose of the letter first")
+    }
+
+    @Test
     @DisplayName("a name the letter does not hold is stored as the model wrote it, never dropped")
     fun `an ungrounded name`() {
         val v = build("SENDER: Fantasie Versicherung AG | company\nRECIPIENT: none")
