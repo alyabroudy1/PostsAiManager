@@ -568,11 +568,12 @@ class DocumentProcessingPipeline @Inject constructor(
                             updated = ReprocessOverwritePolicy.applyActions(updated, read)
                         }
                     }
+                    // The language a reading found, unless a person set it (and never blanked by a reading that found none).
+                    updated = ReprocessOverwritePolicy.applyLanguage(updated, extraction.language)
                     documentDao.update(
                         documentMapper.toEntity(
                             updated.copy(
                                 documentType = ExtractionSchema.DEFAULT.legacyType(updated.extractionType) ?: updated.documentType,
-                                language = extraction.language ?: updated.language,
                                 // Always overwritten with this run's own answer, null included —
                                 // a reprocess that happens to read the whole document (a bigger
                                 // context window, say) must clear a stale notice from an earlier
@@ -988,11 +989,11 @@ class DocumentProcessingPipeline @Inject constructor(
                     updated = ReprocessOverwritePolicy.applySummary(updated, read)
                     updated = ReprocessOverwritePolicy.applyActions(updated, read)
                     updated = ReprocessOverwritePolicy.applyLateTopics(updated, read)
+                    updated = ReprocessOverwritePolicy.applyLanguage(updated, read.language)
                     documentDao.update(
                         documentMapper.toEntity(
                             updated.copy(
                                 documentType = ExtractionSchema.DEFAULT.legacyType(updated.extractionType) ?: updated.documentType,
-                                language = read.language.ifBlank { null } ?: updated.language,
                                 suggestedQuestions = read.suggestedQuestions.take(MAX_SUGGESTED_QUESTIONS).ifEmpty { updated.suggestedQuestions },
                                 // A summary was settled: nothing is owed. Without one, settleFailedAttempt below counts the attempt.
                                 enrichmentPending = updated.enrichmentPending && read.summarySource == null,

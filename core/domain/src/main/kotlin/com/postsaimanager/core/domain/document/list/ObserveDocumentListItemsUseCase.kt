@@ -88,7 +88,7 @@ class ObserveDocumentListItemsUseCase @Inject constructor(
             // and the date then, with the step beside them).
             status = if (step != null && document.status != DocumentStatus.FAILED) DocumentListStatus.Processing else statusOf(document.status, fields),
             dateChip = dateChip(document, due, letterDate, today),
-            openActionCount = document.actionItems.size,
+            openActionCount = document.actionItems.count { !it.removed },
             people = people,
             typeId = typeTagOf(document.extractionType),
             readingStep = step,

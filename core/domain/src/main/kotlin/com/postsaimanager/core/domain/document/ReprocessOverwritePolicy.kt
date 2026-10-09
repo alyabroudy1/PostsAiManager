@@ -1,10 +1,12 @@
 package com.postsaimanager.core.domain.document
 
+import com.postsaimanager.core.domain.document.actions.ActionItemsPolicy
 import com.postsaimanager.core.domain.extraction.v2.ExtractionSchema
 import com.postsaimanager.core.domain.extraction.v2.LegacyTypes
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentUnderstanding
 import com.postsaimanager.core.model.FamilySource
+import com.postsaimanager.core.model.LanguageSource
 import com.postsaimanager.core.model.SummarySource
 import com.postsaimanager.core.model.TitleSource
 
@@ -120,11 +122,23 @@ object ReprocessOverwritePolicy {
     }
 
     /**
-     * The actions a second stage chose, replacing the stored ones (nobody edits them: a person's own say is their confirmed or edited
-     * fields, which the actions are rendered from when they are shown). A reading that chose none (a first stage, a failed scoring) leaves them.
+     * The actions a second stage chose, replacing the stored model actions: a person's own (added, edited or deleted) stay, see
+     * [ActionItemsPolicy]. A reading that chose none (a first stage, a failed scoring) leaves them all.
      */
     fun applyActions(document: Document, read: DocumentUnderstanding): Document {
         val items = read.actionItems ?: return document
-        return document.copy(actionItems = items)
+        return document.copy(actionItems = ActionItemsPolicy.merge(document.actionItems, items))
+    }
+
+    /** True when a re-read may replace the language. */
+    fun mayOverwriteLanguage(languageSource: LanguageSource): Boolean = languageSource == LanguageSource.MODEL
+
+    /**
+     * The language a reading found ([found], blank or null when it found none): stored unless a person set it, and never blanked by a
+     * reading that found none.
+     */
+    fun applyLanguage(document: Document, found: String?): Document {
+        val language = found?.takeIf { it.isNotBlank() } ?: return document
+        return if (mayOverwriteLanguage(document.languageSource)) document.copy(language = language) else document
     }
 }

@@ -15,6 +15,8 @@ import com.postsaimanager.core.model.ReviewState
  * @property rows the fields behind the sentence (date, amount, account, reference), for their inline Confirm and Edit; never the party,
  *   which has its own place on the tab
  * @property valueRows the fields shown under the sentence as a value to copy (the account, a reference, a date that is words not a date)
+ * @property item the stored action this line is rendered from: what an edit or a deletion of the line is addressed to
+ * @property text the person's own wording, shown instead of the sentence rendered from [kind]; null for a model action
  */
 class ActionLine(
     val kind: ActionKind,
@@ -24,6 +26,8 @@ class ActionLine(
     val rows: List<ExtractedData>,
     val valueRows: List<ExtractedData>,
     val offer: ContactOffer? = null,
+    val item: ActionItem = ActionItem(kind.id),
+    val text: String? = null,
 )
 
 /**
@@ -56,15 +60,16 @@ object ActionLines {
         }?.takeUnless { it.isEmpty }
         fun field(item: ActionItem, part: ActionPart): ExtractedData? = item.bindings[part.key]?.let { key -> live.firstOrNull { it.slotKey == key } }
 
-        return items.mapNotNull { item ->
+        return items.filter { !it.removed }.mapNotNull { item ->
             val kind = ActionKinds.of(item.kind) ?: return@mapNotNull null
             val dateRow = field(item, ActionPart.DATE)
-            val date = dateRow?.let { ActionDates.read(it.fieldValue) }
+            // A date the person gave the action wins over the bound field's.
+            val date = item.dueDate?.let(ActionDates::read) ?: dateRow?.let { ActionDates.read(it.fieldValue) }
             val amountRow = field(item, ActionPart.AMOUNT)
             val ibanRow = field(item, ActionPart.IBAN)
             val referenceRow = field(item, ActionPart.REFERENCE)
             val shownUnder = listOfNotNull(
-                dateRow.takeIf { date == null },
+                dateRow.takeIf { date == null && item.dueDate == null },
                 ibanRow,
                 referenceRow,
             )
@@ -76,6 +81,8 @@ object ActionLines {
                 rows = listOfNotNull(dateRow, amountRow, ibanRow, referenceRow),
                 valueRows = shownUnder,
                 offer = offer.takeIf { kind.id == ActionKinds.CONTACT.id },
+                item = item,
+                text = item.text?.takeIf { it.isNotBlank() },
             )
         }
     }

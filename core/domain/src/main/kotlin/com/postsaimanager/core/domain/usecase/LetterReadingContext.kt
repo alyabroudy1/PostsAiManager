@@ -74,7 +74,7 @@ object LetterReadingContext {
         val lines = mutableListOf<Line>()
         val coveredDates = mutableSetOf<String>()
         val covered = mutableSetOf<String>()
-        actionItems.forEach { item ->
+        actionItems.filter { !it.removed }.forEach { item ->
             val kind = ActionKinds.of(item.kind) ?: return@forEach
             val date = bound(item, ActionPart.DATE)
             val amount = bound(item, ActionPart.AMOUNT)
@@ -88,9 +88,12 @@ object LetterReadingContext {
                 amount?.let { "amount ${it.fieldValue.trim()}" + ((kind.amountMeaning ?: meaningOf(it)?.description)?.let { m -> " ($m)" } ?: "") },
                 party?.let { "sender ${it.fieldValue.trim()}" },
                 reference?.let { "reference ${it.fieldValue.trim()}" },
+                item.dueDate?.let { "date $it (the date the reader gave for it)" },
             )
+            // The reader's own wording of the action, where they gave one, is what they asked of themselves.
+            val task = item.text?.trim()?.takeIf { it.isNotEmpty() } ?: kind.task
             lines += Line(
-                "- The reader is asked to ${kind.task}" + if (parts.isEmpty()) "" else ": " + parts.joinToString("; "),
+                "- The reader is asked to $task" + if (parts.isEmpty()) "" else ": " + parts.joinToString("; "),
                 listOfNotNull(date, amount, party, reference).mapNotNull { it.slotKey }.toSet(),
             )
         }
