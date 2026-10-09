@@ -129,6 +129,42 @@ class ChatViewModelPiecesTest {
     }
 
     @Test
+    @DisplayName("a camera photo is attached like a picked one and its temporary file is deleted, taken or not")
+    fun `camera photo attaches and its temporary file goes`() = runTest {
+        val vm = viewModel()
+        val taken = java.io.File.createTempFile("camera", ".jpg")
+        vm.attachCameraPhoto(taken, taken = true)
+        assertThat(vm.uiState.value.attachments).hasSize(1)
+        assertThat(taken.exists()).isFalse()
+
+        val cancelled = java.io.File.createTempFile("camera", ".jpg")
+        vm.attachCameraPhoto(cancelled, taken = false)
+        assertThat(vm.uiState.value.attachments).hasSize(1)
+        assertThat(cancelled.exists()).isFalse()
+    }
+
+    @Test
+    fun `a refused camera permission says so briefly`() = runTest {
+        val vm = viewModel()
+        vm.onCameraPermissionDenied()
+        assertThat(vm.uiState.value.error?.messageRes).isEqualTo(R.string.chat_error_camera_permission)
+    }
+
+    @Test
+    @DisplayName("pictures sent to a model that cannot see them are not dropped: the chat says so")
+    fun `no vision send shows an error`() = runTest {
+        val vm = viewModel()
+        vm.refreshImageSupport()
+        vm.attachImage("content://photo/1")
+        models.supportsImages = false
+
+        vm.sendMessage("What is this?")
+
+        assertThat(vm.uiState.value.error?.messageRes).isEqualTo(R.string.chat_no_vision_message)
+        assertThat(chatEngine.requests).isEmpty()
+    }
+
+    @Test
     fun `no more than ten pictures are attached to one message`() = runTest {
         val vm = viewModel()
         repeat(12) { vm.attachImage("content://photo/$it") }

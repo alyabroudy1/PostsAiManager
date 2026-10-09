@@ -101,6 +101,9 @@ enum class ChatErrorAction {
 
     /** The active model cannot chat (its chat template does not render): send the user to the AI models screen to choose a chat model. */
     CHOOSE_CHAT_MODEL,
+
+    /** Pictures came with the message but the active model cannot look at them: switch to a model that can. */
+    IMAGES_NOT_SUPPORTED,
 }
 
 /**
@@ -214,6 +217,14 @@ class SendChatMessageUseCase @Inject constructor(
         imagePaths: List<String> = emptyList(),
     ): Flow<ChatTurn> = flow {
         val now = System.currentTimeMillis()
+
+        // Pictures are never dropped silently: a model that cannot look at them is told so before anything is stored or sent.
+        if (imagePaths.isNotEmpty() &&
+            runCatching { !ChatImagePolicy.enabledFor(activeModelProvider.activeModelConfig()) }.getOrDefault(false)
+        ) {
+            emit(ChatTurn.Failed(IMAGES_NOT_SUPPORTED_MESSAGE, ChatErrorAction.IMAGES_NOT_SUPPORTED))
+            return@flow
+        }
 
         // Ensure a conversation exists before anything can reference it.
         if (conversationRepository.getConversationById(conversationId) is PamResult.Error) {
@@ -470,7 +481,13 @@ class SendChatMessageUseCase @Inject constructor(
             // actions are grounded on is the chat's, or the one the reply's passages all come from; null leaves the card flagged.
             val tools = ChatToolsPolicy.requestFor(config, documentId, sources.map { it.chunk.documentId })
             // The picture goes to a model that can look at it; any other model answers the words alone.
-            val images = if (ChatImagePolicy.enabledFor(config)) turnImages else emptyList()
+            if (turnImages.isNotEmpty() && !ChatImagePolicy.enabledFor(config)) {
+                // A re-sent message that carries pictures, on a model that cannot see them: said, not answered blind.
+                abandonBegun(conversationId)
+                emit(ChatTurn.Failed(IMAGES_NOT_SUPPORTED_MESSAGE, ChatErrorAction.IMAGES_NOT_SUPPORTED))
+                return@flow
+            }
+            val images = turnImages
             com.postsaimanager.core.common.util.TimingLog.at("BEFORE ENGINE: sending ${sentText.length} chars, tools=${tools != null}")
             var tokensSeen = 0
             engine.sendChatMessage(
@@ -922,6 +939,7 @@ class SendChatMessageUseCase @Inject constructor(
             "The model finished thinking but did not produce an answer. You can try again."
 
         /** The active model's chat template does not render (the chat screen shows its own translated wording for this action). */
+        const val IMAGES_NOT_SUPPORTED_MESSAGE = "This model can't look at pictures. Switch to Gemma 4 E2B to send photos."
         const val CANNOT_CHAT_MESSAGE = "This model can't chat. Choose a chat model in AI models"
 
         /** M5: shown instead of a blank bubble when thinking used the whole reply budget. */

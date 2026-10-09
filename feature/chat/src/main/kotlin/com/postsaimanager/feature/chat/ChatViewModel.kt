@@ -559,14 +559,38 @@ class ChatViewModel @Inject constructor(
      */
     fun attachImage(source: String) {
         if (_uiState.value.attachments.size >= MessageImages.MAX_PER_MESSAGE) return
+        viewModelScope.launch { storeAttachment(source) }
+    }
+
+    /**
+     * A photo the camera just took into [file] (a temporary file in the app's cache): copied into the chat's own storage like a
+     * picked photo, and the temporary file is deleted whether or not it could be attached. [taken] is false when the user left
+     * the camera without a picture.
+     */
+    fun attachCameraPhoto(file: java.io.File, taken: Boolean) {
         viewModelScope.launch {
-            val stored = attachChatImage(conversationId, source)
-            _uiState.update {
-                when {
-                    stored == null -> it.copy(error = ChatError("", null, R.string.chat_error_image_unreadable))
-                    it.attachments.size >= MessageImages.MAX_PER_MESSAGE -> it
-                    else -> it.copy(attachments = it.attachments + stored)
+            try {
+                if (taken && _uiState.value.attachments.size < MessageImages.MAX_PER_MESSAGE) {
+                    storeAttachment("file://${file.absolutePath}")
                 }
+            } finally {
+                file.delete()
+            }
+        }
+    }
+
+    /** The camera permission was refused: said briefly; the gallery still works. */
+    fun onCameraPermissionDenied() {
+        _uiState.update { it.copy(error = ChatError("", null, R.string.chat_error_camera_permission)) }
+    }
+
+    private suspend fun storeAttachment(source: String) {
+        val stored = attachChatImage(conversationId, source)
+        _uiState.update {
+            when {
+                stored == null -> it.copy(error = ChatError("", null, R.string.chat_error_image_unreadable))
+                it.attachments.size >= MessageImages.MAX_PER_MESSAGE -> it
+                else -> it.copy(attachments = it.attachments + stored)
             }
         }
     }
@@ -812,6 +836,8 @@ class ChatViewModel @Inject constructor(
         stopWarmUp()
         warmUpJob = viewModelScope.launch {
             selectActiveModel(modelId)
+            // The new model may (not) look at pictures: the attach button follows.
+            refreshImageSupport()
             primeConversation()
         }
     }
@@ -953,7 +979,11 @@ data class ChatError(
 internal fun chatErrorOf(turn: ChatTurn.Failed): ChatError = ChatError(
     message = turn.message,
     action = turn.action,
-    messageRes = if (turn.action == ChatErrorAction.CHOOSE_CHAT_MODEL) R.string.chat_error_model_cannot_chat else null,
+    messageRes = when (turn.action) {
+        ChatErrorAction.CHOOSE_CHAT_MODEL -> R.string.chat_error_model_cannot_chat
+        ChatErrorAction.IMAGES_NOT_SUPPORTED -> R.string.chat_no_vision_message
+        else -> null
+    },
 )
 
 /** A page of the current letter the user can attach to a message as a picture. */

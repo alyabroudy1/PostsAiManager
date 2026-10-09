@@ -1,6 +1,12 @@
 package com.postsaimanager.feature.chat
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import java.io.File
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -174,6 +180,23 @@ fun ChatScreen(
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MessageImages.MAX_PER_MESSAGE)) { uris ->
         uris.forEach { viewModel.attachImage(it.toString()) }
     }
+    // The camera: the photo is taken into a temporary file in the app's cache (shared with the camera app through the
+    // FileProvider), copied into the chat's storage, and the temporary file deleted.
+    val context = LocalContext.current
+    var cameraFilePath by rememberSaveable { mutableStateOf<String?>(null) }
+    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
+        cameraFilePath?.let { viewModel.attachCameraPhoto(File(it), taken) }
+        cameraFilePath = null
+    }
+    fun launchCamera() {
+        val file = File(File(context.cacheDir, "camera").apply { mkdirs() }, "photo-${System.nanoTime()}.jpg")
+        cameraFilePath = file.absolutePath
+        takePicture.launch(FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file))
+    }
+    val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) launchCamera() else viewModel.onCameraPermissionDenied()
+    }
+    var showNoVisionSheet by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
@@ -292,6 +315,16 @@ fun ChatScreen(
         )
     }
 
+    if (showNoVisionSheet) {
+        NoVisionSheet(
+            onSwitchModel = {
+                showNoVisionSheet = false
+                showModelSheet = true
+            },
+            onDismiss = { showNoVisionSheet = false },
+        )
+    }
+
     if (showModelSheet) {
         ModelConfigBottomSheet(
             state = modelSheetState,
@@ -366,6 +399,15 @@ fun ChatScreen(
                 onPickPhotos = {
                     photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
+                onTakePhoto = {
+                    // The permission is asked only now, when the user chooses the camera.
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                        launchCamera()
+                    } else {
+                        cameraPermission.launch(Manifest.permission.CAMERA)
+                    }
+                },
+                onAttachUnsupported = { showNoVisionSheet = true },
                 onOpenAttachMenu = viewModel::loadAttachablePages,
                 onAttachPage = viewModel::attachPage,
                 onRemoveAttachment = viewModel::removeAttachment,

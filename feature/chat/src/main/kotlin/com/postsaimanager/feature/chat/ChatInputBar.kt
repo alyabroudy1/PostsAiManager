@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +45,7 @@ import java.io.File
 /** The tags of the attach button, the "photo" menu entry and an attachment's remove button (`attachment-remove-<index>`), for tests. */
 const val ATTACH_BUTTON_TAG = "attach-button"
 const val ATTACH_PHOTO_TAG = "attach-photo"
+const val ATTACH_CAMERA_TAG = "attach-camera"
 const val ATTACH_PAGE_TAG_PREFIX = "attach-page-"
 fun attachmentRemoveTag(index: Int) = "attachment-remove-$index"
 
@@ -63,6 +65,8 @@ internal fun ChatInputBar(
     imageInputSupported: Boolean = false,
     attachablePages: List<AttachablePage> = emptyList(),
     onPickPhotos: () -> Unit = {},
+    onTakePhoto: () -> Unit = {},
+    onAttachUnsupported: () -> Unit = {},
     onOpenAttachMenu: () -> Unit = {},
     onAttachPage: (AttachablePage) -> Unit = {},
     onRemoveAttachment: (String) -> Unit = {},
@@ -102,13 +106,18 @@ internal fun ChatInputBar(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (imageInputSupported) {
+                run {
                     var menuOpen by remember { mutableStateOf(false) }
                     Box {
                         IconButton(
                             onClick = {
-                                onOpenAttachMenu()
-                                menuOpen = true
+                                // A model that cannot look at pictures explains itself instead of hiding the button.
+                                if (imageInputSupported) {
+                                    onOpenAttachMenu()
+                                    menuOpen = true
+                                } else {
+                                    onAttachUnsupported()
+                                }
                             },
                             modifier = Modifier.testTag(ATTACH_BUTTON_TAG),
                         ) {
@@ -123,6 +132,15 @@ internal fun ChatInputBar(
                                 },
                                 modifier = Modifier.testTag(ATTACH_PHOTO_TAG),
                             )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.chat_attach_camera)) },
+                                onClick = {
+                                    menuOpen = false
+                                    onTakePhoto()
+                                },
+                                modifier = Modifier.testTag(ATTACH_CAMERA_TAG),
+                            )
+                            if (attachablePages.isNotEmpty()) HorizontalDivider()
                             attachablePages.forEach { page ->
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.chat_attach_page, page.pageNumber)) },
