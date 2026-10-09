@@ -248,6 +248,7 @@ internal object LlmChatModelHelper : LlmModelHelper {
         leadPrompt: String?,
         onLead: ((String) -> Unit)?,
         keepOpen: Boolean,
+        onPartial: ((String) -> Unit)?,
     ): String? =
         try {
             lastBenchmark = ""
@@ -290,7 +291,10 @@ internal object LlmChatModelHelper : LlmModelHelper {
                 val answer = if (leadPrompt == null) {
                     contents.add(Content.Text(prompt))
                     // A blank schema is a free-text answer (the "Questions" reader style): no response format on the message.
-                    if (schema.isBlank()) {
+                    if (schema.isBlank() && onPartial != null) {
+                        // Streamed: the caller sees the answer line by line while it is decoded (the summary line comes first).
+                        streamFreeText(conversation, Contents.of(contents), thinkingOff, onPartial).also { if (timedOut.get()) error("timed out") }
+                    } else if (schema.isBlank()) {
                         conversation.sendMessage(Contents.of(contents), extraContext = thinkingOff).toString()
                     } else {
                         conversation.sendMessage(
@@ -329,6 +333,49 @@ internal object LlmChatModelHelper : LlmModelHelper {
             Log.w(TAG, "structured generation failed: ${e.message}")
             null
         }
+
+    /**
+     * One free-text message answered as a stream, blocking until it ends: [onPartial] gets the whole answer so far each time a line of it
+     * is complete (not every token: the caller parses lines, and each call may cross a process boundary). Returns the whole answer; an
+     * engine error is thrown, a cancelled generation (the timeout's) ends the stream with what was decoded.
+     */
+    private fun streamFreeText(
+        conversation: Conversation,
+        contents: Contents,
+        extraContext: Map<String, Any>,
+        onPartial: (String) -> Unit,
+    ): String {
+        val text = StringBuilder()
+        var linesHandedOn = 0
+        val finished = java.util.concurrent.CountDownLatch(1)
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>(null)
+        conversation.sendMessageAsync(
+            contents,
+            object : MessageCallback {
+                override fun onMessage(message: Message) {
+                    text.append(message.toString())
+                    val lines = text.count { it == '\n' }
+                    if (lines > linesHandedOn) {
+                        linesHandedOn = lines
+                        runCatching { onPartial(text.toString()) }
+                    }
+                }
+
+                override fun onDone() {
+                    finished.countDown()
+                }
+
+                override fun onError(throwable: Throwable) {
+                    if (throwable !is CancellationException) failure.set(throwable)
+                    finished.countDown()
+                }
+            },
+            extraContext,
+        )
+        finished.await()
+        failure.get()?.let { throw it }
+        return text.toString()
+    }
 
     @OptIn(ExperimentalApi::class) // the response format
     override fun continueStructured(instance: LlmModelInstance, prompt: String, schema: String, timeoutMs: Long): String? {

@@ -148,4 +148,24 @@ class QuestionReadingBuilderTest {
         assertThat(v.dates.map { it.candidate.id }).contains(action.dateCandidateId)
         assertThat(action.amountCandidateId).isEqualTo(v.amounts.single().candidate.id)
     }
+
+    @Test
+    @DisplayName("the short format: the paid state is the second part of the ASKS line, then one 'kind — by when' item per thing asked")
+    fun `paid state inside the asks line`() {
+        val v = build("SUMMARY: A reminder.\nASKS: yes | to_pay; pay — 2026-10-09; reply — 2026-10-12\nAMOUNTS: 64,98 EUR — TOTAL_DUE\nEVENT: payment_reminder\nLANGUAGE: de")
+
+        assertThat(v.paid).isEqualTo(PaidState.TO_PAY)
+        assertThat(v.asksReader).isTrue()
+        assertThat(v.actions.map { it.kind }).containsExactly("pay", "reply").inOrder()
+        assertThat(v.language).isEqualTo("de")
+
+        val none = build("ASKS: no | not_applicable")
+        assertThat(none.paid).isEqualTo(PaidState.NOT_APPLICABLE)
+        assertThat(none.asksReader).isFalse()
+        assertThat(none.actions).isEmpty()
+        // A separate PAID line (the long format) is still read when the ASKS line has no paid state.
+        assertThat(build("ASKS: no\nPAID: already_paid").paid).isEqualTo(PaidState.ALREADY_PAID)
+        // The summary line is no field of the reading.
+        assertThat(build("SUMMARY: Something.").name).isNull()
+    }
 }

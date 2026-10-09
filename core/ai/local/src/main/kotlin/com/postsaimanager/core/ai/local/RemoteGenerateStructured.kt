@@ -58,8 +58,9 @@ internal class RemoteGenerateStructured(
     private suspend fun readOnService(request: StructuredRequest): String? = withContext(ioDispatcher) {
         val remote = service() ?: return@withContext null
         // The first turn's text arrives on a binder thread while the call below still blocks: handed on as it comes.
-        val onLead = request.onLead
-        val lead = if (request.leadPrompt != null && onLead != null) newLead { text -> runBlocking { onLead(text) } } else null
+        // The same callback carries the streamed answer of a one-turn request ([StructuredRequest.onPartial]: the answer so far, per line).
+        val onLead = if (request.leadPrompt != null) request.onLead else request.onPartial
+        val lead = if (onLead != null) newLead { text -> runBlocking { onLead(text) } } else null
         try {
             remote.generateLiteRtStructured(
                 request.system, request.prompt, request.schema, request.imagePaths.toTypedArray(),

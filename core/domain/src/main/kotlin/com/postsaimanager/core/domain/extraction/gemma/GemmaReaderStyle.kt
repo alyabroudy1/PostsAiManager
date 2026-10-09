@@ -14,6 +14,13 @@ interface GemmaReaderStyle {
     suspend fun current(): ReaderStyle
 
     suspend fun set(style: ReaderStyle)
+
+    /** The debug switch "Questions: always send the page image": off (the default), the Questions reader sends the picture only when the OCR text is weak ([QaImageDecision]). */
+    val alwaysImage: Flow<Boolean>
+
+    suspend fun alwaysSendImage(): Boolean
+
+    suspend fun setAlwaysImage(always: Boolean)
 }
 
 /**

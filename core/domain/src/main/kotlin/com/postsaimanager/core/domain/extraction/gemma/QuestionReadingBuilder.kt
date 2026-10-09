@@ -39,13 +39,13 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
             .mapNotNull { (text, meaning) -> typer.amount(text)?.let { VerifiedValue(it, meaning) } ?: null.also { notes += "amount not typed" } }
             .distinctBy { it.candidate.id }
         val references = references(answers, typer, notes)
-        val (asks, actions, extraDates) = askedActions(answers, typer, dates, amounts, notes)
+        val (asks, actions, extraDates, paidInAsks) = askedActions(answers, typer, dates, amounts, notes)
 
         val category = QaText.key(answers[QaLabel.TYPE]).let { key -> vocab.categoryIds.firstOrNull { QaText.key(it) == key } }
             ?: GemmaVocabulary.DOCUMENT_CATEGORY.also { if (answers[QaLabel.TYPE] != null) notes += "category is not in the registry" }
         val language = QaText.word(answers[QaLabel.LANGUAGE]).takeIf { GemmaSchema.LANGUAGE_CODE.matches(it) }
         val name = answers[QaLabel.TITLE]?.let(DocumentNameFormat::clean)?.takeIf { it.isNotEmpty() && it.length <= DocumentNameFormat.MAX_CHARS && '\n' !in it }
-        val paid = PaidState.of(QaText.word(answers[QaLabel.PAID]))
+        val paid = paidInAsks ?: PaidState.of(QaText.word(answers[QaLabel.PAID]))
         val eventKind = vocab.eventKind(QaText.word(answers[QaLabel.EVENT]))
 
         return VerifiedReading(
@@ -109,27 +109,41 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
         return out.values.toList()
     }
 
-    private class Asked(val asks: Boolean?, val actions: List<VerifiedAction>, val extraDates: List<VerifiedValue>) {
+    private class Asked(val asks: Boolean?, val actions: List<VerifiedAction>, val extraDates: List<VerifiedValue>, val paid: PaidState?) {
         operator fun component1() = asks
         operator fun component2() = actions
         operator fun component3() = extraDates
+        operator fun component4() = paid
     }
 
-    /** `ASKS: yes — kind — by when`; a date the action names that the dates list lacks is added to it (with no meaning). */
+    /**
+     * `ASKS: yes | paid state; kind — by when; kind — by when` (the paid state is the second part of the first item; a model that put the
+     * first action in that item, `yes — kind — by when`, or left the paid state out is understood as well). A date the action names that
+     * the dates list lacks is added to it (with no meaning).
+     */
     private fun askedActions(answers: QaAnswers, typer: QaValueTyper, dates: List<VerifiedValue>, amounts: List<VerifiedValue>, notes: MutableList<String>): Asked {
-        val text = answers[QaLabel.ASKS] ?: return Asked(null, emptyList(), emptyList())
+        val text = answers[QaLabel.ASKS] ?: return Asked(null, emptyList(), emptyList(), null)
         val items = QaText.items(text)
         val asks = when (QaText.word(items.firstOrNull() ?: text)) {
             GemmaVocabulary.YES -> true
             GemmaVocabulary.NO -> false
             else -> null
         }
-        if (asks == false) return Asked(false, emptyList(), emptyList())
-        val kindIds = vocab.actionKinds.map { it.id }
-        val extra = mutableListOf<VerifiedValue>()
-        val actions = items.mapNotNull { item ->
+        var paid: PaidState? = null
+        // The paid state is the part that follows yes / no: taken out of the item whichever item it is in.
+        val itemParts = items.map { item ->
             var parts = QaText.parts(item)
             if (parts.firstOrNull()?.let { QaText.word(it) } in setOf(GemmaVocabulary.YES, GemmaVocabulary.NO)) parts = parts.drop(1)
+            PaidState.of(QaText.word(parts.firstOrNull()))?.let { state ->
+                paid = paid ?: state
+                parts = parts.drop(1)
+            }
+            parts
+        }
+        if (asks == false) return Asked(false, emptyList(), emptyList(), paid)
+        val kindIds = vocab.actionKinds.map { it.id }
+        val extra = mutableListOf<VerifiedValue>()
+        val actions = itemParts.mapNotNull { parts ->
             val kind = choose(parts.firstOrNull(), kindIds)?.let(vocab::actionKind) ?: return@mapNotNull null
             val date = parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let(typer::date)?.also { d ->
                 if (dates.none { it.candidate.id == d.id } && extra.none { it.candidate.id == d.id }) extra += VerifiedValue(d, null)
@@ -142,7 +156,7 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
             VerifiedAction(kind.id, date?.id, amount)
         }.distinctBy { it.kind }
         notes += "asks=${asks} actions=${actions.size}"
-        return Asked(asks ?: actions.isNotEmpty().takeIf { it }, actions, extra)
+        return Asked(asks ?: actions.isNotEmpty().takeIf { it }, actions, extra, paid)
     }
 
     /** The id of [ids] that [text] names (its leading word, or all of it, with case and separators ignored); null when it names none. */

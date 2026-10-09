@@ -13,6 +13,8 @@ package com.postsaimanager.core.domain.ai
  *   goes to [onLead] at once; then [prompt] is asked in the same conversation (nothing is prefilled twice) and its answer, constrained
  *   to [schema], is the result. When null the one message [prompt] carries the pictures and its answer is the result.
  * @property onLead receives the free-text answer of the first turn the moment it is complete, while the second turn still runs
+ * @property onPartial for a one-turn free-text request ([leadPrompt] null, blank [schema]): receives the answer so far each time a line
+ *   of it is complete, while the rest is still being decoded (the "Questions" reader shows its summary line as soon as it ends)
  * @property keepOpenAs when set, the conversation is not closed after a good answer: it stays open under this key (the document's id) so
  *   that [ChatEngine.continueStructured] can ask follow-up questions in it, with the letter and the pictures already in its cache. It
  *   lives until [ChatEngine.closeStructured], or until any other caller uses the model (then it is gone, and a follow-up answers null).
@@ -31,6 +33,7 @@ data class StructuredRequest(
     val leadPrompt: String? = null,
     val onLead: (suspend (String) -> Unit)? = null,
     val keepOpenAs: String? = null,
+    val onPartial: (suspend (String) -> Unit)? = null,
 ) {
     companion object {
         const val DEFAULT_MAX_TOKENS = 1024

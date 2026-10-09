@@ -111,6 +111,9 @@ internal interface LlmModelHelper {
      *
      * With a [leadPrompt] the conversation has two turns: the pictures and [leadPrompt] first, answered in free text and handed to
      * [onLead] at once; then [prompt], whose constrained answer is the result (the format is set per message).
+     *
+     * With an [onPartial] (one turn, no [leadPrompt], a blank [schema]) the answer is streamed: [onPartial] gets the whole answer so far
+     * each time a line of it is complete.
      */
     fun generateStructured(
         instance: LlmModelInstance,
@@ -124,6 +127,7 @@ internal interface LlmModelHelper {
         leadPrompt: String? = null,
         onLead: ((String) -> Unit)? = null,
         keepOpen: Boolean = false,
+        onPartial: ((String) -> Unit)? = null,
     ): String? = null
 
     /**

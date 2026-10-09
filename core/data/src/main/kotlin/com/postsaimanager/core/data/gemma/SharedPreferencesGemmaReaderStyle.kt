@@ -32,11 +32,23 @@ class SharedPreferencesGemmaReaderStyle @Inject constructor(
         state.value = style
     }
 
+    private val alwaysState = MutableStateFlow(runCatching { preferences.getBoolean(KEY_ALWAYS_IMAGE, false) }.getOrDefault(false))
+
+    override val alwaysImage: Flow<Boolean> = alwaysState.asStateFlow()
+
+    override suspend fun alwaysSendImage(): Boolean = alwaysState.value
+
+    override suspend fun setAlwaysImage(always: Boolean) {
+        runCatching { preferences.edit().putBoolean(KEY_ALWAYS_IMAGE, always).apply() }
+        alwaysState.value = always
+    }
+
     private fun read(): ReaderStyle =
         runCatching { preferences.getString(KEY, null) }.getOrNull()?.let { name -> ReaderStyle.entries.firstOrNull { it.name == name } } ?: ReaderStyle.JSON
 
     private companion object {
         const val FILE = "gemma_reader_style"
         const val KEY = "reader_style"
+        const val KEY_ALWAYS_IMAGE = "questions_always_image"
     }
 }
