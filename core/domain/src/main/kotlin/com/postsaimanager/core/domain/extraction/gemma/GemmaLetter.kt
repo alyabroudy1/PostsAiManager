@@ -6,6 +6,7 @@ import com.postsaimanager.core.domain.extraction.candidates.LabelValuePair
 import com.postsaimanager.core.domain.extraction.layout.LayoutLine
 import com.postsaimanager.core.domain.extraction.layout.LetterLayout
 import com.postsaimanager.core.domain.extraction.layout.LetterZone
+import com.postsaimanager.core.domain.extraction.layout.NoiseKind
 import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
 
 /**
@@ -41,8 +42,13 @@ data class GemmaCandidate(
     val lineId: String?,
 )
 
-/** The letter as the reader sees it: its lines and the candidates it may choose from, each with an id. */
-class GemmaLetter(val lines: List<GemmaLine>, val candidates: List<GemmaCandidate>) {
+/**
+ * The letter as the reader sees it: its lines and the candidates it may choose from, each with an id.
+ *
+ * @property unreadableLines how many lines the OCR returned with too low a confidence to be offered (left out of [lines]); the
+ *   "Questions" reader sends the page picture when they are many ([QaImageDecision])
+ */
+class GemmaLetter(val lines: List<GemmaLine>, val candidates: List<GemmaCandidate>, val unreadableLines: Int = 0) {
 
     private val candidatesById = candidates.associateBy { it.id }
     private val linesById = lines.associateBy { it.id }
@@ -110,7 +116,7 @@ object GemmaLetterBuilder {
             GemmaCandidate(c.id, c.kind, c.raw.trim(), c.normalized, c.label.ifBlank { row.nearLabels.firstOrNull().orEmpty() }, lineIdOf(c, source, lines.size))
             // A label is no name: its line is not offered as a name candidate either (the value below it is the name).
         }.filterNot { it.kind == CandidateKind.NAME && it.lineId in labelIds }
-        return GemmaLetter(lines, candidates)
+        return GemmaLetter(lines, candidates, unreadableLines = layout.allLines.count { it.noise == NoiseKind.LOW_CONFIDENCE })
     }
 
     private fun same(a: String, b: String) = a.trim().replace(WHITE, " ") == b.trim().replace(WHITE, " ")

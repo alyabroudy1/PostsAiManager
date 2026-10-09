@@ -662,10 +662,17 @@ class LiteRtChatEngine internal constructor(
                     runBlocking { sink(text) }
                 }
             }
+            // The streamed answer of a one-turn free-text request: handed on line by line; the time of the first line is the time-to-summary.
+            val onPartial: ((String) -> Unit)? = request.onPartial?.let { sink ->
+                { soFar ->
+                    if (leadMs < 0) leadMs = (System.nanoTime() - started) / 1_000_000
+                    runBlocking { sink(soFar) }
+                }
+            }
             val answer = withContext(Dispatchers.IO) {
                 helper.generateStructured(
                     live, modelConfig, request.system, request.prompt, images, request.schema, request.maxTokens, request.timeoutMs,
-                    request.leadPrompt, onLead, keepOpen = request.keepOpenAs != null,
+                    request.leadPrompt, onLead, keepOpen = request.keepOpenAs != null, onPartial = onPartial,
                 )
             }
             conversationSampling = null
@@ -677,7 +684,7 @@ class LiteRtChatEngine internal constructor(
             TimingLog.log(
                 "reader: structured answer total=${(System.nanoTime() - started) / 1_000_000}ms backend=${live.accelerator} " +
                     "image=${if (images.isNotEmpty()) "yes(${images.size})" else "no"} json=${answer?.length ?: -1} chars " +
-                    "${if (request.leadPrompt != null) "lead=${if (leadMs >= 0) "${leadMs}ms" else "none"} " else ""}" +
+                    "${if (request.leadPrompt != null || request.onPartial != null) "lead=${if (leadMs >= 0) "${leadMs}ms" else "none"} " else ""}" +
                     helper.lastBenchmark.ifBlank { "bench: none" },
             )
             return answer

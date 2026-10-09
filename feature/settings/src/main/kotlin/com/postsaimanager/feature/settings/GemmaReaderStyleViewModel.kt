@@ -29,6 +29,14 @@ class GemmaReaderStyleViewModel @Inject constructor(
         viewModelScope.launch { setting.set(if (questions) ReaderStyle.QUESTIONS else ReaderStyle.JSON) }
     }
 
+    /** The debug switch "Questions: always send the page picture" (off: only when the recognised text is weak). */
+    val alwaysImage: StateFlow<Boolean> = setting.alwaysImage
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
+
+    fun setAlwaysImage(always: Boolean) {
+        viewModelScope.launch { setting.setAlwaysImage(always) }
+    }
+
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
     }

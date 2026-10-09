@@ -539,7 +539,9 @@ class InferenceService : Service() {
                 maxTokens = maxTokens, temperature = temperature, topK = topK, timeoutMs = timeoutMs,
                 leadPrompt = leadPrompt,
                 // The first turn's text goes straight back over the (oneway) callback; a dead app process only loses it.
-                onLead = onLead,
+                onLead = if (leadPrompt != null) onLead else null,
+                // With no first turn the same callback carries the streamed answer of the one turn: the answer so far, per finished line.
+                onPartial = if (leadPrompt == null) onLead else null,
                 keepOpenAs = keepOpenAs,
             )
             return submit { runBlocking { liteRt.generateStructured(request) } }

@@ -127,6 +127,10 @@ class FakeChatEngine(
         structuredRequests += request
         if (request.leadPrompt != null) leadAnswer?.let { request.onLead?.invoke(it) }
         val answer = structuredResponder?.invoke(request) ?: structuredAnswer
+        // Streamed as the real engine does: the answer so far, each time a line of it is complete.
+        if (answer != null) request.onPartial?.let { sink ->
+            answer.indices.filter { answer[it] == '\n' }.forEach { sink(answer.substring(0, it + 1)) }
+        }
         keptOpenKey = if (answer != null) request.keepOpenAs else null
         return answer
     }

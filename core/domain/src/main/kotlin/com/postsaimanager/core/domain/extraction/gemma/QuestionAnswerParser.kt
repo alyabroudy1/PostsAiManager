@@ -21,19 +21,25 @@ object QuestionAnswerParser {
         RegexOption.IGNORE_CASE,
     )
 
+    /** [line] as a label and its text (`**SENDER:** Name`), or null when the line starts with no label. */
+    fun labelled(line: String): Pair<QaLabel, String>? {
+        val m = LINE.matchEntire(line.trim()) ?: return null
+        return QaLabel.entries.first { it.name.equals(m.groupValues[1], ignoreCase = true) } to m.groupValues[2].trim()
+    }
+
     fun parse(text: String): QaAnswers {
         val fields = LinkedHashMap<QaLabel, StringBuilder>()
         var current: StringBuilder? = null
         for (raw in text.lines()) {
             val line = raw.trim()
             if (line.isEmpty()) continue
-            val m = LINE.matchEntire(line)
-            if (m != null) {
-                val label = QaLabel.entries.first { it.name.equals(m.groupValues[1], ignoreCase = true) }
+            val labelled = labelled(line)
+            if (labelled != null) {
+                val (label, value) = labelled
                 // The first line of a label is the answer; a repeated label adds to it (the model said the same thing twice).
                 current = fields.getOrPut(label) { StringBuilder() }
                 if (current.isNotEmpty()) current.append("; ")
-                current.append(m.groupValues[2].trim())
+                current.append(value)
             } else {
                 // A line without a label continues the previous one: one more item of a list.
                 current?.append("; ")?.append(line.trimStart('-', '*', '•', ' '))

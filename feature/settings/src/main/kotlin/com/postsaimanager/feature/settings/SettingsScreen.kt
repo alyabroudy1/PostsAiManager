@@ -220,6 +220,14 @@ fun SettingsScreen(
                     checked = questionsOn,
                     onCheckedChange = readerStyle::setQuestions,
                 )
+                val alwaysImage by readerStyle.alwaysImage.collectAsStateWithLifecycle()
+                SettingsSwitchItem(
+                    icon = PamIcons.AiModel,
+                    title = stringResource(R.string.settings_questions_image_title),
+                    subtitle = stringResource(R.string.settings_questions_image_subtitle),
+                    checked = alwaysImage,
+                    onCheckedChange = readerStyle::setAlwaysImage,
+                )
                 val readingAccelerator: ReadingAcceleratorViewModel = hiltViewModel()
                 val readingOnGpu by readingAccelerator.onGpu.collectAsStateWithLifecycle()
                 SettingsSwitchItem(
