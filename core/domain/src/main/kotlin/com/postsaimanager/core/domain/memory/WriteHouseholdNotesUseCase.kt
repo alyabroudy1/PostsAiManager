@@ -26,9 +26,10 @@ class WriteHouseholdNotesUseCase @Inject constructor(
     private val profiles: ProfileRepository,
     verifier: SessionNoteVerifier,
     private val personOf: NotePersonDecider,
+    appLanguage: com.postsaimanager.core.domain.settings.AppLanguageProvider? = null,
 ) {
 
-    private val drafter = SessionNoteDrafter(generator, verifier)
+    private val drafter = SessionNoteDrafter(generator, verifier, appLanguage)
 
     /**
      * @param sessionTurns the messages of the session that ended, oldest first

@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
-import androidx.fragment.app.FragmentActivity
+import androidx.appcompat.app.AppCompatActivity
 import com.postsaimanager.applock.AppLockGate
 import com.postsaimanager.applock.BiometricDeviceAuthenticator
 import com.postsaimanager.applock.bindSecureWindow
@@ -20,11 +20,12 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 /**
- * A [FragmentActivity] (still a `ComponentActivity`, so `setContent` and edge-to-edge work as
- * before) because `BiometricPrompt` hosts its UI in a fragment.
+ * An [AppCompatActivity] (a `FragmentActivity` and so a `ComponentActivity`: `setContent` and edge-to-edge work as before, and
+ * `BiometricPrompt` can host its fragment). AppCompat applies the in-app language (Settings > Language) on every API level and
+ * recreates the activity when it changes.
  */
 @AndroidEntryPoint
-class MainActivity : FragmentActivity() {
+class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var appLock: AppLockState

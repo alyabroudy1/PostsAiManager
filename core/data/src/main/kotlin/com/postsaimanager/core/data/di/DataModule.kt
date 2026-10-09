@@ -94,6 +94,14 @@ abstract class DataModule {
 
     @Binds
     @Singleton
+    abstract fun bindAppLanguageSettings(impl: com.postsaimanager.core.data.settings.AppCompatAppLanguage): com.postsaimanager.core.domain.settings.AppLanguageSettings
+
+    @Binds
+    @Singleton
+    abstract fun bindAppLanguageProvider(impl: com.postsaimanager.core.data.settings.AppCompatAppLanguage): com.postsaimanager.core.domain.settings.AppLanguageProvider
+
+    @Binds
+    @Singleton
     abstract fun bindConversationRepository(impl: ConversationRepositoryImpl): ConversationRepository
 
     @Binds

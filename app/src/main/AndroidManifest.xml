@@ -90,6 +90,16 @@
             android:foregroundServiceType="dataSync"
             tools:node="merge" />
 
+        <!-- Stores the in-app language (Settings > Language) on API < 33, so it survives a restart. API 33+ stores it in the system. -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data
+                android:name="autoStoreLocales"
+                android:value="true" />
+        </service>
+
         <!-- WorkManager is configured on demand via PostsAiManagerApp (Configuration.Provider)
              so workers are built through Hilt. The default initializer must be removed. -->
         <provider

@@ -160,6 +160,8 @@ dependencies {
 
     // Core
     implementation(libs.core.ktx)
+    // MainActivity is an AppCompatActivity: it applies the in-app language on every API level.
+    implementation(libs.appcompat)
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
 

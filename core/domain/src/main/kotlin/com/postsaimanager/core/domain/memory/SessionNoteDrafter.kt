@@ -15,6 +15,7 @@ import kotlinx.coroutines.CancellationException
 internal class SessionNoteDrafter(
     private val generator: SessionNoteGenerator,
     private val verifier: SessionNoteVerifier,
+    private val appLanguage: com.postsaimanager.core.domain.settings.AppLanguageProvider? = null,
 ) {
 
     /**
@@ -50,7 +51,7 @@ internal class SessionNoteDrafter(
             }
         }
         val answer = try {
-            generator.generate(SessionNotesFormat.SYSTEM, SessionNotesFormat.prompt(turns, existing, about, actionNotes))
+            generator.generate(SessionNotesFormat.SYSTEM, SessionNotesFormat.prompt(turns, existing, about, actionNotes, appLanguage?.aiLanguageCode()))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

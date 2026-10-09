@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.provider.Settings
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.core.designsystem.component.ConfigSpecItem
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.designsystem.icon.PamIcons
+import com.postsaimanager.core.model.AppLanguage
 import com.postsaimanager.core.model.AppLockTimeouts
 import com.postsaimanager.core.model.AppTheme
 
@@ -63,10 +65,11 @@ fun SettingsScreen(
     var showLockTimeoutDialog by remember { mutableStateOf(false) }
     var showOpenSourceDialog by remember { mutableStateOf(false) }
     val appLockNotice by viewModel.appLockNotice.collectAsStateWithLifecycle()
+    val language by viewModel.language.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     Scaffold(
-        topBar = { PamTopAppBar(title = "Settings") },
+        topBar = { PamTopAppBar(title = stringResource(R.string.settings_title)) },
         modifier = modifier,
     ) { innerPadding ->
         Column(
@@ -76,42 +79,38 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             // ── Appearance ──
-            SettingsSectionHeader("Appearance")
+            SettingsSectionHeader(stringResource(R.string.settings_section_appearance))
             SettingsClickItem(
                 icon = PamIcons.Settings,
-                title = "Theme",
-                subtitle = prefs.theme.name.lowercase().replaceFirstChar { it.uppercase() },
+                title = stringResource(R.string.settings_theme),
+                subtitle = stringResource(themeLabel(prefs.theme)),
                 onClick = { showThemeDialog = true },
             )
             SettingsClickItem(
                 icon = PamIcons.Settings,
-                title = "Language",
-                subtitle = when (prefs.defaultLanguage) {
-                    "de" -> "German"
-                    "ar" -> "Arabic"
-                    else -> "English"
-                },
+                title = stringResource(R.string.settings_language),
+                subtitle = stringResource(languageLabel(language)),
                 onClick = { showLanguageDialog = true },
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // ── AI ──
-            SettingsSectionHeader("AI")
+            SettingsSectionHeader(stringResource(R.string.settings_section_ai))
             SettingsClickItem(
                 icon = PamIcons.AiModel,
-                title = "AI models",
-                subtitle = "Download and manage on-device models",
+                title = stringResource(R.string.settings_ai_models),
+                subtitle = stringResource(R.string.settings_ai_models_subtitle),
                 onClick = onManageModelsClick,
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // ── On-device AI ──
-            SettingsSectionHeader("On-device AI")
+            SettingsSectionHeader(stringResource(R.string.settings_section_on_device_ai))
             if (inferenceSettings.schema.isEmpty()) {
                 Text(
-                    text = if (inferenceSettings.loaded) "Install a model to configure it." else "Loading the model settings...",
+                    text = stringResource(if (inferenceSettings.loaded) R.string.settings_install_model_hint else R.string.settings_loading_model),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -126,8 +125,8 @@ fun SettingsScreen(
                 }
                 SettingsClickItem(
                     icon = PamIcons.Settings,
-                    title = "Reset to defaults",
-                    subtitle = "Clear every custom AI setting above",
+                    title = stringResource(R.string.settings_reset_defaults),
+                    subtitle = stringResource(R.string.settings_reset_defaults_subtitle),
                     onClick = viewModel::resetInference,
                 )
             }
@@ -135,11 +134,11 @@ fun SettingsScreen(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // ── Processing ──
-            SettingsSectionHeader("Document Processing")
+            SettingsSectionHeader(stringResource(R.string.settings_section_processing))
             SettingsSwitchItem(
                 icon = PamIcons.AiModel,
-                title = "Auto-process after scan",
-                subtitle = "Run OCR and extraction automatically",
+                title = stringResource(R.string.settings_auto_process),
+                subtitle = stringResource(R.string.settings_auto_process_subtitle),
                 checked = prefs.autoProcessAfterScan,
                 onCheckedChange = viewModel::setAutoProcess,
             )
@@ -152,15 +151,15 @@ fun SettingsScreen(
             )
             SettingsClickItem(
                 icon = PamIcons.Delete,
-                title = "Recently deleted",
-                subtitle = "Restore or permanently delete documents",
+                title = stringResource(R.string.settings_recently_deleted),
+                subtitle = stringResource(R.string.settings_recently_deleted_subtitle),
                 onClick = onRecentlyDeletedClick,
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // ── Security ──
-            SettingsSectionHeader("Security")
+            SettingsSectionHeader(stringResource(R.string.settings_section_security))
             SettingsSwitchItem(
                 icon = PamIcons.Settings,
                 title = stringResource(R.string.settings_app_lock_title),
@@ -180,11 +179,11 @@ fun SettingsScreen(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // ── Notifications ──
-            SettingsSectionHeader("Notifications")
+            SettingsSectionHeader(stringResource(R.string.settings_section_notifications))
             SettingsSwitchItem(
                 icon = PamIcons.Settings,
-                title = "Deadline reminders",
-                subtitle = "Get notified about upcoming deadlines",
+                title = stringResource(R.string.settings_deadline_reminders),
+                subtitle = stringResource(R.string.settings_deadline_reminders_subtitle),
                 checked = prefs.notificationsEnabled,
                 onCheckedChange = viewModel::setNotificationsEnabled,
             )
@@ -241,10 +240,10 @@ fun SettingsScreen(
             }
 
             // ── About ──
-            SettingsSectionHeader("About")
+            SettingsSectionHeader(stringResource(R.string.settings_section_about))
             SettingsClickItem(
                 icon = PamIcons.Settings,
-                title = "Version",
+                title = stringResource(R.string.settings_version),
                 subtitle = remember(context) {
                     runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
                 },
@@ -264,10 +263,8 @@ fun SettingsScreen(
     // Theme dialog
     if (showThemeDialog) {
         ChoiceDialog(
-            title = "Theme",
-            options = AppTheme.entries.map {
-                it.name.lowercase().replaceFirstChar { c -> c.uppercase() }
-            },
+            title = stringResource(R.string.settings_theme),
+            options = AppTheme.entries.map { stringResource(themeLabel(it)) },
             selectedIndex = AppTheme.entries.indexOf(prefs.theme),
             onSelect = { index ->
                 viewModel.setTheme(AppTheme.entries[index])
@@ -349,18 +346,35 @@ fun SettingsScreen(
 
     // Language dialog
     if (showLanguageDialog) {
-        val languages = listOf("German" to "de", "Arabic" to "ar", "English" to "en")
+        val languages = AppLanguage.entries
         ChoiceDialog(
-            title = "Default Language",
-            options = languages.map { it.first },
-            selectedIndex = languages.indexOfFirst { it.second == prefs.defaultLanguage }.coerceAtLeast(0),
+            title = stringResource(R.string.settings_language),
+            options = languages.map { stringResource(languageLabel(it)) },
+            selectedIndex = languages.indexOf(language),
             onSelect = { index ->
-                viewModel.setDefaultLanguage(languages[index].second)
                 showLanguageDialog = false
+                // The app recreates its screens in the new language: nothing more to do here.
+                viewModel.setLanguage(languages[index])
             },
             onDismiss = { showLanguageDialog = false },
         )
     }
+}
+
+@StringRes
+private fun themeLabel(theme: AppTheme): Int = when (theme) {
+    AppTheme.SYSTEM -> R.string.settings_theme_system
+    AppTheme.LIGHT -> R.string.settings_theme_light
+    AppTheme.DARK -> R.string.settings_theme_dark
+}
+
+/** The language names are written in their own language (Deutsch, العربية, English), so a person can find theirs whatever the app shows. */
+@StringRes
+private fun languageLabel(language: AppLanguage): Int = when (language) {
+    AppLanguage.SYSTEM -> R.string.settings_language_system
+    AppLanguage.GERMAN -> R.string.settings_language_german
+    AppLanguage.ARABIC -> R.string.settings_language_arabic
+    AppLanguage.ENGLISH -> R.string.settings_language_english
 }
 
 private const val BIOMETRIC_STRONG_OR_DEVICE_CREDENTIAL = 0x0000000F or 0x00008000
@@ -511,7 +525,7 @@ private fun ChoiceDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) }
         },
     )
 }

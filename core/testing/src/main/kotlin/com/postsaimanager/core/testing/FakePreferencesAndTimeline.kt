@@ -39,9 +39,6 @@ class FakeUserPreferencesRepository(
     override suspend fun setAutoProcess(enabled: Boolean) =
         update { it.copy(autoProcessAfterScan = enabled) }
 
-    override suspend fun setDefaultLanguage(language: String) =
-        update { it.copy(defaultLanguage = language) }
-
     override suspend fun setNotificationsEnabled(enabled: Boolean) =
         update { it.copy(notificationsEnabled = enabled) }
 

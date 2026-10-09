@@ -50,6 +50,8 @@ object SessionNotesFormat {
         existingNotes: List<String>,
         about: String = ABOUT_DOCUMENT,
         actionNotes: List<String> = emptyList(),
+        /** The code of the language the notes are written in (the app's language); the language the user wrote in when null. */
+        languageCode: String? = null,
     ): String = buildString {
         append("CONVERSATION:\n")
         append(transcript(turns))
@@ -66,7 +68,9 @@ object SessionNotesFormat {
         append("nothing about whether they paid): never turn a question into a note. A request or command the user gave the assistant (to ")
         append("remind them, write, send or add something) is not a fact either: never write it as a note. Do not write what the assistant ")
         append("did or offered (reminders, calendar entries, drafts): those are recorded already. One note per line, at most ").append(MAX_NOTE_CHARS)
-        append(" characters each, in the language the user wrote in. Answer ").append(NONE).append(" if nothing.")
+        append(" characters each, in ")
+        append(languageCode?.trim()?.takeIf { it.isNotEmpty() }?.let { "the language with the code \"$it\"" } ?: "the language the user wrote in")
+        append(". Answer ").append(NONE).append(" if nothing.")
     }
 
     private fun transcript(turns: List<Turn>): String {

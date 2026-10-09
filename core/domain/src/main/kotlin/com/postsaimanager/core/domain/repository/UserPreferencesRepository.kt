@@ -12,7 +12,6 @@ interface UserPreferencesRepository {
     fun getUserPreferences(): Flow<UserPreferences>
     suspend fun setTheme(theme: AppTheme): PamResult<Unit>
     suspend fun setAutoProcess(enabled: Boolean): PamResult<Unit>
-    suspend fun setDefaultLanguage(language: String): PamResult<Unit>
     suspend fun setNotificationsEnabled(enabled: Boolean): PamResult<Unit>
     suspend fun setAiModelId(modelId: String?): PamResult<Unit>
     suspend fun setBiometricEnabled(enabled: Boolean): PamResult<Unit>

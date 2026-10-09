@@ -10,10 +10,12 @@ import com.postsaimanager.core.domain.applock.ExternalFlowGuard
 import com.postsaimanager.core.domain.applock.ExternalFlowToken
 import com.postsaimanager.core.domain.reminder.SetDeadlineRemindersUseCase
 import com.postsaimanager.core.domain.repository.UserPreferencesRepository
+import com.postsaimanager.core.domain.settings.AppLanguageSettings
 import com.postsaimanager.core.domain.usecase.InferenceSettingsUiState
 import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.UpdateInferenceSettingUseCase
+import com.postsaimanager.core.model.AppLanguage
 import com.postsaimanager.core.model.AppLockTimeouts
 import com.postsaimanager.core.model.AppTheme
 import com.postsaimanager.core.model.ConfigSpec
@@ -50,6 +52,7 @@ class SettingsViewModel @Inject constructor(
     private val deviceAuthenticator: DeviceAuthenticator,
     private val externalFlowGuard: ExternalFlowGuard,
     private val setDeadlineReminders: SetDeadlineRemindersUseCase,
+    private val appLanguage: AppLanguageSettings,
 ) : ViewModel() {
 
     private var securitySettingsFlow: ExternalFlowToken? = null
@@ -110,8 +113,15 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { userPreferencesRepository.setUpdateOlderLettersAutomatically(enabled) }
     }
 
-    fun setDefaultLanguage(language: String) {
-        viewModelScope.launch { userPreferencesRepository.setDefaultLanguage(language) }
+    private val _language = MutableStateFlow(appLanguage.current())
+
+    /** The language of the app's screens as the user picked it ([AppLanguage.SYSTEM] while it follows the phone). */
+    val language: StateFlow<AppLanguage> = _language.asStateFlow()
+
+    /** Applies the pick at once: the platform stores it and recreates the screens in the new language. */
+    fun setLanguage(language: AppLanguage) {
+        _language.value = language
+        appLanguage.select(language)
     }
 
     /** The "Reading finished" switch: whether a notification says that a letter has been understood. */

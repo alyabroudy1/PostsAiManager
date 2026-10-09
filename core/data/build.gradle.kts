@@ -88,6 +88,8 @@ dependencies {
 
     // AndroidX
     implementation(libs.core.ktx)
+    // The per-app language (AppCompatDelegate.setApplicationLocales), also on API < 33.
+    implementation(libs.appcompat)
 
     // WorkManager
     implementation(libs.work.runtime.ktx)

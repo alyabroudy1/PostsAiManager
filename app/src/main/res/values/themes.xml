@@ -1,3 +1,4 @@
 <resources>
-    <style name="Theme.PostsAiManager" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- AppCompat: the activities are AppCompatActivity, which applies the in-app language on every API level. The screens are Compose. -->
+    <style name="Theme.PostsAiManager" parent="Theme.AppCompat.Light.NoActionBar" />
 </resources>

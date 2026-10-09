@@ -141,7 +141,9 @@ class GemmaTextWriter @Inject constructor(
             append('\n')
         }
         append("- ${KEY_FACTS}: up to $MAX_FACTS other facts a person would need from THIS document that are not among the facts above, ")
-        append("each {${KEY_LABEL}: a label of one to four words without digits or full stops, ${KEY_VALUE}: the value copied exactly as printed}. ")
+        append("each {${KEY_LABEL}: a label of one to four words without digits or full stops")
+        request.languageCode?.trim()?.takeIf { it.isNotEmpty() }?.let { append(", in the language with the code \"$it\"") }
+        append(", ${KEY_VALUE}: the value copied exactly as printed}. ")
         append("An empty list when there is nothing more.")
     }
 
