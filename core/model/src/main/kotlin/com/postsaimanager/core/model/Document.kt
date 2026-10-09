@@ -86,6 +86,12 @@ data class Document(
      * list's person chips. null: not asked yet (a backfill or the next check asks); empty: asked, nobody. Never set by name matching.
      */
     val concernedProfileIds: List<String>? = null,
+    /** Who decided [concernedProfileIds]; the people check and its reset leave a [ConcernedSource.USER] list alone. */
+    val concernedSource: ConcernedSource = ConcernedSource.MODEL,
+    /** Who decided [language]; a re-read replaces it only while it is [LanguageSource.MODEL]. */
+    val languageSource: LanguageSource = LanguageSource.MODEL,
+    /** Who chose the matter this letter belongs to; a re-read regroups the letter only while it is [CaseLinkSource.AUTO]. */
+    val caseLinkSource: CaseLinkSource = CaseLinkSource.AUTO,
     /**
      * SHA-256 (lower-case hex) of the file this document was imported from, so adding the same file again can be noticed. Null for a
      * scan and for a document imported before this existed. For several images imported together it is the hash of their hashes.

@@ -11,6 +11,7 @@ import com.postsaimanager.core.data.database.entity.ProfileEventEntity
 import com.postsaimanager.core.domain.repository.EventRepository
 import com.postsaimanager.core.model.Case
 import com.postsaimanager.core.model.CaseStatus
+import com.postsaimanager.core.model.CaseStatusSource
 import com.postsaimanager.core.model.CaseTitleSource
 import com.postsaimanager.core.model.EventSource
 import com.postsaimanager.core.model.ProfileEvent
@@ -97,12 +98,20 @@ class EventRepositoryImpl @Inject constructor(
             CaseEntity(
                 id = case.id, organisationProfileId = case.organisationProfileId, title = case.title,
                 referenceKeys = encodeKeys(case.referenceKeys), status = case.status.name, createdAt = case.createdAt,
-                titleSource = case.titleSource.name,
+                titleSource = case.titleSource.name, statusSource = case.statusSource.name,
             ),
         )
     }
 
     override suspend fun setCaseStatus(caseId: String, status: CaseStatus) = withContext(ioDispatcher) { dao.setCaseStatus(caseId, status.name) }
+
+    override suspend fun setCaseStatusByUser(caseId: String, status: CaseStatus) =
+        withContext(ioDispatcher) { dao.setCaseStatusByUser(caseId, status.name) }
+
+    override suspend fun setCaseStatusAutomatic(caseId: String, derived: CaseStatus) =
+        withContext(ioDispatcher) { dao.setCaseStatusAutomatic(caseId, derived.name) }
+
+    override suspend fun setDocumentCase(documentId: String, caseId: String?) = withContext(ioDispatcher) { dao.updateCaseOfDocument(documentId, caseId) }
 
     override suspend fun renameCase(caseId: String, title: String) = withContext(ioDispatcher) { dao.renameCase(caseId, title) }
 
@@ -120,6 +129,7 @@ class EventRepositoryImpl @Inject constructor(
         id = row.id, organisationProfileId = row.organisationProfileId, title = row.title, referenceKeys = decodeKeys(row.referenceKeys),
         status = runCatching { CaseStatus.valueOf(row.status) }.getOrDefault(CaseStatus.OPEN), createdAt = row.createdAt,
         titleSource = runCatching { CaseTitleSource.valueOf(row.titleSource) }.getOrDefault(CaseTitleSource.AUTO),
+        statusSource = runCatching { CaseStatusSource.valueOf(row.statusSource) }.getOrDefault(CaseStatusSource.AUTO),
     )
 
     private companion object {

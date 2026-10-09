@@ -69,6 +69,12 @@ data class DocumentEntity(
     val originalFilePath: String? = null,
     /** A `ReadingStage` name; null for a letter read before v26 and for one a quiet re-read updates. Added in v26. */
     val readingStage: String? = null,
+    /** `MODEL` or `USER`; see `ConcernedSource`. Added in v29. */
+    @ColumnInfo(defaultValue = "'MODEL'") val concernedSource: String = "MODEL",
+    /** `MODEL` or `USER`; see `LanguageSource`. Added in v29. */
+    @ColumnInfo(defaultValue = "'MODEL'") val languageSource: String = "MODEL",
+    /** `AUTO` or `USER`; see `CaseLinkSource`. Added in v29. */
+    @ColumnInfo(defaultValue = "'AUTO'") val caseLinkSource: String = "AUTO",
 )
 
 @Entity(

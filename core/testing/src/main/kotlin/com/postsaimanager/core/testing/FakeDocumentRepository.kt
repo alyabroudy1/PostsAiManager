@@ -3,7 +3,12 @@ package com.postsaimanager.core.testing
 import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.repository.DocumentRepository
+import com.postsaimanager.core.domain.usecase.MergeExtractionUseCase
+import com.postsaimanager.core.model.ActionItem
+import com.postsaimanager.core.model.CaseLinkSource
+import com.postsaimanager.core.model.ConcernedSource
 import com.postsaimanager.core.model.Document
+import com.postsaimanager.core.model.LanguageSource
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
 import com.postsaimanager.core.model.ExtractedData
@@ -302,12 +307,48 @@ class FakeDocumentRepository : DocumentRepository {
             .filterValues { it.isNotEmpty() }
     }
 
+    // Like the real one: the people check never writes over a person's list.
     override suspend fun setConcernedProfiles(documentId: String, profileIds: List<String>) {
-        documents.value = documents.value.map { if (it.id == documentId) it.copy(concernedProfileIds = profileIds) else it }
+        documents.value = documents.value.map {
+            if (it.id == documentId && it.concernedSource != ConcernedSource.USER) it.copy(concernedProfileIds = profileIds) else it
+        }
+    }
+
+    override suspend fun setConcernedProfilesByUser(documentId: String, profileIds: List<String>) {
+        documents.value = documents.value.map {
+            if (it.id == documentId) it.copy(concernedProfileIds = profileIds.distinct(), concernedSource = ConcernedSource.USER) else it
+        }
     }
 
     override suspend fun resetConcernedProfiles(documentIds: Collection<String>) {
-        documents.value = documents.value.map { if (it.id in documentIds) it.copy(concernedProfileIds = null) else it }
+        documents.value = documents.value.map {
+            if (it.id in documentIds && it.concernedSource != ConcernedSource.USER) it.copy(concernedProfileIds = null) else it
+        }
+    }
+
+    override suspend fun setActionItems(documentId: String, items: List<ActionItem>): PamResult<Unit> = guard {
+        documents.value = documents.value.map { if (it.id == documentId) it.copy(actionItems = items) else it }
+        PamResult.Success(Unit)
+    }
+
+    override suspend fun setFieldMeaning(fieldId: String, role: String?): PamResult<Unit> = guard {
+        // The real one goes through MergeExtractionUseCase.applyUserMeaning; the same pure function keeps the two alike.
+        extracted.value = extracted.value.mapValues { (_, fields) ->
+            fields.map { if (it.id == fieldId) MergeExtractionUseCase().applyUserMeaning(it, role, now = 0L) else it }
+        }
+        PamResult.Success(Unit)
+    }
+
+    override suspend fun setLanguageByUser(documentId: String, language: String): PamResult<Unit> = guard {
+        documents.value = documents.value.map {
+            if (it.id == documentId) it.copy(language = language.trim(), languageSource = LanguageSource.USER) else it
+        }
+        PamResult.Success(Unit)
+    }
+
+    override suspend fun markCaseChosenByUser(documentId: String): PamResult<Unit> = guard {
+        documents.value = documents.value.map { if (it.id == documentId) it.copy(caseLinkSource = CaseLinkSource.USER) else it }
+        PamResult.Success(Unit)
     }
 
     override suspend fun getDocumentIdsAwaitingPeopleCheck(): List<String> =

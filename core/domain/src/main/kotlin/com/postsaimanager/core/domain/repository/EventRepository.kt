@@ -2,6 +2,7 @@ package com.postsaimanager.core.domain.repository
 
 import com.postsaimanager.core.model.Case
 import com.postsaimanager.core.model.CaseStatus
+import com.postsaimanager.core.model.CaseStatusSource
 import com.postsaimanager.core.model.EventSource
 import com.postsaimanager.core.model.ProfileEvent
 import kotlinx.coroutines.flow.Flow
@@ -54,7 +55,17 @@ interface EventRepository {
     /** Inserts the matter, or replaces the one with its id. */
     suspend fun saveCase(case: Case)
 
+    /** Stores the status the events derive ([CaseStatusSource.AUTO]); the caller checks first that the user has not set one. */
     suspend fun setCaseStatus(caseId: String, status: CaseStatus)
+
+    /** The user sets the matter's status: stored with a USER source, which the derived status never replaces. */
+    suspend fun setCaseStatusByUser(caseId: String, status: CaseStatus)
+
+    /** The user hands the status back to the events: the source is AUTO again and the status is [derived], what the events say now. */
+    suspend fun setCaseStatusAutomatic(caseId: String, derived: CaseStatus)
+
+    /** Moves every event of [documentId] to the matter [caseId] (null: to no matter). Writes only that link. */
+    suspend fun setDocumentCase(documentId: String, caseId: String?)
 
     suspend fun renameCase(caseId: String, title: String)
 

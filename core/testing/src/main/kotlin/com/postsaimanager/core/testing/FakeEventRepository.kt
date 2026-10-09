@@ -3,6 +3,7 @@ package com.postsaimanager.core.testing
 import com.postsaimanager.core.domain.repository.EventRepository
 import com.postsaimanager.core.model.Case
 import com.postsaimanager.core.model.CaseStatus
+import com.postsaimanager.core.model.CaseStatusSource
 import com.postsaimanager.core.model.EventSource
 import com.postsaimanager.core.model.ProfileEvent
 import kotlinx.coroutines.flow.Flow
@@ -82,6 +83,18 @@ class FakeEventRepository : EventRepository {
 
     override suspend fun setCaseStatus(caseId: String, status: CaseStatus) {
         cases.value = cases.value.map { if (it.id == caseId) it.copy(status = status) else it }
+    }
+
+    override suspend fun setCaseStatusByUser(caseId: String, status: CaseStatus) {
+        cases.value = cases.value.map { if (it.id == caseId) it.copy(status = status, statusSource = CaseStatusSource.USER) else it }
+    }
+
+    override suspend fun setCaseStatusAutomatic(caseId: String, derived: CaseStatus) {
+        cases.value = cases.value.map { if (it.id == caseId) it.copy(status = derived, statusSource = CaseStatusSource.AUTO) else it }
+    }
+
+    override suspend fun setDocumentCase(documentId: String, caseId: String?) {
+        events.value = events.value.map { if (it.documentId == documentId) it.copy(caseId = caseId) else it }
     }
 
     override suspend fun renameCase(caseId: String, title: String) {

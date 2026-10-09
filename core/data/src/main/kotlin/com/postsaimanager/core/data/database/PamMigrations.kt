@@ -617,6 +617,14 @@ object PamMigrations {
         override fun migrate(db: SupportSQLiteDatabase) = CaseTitleSourceMigration.apply(db)
     }
 
+    /**
+     * v29 (the user can edit everything the AI fills in): `documents.concernedSource`, `languageSource`, `caseLinkSource` and
+     * `cases.statusSource`. See [UserEditsMigration]. Additive and idempotent. 1..28 are untouched (28 may be installed on phones).
+     */
+    val MIGRATION_28_29 = object : Migration(28, 29) {
+        override fun migrate(db: SupportSQLiteDatabase) = UserEditsMigration.apply(db)
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -645,5 +653,6 @@ object PamMigrations {
         MIGRATION_25_26,
         MIGRATION_26_27,
         MIGRATION_27_28,
+        MIGRATION_28_29,
     )
 }

@@ -31,6 +31,8 @@ data class CaseEntity(
     val createdAt: Long,
     /** `AUTO` (generated from the letters, follows them) or `USER` (renamed by a person). Added in v28. */
     @ColumnInfo(defaultValue = "'AUTO'") val titleSource: String = "AUTO",
+    /** `AUTO` (derived from the events) or `USER` (set by a person). Added in v29. */
+    @ColumnInfo(defaultValue = "'AUTO'") val statusSource: String = "AUTO",
 )
 
 /**

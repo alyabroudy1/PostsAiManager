@@ -314,6 +314,18 @@ class MergeExtractionUseCase @Inject constructor() {
         )
     }
 
+    /**
+     * A person chose what the date or amount [field] means ([role] is a `meaning:` role, null for "none of these"). The meaning is theirs
+     * from then on: the row becomes the person's (an unreviewed one is confirmed as it is, the value untouched) and so is protected, which
+     * is what keeps the chosen role through a re-read: the merge flags a differing reading of the value and never replaces the role. An ignored
+     * row stays ignored.
+     */
+    fun applyUserMeaning(field: ExtractedData, role: String?, now: Long): ExtractedData {
+        if (field.reviewState == ReviewState.IGNORED) return field.copy(role = role, updatedAt = now)
+        val settled = if (field.reviewState == ReviewState.UNREVIEWED) applyReviewState(field, ReviewState.CONFIRMED, now) else field
+        return settled.copy(role = role, source = ValueSource.USER, updatedAt = now)
+    }
+
     /** The user accepted the extractor's newer reading, ending the disagreement. */
     fun acceptMachineValue(
         field: ExtractedData,

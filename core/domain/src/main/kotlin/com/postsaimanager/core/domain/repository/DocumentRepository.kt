@@ -1,6 +1,7 @@
 package com.postsaimanager.core.domain.repository
 
 import com.postsaimanager.core.common.result.PamResult
+import com.postsaimanager.core.model.ActionItem
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.DocumentPage
 import com.postsaimanager.core.model.DocumentStatus
@@ -105,6 +106,30 @@ interface DocumentRepository {
      * cannot undo it and a re-read does not lose it.
      */
     suspend fun setConcernedProfiles(documentId: String, profileIds: List<String>)
+
+    /**
+     * A person says who [documentId] is for or about: stored with `concernedSource = USER`, which [setConcernedProfiles] (the people
+     * check), [resetConcernedProfiles] and every re-read leave alone. Empty: for nobody of the household.
+     */
+    suspend fun setConcernedProfilesByUser(documentId: String, profileIds: List<String>)
+
+    /**
+     * Stores the actions of [documentId] exactly as given: what a person edited, deleted (a tombstone) or added. One targeted write of that
+     * column; the merge of a re-read's actions with these is `ActionItemsPolicy`'s.
+     */
+    suspend fun setActionItems(documentId: String, items: List<ActionItem>): PamResult<Unit>
+
+    /**
+     * A person chose what the date or amount [fieldId] means: its role becomes [role] (a `meaning:` role, or null for "none of these"),
+     * the row becomes theirs (confirmed), so a re-read keeps the meaning and only flags a differing reading of the value.
+     */
+    suspend fun setFieldMeaning(fieldId: String, role: String?): PamResult<Unit>
+
+    /** A person set the language of [documentId] (a language tag such as `de`): stored with `languageSource = USER`, kept by every re-read. */
+    suspend fun setLanguageByUser(documentId: String, language: String): PamResult<Unit>
+
+    /** Marks the matter of [documentId] as the person's choice (`caseLinkSource = USER`), so a re-read does not regroup the letter. */
+    suspend fun markCaseChosenByUser(documentId: String): PamResult<Unit>
 
     /** Sets the decision of [documentIds] back to "not asked yet" (null), so the next check asks again. */
     suspend fun resetConcernedProfiles(documentIds: Collection<String>)

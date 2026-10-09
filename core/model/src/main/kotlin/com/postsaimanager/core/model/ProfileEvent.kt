@@ -73,11 +73,17 @@ data class Case(
     val createdAt: Long,
     /** Who wrote [title]: the app ([CaseTitleSource.AUTO], follows the latest letter's title) or the user (never replaced). */
     val titleSource: CaseTitleSource = CaseTitleSource.AUTO,
+    /** Who decided [status]: derived from the events ([CaseStatusSource.AUTO]) or set by the user (kept until they reset it to automatic). */
+    val statusSource: CaseStatusSource = CaseStatusSource.AUTO,
 )
 
 /** Who wrote a matter's title. */
 @Serializable
 enum class CaseTitleSource { AUTO, USER }
+
+/** Who decided a matter's status. */
+@Serializable
+enum class CaseStatusSource { AUTO, USER }
 
 /**
  * What the second stage decided a letter's event is: the [kindId] (an id of the event-kind registry) and a grounded [title], or null

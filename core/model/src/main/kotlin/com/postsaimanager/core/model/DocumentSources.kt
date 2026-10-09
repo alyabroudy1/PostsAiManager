@@ -14,6 +14,42 @@ enum class FamilySource {
     }
 }
 
+/** Who decided which household people a document is for or about. The people check replaces the list only while this is [MODEL]. */
+@Serializable
+enum class ConcernedSource {
+    MODEL,
+    USER,
+    ;
+
+    companion object {
+        fun parse(name: String?): ConcernedSource = entries.firstOrNull { it.name == name } ?: MODEL
+    }
+}
+
+/** Who decided a document's language. A re-read replaces it only while this is [MODEL]. */
+@Serializable
+enum class LanguageSource {
+    MODEL,
+    USER,
+    ;
+
+    companion object {
+        fun parse(name: String?): LanguageSource = entries.firstOrNull { it.name == name } ?: MODEL
+    }
+}
+
+/** Who chose the matter a letter belongs to ("no matter" included). A re-read regroups the letter only while this is [AUTO]. */
+@Serializable
+enum class CaseLinkSource {
+    AUTO,
+    USER,
+    ;
+
+    companion object {
+        fun parse(name: String?): CaseLinkSource = entries.firstOrNull { it.name == name } ?: AUTO
+    }
+}
+
 /** Where a document's title came from. [USER] is never replaced; see `DocumentTitlePolicy`. */
 @Serializable
 enum class TitleSource {

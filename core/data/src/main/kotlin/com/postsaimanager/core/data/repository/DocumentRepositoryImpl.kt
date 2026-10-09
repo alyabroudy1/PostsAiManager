@@ -449,8 +449,54 @@ class DocumentRepositoryImpl @Inject constructor(
     }
 
     override suspend fun setConcernedProfiles(documentId: String, profileIds: List<String>) = withContext(ioDispatcher) {
-        documentDao.setConcernedProfileIds(documentId, com.postsaimanager.core.data.mapper.JsonColumns.encodeNullableStrings(profileIds))
+        documentDao.setConcernedProfileIdsByModel(documentId, com.postsaimanager.core.data.mapper.JsonColumns.encodeNullableStrings(profileIds))
     }
+
+    override suspend fun setConcernedProfilesByUser(documentId: String, profileIds: List<String>) = withContext(ioDispatcher) {
+        documentDao.setConcernedProfileIdsByUser(documentId, com.postsaimanager.core.data.mapper.JsonColumns.encodeNullableStrings(profileIds.distinct()) ?: "[]")
+    }
+
+    override suspend fun setActionItems(documentId: String, items: List<com.postsaimanager.core.model.ActionItem>): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentDao.setActionItemsByUser(documentId, com.postsaimanager.core.data.mapper.JsonColumns.encodeActions(items))
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun setFieldMeaning(fieldId: String, role: String?): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                val entity = documentDao.getExtractedField(fieldId) ?: return@withContext PamResult.Error(PamError.DatabaseError())
+                val updated = mergeExtraction.applyUserMeaning(mapper.extractedDataToDomain(entity), role, System.currentTimeMillis())
+                documentDao.insertExtractedData(listOf(mapper.extractedDataToEntity(updated)))
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun setLanguageByUser(documentId: String, language: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentDao.setLanguageByUser(documentId, language.trim())
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
+
+    override suspend fun markCaseChosenByUser(documentId: String): PamResult<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                documentDao.markCaseLinkedByUser(documentId)
+                PamResult.Success(Unit)
+            } catch (e: Exception) {
+                PamResult.Error(PamError.DatabaseError(cause = e))
+            }
+        }
 
     override suspend fun resetConcernedProfiles(documentIds: Collection<String>) = withContext(ioDispatcher) {
         // Chunked below SQLite's variable limit.

@@ -136,6 +136,18 @@ interface ProfileEventDao {
     @Query("UPDATE cases SET status = :status WHERE id = :caseId")
     suspend fun setCaseStatus(caseId: String, status: String)
 
+    /** A person's status: kept (the events no longer derive it) until they set the matter back to automatic. */
+    @Query("UPDATE cases SET status = :status, statusSource = 'USER' WHERE id = :caseId")
+    suspend fun setCaseStatusByUser(caseId: String, status: String)
+
+    /** Back to automatic: the status follows the events again, starting from [derived] (what the events say now). */
+    @Query("UPDATE cases SET status = :derived, statusSource = 'AUTO' WHERE id = :caseId")
+    suspend fun setCaseStatusAutomatic(caseId: String, derived: String)
+
+    /** Every event of the letter belongs to [caseId] (null: to no matter). */
+    @Query("UPDATE profile_events SET caseId = :caseId WHERE documentId = :documentId")
+    suspend fun updateCaseOfDocument(documentId: String, caseId: String?)
+
     /** A rename is a person's: the title is then theirs ('USER') and no letter replaces it. */
     @Query("UPDATE cases SET title = :title, titleSource = 'USER' WHERE id = :caseId")
     suspend fun renameCase(caseId: String, title: String)

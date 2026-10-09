@@ -198,13 +198,37 @@ interface DocumentDao {
 
     // ── Who a document is for or about (documents.concernedProfileIds: null = not asked yet, [] = asked, nobody) ──
 
-    /** Writes the model's decision for one document, touching nothing else of the row (a stale copy of the document cannot clobber it). */
+    /** Writes the list as it is, whoever decided it (a deleted profile leaves every list, a person's included). */
     @Query("UPDATE documents SET concernedProfileIds = :json WHERE id = :id")
     suspend fun setConcernedProfileIds(id: String, json: String?)
 
-    /** Sets the decision back to "not asked yet" for [ids]. */
-    @Query("UPDATE documents SET concernedProfileIds = NULL WHERE id IN (:ids)")
+    /**
+     * Writes the model's decision for one document, touching nothing else of the row (a stale copy of the document cannot clobber it).
+     * Never over a person's list: this is the race guard of a check that was already running when they edited it (the check itself
+     * skips such a document first, see `ConcernedPeoplePolicy`).
+     */
+    @Query("UPDATE documents SET concernedProfileIds = :json WHERE id = :id AND concernedSource != 'USER'")
+    suspend fun setConcernedProfileIdsByModel(id: String, json: String?)
+
+    /** A person's list (who the letter is for): kept by every people check from now on. */
+    @Query("UPDATE documents SET concernedProfileIds = :json, concernedSource = 'USER' WHERE id = :id")
+    suspend fun setConcernedProfileIdsByUser(id: String, json: String)
+
+    /** Sets the decision back to "not asked yet" for [ids]; a person's list stays (the race guard of the queueing step). */
+    @Query("UPDATE documents SET concernedProfileIds = NULL WHERE id IN (:ids) AND concernedSource != 'USER'")
     suspend fun resetConcernedProfileIds(ids: List<String>)
+
+    /** The actions as a person left them (an edit, a deletion, an addition); the other columns are untouched. */
+    @Query("UPDATE documents SET actionItems = :json, modifiedAt = :modifiedAt WHERE id = :id")
+    suspend fun setActionItemsByUser(id: String, json: String?, modifiedAt: Long = System.currentTimeMillis())
+
+    /** A person's language: kept by every re-read. */
+    @Query("UPDATE documents SET language = :language, languageSource = 'USER', modifiedAt = :modifiedAt WHERE id = :id")
+    suspend fun setLanguageByUser(id: String, language: String, modifiedAt: Long = System.currentTimeMillis())
+
+    /** The person moved the letter to another matter, a new one or none: a re-read leaves the choice alone. */
+    @Query("UPDATE documents SET caseLinkSource = 'USER' WHERE id = :id")
+    suspend fun markCaseLinkedByUser(id: String)
 
     /**
      * The live documents a model has read (a family stamped by an extractor version, not found values) whose decision is still
