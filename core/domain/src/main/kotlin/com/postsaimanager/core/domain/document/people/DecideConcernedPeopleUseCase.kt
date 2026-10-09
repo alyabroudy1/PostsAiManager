@@ -30,7 +30,10 @@ class DecideConcernedPeopleUseCase @Inject constructor(
      * @return the profile ids now concerned, or the error when the model could not answer (the stored decision is then left as it was).
      */
     suspend operator fun invoke(documentId: String, letter: String): PamResult<Set<String>> {
-        val managed = profiles.getProfiles().first().filter { it.isManaged }
+        // A list the person set is theirs: not asked again (no model run) and not written, only reported as it is.
+        val stored = (documents.getDocumentById(documentId) as? PamResult.Success)?.data
+        if (stored != null && !ConcernedPeoplePolicy.mayDecide(stored)) return PamResult.Success(stored.concernedProfileIds.orEmpty().toSet())
+        val managed =profiles.getProfiles().first().filter { it.isManaged }
         val tokens = PartyNames.tokenSet(letter)
         val candidates = managed.filter { PartyNames.mentions(tokens, it.name) }
         val named = if (candidates.isEmpty()) {

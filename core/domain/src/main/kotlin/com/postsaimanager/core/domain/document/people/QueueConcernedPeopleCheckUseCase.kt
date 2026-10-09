@@ -1,5 +1,6 @@
 package com.postsaimanager.core.domain.document.people
 
+import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.document.DocumentProcessor
 import com.postsaimanager.core.domain.document.list.PartyNames
 import com.postsaimanager.core.domain.repository.DocumentRepository
@@ -19,7 +20,11 @@ class QueueConcernedPeopleCheckUseCase @Inject constructor(
     /** @return how many documents were queued. A profile that is not managed (an organisation) queues none. */
     suspend operator fun invoke(profile: Profile): Int {
         if (!profile.isManaged) return 0
-        val matching = documents.getOcrTexts().filter { (_, text) -> PartyNames.mentions(text, profile.name) }.keys
+        // A letter whose list a person set is theirs: it is neither reset nor asked again.
+        val matching = documents.getOcrTexts().filter { (id, text) ->
+            PartyNames.mentions(text, profile.name) &&
+                ((documents.getDocumentById(id) as? PamResult.Success)?.data?.let(ConcernedPeoplePolicy::mayDecide) ?: true)
+        }.keys
         if (matching.isEmpty()) return 0
         documents.resetConcernedProfiles(matching)
         matching.forEach { processor.enqueuePeopleCheck(it) }
