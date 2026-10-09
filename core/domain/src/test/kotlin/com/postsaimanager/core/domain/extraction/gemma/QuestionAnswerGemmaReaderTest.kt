@@ -124,6 +124,16 @@ class QuestionAnswerGemmaReaderTest {
     }
 
     @Test
+    @DisplayName("a summary wanted but not in the answer is noted, not silent")
+    fun `no summary line`() = runBlocking<Unit> {
+        engine.structuredAnswer = "SENDER: Nordlicht Mobilfunk GmbH | company\nTYPE: bill"
+
+        val outcome = reader().read(GemmaReaderRequest(strongLetter, emptyList(), onSummary = {})) as GemmaReaderOutcome.Stated
+
+        assertThat(outcome.notes).contains("qa note: no summary line in the answer")
+    }
+
+    @Test
     @DisplayName("a looping answer is cut after its first run, kept, and noted")
     fun `loop guard`() = runBlocking<Unit> {
         val loop = "REFERENCES: Kundennummer KD-0000-4711 — customer_no; IBAN DE00 0000 0000 0000 0000 00 — iban; "

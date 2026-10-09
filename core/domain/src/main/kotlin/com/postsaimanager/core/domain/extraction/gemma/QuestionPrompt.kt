@@ -89,7 +89,7 @@ object QuestionPrompt {
         append("When something is not in the letter, write exactly: $NONE_WORD. Separate items with \";\", at most $MAX_ITEMS per list.\n")
         if (withSummary) {
             append("${QaLabel.SUMMARY}: first line, one sentence (at most ${SummaryLimits.MAX_CHARS} characters) in the language of the letter: ")
-            append("what it is, from whom, and the main fact; add what the reader must do only if the letter demands it\n")
+            append("what it is, from whom, and the main fact; mention a request only if there is one\n")
         }
         val kinds = PartyKind.entries.joinToString(", ") { it.name.lowercase() }
         append("${QaLabel.SENDER}: who sent or issued it (organisation, shop or person): its full name exactly as printed (every word of the name, with its title or legal form, never shortened; ")

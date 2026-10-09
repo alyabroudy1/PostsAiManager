@@ -74,7 +74,7 @@ class QuestionAnswerGemmaReader @Inject constructor(
                 "missing=[${(asked - answers.answered).joinToString(",")}]",
             "qa image=${if (images.isNotEmpty()) "yes" else "no"} (${imageDecision.reason}) backend=${config.accelerator} " +
                 "sampling=topK${sampling.topK} summaryAt=${if (summaryMs >= 0) "${summaryMs}ms" else "none"}",
-        ) + listOfNotNull(loopNote)
+        ) + listOfNotNull(loopNote, "qa note: no summary line in the answer".takeIf { withSummary && QaLabel.SUMMARY !in answers.answered })
         TimingLog.log(
             "reader: qa answer total=${ms}ms summaryAt=${summaryMs}ms image=${if (images.isNotEmpty()) "yes" else "no"} reason=\"${imageDecision.reason}\" " +
                 "backend=${config.accelerator} answered=${answers.answered.size}/${asked.size} chars=${answer.length}",
