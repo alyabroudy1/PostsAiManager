@@ -97,6 +97,7 @@ object QuestionPrompt {
         append("${QaLabel.ASKS}: ${GemmaVocabulary.YES} or ${GemmaVocabulary.NO} (does it ask the reader to do anything?) | the paid state, one of: ")
         append(PaidState.entries.joinToString("; ") { "${it.id} (${it.sentence})" })
         append("; then at most $MAX_ASKS separate things the reader must do (otherwise ${GemmaVocabulary.NO}), the main one first, each as: kind — by when (a date). ")
+        append("The line is: ${GemmaVocabulary.YES} | paid state; kind — by when; kind — by when. ")
         append("Something to bring to an appointment is part of attending it; cancelling or objecting comes after the main one. kind is exactly one of: ")
         append(vocab.actionKinds.joinToString("; ") { "${it.id} (${it.task})" }).append('\n')
         append("${QaLabel.LETTERDATE}: the date the letter was written, as printed ($NONE_WORD if it has none)\n")
