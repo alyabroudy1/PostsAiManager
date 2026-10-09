@@ -33,11 +33,30 @@ class MergeDuplicateOrganisationsUseCaseTest {
     }
 
     @Test
-    fun `an organisation the user edited or made by hand is not merged`() = runTest {
-        profiles.seed(machineOrg("old", 5), machineOrg("edited", 9, modifiedAt = 12), machineOrg("byHand", 10, source = null))
+    fun `an organisation made by hand is not merged`() = runTest {
+        profiles.seed(machineOrg("old", 5), machineOrg("byHand", 10, source = null))
 
         assertThat(merge("jobcenter musterstadt")).isEqualTo(0)
-        assertThat(ids()).containsExactly("old", "edited", "byHand")
+        assertThat(ids()).containsExactly("old", "byHand")
+    }
+
+    @Test
+    fun `an edited organisation is the one kept, even when it is the newer, and the untouched duplicate folds into it`() = runTest {
+        profiles.seed(machineOrg("old", 5), machineOrg("edited", 9, modifiedAt = 12))
+        profiles.linkProfileToDocument("old", "d-old", ProfileRole.SENDER)
+
+        assertThat(merge("jobcenter musterstadt")).isEqualTo(1)
+
+        assertThat(ids()).containsExactly("edited")
+        assertThat(profiles.links).containsExactly(Triple("edited", "d-old", ProfileRole.SENDER))
+    }
+
+    @Test
+    fun `two edited organisations are two decisions and stay apart`() = runTest {
+        profiles.seed(machineOrg("a", 5, modifiedAt = 8), machineOrg("b", 9, modifiedAt = 12))
+
+        assertThat(merge("jobcenter musterstadt")).isEqualTo(0)
+        assertThat(ids()).containsExactly("a", "b")
     }
 
     @Test

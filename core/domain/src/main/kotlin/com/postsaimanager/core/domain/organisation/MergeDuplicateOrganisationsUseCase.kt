@@ -12,10 +12,10 @@ import javax.inject.Inject
  * Two organisation profiles that readings made for the same name are one organisation: the newer is folded into the older
  * ([ProfileRepository.mergeProfiles]: document links, contacts, events, suggestions, notes move; the newer row is deleted).
  *
- * Only profiles no person ever touched are merged: machine-created (a source document is recorded) and never edited (the modification
- * time is still the creation time). A profile the user edited, or made by hand, is never merged automatically, and neither are two
- * that disagree on a detail both carry (a different street, say): they may be two branches. What the kept profile lacks, it takes
- * from the merged one.
+ * Only machine-created profiles (a source document is recorded) are merged; one made by hand never is. Of the duplicates, the one a
+ * person edited (the modification time differs from the creation time) is the one kept, else the oldest; two edited ones are never
+ * merged into each other. Two that disagree on a detail both carry (a different street, say) stay apart: they may be two branches.
+ * What the kept profile lacks, it takes from the merged one.
  */
 class MergeDuplicateOrganisationsUseCase @Inject constructor(
     private val profiles: ProfileRepository,
@@ -23,14 +23,19 @@ class MergeDuplicateOrganisationsUseCase @Inject constructor(
 
     /** Merges the duplicates named [entityKey] (a [normaliseEntityName] of the organisation's name); returns how many profiles were folded in. */
     suspend operator fun invoke(entityKey: String): Int {
-        val untouched = profiles.getProfiles().first()
-            .filter { isUntouchedOrganisation(it) && keyOf(it) == entityKey }
+        val machineMade = profiles.getProfiles().first()
+            .filter { isMachineOrganisation(it) && keyOf(it) == entityKey }
             .sortedWith(compareBy<Profile> { it.createdAt }.thenBy { it.id })
-        if (untouched.size < 2) return 0
+        val (edited, untouched) = machineMade.partition { it.modifiedAt != it.createdAt }
+        // The one profile a person edited (own details, an address ...) is the one kept, so nothing they wrote is lost; two edited ones
+        // are two decisions and stay apart (the untouched ones still fold into the oldest of the untouched).
+        val keeper = if (edited.size == 1) edited.first() else untouched.firstOrNull()
+        val others = untouched.filter { it.id != keeper?.id }
+        if (keeper == null || others.isEmpty()) return 0
 
-        var kept = untouched.first()
+        var kept: Profile = keeper
         var merged = 0
-        for (other in untouched.drop(1)) {
+        for (other in others) {
             if (conflict(kept, other)) continue
             val result = profiles.mergeProfiles(kept.id, other.id)
             if (result !is PamResult.Success) continue
@@ -44,8 +49,8 @@ class MergeDuplicateOrganisationsUseCase @Inject constructor(
         return merged
     }
 
-    private fun isUntouchedOrganisation(p: Profile) =
-        p.kind == ProfileKind.ORGANISATION && p.householdRole == null && p.sourceDocumentId != null && p.modifiedAt == p.createdAt
+    private fun isMachineOrganisation(p: Profile) =
+        p.kind == ProfileKind.ORGANISATION && p.householdRole == null && p.sourceDocumentId != null
 
     private fun keyOf(p: Profile) = normaliseEntityName(p.sourceEntityName ?: p.organization ?: p.name)
 

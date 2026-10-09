@@ -139,11 +139,11 @@ class EntityProfileLinkerTest {
     }
 
     @Test
-    @DisplayName("an organisation the user edited is never merged into another")
-    fun `an edited organisation is not merged`() = runTest {
+    @DisplayName("two organisations the user edited are never merged into each other")
+    fun `two edited organisations are not merged`() = runTest {
         profileRepository.seed(
             testProfile(id = "old", name = "Amt Beispiel", organization = "Amt Beispiel")
-                .copy(sourceDocumentId = "doc-1", sourceEntityName = "amt beispiel", createdAt = 5L, modifiedAt = 5L),
+                .copy(sourceDocumentId = "doc-1", sourceEntityName = "amt beispiel", createdAt = 5L, modifiedAt = 7L),
             testProfile(id = "edited", name = "Amt Beispiel", organization = "Amt Beispiel")
                 .copy(sourceDocumentId = "doc-2", sourceEntityName = "amt beispiel", createdAt = 9L, modifiedAt = 12L),
         )
