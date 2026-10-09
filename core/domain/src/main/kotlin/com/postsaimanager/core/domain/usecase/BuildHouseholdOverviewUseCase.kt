@@ -21,7 +21,8 @@ import javax.inject.Inject
  * The card of the all-documents chat: a short overview of the household ([HouseholdOverviewFormat]), built from what other use cases
  * already decided. It decides nothing:
  *  - the people are the profiles with a household role;
- *  - the open matters are the cases whose derived status is open ([ObserveTimelineForPersonUseCase]), with their newest event;
+ *  - the matters are each person's cases that are not closed ([ObserveTimelineForPersonUseCase]), the open ones first, each with its
+ *    derived status and its newest event (a rejected matter is listed: its objection deadline is still open);
  *  - the deadlines are the stored due dates of the document list ([ObserveDocumentListItemsUseCase]) in the next
  *    [HouseholdOverviewFormat.DEADLINE_DAYS] days;
  *  - the letters needing action are the ones with stored action items.
@@ -49,8 +50,11 @@ class BuildHouseholdOverviewUseCase @Inject constructor(
 
         val seen = mutableSetOf<String>()
         val cases = household.flatMap { person ->
+            // A matter that was decided (rejected, approved) is listed with its status, not left out: what follows from a decision (an
+            // objection deadline, a payment) is what "what is open for her" is about. Only a matter closed for good is left out.
             timelines(person.id).first().cases
-                .filter { it.case.status == CaseStatus.OPEN && seen.add(it.case.id) }
+                .filter { it.case.status != CaseStatus.CLOSED && seen.add(it.case.id) }
+                .sortedBy { it.case.status != CaseStatus.OPEN }
                 .mapNotNull { timeline ->
                     val events = timeline.events.filter { it.documentId in visible }
                     if (events.isEmpty()) return@mapNotNull null
@@ -59,6 +63,7 @@ class BuildHouseholdOverviewUseCase @Inject constructor(
                         organisation = names[timeline.case.organisationProfileId],
                         title = timeline.case.title,
                         latest = latest(events.first()),
+                        status = timeline.case.status.name.lowercase(),
                     )
                 }
                 .take(MAX_CASES_PER_PERSON)

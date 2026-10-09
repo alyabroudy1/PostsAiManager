@@ -78,14 +78,40 @@ class HouseholdOverviewTest {
         assertThat(text).startsWith("\n## Household overview (2026-10-07)\n")
         assertThat(text).contains("People: Erika Mustermann (me), Omar Mustermann (child)")
         assertThat(text).doesNotContain("Not Household")
-        assertThat(text).contains("Open cases:\n- Erika Mustermann: Jobcenter Musterstadt, Bürgergeld application. Latest: 2026-09-10 Approval, Bürgergeld approved from 1 Sep")
+        assertThat(text).contains("Cases:\n- Erika Mustermann: Jobcenter Musterstadt, Bürgergeld application [open]. Latest: 2026-09-10 Approval, Bürgergeld approved from 1 Sep")
         // The people of a letter are the person tags the list shows (first names).
         assertThat(text).contains("Deadlines in the next 30 days:\n- 2026-10-15 Omar: Jahresabrechnung")
         assertThat(text).contains("Letters needing action:\n- Jahresabrechnung, for Omar")
     }
 
     @Test
-    fun `a settled case is not open, a deadline beyond 30 days or already past is not upcoming`() = runTest {
+    fun `a rejected case is listed with its status, after the open ones, and a closed one is not`() = runTest {
+        household()
+        documents.seed(
+            testDocument(id = "d1", title = "Bescheid", extractionType = "official_letter"),
+            testDocument(id = "d2", title = "Antrag", extractionType = "official_letter"),
+            testDocument(id = "d3", title = "Old", extractionType = "official_letter"),
+        )
+        events.seedCases(
+            Case("bg", "jc", "Bürgergeld application", status = CaseStatus.REJECTED, createdAt = 1),
+            Case("op", "jc", "Wohngeld", status = CaseStatus.OPEN, createdAt = 2),
+            Case("cl", "jc", "Old matter", status = CaseStatus.CLOSED, createdAt = 3),
+        )
+        events.seedEvents(
+            event("e1", "d1", EventKinds.REJECTION, "2026-12-05", "Ablehnungsbescheid", "bg", listOf("me")),
+            event("e2", "d2", EventKinds.APPLICATION_FILED, "2026-09-10", "Antrag", "op", listOf("me")),
+            event("e3", "d3", EventKinds.INFORMATION, "2026-01-10", "Old", "cl", listOf("me")),
+        )
+
+        val text = overview()
+
+        assertThat(text).contains("Bürgergeld application [rejected]. Latest: 2026-12-05 Rejection, Ablehnungsbescheid")
+        assertThat(text.indexOf("Wohngeld [open]")).isLessThan(text.indexOf("Bürgergeld application [rejected]"))
+        assertThat(text).doesNotContain("Old matter")
+    }
+
+    @Test
+    fun `a deadline beyond 30 days or already past is not upcoming`() = runTest {
         household()
         documents.seed(
             testDocument(id = "d1", title = "Far", extractionType = "bill"),
@@ -100,7 +126,6 @@ class HouseholdOverviewTest {
 
         val text = overview()
 
-        assertThat(text).doesNotContain("Open cases:")
         assertThat(text).contains("- 2026-11-06 Edge")
         assertThat(text).doesNotContain("Far")
         assertThat(text).doesNotContain("Past")
@@ -156,7 +181,7 @@ class HouseholdOverviewTest {
 
         assertThat(text.length).isAtMost(HouseholdOverviewFormat.MAX_CHARS)
         assertThat(text).contains("People: Erika (me)")
-        assertThat(text).contains("Open cases:")
+        assertThat(text).contains("Cases:")
         // The cap ends a section at a whole line, and nothing after it is added.
         assertThat(text.lines().filter { it.startsWith("- ") }).isNotEmpty()
         assertThat(text.lines().filter { it.startsWith("- Erika:") }.all { it.endsWith("x".repeat(80)) }).isTrue()
