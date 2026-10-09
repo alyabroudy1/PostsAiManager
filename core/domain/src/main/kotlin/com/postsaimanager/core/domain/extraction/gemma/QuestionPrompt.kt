@@ -101,7 +101,7 @@ object QuestionPrompt {
         append("; then, for each of the at most $MAX_ASKS things the letter asks (otherwise ${GemmaVocabulary.NO}), the main purpose of the letter first: kind — by when (a date). ")
         append("A step that only applies if the reader cannot or does not want to comply (cancelling, objecting) comes after the main one, and only if there is room. kind is exactly one of these words, written as shown: ")
         append(vocab.actionKinds.joinToString(", ") { it.id }).append(". Their meanings: ")
-        append(vocab.actionKinds.joinToString("; ") { "${it.id} = ${it.task}" }).append('\n')
+        append(vocab.actionKinds.joinToString("; ") { "${it.id} = ${it.asked}" }).append('\n')
         append("${QaLabel.LETTERDATE}: the date the letter was written, as printed ($NONE_WORD if it has none)\n")
         append("${QaLabel.DATES}: the important dates, each as: date — meaning. meaning is one of: ")
         append(vocab.dateMeanings.joinToString("; ") { "${it.id} (${it.description})" }).append("; ${GemmaVocabulary.OTHER}\n")

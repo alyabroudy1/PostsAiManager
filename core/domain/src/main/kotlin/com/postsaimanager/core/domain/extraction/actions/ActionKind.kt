@@ -38,7 +38,12 @@ data class ActionKind(
     val party: Boolean = true,
     val referenceSlots: List<String> = emptyList(),
     val iban: Boolean = false,
+    /** A fuller wording of [task] for the "Questions" prompt (the scoring reader's recorded questions use [task] as it is); null: [task]. */
+    val askedAs: String? = null,
 ) {
+    /** The kind's meaning as the "Questions" prompt words it. */
+    val asked: String get() = askedAs ?: task
+
     /** The parts this kind may state, in the order a line lists them. */
     val parts: Set<ActionPart>
         get() = buildSet {
@@ -90,6 +95,7 @@ object ActionKinds {
     val ATTEND = ActionKind(
         id = "attend",
         task = "attend an appointment at a given date and time",
+        askedAs = "come to an appointment, visit or meeting at a given date and time (also when the letter only reminds the reader of it, or asks to bring something to it)",
         dateMeaning = "the date of the appointment the reader is asked to attend",
         party = false,
     )
