@@ -22,10 +22,13 @@ case "$NAME" in
   *) echo "dev-screenshot: the name must end in .png" >&2; exit 2 ;;
 esac
 case "$WHICH" in
-  release) PKG_RE='mCurrentFocus.*com\.postsaimanager/' ;;
-  debug)   PKG_RE='mCurrentFocus.*com\.postsaimanager\.debug/' ;;
+  release) PKG_RE='mCurrentFocus.*com\.postsaimanager/'; APP_RE='mFocusedApp=.* com\.postsaimanager/' ;;
+  debug)   PKG_RE='mCurrentFocus.*com\.postsaimanager\.debug/'; APP_RE='mFocusedApp=.* com\.postsaimanager\.debug/' ;;
   *) echo "dev-screenshot: the second argument must be release or debug" >&2; exit 2 ;;
 esac
+# A menu or dropdown opened by our app is a window without a package name ("Pop-up Window"). It counts as
+# ours only while our activity is the focused app, so another app's screen is still never captured.
+POPUP_RE='mCurrentFocus=Window{[^ ]* u[0-9]* Pop-up Window}'
 
 OUT_DIR="${PAM_SCREENSHOT_DIR:-$HOME/AndroidStudioProjects/PostsAiManager-work/artifacts/store-screens}"
 mkdir -p "$OUT_DIR"
@@ -35,8 +38,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TMP="$(mktemp)"
 trap 'rm -f "$TMP"' EXIT
 
-# One device command: the capture runs only if our app holds the focus.
-"$SCRIPT_DIR/dev-adb.sh" exec-out sh -c "dumpsys window 2>/dev/null | grep -q '$PKG_RE' && screencap -p" > "$TMP" || true
+# One device command: the capture runs only if our app holds the focus (or our app's own pop-up menu does).
+"$SCRIPT_DIR/dev-adb.sh" exec-out "w=\$(dumpsys window 2>/dev/null); { echo \"\$w\" | grep -q '$PKG_RE' || { echo \"\$w\" | grep -qi '$POPUP_RE' && echo \"\$w\" | grep -q '$APP_RE'; }; } && screencap -p" > "$TMP" || true
 
 if [ -s "$TMP" ]; then
   mv "$TMP" "$OUT"
