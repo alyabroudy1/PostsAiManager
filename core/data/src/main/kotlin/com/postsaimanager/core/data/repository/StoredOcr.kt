@@ -47,6 +47,12 @@ internal object StoredOcr {
     fun isUserText(page: DocumentPageEntity): Boolean = page.textSource == "USER"
 
     /**
+     * The pictures a reading is shown: a page whose text the user corrected has none, because the picture still holds the old words and
+     * the model would read them instead of the person's text.
+     */
+    fun picturesFor(pages: List<DocumentPageEntity>): List<String> = pages.filterNot(::isUserText).map { it.imagePath }
+
+    /**
      * What a reading is given for a page whose text the user corrected: their text, and its plain lines as the blocks (the person typed
      * words, not positions, so the page has no layout beyond running text).
      */

@@ -375,4 +375,5 @@
     <string name="language_edit_description">Change the language of this letter</string>
     <string name="language_edit_title">Language of this letter</string>
     <string name="language_edit_hint">The summary and the answers are written in this language. It stays when the letter is read again.</string>
+    <string name="documents_recently_deleted">Recently deleted</string>
 </resources>

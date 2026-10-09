@@ -364,7 +364,7 @@ class DocumentProcessingPipeline @Inject constructor(
                         },
                         documentId = documentId,
                         pages = ocrByPage.map { (_, result) -> result?.blocks.orEmpty() },
-                        pageImagePaths = ocrByPage.map { (page, _) -> page.imagePath },
+                        pageImagePaths = StoredOcr.picturesFor(ocrByPage.map { (page, _) -> page }),
                         pageAspect = pageAspect,
                         forcedFamily = chosenFamily,
                         reprocess = reprocess,

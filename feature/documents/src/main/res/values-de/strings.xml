@@ -160,4 +160,5 @@
     <string name="language_edit_description">Sprache dieses Briefs ändern</string>
     <string name="language_edit_title">Sprache dieses Briefs</string>
     <string name="language_edit_hint">Zusammenfassung und Antworten werden in dieser Sprache geschrieben. Sie bleibt bestehen, wenn der Brief erneut gelesen wird.</string>
+    <string name="documents_recently_deleted">Zuletzt gelöscht</string>
 </resources>

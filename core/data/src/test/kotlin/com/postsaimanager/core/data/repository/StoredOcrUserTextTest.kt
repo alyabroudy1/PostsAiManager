@@ -34,6 +34,15 @@ class StoredOcrUserTextTest {
     }
 
     @Test
+    fun `a page whose text the user corrected is not shown to the reader as a picture`() {
+        val corrected = page(1, "Neuer Text", "USER")
+        val untouched = page(2, "Seite zwei", "OCR")
+
+        assertThat(StoredOcr.picturesFor(listOf(corrected, untouched))).containsExactly(untouched.imagePath)
+        assertThat(StoredOcr.picturesFor(listOf(corrected))).isEmpty()
+    }
+
+    @Test
     fun `the page's text source is read from the entity`() {
         assertThat(StoredOcr.isUserText(page(1, "x", "USER"))).isTrue()
         assertThat(StoredOcr.isUserText(page(1, "x", "OCR"))).isFalse()

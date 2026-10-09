@@ -39,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,6 +56,8 @@ import com.postsaimanager.core.model.ProcessingState
 @Composable
 fun DocumentsScreen(
     onDocumentClick: (String) -> Unit,
+    /** The top-bar bin: the same "Recently deleted" list the Settings entry opens. */
+    onRecentlyDeletedClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: DocumentsViewModel = hiltViewModel(),
 ) {
@@ -81,7 +84,14 @@ fun DocumentsScreen(
 
     Scaffold(
         topBar = {
-            PamTopAppBar(title = "Documents")
+            PamTopAppBar(
+                title = "Documents",
+                actions = {
+                    IconButton(onClick = onRecentlyDeletedClick) {
+                        Icon(PamIcons.Delete, contentDescription = stringResource(R.string.documents_recently_deleted))
+                    }
+                },
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,

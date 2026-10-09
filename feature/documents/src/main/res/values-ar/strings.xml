@@ -160,4 +160,5 @@
     <string name="language_edit_description">تغيير لغة هذه الرسالة</string>
     <string name="language_edit_title">لغة هذه الرسالة</string>
     <string name="language_edit_hint">يُكتب الملخص والإجابات بهذه اللغة. وتبقى عند قراءة الرسالة مرة أخرى.</string>
+    <string name="documents_recently_deleted">المحذوفة مؤخرًا</string>
 </resources>

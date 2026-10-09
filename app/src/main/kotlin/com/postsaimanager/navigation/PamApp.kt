@@ -157,6 +157,7 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
                     onDocumentClick = { id ->
                         navController.navigate("document/$id")
                     },
+                    onRecentlyDeletedClick = { navController.navigate("trash") },
                 )
             }
             composable(TopLevelDestination.PROFILES.route) {
