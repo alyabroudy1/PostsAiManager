@@ -145,6 +145,29 @@ class SessionNotesCollectorTest {
     }
 
     @Test
+    @DisplayName("a parked session is not taken by the notes job of an earlier session: re-entering finds the same session, and the notes wait")
+    fun `parked session survives a notes tick`() = runTest {
+        conversation("old", "d0")
+        say("old", "q0", MessageRole.USER, "I paid on 5 Oct", at = now + 1)
+        val oldEvent = ChatSessionEnded("old", ChatSessionEnd.LEFT, startedAt = now)
+        conversation("c1", "d1")
+        assertThat(tracker.begin("c1")).isTrue()
+        tracker.park("c1")
+
+        now += 90_000
+        assertThat(collector.write(oldEvent)).isEqualTo(SessionNotesRun.Later)
+        assertThat(generator.prompts).isEmpty()
+
+        now += 90_000
+        tracker.enter("c1")
+        assertThat(tracker.begin("c1")).isFalse()
+
+        // The session really ends (left): the earlier notes are written then.
+        tracker.leave("c1")
+        assertThat(written(collector.write(oldEvent))).isEqualTo(1)
+    }
+
+    @Test
     @DisplayName("a chat is active again (the person came back): the notes wait, they never take the model from the live visit")
     fun `deferred while a chat is active`() = runTest {
         conversation("c1", "d1")
