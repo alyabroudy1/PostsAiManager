@@ -7,6 +7,7 @@ import com.postsaimanager.core.domain.repository.DocumentRepository
 import com.postsaimanager.core.domain.repository.EventRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
 import com.postsaimanager.core.model.Case
+import com.postsaimanager.core.model.CaseLinkSource
 import com.postsaimanager.core.model.CaseTitleSource
 import com.postsaimanager.core.model.Document
 import com.postsaimanager.core.model.EventReading
@@ -55,7 +56,7 @@ class RefreshCaseStatusUseCase @Inject constructor(private val events: EventRepo
         val remaining = events.eventsOfCase(caseId)
         if (remaining.isEmpty()) {
             events.deleteCaseIfEmpty(caseId)
-        } else {
+        } else if (CaseStatusPolicy.mayDerive(events.getCase(caseId))) {
             events.setCaseStatus(caseId, CaseStatusDeriver.derive(remaining))
         }
     }
@@ -102,8 +103,13 @@ class RecordDocumentEventsUseCase @Inject constructor(
             contactId = resolved.contactId,
             source = EventSource.DOCUMENT,
         )
-        val caseId = resolved.organisationProfileId?.let { organisation ->
-            caseFor(organisation, resolved.organisationName, event, kind, ReferenceKeys.of(fields), previous.firstOrNull(), now)
+        // A letter the user moved to a matter (or to none) stays where they put it: only the events are re-written, the grouping is not asked again.
+        val caseId = if (document.caseLinkSource == CaseLinkSource.USER) {
+            previous.firstOrNull()?.caseId
+        } else {
+            resolved.organisationProfileId?.let { organisation ->
+                caseFor(organisation, resolved.organisationName, event, kind, ReferenceKeys.of(fields), previous.firstOrNull(), now)
+            }
         }
         events.replaceDocumentEvents(documentId, listOf(event.copy(caseId = caseId)))
         (previous.mapNotNull { it.caseId } + listOfNotNull(caseId)).distinct().forEach { refresh(it) }

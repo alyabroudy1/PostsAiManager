@@ -16,3 +16,13 @@ object CaseStatusDeriver {
             .firstNotNullOfOrNull { kinds.byId(it.kind).status }
             ?: CaseStatus.OPEN
 }
+
+/**
+ * Whether the status derived from a matter's events may be stored, the one place that decides it. A status the user set
+ * ([com.postsaimanager.core.model.CaseStatusSource.USER]) is never replaced by the derived one, however the events change, until the
+ * user hands it back to automatic.
+ */
+object CaseStatusPolicy {
+
+    fun mayDerive(case: com.postsaimanager.core.model.Case?): Boolean = case?.statusSource != com.postsaimanager.core.model.CaseStatusSource.USER
+}
