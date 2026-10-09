@@ -89,7 +89,7 @@ object ActionKinds {
 
     val ATTEND = ActionKind(
         id = "attend",
-        task = "come to an appointment, visit or meeting at a given date and time (also when the letter only reminds the reader of it, or asks to bring something to it)",
+        task = "attend an appointment at a given date and time",
         dateMeaning = "the date of the appointment the reader is asked to attend",
         party = false,
     )

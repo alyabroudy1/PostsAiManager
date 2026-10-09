@@ -78,6 +78,14 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
+    @DisplayName("the dentist answer as the phone gave it: 'kind: attend' on a line of its own is the attend action, not an unknown word")
+    fun `a kind label in the asks`() {
+        val v = build("ASKS: yes\nkind: attend; send_documents; object_cancel")
+
+        assertThat(v.actions.map { it.kind }).containsExactly("attend", "send_documents").inOrder()
+    }
+
+    @Test
     @DisplayName("an action word that is no registry id is kept as the generic other action, with a note, never dropped")
     fun `an unknown action word`() {
         val v = build("ASKS: yes | not_applicable; go to the appointment — 14.10.2026")

@@ -67,7 +67,7 @@ object QaText {
 
     /** The parts of one item (`name | kind`, `date — meaning`), trimmed; an empty or "none" part stays as an empty string so positions hold. */
     fun parts(item: String): List<String> =
-        item.split(PART_SEPARATOR).map { p -> p.trim().takeUnless { isNone(it) }.orEmpty() }
+        item.split(PART_SEPARATOR).map { p -> p.replace(KIND_LABEL, "").trim().takeUnless { isNone(it) }.orEmpty() }
 
     private val KIND_LABEL = Regex("^\\s*kind\\s*[:=]\\s*", RegexOption.IGNORE_CASE)
 
