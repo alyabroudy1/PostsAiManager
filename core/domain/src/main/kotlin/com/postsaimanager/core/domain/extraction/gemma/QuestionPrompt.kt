@@ -88,7 +88,7 @@ object QuestionPrompt {
         append("Separate several items with \";\", at most $MAX_ITEMS items per list.\n")
         if (withSummary) {
             append("${QaLabel.SUMMARY}: first line, one sentence (at most ${SummaryLimits.MAX_CHARS} characters) in the language of the letter: what the document is, ")
-            append("from whom, and its main fact; add what it asks of the reader only if it really asks something\n")
+            append("from whom, and its main fact; add what it asks of the reader only if it really asks something (if it asks nothing, do not mention asking at all)\n")
         }
         val kinds = PartyKind.entries.joinToString(", ") { it.name.lowercase() }
         append("${QaLabel.SENDER}: who sent or issued the document: the organisation, shop or person it comes from, ")
