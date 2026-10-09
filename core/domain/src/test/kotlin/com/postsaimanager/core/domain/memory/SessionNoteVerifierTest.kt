@@ -83,6 +83,24 @@ class SessionNoteVerifierTest {
     }
 
     @Test
+    fun `a note that restates a question of the user is no fact, a stated fact next to the question is kept`() {
+        val said = listOf("Did I already pay?", "I paid it on 5 October, did it arrive?")
+        val kept = verifier.verify(
+            listOf("Did I already ask pay", "Has the user paid already?", "The user paid it on 5 October."),
+            said, card, emptyList(), userMessages = said,
+        )
+
+        assertThat(kept).containsExactly("The user paid it on 5 October.")
+    }
+
+    @Test
+    fun `a question mark of another script is a question too`() {
+        val said = listOf("هل دفعت الفاتورة؟")
+        assertThat(verifier.verify(listOf("هل دفعت الفاتورة"), said, card, emptyList(), userMessages = said)).isEmpty()
+        assertThat(verifier.verify(listOf("دفع المستخدم الفاتورة"), said, card, emptyList(), userMessages = said)).hasSize(1)
+    }
+
+    @Test
     fun `at most three notes are kept`() {
         val kept = verify("one fact", "two facts", "three facts", "four facts", "five facts")
 

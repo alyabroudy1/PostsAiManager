@@ -59,7 +59,7 @@ internal class SessionNoteDrafter(
 
         val grounding = userTurns.map { it.content } +
             sessionTurns.flatMap { message -> message.toolTrace.map { it.resultJson } + listOfNotNull(message.toolResult) }
-        val kept = verifier.verify(SessionNotesFormat.parse(answer), grounding, cardText, existing, actionNotes)
+        val kept = verifier.verify(SessionNotesFormat.parse(answer), grounding, cardText, existing, actionNotes, userMessages = userTurns.map { it.content })
         return if (kept.isEmpty()) null else Draft(kept, userTurns.last().id)
     }
 
