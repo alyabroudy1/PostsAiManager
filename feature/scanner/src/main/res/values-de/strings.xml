@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Scanner-Bildschirm -->
+    <string name="scanner_title">Dokument scannen</string>
+    <string name="scanner_idle_title">Dokumentenscanner</string>
+    <string name="scanner_idle_subtitle">Der Scanner wird gestartet…</string>
+    <string name="scanner_creating">Dokument wird erstellt…</string>
+    <string name="scanner_saving">Dokument wird gespeichert…</string>
+    <string name="scanner_saved">Dokument gespeichert!</string>
+    <string name="scanner_try_again">Erneut versuchen</string>
+    <string name="scanner_back">Zurück</string>
+    <!-- Erklärung vor dem System-Dialog zur Benachrichtigungsberechtigung -->
+    <string name="scanner_notify_title">Auf dem Laufenden bleiben</string>
+    <string name="scanner_notify_text">Lassen Sie sich benachrichtigen, wenn Ihr Dokument fertig ist.</string>
+    <string name="scanner_notify_allow">Erlauben</string>
+    <string name="scanner_notify_not_now">Nicht jetzt</string>
+</resources>

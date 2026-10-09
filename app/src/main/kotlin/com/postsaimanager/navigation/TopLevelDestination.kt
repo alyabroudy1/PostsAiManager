@@ -1,6 +1,8 @@
 package com.postsaimanager.navigation
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.postsaimanager.R
 import com.postsaimanager.core.designsystem.icon.PamIcons
 
 /**
@@ -9,31 +11,31 @@ import com.postsaimanager.core.designsystem.icon.PamIcons
 enum class TopLevelDestination(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
-    val label: String,
+    @StringRes val labelRes: Int,
     val route: String,
 ) {
     HOME(
         selectedIcon = PamIcons.Home,
         unselectedIcon = PamIcons.HomeOutlined,
-        label = "Home",
+        labelRes = R.string.nav_home,
         route = "home",
     ),
     DOCUMENTS(
         selectedIcon = PamIcons.Documents,
         unselectedIcon = PamIcons.DocumentsOutlined,
-        label = "Documents",
+        labelRes = R.string.nav_documents,
         route = "documents",
     ),
     PROFILES(
         selectedIcon = PamIcons.Profiles,
         unselectedIcon = PamIcons.ProfilesOutlined,
-        label = "Profiles",
+        labelRes = R.string.nav_profiles,
         route = "profiles",
     ),
     SETTINGS(
         selectedIcon = PamIcons.Settings,
         unselectedIcon = PamIcons.SettingsOutlined,
-        label = "Settings",
+        labelRes = R.string.nav_settings,
         route = "settings",
     ),
     // PARSER removed 2026-08-07 — Arabic syntax analysis is out of scope.

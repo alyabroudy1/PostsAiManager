@@ -173,6 +173,58 @@
     <string name="chat_error_model_cannot_chat">Dieses Modell kann nicht chatten. Wählen Sie unter KI-Modelle ein Chat-Modell.</string>
     <string name="chat_error_open_ai_models">KI-Modelle</string>
 
+    <!-- Der Chat-Bildschirm -->
+    <string name="chat_title_document">Dokument-Chat</string>
+    <string name="chat_title_assistant">KI-Assistent</string>
+    <string name="chat_copied_to_clipboard">In die Zwischenablage kopiert</string>
+    <string name="chat_empty_title">Fragen Sie mich zu Ihren Dokumenten</string>
+    <string name="chat_empty_hint_document">Ich helfe Ihnen, dieses Dokument zu verstehen, wichtige Angaben zu finden und Antworten zu entwerfen.</string>
+    <string name="chat_empty_hint_all">Ich durchsuche alle Ihre Dokumente, um Ihre Frage zu beantworten.</string>
+    <string name="chat_jump_to_latest">Zur neuesten Nachricht</string>
+    <string name="chat_answer_cut_off">Antwort wurde abgeschnitten</string>
+    <string name="chat_answer_stopped">Angehalten</string>
+    <string name="chat_copy_answer">Antwort kopieren</string>
+    <string name="chat_regenerate_answer">Antwort neu erstellen</string>
+    <string name="chat_working">Arbeitet…</string>
+    <string name="chat_error_generic">Etwas ist schiefgelaufen.</string>
+    <string name="chat_error_get_model">KI-Modell holen</string>
+    <string name="chat_error_dismiss">Schließen</string>
+    <string name="chat_input_placeholder">Nachricht eingeben…</string>
+    <string name="chat_input_stop">Erstellen stoppen</string>
+    <string name="chat_input_send">Senden</string>
+
+    <!-- Quellenchips unter einer Antwort -->
+    <string name="chat_source_page">Seite %1$d</string>
+    <string name="chat_source_excerpt">Auszug</string>
+    <string name="chat_source_title_page">%1$s · S. %2$d</string>
+    <string name="chat_source_title_excerpt">%1$s · Auszug</string>
+    <string name="chat_source_deleted">Gelöschtes Dokument</string>
+    <string name="chat_source_untitled">Dokument ohne Titel</string>
+    <string name="chat_source_this_document">diesem Dokument</string>
+    <string name="chat_source_description_page">Quelle: Seite %1$d von %2$s</string>
+    <string name="chat_source_description_excerpt">Quelle: ein Auszug aus %1$s</string>
+
+    <!-- Das Modell-Chip in der Kopfzeile und sein Einstellungsblatt -->
+    <string name="chat_header_assistant">Assistent</string>
+    <string name="chat_header_no_model">Kein Modell</string>
+    <string name="chat_model_settings">Modelleinstellungen</string>
+    <string name="chat_status_loading_model">Modell wird geladen…</string>
+    <string name="chat_status_preparing_conversation">Unterhaltung wird vorbereitet…</string>
+    <string name="chat_status_waiting_for_document">Warten, bis ein Dokument fertig gelesen ist…</string>
+    <string name="chat_model_not_loaded">Nicht geladen</string>
+    <string name="chat_model_load_failed">Laden fehlgeschlagen</string>
+    <string name="chat_sheet_model">Modell</string>
+    <string name="chat_sheet_no_models">Noch keine Modelle installiert.</string>
+    <string name="chat_sheet_manage_models">Modelle verwalten</string>
+    <string name="chat_sheet_accelerator">Beschleuniger</string>
+    <string name="chat_sheet_inference_settings">Inferenz-Einstellungen</string>
+    <string name="chat_sheet_install_to_configure">Installieren Sie ein Modell, um es zu konfigurieren.</string>
+    <string name="chat_sheet_reset_defaults">Auf Standard zurücksetzen</string>
+    <string name="chat_sheet_active_model">Aktives Modell</string>
+    <string name="chat_sheet_try_gpu_again">GPU erneut versuchen</string>
+    <string name="chat_model_size_gb">%1$s GB</string>
+    <string name="chat_model_size_quantization">%1$s · %2$s</string>
+
     <!-- The quiet line in the chat above the messages the assistant still reads -->
     <string name="chat_context_divider">Frühere Nachrichten — der Assistent merkt sich Notizen, nicht den ganzen Chat</string>
     <!-- Notizen des Assistenten zu bestätigten Aktionen (Dokumentgedächtnis). Werden so gespeichert, wie sie geschrieben wurden. -->

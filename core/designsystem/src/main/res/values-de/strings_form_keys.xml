@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Was ein Formular abfragen kann: ein Label pro FormDataKeys-Id (siehe FormKeyLabels). -->
+    <string name="form_key_full_name">Vollständiger Name</string>
+    <string name="form_key_given_name">Vorname</string>
+    <string name="form_key_family_name">Nachname</string>
+    <string name="form_key_birth_date">Geburtsdatum</string>
+    <string name="form_key_birth_place">Geburtsort</string>
+    <string name="form_key_nationality">Staatsangehörigkeit</string>
+    <string name="form_key_gender">Geschlecht</string>
+    <string name="form_key_address">Adresse</string>
+    <string name="form_key_street">Straße und Hausnummer</string>
+    <string name="form_key_postcode">Postleitzahl</string>
+    <string name="form_key_city">Ort</string>
+    <string name="form_key_country">Land</string>
+    <string name="form_key_phone">Telefon</string>
+    <string name="form_key_mobile">Mobiltelefon</string>
+    <string name="form_key_email">E-Mail</string>
+    <string name="form_key_health_insurer">Krankenkasse</string>
+    <string name="form_key_insurance_no">Versichertennummer</string>
+    <string name="form_key_tax_id">Steuer-ID</string>
+    <string name="form_key_iban">IBAN</string>
+    <string name="form_key_account_holder">Kontoinhaber</string>
+    <string name="form_key_bank_name">Bank</string>
+    <string name="form_key_school">Schule</string>
+    <string name="form_key_school_class">Klasse</string>
+    <string name="form_key_employer">Arbeitgeber</string>
+    <string name="form_key_occupation">Beruf</string>
+    <string name="form_key_allergies">Allergien und Gesundheitshinweise</string>
+    <string name="form_key_swim_level">Schwimmstufe</string>
+    <string name="form_key_today_date">Datum der Unterschrift</string>
+    <string name="form_key_today_place">Ort der Unterschrift</string>
+    <string name="form_key_signature">Unterschrift</string>
+</resources>

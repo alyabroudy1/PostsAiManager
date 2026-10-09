@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AI models screen: title and top bar -->
+    <string name="models_title">AI models</string>
+    <string name="models_import">Import</string>
+    <string name="models_error_catalog">Could not load the model catalog</string>
+    <string name="models_section_search">Document search</string>
+    <string name="models_section_installed">Installed</string>
+    <string name="models_section_available">Available</string>
+
+    <!-- Sizes. %1$s is the number, already formatted for the language. -->
+    <string name="models_size_gb">%1$s GB</string>
+    <string name="models_size_mb">%1$s MB</string>
+
+    <!-- This device card -->
+    <string name="models_device_title">This device</string>
+    <string name="models_device_memory">%1$s of %2$s memory available right now</string>
+    <string name="models_device_storage">%1$s storage free · %2$s</string>
+    <string name="models_device_low_memory">The device is low on memory — close some apps before loading a model.</string>
+
+    <!-- Offline catalog notice -->
+    <string name="models_offline_title">Offline catalog</string>
+    <string name="models_offline_text">Showing the models built into the app. Each one downloads from Hugging Face and is checked against a fixed fingerprint before it is used. New models will appear here with a later update.</string>
+
+    <!-- Installed model card -->
+    <string name="models_chip_chat">Chat</string>
+    <string name="models_chip_reads_documents">Reads documents</string>
+    <string name="models_note_form_filling">Used for form filling (better, slower)</string>
+    <string name="models_note_better_reading">Better at reading documents than at chatting. Measured on a German letter, it found the sender and the deadline where a smaller model found neither.</string>
+    <string name="models_action_use_chat">Use for chat</string>
+    <string name="models_action_use_reading">Use for reading</string>
+    <string name="models_action_remove">Remove</string>
+
+    <!-- Available model card -->
+    <string name="models_download_progress">%1$d%% · %2$s downloaded</string>
+    <string name="models_action_cancel">Cancel</string>
+    <string name="models_waiting_wifi_short">Waiting for Wi-Fi…</string>
+    <string name="models_download_failed">Download failed. It will retry automatically.</string>
+    <string name="models_action_install">Install</string>
+
+    <!-- Why a model cannot be installed -->
+    <string name="models_fit_low_memory">Needs %1$s free, %2$s available. You can install it now and close some apps before using it.</string>
+    <string name="models_fit_too_large">Too large for this device (needs %1$s, device has %2$s total).</string>
+    <string name="models_fit_storage">Needs %1$s of storage, %2$s free.</string>
+    <string name="models_fit_unsupported_abi">This device\'s processor is not supported.</string>
+    <string name="models_fit_not_installable">No verified download source yet.</string>
+
+    <!-- Search-by-meaning (embedding model) card -->
+    <string name="models_embed_title">Search by meaning</string>
+    <string name="models_embed_on">On</string>
+    <string name="models_embed_description">Find a letter by what it was about, not the words it used. Ask “when is my deadline?” and get the paragraph that answers it — even in a different language.</string>
+    <string name="models_embed_size">%1$s download · runs entirely on your device</string>
+    <string name="models_embed_without">Without it, search still finds documents by word.</string>
+    <string name="models_embed_download_wifi">Download on Wi-Fi</string>
+    <string name="models_embed_use_mobile">Use mobile data</string>
+    <string name="models_embed_waiting_wifi">Waiting for Wi-Fi. The download will start on its own.</string>
+    <string name="models_embed_progress">%1$d%% · %2$s of %3$s</string>
+    <string name="models_embed_background">You can leave this screen — it continues in the background.</string>
+    <string name="models_embed_ready">Ready. New documents are indexed as you scan them.</string>
+    <string name="models_embed_remove">Remove (%1$s)</string>
+    <string name="models_embed_failed">The download did not finish. Retrying continues from where it stopped rather than starting over.</string>
+    <string name="models_embed_try_again">Try again</string>
+
+    <!-- Snackbar messages -->
+    <string name="models_msg_search_off">Search by meaning turned off. Documents are still searchable by word.</string>
+    <string name="models_msg_not_installable">%1$s cannot be installed yet: no verified download source is configured. Model downloads require a signed catalog.</string>
+    <string name="models_msg_reading_model">Documents will be read with this model from now on.</string>
+    <string name="models_msg_checking_file">Checking the file…</string>
+    <string name="models_msg_imported">%1$s imported and ready to use.</string>
+</resources>

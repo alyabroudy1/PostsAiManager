@@ -15,7 +15,9 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import com.postsaimanager.core.designsystem.R
 
 /**
  * Posts AI Manager top app bar.
@@ -52,7 +54,7 @@ fun PamTopAppBar(
                 IconButton(onClick = onNavigateBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Navigate back",
+                        contentDescription = stringResource(R.string.ds_navigate_back),
                     )
                 }
             }

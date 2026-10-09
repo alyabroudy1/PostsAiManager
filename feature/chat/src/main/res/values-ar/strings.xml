@@ -205,6 +205,58 @@
     <string name="chat_error_model_cannot_chat">لا يستطيع هذا النموذج المحادثة. اختر نموذج محادثة من نماذج الذكاء الاصطناعي.</string>
     <string name="chat_error_open_ai_models">نماذج الذكاء الاصطناعي</string>
 
+    <!-- شاشة المحادثة -->
+    <string name="chat_title_document">محادثة المستند</string>
+    <string name="chat_title_assistant">مساعد الذكاء الاصطناعي</string>
+    <string name="chat_copied_to_clipboard">تم النسخ إلى الحافظة</string>
+    <string name="chat_empty_title">اسألني عن مستنداتك</string>
+    <string name="chat_empty_hint_document">يمكنني مساعدتك على فهم هذا المستند والعثور على المعلومات المهمة وصياغة الردود.</string>
+    <string name="chat_empty_hint_all">يمكنني البحث في جميع مستنداتك للإجابة عن سؤالك.</string>
+    <string name="chat_jump_to_latest">الانتقال إلى الأحدث</string>
+    <string name="chat_answer_cut_off">انقطعت الإجابة</string>
+    <string name="chat_answer_stopped">تم الإيقاف</string>
+    <string name="chat_copy_answer">نسخ الإجابة</string>
+    <string name="chat_regenerate_answer">إعادة إنشاء الإجابة</string>
+    <string name="chat_working">جارٍ العمل…</string>
+    <string name="chat_error_generic">حدث خطأ ما.</string>
+    <string name="chat_error_get_model">الحصول على نموذج ذكاء اصطناعي</string>
+    <string name="chat_error_dismiss">إغلاق</string>
+    <string name="chat_input_placeholder">اكتب رسالة…</string>
+    <string name="chat_input_stop">إيقاف الإنشاء</string>
+    <string name="chat_input_send">إرسال</string>
+
+    <!-- شارات المصادر أسفل الإجابة -->
+    <string name="chat_source_page">الصفحة %1$d</string>
+    <string name="chat_source_excerpt">مقتطف</string>
+    <string name="chat_source_title_page">%1$s · ص. %2$d</string>
+    <string name="chat_source_title_excerpt">%1$s · مقتطف</string>
+    <string name="chat_source_deleted">مستند محذوف</string>
+    <string name="chat_source_untitled">مستند بلا عنوان</string>
+    <string name="chat_source_this_document">هذا المستند</string>
+    <string name="chat_source_description_page">المصدر: الصفحة %1$d من %2$s</string>
+    <string name="chat_source_description_excerpt">المصدر: مقتطف من %1$s</string>
+
+    <!-- شارة النموذج في الرأس وورقة إعداداته -->
+    <string name="chat_header_assistant">المساعد</string>
+    <string name="chat_header_no_model">لا يوجد نموذج</string>
+    <string name="chat_model_settings">إعدادات النموذج</string>
+    <string name="chat_status_loading_model">جارٍ تحميل النموذج…</string>
+    <string name="chat_status_preparing_conversation">جارٍ تجهيز المحادثة…</string>
+    <string name="chat_status_waiting_for_document">في انتظار انتهاء قراءة مستند…</string>
+    <string name="chat_model_not_loaded">غير محمّل</string>
+    <string name="chat_model_load_failed">فشل التحميل</string>
+    <string name="chat_sheet_model">النموذج</string>
+    <string name="chat_sheet_no_models">لم يتم تثبيت أي نموذج بعد.</string>
+    <string name="chat_sheet_manage_models">إدارة النماذج</string>
+    <string name="chat_sheet_accelerator">المسرّع</string>
+    <string name="chat_sheet_inference_settings">إعدادات الاستدلال</string>
+    <string name="chat_sheet_install_to_configure">ثبّت نموذجًا لتتمكن من ضبطه.</string>
+    <string name="chat_sheet_reset_defaults">إعادة التعيين إلى الافتراضي</string>
+    <string name="chat_sheet_active_model">النموذج النشط</string>
+    <string name="chat_sheet_try_gpu_again">إعادة محاولة وحدة GPU</string>
+    <string name="chat_model_size_gb">%1$s غيغابايت</string>
+    <string name="chat_model_size_quantization">%1$s · %2$s</string>
+
     <!-- The quiet line in the chat above the messages the assistant still reads -->
     <string name="chat_context_divider">رسائل سابقة — يحتفظ المساعد بملاحظات، لا بالمحادثة كاملة</string>
     <!-- ملاحظات المساعد عن الإجراءات المؤكَّدة (ذاكرة المستند). تُحفظ كما كُتبت. -->

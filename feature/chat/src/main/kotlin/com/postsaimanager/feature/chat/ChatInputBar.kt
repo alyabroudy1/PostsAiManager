@@ -142,7 +142,7 @@ internal fun ChatInputBar(
                     value = value,
                     onValueChange = onValueChange,
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type a message...") },
+                    placeholder = { Text(stringResource(R.string.chat_input_placeholder)) },
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -157,7 +157,7 @@ internal fun ChatInputBar(
                     IconButton(onClick = onStop) {
                         Icon(
                             imageVector = Icons.Filled.Stop,
-                            contentDescription = "Stop generating",
+                            contentDescription = stringResource(R.string.chat_input_stop),
                             tint = MaterialTheme.colorScheme.error,
                         )
                     }
@@ -165,7 +165,7 @@ internal fun ChatInputBar(
                     IconButton(onClick = onSend, enabled = value.isNotBlank()) {
                         Icon(
                             imageVector = PamIcons.Send,
-                            contentDescription = "Send",
+                            contentDescription = stringResource(R.string.chat_input_send),
                             tint = if (value.isNotBlank()) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                         )

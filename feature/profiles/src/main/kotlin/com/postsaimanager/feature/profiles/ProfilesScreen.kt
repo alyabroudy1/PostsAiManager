@@ -81,7 +81,7 @@ fun ProfilesScreen(
     }
 
     Scaffold(
-        topBar = { PamTopAppBar(title = "Profiles") },
+        topBar = { PamTopAppBar(title = stringResource(R.string.profiles_title)) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -104,12 +104,12 @@ fun ProfilesScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search profiles...") },
-                leadingIcon = { Icon(PamIcons.Search, contentDescription = "Search") },
+                placeholder = { Text(stringResource(R.string.profiles_search_placeholder)) },
+                leadingIcon = { Icon(PamIcons.Search, contentDescription = stringResource(R.string.profiles_search_description)) },
                 trailingIcon = {
                     AnimatedVisibility(visible = searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                            Icon(PamIcons.Close, contentDescription = "Clear")
+                            Icon(PamIcons.Close, contentDescription = stringResource(R.string.profiles_search_clear))
                         }
                     }
                 },
@@ -130,12 +130,15 @@ fun ProfilesScreen(
                     is ProfilesUiState.Loading -> PamLoadingState()
                     is ProfilesUiState.Empty -> PamEmptyState(
                         icon = PamIcons.Profiles,
-                        title = if (searchQuery.isNotEmpty()) "No Results" else "No Profiles",
-                        subtitle = if (searchQuery.isNotEmpty()) "Try a different search."
-                        else "Profiles will be created automatically from scanned documents.",
+                        title = stringResource(
+                            if (searchQuery.isNotEmpty()) R.string.profiles_empty_no_results_title else R.string.profiles_empty_title,
+                        ),
+                        subtitle = stringResource(
+                            if (searchQuery.isNotEmpty()) R.string.profiles_empty_no_results_subtitle else R.string.profiles_empty_subtitle,
+                        ),
                     )
                     is ProfilesUiState.Error -> PamErrorState(
-                        message = state.message,
+                        message = state.message ?: stringResource(R.string.profiles_error_unknown),
                         icon = PamIcons.Error,
                     )
                     is ProfilesUiState.Success -> ProfilesList(
@@ -223,26 +226,20 @@ private fun DeleteProfileDialog(
     val isMachineCreated = profile.sourceDocumentId != null
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete ${profile.name}?") },
+        title = { Text(stringResource(R.string.profiles_delete_title, profile.name)) },
         text = {
             Text(
-                if (isMachineCreated) {
-                    "Documents linked to this profile are not deleted — only the profile " +
-                        "itself goes away. This profile was created automatically from a " +
-                        "scanned document, so deleting it also stops the app from " +
-                        "suggesting it again the next time that document is processed."
-                } else {
-                    "Documents linked to this profile are not deleted — only the profile " +
-                        "itself goes away."
-                },
+                stringResource(
+                    if (isMachineCreated) R.string.profiles_delete_body_auto else R.string.profiles_delete_body,
+                ),
             )
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Delete", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.profiles_delete_confirm), color = MaterialTheme.colorScheme.error)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.profiles_delete_cancel)) } },
     )
 }
 
@@ -304,7 +301,7 @@ private fun ProfileListItem(
             IconButton(onClick = onDeleteClick) {
                 Icon(
                     PamIcons.Delete,
-                    contentDescription = "Delete profile",
+                    contentDescription = stringResource(R.string.profiles_delete_description),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

@@ -3,6 +3,7 @@ package com.postsaimanager.feature.documents
 import android.text.format.DateFormat
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import com.postsaimanager.core.designsystem.component.FriendlyDate
 import com.postsaimanager.core.domain.extraction.actions.ActionLine
@@ -61,7 +62,7 @@ internal object ActionTemplates {
 /** The sentence of [line] in the app's language, or null when this build has no template for its kind. */
 @Composable
 internal fun actionLineText(line: ActionLine): String? {
-    val locale = Locale.getDefault()
+    val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
     val day = line.date?.let { actionDateText(it.date, locale) }
     val time = line.date?.time?.let { actionTimeText(it, locale) }
     val date = if (day != null && time != null) stringResource(R.string.action_date_time, day, time) else day

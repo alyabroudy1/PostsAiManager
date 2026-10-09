@@ -16,4 +16,14 @@
     <string name="home_import_action">PDF oder Bilder importieren</string>
     <string name="home_importing">Wird importiert…</string>
     <string name="home_import_failed">Einige Dateien konnten nicht importiert werden. Zum Schließen antippen.</string>
+    <!-- Startbildschirm: Titel, Buttons, Liste, Leer- und Fehlerzustand, Rückgängig-Hinweis -->
+    <string name="home_ask_documents">Fragen zu Ihren Dokumenten stellen</string>
+    <string name="home_scan_document">Dokument scannen</string>
+    <string name="home_empty_title">Noch keine Dokumente</string>
+    <string name="home_empty_subtitle">Scannen oder importieren Sie Ihr erstes Dokument, um loszulegen.</string>
+    <string name="home_empty_action">Dokument scannen</string>
+    <string name="home_recent_documents">Zuletzt hinzugefügt</string>
+    <string name="home_error_unknown">Etwas ist schiefgelaufen.</string>
+    <string name="home_document_deleted">Dokument in „Zuletzt gelöscht“ verschoben</string>
+    <string name="home_document_deleted_undo">Rückgängig</string>
 </resources>

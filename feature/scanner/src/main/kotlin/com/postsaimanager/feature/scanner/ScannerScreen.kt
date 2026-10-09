@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -155,14 +156,14 @@ fun ScannerScreen(
                 pendingScanDocumentId?.let(onScanComplete)
                 pendingScanDocumentId = null
             },
-            title = { Text("Stay notified") },
-            text = { Text("Get notified when your document is ready.") },
+            title = { Text(stringResource(R.string.scanner_notify_title)) },
+            text = { Text(stringResource(R.string.scanner_notify_text)) },
             confirmButton = {
                 Button(onClick = {
                     showNotificationRationale = false
                     viewModel.onNotificationPermissionRequestLaunching()
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }) { Text("Allow") }
+                }) { Text(stringResource(R.string.scanner_notify_allow)) }
             },
             dismissButton = {
                 TextButton(onClick = {
@@ -170,7 +171,7 @@ fun ScannerScreen(
                     viewModel.onNotificationPermissionResolved()
                     pendingScanDocumentId?.let(onScanComplete)
                     pendingScanDocumentId = null
-                }) { Text("Not now") }
+                }) { Text(stringResource(R.string.scanner_notify_not_now)) }
             },
         )
     }
@@ -178,7 +179,7 @@ fun ScannerScreen(
     Scaffold(
         topBar = {
             PamTopAppBar(
-                title = "Scan Document",
+                title = stringResource(R.string.scanner_title),
                 onNavigateBack = onNavigateBack,
             )
         },
@@ -193,8 +194,8 @@ fun ScannerScreen(
             when (state) {
                 is ScannerUiState.Idle -> PamEmptyState(
                     icon = PamIcons.Camera,
-                    title = "Document Scanner",
-                    subtitle = "The scanner is starting...",
+                    title = stringResource(R.string.scanner_idle_title),
+                    subtitle = stringResource(R.string.scanner_idle_subtitle),
                 )
                 // Nothing to render — the LaunchedEffect above navigates back on the same
                 // frame this state lands, so this is on screen for a fraction of a second.
@@ -211,7 +212,7 @@ fun ScannerScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = state.message,
+                        text = stringResource(state.messageRes),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -229,14 +230,14 @@ fun ScannerScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Document saved!",
+                        text = stringResource(R.string.scanner_saved),
                         style = MaterialTheme.typography.headlineSmall,
                     )
                 }
                 is ScannerUiState.Error -> PamErrorState(
                     message = state.error.userMessage,
                     icon = PamIcons.Error,
-                    retryLabel = "Try again",
+                    retryLabel = stringResource(R.string.scanner_try_again),
                     onRetry = {
                         viewModel.resetState()
                         // Re-launch scanner
@@ -251,7 +252,7 @@ fun ScannerScreen(
                                 viewModel.onScanLaunchFailed()
                             }
                     },
-                    secondaryLabel = "Back",
+                    secondaryLabel = stringResource(R.string.scanner_back),
                     onSecondary = onNavigateBack,
                 )
             }

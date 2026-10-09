@@ -161,4 +161,309 @@
     <string name="language_edit_title">لغة هذه الرسالة</string>
     <string name="language_edit_hint">يُكتب الملخص والإجابات بهذه اللغة. وتبقى عند قراءة الرسالة مرة أخرى.</string>
     <string name="documents_recently_deleted">المحذوفة مؤخرًا</string>
+
+    <!-- إعادة التسمية -->
+    <string name="action_rename">إعادة تسمية</string>
+    <string name="rename_title">إعادة تسمية المستند</string>
+    <string name="rename_label">العنوان</string>
+    <string name="action_save">حفظ</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="share_sheet_unavailable">تعذّر فتح قائمة المشاركة</string>
+
+    <string name="card_summary_coming">الملخص قادم…</string>
+    <string name="summary_edit">تعديل الملخص</string>
+    <string name="summary_edit_title">تعديل الملخص</string>
+    <string name="summary_edit_label">الملخص</string>
+
+    <!-- ملخص مُركَّب من الحقول المتحقَّق منها -->
+    <string name="summary_intro">%1$s.</string>
+    <string name="summary_intro_from">%1$s من %2$s.</string>
+    <string name="summary_intro_for">%1$s إلى %2$s.</string>
+    <string name="summary_intro_from_for">%1$s من %2$s إلى %3$s.</string>
+    <string name="summary_amount_due">المبلغ %1$s، يستحق في %2$s.</string>
+    <string name="summary_amount">المبلغ %1$s.</string>
+    <string name="summary_due">يستحق في %1$s.</string>
+    <string name="summary_subject">الموضوع: %1$s.</string>
+
+    <!-- تبويب المستخرَج -->
+    <string name="extracted_empty_title">لا توجد بيانات مستخرجة بعد</string>
+    <string name="extracted_empty_hint">عالج المستند أو أضف البيانات يدويًا</string>
+    <string name="extracted_add_manually">إضافة يدويًا</string>
+    <string name="action_re_extract">إعادة الاستخراج</string>
+
+    <!-- الترويسة -->
+    <string name="header_family_chip">%1$s ▾</string>
+    <string name="header_type_unknown">النوع غير معروف</string>
+    <string name="header_change_type">تغيير النوع</string>
+    <string name="header_read_again_as">إعادة القراءة بوصفه…</string>
+    <string name="debug_read_again_with_gemma">إعادة القراءة باستخدام Gemma (تجريبي)</string>
+    <string name="picker_change_title">تغيير النوع</string>
+    <string name="picker_read_again_title">إعادة القراءة بوصفه</string>
+    <string name="picker_current">النوع الحالي</string>
+    <string name="confidence_high">تم التعرف على النوع بثقة عالية</string>
+    <string name="confidence_medium">تم التعرف على النوع بثقة متوسطة</string>
+    <string name="confidence_low">تم التعرف على النوع بثقة منخفضة</string>
+
+    <!-- المراجعة -->
+    <string name="review_confirm_confident">تأكيد %1$d من الموثوق بها</string>
+    <string name="review_confirm_all">تأكيد الكل</string>
+    <plurals name="fields_confirmed">
+        <item quantity="zero">تم تأكيد %1$d حقل</item>
+        <item quantity="one">تم تأكيد حقل واحد</item>
+        <item quantity="two">تم تأكيد حقلين</item>
+        <item quantity="few">تم تأكيد %1$d حقول</item>
+        <item quantity="many">تم تأكيد %1$d حقلًا</item>
+        <item quantity="other">تم تأكيد %1$d حقل</item>
+    </plurals>
+    <string name="action_undo">تراجع</string>
+
+    <!-- الأقسام -->
+    <string name="section_check">يرجى المراجعة (%1$d)</string>
+    <string name="section_ignored">متجاهَل (%1$d)</string>
+    <string name="section_recipient">المستلم</string>
+    <string name="section_sender">المرسل</string>
+    <string name="section_merchant">التاجر</string>
+    <string name="section_action">المهمة</string>
+    <string name="section_payment">الإجمالي والدفع</string>
+    <string name="section_other_details">تفاصيل أخرى</string>
+    <string name="other_details_show_all">عرض الكل (%1$d أخرى)</string>
+    <string name="other_details_show_fewer">عرض أقل</string>
+    <string name="group_parties">الأشخاص والجهات</string>
+    <string name="group_dates">التواريخ</string>
+    <string name="group_references">المراجع</string>
+    <string name="group_text">الموضوع والنص</string>
+
+    <!-- الحقول -->
+    <string name="field_worth_checking">يُفضَّل التحقق.</string>
+    <string name="field_confidence">ثقة %1$d%%</string>
+    <string name="field_machine_changed">يظهر في المستند الآن هنا «%1$s».</string>
+    <string name="field_keep_mine">الإبقاء على قيمتي</string>
+    <string name="field_review">مراجعة</string>
+    <string name="field_confirmed">%1$s، تم التأكيد</string>
+    <string name="action_confirm_field">تأكيد %1$s</string>
+    <string name="action_edit_field">تعديل %1$s</string>
+    <string name="action_ignore_field">تجاهل %1$s</string>
+    <string name="action_restore_field">استعادة %1$s</string>
+    <string name="action_restore">استعادة</string>
+    <string name="part_description">%1$s: %2$s</string>
+    <string name="part_description_uncertain">%1$s: %2$s، يُفضَّل التحقق</string>
+
+    <!-- نافذة التعديل -->
+    <string name="edit_title">تعديل %1$s</string>
+    <string name="edit_name_label">اسم الحقل</string>
+    <string name="edit_value_label">القيمة</string>
+    <string name="edit_alternatives">قراءات أخرى</string>
+    <string name="edit_alternative_on_page">%1$s · الصفحة %2$d</string>
+    <string name="edit_show_on_page">إظهار في الصفحة</string>
+
+    <!-- تسميات الحقول -->
+    <string name="slot_sender">المرسل</string>
+    <string name="slot_addressee">المستلم</string>
+    <string name="slot_contact">شخص الاتصال</string>
+    <string name="slot_subject">الموضوع</string>
+    <string name="slot_subject_person">الشخص المعني</string>
+    <string name="slot_unlabelled">تفصيل</string>
+    <!-- أجزاء العنوان المنظَّم -->
+    <string name="addr_addressee_name">اسم المستلم</string>
+    <string name="addr_addressee_organisation">جهة المستلم</string>
+    <string name="addr_addressee_department">قسم المستلم</string>
+    <string name="addr_addressee_care_of">المستلم برعاية</string>
+    <string name="addr_addressee_street">شارع المستلم</string>
+    <string name="addr_addressee_house_number">رقم منزل المستلم</string>
+    <string name="addr_addressee_extra">سطر إضافي في عنوان المستلم</string>
+    <string name="addr_addressee_postcode">الرمز البريدي للمستلم</string>
+    <string name="addr_addressee_city">مدينة المستلم</string>
+    <string name="addr_addressee_region">منطقة المستلم</string>
+    <string name="addr_addressee_country">بلد المستلم</string>
+    <string name="addr_addressee_po_box">صندوق بريد المستلم</string>
+    <string name="addr_addressee_packstation">خزانة طرود المستلم</string>
+    <string name="addr_addressee_raw">عنوان المستلم كما هو مطبوع</string>
+    <string name="addr_sender_name">اسم المرسل</string>
+    <string name="addr_sender_organisation">جهة المرسل</string>
+    <string name="addr_sender_department">قسم المرسل</string>
+    <string name="addr_sender_care_of">المرسل برعاية</string>
+    <string name="addr_sender_street">شارع المرسل</string>
+    <string name="addr_sender_house_number">رقم منزل المرسل</string>
+    <string name="addr_sender_extra">سطر إضافي في عنوان المرسل</string>
+    <string name="addr_sender_postcode">الرمز البريدي للمرسل</string>
+    <string name="addr_sender_city">مدينة المرسل</string>
+    <string name="addr_sender_region">منطقة المرسل</string>
+    <string name="addr_sender_country">بلد المرسل</string>
+    <string name="addr_sender_po_box">صندوق بريد المرسل</string>
+    <string name="addr_sender_packstation">خزانة طرود المرسل</string>
+    <string name="addr_sender_raw">عنوان المرسل كما هو مطبوع</string>
+    <!-- قيم وُجدت في الصفحة ولم تُصنَّف -->
+    <string name="found_date">تاريخ تم العثور عليه %1$d</string>
+    <string name="found_amount">مبلغ تم العثور عليه %1$d</string>
+    <string name="found_iban">IBAN تم العثور عليه %1$d</string>
+    <string name="found_reference">مرجع تم العثور عليه %1$d</string>
+    <string name="found_phone">رقم هاتف تم العثور عليه %1$d</string>
+    <string name="found_email">بريد إلكتروني تم العثور عليه %1$d</string>
+    <string name="slot_letter_date">تاريخ المستند</string>
+    <string name="slot_total">المبلغ</string>
+    <string name="slot_due_date">الموعد النهائي</string>
+    <string name="slot_iban">IBAN</string>
+    <string name="slot_reference">المرجع</string>
+    <string name="slot_customer_no">رقم العميل</string>
+    <string name="slot_fee">الرسوم</string>
+    <string name="slot_new_amount">المبلغ الجديد</string>
+    <string name="slot_previous_amount">المبلغ السابق</string>
+    <string name="slot_proof_amount">المبلغ المدفوع</string>
+    <string name="slot_objection_deadline">مهلة الاعتراض</string>
+    <string name="slot_original_due_date">تاريخ الاستحقاق الأصلي</string>
+    <string name="slot_effective_date">تاريخ السريان</string>
+    <string name="slot_contract_end">نهاية العقد</string>
+    <string name="slot_event_date">تاريخ الحدث</string>
+    <string name="slot_appointment">الموعد</string>
+    <string name="slot_sent_date">تاريخ الإرسال</string>
+    <string name="slot_proof_date">تاريخ الدفع</string>
+    <string name="slot_invoice_no">رقم الفاتورة</string>
+    <string name="slot_contract_no">رقم العقد</string>
+    <string name="slot_policy_no">رقم وثيقة التأمين</string>
+    <string name="slot_case_no">رقم الملف</string>
+    <string name="slot_tax_no">الرقم الضريبي</string>
+    <string name="slot_receipt_no">رقم الإيصال</string>
+    <string name="slot_proof_reference">مرجع الدفع</string>
+    <string name="slot_recipient_org">أُرسل إلى</string>
+    <string name="slot_proof_recipient">دُفع إلى</string>
+    <string name="slot_cited_references">المراجع المذكورة</string>
+    <string name="slot_action_kind">المهمة</string>
+
+    <!-- المواضيع -->
+    <string name="topic_government">الجهات الحكومية</string>
+    <string name="topic_tax">الضرائب</string>
+    <string name="topic_health">الصحة</string>
+    <string name="topic_insurance">التأمين</string>
+    <string name="topic_bank_finance">البنوك والمالية</string>
+    <string name="topic_housing_utilities">السكن والمرافق</string>
+    <string name="topic_work">العمل</string>
+    <string name="topic_school_education">المدرسة والتعليم</string>
+    <string name="topic_vehicle">المركبات</string>
+    <string name="topic_telecom">الهاتف والإنترنت</string>
+    <string name="topic_shopping">التسوق</string>
+    <string name="topic_travel">السفر</string>
+    <string name="topic_legal">القانون</string>
+    <string name="topic_personal">شخصي</string>
+
+    <!-- قراءة جزئية -->
+    <plurals name="extraction_partial_notice">
+        <item quantity="zero">قرأ المساعد أول %1$d من %2$d صفحة فقط — تحقق من الباقي بنفسك.</item>
+        <item quantity="one">قرأ المساعد أول %1$d من %2$d صفحة فقط — تحقق من الباقي بنفسك.</item>
+        <item quantity="two">قرأ المساعد أول %1$d من %2$d صفحتين فقط — تحقق من الباقي بنفسك.</item>
+        <item quantity="few">قرأ المساعد أول %1$d من %2$d صفحات فقط — تحقق من الباقي بنفسك.</item>
+        <item quantity="many">قرأ المساعد أول %1$d من %2$d صفحة فقط — تحقق من الباقي بنفسك.</item>
+        <item quantity="other">قرأ المساعد أول %1$d من %2$d صفحة فقط — تحقق من الباقي بنفسك.</item>
+    </plurals>
+
+    <!-- السجل الزمني -->
+    <plurals name="timeline_ocr_done">
+        <item quantity="zero">تم استخراج النص من %1$d صفحة</item>
+        <item quantity="one">تم استخراج النص من صفحة واحدة</item>
+        <item quantity="two">تم استخراج النص من صفحتين</item>
+        <item quantity="few">تم استخراج النص من %1$d صفحات</item>
+        <item quantity="many">تم استخراج النص من %1$d صفحة</item>
+        <item quantity="other">تم استخراج النص من %1$d صفحة</item>
+    </plurals>
+    <string name="timeline_ocr_confidence">متوسط الثقة: %1$d%%</string>
+    <plurals name="timeline_fields_extracted">
+        <item quantity="zero">تم استخراج %1$d حقل</item>
+        <item quantity="one">تم استخراج حقل واحد</item>
+        <item quantity="two">تم استخراج حقلين</item>
+        <item quantity="few">تم استخراج %1$d حقول</item>
+        <item quantity="many">تم استخراج %1$d حقلًا</item>
+        <item quantity="other">تم استخراج %1$d حقل</item>
+    </plurals>
+    <plurals name="timeline_review_flagged">
+        <item quantity="zero">لا توجد حقول تحتاج إلى مراجعتك (%1$d)</item>
+        <item quantity="one">حقل واحد يحتاج إلى مراجعتك</item>
+        <item quantity="two">حقلان يحتاجان إلى مراجعتك</item>
+        <item quantity="few">%1$d حقول تحتاج إلى مراجعتك</item>
+        <item quantity="many">%1$d حقلًا يحتاج إلى مراجعتك</item>
+        <item quantity="other">%1$d حقل يحتاج إلى مراجعتك</item>
+    </plurals>
+    <string name="timeline_review_flagged_detail">قراءة جديدة تختلف عن نسختك: %1$s</string>
+    <string name="timeline_processing_failed">فشلت المعالجة</string>
+    <string name="timeline_reprocessed">أُعيدت القراءة بأحدث إصدار</string>
+    <string name="timeline_reprocess_failed">تم تخطي التحديث التلقائي؛ بياناتك لم تتغير</string>
+
+    <!-- قائمة المستندات -->
+    <string name="documents_title">المستندات</string>
+    <string name="documents_deleted_snackbar">تم نقل المستند إلى المحذوفة مؤخرًا</string>
+    <string name="documents_search_placeholder">البحث في المستندات…</string>
+    <string name="documents_search_description">بحث</string>
+    <string name="documents_search_clear">مسح</string>
+    <string name="documents_no_results_title">لا توجد نتائج</string>
+    <string name="documents_no_results_hint">جرّب عبارة بحث أخرى.</string>
+    <string name="documents_empty_title">لا توجد مستندات</string>
+    <string name="documents_empty_hint">ستظهر هنا المستندات التي مسحتها ضوئيًا أو استوردتها.</string>
+
+    <!-- المحذوفة مؤخرًا -->
+    <string name="trash_deletes_today">يُحذف اليوم</string>
+    <plurals name="trash_deletes_in_days">
+        <item quantity="zero">يُحذف خلال %1$d يوم</item>
+        <item quantity="one">يُحذف خلال يوم واحد</item>
+        <item quantity="two">يُحذف خلال يومين</item>
+        <item quantity="few">يُحذف خلال %1$d أيام</item>
+        <item quantity="many">يُحذف خلال %1$d يومًا</item>
+        <item quantity="other">يُحذف خلال %1$d يوم</item>
+    </plurals>
+    <string name="trash_delete_permanently">حذف نهائي</string>
+    <string name="trash_delete_title">حذف نهائي؟</string>
+    <string name="trash_delete_message">سيؤدي هذا أيضًا إلى حذف صفحاته والبيانات المستخرجة منه ومحادثاته. لا يمكن التراجع عن ذلك.</string>
+    <string name="trash_empty_title">إفراغ المحذوفة مؤخرًا؟</string>
+    <string name="trash_empty_message">سيؤدي هذا أيضًا إلى حذف صفحاتها والبيانات المستخرجة منها ومحادثاتها. لا يمكن التراجع عن ذلك.</string>
+    <string name="trash_empty_action">إفراغ</string>
+    <string name="trash_nothing_title">لا شيء محذوف</string>
+    <string name="trash_nothing_hint">تبقى المستندات التي تحذفها هنا لمدة 30 يومًا قبل أن تُحذف نهائيًا.</string>
+
+    <!-- شاشة المستند -->
+    <string name="detail_title_fallback">مستند</string>
+    <string name="detail_more_options">خيارات أخرى</string>
+    <string name="detail_delete">حذف</string>
+    <string name="detail_not_found">هذا المستند لم يعد موجودًا.</string>
+    <string name="detail_ask_ai">اسأل الذكاء الاصطناعي</string>
+    <string name="detail_reprocess">إعادة المعالجة</string>
+    <string name="detail_toggle_favorite">تبديل المفضلة</string>
+    <string name="detail_tab_pages">الصفحات (%1$d)</string>
+    <string name="detail_tab_extracted">المستخرَج (%1$d)</string>
+    <string name="detail_tab_timeline">السجل (%1$d)</string>
+    <string name="detail_deleted_title">تم حذف هذا المستند</string>
+    <string name="detail_deleted_message">«%1$s» موجود في المحذوفة مؤخرًا.</string>
+    <string name="detail_queued">بانتظار القراءة…</string>
+    <string name="detail_failed_no_pages">هذا المستند بلا صفحات. احذفه أو امسحه ضوئيًا مرة أخرى.</string>
+    <string name="detail_failed_generic">حدث خطأ أثناء قراءة هذا المستند.</string>
+    <string name="detail_try_again">حاول مرة أخرى</string>
+    <string name="detail_delete_confirm_title">حذف هذا المستند؟</string>
+    <string name="detail_delete_confirm_message">لا توجد فيه صفحات للقراءة، لذا لا يمكن استرداد أي شيء منه.</string>
+    <string name="progress_preparing">جارٍ تجهيز المستند…</string>
+    <string name="progress_reading_page">قراءة النص: الصفحة %1$d/%2$d</string>
+    <string name="progress_reading_start">بدء التعرف على النص…</string>
+    <string name="progress_understanding">جارٍ فهم الرسالة — قد يستغرق ذلك دقيقة</string>
+    <string name="progress_linking">جارٍ مطابقة الملفات الشخصية…</string>
+    <string name="progress_indexing">جارٍ الفهرسة للبحث…</string>
+    <string name="pages_none">لم تُمسح أي صفحات ضوئيًا بعد</string>
+    <string name="pages_share_pdf">مشاركة PDF</string>
+    <string name="pages_open_image">فتح</string>
+    <string name="pages_rescan">إعادة المسح</string>
+    <string name="pages_rescan_soon">إعادة المسح ستتوفر في التحديث القادم</string>
+    <string name="pages_copy_text">نسخ النص</string>
+    <string name="pages_copy">نسخ</string>
+    <string name="pages_text_copied">تم نسخ النص إلى الحافظة</string>
+    <string name="share_pdf_chooser">مشاركة المستند بصيغة PDF</string>
+    <string name="share_pdf_failed">تعذّر إنشاء ملف PDF</string>
+    <string name="no_app_for_images">لا يوجد تطبيق لفتح الصور</string>
+    <string name="open_file_not_found">تعذّر الفتح: الملف غير موجود</string>
+    <string name="add_field_title">إضافة حقل</string>
+    <string name="add_field_templates">قوالب سريعة:</string>
+    <string name="add_field_confirm">إضافة</string>
+    <string name="preset_receiver_name">اسم المستلم</string>
+    <string name="preset_receiver_organisation">جهة المستلم</string>
+    <string name="preset_receiver_address">عنوان المستلم</string>
+    <string name="preset_sender_name">اسم المرسل</string>
+    <string name="preset_sender_organisation">جهة المرسل</string>
+    <string name="preset_date">التاريخ</string>
+    <string name="preset_reference_number">الرقم المرجعي</string>
+    <string name="preset_tag">وسم</string>
+    <string name="preset_note">ملاحظة</string>
+    <string name="timeline_empty">لا توجد أحداث بعد</string>
 </resources>

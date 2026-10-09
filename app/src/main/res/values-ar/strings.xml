@@ -11,6 +11,22 @@
     <string name="form_me">أنا</string>
     <string name="form_person_name_question">ما اسم الشخص؟</string>
 
+    <!-- قفل التطبيق -->
+    <string name="applock_locked_message">مقفل</string>
+    <string name="applock_unlock">فتح القفل</string>
+    <string name="applock_prompt_unlock_title">فتح قفل مدير البريد الذكي</string>
+    <string name="applock_prompt_unlock_subtitle">استخدم بصمتك أو وجهك أو رمز PIN أو النمط</string>
+    <string name="applock_prompt_enable_title">تفعيل قفل التطبيق</string>
+    <string name="applock_prompt_enable_subtitle">أكّد هويتك قبل قفل التطبيق</string>
+
+    <!-- شريط التنقل والرسالة السفلية على مستوى التطبيق -->
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_documents">المستندات</string>
+    <string name="nav_profiles">الملفات الشخصية</string>
+    <string name="nav_settings">الإعدادات</string>
+    <string name="snackbar_document_moved_to_trash">نُقل المستند إلى «المحذوفة مؤخرًا»</string>
+    <string name="snackbar_undo">تراجع</string>
+
     <!-- استيراد ملفات PDF والصور (ورقة التأكيد عند المشاركة أو «فتح باستخدام» أو زر الاستيراد في الشاشة الرئيسية) -->
     <string name="import_add">أضف إلى رسائلي</string>
     <string name="import_cancel">إلغاء</string>

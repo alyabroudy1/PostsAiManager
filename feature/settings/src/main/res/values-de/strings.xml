@@ -1,6 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_section_appearance">Darstellung</string>
+    <string name="settings_theme">Design</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Hell</string>
+    <string name="settings_theme_dark">Dunkel</string>
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_system">System</string>
+    <string name="settings_section_ai">KI</string>
+    <string name="settings_ai_models">KI-Modelle</string>
+    <string name="settings_ai_models_subtitle">Modelle für die Nutzung auf dem Gerät laden und verwalten</string>
+    <string name="settings_section_on_device_ai">KI auf dem Gerät</string>
+    <string name="settings_install_model_hint">Installieren Sie ein Modell, um es zu konfigurieren.</string>
+    <string name="settings_loading_model">Modelleinstellungen werden geladen …</string>
+    <string name="settings_reset_defaults">Auf Standard zurücksetzen</string>
+    <string name="settings_reset_defaults_subtitle">Alle oben geänderten KI-Einstellungen zurücksetzen</string>
+    <string name="settings_section_processing">Dokumentverarbeitung</string>
+    <string name="settings_auto_process">Nach dem Scan automatisch verarbeiten</string>
+    <string name="settings_auto_process_subtitle">Texterkennung und Auslesen automatisch starten</string>
+    <string name="settings_recently_deleted">Zuletzt gelöscht</string>
+    <string name="settings_recently_deleted_subtitle">Dokumente wiederherstellen oder endgültig löschen</string>
+    <string name="settings_section_security">Sicherheit</string>
+    <string name="settings_section_notifications">Benachrichtigungen</string>
+    <string name="settings_deadline_reminders">Fristerinnerungen</string>
+    <string name="settings_deadline_reminders_subtitle">Über bevorstehende Fristen benachrichtigt werden</string>
+    <string name="settings_section_about">Über die App</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_cancel">Abbrechen</string>
+
+    <string name="settings_debug_section">Debug</string>
+    <string name="settings_gemma_trial_title">Leser: Gemma (Standard) / Qwen-Bewerter (alt)</string>
+    <string name="settings_gemma_trial_subtitle">Ein: Gemma liest jeden Brief mit dem Seitenbild, und der alte Qwen-Bewerter liest, wenn Gemma es nicht kann. Aus: Der alte Qwen-Bewerter liest</string>
+    <string name="settings_reader_style_title">Lesestil: JSON / Fragen</string>
+    <string name="settings_reader_style_subtitle">Ein: Gemma liest einen Brief, indem es wie im Chat je eine beschriftete Frage beantwortet; die Antworten werden unverändert gespeichert. Aus: Gemma antwortet nach dem festen JSON-Schema</string>
+    <string name="settings_questions_image_title">Fragen: Seitenbild immer mitsenden</string>
+    <string name="settings_questions_image_subtitle">Ein: Der Fragen-Leser zeigt dem Modell immer das Seitenbild. Aus: nur, wenn der erkannte Text schwach ist (wenige Zeilen, ein Bild, eine unlesbare Seite)</string>
+    <string name="settings_reading_accelerator_title">Lesen: CPU / GPU</string>
+    <string name="settings_reading_accelerator_subtitle">Ein: Das Modell liest Briefe auf der GPU (startet schneller, der Chat lädt es beim Chatten wieder auf der CPU). Aus: die CPU, wie im Chat</string>
+
     <string name="settings_reading_finished_title">Lesen abgeschlossen</string>
     <string name="settings_reading_finished_subtitle">Leise Benachrichtigung, wenn ein Brief verstanden wurde. Auf dem Sperrbildschirm erscheint kein Inhalt</string>
+    <string name="settings_update_older_title">Ältere Briefe automatisch aktualisieren</string>
+    <string name="settings_update_older_subtitle">Fertig gelesene Briefe im Hintergrund erneut lesen, während das Gerät lädt oder ruht, wenn das Lesen besser wird. Ihre Änderungen bleiben immer erhalten</string>
+
+    <string name="settings_app_lock_title">App-Sperre</string>
+    <string name="settings_app_lock_subtitle">Zum Öffnen der App Fingerabdruck, Gesicht, PIN oder Muster verlangen</string>
+    <string name="settings_lock_after_title">Sperren nach</string>
+    <string name="settings_lock_immediately">Sofort</string>
+    <plurals name="settings_lock_after_minutes">
+        <item quantity="one">Nach %1$d Minute</item>
+        <item quantity="other">Nach %1$d Minuten</item>
+    </plurals>
+
+    <string name="settings_app_lock_notice_title">Die App-Sperre ist noch nicht verfügbar</string>
+    <string name="settings_app_lock_not_enrolled">Auf diesem Telefon sind weder eine Bildschirmsperre noch Fingerabdruck oder Gesicht eingerichtet, sodass es nichts gibt, womit sich die App entsperren ließe. Richten Sie eine Sperre in den Sicherheitseinstellungen des Systems ein und schalten Sie die App-Sperre danach ein.</string>
+    <string name="settings_app_lock_unavailable">Dieses Gerät kann Ihren Fingerabdruck, Ihr Gesicht oder Ihre Bildschirmsperre gerade nicht prüfen, daher lässt sich die App-Sperre nicht einschalten.</string>
+    <string name="settings_app_lock_auth_failed">Ihre Identität konnte nicht bestätigt werden, daher bleibt die App-Sperre aus. Versuchen Sie es erneut.</string>
+    <string name="settings_open_security_settings">Sicherheitseinstellungen öffnen</string>
+    <string name="settings_ok">OK</string>
+    <string name="settings_not_now">Nicht jetzt</string>
+
+    <string name="settings_open_source_title">Open-Source-Software und -Daten</string>
+    <string name="settings_open_source_subtitle">Adressdaten (CC BY 4.0), Google AI Edge Gallery und LiteRT-LM (Apache 2.0)</string>
+    <string name="settings_litert_attribution">Die Chat-Engine für Gemma 4 ist LiteRT-LM (https://github.com/google-ai-edge/LiteRT-LM); ihre Einbindung ist aus der Google AI Edge Gallery (https://github.com/google-ai-edge/gallery) übernommen und angepasst, Copyright Google LLC, beide lizenziert unter der Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0). Die angepassten Dateien sind als geändert gekennzeichnet.</string>
     <string name="settings_skills_attribution">Die Agent-Skills (das SKILL.md-Format, der Skill „send-email“, die Art, Skills zu lesen, und die Aktionen für E-Mail, Kalender und Erinnerung) sind aus Google AI Edge Gallery (https://github.com/google-ai-edge/gallery) übernommen und angepasst, Copyright 2026 Google LLC, lizenziert unter der Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0). Die angepassten Dateien sind als geändert gekennzeichnet.</string>
+    <string name="settings_address_data_attribution">Die Adressformate sind von den Adressdaten der Google-Bibliothek libaddressinput abgeleitet (https://github.com/google/libaddressinput), lizenziert unter CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Übernommen und angepasst wurden nur die Postleitzahlmuster, die Reihenfolge der Bestandteile, die Pflichtbestandteile und die Ländernamen einiger Länder.</string>
 </resources>

@@ -144,4 +144,21 @@
     <string name="saved_details_dialog_value">Value</string>
     <string name="saved_details_dialog_save">Save</string>
     <string name="saved_details_dialog_cancel">Cancel</string>
+
+    <!-- Profiles list: title, search, empty and error states, delete confirmation -->
+    <string name="profiles_title">Profiles</string>
+    <string name="profiles_search_placeholder">Search profiles…</string>
+    <string name="profiles_search_description">Search</string>
+    <string name="profiles_search_clear">Clear</string>
+    <string name="profiles_empty_no_results_title">No results</string>
+    <string name="profiles_empty_no_results_subtitle">Try a different search.</string>
+    <string name="profiles_empty_title">No profiles</string>
+    <string name="profiles_empty_subtitle">Profiles will be created automatically from scanned documents.</string>
+    <string name="profiles_error_unknown">Something went wrong.</string>
+    <string name="profiles_delete_title">Delete %1$s?</string>
+    <string name="profiles_delete_body">Documents linked to this profile are not deleted — only the profile itself goes away.</string>
+    <string name="profiles_delete_body_auto">Documents linked to this profile are not deleted — only the profile itself goes away. This profile was created automatically from a scanned document, so deleting it also stops the app from suggesting it again the next time that document is processed.</string>
+    <string name="profiles_delete_confirm">Delete</string>
+    <string name="profiles_delete_cancel">Cancel</string>
+    <string name="profiles_delete_description">Delete profile</string>
 </resources>

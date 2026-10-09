@@ -115,7 +115,7 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             }
-            .catch { emit(HomeUiState.Error(it.message ?: "Unknown error")) }
+            .catch { emit(HomeUiState.Error(it.message)) }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
@@ -130,5 +130,6 @@ sealed interface HomeUiState {
         val recentDocuments: List<DocumentListItem>,
         val totalCount: Int,
     ) : HomeUiState
-    data class Error(val message: String) : HomeUiState
+    /** [message] is the raw cause, if any; the screen shows a localized fallback when it is null. */
+    data class Error(val message: String?) : HomeUiState
 }

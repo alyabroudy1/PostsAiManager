@@ -40,7 +40,7 @@ class ProfilesViewModel @Inject constructor(
                 if (profiles.isEmpty()) ProfilesUiState.Empty
                 else ProfilesUiState.Success(profiles, counts)
             }
-            .catch { emit(ProfilesUiState.Error(it.message ?: "Unknown error")) }
+            .catch { emit(ProfilesUiState.Error(it.message)) }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
@@ -109,5 +109,6 @@ sealed interface ProfilesUiState {
     ) : ProfilesUiState {
         val sections: ProfileSections get() = ProfileSections.of(profiles)
     }
-    data class Error(val message: String) : ProfilesUiState
+    /** [message] is the raw cause, if any; the screen shows a localized fallback when it is null. */
+    data class Error(val message: String?) : ProfilesUiState
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared design-system controls: top app bar, swipe-to-delete row, model settings. -->
+    <string name="ds_navigate_back">Navigate back</string>
+    <string name="ds_delete">Delete</string>
+    <string name="ds_cancel">Cancel</string>
+    <string name="ds_reload_hint">Applies on next model load</string>
+</resources>

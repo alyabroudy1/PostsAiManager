@@ -30,6 +30,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -61,11 +63,11 @@ fun TrashScreen(
     Scaffold(
         topBar = {
             PamTopAppBar(
-                title = "Recently deleted",
+                title = stringResource(R.string.documents_recently_deleted),
                 onNavigateBack = onNavigateBack,
                 actions = {
                     if (uiState is TrashUiState.Success) {
-                        TextButton(onClick = { confirmEmpty = true }) { Text("Empty") }
+                        TextButton(onClick = { confirmEmpty = true }) { Text(stringResource(R.string.trash_empty_action)) }
                     }
                 },
             )
@@ -76,8 +78,8 @@ fun TrashScreen(
             is TrashUiState.Loading -> PamLoadingState(modifier = Modifier.padding(innerPadding))
             is TrashUiState.Empty -> PamEmptyState(
                 icon = PamIcons.Delete,
-                title = "Nothing deleted",
-                subtitle = "Documents you delete stay here for 30 days before they're gone for good.",
+                title = stringResource(R.string.trash_nothing_title),
+                subtitle = stringResource(R.string.trash_nothing_hint),
                 modifier = Modifier.padding(innerPadding),
             )
             is TrashUiState.Success -> LazyColumn(
@@ -100,16 +102,16 @@ fun TrashScreen(
     confirmDeleteId?.let { id ->
         AlertDialog(
             onDismissRequest = { confirmDeleteId = null },
-            title = { Text("Delete permanently?") },
-            text = { Text("This also deletes its pages, extracted data and chats. This can't be undone.") },
+            title = { Text(stringResource(R.string.trash_delete_title)) },
+            text = { Text(stringResource(R.string.trash_delete_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deletePermanently(id)
                     confirmDeleteId = null
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.detail_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDeleteId = null }) { Text("Cancel") }
+                TextButton(onClick = { confirmDeleteId = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
@@ -117,16 +119,16 @@ fun TrashScreen(
     if (confirmEmpty) {
         AlertDialog(
             onDismissRequest = { confirmEmpty = false },
-            title = { Text("Empty Recently deleted?") },
-            text = { Text("This also deletes their pages, extracted data and chats. This can't be undone.") },
+            title = { Text(stringResource(R.string.trash_empty_title)) },
+            text = { Text(stringResource(R.string.trash_empty_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.emptyTrash()
                     confirmEmpty = false
-                }) { Text("Empty") }
+                }) { Text(stringResource(R.string.trash_empty_action)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmEmpty = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmEmpty = false }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
@@ -164,18 +166,22 @@ private fun TrashListItem(
                 Spacer(modifier = Modifier.height(2.dp))
                 val days = daysUntilPurge(document)
                 Text(
-                    text = if (days <= 0) "Deletes today" else "Deletes in $days day${if (days == 1L) "" else "s"}",
+                    text = if (days <= 0) {
+                        stringResource(R.string.trash_deletes_today)
+                    } else {
+                        LocalContext.current.resources.getQuantityString(R.plurals.trash_deletes_in_days, days.toInt(), days.toInt())
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             IconButton(onClick = onRestore) {
-                Icon(PamIcons.Restore, contentDescription = "Restore")
+                Icon(PamIcons.Restore, contentDescription = stringResource(R.string.action_restore))
             }
             IconButton(onClick = onDeletePermanently) {
                 Icon(
                     PamIcons.Delete,
-                    contentDescription = "Delete permanently",
+                    contentDescription = stringResource(R.string.trash_delete_permanently),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }

@@ -32,6 +32,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -67,9 +70,14 @@ fun ModelsScreen(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let(viewModel::import) }
 
+    val context = LocalContext.current
     LaunchedEffect(message) {
         message?.let {
-            snackbarHostState.showSnackbar(it)
+            val text = when (it) {
+                is ModelsMessage.Res -> context.getString(it.id, *it.args.toTypedArray())
+                is ModelsMessage.Raw -> it.text
+            }
+            snackbarHostState.showSnackbar(text)
             viewModel.consumeMessage()
         }
     }
@@ -77,11 +85,11 @@ fun ModelsScreen(
     Scaffold(
         topBar = {
             PamTopAppBar(
-                title = "AI Models",
+                title = stringResource(R.string.models_title),
                 onNavigateBack = onNavigateBack,
                 actions = {
                     TextButton(onClick = { importLauncher.launch(arrayOf("*/*")) }) {
-                        Text("Import")
+                        Text(stringResource(R.string.models_import))
                     }
                 },
             )
@@ -92,7 +100,7 @@ fun ModelsScreen(
             is ModelsUiState.Loading -> PamLoadingState(modifier = Modifier.padding(padding))
 
             is ModelsUiState.Error -> Text(
-                text = state.message,
+                text = state.message ?: stringResource(R.string.models_error_catalog),
                 modifier = Modifier.padding(padding).padding(16.dp),
             )
 
@@ -107,7 +115,7 @@ fun ModelsScreen(
                     item { OfflineCatalogNotice() }
                 }
 
-                item { SectionHeader("Document search") }
+                item { SectionHeader(stringResource(R.string.models_section_search)) }
                 item {
                     val embeddingStatus by viewModel.embeddingStatus
                         .collectAsStateWithLifecycle()
@@ -121,7 +129,7 @@ fun ModelsScreen(
                 }
 
                 if (state.installed.isNotEmpty()) {
-                    item { SectionHeader("Installed") }
+                    item { SectionHeader(stringResource(R.string.models_section_installed)) }
                     items(state.installed, key = { it.descriptor.id }) { entry ->
                         InstalledCard(
                             entry = entry,
@@ -134,7 +142,7 @@ fun ModelsScreen(
                     }
                 }
 
-                item { SectionHeader("Available") }
+                item { SectionHeader(stringResource(R.string.models_section_available)) }
                 items(state.available, key = { it.descriptor.id }) { entry ->
                     AvailableCard(entry = entry, chatFit = state.fits[entry.descriptor.id], viewModel = viewModel)
                 }
@@ -163,20 +171,23 @@ private fun SectionHeader(text: String) {
 private fun DeviceCard(capability: DeviceCapability) {
     Card(colors = CardDefaults.cardColors()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("This device", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.models_device_title), style = MaterialTheme.typography.titleSmall)
             Text(
-                "${capability.availableRamBytes.gb()} of ${capability.totalRamBytes.gb()} " +
-                    "memory available right now",
+                stringResource(
+                    R.string.models_device_memory,
+                    capability.availableRamBytes.gb(),
+                    capability.totalRamBytes.gb(),
+                ),
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                "${capability.freeStorageBytes.gb()} storage free · ${deviceTierLabel(capability.tier)}",
+                stringResource(R.string.models_device_storage, capability.freeStorageBytes.gb(), deviceTierLabel(capability.tier)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (capability.isLowMemory) {
                 Text(
-                    "The device is low on memory — close some apps before loading a model.",
+                    stringResource(R.string.models_device_low_memory),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -193,11 +204,9 @@ private fun OfflineCatalogNotice() {
         ),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Offline catalog", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.models_offline_title), style = MaterialTheme.typography.titleSmall)
             Text(
-                "Showing the models built into the app. Each one downloads from Hugging Face " +
-                    "and is checked against a fixed fingerprint before it is used. New models " +
-                    "will appear here with a later update.",
+                stringResource(R.string.models_offline_text),
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -225,16 +234,17 @@ private fun InstalledCard(
                     // Two jobs, two chips. A model can hold one, both or neither, and
                     // "Active" alone could not say which.
                     if (entry.isActive) {
-                        AssistChip(onClick = {}, label = { Text("Chat") })
+                        AssistChip(onClick = {}, label = { Text(stringResource(R.string.models_chip_chat)) })
                     }
                     if (entry.isExtractionModel) {
-                        AssistChip(onClick = {}, label = { Text("Reads documents") })
+                        AssistChip(onClick = {}, label = { Text(stringResource(R.string.models_chip_reads_documents)) })
                     }
                 }
             }
             Text(
                 "${entry.descriptor.parameterCount} · ${entry.descriptor.quantization} · " +
                     entry.descriptor.sizeBytes.gb(),
+
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -244,7 +254,7 @@ private fun InstalledCard(
             if (entry.isFormModel && showFormFillingNote) {
                 // The form agent prefers this model over the chat model while it is installed (ModelProfiles.FORM_AGENT_MODELS).
                 Text(
-                    "Used for form filling (better, slower)",
+                    stringResource(R.string.models_note_form_filling),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -254,9 +264,7 @@ private fun InstalledCard(
                 // the gain is concrete: on a real letter this is the difference between
                 // capturing a deadline and missing it.
                 Text(
-                    "Better at reading documents than at chatting. Measured on a German " +
-                        "letter, it found the sender and the deadline where a smaller model " +
-                        "found neither.",
+                    stringResource(R.string.models_note_better_reading),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -264,17 +272,17 @@ private fun InstalledCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!entry.isActive && entry.descriptor.supportsChat) {
                     Button(onClick = { entry.installed?.let { onSetActive(it.id) } }) {
-                        Text("Use for chat")
+                        Text(stringResource(R.string.models_action_use_chat))
                     }
                 }
                 // Reading letters needs llama.cpp (token scoring, prefix reuse): a model of another runtime only chats.
                 if (!entry.isExtractionModel && entry.descriptor.runtime.canReadDocuments) {
                     OutlinedButton(onClick = { entry.installed?.let { onSetExtraction(it.id) } }) {
-                        Text("Use for reading")
+                        Text(stringResource(R.string.models_action_use_reading))
                     }
                 }
                 TextButton(onClick = { entry.installed?.let { onUninstall(it.id) } }) {
-                    Text("Remove")
+                    Text(stringResource(R.string.models_action_remove))
                 }
             }
         }
@@ -310,7 +318,7 @@ private fun AvailableCard(entry: CatalogEntry, chatFit: ChatModelFit?, viewModel
 
             fitMessage?.let {
                 Text(
-                    text = it.text,
+                    text = stringResource(it.textRes, *it.bytes.map { bytes -> bytes.gb() }.toTypedArray()),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (it.isBlocking) {
                         MaterialTheme.colorScheme.error
@@ -330,24 +338,24 @@ private fun AvailableCard(entry: CatalogEntry, chatFit: ChatModelFit?, viewModel
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Text(
-                            "${(fraction * 100).toInt()}% · ${s.bytesDownloaded.gb()} downloaded",
+                            stringResource(R.string.models_download_progress, (fraction * 100).toInt(), s.bytesDownloaded.gb()),
                             style = MaterialTheme.typography.bodySmall,
                         )
                     } else {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
                     OutlinedButton(onClick = { viewModel.cancel(entry.descriptor.id) }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.models_action_cancel))
                     }
                 }
 
                 is ModelDownloadStatus.Queued -> Text(
-                    "Waiting for Wi-Fi…",
+                    stringResource(R.string.models_waiting_wifi_short),
                     style = MaterialTheme.typography.bodySmall,
                 )
 
                 is ModelDownloadStatus.Failed -> Text(
-                    s.message ?: "Download failed. It will retry automatically.",
+                    s.message ?: stringResource(R.string.models_download_failed),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -356,16 +364,22 @@ private fun AvailableCard(entry: CatalogEntry, chatFit: ChatModelFit?, viewModel
                     onClick = { viewModel.install(entry.descriptor) },
                     enabled = entry.fit.canDownload,
                 ) {
-                    Text("Install")
+                    Text(stringResource(R.string.models_action_install))
                 }
             }
         }
     }
 }
 
-private fun Long.gb(): String = when {
-    this >= 1_073_741_824L -> "%.1f GB".format(this / 1_073_741_824.0)
-    else -> "%.0f MB".format(this / 1_048_576.0)
+/** A byte count as "1.5 GB" or "800 MB": the number in the app language's digits, the unit from resources. */
+@Composable
+private fun Long.gb(): String {
+    val locale = LocalConfiguration.current.locales[0]
+    return if (this >= 1_073_741_824L) {
+        stringResource(R.string.models_size_gb, String.format(locale, "%.1f", this / 1_073_741_824.0))
+    } else {
+        stringResource(R.string.models_size_mb, String.format(locale, "%.0f", this / 1_048_576.0))
+    }
 }
 
 /**
@@ -395,50 +409,48 @@ private fun EmbeddingModelCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Search by meaning", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.models_embed_title), style = MaterialTheme.typography.titleMedium)
                 if (status is InstallStatus.Installed) {
                     AssistChip(
                         onClick = {},
-                        label = { Text("On") },
+                        label = { Text(stringResource(R.string.models_embed_on)) },
                         colors = AssistChipDefaults.assistChipColors(),
                     )
                 }
             }
 
             Text(
-                "Find a letter by what it was about, not the words it used. Ask " +
-                    "\"when is my deadline?\" and get the paragraph that answers it — even " +
-                    "in a different language.",
+                stringResource(R.string.models_embed_description),
                 style = MaterialTheme.typography.bodyMedium,
             )
 
             when (status) {
                 is InstallStatus.NotStarted -> {
                     Text(
-                        "${downloadBytes.gb()} download · runs entirely on your device",
+                        stringResource(R.string.models_embed_size, downloadBytes.gb()),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        "Without it, search still finds documents by word.",
+                        stringResource(R.string.models_embed_without),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { onInstall(false) }) { Text("Download on Wi-Fi") }
+                        Button(onClick = { onInstall(false) }) { Text(stringResource(R.string.models_embed_download_wifi)) }
                         // The default waits for unmetered, because a quarter-gigabyte on
                         // mobile data is not a cost to incur on the user's behalf.
-                        TextButton(onClick = { onInstall(true) }) { Text("Use mobile data") }
+                        TextButton(onClick = { onInstall(true) }) { Text(stringResource(R.string.models_embed_use_mobile)) }
                     }
                 }
 
                 is InstallStatus.Waiting -> {
                     Text(
-                        "Waiting for Wi-Fi. The download will start on its own.",
+                        stringResource(R.string.models_embed_waiting_wifi),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    TextButton(onClick = onCancel) { Text("Cancel") }
+                    TextButton(onClick = onCancel) { Text(stringResource(R.string.models_action_cancel)) }
                 }
 
                 is InstallStatus.Running -> {
@@ -450,40 +462,43 @@ private fun EmbeddingModelCard(
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Text(
-                            "${(status.fraction * 100).toInt()}% · " +
-                                "${status.bytesDownloaded.gb()} of ${status.totalBytes.gb()}",
+                            stringResource(
+                                R.string.models_embed_progress,
+                                (status.fraction * 100).toInt(),
+                                status.bytesDownloaded.gb(),
+                                status.totalBytes.gb(),
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                         )
                     } else {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
                     Text(
-                        "You can leave this screen — it continues in the background.",
+                        stringResource(R.string.models_embed_background),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    TextButton(onClick = onCancel) { Text("Cancel") }
+                    TextButton(onClick = onCancel) { Text(stringResource(R.string.models_action_cancel)) }
                 }
 
                 is InstallStatus.Installed -> {
                     Text(
-                        "Ready. New documents are indexed as you scan them.",
+                        stringResource(R.string.models_embed_ready),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     OutlinedButton(onClick = onRemove) {
-                        Text("Remove (${downloadBytes.gb()})")
+                        Text(stringResource(R.string.models_embed_remove, downloadBytes.gb()))
                     }
                 }
 
                 is InstallStatus.Failed -> {
                     Text(
-                        "The download did not finish. Retrying continues from where it " +
-                            "stopped rather than starting over.",
+                        stringResource(R.string.models_embed_failed),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    Button(onClick = { onInstall(false) }) { Text("Try again") }
+                    Button(onClick = { onInstall(false) }) { Text(stringResource(R.string.models_embed_try_again)) }
                 }
             }
         }

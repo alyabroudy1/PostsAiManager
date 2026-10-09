@@ -11,6 +11,22 @@
     <string name="form_me">Ich</string>
     <string name="form_person_name_question">Wie heißt die Person?</string>
 
+    <!-- App-Sperre -->
+    <string name="applock_locked_message">Gesperrt</string>
+    <string name="applock_unlock">Entsperren</string>
+    <string name="applock_prompt_unlock_title">Post-KI-Manager entsperren</string>
+    <string name="applock_prompt_unlock_subtitle">Mit Fingerabdruck, Gesicht, PIN oder Muster</string>
+    <string name="applock_prompt_enable_title">App-Sperre aktivieren</string>
+    <string name="applock_prompt_enable_subtitle">Bestätige, dass du es bist, bevor die App gesperrt wird</string>
+
+    <!-- Navigationsleiste und Snackbar auf App-Ebene -->
+    <string name="nav_home">Start</string>
+    <string name="nav_documents">Dokumente</string>
+    <string name="nav_profiles">Profile</string>
+    <string name="nav_settings">Einstellungen</string>
+    <string name="snackbar_document_moved_to_trash">Dokument nach „Zuletzt gelöscht“ verschoben</string>
+    <string name="snackbar_undo">Rückgängig</string>
+
     <!-- PDFs und Bilder importieren (Bestätigungsblatt beim Teilen, bei „Öffnen mit“ oder über den Import-Button auf der Startseite) -->
     <string name="import_add">Zu meinen Briefen hinzufügen</string>
     <string name="import_cancel">Abbrechen</string>
