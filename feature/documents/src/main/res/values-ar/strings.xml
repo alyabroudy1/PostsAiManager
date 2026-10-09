@@ -38,6 +38,8 @@
     <string name="action_reply_pd">رد على %1$s قبل %2$s</string>
     <string name="action_object_cancel">اعترض أو ألغِ إن لم توافق</string>
     <string name="action_object_cancel_d">اعترض أو ألغِ قبل %1$s</string>
+    <string name="action_other">افعل ما تطلبه الرسالة</string>
+    <string name="action_other_d">افعل ما تطلبه الرسالة قبل %1$s</string>
     <string name="action_attend">احضر موعدك</string>
     <string name="action_attend_d">احضر موعدك في %1$s</string>
     <string name="action_send_documents">أرسل المستندات المطلوبة</string>

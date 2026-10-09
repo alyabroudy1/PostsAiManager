@@ -1,6 +1,8 @@
 package com.postsaimanager.core.domain.extraction.gemma
 
+import com.postsaimanager.core.domain.extraction.actions.ActionKinds
 import com.postsaimanager.core.domain.extraction.candidates.Candidate
+import com.postsaimanager.core.domain.extraction.candidates.CandidateExtractor
 import com.postsaimanager.core.domain.extraction.candidates.CandidateKind
 import com.postsaimanager.core.domain.extraction.text.DocumentNameFormat
 import com.postsaimanager.core.domain.extraction.v2.OfferedCandidates
@@ -31,7 +33,7 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
         val parties = listOfNotNull(
             party(PartyRole.SENDER, answers[QaLabel.SENDER], letter, notes),
             party(PartyRole.ADDRESSEE, answers[QaLabel.RECIPIENT], letter, notes),
-            party(PartyRole.CONTACT, answers[QaLabel.CONTACT], letter, notes),
+            party(PartyRole.CONTACT, contactOf(answers).name, letter, notes),
         )
         // The letter's own date has a line of its own and comes first, so that it keeps its meaning if the dates list repeats it.
         val letterDate = answers[QaLabel.LETTERDATE]?.let { typer.date(it) }?.let { VerifiedValue(it, GemmaVocabulary.LETTER_DATE_MEANING) }
@@ -75,6 +77,34 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
     }
 
     // ── parties ──
+
+    /** What the CONTACT line holds, typed by the shape of each field: a person's name, a phone number, an e-mail address (a web address is none of them). */
+    private class Contact(val name: String?, val phone: String?, val email: String?)
+
+    /**
+     * The fields of the CONTACT line sorted by their shape, whatever order the model wrote them in: a phone number or an e-mail address
+     * given in the place of a name is not a contact person; it stays a detail of the letter (a reference), so a shop's line on a receipt
+     * is no person. This types the value; nothing is looked up in the letter.
+     */
+    private fun contactOf(answers: QaAnswers): Contact {
+        val fields = answers[QaLabel.CONTACT]?.let { QaText.fields(it) }.orEmpty().filter { it.isNotEmpty() }
+        val shapes = fields.associateWith { shapeOf(it) }
+        return Contact(
+            name = fields.firstOrNull { shapes[it] == null },
+            phone = fields.firstOrNull { shapes[it] == CandidateKind.PHONE },
+            email = fields.firstOrNull { shapes[it] == CandidateKind.EMAIL },
+        )
+    }
+
+    /** [CandidateKind.PHONE] or [CandidateKind.EMAIL] when [text] as a whole is such a value, [CandidateKind.REFERENCE] for a web address, else null. */
+    private fun shapeOf(text: String): CandidateKind? {
+        val t = text.trim()
+        if (t.contains("://") || t.startsWith("www.", ignoreCase = true)) return CandidateKind.REFERENCE
+        val whole = t.count { it.isLetterOrDigit() }
+        return CandidateExtractor.extractFromText(t).candidates
+            .firstOrNull { (it.kind == CandidateKind.PHONE || it.kind == CandidateKind.EMAIL) && it.raw.count { c -> c.isLetterOrDigit() } * COVER_DEN >= whole * COVER_NUM }
+            ?.kind
+    }
 
     /** [text] is "name | kind"; [kindText] overrides where the kind comes from (the contact has no kind: a person). */
     private fun party(role: PartyRole, text: String?, letter: GemmaLetter, notes: MutableList<String>, kindText: String? = text?.let { QaText.fields(it).getOrNull(1) }): VerifiedParty? {
@@ -120,10 +150,10 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
             out.putIfAbsent(candidate.id, VerifiedReference(candidate, kind))
         }
         // The contact's phone number and e-mail address are values of the letter like any other: stored as references of no kind.
-        val contact = answers[QaLabel.CONTACT]?.let { QaText.fields(it) }.orEmpty()
-        contact.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { typer.reference(it, CandidateKind.PHONE) }
+        val contact = contactOf(answers)
+        contact.phone?.let { typer.reference(it, CandidateKind.PHONE) }
             ?.let { out.putIfAbsent(it.id, VerifiedReference(it, GemmaVocabulary.OTHER)) }
-        contact.getOrNull(2)?.takeIf { it.isNotEmpty() }?.let { typer.reference(it, CandidateKind.EMAIL) }
+        contact.email?.let { typer.reference(it, CandidateKind.EMAIL) }
             ?.let { out.putIfAbsent(it.id, VerifiedReference(it, GemmaVocabulary.OTHER)) }
         return out.values.toList()
     }
@@ -165,7 +195,10 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
         val kindIds = vocab.actionKinds.map { it.id }
         val extra = mutableListOf<VerifiedValue>()
         val actions = itemParts.mapNotNull { parts ->
-            val kind = choose(parts.firstOrNull(), kindIds)?.let(vocab::actionKind) ?: return@mapNotNull null
+            val word = parts.firstOrNull()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            // A word that is no registry id is not dropped: the action is kept as "other", the model's own word goes to the trace.
+            val kind = choose(word, kindIds)?.let(vocab::actionKind)
+                ?: ActionKinds.OTHER.also { notes += "action word is not in the registry, stored as other: ${word.take(MAX_NOTE_CHARS)}" }
             val amount = if (kind.amountMeaning != null) toPay else null
             // The action's own date, else the date of the amount to pay (a payment action is due when the payment is).
             val date = (parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let(typer::date) ?: toPayDate.takeIf { amount != null })?.also { d ->
@@ -175,6 +208,14 @@ class QuestionReadingBuilder(private val vocab: GemmaVocabulary = GemmaVocabular
         }.distinctBy { it.kind }.take(QuestionPrompt.MAX_ASKS)
         notes += "asks=${asks} actions=${actions.size}"
         return Asked(asks ?: actions.isNotEmpty().takeIf { it }, actions, extra, paid)
+    }
+
+    private companion object {
+        const val MAX_NOTE_CHARS = 40
+
+        /** A phone or e-mail value covers the field when it holds at least 4/5 of its letters and digits (a label like "Tel." may stand before it). */
+        const val COVER_NUM = 4
+        const val COVER_DEN = 5
     }
 
     /** The id of [ids] that [text] names (its leading word, or all of it, with case and separators ignored); null when it names none. */

@@ -126,5 +126,16 @@ object ActionKinds {
 
     val ALL: List<ActionKind> = listOf(PAY, REPLY, OBJECT_CANCEL, ATTEND, SEND_DOCUMENTS, SIGN_RETURN, CONFIRM_RENEW, CONTACT)
 
-    fun of(id: String): ActionKind? = ALL.firstOrNull { it.id == id }
+    /**
+     * A thing the letter asks that none of [ALL] names: a model value only. It is not offered to a model as a choice (so [ALL], which the
+     * prompts list, does not hold it); it is what an action the model named with a word of its own is stored as, so it is never dropped.
+     */
+    val OTHER = ActionKind(
+        id = "other_action",
+        task = "something else the letter asks of the reader",
+        dateMeaning = "the date by which the reader is asked to do it",
+        party = false,
+    )
+
+    fun of(id: String): ActionKind? = ALL.firstOrNull { it.id == id } ?: OTHER.takeIf { it.id == id }
 }

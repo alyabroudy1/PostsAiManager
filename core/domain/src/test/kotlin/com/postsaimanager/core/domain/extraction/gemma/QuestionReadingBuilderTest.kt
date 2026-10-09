@@ -78,6 +78,35 @@ class QuestionReadingBuilderTest {
     }
 
     @Test
+    @DisplayName("an action word that is no registry id is kept as the generic other action, with a note, never dropped")
+    fun `an unknown action word`() {
+        val v = build("ASKS: yes | not_applicable; go to the appointment — 14.10.2026")
+
+        assertThat(v.actions.map { it.kind }).containsExactly("other_action")
+        assertThat(v.notes.any { it.startsWith("action word is not in the registry") }).isTrue()
+    }
+
+    @Test
+    @DisplayName("a phone number in the contact line is no contact person: it is stored as a detail, the sender stays")
+    fun `a shop line as contact`() {
+        val v = build("SENDER: Markt Beispiel | company\nCONTACT: 0123 456-000")
+
+        assertThat(v.parties.map { it.role }).containsExactly(PartyRole.SENDER)
+        assertThat(v.references.map { it.candidate.raw }).contains("0123 456-000")
+    }
+
+    @Test
+    @DisplayName("a contact line with a name and a phone number in any order keeps the person and the phone")
+    fun `a contact in any order`() {
+        val v = build("CONTACT: 0123 456-701 | Nadine Beispiel | nadine@example.example")
+
+        assertThat(v.parties.single().role).isEqualTo(PartyRole.CONTACT)
+        assertThat(v.parties.single().kind).isEqualTo(PartyKind.PERSON)
+        assertThat(letter.candidate(v.parties.single().candidateId!!)!!.raw).contains("Nadine")
+        assertThat(v.references.size).isEqualTo(2)
+    }
+
+    @Test
     @DisplayName("a seller alone (a receipt: no recipient named) is stored as the sender, with its full name as the model wrote it")
     fun `a sender without a recipient`() {
         val v = build("SENDER: Markt Beispiel | company\nRECIPIENT: none\nCONTACT: none\nASKS: no | not_applicable\nTYPE: receipt")

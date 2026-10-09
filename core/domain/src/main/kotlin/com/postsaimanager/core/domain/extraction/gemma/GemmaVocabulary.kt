@@ -65,7 +65,7 @@ class GemmaVocabulary(
 
     fun category(id: String?): DocCategory? = categories.firstOrNull { it.id == id?.trim()?.lowercase() }
 
-    fun actionKind(id: String?): ActionKind? = actionKinds.firstOrNull { it.id == id?.trim() }
+    fun actionKind(id: String?): ActionKind? = actionKinds.firstOrNull { it.id == id?.trim() } ?: ActionKinds.OTHER.takeIf { it.id == id?.trim() }
 
     fun dateMeaning(id: String?): ValueMeaning? = dateMeanings.firstOrNull { it.id == id?.trim() }
 

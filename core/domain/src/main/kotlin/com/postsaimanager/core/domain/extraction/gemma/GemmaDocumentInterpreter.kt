@@ -101,6 +101,8 @@ class GemmaDocumentInterpreter(
         lines += "t gemma reader (questions) ms=${outcome.ms}"
         lines += "gemma input lines=${letter.lines.size} image=${if (outcome.usedImage) "yes" else "no"} answer=${outcome.text.length} chars prompt=${outcome.prompt.length} chars"
         lines += outcome.notes
+        // The model's raw answer, in the reading trace: its lines are logged in a debuggable build only (see the pipeline's logReadingTrace).
+        lines += "qa raw: " + outcome.text.trim().replace("\n", " ⏎ ")
         val answers = QuestionAnswerParser.parse(outcome.text)
         if (answers.answered.isEmpty()) return InterpretationOutcome.Failed("the answer has none of the asked labels", outcome.text.take(FAILED_RAW_CHARS), outcome.prompt, "")
         val verified = QuestionReadingBuilder().build(answers, letter, request.offered)

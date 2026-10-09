@@ -33,6 +33,7 @@ internal object ActionTemplates {
         ),
         "sign_return" to mapOf("" to R.string.action_sign_return, "d" to R.string.action_sign_return_d),
         "confirm_renew" to mapOf("" to R.string.action_confirm_renew, "d" to R.string.action_confirm_renew_d),
+        "other_action" to mapOf("" to R.string.action_other, "d" to R.string.action_other_d),
         "contact" to mapOf("" to R.string.action_contact, "p" to R.string.action_contact_p, "d" to R.string.action_contact_d, "pd" to R.string.action_contact_pd),
     )
 

@@ -38,6 +38,8 @@
     <string name="action_reply_pd">Bis %2$s %1$s antworten</string>
     <string name="action_object_cancel">Widersprechen oder kündigen, falls Sie nicht einverstanden sind</string>
     <string name="action_object_cancel_d">Bis %1$s widersprechen oder kündigen</string>
+    <string name="action_other">Tun, was der Brief verlangt</string>
+    <string name="action_other_d">Tun, was der Brief verlangt, bis %1$s</string>
     <string name="action_attend">Den Termin wahrnehmen</string>
     <string name="action_attend_d">Den Termin am %1$s wahrnehmen</string>
     <string name="action_send_documents">Die angeforderten Unterlagen senden</string>
