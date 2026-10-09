@@ -37,6 +37,8 @@ class Migration28To29Test {
                             "CREATE TABLE `cases` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `status` TEXT NOT NULL, " +
                                 "`titleSource` TEXT NOT NULL DEFAULT 'AUTO', PRIMARY KEY(`id`))",
                         )
+                        db.execSQL("CREATE TABLE `profile_events` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `source` TEXT NOT NULL, PRIMARY KEY(`id`))")
+                        db.execSQL("CREATE TABLE `document_pages` (`id` TEXT NOT NULL, `ocrText` TEXT, PRIMARY KEY(`id`))")
                     }
 
                     override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
@@ -46,6 +48,8 @@ class Migration28To29Test {
         db = helper.writableDatabase
         db.execSQL("INSERT INTO documents (id, title, language) VALUES ('d1', 'Rechnung', 'de')")
         db.execSQL("INSERT INTO cases (id, title, status) VALUES ('c1', 'Antrag', 'OPEN')")
+        db.execSQL("INSERT INTO profile_events (id, title, source) VALUES ('e1', 'Bewilligt', 'DOCUMENT')")
+        db.execSQL("INSERT INTO document_pages (id, ocrText) VALUES ('p1', 'Sehr geehrte Frau')")
     }
 
     @After
@@ -79,6 +83,11 @@ class Migration28To29Test {
         assertThat(value("SELECT languageSource FROM documents")).isEqualTo("MODEL")
         assertThat(value("SELECT caseLinkSource FROM documents")).isEqualTo("AUTO")
         assertThat(value("SELECT statusSource FROM cases")).isEqualTo("AUTO")
+        assertThat(columns("profile_events")).containsExactly("id", "title", "source", "userState").inOrder()
+        assertThat(columns("document_pages")).containsExactly("id", "ocrText", "textSource").inOrder()
+        assertThat(value("SELECT userState FROM profile_events")).isEqualTo("NONE")
+        assertThat(value("SELECT textSource FROM document_pages")).isEqualTo("OCR")
+        assertThat(value("SELECT ocrText FROM document_pages")).isEqualTo("Sehr geehrte Frau")
     }
 
     @Test
@@ -86,8 +95,15 @@ class Migration28To29Test {
         PamMigrations.MIGRATION_28_29.migrate(db)
         db.execSQL("UPDATE documents SET concernedSource = 'USER', languageSource = 'USER', caseLinkSource = 'USER'")
         db.execSQL("UPDATE cases SET statusSource = 'USER'")
+        db.execSQL("UPDATE profile_events SET userState = 'DELETED'")
+        db.execSQL("UPDATE document_pages SET textSource = 'USER'")
 
         PamMigrations.MIGRATION_28_29.migrate(db)
+
+        assertThat(columns("profile_events").count { it == "userState" }).isEqualTo(1)
+        assertThat(columns("document_pages").count { it == "textSource" }).isEqualTo(1)
+        assertThat(value("SELECT userState FROM profile_events")).isEqualTo("DELETED")
+        assertThat(value("SELECT textSource FROM document_pages")).isEqualTo("USER")
 
         assertThat(columns("documents").count { it == "concernedSource" }).isEqualTo(1)
         assertThat(columns("cases").count { it == "statusSource" }).isEqualTo(1)

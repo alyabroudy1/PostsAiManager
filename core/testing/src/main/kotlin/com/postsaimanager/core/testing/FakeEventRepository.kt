@@ -5,6 +5,7 @@ import com.postsaimanager.core.model.Case
 import com.postsaimanager.core.model.CaseStatus
 import com.postsaimanager.core.model.CaseStatusSource
 import com.postsaimanager.core.model.EventSource
+import com.postsaimanager.core.model.EventUserState
 import com.postsaimanager.core.model.ProfileEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,21 +33,43 @@ class FakeEventRepository : EventRepository {
 
     private fun oldestFirst(list: List<ProfileEvent>) = list.sortedWith(compareBy<ProfileEvent> { it.eventDate }.thenBy { it.recordedAt })
 
+    // Like the real one: a tombstone is never listed (the letter's own list for the re-read, eventsOfDocument, still has it).
+    private fun listed(list: List<ProfileEvent>) = list.filter { it.userState != EventUserState.DELETED }
+
     override fun observeEventsForPerson(profileId: String): Flow<List<ProfileEvent>> =
-        events.map { list -> newestFirst(list.filter { profileId in it.personProfileIds }) }
+        events.map { list -> newestFirst(listed(list).filter { profileId in it.personProfileIds }) }
 
     override fun observeEventsForOrganisation(organisationId: String): Flow<List<ProfileEvent>> =
-        events.map { list -> newestFirst(list.filter { it.organisationProfileId == organisationId }) }
+        events.map { list -> newestFirst(listed(list).filter { it.organisationProfileId == organisationId }) }
 
     override fun observeEventsForCase(caseId: String): Flow<List<ProfileEvent>> =
-        events.map { list -> oldestFirst(list.filter { it.caseId == caseId }) }
+        events.map { list -> oldestFirst(listed(list).filter { it.caseId == caseId }) }
 
     override fun observeEventsForDocument(documentId: String): Flow<List<ProfileEvent>> =
-        events.map { list -> oldestFirst(list.filter { it.documentId == documentId }) }
+        events.map { list -> oldestFirst(listed(list).filter { it.documentId == documentId }) }
 
     override suspend fun eventsOfDocument(documentId: String): List<ProfileEvent> = oldestFirst(events.value.filter { it.documentId == documentId })
 
-    override suspend fun eventsOfCase(caseId: String): List<ProfileEvent> = oldestFirst(events.value.filter { it.caseId == caseId })
+    override suspend fun eventsOfCase(caseId: String): List<ProfileEvent> = oldestFirst(listed(events.value).filter { it.caseId == caseId })
+
+    override suspend fun getEvent(eventId: String): ProfileEvent? = events.value.firstOrNull { it.id == eventId }
+
+    override suspend fun updateEventByUser(eventId: String, kind: String, eventDate: Long, title: String) {
+        events.value = events.value.map {
+            if (it.id != eventId) it else it.copy(
+                kind = kind, eventDate = eventDate, title = title,
+                userState = if (it.source == EventSource.USER) it.userState else EventUserState.EDITED,
+            )
+        }
+    }
+
+    override suspend fun markEventDeleted(eventId: String) {
+        events.value = events.value.map { if (it.id == eventId) it.copy(userState = EventUserState.DELETED) else it }
+    }
+
+    override suspend fun deleteEvent(eventId: String) {
+        events.value = events.value.filterNot { it.id == eventId }
+    }
 
     override suspend fun replaceDocumentEvents(documentId: String, events: List<ProfileEvent>) {
         this.events.value = this.events.value.filterNot { it.documentId == documentId && it.source == EventSource.DOCUMENT } + events
@@ -102,6 +125,6 @@ class FakeEventRepository : EventRepository {
     }
 
     override suspend fun deleteCaseIfEmpty(caseId: String) {
-        if (events.value.none { it.caseId == caseId }) cases.value = cases.value.filterNot { it.id == caseId }
+        if (listed(events.value).none { it.caseId == caseId }) cases.value = cases.value.filterNot { it.id == caseId }
     }
 }

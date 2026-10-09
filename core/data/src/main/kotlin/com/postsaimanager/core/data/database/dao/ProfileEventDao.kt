@@ -37,7 +37,7 @@ interface ProfileEventDao {
         SELECT e.* FROM profile_events e
         INNER JOIN documents d ON d.id = e.documentId
         INNER JOIN profile_event_people p ON p.eventId = e.id
-        WHERE p.profileId = :profileId AND d.deletedAt IS NULL
+        WHERE p.profileId = :profileId AND d.deletedAt IS NULL AND e.userState != 'DELETED'
         ORDER BY e.eventDate DESC, e.recordedAt DESC
         """,
     )
@@ -48,7 +48,7 @@ interface ProfileEventDao {
         """
         SELECT e.* FROM profile_events e
         INNER JOIN documents d ON d.id = e.documentId
-        WHERE e.organisationProfileId = :organisationId AND d.deletedAt IS NULL
+        WHERE e.organisationProfileId = :organisationId AND d.deletedAt IS NULL AND e.userState != 'DELETED'
         ORDER BY e.eventDate DESC, e.recordedAt DESC
         """,
     )
@@ -59,7 +59,7 @@ interface ProfileEventDao {
         """
         SELECT e.* FROM profile_events e
         INNER JOIN documents d ON d.id = e.documentId
-        WHERE e.caseId = :caseId AND d.deletedAt IS NULL
+        WHERE e.caseId = :caseId AND d.deletedAt IS NULL AND e.userState != 'DELETED'
         ORDER BY e.eventDate ASC, e.recordedAt ASC
         """,
     )
@@ -70,19 +70,38 @@ interface ProfileEventDao {
         """
         SELECT e.* FROM profile_events e
         INNER JOIN documents d ON d.id = e.documentId
-        WHERE e.documentId = :documentId AND d.deletedAt IS NULL
+        WHERE e.documentId = :documentId AND d.deletedAt IS NULL AND e.userState != 'DELETED'
         ORDER BY e.eventDate ASC, e.recordedAt ASC
         """,
     )
     fun observeForDocument(documentId: String): Flow<List<ProfileEventWithPeople>>
 
+    /** Every event of the letter, a tombstone ('DELETED') included: the re-read has to know what the user did to the reading's event. */
     @Transaction
     @Query("SELECT * FROM profile_events WHERE documentId = :documentId ORDER BY eventDate ASC, recordedAt ASC")
     suspend fun getForDocument(documentId: String): List<ProfileEventWithPeople>
 
     @Transaction
-    @Query("SELECT * FROM profile_events WHERE caseId = :caseId ORDER BY eventDate ASC, recordedAt ASC")
+    @Query("SELECT * FROM profile_events WHERE caseId = :caseId AND userState != 'DELETED' ORDER BY eventDate ASC, recordedAt ASC")
     suspend fun getForCase(caseId: String): List<ProfileEventWithPeople>
+
+    @Transaction
+    @Query("SELECT * FROM profile_events WHERE id = :id")
+    suspend fun getById(id: String): ProfileEventWithPeople?
+
+    /** The user's edit: a reading's, an action's or a system event takes the 'EDITED' mark, so a re-read keeps it; the user's own stays as it is. */
+    @Query(
+        "UPDATE profile_events SET kind = :kind, eventDate = :eventDate, title = :title, " +
+            "userState = CASE WHEN source = 'USER' THEN userState ELSE 'EDITED' END WHERE id = :id",
+    )
+    suspend fun updateByUser(id: String, kind: String, eventDate: Long, title: String)
+
+    /** The user deleted an event they did not write: a tombstone (never listed), so a re-read does not bring it back. */
+    @Query("UPDATE profile_events SET userState = 'DELETED' WHERE id = :id")
+    suspend fun markDeleted(id: String)
+
+    @Query("DELETE FROM profile_events WHERE id = :id")
+    suspend fun deleteById(id: String)
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(event: ProfileEventEntity)
@@ -114,7 +133,7 @@ interface ProfileEventDao {
         INNER JOIN profile_events e ON e.caseId = c.id
         INNER JOIN documents d ON d.id = e.documentId
         INNER JOIN profile_event_people p ON p.eventId = e.id
-        WHERE p.profileId = :profileId AND d.deletedAt IS NULL
+        WHERE p.profileId = :profileId AND d.deletedAt IS NULL AND e.userState != 'DELETED'
         ORDER BY c.createdAt DESC
         """,
     )
@@ -152,6 +171,6 @@ interface ProfileEventDao {
     @Query("UPDATE cases SET title = :title, titleSource = 'USER' WHERE id = :caseId")
     suspend fun renameCase(caseId: String, title: String)
 
-    @Query("DELETE FROM cases WHERE id = :caseId AND NOT EXISTS (SELECT 1 FROM profile_events WHERE caseId = :caseId)")
+    @Query("DELETE FROM cases WHERE id = :caseId AND NOT EXISTS (SELECT 1 FROM profile_events WHERE caseId = :caseId AND userState != 'DELETED')")
     suspend fun deleteCaseIfEmpty(caseId: String)
 }

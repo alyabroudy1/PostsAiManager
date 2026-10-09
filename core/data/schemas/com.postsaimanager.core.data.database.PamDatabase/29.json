@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 29,
-    "identityHash": "659d9f26683315f629ac745dfdb321aa",
+    "identityHash": "fbe39b6aa1387a2fcc94d29316bae481",
     "entities": [
       {
         "tableName": "documents",
@@ -256,7 +256,7 @@
       },
       {
         "tableName": "document_pages",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `documentId` TEXT NOT NULL, `pageNumber` INTEGER NOT NULL, `imagePath` TEXT NOT NULL, `processedPath` TEXT, `ocrText` TEXT, `ocrConfidence` REAL, `ocrBlocks` TEXT, `width` INTEGER NOT NULL, `height` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`documentId`) REFERENCES `documents`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `documentId` TEXT NOT NULL, `pageNumber` INTEGER NOT NULL, `imagePath` TEXT NOT NULL, `processedPath` TEXT, `ocrText` TEXT, `ocrConfidence` REAL, `ocrBlocks` TEXT, `width` INTEGER NOT NULL, `height` INTEGER NOT NULL, `textSource` TEXT NOT NULL DEFAULT 'OCR', PRIMARY KEY(`id`), FOREIGN KEY(`documentId`) REFERENCES `documents`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -313,6 +313,13 @@
             "columnName": "height",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "textSource",
+            "columnName": "textSource",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'OCR'"
           }
         ],
         "primaryKey": {
@@ -2502,7 +2509,7 @@
       },
       {
         "tableName": "profile_events",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `documentId` TEXT NOT NULL, `kind` TEXT NOT NULL, `eventDate` INTEGER NOT NULL, `recordedAt` INTEGER NOT NULL, `title` TEXT NOT NULL, `organisationProfileId` TEXT, `contactId` TEXT, `caseId` TEXT, `source` TEXT NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`documentId`) REFERENCES `documents`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`organisationProfileId`) REFERENCES `profiles`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`contactId`) REFERENCES `contact_persons`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`caseId`) REFERENCES `cases`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `documentId` TEXT NOT NULL, `kind` TEXT NOT NULL, `eventDate` INTEGER NOT NULL, `recordedAt` INTEGER NOT NULL, `title` TEXT NOT NULL, `organisationProfileId` TEXT, `contactId` TEXT, `caseId` TEXT, `source` TEXT NOT NULL, `userState` TEXT NOT NULL DEFAULT 'NONE', PRIMARY KEY(`id`), FOREIGN KEY(`documentId`) REFERENCES `documents`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`organisationProfileId`) REFERENCES `profiles`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`contactId`) REFERENCES `contact_persons`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`caseId`) REFERENCES `cases`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -2560,6 +2567,13 @@
             "columnName": "source",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "userState",
+            "columnName": "userState",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'NONE'"
           }
         ],
         "primaryKey": {
@@ -2823,7 +2837,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '659d9f26683315f629ac745dfdb321aa')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fbe39b6aa1387a2fcc94d29316bae481')"
     ]
   }
 }

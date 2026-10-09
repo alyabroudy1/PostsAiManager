@@ -14,6 +14,7 @@ import com.postsaimanager.core.model.CaseStatus
 import com.postsaimanager.core.model.CaseStatusSource
 import com.postsaimanager.core.model.CaseTitleSource
 import com.postsaimanager.core.model.EventSource
+import com.postsaimanager.core.model.EventUserState
 import com.postsaimanager.core.model.ProfileEvent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -61,11 +62,20 @@ class EventRepositoryImpl @Inject constructor(
             ProfileEventEntity(
                 id = event.id, documentId = event.documentId, kind = event.kind, eventDate = event.eventDate, recordedAt = event.recordedAt,
                 title = event.title, organisationProfileId = event.organisationProfileId, contactId = event.contactId,
-                caseId = event.caseId, source = event.source.name,
+                caseId = event.caseId, source = event.source.name, userState = event.userState.name,
             ),
         )
         if (event.personProfileIds.isNotEmpty()) dao.insertPeople(event.id, event.personProfileIds)
     }
+
+    override suspend fun getEvent(eventId: String): ProfileEvent? = withContext(ioDispatcher) { dao.getById(eventId)?.let(::toDomain) }
+
+    override suspend fun updateEventByUser(eventId: String, kind: String, eventDate: Long, title: String) =
+        withContext(ioDispatcher) { dao.updateByUser(eventId, kind, eventDate, title) }
+
+    override suspend fun markEventDeleted(eventId: String) = withContext(ioDispatcher) { dao.markDeleted(eventId) }
+
+    override suspend fun deleteEvent(eventId: String) = withContext(ioDispatcher) { dao.deleteById(eventId) }
 
     override suspend fun setDocumentLinks(
         documentId: String,
@@ -122,6 +132,7 @@ class EventRepositoryImpl @Inject constructor(
             id = it.id, documentId = it.documentId, kind = it.kind, eventDate = it.eventDate, recordedAt = it.recordedAt, title = it.title,
             personProfileIds = row.personIds, organisationProfileId = it.organisationProfileId, contactId = it.contactId, caseId = it.caseId,
             source = runCatching { EventSource.valueOf(it.source) }.getOrDefault(EventSource.DOCUMENT),
+            userState = runCatching { EventUserState.valueOf(it.userState) }.getOrDefault(EventUserState.NONE),
         )
     }
 

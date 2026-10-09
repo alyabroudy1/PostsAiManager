@@ -11,6 +11,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * - `documents.languageSource` (`MODEL`): who decided the letter's language.
  * - `documents.caseLinkSource` (`AUTO`): who chose the matter the letter belongs to.
  * - `cases.statusSource` (`AUTO`): who decided a matter's status.
+ * - `profile_events.userState` (`NONE`): whether the user edited an event or deleted it (a tombstone).
+ * - `document_pages.textSource` (`OCR`): whether a page's recognised text is the recognizer's or the user's correction.
  *
  * Nothing else changes: an action's source lives inside the `documents.actionItems` JSON, and a note's source column already exists.
  */
@@ -21,6 +23,8 @@ internal object UserEditsMigration {
         Triple("documents", "languageSource", "'MODEL'"),
         Triple("documents", "caseLinkSource", "'AUTO'"),
         Triple("cases", "statusSource", "'AUTO'"),
+        Triple("profile_events", "userState", "'NONE'"),
+        Triple("document_pages", "textSource", "'OCR'"),
     )
 
     fun apply(db: SupportSQLiteDatabase) {

@@ -37,6 +37,21 @@ interface EventRepository {
     /** Adds one event (an action, a derived fact, a user's note). */
     suspend fun addEvent(event: ProfileEvent)
 
+    /** The event with [eventId], a tombstone included; null when there is none. */
+    suspend fun getEvent(eventId: String): ProfileEvent?
+
+    /**
+     * The user edited an event: its kind, its date and its text change. An event the reading, an action or the system wrote takes
+     * [com.postsaimanager.core.model.EventUserState.EDITED] (a re-read then leaves it); the user's own is simply updated.
+     */
+    suspend fun updateEventByUser(eventId: String, kind: String, eventDate: Long, title: String)
+
+    /** Marks an event the user did not write as deleted: a tombstone no list shows, which a re-read does not undo. */
+    suspend fun markEventDeleted(eventId: String)
+
+    /** Removes an event for good (one the user wrote themselves). */
+    suspend fun deleteEvent(eventId: String)
+
     /** Sets the links of every event of [documentId] (all sources: they are links of the document). */
     suspend fun setDocumentLinks(documentId: String, personProfileIds: List<String>, organisationProfileId: String?, contactId: String?)
 

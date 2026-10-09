@@ -91,6 +91,8 @@ class RecordDocumentEventsUseCase @Inject constructor(
         val now = clock.millis()
         val resolved = links(document)
         val previous = events.eventsOfDocument(documentId).filter { it.source == EventSource.DOCUMENT }
+        // The reading's event the user edited or deleted stays as they left it: nothing is written beside or over it.
+        if (!EventEditPolicy.mayReplaceReading(previous)) return
         val event = ProfileEvent(
             id = UuidGenerator.generate(),
             documentId = documentId,

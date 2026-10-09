@@ -49,9 +49,15 @@ data class ProfileEvent(
     val contactId: String? = null,
     val caseId: String? = null,
     val source: EventSource = EventSource.DOCUMENT,
+    /** What the user did to this event: nothing, edited it, or deleted it (a tombstone, never listed, so a re-read does not bring it back). */
+    val userState: EventUserState = EventUserState.NONE,
 )
 
-/** Where a matter stands, derived from its events (see `CaseStatusDeriver`), never typed by hand. */
+/** What the user did to an event. A re-read of the letter leaves an event that is not [NONE] (and the whole reading with it) alone. */
+@Serializable
+enum class EventUserState { NONE, EDITED, DELETED }
+
+/** Where a matter stands, derived from its events (see `CaseStatusDeriver`) unless the user set it. */
 @Serializable
 enum class CaseStatus { OPEN, APPROVED, REJECTED, CLOSED }
 

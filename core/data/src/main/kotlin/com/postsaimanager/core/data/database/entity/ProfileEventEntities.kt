@@ -86,6 +86,8 @@ data class ProfileEventEntity(
     val contactId: String?,
     val caseId: String?,
     val source: String,
+    /** `NONE`, `EDITED` or `DELETED` (a tombstone); see `EventUserState`. Added in v29. */
+    @ColumnInfo(defaultValue = "'NONE'") val userState: String = "NONE",
 )
 
 /** The household persons an event concerns; gone with either side. Added in v23. */

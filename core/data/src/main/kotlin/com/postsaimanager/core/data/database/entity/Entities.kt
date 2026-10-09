@@ -107,6 +107,8 @@ data class DocumentPageEntity(
     val ocrBlocks: String? = null,
     val width: Int,
     val height: Int,
+    /** `OCR` (what the recognizer read) or `USER` (the person corrected [ocrText]); see `PageTextSource`. Added in v29. */
+    @ColumnInfo(defaultValue = "'OCR'") val textSource: String = "OCR",
 )
 
 @Entity(
