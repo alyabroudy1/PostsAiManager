@@ -618,13 +618,13 @@ class SendChatMessageUseCaseTest {
                     id = "m$i",
                     conversationId = "conv-1",
                     role = if (i % 2 == 0) MessageRole.USER else MessageRole.ASSISTANT,
-                    content = "turn$i:" + "x".repeat(193),
+                    content = "turn$i:" + "x".repeat(143),
                     createdAt = now + i,
                 ),
             )
         }
 
-        val totalBudgetChars = ((300 - BuildChatContextUseCase.DEFAULT_REPLY_RESERVE -
+        val totalBudgetChars = ((300 -BuildChatContextUseCase.DEFAULT_REPLY_RESERVE -
             BuildChatContextUseCase.TEMPLATE_OVERHEAD_TOKENS)
             .coerceAtLeast(BuildChatContextUseCase.MIN_CONTEXT_TOKENS)) *
             BuildChatContextUseCase.CHARS_PER_TOKEN
@@ -641,7 +641,7 @@ class SendChatMessageUseCaseTest {
         assertThat(totalChars).isAtMost(historyBudgetChars)
         // ...only the last exchange is replayed, whatever the budget would have allowed...
         assertThat(history.map { it.content })
-            .containsExactly("turn10:" + "x".repeat(193), "turn11:" + "x".repeat(193)).inOrder()
+            .containsExactly("turn10:" + "x".repeat(143), "turn11:" + "x".repeat(143)).inOrder()
     }
 
     @Test

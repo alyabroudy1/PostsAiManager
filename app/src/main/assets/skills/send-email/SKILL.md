@@ -1,6 +1,6 @@
 ---
 name: send-email
-description: Use only when the user explicitly asks to write or send an email. Opens the mail app with an email ready to send. Never for a question about a letter.
+description: Only when the user explicitly asks to write or send an email.
 ---
 
 # Send email

@@ -87,9 +87,9 @@ object SkillNames {
 object SkillPrompt {
 
     /**
-     * The skills as the Gallery's agent-chat prompt lists them (`formatSelectedSkills`, Apache 2.0): a name line and a description line
-     * per skill, a blank line between skills.
+     * The skills as a compact list, one `- name: description` line each (shorter than the Gallery's `formatSelectedSkills` two lines per
+     * skill: every character of the system prompt is prefilled at each chat warm-up).
      */
     fun namesAndDescriptions(skills: List<Skill>): String =
-        skills.joinToString("\n\n") { "- Skill name: \"${it.name}\"\n- Description: ${it.description}" }
+        skills.joinToString("\n") { "- ${it.name}: ${it.description}" }
 }

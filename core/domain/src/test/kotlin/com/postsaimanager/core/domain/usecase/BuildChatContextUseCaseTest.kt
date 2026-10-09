@@ -61,8 +61,24 @@ class BuildChatContextUseCaseTest {
             val prompt = useCase(documentId = null, contextTokens = 4096).text
 
             assertThat(prompt).contains("No document is open")
-            assertThat(prompt).contains("correspondence")
+            assertThat(prompt).startsWith(BuildChatContextUseCase.ROLE)
             assertThat(prompt).doesNotContain("German")
+        }
+
+        @Test
+        @DisplayName("one short role intro opens every chat, a document's and the all-documents one, and it is stated once")
+        fun `the role intro is first, short and not repeated`() = runTest {
+            documents.seed(testDocument(id = "d1", title = "Bescheid"))
+
+            val document = useCase(documentId = "d1", contextTokens = 4096).text
+            val all = useCase(documentId = null, contextTokens = 4096).text
+
+            assertThat(BuildChatContextUseCase.ROLE.length).isAtMost(300)
+            assertThat(BuildChatContextUseCase.ROLE).contains("Everything runs privately on this phone.")
+            assertThat(document).startsWith(BuildChatContextUseCase.ROLE)
+            assertThat(all).startsWith(BuildChatContextUseCase.ROLE)
+            assertThat(document.split("You are ").size).isEqualTo(2)
+            assertThat(all.split("You are ").size).isEqualTo(2)
         }
 
         @Test

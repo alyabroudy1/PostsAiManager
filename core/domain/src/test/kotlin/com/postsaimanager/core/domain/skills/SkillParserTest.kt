@@ -100,7 +100,7 @@ class SkillParserTest {
     fun `names and descriptions for the prompt are one line per skill`() {
         val list = SkillPrompt.namesAndDescriptions(listOf(Skill("one", "first", ""), Skill("two", "second", "")))
 
-        assertThat(list).isEqualTo("- Skill name: \"one\"\n- Description: first\n\n- Skill name: \"two\"\n- Description: second")
+        assertThat(list).isEqualTo("- one: first\n- two: second")
     }
 
     @Test
@@ -120,7 +120,7 @@ class SkillParserTest {
         assertThat(catalog.load("draft_reply_to_letter")?.instructions).isEqualTo("x")
         assertThat(catalog.load("nope")).isNull()
         assertThat(catalog.namesAndDescriptions()).isEqualTo(
-            "- Skill name: \"draft-reply-to-letter\"\n- Description: Reply.\n\n- Skill name: \"send-email\"\n- Description: Send.",
+            "- draft-reply-to-letter: Reply.\n- send-email: Send.",
         )
     }
 }

@@ -3,6 +3,7 @@ package com.postsaimanager.agent
 import com.google.common.truth.Truth.assertThat
 import com.postsaimanager.core.domain.skills.AgentActionParser
 import com.postsaimanager.core.domain.skills.AgentIntent
+import com.postsaimanager.core.domain.skills.ChatToolsPrompt
 import com.postsaimanager.core.domain.skills.ActionParse
 import com.postsaimanager.core.domain.skills.Skill
 import com.postsaimanager.core.domain.skills.SkillParseResult
@@ -144,11 +145,21 @@ class BundledSkillsTest {
         // A plain question ("When is the payment due?") once made the model load the reminder skill: the listed description decides.
         val skills = folders.map { parse(it) }
         skills.forEach { skill ->
-            assertThat(skill.description).startsWith("Use only when the user explicitly asks")
+            assertThat(skill.description).startsWith("Only when the user explicitly asks")
         }
         val listing = SkillPrompt.namesAndDescriptions(skills)
-        skills.forEach { assertThat(listing).contains("- Description: ${it.description}") }
+        skills.forEach { assertThat(listing).contains("- ${it.name}: ${it.description}") }
         assertThat(listing).contains("explicitly asks to be reminded or to set a reminder or notification")
+    }
+
+    @Test
+    fun `every description is at most 100 characters and the whole tools prompt fits its budget`() {
+        val skills = allFolders.map { parse(it) }
+        skills.forEach { assertThat(it.description.length).isAtMost(100) }
+
+        val prompt = ChatToolsPrompt.build(SkillPrompt.namesAndDescriptions(skills))
+
+        assertThat(prompt.length).isAtMost(ChatToolsPrompt.MAX_CHARS)
     }
 
     @Test

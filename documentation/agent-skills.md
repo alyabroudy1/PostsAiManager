@@ -102,6 +102,9 @@ it must use `ReminderScheduler` too. No DB change was made.
    and its catalogue entry says `supportsTools` (the Gemma 4 `.litertlm` entries). It sets `AiRequest.tools` with the letter the
    reply is about (the chat's own, or the one every retrieved passage came from; otherwise none, and the card flags values).
 2. `RemoteLiteRtChatEngine` passes `toolsEnabled` and the document id over AIDL (`sendLiteRtMessage`). In `:inference`,
+   The preamble was shortened from the Gallery's `DEFAULT_SYSTEM_PROMPT_SKILLS_ONLY` for speed (a short hint plus one
+   `- name: description` line per skill, at most `ChatToolsPrompt.MAX_CHARS` = 600 characters, because the system prompt is
+   prefilled at every chat warm-up); the skill format, the tools and the on-demand loading are still the Gallery's.
    `LiteRtChatEngine` builds the conversation with the skills in the system instruction (`ChatToolsPrompt` over
    `SkillCatalog.namesAndDescriptions()`, the catalogue being `AssetSkillCatalog` over the app's assets) and the two tools
    (`LoadSkillTool`, `RunIntentTool`, `@Tool` classes inside `:core:ai:litert`). LiteRT-LM's `automaticToolCalling` is on (its

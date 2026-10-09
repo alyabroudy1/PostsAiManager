@@ -256,9 +256,11 @@ class BuildChatContextUseCase internal constructor(
     }
 
     companion object {
-        private const val ROLE =
-            "You are an assistant for managing postal correspondence. You help the " +
-                "user understand, organise and reply to official letters."
+        /** The one role intro at the very top of every chat (at most 300 characters); the tools hint adds no second persona. */
+        internal const val ROLE =
+            "You are the assistant in the user's personal post and letters manager app. You help the user " +
+                "(and their household) understand, organise and act on their letters and documents. " +
+                "Everything runs privately on this phone."
 
         // The language rule is deliberately its own short, imperative line placed at the very
         // end of the prompt: small on-device models weight recent instructions more heavily,
@@ -278,9 +280,8 @@ class BuildChatContextUseCase internal constructor(
         }
 
         private const val STANDALONE_PROMPT =
-            "You are an assistant for managing postal correspondence. No document is " +
-                "open, so answer generally and say when you would need the document to be " +
-                "more specific. Always answer in the same language the user writes in."
+            "$ROLE No document is open, so answer generally and say when you would need " +
+                "the document to be more specific. Always answer in the same language the user writes in."
 
         private const val TRUNCATION_NOTE =
             "\n[… the rest of this document was omitted to fit the context window …]\n"
