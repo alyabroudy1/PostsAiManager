@@ -122,6 +122,8 @@ class GemmaFollowUpQuestions @Inject constructor(
         }
         val chosen = FollowUpPrompts.choice(json, ask) ?: return unusable()
         val matched = FollowUpPrompts.matched(chosen, ask)?.let { listed[ask.candidateIds.indexOf(it)].id }
+        // Option ids only (never a word of the letter): what was offered and chosen, so a letter left out of its matter can be traced.
+        log.answered(documentId, "same matter", "offered=${listed.size} chose=$chosen joined=${matched != null}")
         return PamResult.Success(SameMatterDecision(matchedId = matched, asked = emptyList(), baseline = null, margin = 0.0))
     }
 

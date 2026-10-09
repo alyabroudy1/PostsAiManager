@@ -148,8 +148,9 @@ object FollowUpPrompts {
                 if (events.isNotEmpty()) append(" (").append(events.joinToString("; ")).append(')')
             }
             append("\n$DECOY: $decoyTitle")
-            append("\nAnswer with the id of the matter this letter belongs to, only when it is about the same application, claim, contract or ")
-            append("case. Answer \"$NONE\" when it starts a new matter.")
+            append("\nLetters about one application, claim, contract or case follow each other over time (filing, receipt, decision, a request ")
+            append("for documents, an objection, a rejection), and they do not always carry a common number. Answer with the id of the matter ")
+            append("this letter is one more step of. Answer \"$NONE\" only when it is about something else and starts a new matter.")
         }
         return FollowUpAsk(prompt, schema(ids, multiple = false), ids, multiple = false)
     }
