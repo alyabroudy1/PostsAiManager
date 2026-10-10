@@ -202,7 +202,6 @@ fun ChatScreen(
     val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
 
     // 5.1: "Copy" needs only a brief, non-blocking confirmation — a Snackbar rather than a
     // dialog, and one already dismissing itself is replaced rather than queued behind.
