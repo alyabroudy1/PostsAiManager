@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_section">Backup</string>
+    <string name="backup_connect_title">Connect Google Drive</string>
+    <string name="backup_connect_subtitle">Keep a private copy of your letters in your own Google Drive. Only this app can see it.</string>
+    <string name="backup_account_title">Google Drive</string>
+    <string name="backup_account_unknown">Connected</string>
+    <string name="backup_disconnect">Disconnect</string>
+    <string name="backup_auto_title">Automatic backup</string>
+    <string name="backup_auto_subtitle">Once a day, while charging and when the phone is idle</string>
+    <string name="backup_wifi_title">Wi-Fi only</string>
+    <string name="backup_wifi_subtitle">Do not use mobile data for automatic backups</string>
+    <string name="backup_now_title">Back up now</string>
+    <string name="backup_never">No backup yet</string>
+    <string name="backup_last_success">Last backup: %1$s (%2$s)</string>
+    <string name="backup_last_error">Last backup failed: %1$s</string>
+    <string name="backup_restore_title">Restore</string>
+    <string name="backup_restore_subtitle">Replace this phone\'s data with a backup from Google Drive</string>
+    <string name="backup_stage_packing">Packing your data…</string>
+    <string name="backup_stage_uploading">Uploading…</string>
+    <string name="backup_stage_downloading">Downloading…</string>
+    <string name="backup_stage_restoring">Restoring…</string>
+    <string name="backup_stage_cleaning">Removing old backups…</string>
+    <string name="backup_loading">Loading…</string>
+    <string name="backup_pick_title">Choose a backup</string>
+    <string name="backup_pick_empty">There is no backup in this Google Drive yet.</string>
+    <string name="backup_confirm_title">Replace everything on this phone?</string>
+    <string name="backup_confirm_text">This replaces all documents, profiles and chats on this phone with the backup from %1$s. This cannot be undone. The app restarts afterwards.</string>
+    <string name="backup_confirm_action">Restore</string>
+    <string name="backup_cancel">Cancel</string>
+    <string name="backup_ok">OK</string>
+    <string name="backup_notice_queued">The backup is queued. It starts as soon as there is a network connection.</string>
+    <string name="backup_notice_auth">Google Drive needs your permission again. Tap Connect Google Drive.</string>
+    <string name="backup_notice_newer_app">This backup was made by a newer version of the app. Update the app first.</string>
+    <string name="backup_notice_failed">That did not work: %1$s</string>
+</resources>

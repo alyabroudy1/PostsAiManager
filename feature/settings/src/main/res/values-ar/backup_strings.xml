@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_section">النسخ الاحتياطي</string>
+    <string name="backup_connect_title">ربط Google Drive</string>
+    <string name="backup_connect_subtitle">احتفظ بنسخة خاصة من رسائلك في حسابك على Google Drive. هذا التطبيق وحده يستطيع رؤيتها.</string>
+    <string name="backup_account_title">Google Drive</string>
+    <string name="backup_account_unknown">متصل</string>
+    <string name="backup_disconnect">قطع الاتصال</string>
+    <string name="backup_auto_title">النسخ الاحتياطي التلقائي</string>
+    <string name="backup_auto_subtitle">مرة كل يوم، أثناء الشحن وعندما يكون الهاتف غير مستخدم</string>
+    <string name="backup_wifi_title">عبر Wi-Fi فقط</string>
+    <string name="backup_wifi_subtitle">عدم استخدام بيانات الجوال في النسخ الاحتياطي التلقائي</string>
+    <string name="backup_now_title">انسخ احتياطيًا الآن</string>
+    <string name="backup_never">لا توجد نسخة احتياطية بعد</string>
+    <string name="backup_last_success">آخر نسخة احتياطية: %1$s (%2$s)</string>
+    <string name="backup_last_error">فشلت آخر نسخة احتياطية: %1$s</string>
+    <string name="backup_restore_title">استعادة</string>
+    <string name="backup_restore_subtitle">استبدال بيانات هذا الهاتف بنسخة احتياطية من Google Drive</string>
+    <string name="backup_stage_packing">جارٍ تجهيز بياناتك…</string>
+    <string name="backup_stage_uploading">جارٍ الرفع…</string>
+    <string name="backup_stage_downloading">جارٍ التنزيل…</string>
+    <string name="backup_stage_restoring">جارٍ الاستعادة…</string>
+    <string name="backup_stage_cleaning">جارٍ حذف النسخ القديمة…</string>
+    <string name="backup_loading">جارٍ التحميل…</string>
+    <string name="backup_pick_title">اختر نسخة احتياطية</string>
+    <string name="backup_pick_empty">لا توجد نسخة احتياطية في هذا الحساب بعد.</string>
+    <string name="backup_confirm_title">استبدال كل شيء على هذا الهاتف؟</string>
+    <string name="backup_confirm_text">سيتم استبدال جميع المستندات والملفات الشخصية والمحادثات على هذا الهاتف بالنسخة الاحتياطية من %1$s. لا يمكن التراجع عن ذلك. سيعاد تشغيل التطبيق بعد ذلك.</string>
+    <string name="backup_confirm_action">استعادة</string>
+    <string name="backup_cancel">إلغاء</string>
+    <string name="backup_ok">حسنًا</string>
+    <string name="backup_notice_queued">تمت جدولة النسخ الاحتياطي. سيبدأ فور توفر اتصال بالشبكة.</string>
+    <string name="backup_notice_auth">يحتاج Google Drive إلى إذنك مرة أخرى. اضغط على «ربط Google Drive».</string>
+    <string name="backup_notice_newer_app">هذه النسخة الاحتياطية من إصدار أحدث من التطبيق. حدّث التطبيق أولًا.</string>
+    <string name="backup_notice_failed">لم تنجح العملية: %1$s</string>
+</resources>

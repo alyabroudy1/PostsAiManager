@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_channel_name">Google-Drive-Sicherung</string>
+    <string name="backup_consent_needed_title">Die Sicherung braucht Ihre Erlaubnis</string>
+    <string name="backup_consent_needed_text">Öffnen Sie die App und verbinden Sie Google Drive in den Einstellungen erneut.</string>
+</resources>

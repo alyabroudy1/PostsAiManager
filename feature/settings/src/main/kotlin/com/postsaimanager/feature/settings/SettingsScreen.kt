@@ -195,6 +195,9 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setReadingFinishedNotifications,
             )
 
+            // ── Backup (Google Drive) ──
+            BackupSection()
+
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // ── Debug: a debug build only; nothing is shown in a release build ──

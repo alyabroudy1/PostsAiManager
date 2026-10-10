@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_channel_name">النسخ الاحتياطي على Google Drive</string>
+    <string name="backup_consent_needed_title">النسخ الاحتياطي يحتاج إلى إذنك</string>
+    <string name="backup_consent_needed_text">افتح التطبيق وأعد ربط Google Drive من الإعدادات.</string>
+</resources>
