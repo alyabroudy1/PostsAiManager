@@ -67,7 +67,7 @@ fun SliderSpecItem(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = spec.label,
+                text = configSpecLabel(spec),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f),
             )
@@ -102,7 +102,7 @@ fun SwitchSpecItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = spec.label, style = MaterialTheme.typography.bodyLarge)
+            Text(text = configSpecLabel(spec), style = MaterialTheme.typography.bodyLarge)
             ReloadHint(spec.reloadScope)
         }
         Switch(checked = value, onCheckedChange = onValueChange)
@@ -127,9 +127,9 @@ fun ChoiceSpecItem(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = spec.label, style = MaterialTheme.typography.bodyLarge)
+                Text(text = configSpecLabel(spec), style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    text = value,
+                    text = configOptionLabel(spec, value),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -140,11 +140,12 @@ fun ChoiceSpecItem(
 
     if (showDialog) {
         ConfigChoiceDialog(
-            title = spec.label,
+            title = configSpecLabel(spec),
             options = spec.options,
+            optionLabel = { configOptionLabel(spec, it) },
             selected = value,
             disabledOptions = spec.disabledOptions,
-            disabledReason = spec.disabledReason,
+            disabledReason = configDisabledReason(spec),
             onSelect = { option ->
                 onValueChange(option)
                 showDialog = false
@@ -179,6 +180,7 @@ fun ReloadHint(reloadScope: ReloadScope, modifier: Modifier = Modifier) {
 private fun ConfigChoiceDialog(
     title: String,
     options: List<String>,
+    optionLabel: @Composable (String) -> String,
     selected: String,
     disabledOptions: Set<String>,
     disabledReason: String?,
@@ -206,7 +208,7 @@ private fun ConfigChoiceDialog(
                         )
                         Column(modifier = Modifier.padding(start = 8.dp)) {
                             Text(
-                                text = option,
+                                text = optionLabel(option),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = if (disabled) {
                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)

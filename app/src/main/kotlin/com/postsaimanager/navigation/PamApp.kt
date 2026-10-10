@@ -5,6 +5,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -326,7 +328,16 @@ private fun PamBottomNavigationBar(
                         contentDescription = stringResource(destination.labelRes),
                     )
                 },
-                label = { Text(stringResource(destination.labelRes)) },
+                label = {
+                    Text(
+                        text = stringResource(destination.labelRes),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
+                alwaysShowLabel = true,
             )
         }
     }

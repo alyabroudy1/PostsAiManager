@@ -17,7 +17,7 @@
     <string name="home_importing">Importing…</string>
     <string name="home_import_failed">Some files could not be imported. Tap to dismiss.</string>
     <!-- Home screen: title, buttons, list, empty and error states, Undo snackbar -->
-    <string name="home_title" translatable="false">Posts AI Manager</string>
+    <string name="home_title">Posts AI Manager</string>
     <string name="home_ask_documents">Ask about your documents</string>
     <string name="home_scan_document">Scan document</string>
     <string name="home_empty_title">No documents yet</string>

@@ -17,6 +17,7 @@
     <string name="home_importing">جارٍ الاستيراد…</string>
     <string name="home_import_failed">تعذّر استيراد بعض الملفات. انقر للإغلاق.</string>
     <!-- الشاشة الرئيسية: العنوان والأزرار والقائمة وحالتا الفراغ والخطأ ورسالة التراجع -->
+    <string name="home_title">مدير البريد الذكي</string>
     <string name="home_ask_documents">اسأل عن مستنداتك</string>
     <string name="home_scan_document">مسح مستند ضوئيًا</string>
     <string name="home_empty_title">لا توجد مستندات بعد</string>

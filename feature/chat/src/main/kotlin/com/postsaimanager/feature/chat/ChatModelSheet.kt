@@ -39,6 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.postsaimanager.core.designsystem.component.ConfigSpecItem
+import com.postsaimanager.core.designsystem.component.configDisabledReason
+import com.postsaimanager.core.designsystem.component.configOptionLabel
 import com.postsaimanager.core.designsystem.component.ReloadHint
 import com.postsaimanager.core.domain.usecase.ChatTurn
 import com.postsaimanager.core.model.ConfigSpec
@@ -369,11 +371,11 @@ private fun AcceleratorSegmentedButton(
                     onClick = { onValueChange(option) },
                     enabled = !disabled,
                     shape = SegmentedButtonDefaults.itemShape(index = index, count = spec.options.size),
-                    label = { Text(option) },
+                    label = { Text(configOptionLabel(spec, option)) },
                 )
             }
         }
-        val disabledSpecReason = spec.disabledReason.takeIf { spec.disabledOptions.isNotEmpty() }
+        val disabledSpecReason = configDisabledReason(spec).takeIf { spec.disabledOptions.isNotEmpty() }
         if (disabledSpecReason != null) {
             Text(
                 text = disabledSpecReason,

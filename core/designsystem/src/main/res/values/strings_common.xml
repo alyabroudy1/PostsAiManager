@@ -5,4 +5,19 @@
     <string name="ds_delete">Delete</string>
     <string name="ds_cancel">Cancel</string>
     <string name="ds_reload_hint">Applies on next model load</string>
+    <string name="ds_cfg_threads">CPU threads</string>
+    <string name="ds_cfg_context">Context window</string>
+    <string name="ds_cfg_accelerator">Accelerator</string>
+    <string name="ds_cfg_temperature">Temperature</string>
+    <string name="ds_cfg_top_k">Top-K</string>
+    <string name="ds_cfg_top_p">Top-P</string>
+    <string name="ds_cfg_flash_attention">Flash attention</string>
+    <string name="ds_cfg_thinking">Thinking</string>
+    <string name="ds_cfg_accel_cpu">CPU</string>
+    <string name="ds_cfg_accel_gpu">GPU</string>
+    <string name="ds_cfg_think_off">Off</string>
+    <string name="ds_cfg_think_low">Low</string>
+    <string name="ds_cfg_think_high">High</string>
+    <string name="ds_cfg_unavailable_build">Not available in this build</string>
+    <string name="ds_cfg_gpu_blocked">GPU driver failed to compile shaders for this model</string>
 </resources>

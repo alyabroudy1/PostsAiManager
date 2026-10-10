@@ -4,4 +4,19 @@
     <string name="ds_delete">حذف</string>
     <string name="ds_cancel">إلغاء</string>
     <string name="ds_reload_hint">يُطبَّق عند التحميل التالي للنموذج</string>
+    <string name="ds_cfg_threads">خيوط المعالج</string>
+    <string name="ds_cfg_context">نافذة السياق</string>
+    <string name="ds_cfg_accelerator">المسرِّع</string>
+    <string name="ds_cfg_temperature">درجة الحرارة</string>
+    <string name="ds_cfg_top_k">Top-K</string>
+    <string name="ds_cfg_top_p">Top-P</string>
+    <string name="ds_cfg_flash_attention">Flash Attention</string>
+    <string name="ds_cfg_thinking">التفكير</string>
+    <string name="ds_cfg_accel_cpu">المعالج (CPU)</string>
+    <string name="ds_cfg_accel_gpu">معالج الرسوميات (GPU)</string>
+    <string name="ds_cfg_think_off">إيقاف</string>
+    <string name="ds_cfg_think_low">منخفض</string>
+    <string name="ds_cfg_think_high">مرتفع</string>
+    <string name="ds_cfg_unavailable_build">غير متاح في هذا الإصدار</string>
+    <string name="ds_cfg_gpu_blocked">فشل مشغّل وحدة الرسوميات في تجميع المظللات لهذا النموذج</string>
 </resources>

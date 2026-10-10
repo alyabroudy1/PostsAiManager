@@ -17,6 +17,7 @@
     <string name="home_importing">Wird importiert…</string>
     <string name="home_import_failed">Einige Dateien konnten nicht importiert werden. Zum Schließen antippen.</string>
     <!-- Startbildschirm: Titel, Buttons, Liste, Leer- und Fehlerzustand, Rückgängig-Hinweis -->
+    <string name="home_title">Post-KI-Manager</string>
     <string name="home_ask_documents">Fragen zu Ihren Dokumenten stellen</string>
     <string name="home_scan_document">Dokument scannen</string>
     <string name="home_empty_title">Noch keine Dokumente</string>
