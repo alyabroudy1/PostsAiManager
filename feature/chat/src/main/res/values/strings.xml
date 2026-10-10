@@ -165,6 +165,10 @@
     <string name="chat_image_description">Attached picture</string>
     <string name="chat_image_in_group_description">Attached picture %1$d of %2$d</string>
     <string name="chat_error_image_unreadable">This file could not be read as a picture.</string>
+    <string name="chat_attach_camera">Take photo</string>
+    <string name="chat_error_camera_permission">Camera access was not allowed. You can allow it in the phone\'s settings, or pick a photo from your gallery.</string>
+    <string name="chat_no_vision_message">This model can\'t look at pictures. Switch to Gemma 4 E2B to send photos.</string>
+    <string name="chat_no_vision_switch">Switch model</string>
 
     <!-- A new chat (the Gallery\'s reset session) -->
     <string name="chat_new_chat">New chat</string>

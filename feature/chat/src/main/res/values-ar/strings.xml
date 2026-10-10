@@ -194,6 +194,10 @@
     <string name="chat_image_description">صورة مرفقة</string>
     <string name="chat_image_in_group_description">صورة مرفقة %1$d من %2$d</string>
     <string name="chat_error_image_unreadable">تعذّرت قراءة هذا الملف كصورة.</string>
+    <string name="chat_attach_camera">التقاط صورة</string>
+    <string name="chat_error_camera_permission">لم يُسمح بالوصول إلى الكاميرا. يمكنك السماح به من إعدادات الهاتف، أو اختيار صورة من المعرض.</string>
+    <string name="chat_no_vision_message">لا يستطيع هذا النموذج النظر إلى الصور. انتقل إلى Gemma 4 E2B لإرسال الصور.</string>
+    <string name="chat_no_vision_switch">تبديل النموذج</string>
 
     <!-- A new chat -->
     <string name="chat_new_chat">محادثة جديدة</string>

@@ -80,9 +80,14 @@ class GalleryBodiesUiTest {
     }
 
     @Test
-    fun `there is no attach button for a model that does not take pictures`() {
-        compose.setContent { MaterialTheme { ChatInputBar("", {}, {}, false, {}, imageInputSupported = false) } }
-        compose.onNodeWithTag(ATTACH_BUTTON_TAG).assertDoesNotExist()
+    fun `the attach button stays for a model that does not take pictures and explains instead of opening the menu`() {
+        var unsupported = 0
+        compose.setContent {
+            MaterialTheme { ChatInputBar("", {}, {}, false, {}, imageInputSupported = false, onAttachUnsupported = { unsupported++ }) }
+        }
+        compose.onNodeWithTag(ATTACH_BUTTON_TAG).performClick()
+        assertThat(unsupported).isEqualTo(1)
+        compose.onNodeWithTag(ATTACH_PHOTO_TAG).assertDoesNotExist()
     }
 
     @Test

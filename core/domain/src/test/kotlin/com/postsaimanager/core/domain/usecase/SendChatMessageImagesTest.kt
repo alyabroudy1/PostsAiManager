@@ -44,12 +44,28 @@ class SendChatMessageImagesTest {
     }
 
     @Test
-    fun `a model that cannot look at pictures answers the words alone`() = runTest {
+    @DisplayName("pictures are never dropped silently: a model that cannot look at them gets a visible error and nothing is sent or stored")
+    fun `a model that cannot look at pictures fails visibly`() = runTest {
         models.supportsImages = false
 
-        sendChatMessage("conv", documentId = null, text = "What is this?", imagePaths = listOf("/a/1.png")).toList()
+        val turns = sendChatMessage("conv", documentId = null, text = "What is this?", imagePaths = listOf("/a/1.png")).toList()
 
-        assertThat(engine.requests.single().imagePaths).isEmpty()
+        val failed = turns.single() as ChatTurn.Failed
+        assertThat(failed.action).isEqualTo(ChatErrorAction.IMAGES_NOT_SUPPORTED)
+        assertThat(engine.requests).isEmpty()
+        assertThat(conversations.getMessages("conv").first()).isEmpty()
+    }
+
+    @Test
+    fun `a retry of a message with pictures on a model that cannot see them fails visibly`() = runTest {
+        sendChatMessage("conv", documentId = null, text = "What is this?", imagePaths = listOf("/a/1.png")).toList()
+        conversations.deleteMessage(conversations.getMessages("conv").first().last { it.role == MessageRole.ASSISTANT }.id)
+        models.supportsImages = false
+
+        val turns = sendChatMessage("conv", documentId = null, text = "What is this?", persistUserMessage = false).toList()
+
+        assertThat(turns.filterIsInstance<ChatTurn.Failed>().single().action).isEqualTo(ChatErrorAction.IMAGES_NOT_SUPPORTED)
+        assertThat(engine.requests).hasSize(1)
     }
 
     @Test

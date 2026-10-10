@@ -162,6 +162,10 @@
     <string name="chat_image_description">Angehängtes Bild</string>
     <string name="chat_image_in_group_description">Angehängtes Bild %1$d von %2$d</string>
     <string name="chat_error_image_unreadable">Diese Datei konnte nicht als Bild gelesen werden.</string>
+    <string name="chat_attach_camera">Foto aufnehmen</string>
+    <string name="chat_error_camera_permission">Der Kamerazugriff wurde nicht erlaubt. Sie können ihn in den Einstellungen erlauben oder ein Foto aus der Galerie wählen.</string>
+    <string name="chat_no_vision_message">Dieses Modell kann keine Bilder ansehen. Wechseln Sie zu Gemma 4 E2B, um Fotos zu senden.</string>
+    <string name="chat_no_vision_switch">Modell wechseln</string>
 
     <!-- A new chat -->
     <string name="chat_new_chat">Neuer Chat</string>
