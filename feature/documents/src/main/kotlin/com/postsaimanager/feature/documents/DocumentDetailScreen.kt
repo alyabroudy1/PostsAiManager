@@ -32,6 +32,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -934,8 +936,18 @@ private fun PagesTab(
     }
 
     // The pages keep a fixed share of the screen; the card and the recognized text scroll below them.
-    val pagerHeight = (LocalConfiguration.current.screenHeightDp * 0.55f).dp.coerceAtLeast(360.dp)
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    // Each pager page holds the image and the button row, so the pager takes the visible height of the tab
+    // (measured before the scroll modifier), less the dots row; the page image takes what the buttons leave.
+    // Sizing it from the screen height clipped the row, as the tab is shorter than the screen.
+    val density = LocalDensity.current
+    val initialViewport = (LocalConfiguration.current.screenHeightDp * 0.6f).dp
+    var viewportHeight by remember { mutableStateOf(initialViewport) }
+    val pagerHeight = (viewportHeight - 24.dp).coerceAtLeast(360.dp)
+    Column(
+        modifier = Modifier.fillMaxSize()
+            .onSizeChanged { viewportHeight = with(density) { it.height.toDp() } }
+            .verticalScroll(rememberScrollState()),
+    ) {
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxWidth().height(pagerHeight)) { pageIndex ->
             val page = pages[pageIndex]
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
