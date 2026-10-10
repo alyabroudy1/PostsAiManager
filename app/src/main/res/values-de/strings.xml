@@ -17,7 +17,7 @@
     <string name="applock_prompt_unlock_title">Post-KI-Manager entsperren</string>
     <string name="applock_prompt_unlock_subtitle">Mit Fingerabdruck, Gesicht, PIN oder Muster</string>
     <string name="applock_prompt_enable_title">App-Sperre aktivieren</string>
-    <string name="applock_prompt_enable_subtitle">Bestätige, dass du es bist, bevor die App gesperrt wird</string>
+    <string name="applock_prompt_enable_subtitle">Bestätigen Sie, dass Sie es sind, bevor die App gesperrt wird</string>
 
     <!-- Navigationsleiste und Snackbar auf App-Ebene -->
     <string name="nav_home">Start</string>
@@ -31,8 +31,8 @@
     <string name="import_add">Zu meinen Briefen hinzufügen</string>
     <string name="import_cancel">Abbrechen</string>
     <string name="import_close">Schließen</string>
-    <string name="import_reading">Deine Dateien werden gelesen…</string>
-    <string name="import_adding">Deine Briefe werden hinzugefügt…</string>
+    <string name="import_reading">Ihre Dateien werden gelesen…</string>
+    <string name="import_adding">Ihre Briefe werden hinzugefügt…</string>
     <string name="import_continue_background">Im Hintergrund fortfahren</string>
     <string name="import_failed_all">Keine dieser Dateien konnte hinzugefügt werden.</string>
     <string name="import_each_image_separate">Jedes Bild ist ein eigenes Dokument</string>
@@ -44,25 +44,25 @@
         <item quantity="one">%d Seite</item>
         <item quantity="other">%d Seiten</item>
     </plurals>
-    <string name="import_duplicate">Du hast diese Datei am %1$s hinzugefügt</string>
-    <string name="import_duplicate_group">Du hast diese Dateien am %1$s hinzugefügt</string>
+    <string name="import_duplicate">Sie haben diese Datei am %1$s hinzugefügt</string>
+    <string name="import_duplicate_group">Sie haben diese Dateien am %1$s hinzugefügt</string>
     <string name="import_add_again">Trotzdem noch einmal hinzufügen</string>
     <string name="import_open_existing">Öffnen</string>
-    <string name="import_duplicate_deleted">Du hast diese Datei am %1$s gelöscht. Wiederherstellen?</string>
-    <string name="import_duplicate_deleted_group">Du hast diese Dateien am %1$s gelöscht. Wiederherstellen?</string>
+    <string name="import_duplicate_deleted">Sie haben diese Datei am %1$s gelöscht. Wiederherstellen?</string>
+    <string name="import_duplicate_deleted_group">Sie haben diese Dateien am %1$s gelöscht. Wiederherstellen?</string>
     <string name="import_restore_open">Wiederherstellen</string>
     <string name="import_add_as_new">Als neu hinzufügen</string>
     <string name="import_password_title">%1$s ist passwortgeschützt</string>
     <string name="import_password_label">Passwort</string>
     <string name="import_unlock">Entsperren</string>
-    <string name="import_wrong_password">Dieses Passwort hat nicht funktioniert. Versuche es noch einmal.</string>
+    <string name="import_wrong_password">Dieses Passwort hat nicht funktioniert. Versuchen Sie es noch einmal.</string>
     <string name="import_thumbnail_description">Vorschau der ersten Seite</string>
     <string name="import_problem_not_supported">%1$s ist weder ein PDF noch ein Bild, das diese App lesen kann.</string>
     <string name="import_problem_too_large">%1$s ist größer als %2$d MB.</string>
     <string name="import_problem_too_many_pages">%1$s hat %2$d Seiten. Ein PDF darf hier höchstens %3$d Seiten haben.</string>
-    <string name="import_problem_password_unsupported">%1$s ist passwortgeschützt. Diese Android-Version kann es nicht öffnen: Teile eine ungeschützte Kopie.</string>
+    <string name="import_problem_password_unsupported">%1$s ist passwortgeschützt. Diese Android-Version kann es nicht öffnen: Teilen Sie eine ungeschützte Kopie.</string>
     <string name="import_problem_password_required">%1$s braucht sein Passwort.</string>
     <string name="import_problem_wrong_password">Das Passwort für %1$s hat nicht funktioniert.</string>
     <string name="import_problem_broken">%1$s ist beschädigt und kann nicht gelesen werden.</string>
-    <string name="import_problem_unreadable">%1$s konnte nicht geöffnet werden. Teile die Datei noch einmal.</string>
+    <string name="import_problem_unreadable">%1$s konnte nicht geöffnet werden. Teilen Sie die Datei noch einmal.</string>
 </resources>
