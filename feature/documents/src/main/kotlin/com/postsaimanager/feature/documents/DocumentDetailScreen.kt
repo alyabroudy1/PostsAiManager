@@ -1007,7 +1007,7 @@ private fun PagesTab(
                     if (!page.ocrText.isNullOrBlank()) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             FilledTonalIconButton(onClick = { copyOcrText(context, page) }) {
-                                Icon(PamIcons.Edit, contentDescription = stringResource(R.string.pages_copy_text), modifier = Modifier.size(20.dp))
+                                Icon(PamIcons.Copy, contentDescription = stringResource(R.string.pages_copy_text), modifier = Modifier.size(20.dp))
                             }
                             Text(stringResource(R.string.pages_copy), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
