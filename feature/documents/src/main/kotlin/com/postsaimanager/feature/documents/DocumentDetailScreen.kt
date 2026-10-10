@@ -135,14 +135,19 @@ private fun SideBySideOrStacked(
         val gap = spacing.roundToPx()
         val maxWidth = constraints.maxWidth
         val natural = measurables.map { it.maxIntrinsicWidth(Constraints.Infinity) }
-        val half = (maxWidth - gap * (measurables.size - 1)) / measurables.size
-        val sideBySide = natural.all { it <= half }
-        val itemWidth = if (sideBySide) half else maxWidth
-        val placeables = measurables.map { it.measure(Constraints(minWidth = itemWidth, maxWidth = itemWidth)) }
+        val plan = planButtonRow(natural, maxWidth, gap)
+        val sideBySide = plan.sideBySide
+        val placeables = measurables.mapIndexed { i, m ->
+            m.measure(Constraints(minWidth = plan.widths[i], maxWidth = plan.widths[i]))
+        }
         if (sideBySide) {
             val height = placeables.maxOf { it.height }
             layout(maxWidth, height) {
-                placeables.forEachIndexed { i, p -> p.placeRelative(i * (itemWidth + gap), (height - p.height) / 2) }
+                var x = 0
+                placeables.forEach { p ->
+                    p.placeRelative(x, (height - p.height) / 2)
+                    x += p.width + gap
+                }
             }
         } else {
             val height = placeables.sumOf { it.height } + gap * (placeables.size - 1)
