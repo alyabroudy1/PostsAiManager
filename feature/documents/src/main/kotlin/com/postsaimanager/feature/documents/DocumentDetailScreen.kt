@@ -74,6 +74,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -116,6 +118,42 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
+
+/**
+ * Two buttons side by side, equal width, when both labels fit in full; otherwise stacked, each full
+ * width. Decided from the buttons' natural widths, so a label is never wrapped or cut.
+ */
+@Composable
+private fun SideBySideOrStacked(
+    modifier: Modifier = Modifier,
+    spacing: androidx.compose.ui.unit.Dp,
+    content: @Composable () -> Unit,
+) {
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val gap = spacing.roundToPx()
+        val maxWidth = constraints.maxWidth
+        val natural = measurables.map { it.maxIntrinsicWidth(Constraints.Infinity) }
+        val half = (maxWidth - gap * (measurables.size - 1)) / measurables.size
+        val sideBySide = natural.all { it <= half }
+        val itemWidth = if (sideBySide) half else maxWidth
+        val placeables = measurables.map { it.measure(Constraints(minWidth = itemWidth, maxWidth = itemWidth)) }
+        if (sideBySide) {
+            val height = placeables.maxOf { it.height }
+            layout(maxWidth, height) {
+                placeables.forEachIndexed { i, p -> p.placeRelative(i * (itemWidth + gap), (height - p.height) / 2) }
+            }
+        } else {
+            val height = placeables.sumOf { it.height } + gap * (placeables.size - 1)
+            layout(maxWidth, height) {
+                var y = 0
+                placeables.forEach { p ->
+                    p.placeRelative(0, y)
+                    y += p.height + gap
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -553,15 +591,18 @@ private fun DocumentDetailContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (state.document.status != DocumentStatus.FAILED) {
-                    FilledTonalButton(onClick = onChatClick, modifier = Modifier.weight(1f)) {
-                        Icon(PamIcons.AiChat, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.detail_ask_ai), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-                    }
-                    OutlinedButton(onClick = { onProcess(true) }, modifier = Modifier.weight(1f)) {
-                        Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.detail_reprocess), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                    // Side by side when both labels fit in full, otherwise stacked, each full width.
+                    SideBySideOrStacked(modifier = Modifier.weight(1f), spacing = 8.dp) {
+                        FilledTonalButton(onClick = onChatClick) {
+                            Icon(PamIcons.AiChat, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.detail_ask_ai), maxLines = 1, softWrap = false)
+                        }
+                        OutlinedButton(onClick = { onProcess(true) }) {
+                            Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(stringResource(R.string.detail_reprocess), maxLines = 1, softWrap = false)
+                        }
                     }
                 } else {
                     Spacer(modifier = Modifier.weight(1f))
