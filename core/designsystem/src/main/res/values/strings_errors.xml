@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- One text per error kind (PamError), shown in snackbars and error states. -->
+    <string name="ds_retry">Retry</string>
+    <string name="err_network_unavailable">No internet connection. Please check your network.</string>
+    <string name="err_network_timeout">Request timed out. Please try again.</string>
+    <string name="err_server">Server error (%1$d). Please try again later.</string>
+    <string name="err_database">Failed to access local storage.</string>
+    <string name="err_file_not_found">File not found.</string>
+    <string name="err_storage_full">Not enough storage space.</string>
+    <string name="err_file_write">Failed to save the file.</string>
+    <string name="err_model_not_loaded">The AI model %1$s is not loaded.</string>
+    <string name="err_model_load_failed">The AI model %1$s could not be loaded.</string>
+    <string name="err_inference">AI processing failed.</string>
+    <string name="err_insufficient_memory">Not enough memory. Required: %1$d MB, available: %2$d MB.</string>
+    <string name="err_ocr_failed">Text recognition failed.</string>
+    <string name="err_extraction_failed">Reading the document failed.</string>
+    <string name="err_scanner_unavailable">The document scanner is not available on this device.</string>
+    <string name="err_scan_cancelled">The scan was cancelled.</string>
+    <string name="err_download_failed">Downloading %1$s failed.</string>
+    <string name="err_integrity_failed">The downloaded file for %1$s is damaged. Please try again.</string>
+    <string name="err_validation">That value is not valid.</string>
+    <string name="err_unknown">An unexpected error occurred.</string>
+</resources>

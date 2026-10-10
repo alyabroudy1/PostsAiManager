@@ -124,7 +124,7 @@ class DocumentDetailViewModel @Inject constructor(
 
     val uiState: StateFlow<DocumentDetailUiState> =
         getDocumentDetailUseCase(documentId)
-            .catch { emit(DocumentDetailUiState.Error(it.message ?: "Unknown error")) }
+            .catch { emit(DocumentDetailUiState.Error(it.message)) }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),

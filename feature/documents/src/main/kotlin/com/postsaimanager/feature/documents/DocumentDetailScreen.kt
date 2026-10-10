@@ -353,7 +353,7 @@ fun DocumentDetailScreen(
             when {
                 state is DocumentDetailUiState.Loading -> PamLoadingState()
                 state is DocumentDetailUiState.Error ->
-                    PamErrorState(message = state.message, icon = PamIcons.Error)
+                    PamErrorState(message = state.message ?: stringResource(R.string.documents_error_unknown), icon = PamIcons.Error)
                 state is DocumentDetailUiState.NotFound ->
                     PamErrorState(message = stringResource(R.string.detail_not_found), icon = PamIcons.Error)
                 // A trashed document reaches Success too (GetDocumentDetailUseCase doesn't

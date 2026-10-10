@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ds_retry">إعادة المحاولة</string>
+    <string name="err_network_unavailable">لا يوجد اتصال بالإنترنت. يرجى التحقق من الشبكة.</string>
+    <string name="err_network_timeout">انتهت مهلة الطلب. يرجى المحاولة مرة أخرى.</string>
+    <string name="err_server">خطأ في الخادم (%1$d). يرجى المحاولة لاحقًا.</string>
+    <string name="err_database">تعذّر الوصول إلى التخزين المحلي.</string>
+    <string name="err_file_not_found">لم يتم العثور على الملف.</string>
+    <string name="err_storage_full">مساحة التخزين غير كافية.</string>
+    <string name="err_file_write">تعذّر حفظ الملف.</string>
+    <string name="err_model_not_loaded">نموذج الذكاء الاصطناعي %1$s غير محمَّل.</string>
+    <string name="err_model_load_failed">تعذّر تحميل نموذج الذكاء الاصطناعي %1$s.</string>
+    <string name="err_inference">فشلت معالجة الذكاء الاصطناعي.</string>
+    <string name="err_insufficient_memory">الذاكرة غير كافية. المطلوب: %1$d ميغابايت، المتاح: %2$d ميغابايت.</string>
+    <string name="err_ocr_failed">فشل التعرف على النص.</string>
+    <string name="err_extraction_failed">فشلت قراءة المستند.</string>
+    <string name="err_scanner_unavailable">ماسح المستندات غير متاح على هذا الجهاز.</string>
+    <string name="err_scan_cancelled">تم إلغاء المسح.</string>
+    <string name="err_download_failed">فشل تنزيل %1$s.</string>
+    <string name="err_integrity_failed">الملف الذي تم تنزيله لـ %1$s تالف. يرجى المحاولة مرة أخرى.</string>
+    <string name="err_validation">هذه القيمة غير صالحة.</string>
+    <string name="err_unknown">حدث خطأ غير متوقع.</string>
+</resources>

@@ -65,6 +65,7 @@ import com.postsaimanager.core.designsystem.component.MemorySubject
 import com.postsaimanager.core.designsystem.component.NoteActions
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
+import com.postsaimanager.core.designsystem.component.localizedMessage
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.domain.memory.DocumentNoteText
 import com.postsaimanager.core.domain.organisation.SuggestionRules
@@ -103,7 +104,7 @@ fun ProfileDetailScreen(
     LaunchedEffect(state.finished) { if (state.finished) onNavigateBack() }
     LaunchedEffect(message) {
         message?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showSnackbar(it.localizedMessage(context))
             viewModel.consumeMessage()
         }
     }

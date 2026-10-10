@@ -10,6 +10,7 @@ import com.postsaimanager.core.ai.catalog.ModelCatalogState
 import com.postsaimanager.core.ai.catalog.download.ModelDownloadStatus
 import com.postsaimanager.core.ai.embed.install.EmbeddingModelManager
 import com.postsaimanager.core.ai.embed.install.InstallStatus
+import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.domain.setup.DeviceCapabilities
 import com.postsaimanager.core.domain.setup.RecommendChatModelUseCase
 import com.postsaimanager.core.model.AiModelDescriptor
@@ -53,10 +54,10 @@ data class FitMessage(
     val isBlocking: Boolean,
 )
 
-/** A one-off message for the snackbar: a string resource with arguments, or a raw text that came from a lower layer. */
+/** A one-off message for the snackbar: a string resource with arguments, or an error kind the screen turns into text. */
 sealed interface ModelsMessage {
     data class Res(val id: Int, val args: List<Any> = emptyList()) : ModelsMessage
-    data class Raw(val text: String) : ModelsMessage
+    data class Failure(val error: PamError) : ModelsMessage
 }
 
 @HiltViewModel
@@ -182,7 +183,7 @@ class ModelsViewModel @Inject constructor(
                 is com.postsaimanager.core.common.result.PamResult.Success ->
                     _message.value = ModelsMessage.Res(R.string.models_msg_imported, listOf(result.data.name))
                 is com.postsaimanager.core.common.result.PamResult.Error ->
-                    _message.value = ModelsMessage.Raw(result.error.userMessage)
+                    _message.value = ModelsMessage.Failure(result.error)
             }
         }
     }

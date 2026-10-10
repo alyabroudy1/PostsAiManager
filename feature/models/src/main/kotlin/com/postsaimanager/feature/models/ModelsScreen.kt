@@ -47,6 +47,7 @@ import com.postsaimanager.core.designsystem.component.deviceTierLabel
 import com.postsaimanager.core.designsystem.component.ModelRuntimeNote
 import com.postsaimanager.core.designsystem.component.ModelSpeedHint
 import com.postsaimanager.core.designsystem.component.PamLoadingState
+import com.postsaimanager.core.designsystem.component.localizedMessage
 import com.postsaimanager.core.model.ChatModelFit
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
 import com.postsaimanager.core.model.DeviceCapability
@@ -75,7 +76,7 @@ fun ModelsScreen(
         message?.let {
             val text = when (it) {
                 is ModelsMessage.Res -> context.getString(it.id, *it.args.toTypedArray())
-                is ModelsMessage.Raw -> it.text
+                is ModelsMessage.Failure -> it.error.localizedMessage(context)
             }
             snackbarHostState.showSnackbar(text)
             viewModel.consumeMessage()

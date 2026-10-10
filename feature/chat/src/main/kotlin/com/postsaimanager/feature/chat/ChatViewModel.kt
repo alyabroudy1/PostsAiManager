@@ -985,6 +985,8 @@ internal fun chatErrorOf(turn: ChatTurn.Failed): ChatError = ChatError(
     messageRes = when (turn.action) {
         ChatErrorAction.CHOOSE_CHAT_MODEL -> R.string.chat_error_model_cannot_chat
         ChatErrorAction.IMAGES_NOT_SUPPORTED -> R.string.chat_no_vision_message
+        ChatErrorAction.MODEL_DOWNLOADING -> R.string.chat_error_model_downloading
+        ChatErrorAction.INSTALL_MODEL -> R.string.chat_error_no_model
         else -> null
     },
 )

@@ -52,7 +52,7 @@ class DocumentsViewModel @Inject constructor(
                 if (documents.isEmpty()) DocumentsUiState.Empty
                 else DocumentsUiState.Success(documents)
             }
-            .catch { emit(DocumentsUiState.Error(it.message ?: "Unknown error")) }
+            .catch { emit(DocumentsUiState.Error(it.message)) }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
@@ -88,5 +88,5 @@ sealed interface DocumentsUiState {
     data object Loading : DocumentsUiState
     data object Empty : DocumentsUiState
     data class Success(val documents: List<DocumentListItem>) : DocumentsUiState
-    data class Error(val message: String) : DocumentsUiState
+    data class Error(val message: String?) : DocumentsUiState
 }

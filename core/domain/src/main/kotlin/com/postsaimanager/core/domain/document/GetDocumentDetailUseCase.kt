@@ -60,7 +60,8 @@ sealed interface DocumentDetailUiState {
         val extractedData: List<ExtractedData>,
         val timeline: List<TimelineEvent>,
     ) : DocumentDetailUiState
-    data class Error(val message: String) : DocumentDetailUiState
+    /** [message] is the raw cause, if any; the screen shows a localized fallback when it is null. */
+    data class Error(val message: String?) : DocumentDetailUiState
 
     /** No document at this id — permanently deleted, or a stale deep link/citation. */
     data object NotFound : DocumentDetailUiState

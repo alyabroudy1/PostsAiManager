@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ds_retry">Erneut versuchen</string>
+    <string name="err_network_unavailable">Keine Internetverbindung. Bitte prüfen Sie Ihr Netzwerk.</string>
+    <string name="err_network_timeout">Die Anfrage hat zu lange gedauert. Bitte versuchen Sie es erneut.</string>
+    <string name="err_server">Serverfehler (%1$d). Bitte versuchen Sie es später erneut.</string>
+    <string name="err_database">Der lokale Speicher ist nicht erreichbar.</string>
+    <string name="err_file_not_found">Datei nicht gefunden.</string>
+    <string name="err_storage_full">Nicht genug Speicherplatz.</string>
+    <string name="err_file_write">Die Datei konnte nicht gespeichert werden.</string>
+    <string name="err_model_not_loaded">Das KI-Modell %1$s ist nicht geladen.</string>
+    <string name="err_model_load_failed">Das KI-Modell %1$s konnte nicht geladen werden.</string>
+    <string name="err_inference">Die KI-Verarbeitung ist fehlgeschlagen.</string>
+    <string name="err_insufficient_memory">Nicht genug Arbeitsspeicher. Benötigt: %1$d MB, verfügbar: %2$d MB.</string>
+    <string name="err_ocr_failed">Die Texterkennung ist fehlgeschlagen.</string>
+    <string name="err_extraction_failed">Das Lesen des Dokuments ist fehlgeschlagen.</string>
+    <string name="err_scanner_unavailable">Der Dokumentenscanner ist auf diesem Gerät nicht verfügbar.</string>
+    <string name="err_scan_cancelled">Der Scan wurde abgebrochen.</string>
+    <string name="err_download_failed">Der Download von %1$s ist fehlgeschlagen.</string>
+    <string name="err_integrity_failed">Die heruntergeladene Datei für %1$s ist beschädigt. Bitte versuchen Sie es erneut.</string>
+    <string name="err_validation">Dieser Wert ist ungültig.</string>
+    <string name="err_unknown">Ein unerwarteter Fehler ist aufgetreten.</string>
+</resources>

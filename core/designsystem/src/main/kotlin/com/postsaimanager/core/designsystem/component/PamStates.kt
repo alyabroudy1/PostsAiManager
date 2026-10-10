@@ -23,6 +23,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import com.postsaimanager.core.designsystem.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
@@ -88,7 +90,7 @@ fun PamErrorState(
     message: String,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
-    retryLabel: String = "Retry",
+    retryLabel: String = stringResource(R.string.ds_retry),
     onRetry: (() -> Unit)? = null,
     secondaryLabel: String? = null,
     onSecondary: (() -> Unit)? = null,

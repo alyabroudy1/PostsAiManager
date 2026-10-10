@@ -147,7 +147,7 @@ fun DocumentsScreen(
                         ),
                     )
                     is DocumentsUiState.Error -> PamErrorState(
-                        message = state.message,
+                        message = state.message ?: stringResource(R.string.documents_error_unknown),
                         icon = PamIcons.Error,
                     )
                     is DocumentsUiState.Success -> LazyColumn(

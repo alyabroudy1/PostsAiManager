@@ -245,7 +245,7 @@ class ProfilesViewModelTest {
 
             vm.confirmDelete()
 
-            assertThat(vm.message.value).isEqualTo(PamError.DatabaseError().userMessage)
+            assertThat(vm.message.value).isEqualTo(PamError.DatabaseError())
             vm.uiState.test {
                 assertThat((awaitItem() as ProfilesUiState.Success).profiles)
                     .containsExactly(profile)

@@ -206,6 +206,8 @@
     <string name="chat_new_chat_confirm">حذف وبدء جديدة</string>
     <string name="chat_new_chat_cancel">إلغاء</string>
     <string name="chat_error_new_chat_failed">تعذّر مسح المحادثة. حاول مرة أخرى.</string>
+    <string name="chat_error_model_downloading">لا يزال نموذج الذكاء الاصطناعي قيد التنزيل. ستعمل المحادثة فور اكتماله.</string>
+    <string name="chat_error_no_model">لم يتم تثبيت أي نموذج ذكاء اصطناعي بعد. ثبّت نموذجًا للمحادثة حول مستنداتك.</string>
     <string name="chat_error_model_cannot_chat">لا يستطيع هذا النموذج المحادثة. اختر نموذج محادثة من نماذج الذكاء الاصطناعي.</string>
     <string name="chat_error_open_ai_models">نماذج الذكاء الاصطناعي</string>
 

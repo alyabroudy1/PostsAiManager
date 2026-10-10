@@ -3,6 +3,7 @@ package com.postsaimanager.feature.profiles
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.common.result.map
 import com.postsaimanager.core.domain.applock.ExternalFlowGuard
@@ -117,10 +118,10 @@ class ProfileDetailViewModel @Inject constructor(
     private val notFound = MutableStateFlow(false)
     private val finished = MutableStateFlow(false)
 
-    private val _message = MutableStateFlow<String?>(null)
+    private val _message = MutableStateFlow<PamError?>(null)
 
-    /** A one-off error for a snackbar; [consumeMessage] clears it. */
-    val message: StateFlow<String?> = _message.asStateFlow()
+    /** A one-off error for a snackbar; the screen turns its kind into text. [consumeMessage] clears it. */
+    val message: StateFlow<PamError?> =_message.asStateFlow()
 
     private val _removed = MutableStateFlow<ProfileFact?>(null)
 
@@ -241,7 +242,7 @@ class ProfileDetailViewModel @Inject constructor(
             }
             when (result) {
                 is PamResult.Success -> finished.value = true
-                is PamResult.Error -> _message.value = result.error.userMessage
+                is PamResult.Error -> _message.value = result.error
             }
         }
     }
@@ -256,7 +257,7 @@ class ProfileDetailViewModel @Inject constructor(
     fun saveDetail(keyId: String, value: String) {
         viewModelScope.launch {
             val result = rememberDetail(profileId, keyId, value, FactSource.USER)
-            if (result is PamResult.Error) _message.value = result.error.userMessage
+            if (result is PamResult.Error) _message.value = result.error
         }
     }
 
@@ -264,7 +265,7 @@ class ProfileDetailViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = forgetDetail(profileId, fact.key)) {
                 is PamResult.Success -> _removed.value = fact
-                is PamResult.Error -> _message.value = result.error.userMessage
+                is PamResult.Error -> _message.value = result.error
             }
         }
     }
@@ -275,7 +276,7 @@ class ProfileDetailViewModel @Inject constructor(
         _removed.value = null
         viewModelScope.launch {
             val result = rememberDetail(profileId, fact.key, fact.value, fact.source, fact.sourceDocumentId)
-            if (result is PamResult.Error) _message.value = result.error.userMessage
+            if (result is PamResult.Error) _message.value = result.error
         }
     }
 
@@ -329,7 +330,7 @@ class ProfileDetailViewModel @Inject constructor(
             val result = addContact.invoke(
                 profileId, contact.name, contact.title, contact.department, contact.phone, contact.email, contact.customDetails,
             )
-            if (result is PamResult.Error) _message.value = result.error.userMessage
+            if (result is PamResult.Error) _message.value = result.error
         }
     }
 
@@ -351,7 +352,7 @@ class ProfileDetailViewModel @Inject constructor(
                     draft.update { it?.let { d -> SuggestionRules.apply(d, suggestion.field, value, d.modifiedAt) } }
                     refreshStored()
                 }
-                is PamResult.Error -> _message.value = result.error.userMessage
+                is PamResult.Error -> _message.value = result.error
             }
         }
     }
@@ -360,7 +361,7 @@ class ProfileDetailViewModel @Inject constructor(
     fun dismissSuggestion(id: String) {
         viewModelScope.launch {
             val result = dismissSuggestion.invoke(id)
-            if (result is PamResult.Error) _message.value = result.error.userMessage
+            if (result is PamResult.Error) _message.value = result.error
         }
     }
 
@@ -376,7 +377,7 @@ class ProfileDetailViewModel @Inject constructor(
                     draft.update { it?.let { d -> chosen.fold(d) { acc, s -> SuggestionRules.apply(acc, s.field, s.value, d.modifiedAt) } } }
                     refreshStored()
                 }
-                is PamResult.Error -> _message.value = result.error.userMessage
+                is PamResult.Error -> _message.value = result.error
             }
         }
     }
@@ -389,7 +390,7 @@ class ProfileDetailViewModel @Inject constructor(
     private fun changeContact(change: suspend () -> PamResult<Unit>) {
         viewModelScope.launch {
             val result = change()
-            if (result is PamResult.Error) _message.value = result.error.userMessage
+            if (result is PamResult.Error) _message.value = result.error
         }
     }
 

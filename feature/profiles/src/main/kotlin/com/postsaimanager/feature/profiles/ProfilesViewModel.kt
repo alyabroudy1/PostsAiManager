@@ -2,6 +2,7 @@ package com.postsaimanager.feature.profiles
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.postsaimanager.core.common.result.PamError
 import com.postsaimanager.core.common.result.PamResult
 import com.postsaimanager.core.domain.repository.ContactRepository
 import com.postsaimanager.core.domain.repository.ProfileRepository
@@ -64,8 +65,8 @@ class ProfilesViewModel @Inject constructor(
     val pendingDeletion: StateFlow<Profile?> = _pendingDeletion.asStateFlow()
 
     /** A one-off message for the screen to show (e.g. in a snackbar) and then [consumeMessage]. */
-    private val _message = MutableStateFlow<String?>(null)
-    val message: StateFlow<String?> = _message.asStateFlow()
+    private val _message = MutableStateFlow<PamError?>(null)
+    val message: StateFlow<PamError?> =_message.asStateFlow()
 
     fun requestDelete(profile: Profile) {
         _pendingDeletion.value = profile
@@ -89,7 +90,7 @@ class ProfilesViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = profileRepository.deleteProfile(profile.id)) {
                 is PamResult.Success -> Unit
-                is PamResult.Error -> _message.value = result.error.userMessage
+                is PamResult.Error -> _message.value = result.error
             }
         }
     }

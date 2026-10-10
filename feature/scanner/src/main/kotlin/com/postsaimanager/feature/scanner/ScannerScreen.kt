@@ -48,6 +48,7 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.postsaimanager.core.designsystem.component.PamEmptyState
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
+import com.postsaimanager.core.designsystem.component.localizedMessage
 import com.postsaimanager.core.designsystem.icon.PamIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -235,7 +236,7 @@ fun ScannerScreen(
                     )
                 }
                 is ScannerUiState.Error -> PamErrorState(
-                    message = state.error.userMessage,
+                    message = state.error.localizedMessage(context),
                     icon = PamIcons.Error,
                     retryLabel = stringResource(R.string.scanner_try_again),
                     onRetry = {

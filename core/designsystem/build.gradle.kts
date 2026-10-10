@@ -39,6 +39,8 @@ dependencies {
     // header's model sheet) render `com.postsaimanager.core.model.ConfigSpec` and friends
     // directly, so every consumer of this module gets them for free.
     api(project(":core:model"))
+    // The error kinds (PamError) that PamErrorText maps to string resources.
+    api(project(":core:common"))
 
     // Compose
     api(platform(libs.compose.bom))

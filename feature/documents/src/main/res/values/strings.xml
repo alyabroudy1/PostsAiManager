@@ -453,4 +453,5 @@
     <string name="preset_tag">Tag</string>
     <string name="preset_note">Note</string>
     <string name="timeline_empty">No events yet</string>
+    <string name="documents_error_unknown">Something went wrong. Please try again.</string>
 </resources>

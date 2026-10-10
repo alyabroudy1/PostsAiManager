@@ -56,6 +56,7 @@ import com.postsaimanager.core.designsystem.component.PamEmptyState
 import com.postsaimanager.core.designsystem.component.PamErrorState
 import com.postsaimanager.core.designsystem.component.PamLoadingState
 import com.postsaimanager.core.designsystem.component.PamTopAppBar
+import com.postsaimanager.core.designsystem.component.localizedMessage
 import com.postsaimanager.core.designsystem.icon.PamIcons
 import com.postsaimanager.core.model.Profile
 
@@ -71,11 +72,12 @@ fun ProfilesScreen(
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val pendingDeletion by viewModel.pendingDeletion.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(message) {
         message?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showSnackbar(it.localizedMessage(context))
             viewModel.consumeMessage()
         }
     }

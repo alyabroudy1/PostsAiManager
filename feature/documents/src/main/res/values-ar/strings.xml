@@ -466,4 +466,5 @@
     <string name="preset_tag">وسم</string>
     <string name="preset_note">ملاحظة</string>
     <string name="timeline_empty">لا توجد أحداث بعد</string>
+    <string name="documents_error_unknown">حدث خطأ ما. يرجى المحاولة مرة أخرى.</string>
 </resources>
