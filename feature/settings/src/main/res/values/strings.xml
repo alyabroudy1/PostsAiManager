@@ -1,4 +1,36 @@
 <resources>
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">System</string>
+    <!-- Language names are written in their own language in every locale, so a person can always find theirs. -->
+    <string name="settings_language_german" translatable="false">Deutsch</string>
+    <string name="settings_language_arabic" translatable="false">العربية</string>
+    <string name="settings_language_english" translatable="false">English</string>
+    <string name="settings_section_ai">AI</string>
+    <string name="settings_ai_models">AI models</string>
+    <string name="settings_ai_models_subtitle">Download and manage on-device models</string>
+    <string name="settings_section_on_device_ai">On-device AI</string>
+    <string name="settings_install_model_hint">Install a model to configure it.</string>
+    <string name="settings_loading_model">Loading the model settings…</string>
+    <string name="settings_reset_defaults">Reset to defaults</string>
+    <string name="settings_reset_defaults_subtitle">Clear every custom AI setting above</string>
+    <string name="settings_section_processing">Document processing</string>
+    <string name="settings_auto_process">Auto-process after scan</string>
+    <string name="settings_auto_process_subtitle">Run text recognition and extraction automatically</string>
+    <string name="settings_recently_deleted">Recently deleted</string>
+    <string name="settings_recently_deleted_subtitle">Restore or permanently delete documents</string>
+    <string name="settings_section_security">Security</string>
+    <string name="settings_section_notifications">Notifications</string>
+    <string name="settings_deadline_reminders">Deadline reminders</string>
+    <string name="settings_deadline_reminders_subtitle">Get notified about upcoming deadlines</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_cancel">Cancel</string>
     <!-- Debug builds only: which reader reads the letters (Gemma by default). -->
     <string name="settings_debug_section">Debug</string>
     <string name="settings_gemma_trial_title">Reader: Gemma (default) / Qwen scorer (old)</string>

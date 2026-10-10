@@ -144,4 +144,21 @@
     <string name="saved_details_dialog_value">Wert</string>
     <string name="saved_details_dialog_save">Speichern</string>
     <string name="saved_details_dialog_cancel">Abbrechen</string>
+
+    <!-- Profilliste: Titel, Suche, Leer- und Fehlerzustand, Löschbestätigung -->
+    <string name="profiles_title">Profile</string>
+    <string name="profiles_search_placeholder">Profile durchsuchen…</string>
+    <string name="profiles_search_description">Suchen</string>
+    <string name="profiles_search_clear">Leeren</string>
+    <string name="profiles_empty_no_results_title">Keine Ergebnisse</string>
+    <string name="profiles_empty_no_results_subtitle">Versuchen Sie es mit einer anderen Suche.</string>
+    <string name="profiles_empty_title">Keine Profile</string>
+    <string name="profiles_empty_subtitle">Profile werden automatisch aus gescannten Dokumenten angelegt.</string>
+    <string name="profiles_error_unknown">Etwas ist schiefgelaufen.</string>
+    <string name="profiles_delete_title">%1$s löschen?</string>
+    <string name="profiles_delete_body">Mit diesem Profil verknüpfte Dokumente werden nicht gelöscht – nur das Profil selbst verschwindet.</string>
+    <string name="profiles_delete_body_auto">Mit diesem Profil verknüpfte Dokumente werden nicht gelöscht – nur das Profil selbst verschwindet. Dieses Profil wurde automatisch aus einem gescannten Dokument angelegt. Wenn Sie es löschen, schlägt die App es auch nicht erneut vor, sobald dieses Dokument wieder verarbeitet wird.</string>
+    <string name="profiles_delete_confirm">Löschen</string>
+    <string name="profiles_delete_cancel">Abbrechen</string>
+    <string name="profiles_delete_description">Profil löschen</string>
 </resources>

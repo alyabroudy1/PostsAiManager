@@ -114,6 +114,8 @@ class DocumentProcessingPipeline @Inject constructor(
     private val followUps: dagger.Lazy<FollowUpQuestions> = dagger.Lazy { FollowUpQuestions.NONE },
     // Lazy for the same reason as [recordEvents]: asks the same-matter question again for a letter whose event waits without a matter.
     private val retryMatter: dagger.Lazy<RetryPendingMatterUseCase> = dagger.Lazy { error("the matter retry is not wired") },
+    // The language the AI writes its own texts in (summary, key-fact labels): the app language.
+    private val appLanguage: com.postsaimanager.core.domain.settings.AppLanguageProvider? = null,
 ) : DocumentProcessor {
     private val _processingState = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     override val processingState: Flow<ProcessingState> = _processingState.asStateFlow()
@@ -121,7 +123,7 @@ class DocumentProcessingPipeline @Inject constructor(
     private val workManager get() = WorkManager.getInstance(appContext)
 
     /** The text step of a Gemma reading (its summary and key facts), which [enrichDocument] runs in place of the staged second stage. */
-    private val gemmaTextStage by lazy { GemmaTextStage(gemmaTrial, documentDao, fieldRevisionDao, documentMapper, mergeExtraction) }
+    private val gemmaTextStage by lazy { GemmaTextStage(gemmaTrial, documentDao, fieldRevisionDao, documentMapper, mergeExtraction, appLanguage) }
 
     /**
      * The on-device model is single-resident (documentation/07-document-pipeline.md §7): two

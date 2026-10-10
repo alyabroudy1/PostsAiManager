@@ -254,7 +254,7 @@ fun DocumentDetailScreen(
             PamTopAppBar(
                 title = when (val state = uiState) {
                     is DocumentDetailUiState.Success -> screenTitle(state.document)
-                    else -> "Document"
+                    else -> stringResource(R.string.detail_title_fallback)
                 },
                 onNavigateBack = onNavigateBack,
                 // Tapping the title, or the pencil beside the menu, renames the letter (it is also the first entry of the menu).
@@ -266,7 +266,7 @@ fun DocumentDetailScreen(
                             Icon(PamIcons.Edit, contentDescription = stringResource(R.string.title_edit))
                         }
                         IconButton(onClick = { showOverflowMenu = true }) {
-                            Icon(PamIcons.More, contentDescription = "More options")
+                            Icon(PamIcons.More, contentDescription = stringResource(R.string.detail_more_options))
                         }
                         DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
                             DropdownMenuItem(
@@ -313,7 +313,7 @@ fun DocumentDetailScreen(
                                 }
                             }
                             DropdownMenuItem(
-                                text = { Text("Delete") },
+                                text = { Text(stringResource(R.string.detail_delete)) },
                                 onClick = {
                                     showOverflowMenu = false
                                     viewModel.moveToTrash(onDeleted)
@@ -335,7 +335,7 @@ fun DocumentDetailScreen(
                     onClick = { showAddDialog = true },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                 ) {
-                    Icon(PamIcons.Add, contentDescription = "Add field")
+                    Icon(PamIcons.Add, contentDescription = stringResource(R.string.add_field_title))
                 }
             }
         },
@@ -355,7 +355,7 @@ fun DocumentDetailScreen(
                 state is DocumentDetailUiState.Error ->
                     PamErrorState(message = state.message, icon = PamIcons.Error)
                 state is DocumentDetailUiState.NotFound ->
-                    PamErrorState(message = "This document no longer exists.", icon = PamIcons.Error)
+                    PamErrorState(message = stringResource(R.string.detail_not_found), icon = PamIcons.Error)
                 // A trashed document reaches Success too (GetDocumentDetailUseCase doesn't
                 // filter it out) — rendered as its own state rather than the normal content,
                 // e.g. when opened from Recently deleted or via a citation/deep link.
@@ -556,12 +556,12 @@ private fun DocumentDetailContent(
                     FilledTonalButton(onClick = onChatClick, modifier = Modifier.weight(1f)) {
                         Icon(PamIcons.AiChat, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Ask AI")
+                        Text(stringResource(R.string.detail_ask_ai))
                     }
                     OutlinedButton(onClick = { onProcess(true) }) {
                         Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Reprocess")
+                        Text(stringResource(R.string.detail_reprocess))
                     }
                 } else {
                     Spacer(modifier = Modifier.weight(1f))
@@ -569,7 +569,7 @@ private fun DocumentDetailContent(
                 IconButton(onClick = onToggleFavorite) {
                     Icon(
                         imageVector = if (state.document.isFavorite) PamIcons.Favorite else PamIcons.FavoriteOutlined,
-                        contentDescription = "Toggle favorite",
+                        contentDescription = stringResource(R.string.detail_toggle_favorite),
                         tint = if (state.document.isFavorite) MaterialTheme.colorScheme.error
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -603,9 +603,9 @@ private fun DocumentDetailContent(
                     onClick = { onTabSelected(tab) },
                     text = {
                         Text(when (tab) {
-                            DetailTab.PAGES -> "Pages (${state.pages.size})"
-                            DetailTab.EXTRACTED -> "Extracted (${state.extractedData.size})"
-                            DetailTab.TIMELINE -> "Timeline (${state.timeline.size})"
+                            DetailTab.PAGES -> stringResource(R.string.detail_tab_pages, state.pages.size)
+                            DetailTab.EXTRACTED -> stringResource(R.string.detail_tab_extracted, state.extractedData.size)
+                            DetailTab.TIMELINE -> stringResource(R.string.detail_tab_timeline, state.timeline.size)
                         })
                     },
                 )
@@ -686,15 +686,15 @@ private fun TrashedDocumentState(title: String, onRestore: () -> Unit) {
             modifier = Modifier.size(48.dp),
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Text("This document was deleted", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.detail_deleted_title), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            "\"$title\" is in Recently deleted.",
+            stringResource(R.string.detail_deleted_message, title),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = onRestore) { Text("Restore") }
+        Button(onClick = onRestore) { Text(stringResource(R.string.action_restore)) }
     }
 }
 
@@ -735,7 +735,7 @@ private fun StillUnderstandingHint() {
 private fun QueuedBanner() {
     Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(16.dp)) {
         Text(
-            "Waiting to be read…",
+            stringResource(R.string.detail_queued),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -758,9 +758,9 @@ private fun FailedBanner(reason: TimelineEvent?, onRetry: () -> Unit, onDelete: 
     Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).padding(16.dp)) {
         Text(
             if (isNoPages) {
-                "This document has no pages. Delete it or scan it again."
+                stringResource(R.string.detail_failed_no_pages)
             } else {
-                reason?.description ?: "Something went wrong while reading this document."
+                reason?.description ?: stringResource(R.string.detail_failed_generic)
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onErrorContainer,
@@ -770,13 +770,13 @@ private fun FailedBanner(reason: TimelineEvent?, onRetry: () -> Unit, onDelete: 
             OutlinedButton(onClick = { showDeleteConfirm = true }) {
                 Icon(PamIcons.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Delete")
+                Text(stringResource(R.string.detail_delete))
             }
         } else {
             OutlinedButton(onClick = onRetry) {
                 Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Try again")
+                Text(stringResource(R.string.detail_try_again))
             }
         }
     }
@@ -784,37 +784,36 @@ private fun FailedBanner(reason: TimelineEvent?, onRetry: () -> Unit, onDelete: 
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete this document?") },
-            text = { Text("It has no pages to read, so nothing can be recovered from it.") },
+            title = { Text(stringResource(R.string.detail_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.detail_delete_confirm_message)) },
             confirmButton = {
-                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text("Delete") }
+                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text(stringResource(R.string.detail_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
 }
 
 /**
- * Turns the data layer's structured progress into the English a user reads.
+ * Turns the data layer's structured progress into the sentence a user reads, in the app's language.
  *
  * `ProcessingState` carries a stage and numbers only — never a sentence (see its doc comment
  * in `:core:model`). Deciding what that sentence says is a presentation concern, so it lives
- * here rather than in `DocumentProcessingPipeline`. Kept as plain Kotlin rather than
- * `stringResource` for now: localisation is a separate, deliberately deferred task, not
- * something to introduce as a side effect of this boundary fix.
+ * here rather than in `DocumentProcessingPipeline`.
  */
+@Composable
 private fun ProcessingState.Running.toDisplayMessage(): String = when (stage) {
-    ProcessingStage.CAPTURE -> "Preparing document..."
+    ProcessingStage.CAPTURE -> stringResource(R.string.progress_preparing)
     ProcessingStage.READ -> if (currentPage != null && totalPages != null) {
-        "OCR: Page $currentPage/$totalPages"
+        stringResource(R.string.progress_reading_page, currentPage!!, totalPages!!)
     } else {
-        "Starting OCR..."
+        stringResource(R.string.progress_reading_start)
     }
-    ProcessingStage.UNDERSTAND -> "Understanding the letter — this can take a minute"
-    ProcessingStage.LINK -> "Matching profiles..."
-    ProcessingStage.INDEX -> "Indexing for search..."
+    ProcessingStage.UNDERSTAND -> stringResource(R.string.progress_understanding)
+    ProcessingStage.LINK -> stringResource(R.string.progress_linking)
+    ProcessingStage.INDEX -> stringResource(R.string.progress_indexing)
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -874,7 +873,7 @@ private fun PagesTab(
     }
     if (pages.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No pages scanned yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.pages_none), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
@@ -905,7 +904,7 @@ private fun PagesTab(
                 ) {
                     AsyncImage(
                         model = page.imagePath,
-                        contentDescription = "Page ${page.pageNumber}",
+                        contentDescription = stringResource(R.string.pages_text_page, page.pageNumber),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit,
                     )
@@ -926,33 +925,33 @@ private fun PagesTab(
                     // Share as PDF
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FilledTonalIconButton(onClick = { sharePdf(context, onSharePdf, externalLaunch) }) {
-                            Icon(PamIcons.Pdf, contentDescription = "Share PDF", modifier = Modifier.size(20.dp))
+                            Icon(PamIcons.Pdf, contentDescription = stringResource(R.string.pages_share_pdf), modifier = Modifier.size(20.dp))
                         }
-                        Text("Share PDF", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.pages_share_pdf), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     // Open / Download
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FilledTonalIconButton(onClick = { openPageImage(context, page, externalLaunch) }) {
-                            Icon(PamIcons.Gallery, contentDescription = "Open", modifier = Modifier.size(20.dp))
+                            Icon(PamIcons.Gallery, contentDescription = stringResource(R.string.pages_open_image), modifier = Modifier.size(20.dp))
                         }
-                        Text("Open", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.pages_open_image), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     // Re-scan
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FilledTonalIconButton(onClick = {
-                            Toast.makeText(context, "Re-scan coming in next update", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.pages_rescan_soon), Toast.LENGTH_SHORT).show()
                         }) {
-                            Icon(PamIcons.Camera, contentDescription = "Re-scan", modifier = Modifier.size(20.dp))
+                            Icon(PamIcons.Camera, contentDescription = stringResource(R.string.pages_rescan), modifier = Modifier.size(20.dp))
                         }
-                        Text("Re-scan", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.pages_rescan), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     // Copy text
                     if (!page.ocrText.isNullOrBlank()) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             FilledTonalIconButton(onClick = { copyOcrText(context, page) }) {
-                                Icon(PamIcons.Edit, contentDescription = "Copy text", modifier = Modifier.size(20.dp))
+                                Icon(PamIcons.Edit, contentDescription = stringResource(R.string.pages_copy_text), modifier = Modifier.size(20.dp))
                             }
-                            Text("Copy", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.pages_copy), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -1067,13 +1066,13 @@ private fun sharePdf(context: Context, generatePdf: () -> File?, external: Exter
         // return as an ordinary background.
         external.expect("share-pdf")
         try {
-            context.startActivity(Intent.createChooser(shareIntent, "Share document as PDF"))
+            context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_pdf_chooser)))
         } catch (_: Exception) {
             external.finish()
             Toast.makeText(context, context.getString(R.string.share_sheet_unavailable), Toast.LENGTH_SHORT).show()
         }
     } else {
-        Toast.makeText(context, "Failed to generate PDF", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.share_pdf_failed), Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -1131,16 +1130,16 @@ private fun openPageImage(context: Context, page: DocumentPage, external: Extern
             context.startActivity(viewIntent)
         } catch (_: Exception) {
             external.finish()
-            Toast.makeText(context, "No app found to open images", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.no_app_for_images), Toast.LENGTH_SHORT).show()
         }
     } else {
-        Toast.makeText(context, "Unable to open: file not found", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.open_file_not_found), Toast.LENGTH_SHORT).show()
     }
 }
 
 private fun copyOcrText(context: Context, page: DocumentPage) {
     com.postsaimanager.core.designsystem.component.copyScannedText(context, "OCR Text", page.ocrText.orEmpty())
-    Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
+    Toast.makeText(context, context.getString(R.string.pages_text_copied), Toast.LENGTH_SHORT).show()
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1154,27 +1153,27 @@ private fun AddFieldDialog(onDismiss: () -> Unit, onAdd: (String, String, Extrac
     var selectedType by remember { mutableStateOf(ExtractedFieldType.TEXT) }
 
     val presets = listOf(
-        "Receiver Name" to ExtractedFieldType.PERSON_NAME,
-        "Receiver Organization" to ExtractedFieldType.ORGANIZATION,
-        "Receiver Address" to ExtractedFieldType.ADDRESS,
-        "Sender Name" to ExtractedFieldType.PERSON_NAME,
-        "Sender Organization" to ExtractedFieldType.ORGANIZATION,
-        "Subject" to ExtractedFieldType.SUBJECT,
-        "Date" to ExtractedFieldType.DATE,
-        "Deadline" to ExtractedFieldType.DEADLINE,
-        "Reference Number" to ExtractedFieldType.REFERENCE_NUMBER,
-        "IBAN" to ExtractedFieldType.IBAN,
-        "Amount" to ExtractedFieldType.OTHER,
-        "Tag" to ExtractedFieldType.TAG_SUGGESTION,
-        "Note" to ExtractedFieldType.TEXT,
+        stringResource(R.string.preset_receiver_name) to ExtractedFieldType.PERSON_NAME,
+        stringResource(R.string.preset_receiver_organisation) to ExtractedFieldType.ORGANIZATION,
+        stringResource(R.string.preset_receiver_address) to ExtractedFieldType.ADDRESS,
+        stringResource(R.string.preset_sender_name) to ExtractedFieldType.PERSON_NAME,
+        stringResource(R.string.preset_sender_organisation) to ExtractedFieldType.ORGANIZATION,
+        stringResource(R.string.slot_subject) to ExtractedFieldType.SUBJECT,
+        stringResource(R.string.preset_date) to ExtractedFieldType.DATE,
+        stringResource(R.string.slot_due_date) to ExtractedFieldType.DEADLINE,
+        stringResource(R.string.preset_reference_number) to ExtractedFieldType.REFERENCE_NUMBER,
+        stringResource(R.string.slot_iban) to ExtractedFieldType.IBAN,
+        stringResource(R.string.slot_total) to ExtractedFieldType.OTHER,
+        stringResource(R.string.preset_tag) to ExtractedFieldType.TAG_SUGGESTION,
+        stringResource(R.string.preset_note) to ExtractedFieldType.TEXT,
     )
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Field") },
+        title = { Text(stringResource(R.string.add_field_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Quick templates:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.add_field_templates), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     presets.chunked(3).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1187,12 +1186,12 @@ private fun AddFieldDialog(onDismiss: () -> Unit, onAdd: (String, String, Extrac
                     }
                 }
                 HorizontalDivider()
-                OutlinedTextField(value = fieldName, onValueChange = { fieldName = it }, label = { Text("Field Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = fieldValue, onValueChange = { fieldValue = it }, label = { Text("Value") }, modifier = Modifier.fillMaxWidth(), maxLines = 3)
+                OutlinedTextField(value = fieldName, onValueChange = { fieldName = it }, label = { Text(stringResource(R.string.edit_name_label)) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(value = fieldValue, onValueChange = { fieldValue = it }, label = { Text(stringResource(R.string.edit_value_label)) }, modifier = Modifier.fillMaxWidth(), maxLines = 3)
             }
         },
-        confirmButton = { Button(onClick = { onAdd(fieldName.trim(), fieldValue.trim(), selectedType) }, enabled = fieldName.isNotBlank() && fieldValue.isNotBlank()) { Text("Add") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { Button(onClick = { onAdd(fieldName.trim(), fieldValue.trim(), selectedType) }, enabled = fieldName.isNotBlank() && fieldValue.isNotBlank()) { Text(stringResource(R.string.add_field_confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
 
@@ -1247,7 +1246,7 @@ private fun timelineLines(text: TimelineText): Pair<String, String?> {
 private fun TimelineTab(events: List<TimelineEvent>) {
     if (events.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No events yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.timeline_empty), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
@@ -1265,7 +1264,7 @@ private fun TimelineTab(events: List<TimelineEvent>) {
                     val (title, description) = timelineLines(event.toText())
                     Text(if (event.repeats > 1) "$title ×${event.repeats}" else title, style = MaterialTheme.typography.titleSmall)
                     description?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    Text(event.createdAt.toRelativeTime(older = friendlyDate), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    Text(event.createdAt.toRelativeTime(androidx.compose.ui.platform.LocalContext.current, older = friendlyDate), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                 }
             }
         }

@@ -35,6 +35,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.Icon
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,7 +78,7 @@ fun MessageBodyThinking(
             Text(
                 text = when {
                     inProgress -> stringResource(R.string.chat_thinking_live)
-                    durationMs != null -> stringResource(R.string.chat_thought_for, formatThinkingDuration(durationMs))
+                    durationMs != null -> stringResource(R.string.chat_thought_for, formatThinkingDuration(durationMs, LocalConfiguration.current.locales[0] ?: java.util.Locale.getDefault()))
                     else -> stringResource(R.string.chat_thinking_done)
                 },
                 style = MaterialTheme.typography.bodyMedium,
@@ -94,7 +96,9 @@ fun MessageBodyThinking(
                 modifier = Modifier
                     .padding(top = 8.dp, bottom = 4.dp, start = 8.dp)
                     .drawBehind {
-                        drawLine(color = lineColor, start = Offset(0f, 0f), end = Offset(0f, size.height), strokeWidth = 2.dp.toPx())
+                        // The rule sits on the leading edge: the left in left-to-right text, the right in right-to-left.
+                        val x = if (layoutDirection == LayoutDirection.Rtl) size.width else 0f
+                        drawLine(color = lineColor, start = Offset(x, 0f), end = Offset(x, size.height), strokeWidth = 2.dp.toPx())
                     }
                     .padding(start = 12.dp)
                     .testTag(THINKING_TEXT_TAG),
@@ -110,7 +114,7 @@ fun MessageBodyThinking(
 }
 
 /** "3.2s" under ten seconds, "27s" above. */
-internal fun formatThinkingDuration(durationMs: Long): String {
+internal fun formatThinkingDuration(durationMs: Long, locale: java.util.Locale = java.util.Locale.ROOT): String {
     val seconds = durationMs / 1000.0
-    return if (seconds < 10) "%.1fs".format(java.util.Locale.ROOT, seconds) else "${seconds.toInt()}s"
+    return if (seconds < 10) String.format(locale, "%.1fs", seconds) else String.format(locale, "%ds", seconds.toInt())
 }

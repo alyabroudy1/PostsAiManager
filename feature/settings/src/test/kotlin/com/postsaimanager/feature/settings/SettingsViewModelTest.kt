@@ -11,6 +11,8 @@ import com.postsaimanager.core.domain.applock.DeviceAuthResult
 import com.postsaimanager.core.domain.usecase.ObserveInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.ResetInferenceSettingsUseCase
 import com.postsaimanager.core.domain.usecase.UpdateInferenceSettingUseCase
+import com.postsaimanager.core.domain.settings.AppLanguageSettings
+import com.postsaimanager.core.model.AppLanguage
 import com.postsaimanager.core.model.AppTheme
 import com.postsaimanager.core.model.UserPreferences
 import com.postsaimanager.core.testing.FakeActiveModelProvider
@@ -59,7 +61,14 @@ class SettingsViewModelTest {
         resetInferenceSettings = ResetInferenceSettingsUseCase(inferenceSettingsRepo),
         deviceAuthenticator = authenticator,
         externalFlowGuard = AppLockState(FakeMonotonicClock()),
+        appLanguage = appLanguage,
     )
+
+    private val appLanguage = object : AppLanguageSettings {
+        private var pick = AppLanguage.SYSTEM
+        override fun current() = pick
+        override fun select(language: AppLanguage) { pick = language }
+    }
 
     @Test
     fun `starts with default preferences`() = runTest {
@@ -72,13 +81,12 @@ class SettingsViewModelTest {
     @Test
     fun `reflects preferences already stored`() = runTest {
         val repo = FakeUserPreferencesRepository(
-            UserPreferences(theme = AppTheme.DARK, defaultLanguage = "ar"),
+            UserPreferences(theme = AppTheme.DARK),
         )
 
         viewModel(repo).preferences.test {
             val emitted = awaitItem()
             assertThat(emitted.theme).isEqualTo(AppTheme.DARK)
-            assertThat(emitted.defaultLanguage).isEqualTo("ar")
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -117,12 +125,21 @@ class SettingsViewModelTest {
         vm.setAutoProcess(false)
         vm.setNotificationsEnabled(false)
         vm.setBiometricEnabled(true)
-        vm.setDefaultLanguage("de")
 
         assertThat(repo.current.autoProcessAfterScan).isFalse()
         assertThat(repo.current.notificationsEnabled).isFalse()
         assertThat(repo.current.biometricEnabled).isTrue()
-        assertThat(repo.current.defaultLanguage).isEqualTo("de")
+    }
+
+    @Test
+    fun `picking a language hands it to the app language setting and the screen shows it`() = runTest {
+        val vm = viewModel()
+        assertThat(vm.language.value).isEqualTo(AppLanguage.SYSTEM)
+
+        vm.setLanguage(AppLanguage.ARABIC)
+
+        assertThat(appLanguage.current()).isEqualTo(AppLanguage.ARABIC)
+        assertThat(vm.language.value).isEqualTo(AppLanguage.ARABIC)
     }
 
     @Test

@@ -65,6 +65,8 @@ fun DocumentsScreen(
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val processingState by viewModel.processingState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val deletedMessage = stringResource(R.string.documents_deleted_snackbar)
+    val undoLabel = stringResource(R.string.action_undo)
     // The write already happened when the row was swiped away (optimistic, same shape as the
     // detail screen's delete) — the id just drives the confirmation snackbar's Undo target.
     var pendingUndoId by remember { mutableStateOf<String?>(null) }
@@ -72,8 +74,8 @@ fun DocumentsScreen(
     LaunchedEffect(pendingUndoId) {
         val id = pendingUndoId ?: return@LaunchedEffect
         val result = snackbarHostState.showSnackbar(
-            message = "Document moved to Recently deleted",
-            actionLabel = "Undo",
+            message = deletedMessage,
+            actionLabel = undoLabel,
             duration = SnackbarDuration.Long,
         )
         if (result == SnackbarResult.ActionPerformed) {
@@ -85,7 +87,7 @@ fun DocumentsScreen(
     Scaffold(
         topBar = {
             PamTopAppBar(
-                title = "Documents",
+                title = stringResource(R.string.documents_title),
                 actions = {
                     IconButton(onClick = onRecentlyDeletedClick) {
                         Icon(PamIcons.Delete, contentDescription = stringResource(R.string.documents_recently_deleted))
@@ -108,14 +110,14 @@ fun DocumentsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search documents...") },
+                placeholder = { Text(stringResource(R.string.documents_search_placeholder)) },
                 leadingIcon = {
-                    Icon(PamIcons.Search, contentDescription = "Search")
+                    Icon(PamIcons.Search, contentDescription = stringResource(R.string.documents_search_description))
                 },
                 trailingIcon = {
                     AnimatedVisibility(visible = searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                            Icon(PamIcons.Close, contentDescription = "Clear")
+                            Icon(PamIcons.Close, contentDescription = stringResource(R.string.documents_search_clear))
                         }
                     }
                 },
@@ -137,9 +139,12 @@ fun DocumentsScreen(
                     is DocumentsUiState.Loading -> PamLoadingState()
                     is DocumentsUiState.Empty -> PamEmptyState(
                         icon = PamIcons.Documents,
-                        title = if (searchQuery.isNotEmpty()) "No Results" else "No Documents",
-                        subtitle = if (searchQuery.isNotEmpty()) "Try a different search term."
-                        else "Your scanned and imported documents will appear here.",
+                        title = stringResource(
+                            if (searchQuery.isNotEmpty()) R.string.documents_no_results_title else R.string.documents_empty_title,
+                        ),
+                        subtitle = stringResource(
+                            if (searchQuery.isNotEmpty()) R.string.documents_no_results_hint else R.string.documents_empty_hint,
+                        ),
                     )
                     is DocumentsUiState.Error -> PamErrorState(
                         message = state.message,

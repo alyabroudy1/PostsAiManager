@@ -14,7 +14,9 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.postsaimanager.core.designsystem.R
 import com.postsaimanager.core.designsystem.icon.PamIcons
 
 /**
@@ -52,7 +54,7 @@ fun SwipeToDeleteRow(
             ) {
                 Icon(
                     PamIcons.Delete,
-                    contentDescription = "Delete",
+                    contentDescription = stringResource(R.string.ds_delete),
                     tint = MaterialTheme.colorScheme.onErrorContainer,
                 )
             }

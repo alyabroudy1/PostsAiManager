@@ -1,4 +1,17 @@
 <resources>
+    <!-- Die Benachrichtigung, solange ein Dokument im Hintergrund gelesen wird. -->
+    <string name="processing_channel_name">Dokumentverarbeitung</string>
+    <string name="processing_channel_description">Fortschritt für Dokumente, die im Hintergrund gelesen und verstanden werden.</string>
+    <string name="processing_notification_title">Dein Dokument wird gelesen…</string>
+    <string name="processing_notification_discreet">Arbeitet im Hintergrund</string>
+    <string name="processing_notification_starting">Wird gestartet…</string>
+    <string name="processing_notification_preparing">Wird vorbereitet…</string>
+    <string name="processing_notification_reading_page">Seite %1$d von %2$d wird gelesen</string>
+    <string name="processing_notification_reading">Wird gelesen…</string>
+    <string name="processing_notification_analysing">Wird analysiert…</string>
+    <string name="processing_notification_matching">Profile werden zugeordnet…</string>
+    <string name="processing_notification_indexing">Wird für die Suche indexiert…</string>
+
     <!-- Die Benachrichtigung „Brief verstanden“. -->
     <string name="reading_finished_channel_name">Lesen abgeschlossen</string>
     <string name="reading_finished_channel_description">Ein leiser Hinweis, wenn ein Brief im Hintergrund gelesen und verstanden wurde.</string>

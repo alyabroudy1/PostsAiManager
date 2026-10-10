@@ -84,6 +84,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
@@ -201,6 +202,7 @@ fun ChatScreen(
     val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     // 5.1: "Copy" needs only a brief, non-blocking confirmation — a Snackbar rather than a
     // dialog, and one already dismissing itself is replaced rather than queued behind.
@@ -208,7 +210,7 @@ fun ChatScreen(
         clipboardManager.setText(AnnotatedString(text))
         coroutineScope.launch {
             snackbarHostState.currentSnackbarData?.dismiss()
-            snackbarHostState.showSnackbar("Copied to clipboard")
+            snackbarHostState.showSnackbar(context.getString(R.string.chat_copied_to_clipboard))
         }
     }
 
@@ -344,7 +346,7 @@ fun ChatScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             PamTopAppBar(
-                title = if (documentId != null) "Document Chat" else "AI Assistant",
+                title = stringResource(if (documentId != null) R.string.chat_title_document else R.string.chat_title_assistant),
                 onNavigateBack = onNavigateBack,
                 actions = {
                     // Debug builds only: try an action card before the model proposes any.
@@ -434,14 +436,13 @@ fun ChatScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Ask me about your documents",
+                    text = stringResource(R.string.chat_empty_title),
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = if (documentId != null) "I can help you understand this document, find key information, and draft responses."
-                    else "I can search across all your documents to help answer your question.",
+                    text = stringResource(if (documentId != null) R.string.chat_empty_hint_document else R.string.chat_empty_hint_all),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -520,7 +521,7 @@ fun ChatScreen(
                             },
                             modifier = Modifier.size(40.dp),
                         ) {
-                            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Jump to latest")
+                            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.chat_jump_to_latest))
                         }
                     }
                 },
@@ -541,7 +542,7 @@ fun ChatScreen(
                         } else {
                             uiState.statusText?.let { status ->
                                 Text(
-                                    text = status,
+                                    text = ChatStatusText.localized(status) { context.getString(it.res) },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -757,13 +758,13 @@ private fun ChatBubble(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = if (message.cutOff) "Answer was cut off" else "Stopped",
+                    text = stringResource(if (message.cutOff) R.string.chat_answer_cut_off else R.string.chat_answer_stopped),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 TextButton(onClick = onRetry, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Text("Retry", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.chat_action_retry), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -806,7 +807,7 @@ private fun ChatBubble(
                 IconButton(onClick = onCopy, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = Icons.Filled.ContentCopy,
-                        contentDescription = "Copy answer",
+                        contentDescription = stringResource(R.string.chat_copy_answer),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -815,7 +816,7 @@ private fun ChatBubble(
                     IconButton(onClick = onRegenerate, modifier = Modifier.size(32.dp)) {
                         Icon(
                             imageVector = Icons.Filled.Refresh,
-                            contentDescription = "Regenerate answer",
+                            contentDescription = stringResource(R.string.chat_regenerate_answer),
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -843,13 +844,23 @@ private fun ChatBubble(
  */
 @Composable
 private fun SourceChip(source: ChatSource, documentChat: Boolean, onClick: () -> Unit) {
-    val where = source.pageNumber?.let { "Page $it" } ?: "Excerpt"
+    val page = source.pageNumber
+    val title = source.title
     val label = when {
         // A trashed/permanently-deleted source: nothing left to navigate a tap to, in
         // either chat type — see ChatSource.documentDeleted's KDoc.
-        source.documentDeleted -> "Deleted document"
-        documentChat -> where
-        else -> "${source.title ?: "Untitled document"} · ${where.replaceFirstChar { it.lowercase() }}"
+        source.documentDeleted -> stringResource(R.string.chat_source_deleted)
+        documentChat -> if (page != null) stringResource(R.string.chat_source_page, page) else stringResource(R.string.chat_source_excerpt)
+        else -> {
+            val name = title ?: stringResource(R.string.chat_source_untitled)
+            if (page != null) stringResource(R.string.chat_source_title_page, name, page) else stringResource(R.string.chat_source_title_excerpt, name)
+        }
+    }
+    val documentName = title ?: stringResource(R.string.chat_source_this_document)
+    val description = if (page != null) {
+        stringResource(R.string.chat_source_description_page, page, documentName)
+    } else {
+        stringResource(R.string.chat_source_description_excerpt, documentName)
     }
     AssistChip(
         onClick = onClick,
@@ -864,11 +875,7 @@ private fun SourceChip(source: ChatSource, documentChat: Boolean, onClick: () ->
         modifier = Modifier
             .heightIn(min = 28.dp)
             .semantics {
-                contentDescription = if (source.pageNumber != null) {
-                    "Source: page ${source.pageNumber} of ${source.title ?: "this document"}"
-                } else {
-                    "Source: an excerpt of ${source.title ?: "this document"}"
-                }
+                contentDescription = description
             },
     )
 }
@@ -919,7 +926,7 @@ private fun TypingIndicator() {
                 Text(
                     // Generic "generation is starting" indicator — distinct from the
                     // reasoning-trace ThinkingCard, which has its own "Thinking…" header.
-                    text = "Working…",
+                    text = stringResource(R.string.chat_working),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -961,7 +968,7 @@ private fun ChatErrorCard(
                 // A dead-end plain-text hint used to sit here. This is the actual fix,
                 // one tap away — the model picker already lives behind this callback.
                 FilledTonalButton(onClick = onManageModelsClick) {
-                    Text("Get an AI model")
+                    Text(stringResource(R.string.chat_error_get_model))
                 }
             }
             if (error.action == ChatErrorAction.CHOOSE_CHAT_MODEL) {
@@ -973,9 +980,9 @@ private fun ChatErrorCard(
                 // Whatever was already produced stays in the transcript as its own
                 // message — this only re-sends the user's text, exactly what failed.
                 if (error.action == ChatErrorAction.RETRY || error.action == ChatErrorAction.MODEL_DOWNLOADING) {
-                    TextButton(onClick = onRetry) { Text("Retry") }
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.chat_action_retry)) }
                 }
-                TextButton(onClick = onDismiss) { Text("Dismiss") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_error_dismiss)) }
             }
         }
     }

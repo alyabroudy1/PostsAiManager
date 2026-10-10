@@ -42,4 +42,30 @@
     <string name="report_answer_no_mail_app">Keine E-Mail-App gefunden.</string>
     <string name="report_answer_mail_intro">Was war an dieser Antwort falsch? Bitte beschreiben Sie es hier:\n\n</string>
     <string name="report_answer_mail_answer_heading">Die gemeldete Antwort:</string>
+
+    <plurals name="document_title_scanned_pages">
+        <item quantity="one">%d Seite gescannt</item>
+        <item quantity="other">%d Seiten gescannt</item>
+    </plurals>
+    <string name="doc_row_from_for">Von %1$s · Für %2$s</string>
+    <string name="doc_row_from">Von %1$s</string>
+    <string name="doc_row_for">Für %1$s</string>
+    <string name="doc_row_action_needed">Handlungsbedarf</string>
+    <plurals name="doc_row_to_check">
+        <item quantity="one">%d zu prüfen</item>
+        <item quantity="other">%d zu prüfen</item>
+    </plurals>
+    <string name="doc_row_status_waiting">Wartet auf das Lesen</string>
+    <string name="doc_row_status_processing">Wird gelesen</string>
+    <string name="doc_row_status_ready">Gelesen, nichts zu prüfen</string>
+    <string name="doc_row_status_failed">Lesen fehlgeschlagen</string>
+    <string name="doc_row_favorite">Favorit</string>
+    <string name="doc_row_toggle_favorite">Favorit umschalten</string>
+
+    <string name="page_preview_default_title">Dokumentvorschau</string>
+    <string name="page_preview_unavailable">Für dieses Dokument ist keine Vorschau möglich.</string>
+    <string name="page_preview_title_page">%1$s · Seite %2$d von %3$d</string>
+    <string name="page_preview_open_document">Dokument öffnen</string>
+    <string name="page_preview_close">Vorschau schließen</string>
+    <string name="page_preview_page_description">Seite %1$d von %2$d von %3$s</string>
 </resources>

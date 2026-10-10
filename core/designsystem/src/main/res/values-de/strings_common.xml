@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ds_navigate_back">Zurück</string>
+    <string name="ds_delete">Löschen</string>
+    <string name="ds_cancel">Abbrechen</string>
+    <string name="ds_reload_hint">Gilt ab dem nächsten Laden des Modells</string>
+</resources>

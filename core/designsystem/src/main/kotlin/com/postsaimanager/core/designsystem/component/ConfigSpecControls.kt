@@ -19,8 +19,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
+import com.postsaimanager.core.designsystem.R
+import java.util.Locale
 import com.postsaimanager.core.model.ConfigSpec
 import com.postsaimanager.core.model.InferenceOverrides
 import com.postsaimanager.core.model.ReloadScope
@@ -159,7 +162,7 @@ fun ChoiceSpecItem(
 fun ReloadHint(reloadScope: ReloadScope, modifier: Modifier = Modifier) {
     if (reloadScope == ReloadScope.NONE) return
     Text(
-        text = "Applies on next model load",
+        text = stringResource(R.string.ds_reload_hint),
         style = MaterialTheme.typography.labelSmall,
         fontStyle = FontStyle.Italic,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -224,13 +227,13 @@ private fun ConfigChoiceDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ds_cancel)) }
         },
     )
 }
 
 private fun formatSliderValue(value: Float, step: Float): String =
-    if (step >= 1f) value.toInt().toString() else "%.2f".format(value)
+    if (step >= 1f) value.toInt().toString() else String.format(Locale.getDefault(), "%.2f", value)
 
 private fun stepCountFor(spec: ConfigSpec.Slider): Int {
     if (spec.step <= 0f) return 0

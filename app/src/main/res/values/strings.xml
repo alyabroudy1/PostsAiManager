@@ -20,6 +20,14 @@
     <string name="applock_prompt_enable_title">Turn on App lock</string>
     <string name="applock_prompt_enable_subtitle">Confirm it is you before locking the app</string>
 
+    <!-- Bottom navigation and the app-level snackbar -->
+    <string name="nav_home">Home</string>
+    <string name="nav_documents">Documents</string>
+    <string name="nav_profiles">Profiles</string>
+    <string name="nav_settings">Settings</string>
+    <string name="snackbar_document_moved_to_trash">Document moved to Recently deleted</string>
+    <string name="snackbar_undo">Undo</string>
+
     <!-- Importing PDFs and images (the confirm sheet of a share, "Open with" or the Home import button) -->
     <string name="import_add">Add to my letters</string>
     <string name="import_cancel">Cancel</string>

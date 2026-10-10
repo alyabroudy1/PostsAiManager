@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- شاشة المسح الضوئي -->
+    <string name="scanner_title">مسح مستند ضوئيًا</string>
+    <string name="scanner_idle_title">الماسح الضوئي للمستندات</string>
+    <string name="scanner_idle_subtitle">جارٍ تشغيل الماسح الضوئي…</string>
+    <string name="scanner_creating">جارٍ إنشاء المستند…</string>
+    <string name="scanner_saving">جارٍ حفظ المستند…</string>
+    <string name="scanner_saved">تم حفظ المستند!</string>
+    <string name="scanner_try_again">حاول مرة أخرى</string>
+    <string name="scanner_back">رجوع</string>
+    <!-- شرح يظهر قبل نافذة النظام لإذن الإشعارات -->
+    <string name="scanner_notify_title">ابقَ على اطلاع</string>
+    <string name="scanner_notify_text">احصل على إشعار عندما يصبح مستندك جاهزًا.</string>
+    <string name="scanner_notify_allow">سماح</string>
+    <string name="scanner_notify_not_now">ليس الآن</string>
+</resources>

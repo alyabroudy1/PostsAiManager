@@ -272,7 +272,10 @@ class ChatViewModel @Inject constructor(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = ChatError(e.message ?: "Something went wrong.", ChatErrorAction.RETRY)) }
+                // A failure without a message of its own shows the app's translated wording (the English line stays the plain fallback).
+                _uiState.update {
+                    it.copy(error = ChatError(e.message ?: "Something went wrong.", ChatErrorAction.RETRY, if (e.message == null) R.string.chat_error_generic else null))
+                }
             } finally {
                 _uiState.update { it.copy(isProcessing = false, statusText = null) }
             }
@@ -712,10 +715,10 @@ class ChatViewModel @Inject constructor(
     private fun applyTurn(turn: ChatTurn) {
         when (turn) {
             is ChatTurn.PreparingModel ->
-                _uiState.update { it.copy(statusText = turn.reason ?: "Loading model…") }
+                _uiState.update { it.copy(statusText = turn.reason ?: ChatStatusText.LOADING_MODEL.english) }
 
             is ChatTurn.PreparingConversation ->
-                _uiState.update { it.copy(statusText = "Preparing conversation…") }
+                _uiState.update { it.copy(statusText = ChatStatusText.PREPARING_CONVERSATION.english) }
 
             is ChatTurn.ThinkingToken ->
                 _uiState.update {

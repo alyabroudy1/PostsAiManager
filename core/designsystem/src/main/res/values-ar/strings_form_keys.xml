@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ما يمكن أن يطلبه النموذج: تسمية واحدة لكل معرّف في FormDataKeys (انظر FormKeyLabels). -->
+    <string name="form_key_full_name">الاسم الكامل</string>
+    <string name="form_key_given_name">الاسم الأول</string>
+    <string name="form_key_family_name">اسم العائلة</string>
+    <string name="form_key_birth_date">تاريخ الميلاد</string>
+    <string name="form_key_birth_place">مكان الميلاد</string>
+    <string name="form_key_nationality">الجنسية</string>
+    <string name="form_key_gender">الجنس</string>
+    <string name="form_key_address">العنوان</string>
+    <string name="form_key_street">الشارع ورقم المبنى</string>
+    <string name="form_key_postcode">الرمز البريدي</string>
+    <string name="form_key_city">المدينة</string>
+    <string name="form_key_country">الدولة</string>
+    <string name="form_key_phone">الهاتف</string>
+    <string name="form_key_mobile">الهاتف المحمول</string>
+    <string name="form_key_email">البريد الإلكتروني</string>
+    <string name="form_key_health_insurer">شركة التأمين الصحي</string>
+    <string name="form_key_insurance_no">رقم التأمين</string>
+    <string name="form_key_tax_id">الرقم الضريبي</string>
+    <string name="form_key_iban">رقم الحساب الدولي (IBAN)</string>
+    <string name="form_key_account_holder">صاحب الحساب</string>
+    <string name="form_key_bank_name">المصرف</string>
+    <string name="form_key_school">المدرسة</string>
+    <string name="form_key_school_class">الصف</string>
+    <string name="form_key_employer">جهة العمل</string>
+    <string name="form_key_occupation">المهنة</string>
+    <string name="form_key_allergies">الحساسية والملاحظات الصحية</string>
+    <string name="form_key_swim_level">مستوى السباحة</string>
+    <string name="form_key_today_date">تاريخ التوقيع</string>
+    <string name="form_key_today_place">مكان التوقيع</string>
+    <string name="form_key_signature">التوقيع</string>
+</resources>

@@ -28,6 +28,16 @@ object GemmaPrompt {
         "${SummaryLimits.MAX_CHARS} characters, in the language the document is written in, saying what it is about and what it asks of its reader, if anything. " +
         "Use only what the letter says. Answer with the summary only.\n"
 
+    /** The summary phrase of [SUMMARY_ASK] that names the language. */
+    private const val SUMMARY_LANGUAGE_PHRASE = "in the language the document is written in"
+
+    /**
+     * [SUMMARY_ASK], asking for the summary in the app's language ([languageCode], e.g. "de") when one is given, so a summary reads in the
+     * language of the screens whatever language the letter is in; the letter's own language when null.
+     */
+    fun summaryAsk(languageCode: String?): String =
+        languageCode?.trim()?.takeIf { it.isNotEmpty() }?.let { SUMMARY_ASK.replace(SUMMARY_LANGUAGE_PHRASE, "in the language with the code \"$it\"") } ?: SUMMARY_ASK
+
     /** The two messages of a reading that starts with a summary: [first] is the letter and the question for the summary, [second] the field guide. */
     class Turns(val first: String, val second: String)
 
@@ -55,9 +65,15 @@ object GemmaPrompt {
      * The same text as two messages for one conversation: the letter and the question for a short plain-text summary first (so the model
      * has read the letter, and the picture, once, and the summary can be shown at once), then the field guide whose answer is the JSON.
      */
-    fun turns(letter: GemmaLetter, vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT, forcedCategory: String? = null, maxChars: Int = MAX_CHARS): Turns {
+    fun turns(
+        letter: GemmaLetter,
+        vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT,
+        forcedCategory: String? = null,
+        maxChars: Int = MAX_CHARS,
+        summaryLanguage: String? = null,
+    ): Turns {
         val (head, tail) = parts(letter, vocab, forcedCategory, maxChars)
-        return Turns(first = head + SUMMARY_ASK, second = "Now the details of the same letter.\n" + tail.trimStart('\n'))
+        return Turns(first = head + summaryAsk(summaryLanguage), second = "Now the details of the same letter.\n" + tail.trimStart('\n'))
     }
 
     private fun parts(letter: GemmaLetter, vocab: GemmaVocabulary, forcedCategory: String?, maxChars: Int): Pair<String, String> {

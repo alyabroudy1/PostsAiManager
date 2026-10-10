@@ -23,9 +23,10 @@ class WriteSessionNotesUseCase @Inject constructor(
     private val notes: DocumentNoteRepository,
     private val documents: DocumentRepository,
     verifier: SessionNoteVerifier,
+    appLanguage: com.postsaimanager.core.domain.settings.AppLanguageProvider? = null,
 ) {
 
-    private val drafter = SessionNoteDrafter(generator, verifier)
+    private val drafter = SessionNoteDrafter(generator, verifier, appLanguage)
 
     /**
      * @param sessionTurns the messages of the session that ended, oldest first (user, assistant and tool results as they are stored)

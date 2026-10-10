@@ -1,6 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_section_appearance">المظهر</string>
+    <string name="settings_theme">السمة</string>
+    <string name="settings_theme_system">النظام</string>
+    <string name="settings_theme_light">فاتحة</string>
+    <string name="settings_theme_dark">داكنة</string>
+    <string name="settings_language">اللغة</string>
+    <string name="settings_language_system">النظام</string>
+    <string name="settings_section_ai">الذكاء الاصطناعي</string>
+    <string name="settings_ai_models">نماذج الذكاء الاصطناعي</string>
+    <string name="settings_ai_models_subtitle">تنزيل النماذج التي تعمل على الجهاز وإدارتها</string>
+    <string name="settings_section_on_device_ai">الذكاء الاصطناعي على الجهاز</string>
+    <string name="settings_install_model_hint">ثبّت نموذجًا لضبط إعداداته.</string>
+    <string name="settings_loading_model">جارٍ تحميل إعدادات النموذج…</string>
+    <string name="settings_reset_defaults">استعادة الإعدادات الافتراضية</string>
+    <string name="settings_reset_defaults_subtitle">مسح كل إعدادات الذكاء الاصطناعي المخصّصة أعلاه</string>
+    <string name="settings_section_processing">معالجة المستندات</string>
+    <string name="settings_auto_process">المعالجة التلقائية بعد المسح الضوئي</string>
+    <string name="settings_auto_process_subtitle">تشغيل التعرّف على النص واستخراج البيانات تلقائيًا</string>
+    <string name="settings_recently_deleted">المحذوفة مؤخرًا</string>
+    <string name="settings_recently_deleted_subtitle">استعادة المستندات أو حذفها نهائيًا</string>
+    <string name="settings_section_security">الأمان</string>
+    <string name="settings_section_notifications">الإشعارات</string>
+    <string name="settings_deadline_reminders">تذكيرات المواعيد النهائية</string>
+    <string name="settings_deadline_reminders_subtitle">تلقّي إشعار بالمواعيد النهائية القادمة</string>
+    <string name="settings_section_about">حول التطبيق</string>
+    <string name="settings_version">الإصدار</string>
+    <string name="settings_cancel">إلغاء</string>
+
+    <string name="settings_debug_section">التصحيح</string>
+    <string name="settings_gemma_trial_title">القارئ: Gemma (الافتراضي) / مقيِّم Qwen (قديم)</string>
+    <string name="settings_gemma_trial_subtitle">مفعّل: يقرأ Gemma كل رسالة مع صورة الصفحة، ويقرأ مقيِّم Qwen القديم عندما يعجز Gemma. معطّل: يقرأ مقيِّم Qwen القديم</string>
+    <string name="settings_reader_style_title">أسلوب القراءة: JSON / أسئلة</string>
+    <string name="settings_reader_style_subtitle">مفعّل: يقرأ Gemma الرسالة بالإجابة عن سؤال معنون واحد في كل مرة، كما في المحادثة، وتُحفظ الإجابات كما هي. معطّل: يجيب Gemma وفق مخطط JSON المحدّد</string>
+    <string name="settings_questions_image_title">الأسئلة: إرسال صورة الصفحة دائمًا</string>
+    <string name="settings_questions_image_subtitle">مفعّل: يعرض قارئ الأسئلة صورة الصفحة على النموذج دائمًا. معطّل: فقط عندما يكون النص المتعرَّف عليه ضعيفًا (أسطر قليلة أو صورة أو صفحة غير مقروءة)</string>
+    <string name="settings_reading_accelerator_title">القراءة: المعالج / وحدة الرسوميات</string>
+    <string name="settings_reading_accelerator_subtitle">مفعّل: يقرأ النموذج الرسائل على وحدة الرسوميات (يبدأ أسرع، وتعيد المحادثة تحميله على المعالج عند المحادثة). معطّل: المعالج، كما في المحادثة</string>
+
     <string name="settings_reading_finished_title">اكتملت القراءة</string>
     <string name="settings_reading_finished_subtitle">إشعار هادئ عند فهم رسالة. لا يظهر أي محتوى على شاشة القفل</string>
+    <string name="settings_update_older_title">تحديث الرسائل القديمة تلقائيًا</string>
+    <string name="settings_update_older_subtitle">إعادة قراءة الرسائل المنتهية في الخلفية، أثناء الشحن أو عند عدم الاستخدام، حين تتحسّن القراءة. لا تُغيَّر تعديلاتك أبدًا</string>
+
+    <string name="settings_app_lock_title">قفل التطبيق</string>
+    <string name="settings_app_lock_subtitle">طلب بصمة الإصبع أو الوجه أو رقم PIN أو النمط لفتح التطبيق</string>
+    <string name="settings_lock_after_title">القفل بعد</string>
+    <string name="settings_lock_immediately">فورًا</string>
+    <plurals name="settings_lock_after_minutes">
+        <item quantity="zero">بعد %1$d دقيقة</item>
+        <item quantity="one">بعد دقيقة واحدة</item>
+        <item quantity="two">بعد دقيقتين</item>
+        <item quantity="few">بعد %1$d دقائق</item>
+        <item quantity="many">بعد %1$d دقيقة</item>
+        <item quantity="other">بعد %1$d دقيقة</item>
+    </plurals>
+
+    <string name="settings_app_lock_notice_title">قفل التطبيق غير متاح بعد</string>
+    <string name="settings_app_lock_not_enrolled">لم يُعدّ على هذا الهاتف قفل شاشة ولا بصمة ولا وجه، فلا يوجد ما يمكن فتح التطبيق به. أعدّ واحدًا منها في إعدادات الأمان بالنظام، ثم عُد وفعّل قفل التطبيق.</string>
+    <string name="settings_app_lock_unavailable">لا يستطيع هذا الجهاز التحقق من بصمتك أو وجهك أو قفل الشاشة الآن، لذلك لا يمكن تفعيل قفل التطبيق.</string>
+    <string name="settings_app_lock_auth_failed">تعذّر التحقق من هويتك، لذلك يبقى قفل التطبيق معطّلًا. حاول مرة أخرى.</string>
+    <string name="settings_open_security_settings">فتح إعدادات الأمان</string>
+    <string name="settings_ok">حسنًا</string>
+    <string name="settings_not_now">ليس الآن</string>
+
+    <string name="settings_open_source_title">البرامج والبيانات مفتوحة المصدر</string>
+    <string name="settings_open_source_subtitle">بيانات العناوين (CC BY 4.0) وGoogle AI Edge Gallery وLiteRT-LM (Apache 2.0)</string>
+    <string name="settings_litert_attribution">محرّك المحادثة لنموذج Gemma 4 هو LiteRT-LM (https://github.com/google-ai-edge/LiteRT-LM)، وتكامله مقتبس ومعدّل من Google AI Edge Gallery (https://github.com/google-ai-edge/gallery)، حقوق النشر Google LLC، وكلاهما بترخيص Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0). الملفات المعدّلة مُعلَّمة على أنها معدّلة.</string>
     <string name="settings_skills_attribution">مهارات الوكيل (تنسيق SKILL.md ومهارة send-email وطريقة قراءة المهارات وإجراءات البريد والتقويم والتذكير) مقتبسة ومعدّلة من Google AI Edge Gallery (https://github.com/google-ai-edge/gallery)، حقوق النشر 2026 Google LLC، بترخيص Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0). الملفات المعدّلة مُعلَّمة على أنها معدّلة.</string>
+    <string name="settings_address_data_attribution">صيغ العناوين مشتقة من بيانات العناوين في مكتبة Google libaddressinput (https://github.com/google/libaddressinput)، بترخيص CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). لم يُحتفظ إلا بأنماط الرموز البريدية وترتيب الأجزاء والأجزاء المطلوبة وأسماء بلدان قليلة، بعد تكييفها.</string>
 </resources>

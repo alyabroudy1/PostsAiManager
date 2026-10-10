@@ -31,7 +31,6 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 private object PrefsKeys {
     val THEME = stringPreferencesKey("theme")
     val AUTO_PROCESS = booleanPreferencesKey("auto_process_after_scan")
-    val DEFAULT_LANGUAGE = stringPreferencesKey("default_language")
     val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
     val AI_MODEL_ID = stringPreferencesKey("ai_model_id")
     val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
@@ -58,7 +57,6 @@ class UserPreferencesRepositoryImpl @Inject constructor(
                         runCatching { AppTheme.valueOf(it) }.getOrDefault(AppTheme.SYSTEM)
                     } ?: AppTheme.SYSTEM,
                     autoProcessAfterScan = prefs[PrefsKeys.AUTO_PROCESS] ?: true,
-                    defaultLanguage = prefs[PrefsKeys.DEFAULT_LANGUAGE] ?: "de",
                     notificationsEnabled = prefs[PrefsKeys.NOTIFICATIONS_ENABLED] ?: true,
                     selectedAiModelId = prefs[PrefsKeys.AI_MODEL_ID],
                     biometricEnabled = prefs[PrefsKeys.BIOMETRIC_ENABLED] ?: false,
@@ -82,9 +80,6 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 
     override suspend fun setAutoProcess(enabled: Boolean): PamResult<Unit> =
         editPrefs { it[PrefsKeys.AUTO_PROCESS] = enabled }
-
-    override suspend fun setDefaultLanguage(language: String): PamResult<Unit> =
-        editPrefs { it[PrefsKeys.DEFAULT_LANGUAGE] = language }
 
     override suspend fun setNotificationsEnabled(enabled: Boolean): PamResult<Unit> =
         editPrefs { it[PrefsKeys.NOTIFICATIONS_ENABLED] = enabled }

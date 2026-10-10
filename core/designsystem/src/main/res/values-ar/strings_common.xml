@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ds_navigate_back">رجوع</string>
+    <string name="ds_delete">حذف</string>
+    <string name="ds_cancel">إلغاء</string>
+    <string name="ds_reload_hint">يُطبَّق عند التحميل التالي للنموذج</string>
+</resources>

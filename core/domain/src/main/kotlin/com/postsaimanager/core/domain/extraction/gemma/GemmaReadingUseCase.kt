@@ -53,6 +53,8 @@ class GemmaReadingUseCase @Inject constructor(
     private val reader: GemmaDocumentReader,
     private val entities: EntityAnnotator,
     private val activeModel: ActiveModelProvider,
+    /** The language the summary is written in (the app's language); null keeps the letter's own language. */
+    private val appLanguage: com.postsaimanager.core.domain.settings.AppLanguageProvider? = null,
 ) {
 
     private val adapter = ExtractionV2Adapter()
@@ -115,6 +117,7 @@ class GemmaReadingUseCase @Inject constructor(
             letterDate = { source.lastMerged?.set?.letterDate },
             onSummary = early,
             keepOpenAs = keepOpenAs,
+            summaryLanguage = appLanguage?.aiLanguageCode(),
             labelPairs = {
                 // In reading order: the label/value layout reads a block's lines one after the other, the OCR returns the blocks in any order.
                 runCatching {

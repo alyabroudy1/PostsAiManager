@@ -86,11 +86,13 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     // The write already happened when the row was swiped away; the id only drives the Undo snackbar (same as the Documents tab).
     var pendingUndoId by remember { mutableStateOf<String?>(null) }
+    val deletedMessage = stringResource(R.string.home_document_deleted)
+    val undoLabel = stringResource(R.string.home_document_deleted_undo)
     LaunchedEffect(pendingUndoId) {
         val id = pendingUndoId ?: return@LaunchedEffect
         val result = snackbarHostState.showSnackbar(
-            message = "Document moved to Recently deleted",
-            actionLabel = "Undo",
+            message = deletedMessage,
+            actionLabel = undoLabel,
             duration = SnackbarDuration.Long,
         )
         if (result == SnackbarResult.ActionPerformed) viewModel.onRestoreDocument(id)
@@ -101,12 +103,12 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             PamTopAppBar(
-                title = "Posts AI Manager",
+                title = stringResource(R.string.home_title),
                 actions = {
                     IconButton(onClick = onAskAcrossDocumentsClick) {
                         Icon(
                             imageVector = PamIcons.AiChat,
-                            contentDescription = "Ask about your documents",
+                            contentDescription = stringResource(R.string.home_ask_documents),
                         )
                     }
                 },
@@ -134,7 +136,7 @@ fun HomeScreen(
                 ) {
                     Icon(
                         imageVector = PamIcons.Camera,
-                        contentDescription = "Scan document",
+                        contentDescription = stringResource(R.string.home_scan_document),
                         tint = MaterialTheme.colorScheme.onPrimary,
                     )
                 }
@@ -287,13 +289,13 @@ private fun HomeContent(
                 is HomeUiState.Loading -> PamLoadingState()
                 is HomeUiState.Empty -> PamEmptyState(
                     icon = PamIcons.Documents,
-                    title = "No Documents Yet",
-                    subtitle = "Scan or import your first document to get started.",
-                    actionLabel = "Scan Document",
+                    title = stringResource(R.string.home_empty_title),
+                    subtitle = stringResource(R.string.home_empty_subtitle),
+                    actionLabel = stringResource(R.string.home_empty_action),
                     onAction = onScanClick,
                 )
                 is HomeUiState.Error -> PamErrorState(
-                    message = state.message,
+                    message = state.message ?: stringResource(R.string.home_error_unknown),
                     icon = PamIcons.Error,
                 )
                 is HomeUiState.Success -> DocumentList(
@@ -324,7 +326,7 @@ private fun DocumentList(
     ) {
         item {
             Text(
-                text = "Recent Documents",
+                text = stringResource(R.string.home_recent_documents),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 4.dp),

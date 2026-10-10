@@ -376,4 +376,81 @@
     <string name="language_edit_title">Language of this letter</string>
     <string name="language_edit_hint">The summary and the answers are written in this language. It stays when the letter is read again.</string>
     <string name="documents_recently_deleted">Recently deleted</string>
+
+    <!-- The documents list -->
+    <string name="documents_title">Documents</string>
+    <string name="documents_deleted_snackbar">Document moved to Recently deleted</string>
+    <string name="documents_search_placeholder">Search documents…</string>
+    <string name="documents_search_description">Search</string>
+    <string name="documents_search_clear">Clear</string>
+    <string name="documents_no_results_title">No results</string>
+    <string name="documents_no_results_hint">Try a different search term.</string>
+    <string name="documents_empty_title">No documents</string>
+    <string name="documents_empty_hint">Your scanned and imported documents will appear here.</string>
+
+    <!-- Recently deleted -->
+    <string name="trash_deletes_today">Deletes today</string>
+    <plurals name="trash_deletes_in_days">
+        <item quantity="one">Deletes in %1$d day</item>
+        <item quantity="other">Deletes in %1$d days</item>
+    </plurals>
+    <string name="trash_delete_permanently">Delete permanently</string>
+    <string name="trash_delete_title">Delete permanently?</string>
+    <string name="trash_delete_message">This also deletes its pages, extracted data and chats. This can\'t be undone.</string>
+    <string name="trash_empty_title">Empty Recently deleted?</string>
+    <string name="trash_empty_message">This also deletes their pages, extracted data and chats. This can\'t be undone.</string>
+    <string name="trash_empty_action">Empty</string>
+    <string name="trash_nothing_title">Nothing deleted</string>
+    <string name="trash_nothing_hint">Documents you delete stay here for 30 days before they\'re gone for good.</string>
+
+    <!-- The document screen -->
+    <string name="detail_title_fallback">Document</string>
+    <string name="detail_more_options">More options</string>
+    <string name="detail_delete">Delete</string>
+    <string name="detail_not_found">This document no longer exists.</string>
+    <string name="detail_ask_ai">Ask AI</string>
+    <string name="detail_reprocess">Reprocess</string>
+    <string name="detail_toggle_favorite">Toggle favorite</string>
+    <string name="detail_tab_pages">Pages (%1$d)</string>
+    <string name="detail_tab_extracted">Extracted (%1$d)</string>
+    <string name="detail_tab_timeline">Timeline (%1$d)</string>
+    <string name="detail_deleted_title">This document was deleted</string>
+    <string name="detail_deleted_message">\"%1$s\" is in Recently deleted.</string>
+    <string name="detail_queued">Waiting to be read…</string>
+    <string name="detail_failed_no_pages">This document has no pages. Delete it or scan it again.</string>
+    <string name="detail_failed_generic">Something went wrong while reading this document.</string>
+    <string name="detail_try_again">Try again</string>
+    <string name="detail_delete_confirm_title">Delete this document?</string>
+    <string name="detail_delete_confirm_message">It has no pages to read, so nothing can be recovered from it.</string>
+    <string name="progress_preparing">Preparing document…</string>
+    <string name="progress_reading_page">Reading text: page %1$d/%2$d</string>
+    <string name="progress_reading_start">Starting text recognition…</string>
+    <string name="progress_understanding">Understanding the letter — this can take a minute</string>
+    <string name="progress_linking">Matching profiles…</string>
+    <string name="progress_indexing">Indexing for search…</string>
+    <string name="pages_none">No pages scanned yet</string>
+    <string name="pages_share_pdf">Share PDF</string>
+    <string name="pages_open_image">Open</string>
+    <string name="pages_rescan">Re-scan</string>
+    <string name="pages_rescan_soon">Re-scan coming in next update</string>
+    <string name="pages_copy_text">Copy text</string>
+    <string name="pages_copy">Copy</string>
+    <string name="pages_text_copied">Text copied to clipboard</string>
+    <string name="share_pdf_chooser">Share document as PDF</string>
+    <string name="share_pdf_failed">Failed to generate PDF</string>
+    <string name="no_app_for_images">No app found to open images</string>
+    <string name="open_file_not_found">Unable to open: file not found</string>
+    <string name="add_field_title">Add field</string>
+    <string name="add_field_templates">Quick templates:</string>
+    <string name="add_field_confirm">Add</string>
+    <string name="preset_receiver_name">Receiver name</string>
+    <string name="preset_receiver_organisation">Receiver organisation</string>
+    <string name="preset_receiver_address">Receiver address</string>
+    <string name="preset_sender_name">Sender name</string>
+    <string name="preset_sender_organisation">Sender organisation</string>
+    <string name="preset_date">Date</string>
+    <string name="preset_reference_number">Reference number</string>
+    <string name="preset_tag">Tag</string>
+    <string name="preset_note">Note</string>
+    <string name="timeline_empty">No events yet</string>
 </resources>

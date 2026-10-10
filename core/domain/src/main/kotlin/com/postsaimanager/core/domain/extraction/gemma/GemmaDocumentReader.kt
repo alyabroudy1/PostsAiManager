@@ -26,6 +26,8 @@ class GemmaReaderRequest(
      * Whoever sets it closes it again. Null: the conversation is closed after the answer, as always.
      */
     val keepOpenAs: String? = null,
+    /** The code of the language the summary is written in (the app's language, see `AppLanguageProvider`); the letter's own when null. */
+    val summaryLanguage: String? = null,
 )
 
 sealed interface GemmaReaderOutcome {
@@ -77,7 +79,7 @@ class ChatEngineGemmaReader @Inject constructor(
         val maxChars = promptChars(config.contextTokens, images.size)
         // With a summary wanted first, one conversation holds two turns: the letter and the summary question, then the field guide.
         val turns = if (request.onSummary != null && !imageOnly) {
-            GemmaPrompt.turns(request.letter, forcedCategory = request.forcedCategory, maxChars = maxChars)
+            GemmaPrompt.turns(request.letter, forcedCategory = request.forcedCategory, maxChars = maxChars, summaryLanguage = request.summaryLanguage)
         } else {
             null
         }

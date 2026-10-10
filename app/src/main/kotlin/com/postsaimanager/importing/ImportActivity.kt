@@ -15,7 +15,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.fragment.app.FragmentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.postsaimanager.MainActivity
 import com.postsaimanager.applock.AppLockGate
@@ -35,7 +35,7 @@ import javax.inject.Inject
  * remembered here until then.
  */
 @AndroidEntryPoint
-class ImportActivity : FragmentActivity() {
+class ImportActivity : AppCompatActivity() {
 
     @Inject
     lateinit var appLock: AppLockState

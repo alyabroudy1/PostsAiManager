@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 import com.postsaimanager.feature.documents.DocumentUndoViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.postsaimanager.R
 import com.postsaimanager.importing.ImportActivity
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -242,8 +244,8 @@ private fun PamNavigation(startRoute: String, formFillingEnabled: Boolean) {
                         scope.launch {
                             snackbarHostState.currentSnackbarData?.dismiss()
                             val result = snackbarHostState.showSnackbar(
-                                message = "Document moved to Recently deleted",
-                                actionLabel = "Undo",
+                                message = context.getString(R.string.snackbar_document_moved_to_trash),
+                                actionLabel = context.getString(R.string.snackbar_undo),
                                 duration = SnackbarDuration.Long,
                             )
                             if (result == SnackbarResult.ActionPerformed) undoViewModel.restore(docId)
@@ -321,10 +323,10 @@ private fun PamBottomNavigationBar(
                 icon = {
                     Icon(
                         imageVector = if (isSelected) destination.selectedIcon else destination.unselectedIcon,
-                        contentDescription = destination.label,
+                        contentDescription = stringResource(destination.labelRes),
                     )
                 },
-                label = { Text(destination.label) },
+                label = { Text(stringResource(destination.labelRes)) },
             )
         }
     }

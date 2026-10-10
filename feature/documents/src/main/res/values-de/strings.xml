@@ -161,4 +161,285 @@
     <string name="language_edit_title">Sprache dieses Briefs</string>
     <string name="language_edit_hint">Zusammenfassung und Antworten werden in dieser Sprache geschrieben. Sie bleibt bestehen, wenn der Brief erneut gelesen wird.</string>
     <string name="documents_recently_deleted">Zuletzt gelöscht</string>
+
+    <!-- Umbenennen -->
+    <string name="action_rename">Umbenennen</string>
+    <string name="rename_title">Dokument umbenennen</string>
+    <string name="rename_label">Titel</string>
+    <string name="action_save">Speichern</string>
+    <string name="action_cancel">Abbrechen</string>
+    <string name="share_sheet_unavailable">Das Teilen-Menü konnte nicht geöffnet werden</string>
+
+    <string name="card_summary_coming">Zusammenfassung folgt …</string>
+    <string name="summary_edit">Zusammenfassung bearbeiten</string>
+    <string name="summary_edit_title">Zusammenfassung bearbeiten</string>
+    <string name="summary_edit_label">Zusammenfassung</string>
+
+    <!-- Zusammenfassung aus den geprüften Feldern -->
+    <string name="summary_intro">%1$s.</string>
+    <string name="summary_intro_from">%1$s von %2$s.</string>
+    <string name="summary_intro_for">%1$s für %2$s.</string>
+    <string name="summary_intro_from_for">%1$s von %2$s für %3$s.</string>
+    <string name="summary_amount_due">Betrag %1$s, fällig am %2$s.</string>
+    <string name="summary_amount">Betrag %1$s.</string>
+    <string name="summary_due">Fällig am %1$s.</string>
+    <string name="summary_subject">Betreff: %1$s.</string>
+
+    <!-- Der Tab „Extrahiert“ -->
+    <string name="extracted_empty_title">Noch keine extrahierten Daten</string>
+    <string name="extracted_empty_hint">Verarbeiten Sie das Dokument oder fügen Sie Daten manuell hinzu</string>
+    <string name="extracted_add_manually">Manuell hinzufügen</string>
+    <string name="action_re_extract">Erneut extrahieren</string>
+
+    <!-- Kopfbereich -->
+    <string name="header_family_chip">%1$s ▾</string>
+    <string name="header_type_unknown">Art unbekannt</string>
+    <string name="header_change_type">Art ändern</string>
+    <string name="header_read_again_as">Erneut lesen als …</string>
+    <string name="debug_read_again_with_gemma">Erneut mit Gemma lesen (Test)</string>
+    <string name="picker_change_title">Art ändern</string>
+    <string name="picker_read_again_title">Erneut lesen als</string>
+    <string name="picker_current">Aktuelle Art</string>
+    <string name="confidence_high">Die Art wurde mit hoher Sicherheit erkannt</string>
+    <string name="confidence_medium">Die Art wurde mit mittlerer Sicherheit erkannt</string>
+    <string name="confidence_low">Die Art wurde mit geringer Sicherheit erkannt</string>
+
+    <!-- Prüfung -->
+    <string name="review_confirm_confident">%1$d sichere bestätigen</string>
+    <string name="review_confirm_all">Alle bestätigen</string>
+    <plurals name="fields_confirmed">
+        <item quantity="one">%1$d Feld bestätigt</item>
+        <item quantity="other">%1$d Felder bestätigt</item>
+    </plurals>
+    <string name="action_undo">Rückgängig</string>
+
+    <!-- Abschnitte -->
+    <string name="section_check">Bitte prüfen (%1$d)</string>
+    <string name="section_ignored">Ignoriert (%1$d)</string>
+    <string name="section_recipient">Empfänger</string>
+    <string name="section_sender">Absender</string>
+    <string name="section_merchant">Händler</string>
+    <string name="section_action">Aufgabe</string>
+    <string name="section_payment">Summe und Zahlung</string>
+    <string name="section_other_details">Weitere Angaben</string>
+    <string name="other_details_show_all">Alle anzeigen (%1$d weitere)</string>
+    <string name="other_details_show_fewer">Weniger anzeigen</string>
+    <string name="group_parties">Personen und Organisationen</string>
+    <string name="group_dates">Daten</string>
+    <string name="group_references">Referenzen</string>
+    <string name="group_text">Betreff und Text</string>
+
+    <!-- Felder -->
+    <string name="field_worth_checking">Bitte prüfen.</string>
+    <string name="field_confidence">%1$d%% Sicherheit</string>
+    <string name="field_machine_changed">Das Dokument lautet hier jetzt „%1$s“.</string>
+    <string name="field_keep_mine">Meine behalten</string>
+    <string name="field_review">Prüfen</string>
+    <string name="field_confirmed">%1$s, bestätigt</string>
+    <string name="action_confirm_field">%1$s bestätigen</string>
+    <string name="action_edit_field">%1$s bearbeiten</string>
+    <string name="action_ignore_field">%1$s ignorieren</string>
+    <string name="action_restore_field">%1$s wiederherstellen</string>
+    <string name="action_restore">Wiederherstellen</string>
+    <string name="part_description">%1$s: %2$s</string>
+    <string name="part_description_uncertain">%1$s: %2$s, bitte prüfen</string>
+
+    <!-- Bearbeitungsfenster -->
+    <string name="edit_title">%1$s bearbeiten</string>
+    <string name="edit_name_label">Feldname</string>
+    <string name="edit_value_label">Wert</string>
+    <string name="edit_alternatives">Andere Lesarten</string>
+    <string name="edit_alternative_on_page">%1$s · Seite %2$d</string>
+    <string name="edit_show_on_page">Auf der Seite zeigen</string>
+
+    <!-- Bezeichnungen der Felder -->
+    <string name="slot_sender">Absender</string>
+    <string name="slot_addressee">Empfänger</string>
+    <string name="slot_contact">Ansprechperson</string>
+    <string name="slot_subject">Betreff</string>
+    <string name="slot_subject_person">Betroffene Person</string>
+    <string name="slot_unlabelled">Angabe</string>
+    <!-- Die Teile einer strukturierten Adresse -->
+    <string name="addr_addressee_name">Name des Empfängers</string>
+    <string name="addr_addressee_organisation">Organisation des Empfängers</string>
+    <string name="addr_addressee_department">Abteilung des Empfängers</string>
+    <string name="addr_addressee_care_of">Empfänger c/o</string>
+    <string name="addr_addressee_street">Straße des Empfängers</string>
+    <string name="addr_addressee_house_number">Hausnummer des Empfängers</string>
+    <string name="addr_addressee_extra">Adresszusatz des Empfängers</string>
+    <string name="addr_addressee_postcode">Postleitzahl des Empfängers</string>
+    <string name="addr_addressee_city">Ort des Empfängers</string>
+    <string name="addr_addressee_region">Region des Empfängers</string>
+    <string name="addr_addressee_country">Land des Empfängers</string>
+    <string name="addr_addressee_po_box">Postfach des Empfängers</string>
+    <string name="addr_addressee_packstation">Packstation des Empfängers</string>
+    <string name="addr_addressee_raw">Adresse des Empfängers wie gedruckt</string>
+    <string name="addr_sender_name">Name des Absenders</string>
+    <string name="addr_sender_organisation">Organisation des Absenders</string>
+    <string name="addr_sender_department">Abteilung des Absenders</string>
+    <string name="addr_sender_care_of">Absender c/o</string>
+    <string name="addr_sender_street">Straße des Absenders</string>
+    <string name="addr_sender_house_number">Hausnummer des Absenders</string>
+    <string name="addr_sender_extra">Adresszusatz des Absenders</string>
+    <string name="addr_sender_postcode">Postleitzahl des Absenders</string>
+    <string name="addr_sender_city">Ort des Absenders</string>
+    <string name="addr_sender_region">Region des Absenders</string>
+    <string name="addr_sender_country">Land des Absenders</string>
+    <string name="addr_sender_po_box">Postfach des Absenders</string>
+    <string name="addr_sender_packstation">Packstation des Absenders</string>
+    <string name="addr_sender_raw">Adresse des Absenders wie gedruckt</string>
+    <!-- Werte, die auf der Seite gefunden, aber nicht zugeordnet wurden -->
+    <string name="found_date">Gefundenes Datum %1$d</string>
+    <string name="found_amount">Gefundener Betrag %1$d</string>
+    <string name="found_iban">Gefundene IBAN %1$d</string>
+    <string name="found_reference">Gefundene Referenz %1$d</string>
+    <string name="found_phone">Gefundene Telefonnummer %1$d</string>
+    <string name="found_email">Gefundene E-Mail %1$d</string>
+    <string name="slot_letter_date">Dokumentdatum</string>
+    <string name="slot_total">Betrag</string>
+    <string name="slot_due_date">Frist</string>
+    <string name="slot_iban">IBAN</string>
+    <string name="slot_reference">Referenz</string>
+    <string name="slot_customer_no">Kundennummer</string>
+    <string name="slot_fee">Gebühr</string>
+    <string name="slot_new_amount">Neuer Betrag</string>
+    <string name="slot_previous_amount">Bisheriger Betrag</string>
+    <string name="slot_proof_amount">Gezahlter Betrag</string>
+    <string name="slot_objection_deadline">Widerspruchsfrist</string>
+    <string name="slot_original_due_date">Ursprüngliches Fälligkeitsdatum</string>
+    <string name="slot_effective_date">Gültig ab</string>
+    <string name="slot_contract_end">Vertragsende</string>
+    <string name="slot_event_date">Datum der Veranstaltung</string>
+    <string name="slot_appointment">Termin</string>
+    <string name="slot_sent_date">Versanddatum</string>
+    <string name="slot_proof_date">Zahlungsdatum</string>
+    <string name="slot_invoice_no">Rechnungsnummer</string>
+    <string name="slot_contract_no">Vertragsnummer</string>
+    <string name="slot_policy_no">Versicherungsscheinnummer</string>
+    <string name="slot_case_no">Aktenzeichen</string>
+    <string name="slot_tax_no">Steuernummer</string>
+    <string name="slot_receipt_no">Belegnummer</string>
+    <string name="slot_proof_reference">Zahlungsreferenz</string>
+    <string name="slot_recipient_org">Gesendet an</string>
+    <string name="slot_proof_recipient">Gezahlt an</string>
+    <string name="slot_cited_references">Genannte Referenzen</string>
+    <string name="slot_action_kind">Aufgabe</string>
+
+    <!-- Themen -->
+    <string name="topic_government">Behörden</string>
+    <string name="topic_tax">Steuern</string>
+    <string name="topic_health">Gesundheit</string>
+    <string name="topic_insurance">Versicherung</string>
+    <string name="topic_bank_finance">Bank und Finanzen</string>
+    <string name="topic_housing_utilities">Wohnen und Versorger</string>
+    <string name="topic_work">Arbeit</string>
+    <string name="topic_school_education">Schule und Bildung</string>
+    <string name="topic_vehicle">Fahrzeug</string>
+    <string name="topic_telecom">Telefon und Internet</string>
+    <string name="topic_shopping">Einkauf</string>
+    <string name="topic_travel">Reisen</string>
+    <string name="topic_legal">Recht</string>
+    <string name="topic_personal">Persönlich</string>
+
+    <!-- Teilweise gelesen -->
+    <plurals name="extraction_partial_notice">
+        <item quantity="one">Der Assistent hat nur die ersten %1$d von %2$d Seite gelesen – prüfen Sie den Rest selbst.</item>
+        <item quantity="other">Der Assistent hat nur die ersten %1$d von %2$d Seiten gelesen – prüfen Sie den Rest selbst.</item>
+    </plurals>
+
+    <!-- Verlauf -->
+    <plurals name="timeline_ocr_done">
+        <item quantity="one">Text aus %1$d Seite erkannt</item>
+        <item quantity="other">Text aus %1$d Seiten erkannt</item>
+    </plurals>
+    <string name="timeline_ocr_confidence">Durchschnittliche Sicherheit: %1$d%%</string>
+    <plurals name="timeline_fields_extracted">
+        <item quantity="one">%1$d Feld extrahiert</item>
+        <item quantity="other">%1$d Felder extrahiert</item>
+    </plurals>
+    <plurals name="timeline_review_flagged">
+        <item quantity="one">%1$d Feld muss von Ihnen geprüft werden</item>
+        <item quantity="other">%1$d Felder müssen von Ihnen geprüft werden</item>
+    </plurals>
+    <string name="timeline_review_flagged_detail">Eine neue Lesung weicht von Ihrer Version ab: %1$s</string>
+    <string name="timeline_processing_failed">Verarbeitung fehlgeschlagen</string>
+    <string name="timeline_reprocessed">Mit der neuesten Version erneut gelesen</string>
+    <string name="timeline_reprocess_failed">Automatische Aktualisierung übersprungen; Ihre Daten sind unverändert</string>
+
+    <!-- Dokumentenliste -->
+    <string name="documents_title">Dokumente</string>
+    <string name="documents_deleted_snackbar">Dokument nach „Zuletzt gelöscht“ verschoben</string>
+    <string name="documents_search_placeholder">Dokumente durchsuchen …</string>
+    <string name="documents_search_description">Suchen</string>
+    <string name="documents_search_clear">Leeren</string>
+    <string name="documents_no_results_title">Keine Ergebnisse</string>
+    <string name="documents_no_results_hint">Versuchen Sie einen anderen Suchbegriff.</string>
+    <string name="documents_empty_title">Keine Dokumente</string>
+    <string name="documents_empty_hint">Ihre gescannten und importierten Dokumente erscheinen hier.</string>
+
+    <!-- Zuletzt gelöscht -->
+    <string name="trash_deletes_today">Wird heute gelöscht</string>
+    <plurals name="trash_deletes_in_days">
+        <item quantity="one">Wird in %1$d Tag gelöscht</item>
+        <item quantity="other">Wird in %1$d Tagen gelöscht</item>
+    </plurals>
+    <string name="trash_delete_permanently">Endgültig löschen</string>
+    <string name="trash_delete_title">Endgültig löschen?</string>
+    <string name="trash_delete_message">Dadurch werden auch die Seiten, die extrahierten Daten und die Chats gelöscht. Das lässt sich nicht rückgängig machen.</string>
+    <string name="trash_empty_title">„Zuletzt gelöscht“ leeren?</string>
+    <string name="trash_empty_message">Dadurch werden auch deren Seiten, extrahierte Daten und Chats gelöscht. Das lässt sich nicht rückgängig machen.</string>
+    <string name="trash_empty_action">Leeren</string>
+    <string name="trash_nothing_title">Nichts gelöscht</string>
+    <string name="trash_nothing_hint">Gelöschte Dokumente bleiben 30 Tage hier, bevor sie endgültig verschwinden.</string>
+
+    <!-- Die Dokumentansicht -->
+    <string name="detail_title_fallback">Dokument</string>
+    <string name="detail_more_options">Weitere Optionen</string>
+    <string name="detail_delete">Löschen</string>
+    <string name="detail_not_found">Dieses Dokument existiert nicht mehr.</string>
+    <string name="detail_ask_ai">KI fragen</string>
+    <string name="detail_reprocess">Neu verarbeiten</string>
+    <string name="detail_toggle_favorite">Favorit umschalten</string>
+    <string name="detail_tab_pages">Seiten (%1$d)</string>
+    <string name="detail_tab_extracted">Extrahiert (%1$d)</string>
+    <string name="detail_tab_timeline">Verlauf (%1$d)</string>
+    <string name="detail_deleted_title">Dieses Dokument wurde gelöscht</string>
+    <string name="detail_deleted_message">„%1$s“ befindet sich in „Zuletzt gelöscht“.</string>
+    <string name="detail_queued">Wartet darauf, gelesen zu werden …</string>
+    <string name="detail_failed_no_pages">Dieses Dokument hat keine Seiten. Löschen Sie es oder scannen Sie es erneut.</string>
+    <string name="detail_failed_generic">Beim Lesen dieses Dokuments ist etwas schiefgegangen.</string>
+    <string name="detail_try_again">Erneut versuchen</string>
+    <string name="detail_delete_confirm_title">Dieses Dokument löschen?</string>
+    <string name="detail_delete_confirm_message">Es hat keine Seiten zum Lesen, daher lässt sich daraus nichts wiederherstellen.</string>
+    <string name="progress_preparing">Dokument wird vorbereitet …</string>
+    <string name="progress_reading_page">Text wird gelesen: Seite %1$d/%2$d</string>
+    <string name="progress_reading_start">Texterkennung wird gestartet …</string>
+    <string name="progress_understanding">Der Brief wird verstanden – das kann eine Minute dauern</string>
+    <string name="progress_linking">Profile werden zugeordnet …</string>
+    <string name="progress_indexing">Für die Suche wird indexiert …</string>
+    <string name="pages_none">Noch keine Seiten gescannt</string>
+    <string name="pages_share_pdf">PDF teilen</string>
+    <string name="pages_open_image">Öffnen</string>
+    <string name="pages_rescan">Neu scannen</string>
+    <string name="pages_rescan_soon">Erneutes Scannen folgt mit dem nächsten Update</string>
+    <string name="pages_copy_text">Text kopieren</string>
+    <string name="pages_copy">Kopieren</string>
+    <string name="pages_text_copied">Text in die Zwischenablage kopiert</string>
+    <string name="share_pdf_chooser">Dokument als PDF teilen</string>
+    <string name="share_pdf_failed">PDF konnte nicht erstellt werden</string>
+    <string name="no_app_for_images">Keine App zum Öffnen von Bildern gefunden</string>
+    <string name="open_file_not_found">Öffnen nicht möglich: Datei nicht gefunden</string>
+    <string name="add_field_title">Feld hinzufügen</string>
+    <string name="add_field_templates">Schnellvorlagen:</string>
+    <string name="add_field_confirm">Hinzufügen</string>
+    <string name="preset_receiver_name">Name des Empfängers</string>
+    <string name="preset_receiver_organisation">Organisation des Empfängers</string>
+    <string name="preset_receiver_address">Adresse des Empfängers</string>
+    <string name="preset_sender_name">Name des Absenders</string>
+    <string name="preset_sender_organisation">Organisation des Absenders</string>
+    <string name="preset_date">Datum</string>
+    <string name="preset_reference_number">Referenznummer</string>
+    <string name="preset_tag">Tag</string>
+    <string name="preset_note">Notiz</string>
+    <string name="timeline_empty">Noch keine Ereignisse</string>
 </resources>

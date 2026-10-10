@@ -148,4 +148,21 @@
     <string name="saved_details_dialog_value">القيمة</string>
     <string name="saved_details_dialog_save">حفظ</string>
     <string name="saved_details_dialog_cancel">إلغاء</string>
+
+    <!-- قائمة الملفات الشخصية: العنوان والبحث وحالتا الفراغ والخطأ وتأكيد الحذف -->
+    <string name="profiles_title">الملفات الشخصية</string>
+    <string name="profiles_search_placeholder">ابحث في الملفات الشخصية…</string>
+    <string name="profiles_search_description">بحث</string>
+    <string name="profiles_search_clear">مسح</string>
+    <string name="profiles_empty_no_results_title">لا توجد نتائج</string>
+    <string name="profiles_empty_no_results_subtitle">جرّب بحثًا مختلفًا.</string>
+    <string name="profiles_empty_title">لا توجد ملفات شخصية</string>
+    <string name="profiles_empty_subtitle">تُنشأ الملفات الشخصية تلقائيًا من المستندات الممسوحة ضوئيًا.</string>
+    <string name="profiles_error_unknown">حدث خطأ ما.</string>
+    <string name="profiles_delete_title">حذف %1$s؟</string>
+    <string name="profiles_delete_body">لا تُحذف المستندات المرتبطة بهذا الملف الشخصي، بل يُحذف الملف نفسه فقط.</string>
+    <string name="profiles_delete_body_auto">لا تُحذف المستندات المرتبطة بهذا الملف الشخصي، بل يُحذف الملف نفسه فقط. أُنشئ هذا الملف الشخصي تلقائيًا من مستند ممسوح ضوئيًا، لذا فإن حذفه يمنع التطبيق أيضًا من اقتراحه مجددًا عند معالجة هذا المستند في المرة القادمة.</string>
+    <string name="profiles_delete_confirm">حذف</string>
+    <string name="profiles_delete_cancel">إلغاء</string>
+    <string name="profiles_delete_description">حذف الملف الشخصي</string>
 </resources>

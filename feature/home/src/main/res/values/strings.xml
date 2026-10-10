@@ -16,4 +16,15 @@
     <string name="home_import_action">Import PDF or images</string>
     <string name="home_importing">Importing…</string>
     <string name="home_import_failed">Some files could not be imported. Tap to dismiss.</string>
+    <!-- Home screen: title, buttons, list, empty and error states, Undo snackbar -->
+    <string name="home_title" translatable="false">Posts AI Manager</string>
+    <string name="home_ask_documents">Ask about your documents</string>
+    <string name="home_scan_document">Scan document</string>
+    <string name="home_empty_title">No documents yet</string>
+    <string name="home_empty_subtitle">Scan or import your first document to get started.</string>
+    <string name="home_empty_action">Scan document</string>
+    <string name="home_recent_documents">Recent documents</string>
+    <string name="home_error_unknown">Something went wrong.</string>
+    <string name="home_document_deleted">Document moved to Recently deleted</string>
+    <string name="home_document_deleted_undo">Undo</string>
 </resources>

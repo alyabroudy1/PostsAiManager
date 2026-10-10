@@ -46,4 +46,38 @@
     <string name="report_answer_no_mail_app">لم يتم العثور على تطبيق بريد إلكتروني.</string>
     <string name="report_answer_mail_intro">ما الخطأ في هذه الإجابة؟ يرجى وصفه هنا:\n\n</string>
     <string name="report_answer_mail_answer_heading">الإجابة المُبلَّغ عنها:</string>
+
+    <plurals name="document_title_scanned_pages">
+        <item quantity="zero">لا صفحات ممسوحة ضوئيًا</item>
+        <item quantity="one">صفحة ممسوحة ضوئيًا</item>
+        <item quantity="two">صفحتان ممسوحتان ضوئيًا</item>
+        <item quantity="few">%d صفحات ممسوحة ضوئيًا</item>
+        <item quantity="many">%d صفحة ممسوحة ضوئيًا</item>
+        <item quantity="other">%d صفحة ممسوحة ضوئيًا</item>
+    </plurals>
+    <string name="doc_row_from_for">من %1$s · إلى %2$s</string>
+    <string name="doc_row_from">من %1$s</string>
+    <string name="doc_row_for">إلى %1$s</string>
+    <string name="doc_row_action_needed">يتطلب إجراءً</string>
+    <plurals name="doc_row_to_check">
+        <item quantity="zero">لا شيء للتحقق منه</item>
+        <item quantity="one">عنصر واحد للتحقق</item>
+        <item quantity="two">عنصران للتحقق</item>
+        <item quantity="few">%d عناصر للتحقق</item>
+        <item quantity="many">%d عنصرًا للتحقق</item>
+        <item quantity="other">%d عنصر للتحقق</item>
+    </plurals>
+    <string name="doc_row_status_waiting">بانتظار القراءة</string>
+    <string name="doc_row_status_processing">جارٍ القراءة</string>
+    <string name="doc_row_status_ready">تمت القراءة، لا شيء للتحقق منه</string>
+    <string name="doc_row_status_failed">فشلت القراءة</string>
+    <string name="doc_row_favorite">مفضّل</string>
+    <string name="doc_row_toggle_favorite">تبديل المفضّلة</string>
+
+    <string name="page_preview_default_title">معاينة المستند</string>
+    <string name="page_preview_unavailable">تتعذر معاينة هذا المستند.</string>
+    <string name="page_preview_title_page">%1$s · الصفحة %2$d من %3$d</string>
+    <string name="page_preview_open_document">فتح المستند</string>
+    <string name="page_preview_close">إغلاق المعاينة</string>
+    <string name="page_preview_page_description">الصفحة %1$d من %2$d من %3$s</string>
 </resources>

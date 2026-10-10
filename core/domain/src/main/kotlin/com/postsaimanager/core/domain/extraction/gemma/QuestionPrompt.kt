@@ -81,14 +81,25 @@ object QuestionPrompt {
     }
 
     /** The one message: the letter, then the questions ([questions]); with [withSummary] the answer starts with the summary line. */
-    fun message(letterText: String, withSummary: Boolean, vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT, forcedCategory: String? = null): String =
-        letterText + "\n" + questions(vocab, forcedCategory, withSummary)
+    fun message(
+        letterText: String,
+        withSummary: Boolean,
+        vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT,
+        forcedCategory: String? = null,
+        summaryLanguage: String? = null,
+    ): String = letterText + "\n" + questions(vocab, forcedCategory, withSummary, summaryLanguage)
 
-    fun questions(vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT, forcedCategory: String? = null, withSummary: Boolean = false): String = buildString {
+    /** [summaryLanguage]: the code of the language the summary line is written in (the app's language); the letter's own when null. */
+    fun questions(
+        vocab: GemmaVocabulary = GemmaVocabulary.DEFAULT,
+        forcedCategory: String? = null,
+        withSummary: Boolean = false,
+        summaryLanguage: String? = null,
+    ): String = buildString {
         append("Answer now: one line per label (the label in capitals, a colon, a terse answer), nothing else. Write names and values as printed in the letter. ")
         append("When something is not in the letter, write exactly: $NONE_WORD. Separate items with \";\", at most $MAX_ITEMS per list.\n")
         if (withSummary) {
-            append("${QaLabel.SUMMARY}: first line, one sentence (at most ${SummaryLimits.MAX_CHARS} characters) in the language of the letter: ")
+            append("${QaLabel.SUMMARY}: first line, one sentence (at most ${SummaryLimits.MAX_CHARS} characters) in ${summaryLanguage?.trim()?.takeIf { it.isNotEmpty() }?.let { "the language with the code \"$it\"" } ?: "the language of the letter"}: ")
             append("what it is, from whom, and the main fact; mention a request only if there is one\n")
         }
         val kinds = PartyKind.entries.joinToString(", ") { it.name.lowercase() }

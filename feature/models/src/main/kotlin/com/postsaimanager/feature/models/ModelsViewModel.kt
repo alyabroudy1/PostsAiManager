@@ -39,14 +39,25 @@ sealed interface ModelsUiState {
         val fits: Map<String, ChatModelFit> = emptyMap(),
     ) : ModelsUiState
 
-    data class Error(val message: String) : ModelsUiState
+    /** [message] is the raw cause, if any; the screen shows a localized fallback when it is null. */
+    data class Error(val message: String?) : ModelsUiState
 }
 
-/** A user-facing reason a model cannot be installed, with an action where one exists. */
+/**
+ * A user-facing reason a model cannot be installed. [textRes] is a string resource whose arguments are the [bytes] (in order), which
+ * the screen formats as sizes in the app language.
+ */
 data class FitMessage(
-    val text: String,
+    val textRes: Int,
+    val bytes: List<Long> = emptyList(),
     val isBlocking: Boolean,
 )
+
+/** A one-off message for the snackbar: a string resource with arguments, or a raw text that came from a lower layer. */
+sealed interface ModelsMessage {
+    data class Res(val id: Int, val args: List<Any> = emptyList()) : ModelsMessage
+    data class Raw(val text: String) : ModelsMessage
+}
 
 @HiltViewModel
 class ModelsViewModel @Inject constructor(
@@ -57,8 +68,8 @@ class ModelsViewModel @Inject constructor(
     private val recommendChatModel: RecommendChatModelUseCase,
 ) : ViewModel() {
 
-    private val _message = MutableStateFlow<String?>(null)
-    val message: StateFlow<String?> = _message.asStateFlow()
+    private val _message = MutableStateFlow<ModelsMessage?>(null)
+    val message: StateFlow<ModelsMessage?> = _message.asStateFlow()
 
     val uiState: StateFlow<ModelsUiState> =
         repository.state
@@ -71,7 +82,7 @@ class ModelsViewModel @Inject constructor(
                     fits = chatFits(state),
                 )
             }
-            .catch { emit(ModelsUiState.Error(it.message ?: "Could not load the model catalog")) }
+            .catch { emit(ModelsUiState.Error(it.message)) }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
@@ -125,7 +136,7 @@ class ModelsViewModel @Inject constructor(
     fun uninstallEmbeddingModel() {
         viewModelScope.launch {
             embeddingModel.uninstall()
-            _message.value = "Search by meaning turned off. Documents are still searchable by word."
+            _message.value = ModelsMessage.Res(R.string.models_msg_search_off)
         }
     }
 
@@ -136,9 +147,7 @@ class ModelsViewModel @Inject constructor(
             val started = repository.startDownload(descriptor, allowMetered)
             if (!started) {
                 // Unlike a silently-dropped write, the user is told why nothing happened.
-                _message.value =
-                    "${descriptor.name} cannot be installed yet: no verified download " +
-                    "source is configured. Model downloads require a signed catalog."
+                _message.value = ModelsMessage.Res(R.string.models_msg_not_installable, listOf(descriptor.name))
             }
         }
     }
@@ -151,7 +160,7 @@ class ModelsViewModel @Inject constructor(
 
     fun setExtractionModel(modelId: String) {
         repository.setExtractionModel(modelId)
-        _message.value = "Documents will be read with this model from now on."
+        _message.value = ModelsMessage.Res(R.string.models_msg_reading_model)
     }
 
     fun onDownloadFinished(descriptor: AiModelDescriptor, status: ModelDownloadStatus) {
@@ -168,12 +177,12 @@ class ModelsViewModel @Inject constructor(
      */
     fun import(uri: Uri) {
         viewModelScope.launch {
-            _message.value = "Checking the file…"
+            _message.value = ModelsMessage.Res(R.string.models_msg_checking_file)
             when (val result = importer.import(uri)) {
                 is com.postsaimanager.core.common.result.PamResult.Success ->
-                    _message.value = "${result.data.name} imported and ready to use."
+                    _message.value = ModelsMessage.Res(R.string.models_msg_imported, listOf(result.data.name))
                 is com.postsaimanager.core.common.result.PamResult.Error ->
-                    _message.value = result.error.userMessage
+                    _message.value = ModelsMessage.Raw(result.error.userMessage)
             }
         }
     }
@@ -188,33 +197,26 @@ class ModelsViewModel @Inject constructor(
             is ModelFit.Fits -> null
 
             is ModelFit.InsufficientAvailableMemory -> FitMessage(
-                "Needs ${fit.requiredBytes.toGb()} free, ${fit.availableBytes.toGb()} available. " +
-                    "You can install it now and close some apps before using it.",
+                R.string.models_fit_low_memory,
+                listOf(fit.requiredBytes, fit.availableBytes),
                 isBlocking = false,
             )
 
             is ModelFit.TooLargeForDevice -> FitMessage(
-                "Too large for this device (needs ${fit.requiredBytes.toGb()}, " +
-                    "device has ${fit.totalRamBytes.toGb()} total).",
+                R.string.models_fit_too_large,
+                listOf(fit.requiredBytes, fit.totalRamBytes),
                 isBlocking = true,
             )
 
             is ModelFit.InsufficientStorage -> FitMessage(
-                "Needs ${fit.requiredBytes.toGb()} of storage, ${fit.freeBytes.toGb()} free.",
+                R.string.models_fit_storage,
+                listOf(fit.requiredBytes, fit.freeBytes),
                 isBlocking = true,
             )
 
-            ModelFit.UnsupportedAbi -> FitMessage(
-                "This device's processor is not supported.",
-                isBlocking = true,
-            )
+            ModelFit.UnsupportedAbi -> FitMessage(R.string.models_fit_unsupported_abi, isBlocking = true)
 
-            ModelFit.NotInstallable -> FitMessage(
-                "No verified download source yet.",
-                isBlocking = true,
-            )
+            ModelFit.NotInstallable -> FitMessage(R.string.models_fit_not_installable, isBlocking = true)
         }
-
-        private fun Long.toGb(): String = "%.1f GB".format(this / 1_073_741_824.0)
     }
 }

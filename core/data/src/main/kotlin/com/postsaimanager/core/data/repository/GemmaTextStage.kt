@@ -53,6 +53,8 @@ internal class GemmaTextStage(
     private val fieldRevisionDao: FieldRevisionDao,
     private val documentMapper: DocumentMapper,
     private val mergeExtraction: MergeExtractionUseCase,
+    /** The key facts' labels are written in the app's language; null keeps the document's own language. */
+    private val appLanguage: com.postsaimanager.core.domain.settings.AppLanguageProvider? = null,
 ) {
 
     suspend fun run(documentId: String, ticket: EnrichmentTicket?): GemmaTextStageResult {
@@ -74,7 +76,7 @@ internal class GemmaTextStage(
                 ocrText = ocrText,
                 facts = EnrichmentTicketRebuilder.factsOf(domainDoc, storedFields),
                 knownValues = EnrichmentTicketRebuilder.rebuild(domainDoc, storedFields).takenValues,
-                languageCode = doc.language,
+                languageCode = appLanguage?.aiLanguageCode() ?: doc.language,
                 paid = PaidState.of(ticket?.paid),
                 // Only the key facts are asked, always: the summary is the reading's first turn (trimmed to the one length limit and checked),
                 // and a summary field in this answer's schema ran to the token cap on the device (pass 28); the template is the fallback.

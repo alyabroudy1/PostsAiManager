@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- KI-Modelle: Titel und Kopfzeile -->
+    <string name="models_title">KI-Modelle</string>
+    <string name="models_import">Importieren</string>
+    <string name="models_error_catalog">Der Modellkatalog konnte nicht geladen werden</string>
+    <string name="models_section_search">Dokumentensuche</string>
+    <string name="models_section_installed">Installiert</string>
+    <string name="models_section_available">Verfügbar</string>
+
+    <!-- Größen. %1$s ist die bereits für die Sprache formatierte Zahl. -->
+    <string name="models_size_gb">%1$s GB</string>
+    <string name="models_size_mb">%1$s MB</string>
+
+    <!-- Karte „Dieses Gerät“ -->
+    <string name="models_device_title">Dieses Gerät</string>
+    <string name="models_device_memory">%1$s von %2$s Arbeitsspeicher derzeit verfügbar</string>
+    <string name="models_device_storage">%1$s Speicher frei · %2$s</string>
+    <string name="models_device_low_memory">Der Arbeitsspeicher ist knapp – schließen Sie einige Apps, bevor Sie ein Modell laden.</string>
+
+    <!-- Hinweis zum Offline-Katalog -->
+    <string name="models_offline_title">Offline-Katalog</string>
+    <string name="models_offline_text">Angezeigt werden die in die App eingebauten Modelle. Jedes wird von Hugging Face geladen und vor der Verwendung anhand eines festen Fingerabdrucks geprüft. Neue Modelle erscheinen hier mit einem späteren Update.</string>
+
+    <!-- Karte eines installierten Modells -->
+    <string name="models_chip_chat">Chat</string>
+    <string name="models_chip_reads_documents">Liest Dokumente</string>
+    <string name="models_note_form_filling">Wird zum Ausfüllen von Formularen verwendet (besser, langsamer)</string>
+    <string name="models_note_better_reading">Liest Dokumente besser, als es chattet. An einem deutschen Brief gemessen, fand es Absender und Frist, wo ein kleineres Modell beides nicht fand.</string>
+    <string name="models_action_use_chat">Für Chat verwenden</string>
+    <string name="models_action_use_reading">Zum Lesen verwenden</string>
+    <string name="models_action_remove">Entfernen</string>
+
+    <!-- Karte eines verfügbaren Modells -->
+    <string name="models_download_progress">%1$d%% · %2$s geladen</string>
+    <string name="models_action_cancel">Abbrechen</string>
+    <string name="models_waiting_wifi_short">Warten auf WLAN…</string>
+    <string name="models_download_failed">Download fehlgeschlagen. Es wird automatisch erneut versucht.</string>
+    <string name="models_action_install">Installieren</string>
+
+    <!-- Warum ein Modell nicht installiert werden kann -->
+    <string name="models_fit_low_memory">Benötigt %1$s frei, %2$s verfügbar. Sie können es jetzt installieren und vor der Nutzung einige Apps schließen.</string>
+    <string name="models_fit_too_large">Zu groß für dieses Gerät (benötigt %1$s, Gerät hat insgesamt %2$s).</string>
+    <string name="models_fit_storage">Benötigt %1$s Speicherplatz, %2$s frei.</string>
+    <string name="models_fit_unsupported_abi">Der Prozessor dieses Geräts wird nicht unterstützt.</string>
+    <string name="models_fit_not_installable">Noch keine geprüfte Download-Quelle.</string>
+
+    <!-- Karte „Suche nach Bedeutung“ (Embedding-Modell) -->
+    <string name="models_embed_title">Suche nach Bedeutung</string>
+    <string name="models_embed_on">An</string>
+    <string name="models_embed_description">Finden Sie einen Brief danach, worum es ging, nicht nach den verwendeten Wörtern. Fragen Sie „Wann ist meine Frist?“ und erhalten Sie den Absatz, der die Antwort enthält – sogar in einer anderen Sprache.</string>
+    <string name="models_embed_size">%1$s Download · läuft vollständig auf Ihrem Gerät</string>
+    <string name="models_embed_without">Ohne sie findet die Suche Dokumente weiterhin nach Wörtern.</string>
+    <string name="models_embed_download_wifi">Über WLAN laden</string>
+    <string name="models_embed_use_mobile">Mobile Daten verwenden</string>
+    <string name="models_embed_waiting_wifi">Warten auf WLAN. Der Download startet von selbst.</string>
+    <string name="models_embed_progress">%1$d%% · %2$s von %3$s</string>
+    <string name="models_embed_background">Sie können diesen Bildschirm verlassen – der Download läuft im Hintergrund weiter.</string>
+    <string name="models_embed_ready">Bereit. Neue Dokumente werden beim Scannen indexiert.</string>
+    <string name="models_embed_remove">Entfernen (%1$s)</string>
+    <string name="models_embed_failed">Der Download wurde nicht abgeschlossen. Ein neuer Versuch setzt dort fort, wo er aufgehört hat, statt von vorn zu beginnen.</string>
+    <string name="models_embed_try_again">Erneut versuchen</string>
+
+    <!-- Hinweise (Snackbar) -->
+    <string name="models_msg_search_off">Suche nach Bedeutung ausgeschaltet. Dokumente lassen sich weiterhin nach Wörtern durchsuchen.</string>
+    <string name="models_msg_not_installable">%1$s kann noch nicht installiert werden: Es ist keine geprüfte Download-Quelle eingerichtet. Modell-Downloads erfordern einen signierten Katalog.</string>
+    <string name="models_msg_reading_model">Dokumente werden ab jetzt mit diesem Modell gelesen.</string>
+    <string name="models_msg_checking_file">Datei wird geprüft…</string>
+    <string name="models_msg_imported">%1$s importiert und einsatzbereit.</string>
+</resources>

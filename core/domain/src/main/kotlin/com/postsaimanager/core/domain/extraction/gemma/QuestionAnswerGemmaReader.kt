@@ -44,7 +44,7 @@ class QuestionAnswerGemmaReader @Inject constructor(
         val room = config.contextTokens - ANSWER_TOKENS - RESERVED_TOKENS - images.size * IMAGE_TOKENS
         val letterText = QuestionPrompt.letterText(request.letter, (room * CHARS_PER_TOKEN).toInt().coerceIn(GemmaPrompt.MIN_CHARS, GemmaPrompt.MAX_CHARS))
         val withSummary = request.onSummary != null
-        val prompt = QuestionPrompt.message(letterText, withSummary, forcedCategory = request.forcedCategory)
+        val prompt = QuestionPrompt.message(letterText, withSummary, forcedCategory = request.forcedCategory, summaryLanguage = request.summaryLanguage)
         val sampling = samplingFor(QaSampling.PURPOSE)
         val watcher = SummaryLineWatcher()
         var summaryMs = -1L

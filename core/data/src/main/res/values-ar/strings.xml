@@ -1,4 +1,17 @@
 <resources>
+    <!-- الإشعار الظاهر أثناء قراءة مستند في الخلفية. -->
+    <string name="processing_channel_name">معالجة المستندات</string>
+    <string name="processing_channel_description">تقدّم المستندات التي تُقرأ وتُفهم في الخلفية.</string>
+    <string name="processing_notification_title">جارٍ قراءة مستندك…</string>
+    <string name="processing_notification_discreet">يعمل في الخلفية</string>
+    <string name="processing_notification_starting">جارٍ البدء…</string>
+    <string name="processing_notification_preparing">جارٍ التجهيز…</string>
+    <string name="processing_notification_reading_page">جارٍ قراءة الصفحة %1$d من %2$d</string>
+    <string name="processing_notification_reading">جارٍ القراءة…</string>
+    <string name="processing_notification_analysing">جارٍ التحليل…</string>
+    <string name="processing_notification_matching">جارٍ مطابقة الملفات الشخصية…</string>
+    <string name="processing_notification_indexing">جارٍ الفهرسة للبحث…</string>
+
     <!-- إشعار «تم فهم الرسالة». -->
     <string name="reading_finished_channel_name">اكتملت القراءة</string>
     <string name="reading_finished_channel_description">تنبيه هادئ عند قراءة رسالة وفهمها في الخلفية.</string>

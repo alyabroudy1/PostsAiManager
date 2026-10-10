@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- نماذج الذكاء الاصطناعي: العنوان والشريط العلوي -->
+    <string name="models_title">نماذج الذكاء الاصطناعي</string>
+    <string name="models_import">استيراد</string>
+    <string name="models_error_catalog">تعذّر تحميل كتالوج النماذج</string>
+    <string name="models_section_search">البحث في المستندات</string>
+    <string name="models_section_installed">المثبّتة</string>
+    <string name="models_section_available">المتاحة</string>
+
+    <!-- الأحجام. %1$s هو الرقم بعد تنسيقه للغة. -->
+    <string name="models_size_gb">%1$s جيجابايت</string>
+    <string name="models_size_mb">%1$s ميجابايت</string>
+
+    <!-- بطاقة هذا الجهاز -->
+    <string name="models_device_title">هذا الجهاز</string>
+    <string name="models_device_memory">%1$s من %2$s من الذاكرة متاحة الآن</string>
+    <string name="models_device_storage">%1$s من التخزين فارغة · %2$s</string>
+    <string name="models_device_low_memory">ذاكرة الجهاز منخفضة — أغلق بعض التطبيقات قبل تحميل نموذج.</string>
+
+    <!-- إشعار الكتالوج دون اتصال -->
+    <string name="models_offline_title">كتالوج دون اتصال</string>
+    <string name="models_offline_text">تُعرض النماذج المضمّنة في التطبيق. يُنزَّل كل نموذج من Hugging Face ويُفحص ببصمة ثابتة قبل استخدامه. ستظهر النماذج الجديدة هنا مع تحديث لاحق.</string>
+
+    <!-- بطاقة النموذج المثبّت -->
+    <string name="models_chip_chat">الدردشة</string>
+    <string name="models_chip_reads_documents">قراءة المستندات</string>
+    <string name="models_note_form_filling">يُستخدم لتعبئة النماذج (أدق وأبطأ)</string>
+    <string name="models_note_better_reading">أفضل في قراءة المستندات منه في الدردشة. عند اختباره على رسالة ألمانية، وجد المرسل والموعد النهائي بينما لم يجد نموذج أصغر أيًّا منهما.</string>
+    <string name="models_action_use_chat">استخدام للدردشة</string>
+    <string name="models_action_use_reading">استخدام للقراءة</string>
+    <string name="models_action_remove">إزالة</string>
+
+    <!-- بطاقة النموذج المتاح -->
+    <string name="models_download_progress">%1$d%% · تم تنزيل %2$s</string>
+    <string name="models_action_cancel">إلغاء</string>
+    <string name="models_waiting_wifi_short">بانتظار شبكة Wi‑Fi…</string>
+    <string name="models_download_failed">فشل التنزيل. ستُعاد المحاولة تلقائيًا.</string>
+    <string name="models_action_install">تثبيت</string>
+
+    <!-- سبب تعذّر تثبيت نموذج -->
+    <string name="models_fit_low_memory">يحتاج إلى %1$s فارغة والمتاح %2$s. يمكنك تثبيته الآن وإغلاق بعض التطبيقات قبل استخدامه.</string>
+    <string name="models_fit_too_large">كبير جدًا لهذا الجهاز (يحتاج إلى %1$s، وإجمالي ذاكرة الجهاز %2$s).</string>
+    <string name="models_fit_storage">يحتاج إلى %1$s من مساحة التخزين، والفارغ %2$s.</string>
+    <string name="models_fit_unsupported_abi">معالج هذا الجهاز غير مدعوم.</string>
+    <string name="models_fit_not_installable">لا يوجد مصدر تنزيل موثَّق بعد.</string>
+
+    <!-- بطاقة البحث بالمعنى (نموذج التضمين) -->
+    <string name="models_embed_title">البحث بالمعنى</string>
+    <string name="models_embed_on">مفعّل</string>
+    <string name="models_embed_description">اعثر على رسالة بحسب موضوعها لا بحسب الكلمات التي استخدمتها. اسأل «متى موعدي النهائي؟» واحصل على الفقرة التي تجيب عنه — حتى بلغة مختلفة.</string>
+    <string name="models_embed_size">حجم التنزيل %1$s · يعمل بالكامل على جهازك</string>
+    <string name="models_embed_without">بدونه، يظل البحث يعثر على المستندات بالكلمات.</string>
+    <string name="models_embed_download_wifi">تنزيل عبر Wi‑Fi</string>
+    <string name="models_embed_use_mobile">استخدام بيانات الجوال</string>
+    <string name="models_embed_waiting_wifi">بانتظار شبكة Wi‑Fi. سيبدأ التنزيل تلقائيًا.</string>
+    <string name="models_embed_progress">%1$d%% · %2$s من %3$s</string>
+    <string name="models_embed_background">يمكنك مغادرة هذه الشاشة — سيستمر التنزيل في الخلفية.</string>
+    <string name="models_embed_ready">جاهز. تتم فهرسة المستندات الجديدة عند مسحها ضوئيًا.</string>
+    <string name="models_embed_remove">إزالة (%1$s)</string>
+    <string name="models_embed_failed">لم يكتمل التنزيل. تستأنف إعادة المحاولة من حيث توقف بدلًا من البدء من جديد.</string>
+    <string name="models_embed_try_again">حاول مرة أخرى</string>
+
+    <!-- الرسائل (Snackbar) -->
+    <string name="models_msg_search_off">تم إيقاف البحث بالمعنى. لا يزال بالإمكان البحث في المستندات بالكلمات.</string>
+    <string name="models_msg_not_installable">لا يمكن تثبيت %1$s بعد: لم يتم إعداد مصدر تنزيل موثَّق. تتطلب تنزيلات النماذج كتالوجًا موقَّعًا.</string>
+    <string name="models_msg_reading_model">ستُقرأ المستندات بهذا النموذج من الآن فصاعدًا.</string>
+    <string name="models_msg_checking_file">جارٍ فحص الملف…</string>
+    <string name="models_msg_imported">تم استيراد %1$s وهو جاهز للاستخدام.</string>
+</resources>

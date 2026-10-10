@@ -40,6 +40,7 @@ class GemmaDocumentInterpreter(
     private val found: GemmaFoundValues = GemmaFoundValues(),
     private val onSummary: (suspend (String) -> Unit)? = null,
     private val keepOpenAs: String? = null,
+    private val summaryLanguage: String? = null,
     private val labelPairs: () -> List<LabelValuePair> = { emptyList() },
     private val ocrDump: () -> List<String> = { emptyList() },
 ) : DocumentInterpreter {
@@ -71,7 +72,7 @@ class GemmaDocumentInterpreter(
         lines += ocrDump() // debug only: the OCR blocks with their boxes (to turn a device letter into a test fixture)
         val category = request.forcedFamily?.let(schema::categoryOf)?.phrase
 
-        val answered = when (val outcome = reader.read(GemmaReaderRequest(letter, imagePaths, category, onSummary, keepOpenAs))) {
+        val answered = when (val outcome = reader.read(GemmaReaderRequest(letter, imagePaths, category, onSummary, keepOpenAs, summaryLanguage))) {
             is GemmaReaderOutcome.Unavailable -> return failed(outcome.reason)
             is GemmaReaderOutcome.Stated -> return interpretStated(outcome, request, letter)
             is GemmaReaderOutcome.Answered -> outcome

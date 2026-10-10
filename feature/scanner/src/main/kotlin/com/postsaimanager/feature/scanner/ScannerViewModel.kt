@@ -63,13 +63,13 @@ class ScannerViewModel @Inject constructor(
         }
 
         _uiState.value = ScannerUiState.Processing(
-            message = "Creating document...",
+            messageRes = R.string.scanner_creating,
             progress = 0f,
         )
 
         viewModelScope.launch {
             _uiState.value = ScannerUiState.Processing(
-                message = "Saving document...",
+                messageRes = R.string.scanner_saving,
                 progress = 0.5f,
             )
 
@@ -136,7 +136,8 @@ sealed interface ScannerUiState {
     data object Idle : ScannerUiState
     data object Cancelled : ScannerUiState
     data class Processing(
-        val message: String,
+        /** A string resource id (`R.string.scanner_*`) the screen resolves, so the text follows the app language. */
+        val messageRes: Int,
         val progress: Float,
     ) : ScannerUiState
     data class Success(
