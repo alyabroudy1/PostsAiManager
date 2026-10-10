@@ -97,7 +97,9 @@ class ProfileRepositoryImpl @Inject constructor(
             val entity = profileDao.getById(id)
             val documentId = entity?.sourceDocumentId
             val entityName = entity?.sourceEntityName
-            if (documentId != null && entityName != null) {
+            // The tombstone belongs to the document (foreign key, cascade): when the letter is already gone for good there is
+            // nothing left to reprocess, and writing it would fail the whole delete.
+            if (documentId != null && entityName != null && documentDao.getById(documentId) != null) {
                 dismissedEntityDao.dismiss(
                     DismissedEntityEntity(documentId, entityName, System.currentTimeMillis()),
                 )
