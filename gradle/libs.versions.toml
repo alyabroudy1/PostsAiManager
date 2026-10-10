@@ -63,6 +63,7 @@ lottieCompose = "6.6.2"
 credentialManager = "1.5.0-beta01"
 googleDrive = "3.0.0"
 playServicesAuth = "21.3.0"
+processPhoenix = "3.0.0"
 
 # WorkManager
 workManager = "2.10.0"
@@ -141,6 +142,10 @@ ktor-client-android = { group = "io.ktor", name = "ktor-client-android", version
 ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-serialization-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version.ref = "ktor" }
+
+# Google Drive backup: the Authorization API (consent for drive.appdata, access tokens) and a clean process restart after a restore.
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+process-phoenix = { group = "com.jakewharton", name = "process-phoenix", version.ref = "processPhoenix" }
 
 # ML Kit
 mlkit-document-scanner = { group = "com.google.android.gms", name = "play-services-mlkit-document-scanner", version.ref = "mlkitDocumentScanner" }

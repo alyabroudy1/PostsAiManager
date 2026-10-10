@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_section">Sicherung</string>
+    <string name="backup_connect_title">Google Drive verbinden</string>
+    <string name="backup_connect_subtitle">Eine private Kopie Ihrer Briefe in Ihrem eigenen Google Drive. Nur diese App kann sie sehen.</string>
+    <string name="backup_account_title">Google Drive</string>
+    <string name="backup_account_unknown">Verbunden</string>
+    <string name="backup_disconnect">Trennen</string>
+    <string name="backup_auto_title">Automatische Sicherung</string>
+    <string name="backup_auto_subtitle">Einmal täglich, beim Laden und wenn das Telefon nicht benutzt wird</string>
+    <string name="backup_wifi_title">Nur WLAN</string>
+    <string name="backup_wifi_subtitle">Für automatische Sicherungen keine mobilen Daten verwenden</string>
+    <string name="backup_now_title">Jetzt sichern</string>
+    <string name="backup_never">Noch keine Sicherung</string>
+    <string name="backup_last_success">Letzte Sicherung: %1$s (%2$s)</string>
+    <string name="backup_last_error">Letzte Sicherung fehlgeschlagen: %1$s</string>
+    <string name="backup_restore_title">Wiederherstellen</string>
+    <string name="backup_restore_subtitle">Die Daten dieses Telefons durch eine Sicherung aus Google Drive ersetzen</string>
+    <string name="backup_stage_packing">Daten werden gepackt …</string>
+    <string name="backup_stage_uploading">Wird hochgeladen …</string>
+    <string name="backup_stage_downloading">Wird heruntergeladen …</string>
+    <string name="backup_stage_restoring">Wird wiederhergestellt …</string>
+    <string name="backup_stage_cleaning">Alte Sicherungen werden entfernt …</string>
+    <string name="backup_loading">Wird geladen …</string>
+    <string name="backup_pick_title">Sicherung auswählen</string>
+    <string name="backup_pick_empty">In diesem Google Drive gibt es noch keine Sicherung.</string>
+    <string name="backup_confirm_title">Alles auf diesem Telefon ersetzen?</string>
+    <string name="backup_confirm_text">Dadurch werden alle Dokumente, Profile und Chats auf diesem Telefon durch die Sicherung vom %1$s ersetzt. Das lässt sich nicht rückgängig machen. Danach startet die App neu.</string>
+    <string name="backup_confirm_action">Wiederherstellen</string>
+    <string name="backup_cancel">Abbrechen</string>
+    <string name="backup_ok">OK</string>
+    <string name="backup_notice_queued">Die Sicherung ist eingeplant. Sie startet, sobald eine Netzwerkverbindung besteht.</string>
+    <string name="backup_notice_auth">Google Drive braucht Ihre Erlaubnis erneut. Tippen Sie auf „Google Drive verbinden“.</string>
+    <string name="backup_notice_newer_app">Diese Sicherung stammt von einer neueren Version der App. Aktualisieren Sie zuerst die App.</string>
+    <string name="backup_notice_failed">Das hat nicht geklappt: %1$s</string>
+</resources>

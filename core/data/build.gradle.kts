@@ -65,6 +65,10 @@ dependencies {
     // DataStore
     implementation(libs.datastore.preferences)
 
+    // Google Drive backup (authorization, restart after a restore)
+    implementation(libs.play.services.auth)
+    implementation(libs.process.phoenix)
+
     // Ktor (for future network calls)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.android)

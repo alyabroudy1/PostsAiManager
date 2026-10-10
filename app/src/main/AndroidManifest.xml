@@ -13,7 +13,7 @@
 
     <application
         android:name=".PostsAiManagerApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@drawable/ic_launcher_foreground"
         android:label="@string/app_name"
         android:supportsRtl="true"
