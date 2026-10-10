@@ -49,4 +49,25 @@ object DocumentTypeLabels {
 
     /** Every family id that has a label; for the test that guards the registry. */
     val ids: Set<String> get() = labels.keys
+
+    /**
+     * [title] with the English family words the app composed into it (`TitleComposer`'s fallback, "Notice decision · Sender · Subject",
+     * stored on matters and events) swapped for the localised family label. Anything else, the model's own words included, is returned
+     * unchanged. [label] resolves a string resource id.
+     */
+    fun withLocalizedType(title: String, label: (Int) -> String): String {
+        for ((id, res) in labels) {
+            val english = id.replace('_', ' ').replaceFirstChar { it.uppercase() }
+            if (title == english) return label(res)
+            if (title.startsWith("$english · ")) return label(res) + title.removePrefix(english)
+        }
+        return title
+    }
+}
+
+/** [DocumentTypeLabels.withLocalizedType] with the current resources. */
+@androidx.compose.runtime.Composable
+fun localizedTypeTitle(title: String): String {
+    val resources = androidx.compose.ui.platform.LocalContext.current.resources
+    return DocumentTypeLabels.withLocalizedType(title) { resources.getString(it) }
 }

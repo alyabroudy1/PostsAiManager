@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -66,7 +68,8 @@ fun ModelHeaderChip(
     val context = LocalContext.current
     Surface(
         onClick = onClick,
-        modifier = modifier,
+        // Capped, so a long model name or status shrinks (ellipsis) instead of pushing the other top-bar icons over each other.
+        modifier = modifier.widthIn(max = 168.dp),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
@@ -80,8 +83,10 @@ fun ModelHeaderChip(
                 isWaitingForDocument = isWaitingForDocument,
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f, fill = false)) {
                 Text(
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     // The installed-model list can lag behind while the engine is busy reading a
                     // document; "No model" would then be a false claim.
                     text = activeModel?.name
@@ -90,6 +95,8 @@ fun ModelHeaderChip(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     text = modelHeaderSubtitle(state.loadState, isPrimingConversation, isWaitingForDocument, text = { context.getString(it.res) }),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

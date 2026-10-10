@@ -137,7 +137,7 @@ private fun CaseCard(
                     .padding(start = 16.dp, top = 12.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(case.title, style = MaterialTheme.typography.titleSmall)
+                Text(localizedTypeTitle(case.title), style = MaterialTheme.typography.titleSmall)
                 val who = case.organisationName?.let { stringResource(R.string.timeline_case_from, it) }
                     ?: case.personNames.takeIf { it.isNotEmpty() }?.let { stringResource(R.string.timeline_case_for, it.joinToString(", ")) }
                 who?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -258,7 +258,7 @@ internal fun EventRow(
                 stringResource(R.string.timeline_latest, kindLabel(event.kindId), FriendlyDate.text(epochDay(event.eventDate))),
                 style = MaterialTheme.typography.labelLarge,
             )
-            Text(event.title, style = MaterialTheme.typography.bodyMedium.byContentDirection())
+            Text(localizedTypeTitle(event.title), style = MaterialTheme.typography.bodyMedium.byContentDirection())
             event.context?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -399,8 +399,10 @@ fun DocumentCaseRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    stringResource(R.string.timeline_part_of, ui.title),
+                    stringResource(R.string.timeline_part_of, bidiIsolated(localizedTypeTitle(ui.title))),
                     style = MaterialTheme.typography.titleSmall,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 StatusChip(ui.status)

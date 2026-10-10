@@ -357,11 +357,23 @@ private fun ActionBadge() {
 
 /** "From X · For Y", or whichever side exists; null when neither does. */
 @Composable
-private fun partiesText(sender: String?, addressee: String?): String? = when {
-    sender != null && addressee != null -> stringResource(R.string.doc_row_from_for, sender, addressee)
-    sender != null -> stringResource(R.string.doc_row_from, sender)
-    addressee != null -> stringResource(R.string.doc_row_for, addressee)
-    else -> null
+private fun partiesText(sender: String?, addressee: String?): String? {
+    // A name (from the letter, any script) inside a sentence of another direction is isolated, so the sentence's own punctuation stays put.
+    val from = sender?.let { bidiIsolated(it) }
+    val to = addressee?.let { bidiIsolated(it) }
+    return when {
+        from != null && to != null -> stringResource(R.string.doc_row_from_for, from, to)
+        from != null -> stringResource(R.string.doc_row_from, from)
+        to != null -> stringResource(R.string.doc_row_for, to)
+        else -> null
+    }
+}
+
+/** [text] wrapped in direction isolates for the current locale, for a name placed inside an app-composed sentence. */
+@Composable
+fun bidiIsolated(text: String): String {
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0] ?: java.util.Locale.getDefault()
+    return androidx.core.text.BidiFormatter.getInstance(locale).unicodeWrap(text)
 }
 
 // ── Previews: one per status, plus the date and badge variants ──

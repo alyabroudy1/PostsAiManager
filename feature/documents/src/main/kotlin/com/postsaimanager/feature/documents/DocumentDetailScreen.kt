@@ -60,7 +60,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -556,12 +556,12 @@ private fun DocumentDetailContent(
                     FilledTonalButton(onClick = onChatClick, modifier = Modifier.weight(1f)) {
                         Icon(PamIcons.AiChat, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.detail_ask_ai))
+                        Text(stringResource(R.string.detail_ask_ai), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                     }
-                    OutlinedButton(onClick = { onProcess(true) }) {
+                    OutlinedButton(onClick = { onProcess(true) }, modifier = Modifier.weight(1f)) {
                         Icon(PamIcons.AiModel, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.detail_reprocess))
+                        Text(stringResource(R.string.detail_reprocess), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                     }
                 } else {
                     Spacer(modifier = Modifier.weight(1f))
@@ -596,17 +596,22 @@ private fun DocumentDetailContent(
             DocumentCaseNoneRow(onAdd = onMoveCase, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         }
 
-        TabRow(selectedTabIndex = selectedTab.ordinal) {
+        // Scrollable, so a long label in any language stays on one line instead of wrapping inside a third of the width.
+        ScrollableTabRow(selectedTabIndex = selectedTab.ordinal, edgePadding = 8.dp) {
             DetailTab.entries.forEach { tab ->
                 Tab(
                     selected = selectedTab == tab,
                     onClick = { onTabSelected(tab) },
                     text = {
-                        Text(when (tab) {
-                            DetailTab.PAGES -> stringResource(R.string.detail_tab_pages, state.pages.size)
-                            DetailTab.EXTRACTED -> stringResource(R.string.detail_tab_extracted, state.extractedData.size)
-                            DetailTab.TIMELINE -> stringResource(R.string.detail_tab_timeline, state.timeline.size)
-                        })
+                        Text(
+                            text = when (tab) {
+                                DetailTab.PAGES -> stringResource(R.string.detail_tab_pages, state.pages.size)
+                                DetailTab.EXTRACTED -> stringResource(R.string.detail_tab_extracted, state.extractedData.size)
+                                DetailTab.TIMELINE -> stringResource(R.string.detail_tab_timeline, state.timeline.size)
+                            },
+                            maxLines = 1,
+                            softWrap = false,
+                        )
                     },
                 )
             }
